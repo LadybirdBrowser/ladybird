@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<void> IDBObjectStore::set_name(String const& value)
         return WebIDL::InvalidStateError::create(realm, "Attempted to set name outside of version change"_string);
 
     // 6. If transaction’s state is not active, throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while updating object store name"_string);
 
     // 7. If store’s name is equal to name, terminate these steps.
@@ -160,7 +160,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const
     // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating index"_string);
 
     // 6. If an index named name already exists in store, throw a "ConstraintError" DOMException.
@@ -234,7 +234,7 @@ WebIDL::ExceptionOr<void> IDBObjectStore::delete_index(String const& name)
     // FIXME: 4. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting index"_string);
 
     // 6. Let index be the index named name in store if one exists, or throw a "NotFoundError" DOMException otherwise.
@@ -265,7 +265,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::add_or_put(GC::Ref<IDBO
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while running add/put"_string);
 
     // 5. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
@@ -373,7 +373,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::count(Optional<JS::Valu
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while doing count"_string);
 
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
@@ -404,7 +404,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get(JS::Value query)
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting"_string);
 
     // 5. Let range be the result of converting a value to a key range with query and true. Rethrow any exceptions.
@@ -435,7 +435,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(JS::Value q
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while opening cursor"_string);
 
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
@@ -475,7 +475,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::delete_(JS::Value query
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting object store"_string);
 
     // 5. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
@@ -510,7 +510,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::clear()
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while clearing object store"_string);
 
     // 5. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
@@ -542,7 +542,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_key(JS::Value query
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting key"_string);
 
     // 5. Let range be the result of converting a value to a key range with query and true. Rethrow any exceptions.
@@ -573,7 +573,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all(Optional<JS::Va
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all"_string);
 
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
@@ -604,7 +604,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_key_cursor(JS::Val
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while opening key cursor"_string);
 
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
@@ -643,7 +643,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_keys(Optional<J
     // FIXME: 3. If store has been deleted, throw an "InvalidStateError" DOMException.
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all keys"_string);
 
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.

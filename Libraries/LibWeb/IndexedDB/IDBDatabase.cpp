@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
         return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_string);
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating object store"_string);
 
     // 4. Let keyPath be options’s keyPath member if it is not undefined or null, or null otherwise.
@@ -170,7 +170,7 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
         return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_string);
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting object store"_string);
 
     // 4. Let store be the object store named name in database, or throw a "NotFoundError" DOMException if none.
