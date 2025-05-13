@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 
@@ -105,6 +106,20 @@ u64 Index::count_records_in_range(GC::Ref<IDBKeyRange> range)
             ++count;
     }
     return count;
+}
+
+void Index::store_a_record(IndexRecord const& record)
+{
+    m_records.append(record);
+
+    // NOTE: The record is stored in index’s list of records such that the list is sorted primarily on the records keys, and secondarily on the records values, in ascending order.
+    AK::quick_sort(m_records, [](auto const& a, auto const& b) {
+        auto key_comparison = Key::compare_two_keys(a.key, b.key);
+        if (key_comparison != 0)
+            return key_comparison < 0;
+
+        return Key::compare_two_keys(a.value, b.value) < 0;
+    });
 }
 
 }
