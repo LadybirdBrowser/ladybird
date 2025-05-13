@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/ElapsedTimer.h>
 #include <LibCore/Promise.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibTLS/TLSv12.h>
@@ -137,7 +138,22 @@ ErrorOr<bool> TLSv12::can_read_without_blocking(int timeout) const
     if (!m_ssl)
         return Error::from_string_literal("SSL connection is closed");
 
-    return m_socket->can_read_without_blocking(timeout);
+    if (SSL_has_pending(m_ssl))
+        return true;
+
+    auto timer = Core::ElapsedTimer();
+    while (timeout > 0) {
+        auto elapsed = timer.elapsed_milliseconds();
+        if (elapsed >= timeout)
+            break;
+
+        if (!TRY(m_socket->can_read_without_blocking(timeout - elapsed)))
+            return SSL_has_pending(m_ssl);
+        if (SSL_has_pending(m_ssl))
+            return true;
+    }
+
+    return false;
 }
 
 ErrorOr<void> TLSv12::set_blocking(bool)
