@@ -9,6 +9,7 @@
 #include <AK/Variant.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/DOMStringList.h>
+#include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
@@ -50,5 +51,6 @@ JS::Value clear_an_object_store(GC::Ref<ObjectStore>);
 JS::Value retrieve_a_key_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
 GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
 GC::Ref<JS::Array> retrieve_multiple_keys_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
+JS::Value retrieve_a_referenced_value_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>);
 
 }

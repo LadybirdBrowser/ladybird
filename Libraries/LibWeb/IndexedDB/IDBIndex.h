@@ -29,11 +29,12 @@ public:
     bool multi_entry() const { return m_index->multi_entry(); }
     bool unique() const { return m_index->unique(); }
 
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get(JS::Value);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
+
     // The transaction of an index handle is the transaction of its associated object store handle.
     GC::Ref<IDBTransaction> transaction() { return m_object_store_handle->transaction(); }
     GC::Ref<Index> index() { return m_index; }
-
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
 
 protected:
     explicit IDBIndex(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);

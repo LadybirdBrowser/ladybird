@@ -7,7 +7,7 @@ interface IDBIndex {
     readonly attribute any keyPath;
     readonly attribute boolean multiEntry;
     readonly attribute boolean unique;
-    [FIXME, NewObject] IDBRequest get(any query);
+    [NewObject] IDBRequest get(any query);
     [FIXME, NewObject] IDBRequest getKey(any query);
     [FIXME, NewObject] IDBRequest getAll(optional any query, optional [EnforceRange] unsigned long count);
     [FIXME, NewObject] IDBRequest getAllKeys(optional any query, optional [EnforceRange] unsigned long count);

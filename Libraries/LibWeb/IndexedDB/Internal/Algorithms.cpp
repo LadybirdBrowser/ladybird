@@ -1929,4 +1929,21 @@ GC::Ref<JS::Array> retrieve_multiple_keys_from_an_object_store(JS::Realm& realm,
     return list;
 }
 
+// https://w3c.github.io/IndexedDB/#retrieve-a-referenced-value-from-an-index
+JS::Value retrieve_a_referenced_value_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Let record be the first record in index’s list of records whose key is in range, if any.
+    auto record = index->first_in_range(range);
+
+    // 2. If record was not found, return undefined.
+    if (!record.has_value())
+        return JS::js_undefined();
+
+    // 3. Let serialized be record’s referenced value.
+    auto serialized = index->referenced_value(*record);
+
+    // 4. Return ! StructuredDeserialize(serialized, targetRealm).
+    return MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+}
+
 }
