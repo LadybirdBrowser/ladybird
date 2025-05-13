@@ -107,6 +107,9 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fv-valid
     bool satisfies_its_constraints() const;
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fs-novalidate
+    bool novalidate_state() const;
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure/#definitions
     virtual bool suffering_from_being_missing() const { return false; }
     virtual bool suffering_from_a_type_mismatch() const { return false; }

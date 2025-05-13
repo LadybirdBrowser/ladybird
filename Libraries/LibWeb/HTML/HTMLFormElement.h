@@ -78,12 +78,13 @@ public:
     GC::Ref<HTMLFormControlsCollection> elements() const;
     unsigned length() const;
 
-    struct StaticValidationResult {
+    struct ValidationResult {
         bool result;
         GC::RootVector<GC::Ref<DOM::Element>> unhandled_invalid_controls;
     };
 
-    StaticValidationResult statically_validate_constraints();
+    ValidationResult statically_validate_constraints();
+    ValidationResult interactively_validate_constraints();
     WebIDL::ExceptionOr<bool> check_validity();
     WebIDL::ExceptionOr<bool> report_validity();
 

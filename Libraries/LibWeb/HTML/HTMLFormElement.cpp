@@ -138,11 +138,20 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
             }
         }
 
-        // FIXME: 4. If the submitter element's no-validate state is false, then interactively validate the constraints
-        //           of form and examine the result. If the result is negative (i.e., the constraint validation concluded
-        //           that there were invalid fields and probably informed the user of this), then:
-        //           1. Set form's firing submission events to false.
-        //           2. Return.
+        // 4. If the submitter element's no-validate state is false, then interactively validate the constraints
+        //    of form and examine the result. If the result is negative (i.e., the constraint validation concluded
+        //    that there were invalid fields and probably informed the user of this), then:
+        auto* form_associated_element = as_if<FormAssociatedElement>(*submitter);
+        if (form_associated_element && !form_associated_element->novalidate_state()) {
+            auto validation_result = interactively_validate_constraints();
+            if (!validation_result.result) {
+                // 1. Set form's firing submission events to false.
+                m_firing_submission_events = false;
+
+                // 2. Return.
+                return {};
+            }
+        }
 
         // 5. Let submitterButton be null if submitter is form. Otherwise, let submitterButton be submitter.
         GC::Ptr<HTMLElement> submitter_button;
@@ -562,7 +571,7 @@ unsigned HTMLFormElement::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#statically-validate-the-constraints
-HTMLFormElement::StaticValidationResult HTMLFormElement::statically_validate_constraints()
+HTMLFormElement::ValidationResult HTMLFormElement::statically_validate_constraints()
 {
     // 1. Let controls be a list of all the submittable elements whose form owner is form, in tree order.
     auto controls = get_submittable_elements();
@@ -597,6 +606,28 @@ HTMLFormElement::StaticValidationResult HTMLFormElement::statically_validate_con
     }
     // 7. Return a negative result with the list of elements in the unhandled invalid controls list.
     return { false, unhandled_invalid_controls };
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#interactively-validate-the-constraints
+HTMLFormElement::ValidationResult HTMLFormElement::interactively_validate_constraints()
+{
+    // 1. Statically validate the constraints of form, and let unhandled invalid controls be the list of elements returned if the result was negative.
+    auto validation_result = statically_validate_constraints();
+
+    // 2. If the result was positive, then return that result.
+    if (validation_result.result)
+        return validation_result;
+
+    // 3. Report the problems with the constraints of at least one of the elements given in unhandled invalid controls to the user.
+    // User agents may focus one of those elements in the process, by running the focusing steps for that element, and may change the scrolling position of the document, or perform some other action that brings the element to the user's attention. For elements that are form-associated custom elements, user agents should use their validation anchor instead, for the purposes of these actions.
+    // User agents may report more than one constraint violation.
+    // User agents may coalesce related constraint violation reports if appropriate (e.g. if multiple radio buttons in a group are marked as required, only one error need be reported).
+    // If one of the controls is not being rendered (e.g. it has the hidden attribute set) then user agents may report a script error.
+    for (auto& field : validation_result.unhandled_invalid_controls)
+        field->dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::invalid, { .cancelable = true }));
+
+    // 4. Return a negative result.
+    return validation_result;
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-checkvalidity
