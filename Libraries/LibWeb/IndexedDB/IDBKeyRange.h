@@ -21,9 +21,19 @@ class IDBKeyRange : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(IDBKeyRange, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(IDBKeyRange);
 
+    enum class LowerOpen {
+        No,
+        Yes,
+    };
+
+    enum class UpperOpen {
+        No,
+        Yes,
+    };
+
 public:
     virtual ~IDBKeyRange() override;
-    [[nodiscard]] static GC::Ref<IDBKeyRange> create(JS::Realm&, GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, bool lower_open, bool upper_open);
+    [[nodiscard]] static GC::Ref<IDBKeyRange> create(JS::Realm&, GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, LowerOpen lower_open, UpperOpen upper_open);
 
     [[nodiscard]] JS::Value lower() const;
     [[nodiscard]] JS::Value upper() const;
@@ -42,7 +52,7 @@ public:
     GC::Ptr<Key> upper_key() const { return m_upper_bound; }
 
 protected:
-    explicit IDBKeyRange(JS::Realm&, GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, bool lower_open, bool upper_open);
+    explicit IDBKeyRange(JS::Realm&, GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, LowerOpen lower_open, UpperOpen upper_open);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
 
