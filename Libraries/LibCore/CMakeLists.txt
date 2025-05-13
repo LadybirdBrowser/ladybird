@@ -29,6 +29,11 @@ if (WIN32)
     target_include_directories(LibCoreMinimal PRIVATE ${DIRENT_INCLUDE_DIR})
 endif()
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
+    # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
+    target_link_libraries(LibCoreMinimal PRIVATE rt)
+endif()
+
 if (LAGOM_TOOLS_ONLY)
     return()
 endif()
@@ -102,8 +107,21 @@ if (APPLE)
 endif()
 
 serenity_lib(LibCore core)
-target_link_libraries(LibCore PRIVATE LibUnicode LibURL)
+target_link_libraries(LibCore PRIVATE LibUnicode LibURL Threads::Threads)
 target_link_libraries(LibCore PUBLIC LibCoreMinimal)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
+    # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
+    target_link_libraries(LibCore PRIVATE rt)
+endif()
+if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
+    # Solaris has socket and networking related functions in two extra libraries
+    target_link_libraries(LibCore PRIVATE nsl socket)
+endif()
+if (HAIKU)
+    # Haiku has networking related functions in the network library
+    target_link_libraries(LibCore PRIVATE network)
+endif()
 
 if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework CoreFoundation")

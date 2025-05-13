@@ -350,10 +350,6 @@ add_serenity_subdirectory(AK)
 
 # LibCoreMinimal
 add_serenity_subdirectory(Libraries/LibCore)
-if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
-    # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
-    target_link_libraries(LibCoreMinimal PRIVATE rt)
-endif()
 
 # LibMain
 add_serenity_subdirectory(Libraries/LibMain)
@@ -428,20 +424,6 @@ if (ENABLE_GUI_TARGETS)
     )
 endif()
 
-target_link_libraries(LibCore PRIVATE LibURL Threads::Threads)
-if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
-    # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
-    target_link_libraries(LibCore PRIVATE rt)
-endif()
-if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
-    # Solaris has socket and networking related functions in two extra libraries
-    target_link_libraries(LibCore PRIVATE nsl socket)
-endif()
-if (HAIKU)
-    # Haiku has networking related functions in the network library
-    target_link_libraries(LibCore PRIVATE network)
-endif()
-
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
@@ -504,6 +486,7 @@ if (BUILD_TESTING)
         AK
         LibCrypto
         LibCompress
+        LibCore
         LibDNS
         LibGC
         LibTest
@@ -534,35 +517,7 @@ if (BUILD_TESTING)
     # LibTLS needs a special working directory to find cacert.pem
     lagom_test(../../Tests/LibTLS/TestTLSHandshake.cpp LibTLS LIBS LibTLS LibCrypto)
     lagom_test(../../Tests/LibTLS/TestTLSCertificateParser.cpp LibTLS LIBS LibTLS LibCrypto)
-
-    # LibCore
-    lagom_test(../../Tests/LibCore/TestLibCoreArgsParser.cpp)
-
-    if ((LINUX OR APPLE) AND NOT EMSCRIPTEN)
-        lagom_test(../../Tests/LibCore/TestLibCoreFileWatcher.cpp)
-        lagom_test(../../Tests/LibCore/TestLibCorePromise.cpp LIBS LibThreading)
-    endif()
-
-    lagom_test(../../Tests/LibCore/TestLibCoreDateTime.cpp LIBS LibUnicode)
-
-    if (ENABLE_SWIFT)
-        find_package(SwiftTesting REQUIRED)
-
-        add_executable(TestCoreSwift
-            ../../Tests/LibCore/TestEventLoopActor.swift
-            ../../Tests/LibCore/TestEventLoop.cpp
-        )
-
-        # FIXME: Swift doesn't seem to like object libraries for @main
-        target_sources(TestCoreSwift PRIVATE ../../Tests/Resources/SwiftTestMain.swift)
-
-        set_target_properties(TestCoreSwift PROPERTIES SUFFIX .swift-testing)
-        target_include_directories(TestCoreSwift PRIVATE ../../Tests/LibCore)
-        target_link_libraries(TestCoreSwift PRIVATE AK LibCore SwiftTesting::SwiftTesting)
-        add_test(NAME TestCoreSwift COMMAND TestCoreSwift)
-    endif()
-
-
+    
     # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
     # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
     lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
