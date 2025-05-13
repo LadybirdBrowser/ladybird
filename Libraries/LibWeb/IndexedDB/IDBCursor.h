@@ -45,6 +45,7 @@ public:
     [[nodiscard]] JS::Value primary_key() const;
     [[nodiscard]] GC::Ptr<IDBRequest> request() { return m_request; }
 
+    WebIDL::ExceptionOr<void> advance(WebIDL::UnsignedLong);
     WebIDL::ExceptionOr<void> continue_(JS::Value);
 
     [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
