@@ -50,6 +50,7 @@ public:
     WebIDL::ExceptionOr<void> continue_primary_key(JS::Value, JS::Value);
 
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> update(JS::Value);
+    WebIDL::ExceptionOr<GC::Ref<IDBRequest>> delete_();
 
     [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
     [[nodiscard]] GC::Ref<IDBKeyRange> range() { return m_range; }

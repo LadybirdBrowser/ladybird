@@ -11,7 +11,7 @@ interface IDBCursor {
     undefined continue(optional any key);
     undefined continuePrimaryKey(any key, any primaryKey);
     [NewObject] IDBRequest update(any value);
-    [FIXME, NewObject] IDBRequest delete();
+    [NewObject] IDBRequest delete();
 };
 
 enum IDBCursorDirection {
