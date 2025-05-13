@@ -442,7 +442,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(JS::Value q
 
     // 6. Let cursor be a new cursor with its source handle set to this, undefined position, direction set to direction,
     //    got value flag set to false, undefined key and value, range set to range, and key only flag set to false.
-    auto cursor = IDBCursor::create(realm, GC::Ref(*this), {}, direction, false, {}, {}, range, false);
+    auto cursor = IDBCursor::create(realm, GC::Ref(*this), {}, direction, IDBCursor::GotValue::No, {}, {}, range, IDBCursor::KeyOnly::No);
 
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
@@ -610,7 +610,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_key_cursor(JS::Val
     auto range = TRY(convert_a_value_to_a_key_range(realm, query));
 
     // 6. Let cursor be a new cursor with its source handle set to this, undefined position, direction set to direction, got value flag set to false, undefined key and value, range set to range, and key only flag set to true.
-    auto cursor = IDBCursor::create(realm, GC::Ref(*this), {}, direction, false, {}, {}, range, true);
+    auto cursor = IDBCursor::create(realm, GC::Ref(*this), {}, direction, IDBCursor::GotValue::No, {}, {}, range, IDBCursor::KeyOnly::Yes);
 
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {

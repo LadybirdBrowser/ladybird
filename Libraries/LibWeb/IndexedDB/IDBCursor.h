@@ -25,9 +25,19 @@ class IDBCursor : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(IDBCursor, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(IDBCursor);
 
+    enum class GotValue {
+        No,
+        Yes,
+    };
+
+    enum class KeyOnly {
+        No,
+        Yes,
+    };
+
 public:
     virtual ~IDBCursor() override;
-    [[nodiscard]] static GC::Ref<IDBCursor> create(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, bool, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, bool);
+    [[nodiscard]] static GC::Ref<IDBCursor> create(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
 
     [[nodiscard]] CursorSourceHandle source_handle() { return m_source_handle; }
     [[nodiscard]] Bindings::IDBCursorDirection direction() { return m_direction; }
@@ -55,7 +65,7 @@ public:
     WebIDL::ExceptionOr<void> continue_(JS::Value);
 
 protected:
-    explicit IDBCursor(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, bool, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, bool);
+    explicit IDBCursor(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
 
