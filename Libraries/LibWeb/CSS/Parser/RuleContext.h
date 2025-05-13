@@ -22,6 +22,7 @@ enum class RuleContext : u8 {
     SupportsCondition,
     AtLayer,
     AtProperty,
+    AtPage,
 };
 RuleContext rule_context_type_for_rule(CSSRule::Type);
 RuleContext rule_context_type_for_at_rule(FlyString const&);

@@ -27,6 +27,8 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
         return RuleContext::AtLayer;
     case CSSRule::Type::NestedDeclarations:
         return RuleContext::Style;
+    case CSSRule::Type::Page:
+        return RuleContext::AtPage;
     case CSSRule::Type::Property:
         return RuleContext::AtProperty;
         // Other types shouldn't be trying to create a context.
@@ -52,6 +54,8 @@ RuleContext rule_context_type_for_at_rule(FlyString const& name)
         return RuleContext::AtLayer;
     if (name == "property")
         return RuleContext::AtProperty;
+    if (name == "page")
+        return RuleContext::AtPage;
     return RuleContext::Unknown;
 }
 

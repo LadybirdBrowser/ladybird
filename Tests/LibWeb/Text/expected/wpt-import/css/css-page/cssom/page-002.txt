@@ -1,3 +1,7 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 2 tests
+
+2 Fail
+Fail	Add declarations
+Fail	Remove declarations

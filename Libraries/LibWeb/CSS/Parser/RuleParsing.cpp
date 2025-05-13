@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
@@ -64,11 +65,14 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
             if (at_rule.name.equals_ignoring_ascii_case("namespace"sv))
                 return convert_to_namespace_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
-                return convert_to_supports_rule(at_rule, nested);
+            if (at_rule.name.equals_ignoring_ascii_case("page"sv))
+                return convert_to_page_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("property"sv))
                 return convert_to_property_rule(at_rule);
+
+            if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
+                return convert_to_supports_rule(at_rule, nested);
 
             // FIXME: More at rules!
             dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", at_rule.name);
@@ -594,6 +598,45 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
     });
 
     return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), move(descriptors)));
+}
+
+GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& rule)
+{
+    // https://drafts.csswg.org/css-page-3/#syntax-page-selector
+    // @page = @page <page-selector-list>? { <declaration-rule-list> }
+    // <page-selector-list> = <page-selector>#
+    // <page-selector> = [ <ident-token>? <pseudo-page>* ]!
+    // <pseudo-page> = : [ left | right | first | blank ]
+    SelectorList page_selectors;
+    // FIXME: Parse page selectors
+    if (rule.prelude.find_first_index_if([](ComponentValue const& it) { return !it.is(Token::Type::Whitespace); }).has_value()) {
+        dbgln("@page prelude wasn't empty!");
+        return nullptr;
+    }
+
+    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
+    Vector<Descriptor> descriptors;
+    HashTable<DescriptorID> seen_descriptor_ids;
+    rule.for_each_as_declaration_rule_list(
+        [&](auto& at_rule) {
+            // FIXME: Parse margin rules here.
+            (void)at_rule;
+        },
+        [&](auto& declaration) {
+            if (auto descriptor = convert_to_descriptor(AtRuleID::Page, declaration); descriptor.has_value()) {
+                if (seen_descriptor_ids.contains(descriptor->descriptor_id)) {
+                    descriptors.remove_first_matching([&descriptor](Descriptor const& existing) {
+                        return existing.descriptor_id == descriptor->descriptor_id;
+                    });
+                } else {
+                    seen_descriptor_ids.set(descriptor->descriptor_id);
+                }
+                descriptors.append(descriptor.release_value());
+            }
+        });
+
+    auto rule_list = CSSRuleList::create(realm(), child_rules);
+    return CSSPageRule::create(realm(), move(page_selectors), CSSPageDescriptors::create(realm(), move(descriptors)), rule_list);
 }
 
 }

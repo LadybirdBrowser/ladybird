@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -695,14 +696,17 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
     case CSS::CSSRule::Type::NestedDeclarations:
         dump_nested_declarations(builder, as<CSS::CSSNestedDeclarations const>(rule), indent_levels);
         break;
+    case CSS::CSSRule::Type::Page:
+        dump_page_rule(builder, as<CSS::CSSPageRule const>(rule), indent_levels);
+        break;
+    case CSS::CSSRule::Type::Property:
+        dump_property_rule(builder, as<CSS::CSSPropertyRule const>(rule), indent_levels);
+        break;
     case CSS::CSSRule::Type::Style:
         dump_style_rule(builder, as<CSS::CSSStyleRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Supports:
         dump_supports_rule(builder, as<CSS::CSSSupportsRule const>(rule), indent_levels);
-        break;
-    case CSS::CSSRule::Type::Property:
-        dump_property_rule(builder, as<CSS::CSSPropertyRule const>(rule), indent_levels);
         break;
     }
 }
@@ -763,6 +767,13 @@ void dump_media_rule(StringBuilder& builder, CSS::CSSMediaRule const& media, int
 
     for (auto& rule : media.css_rules())
         dump_rule(builder, rule, indent_levels + 2);
+}
+
+void dump_page_rule(StringBuilder& builder, CSS::CSSPageRule const& page, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("selector: {}\n", page.selector_text());
+    dump_descriptors(builder, page.descriptors(), indent_levels + 1);
 }
 
 void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supports, int indent_levels)

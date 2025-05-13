@@ -3027,8 +3027,9 @@ void StyleComputer::build_qualified_layer_names_cache()
             case CSSRule::Type::Keyframe:
             case CSSRule::Type::Namespace:
             case CSSRule::Type::NestedDeclarations:
-            case CSSRule::Type::Supports:
+            case CSSRule::Type::Page:
             case CSSRule::Type::Property:
+            case CSSRule::Type::Supports:
                 break;
             }
         });

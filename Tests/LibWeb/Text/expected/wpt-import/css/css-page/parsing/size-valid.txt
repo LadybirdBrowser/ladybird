@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 15 tests
 
-15 Fail
-Fail	Test setup
+1 Pass
+14 Fail
+Pass	Test setup
 Fail	size: 640px 480px
 Fail	size: 8.5in 11in
 Fail	size: 3in 10in

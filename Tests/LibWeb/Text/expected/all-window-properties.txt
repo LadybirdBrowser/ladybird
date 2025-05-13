@@ -49,6 +49,8 @@ CSSLayerStatementRule
 CSSMediaRule
 CSSNamespaceRule
 CSSNestedDeclarations
+CSSPageDescriptors
+CSSPageRule
 CSSPropertyRule
 CSSRule
 CSSRuleList

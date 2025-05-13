@@ -1375,6 +1375,8 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
         switch (at_rule_id) {
         case AtRuleID::FontFace:
             return RuleContext::AtFontFace;
+        case AtRuleID::Page:
+            return RuleContext::AtPage;
         case AtRuleID::Property:
             return RuleContext::AtProperty;
         }
@@ -1434,8 +1436,9 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
         return m_rule_context.contains_slow(RuleContext::Style);
 
     case RuleContext::AtFontFace:
+    case RuleContext::AtPage:
     case RuleContext::AtProperty:
-        // @font-face and @property have descriptor declarations
+        // @font-face, @page, and @property have descriptor declarations
         return true;
 
     case RuleContext::AtKeyframes:
@@ -1482,8 +1485,10 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
     case RuleContext::AtFontFace:
     case RuleContext::AtKeyframes:
     case RuleContext::Keyframe:
+    case RuleContext::AtPage:
     case RuleContext::AtProperty:
         // These can't contain any at-rules
+        // FIXME: Eventually @page can contain margin-box at-rules: https://drafts.csswg.org/css-page-3/#margin-at-rules
         return false;
     }
 
@@ -1522,6 +1527,7 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
         return false;
 
     case RuleContext::AtFontFace:
+    case RuleContext::AtPage:
     case RuleContext::AtProperty:
     case RuleContext::Keyframe:
         // These can't contain qualified rules

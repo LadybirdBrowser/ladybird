@@ -94,6 +94,7 @@ FlyString const& CSSRule::parent_layer_internal_qualified_name_slow_case() const
         case Type::Supports:
         case Type::NestedDeclarations:
         case Type::Property:
+        case Type::Page:
             break;
         }
     }

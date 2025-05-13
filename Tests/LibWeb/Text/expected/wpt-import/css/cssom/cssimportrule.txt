@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 11 tests
 
-8 Pass
-3 Fail
+9 Pass
+2 Fail
 Pass	CSSRule and CSSImportRule types
 Pass	Type of CSSRule#type and constant values
 Pass	Existence and writability of CSSRule attributes
@@ -11,7 +11,7 @@ Pass	Values of CSSRule attributes
 Pass	Existence and writability of CSSImportRule attributes
 Fail	Values of CSSImportRule attributes
 Fail	CSSImportRule : MediaList mediaText attribute should be updated due to [PutForwards]
-Fail	CSSStyleDeclaration cssText attribute should be updated due to [PutForwards]
+Pass	CSSStyleDeclaration cssText attribute should be updated due to [PutForwards]
 Pass	StyleSheet : MediaList mediaText attribute should be updated due to [PutForwards]
 Pass	Existence and writability of CSSImportRule supportsText attribute
 Pass	Value of CSSImportRule supportsText attribute
