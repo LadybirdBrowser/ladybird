@@ -42,18 +42,20 @@ public:
     [[nodiscard]] CursorSourceHandle source_handle() { return m_source_handle; }
     [[nodiscard]] Bindings::IDBCursorDirection direction() { return m_direction; }
     [[nodiscard]] JS::Value key();
-    [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
+    [[nodiscard]] JS::Value primary_key() const;
     [[nodiscard]] GC::Ptr<IDBRequest> request() { return m_request; }
+
+    WebIDL::ExceptionOr<void> continue_(JS::Value);
+
+    [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
     [[nodiscard]] GC::Ref<IDBKeyRange> range() { return m_range; }
     [[nodiscard]] GC::Ptr<Key> position() { return m_position; }
     [[nodiscard]] GC::Ptr<Key> object_store_position() { return m_object_store_position; }
     [[nodiscard]] bool key_only() const { return m_key_only; }
     [[nodiscard]] bool got_value() const { return m_got_value; }
-
     [[nodiscard]] GC::Ref<IDBTransaction> transaction();
     [[nodiscard]] CursorSource internal_source();
     [[nodiscard]] GC::Ref<Key> effective_key() const;
-    [[nodiscard]] JS::Value primary_key() const;
 
     void set_request(GC::Ptr<IDBRequest> request) { m_request = request; }
     void set_position(GC::Ptr<Key> position) { m_position = position; }
@@ -61,8 +63,6 @@ public:
     void set_key(GC::Ptr<Key> key) { m_key = key; }
     void set_value(JS::Value value) { m_value = value; }
     void set_object_store_position(GC::Ptr<Key> object_store_position) { m_object_store_position = object_store_position; }
-
-    WebIDL::ExceptionOr<void> continue_(JS::Value);
 
 protected:
     explicit IDBCursor(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
