@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
+#include <LibWeb/IndexedDB/IDBCursorWithValue.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 
 namespace Web::IndexedDB {
@@ -18,11 +19,11 @@ IDBCursor::~IDBCursor() = default;
 
 IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
     : PlatformObject(realm)
+    , m_value(value)
     , m_position(position)
     , m_direction(direction)
     , m_got_value(got_value == GotValue::Yes)
     , m_key(key)
-    , m_value(value)
     , m_source_handle(source_handle)
     , m_range(range)
     , m_key_only(key_only == KeyOnly::Yes)
@@ -31,6 +32,10 @@ IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr
 
 GC::Ref<IDBCursor> IDBCursor::create(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
 {
+    // A cursor that has its key only flag set to false implements the IDBCursorWithValue interface as well.
+    if (key_only == KeyOnly::No)
+        return realm.create<IDBCursorWithValue>(realm, source_handle, position, direction, got_value, key, value, range, key_only);
+
     return realm.create<IDBCursor>(realm, source_handle, position, direction, got_value, key, value, range, key_only);
 }
 
@@ -52,6 +57,26 @@ void IDBCursor::visit_edges(Visitor& visitor)
     m_source_handle.visit([&](auto& source) {
         visitor.visit(source);
     });
+}
+
+GC_DEFINE_ALLOCATOR(IDBCursorWithValue);
+
+IDBCursorWithValue::~IDBCursorWithValue() = default;
+
+IDBCursorWithValue::IDBCursorWithValue(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
+    : IDBCursor(realm, source_handle, position, direction, got_value, key, value, range, key_only)
+{
+}
+
+void IDBCursorWithValue::initialize(JS::Realm& realm)
+{
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBCursorWithValue);
+    Base::initialize(realm);
+}
+
+void IDBCursorWithValue::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
 }
 
 // https://w3c.github.io/IndexedDB/#cursor-transaction

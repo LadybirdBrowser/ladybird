@@ -8,6 +8,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBCursorPrototype.h>
+#include <LibWeb/Bindings/IDBCursorWithValuePrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
@@ -52,7 +53,6 @@ public:
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> update(JS::Value);
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> delete_();
 
-    [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
     [[nodiscard]] GC::Ref<IDBKeyRange> range() { return m_range; }
     [[nodiscard]] GC::Ptr<Key> position() { return m_position; }
     [[nodiscard]] GC::Ptr<Key> object_store_position() { return m_object_store_position; }
@@ -75,6 +75,9 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
 
+    // A cursor has a value which represent the value of the last iterated record.
+    Optional<JS::Value> m_value;
+
 private:
     // A cursor has a position within its range.
     GC::Ptr<Key> m_position;
@@ -88,9 +91,8 @@ private:
     // A cursor has a got value flag.
     bool m_got_value { false };
 
-    // A cursor has a key and a value which represent the key and the value of the last iterated record.
+    // A cursor has a key which represent the key the last iterated record.
     GC::Ptr<Key> m_key;
-    Optional<JS::Value> m_value;
 
     // A cursor has a source handle, which is the index handle or the object store handle that opened the cursor.
     CursorSourceHandle m_source_handle;
@@ -104,4 +106,5 @@ private:
     // A cursor also has a key only flag, that indicates whether the cursor’s value is exposed via the API.
     bool m_key_only { false };
 };
+
 }

@@ -66,6 +66,7 @@ static bool is_platform_object(Type const& type)
         "FormData"sv,
         "HTMLCollection"sv,
         "IDBCursor"sv,
+        "IDBCursorWithValue"sv,
         "IDBIndex"sv,
         "IDBKeyRange"sv,
         "IDBObjectStore"sv,

@@ -213,6 +213,7 @@ HashChangeEvent
 Headers
 History
 IDBCursor
+IDBCursorWithValue
 IDBDatabase
 IDBFactory
 IDBIndex
