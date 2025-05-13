@@ -86,29 +86,30 @@ sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl l
 ```
 
 ### Fedora or derivatives:
+
 ```
 sudo dnf install autoconf-archive automake ccache cmake curl liberation-sans-fonts libglvnd-devel nasm ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
+
 ```
 sudo zypper install autoconf-archive automake ccache cmake curl gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
 ### Void Linux:
+
 ```
 sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Transaction aborted due to unresolved dependencies."
 sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
 ```
 
 ### NixOS or with Nix:
-A Nix development shell is maintained
-[here](https://github.com/nix-community/nix-environments/tree/master/envs/ladybird),
-in the
-[nix-environments](https://github.com/nix-community/nix-environments/)
-repository.
-If you encounter any problems building with Nix, please create an issue there.
+
+A Nix development shell is maintained [here](https://github.com/nix-community/nix-environments/tree/master/envs/ladybird),
+in the [nix-environments](https://github.com/nix-community/nix-environments/) repository. If you encounter any problems
+building with Nix, please create an issue there.
 
 ### macOS:
 
@@ -163,10 +164,8 @@ choco install pkgconfiglite -y
 
 ### OpenIndiana:
 
-Note that OpenIndiana's latest GCC port is too old to build Ladybird, so you need Clang, which is available in the repository.
-
 ```
-pfexec pkg install clang-17 cmake libglvnd ninja qt6
+pfexec pkg install clang-19 cmake libglvnd ninja qt6
 ```
 
 ### Haiku:
