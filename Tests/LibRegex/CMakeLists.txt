@@ -1,6 +1,5 @@
 set(TEST_SOURCES
-    Regex.cpp
-    RegexLibC.cpp
+    TestRegex.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
