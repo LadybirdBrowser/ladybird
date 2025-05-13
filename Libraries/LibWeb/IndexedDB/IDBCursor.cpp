@@ -116,7 +116,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
     auto transaction = this->transaction();
 
     // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while continuing cursor"_string);
 
     // FIXME: 3. If this's source or effective object store has been deleted, throw an "InvalidStateError" DOMException
@@ -207,7 +207,7 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
     auto transaction = this->transaction();
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while advancing cursor"_string);
 
     // FIXME: 4. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
@@ -249,7 +249,7 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
     auto transaction = this->transaction();
 
     // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while continuing cursor"_string);
 
     // FIXME: 3. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
@@ -349,7 +349,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
     auto transaction = this->transaction();
 
     // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while updating cursor"_string);
 
     // 3. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
@@ -415,7 +415,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::delete_()
     auto transaction = this->transaction();
 
     // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
+    if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting cursor"_string);
 
     // 3. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
