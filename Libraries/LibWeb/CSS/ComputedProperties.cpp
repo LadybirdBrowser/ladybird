@@ -910,7 +910,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
 
         // FIXME: The content is a list of things: strings, identifiers or functions that return strings, and images.
         //        So it can't always be represented as a single String, but may have to be multiple boxes.
-        //        For now, we'll just assume strings since that is easiest.
+        //        For now, we'll just assume strings and images since that is easiest.
         StringBuilder builder;
         for (auto const& item : content_style_value.content().values()) {
             if (item->is_string()) {
@@ -943,13 +943,21 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                 }
             } else if (item->is_counter()) {
                 builder.append(item->as_counter().resolve(element));
+            } else if (item->is_abstract_image()) {
+                // FIXME: For now IMAGE and TEXT types are mutually exclusive.
+                content_data.type = ContentData::Type::Image;
+                content_data.image = item->as_abstract_image();
+                const_cast<CSS::AbstractImageStyleValue&>(item->as_abstract_image()).load_any_resources(element.document());
+                break;
             } else {
-                // TODO: Implement images, and other things.
+                // TODO: Implement other things.
                 dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));
             }
         }
-        content_data.type = ContentData::Type::String;
-        content_data.data = MUST(builder.to_string());
+        if (content_data.type != ContentData::Type::Image) {
+            content_data.type = ContentData::Type::String;
+            content_data.data = MUST(builder.to_string());
+        }
 
         if (content_style_value.has_alt_text()) {
             StringBuilder alt_text_builder;

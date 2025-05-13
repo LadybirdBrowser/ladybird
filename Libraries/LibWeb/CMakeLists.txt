@@ -591,6 +591,7 @@ set(SOURCES
     Internals/WebUI.cpp
     IntersectionObserver/IntersectionObserver.cpp
     IntersectionObserver/IntersectionObserverEntry.cpp
+    Layout/AnonymousImageBox.cpp
     Layout/AudioBox.cpp
     Layout/AvailableSpace.cpp
     Layout/BlockContainer.cpp
@@ -668,6 +669,7 @@ set(SOURCES
     Page/EventHandler.cpp
     Page/InputEvent.cpp
     Page/Page.cpp
+    Painting/AnonymousImagePaintable.cpp
     Painting/AudioPaintable.cpp
     Painting/BackgroundPainting.cpp
     Painting/BackingStore.cpp

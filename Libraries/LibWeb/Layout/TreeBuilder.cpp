@@ -20,6 +20,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/Layout/AnonymousImageBox.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
@@ -222,7 +223,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
     pseudo_element_node->set_generated_for(generated_for, element);
     pseudo_element_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
 
-    // FIXME: Handle images, and multiple values
+    // FIXME: Handle multiple values
     if (pseudo_element_content.type == CSS::ContentData::Type::String) {
         auto text = document.realm().create<DOM::Text>(document, pseudo_element_content.data);
         auto text_node = document.heap().allocate<Layout::TextNode>(document, *text);
@@ -230,6 +231,14 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
 
         push_parent(*pseudo_element_node);
         insert_node_into_inline_or_block_ancestor(*text_node, text_node->display(), AppendOrPrepend::Append);
+        pop_parent();
+    } else if (pseudo_element_content.type == CSS::ContentData::Type::Image) {
+        auto image_box = document.heap().allocate<Layout::AnonymousImageBox>(document, element, *pseudo_element_style);
+        image_box->set_generated_for(generated_for, element);
+        image_box->mutable_computed_values().set_content(pseudo_element_content);
+
+        push_parent(*pseudo_element_node);
+        insert_node_into_inline_or_block_ancestor(*image_box, image_box->display(), AppendOrPrepend::Append);
         pop_parent();
     } else {
         TODO();
