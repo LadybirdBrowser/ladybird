@@ -16,20 +16,20 @@ GC_DEFINE_ALLOCATOR(IDBCursor);
 
 IDBCursor::~IDBCursor() = default;
 
-IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, bool got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, bool key_only)
+IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
     : PlatformObject(realm)
     , m_position(position)
     , m_direction(direction)
-    , m_got_value(got_value)
+    , m_got_value(got_value == GotValue::Yes)
     , m_key(key)
     , m_value(value)
     , m_source_handle(source_handle)
     , m_range(range)
-    , m_key_only(key_only)
+    , m_key_only(key_only == KeyOnly::Yes)
 {
 }
 
-GC::Ref<IDBCursor> IDBCursor::create(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, bool got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, bool key_only)
+GC::Ref<IDBCursor> IDBCursor::create(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
 {
     return realm.create<IDBCursor>(realm, source_handle, position, direction, got_value, key, value, range, key_only);
 }
