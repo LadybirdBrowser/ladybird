@@ -31,8 +31,6 @@ struct IDBTransactionOptions {
     Bindings::IDBTransactionDurability durability = Bindings::IDBTransactionDurability::Default;
 };
 
-// FIXME: I'm not sure if this object should do double duty as both the connection and the interface
-//        but the spec treats it as such...?
 // https://w3c.github.io/IndexedDB/#IDBDatabase-interface
 // https://www.w3.org/TR/IndexedDB/#database-connection
 class IDBDatabase : public DOM::EventTarget {
