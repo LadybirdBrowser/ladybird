@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+4 Pass
+4 Fail
+Pass	page-rules-001
+Pass	@page , { } should be an invalid rule
+Fail	@page { } should be a valid rule
+Fail	@page a { } should be a valid rule
+Fail	@page page1 { } should be a valid rule
+Fail	@page name1, name2 { } should be a valid rule
+Pass	@page a, { } should be an invalid rule
+Pass	@page ,a { } should be an invalid rule

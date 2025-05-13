@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-page-3/#at-page-rules">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test(t => {
+    // At least check that empty selectors are not allowed.
+    test_invalid_rule("@page , { }");
+    test_valid_rule("@page { }");
+    // Some basic name tests.
+    test_valid_rule("@page a { }");
+    test_valid_rule("@page page1 { }");
+    test_valid_rule("@page name1, name2 { }");
+    test_invalid_rule("@page a, { }");
+    test_invalid_rule("@page ,a { }");
+}, "page-rules-001");
+</script>
