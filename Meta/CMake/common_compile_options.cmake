@@ -140,3 +140,5 @@ endif()
 if (NOT MSVC)
     add_cxx_compile_options(-fstrict-flex-arrays=2)
 endif()
+
+include(${CMAKE_CURRENT_LIST_DIR}/sanitizers.cmake)
