@@ -296,7 +296,8 @@ private:
             break;
         case FunctionKind::Outline:
             VERIFY(wrapper);
-            wrapper->destroy();
+            // This code is a bit too clever for gcc. Pinky promise we're only deleting heap objects.
+            AK_IGNORE_DIAGNOSTIC("-Wfree-nonheap-object", wrapper->destroy());
             break;
         case FunctionKind::Block:
             VERIFY(wrapper);
