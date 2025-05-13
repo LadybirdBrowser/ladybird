@@ -301,4 +301,84 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
     return {};
 }
 
+// https://w3c.github.io/IndexedDB/#cursor-effective-object-store
+GC::Ref<ObjectStore> IDBCursor::effective_object_store() const
+{
+    return m_source_handle.visit(
+        [&](GC::Ref<IDBObjectStore> store) -> GC::Ref<ObjectStore> {
+            // If the source of a cursor is an object store, the effective object store of the cursor is that object store.
+            return store->store();
+        },
+        [&](GC::Ref<IDBIndex> index) -> GC::Ref<ObjectStore> {
+            // If the source of a cursor is an index, the effective object store of the cursor is that index’s referenced object store.
+            return index->object_store()->store();
+        });
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbcursor-update
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while updating cursor"_string);
+
+    // 3. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
+    if (transaction->is_readonly())
+        return WebIDL::ReadOnlyError::create(realm, "Transaction is read-only while updating cursor"_string);
+
+    // FIXME:  4. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 5. If this’s got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
+    if (!m_got_value)
+        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while updating"_string);
+
+    // 6. If this’s key only flag is true, throw an "InvalidStateError" DOMException.
+    if (m_key_only)
+        return WebIDL::InvalidStateError::create(realm, "Cursor is key-only while updating"_string);
+
+    // 7. Let targetRealm be a user-agent defined Realm.
+    // NOTE: this is 'realm' above
+
+    // 8. Let clone be a clone of value in targetRealm during transaction. Rethrow any exceptions.
+    auto clone = TRY(clone_in_realm(realm, value, transaction));
+
+    // 9. If this’s effective object store uses in-line keys, then:
+    auto effective_object_store = this->effective_object_store();
+    if (effective_object_store->uses_inline_keys()) {
+        // 1. Let kpk be the result of extracting a key from a value using a key path with clone and the key path of this’s effective object store. Rethrow any exceptions.
+        auto kpk = TRY(extract_a_key_from_a_value_using_a_key_path(realm, clone, *effective_object_store->key_path()));
+
+        // 2. If kpk is failure, invalid, or not equal to this’s effective key, throw a "DataError" DOMException.
+        if (kpk.is_error())
+            return WebIDL::DataError::create(realm, "Key path is invalid"_string);
+
+        auto kpk_value = kpk.release_value();
+        if (kpk_value->is_invalid())
+            return WebIDL::DataError::create(realm, "Key path is invalid"_string);
+
+        if (!Key::equals(*kpk_value, *this->effective_key()))
+            return WebIDL::DataError::create(realm, "Key path is not equal to effective key"_string);
+    }
+
+    // 10. Let operation be an algorithm to run store a record into an object store with this’s effective object store, clone, this’s effective key, and false.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, clone] -> WebIDL::ExceptionOr<JS::Value> {
+        auto optional_key = TRY(store_a_record_into_an_object_store(realm, *this->effective_object_store(), clone, this->effective_key(), false));
+
+        if (!optional_key || optional_key->is_invalid())
+            return JS::js_undefined();
+
+        return convert_a_key_to_a_value(realm, GC::Ref(*optional_key));
+    });
+
+    // 11. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto request = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for cursor update with uuid {}", request->uuid());
+    return request;
+}
+
 }
