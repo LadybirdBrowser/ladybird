@@ -481,6 +481,7 @@ if (BUILD_TESTING)
         LibCrypto
         LibCompress
         LibCore
+        LibDiff
         LibDNS
         LibGC
         LibRegex
