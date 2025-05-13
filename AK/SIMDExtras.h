@@ -185,6 +185,7 @@ ALWAYS_INLINE static void store4_masked(VectorType v, UnderlyingType* a, Underly
 
 // Shuffle
 namespace Detail {
+
 template<SIMDVector T, SIMDVector Control, size_t... Idx>
 ALWAYS_INLINE static T shuffle_impl(T a, Control control, IndexSequence<Idx...>)
 {

@@ -161,7 +161,9 @@ constexpr u64 PiB = KiB * KiB * KiB * KiB * KiB;
 constexpr u64 EiB = KiB * KiB * KiB * KiB * KiB * KiB;
 
 namespace AK_REPLACED_STD_NAMESPACE { // NOLINT(cert-dcl58-cpp) nullptr_t must be in ::std:: for some analysis tools
+
 using nullptr_t = decltype(nullptr);
+
 }
 
 namespace AK {

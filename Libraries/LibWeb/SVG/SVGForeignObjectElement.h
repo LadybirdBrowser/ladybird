@@ -45,6 +45,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<SVG::SVGForeignObjectElement>() const { return is_svg_foreign_object_element(); }
+
 }

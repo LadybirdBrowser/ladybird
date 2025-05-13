@@ -19,6 +19,7 @@ namespace TextCodec {
 static constexpr u32 replacement_code_point = 0xfffd;
 
 namespace {
+
 Latin1Decoder s_latin1_decoder;
 UTF8Decoder s_utf8_decoder;
 UTF16BEDecoder s_utf16be_decoder;

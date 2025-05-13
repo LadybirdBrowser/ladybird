@@ -63,4 +63,5 @@ private:
     // https://www.w3.org/TR/event-timing/#sec-fin-event-timing
     // https://www.w3.org/TR/event-timing/#sec-dispatch-pending
 };
+
 }

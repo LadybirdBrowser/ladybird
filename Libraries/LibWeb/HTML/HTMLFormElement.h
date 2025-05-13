@@ -158,6 +158,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLFormElement>() const { return is_html_form_element(); }
+
 }

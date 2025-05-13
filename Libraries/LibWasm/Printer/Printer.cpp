@@ -700,6 +700,7 @@ void Printer::print(Wasm::Reference const& value)
             [](Wasm::Reference::Null const&) { return ByteString("null"); },
             [](auto const& ref) { return ByteString::number(ref.address.value()); }));
 }
+
 }
 
 HashMap<Wasm::OpCode, ByteString> Wasm::Names::instruction_names {

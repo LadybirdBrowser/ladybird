@@ -36,6 +36,7 @@ StorageKey obtain_a_storage_key_for_non_storage_purposes(HTML::Environment const
 }
 
 namespace AK {
+
 template<>
 struct Traits<Web::StorageAPI::StorageKey> : public DefaultTraits<Web::StorageAPI::StorageKey> {
     static unsigned hash(Web::StorageAPI::StorageKey const& key)
@@ -43,4 +44,5 @@ struct Traits<Web::StorageAPI::StorageKey> : public DefaultTraits<Web::StorageAP
         return Traits<URL::Origin>::hash(key.origin);
     }
 };
+
 }

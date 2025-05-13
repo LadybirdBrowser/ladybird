@@ -53,6 +53,7 @@ struct Traits<NonnullRawPtr<T>> : public DefaultTraits<NonnullRawPtr<T>> {
 };
 
 namespace Detail {
+
 template<typename T>
 inline constexpr bool IsHashCompatible<NonnullRawPtr<T>, T> = true;
 

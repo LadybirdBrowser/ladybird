@@ -81,4 +81,5 @@ protected:
 
     Gfx::DoubleRect m_rect;
 };
+
 }

@@ -2812,4 +2812,5 @@ size_t ECMA262Parser::ensure_total_number_of_capturing_parenthesis()
     m_total_number_of_capturing_parenthesis = count;
     return count;
 }
+
 }

@@ -70,6 +70,7 @@ template<typename T, typename... Ts>
 {
     return (... && (forward<T>(to_compare) >= forward<Ts>(valid_values)));
 }
+
 }
 
 #if USING_AK_GLOBALLY

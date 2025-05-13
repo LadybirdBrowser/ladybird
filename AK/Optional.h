@@ -17,6 +17,7 @@
 namespace AK {
 
 namespace Detail {
+
 template<auto condition, typename T>
 struct ConditionallyResultType;
 
@@ -29,6 +30,7 @@ template<typename T>
 struct ConditionallyResultType<false, T> {
     using Type = T;
 };
+
 }
 
 template<auto condition, typename T>

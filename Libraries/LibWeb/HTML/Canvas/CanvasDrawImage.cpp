@@ -89,4 +89,5 @@ WebIDL::ExceptionOr<void> CanvasDrawImage::draw_image(Web::HTML::CanvasImageSour
 {
     return draw_image_internal(image, source_x, source_y, source_width, source_height, destination_x, destination_y, destination_width, destination_height);
 }
+
 }

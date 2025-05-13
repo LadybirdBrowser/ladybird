@@ -12,7 +12,9 @@
 #include <LibWeb/Animations/KeyframeEffect.h>
 
 namespace Web::CSS {
+
 class CSSTransition;
+
 }
 
 namespace Web::Animations {

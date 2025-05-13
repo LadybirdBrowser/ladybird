@@ -82,4 +82,5 @@ void WebSocket::did_request_certificates(Badge<RequestClient>)
             dbgln("WebSocket: set_certificate failed");
     }
 }
+
 }

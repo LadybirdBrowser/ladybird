@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/Enums.h>
 
 namespace Web::CSS {
+
 // https://drafts.csswg.org/css-values-5/#request-url-modifiers
 class RequestURLModifier {
 public:

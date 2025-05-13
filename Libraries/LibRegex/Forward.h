@@ -10,6 +10,7 @@
 #include <LibRegex/Export.h>
 
 namespace regex {
+
 struct CompareTypeAndValuePair;
 
 enum class Error : u8;
@@ -32,6 +33,7 @@ class OpCode_SaveNamedLeftCaptureGroup;
 class OpCode_SaveRightNamedCaptureGroup;
 class OpCode_Compare;
 class RegexStringView;
+
 }
 
 using regex::ECMA262Parser;

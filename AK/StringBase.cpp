@@ -48,4 +48,5 @@ ErrorOr<StringBase> StringBase::substring_from_byte_offset_with_shared_superstri
     }
     return StringBase { TRY(Detail::StringData::create_substring(*m_impl.data, start, length)) };
 }
+
 }

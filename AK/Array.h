@@ -15,6 +15,7 @@
 namespace AK {
 
 namespace Detail {
+
 // This type serves as the storage of 0-sized `AK::Array`s. While zero-length `T[0]`
 // is accepted as a GNU extension, it causes problems with UBSan in Clang 16.
 template<typename T>
@@ -22,6 +23,7 @@ struct EmptyArrayStorage {
     T& operator[](size_t) const { VERIFY_NOT_REACHED(); }
     constexpr operator T*() const { return nullptr; }
 };
+
 }
 
 template<typename T, size_t Size>
@@ -148,11 +150,13 @@ template<typename T, typename... Types>
 Array(T, Types...) -> Array<T, sizeof...(Types) + 1>;
 
 namespace Detail {
+
 template<typename T, size_t... Is>
 constexpr auto integer_sequence_generate_array([[maybe_unused]] T const offset, IntegerSequence<T, Is...>) -> Array<T, sizeof...(Is)>
 {
     return { { (offset + Is)... } };
 }
+
 }
 
 template<typename T, T N>
@@ -163,11 +167,13 @@ constexpr auto iota_array(T const offset = {})
 }
 
 namespace Detail {
+
 template<typename T, size_t N, size_t... Is>
 constexpr auto to_array_impl(T (&&a)[N], IndexSequence<Is...>) -> Array<T, sizeof...(Is)>
 {
     return { { a[Is]... } };
 }
+
 }
 
 template<typename T, size_t N>

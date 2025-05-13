@@ -38,4 +38,5 @@ GC::Ref<ServiceWorkerRegistration> ServiceWorkerRegistration::create(JS::Realm& 
 {
     return realm.create<ServiceWorkerRegistration>(realm, registration);
 }
+
 }

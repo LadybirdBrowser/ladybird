@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
+
 struct ValueTraits : public Traits<Value> {
     static unsigned hash(Value value)
     {

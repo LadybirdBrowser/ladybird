@@ -41,4 +41,5 @@ private:
         bool operator==(Properties const&) const = default;
     } m_properties;
 };
+
 }

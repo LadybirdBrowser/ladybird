@@ -204,6 +204,7 @@ Duration Duration::from_half_sanitized(i64 seconds, i32 extra_seconds, u32 nanos
 }
 
 namespace {
+
 #if defined(AK_OS_WINDOWS)
 #    define CLOCK_REALTIME 0
 #    define CLOCK_MONOTONIC 1

@@ -109,6 +109,7 @@ private:
 // Helper to hide implementation of TestSuite from users
 void add_test_case_to_suite(NonnullRefPtr<TestCase> const& test_case);
 void set_suite_setup_function(Function<void()> setup);
+
 }
 
 #define TEST_SETUP                                   \

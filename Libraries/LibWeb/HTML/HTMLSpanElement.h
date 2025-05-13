@@ -32,6 +32,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLSpanElement>() const { return is_html_span_element(); }
+
 }

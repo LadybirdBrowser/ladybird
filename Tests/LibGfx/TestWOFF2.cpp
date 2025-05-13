@@ -12,12 +12,14 @@
 #define TEST_INPUT(x) ("test-inputs/" x)
 
 namespace {
+
 struct Global {
     Global()
     {
         Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>());
     }
 } global;
+
 }
 
 TEST_CASE(tolerate_incorrect_sfnt_size)

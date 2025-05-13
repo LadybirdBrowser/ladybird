@@ -12,7 +12,9 @@
 #include <LibIPC/Forward.h>
 
 namespace AK {
+
 class BufferStream;
+
 }
 
 namespace IPC {

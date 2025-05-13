@@ -34,6 +34,7 @@ void PromiseCapability::visit_edges(Cell::Visitor& visitor)
 }
 
 namespace {
+
 struct ResolvingFunctions final : public Cell {
     GC_CELL(ResolvingFunctions, Cell);
     GC_DECLARE_ALLOCATOR(ResolvingFunctions);
@@ -49,6 +50,7 @@ struct ResolvingFunctions final : public Cell {
     }
 };
 GC_DEFINE_ALLOCATOR(ResolvingFunctions);
+
 }
 
 // 27.2.1.5 NewPromiseCapability ( C ), https://tc39.es/ecma262/#sec-newpromisecapability

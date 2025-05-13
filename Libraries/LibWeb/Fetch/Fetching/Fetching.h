@@ -52,4 +52,5 @@ void set_sec_fetch_mode_header(Infrastructure::Request&);
 void set_sec_fetch_site_header(Infrastructure::Request&);
 void set_sec_fetch_user_header(Infrastructure::Request&);
 void append_fetch_metadata_headers_for_request(Infrastructure::Request&);
+
 }

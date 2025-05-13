@@ -583,4 +583,5 @@ void AbstractMachine::visit_external_resources(HostVisitOps const& host)
     for (auto interpreter_ptr : m_active_interpreters)
         interpreter_ptr->visit_external_resources(host);
 }
+
 }

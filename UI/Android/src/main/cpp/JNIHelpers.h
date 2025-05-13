@@ -11,6 +11,7 @@
 #include <jni.h>
 
 namespace Ladybird {
+
 class JavaEnvironment {
 public:
     JavaEnvironment(JavaVM* vm)
@@ -45,5 +46,6 @@ private:
     JNIEnv* m_env = nullptr;
     bool m_did_attach_thread = false;
 };
+
 }
 extern JavaVM* global_vm;

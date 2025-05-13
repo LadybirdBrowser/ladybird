@@ -1117,4 +1117,5 @@ void CanvasRenderingContext2D::set_filter(String filter)
 
     // 3. If parsedValue is failure, then return.
 }
+
 }

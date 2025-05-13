@@ -23,10 +23,12 @@ struct CellCoordinates {
 };
 
 namespace AK {
+
 template<>
 struct Traits<CellCoordinates> : public DefaultTraits<CellCoordinates> {
     static unsigned hash(CellCoordinates const& key) { return pair_int_hash(key.row_index, key.column_index); }
 };
+
 }
 
 namespace Web::Painting {
@@ -441,4 +443,5 @@ void paint_table_borders(PaintContext& context, PaintableBox const& table_painta
         }
     }
 }
+
 }

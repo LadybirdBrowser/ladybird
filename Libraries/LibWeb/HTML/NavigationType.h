@@ -10,6 +10,7 @@
 
 // FIXME: Generate this from the IDL file that just has an enum in it
 namespace Web::Bindings {
+
 enum class NavigationType {
     Push,
     Replace,

@@ -47,6 +47,7 @@ public:
 private:
     Variant<Token, Function, SimpleBlock> m_value;
 };
+
 }
 
 template<>

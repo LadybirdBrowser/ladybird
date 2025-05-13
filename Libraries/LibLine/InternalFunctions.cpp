@@ -446,6 +446,7 @@ void Editor::enter_search()
 }
 
 namespace {
+
 Optional<u32> read_unicode_char()
 {
     // FIXME: It would be ideal to somehow communicate that the line editor is
@@ -470,6 +471,7 @@ Optional<u32> read_unicode_char()
 
     return {};
 }
+
 }
 
 void Editor::search_character_forwards()
@@ -768,4 +770,5 @@ void Editor::edit_in_external_editor()
         }
     }
 }
+
 }

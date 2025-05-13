@@ -170,6 +170,7 @@ concept CallableAs = Detail::IsCallableWithArguments<Func, R, Args...>;
 
 #if !USING_AK_GLOBALLY
 namespace AK {
+
 #endif
 using AK::Concepts::Arithmetic;
 using AK::Concepts::ArrayLike;
@@ -195,5 +196,6 @@ using AK::Concepts::SpecializationOf;
 using AK::Concepts::Unsigned;
 using AK::Concepts::VoidFunction;
 #if !USING_AK_GLOBALLY
+
 }
 #endif

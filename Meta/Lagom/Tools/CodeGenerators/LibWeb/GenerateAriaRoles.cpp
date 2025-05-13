@@ -11,6 +11,7 @@
 #include <LibMain/Main.h>
 
 namespace {
+
 ErrorOr<void> generate_header_file(JsonObject& roles_data, Core::File& file)
 {
     StringBuilder builder;
@@ -370,6 +371,7 @@ NameFromSource @name@::name_from_source() const
     TRY(file.write_until_depleted(generator.as_string_view().bytes()));
     return {};
 }
+
 } // end anonymous namespace
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)

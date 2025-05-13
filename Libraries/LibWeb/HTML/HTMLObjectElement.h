@@ -102,6 +102,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLObjectElement>() const { return is_html_object_element(); }
+
 }

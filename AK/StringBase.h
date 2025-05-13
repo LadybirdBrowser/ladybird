@@ -264,4 +264,5 @@ inline bool StringBase::operator==(StringBase const& other) const
         return m_impl.data == other.m_impl.data;
     return bytes() == other.bytes();
 }
+
 }

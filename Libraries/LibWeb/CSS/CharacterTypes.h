@@ -70,4 +70,5 @@ constexpr bool is_greater_than_maximum_allowed_code_point(u32 code_point)
     // The greatest code point defined by Unicode: U+10FFFF.
     return code_point > 0x10FFFF;
 }
+
 }

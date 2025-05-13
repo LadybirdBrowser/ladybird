@@ -65,6 +65,7 @@ private:
 }
 
 namespace AK {
+
 template<>
 struct Formatter<Core::Directory> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Core::Directory const& directory)

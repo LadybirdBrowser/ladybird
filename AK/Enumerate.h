@@ -11,6 +11,7 @@
 namespace AK {
 
 namespace Detail {
+
 template<typename Iterable>
 class Enumerator {
     using IteratorType = decltype(declval<Iterable>().begin());
@@ -50,6 +51,7 @@ private:
     IteratorType m_iterator;
     IteratorType const m_end;
 };
+
 }
 
 template<typename T>

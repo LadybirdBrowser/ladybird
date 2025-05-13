@@ -1081,4 +1081,5 @@ void TreeBuilder::missing_cells_fixup(Vector<GC::Root<Box>> const& table_root_bo
         });
     }
 }
+
 }

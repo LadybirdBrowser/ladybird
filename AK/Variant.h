@@ -500,6 +500,7 @@ template<typename... Ts>
 struct TypeList<Variant<Ts...>> : TypeList<Ts...> { };
 
 namespace Detail {
+
 template<typename T1, typename T2>
 struct FlattenVariant;
 

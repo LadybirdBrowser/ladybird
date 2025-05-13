@@ -188,6 +188,7 @@ struct AK::Formatter<Core::EventReceiver> : AK::Formatter<FormatString> {
 };
 
 namespace Core {
+
 template<typename T, typename Callback>
 inline void EventReceiver::for_each_child_of_type(Callback callback)
 requires IsBaseOf<EventReceiver, T>

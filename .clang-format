@@ -19,6 +19,7 @@ RemoveSemicolon: true
 RequiresClausePosition: WithFollowing
 RequiresExpressionIndentation: OuterScope
 SpaceAfterTemplateKeyword: false
+WrapNamespaceBodyWithEmptyLines: Always
 
 ---
 Language: ObjC

@@ -11,6 +11,7 @@
 #include <jni.h>
 
 namespace Ladybird {
+
 class WebViewImplementationNative : public WebView::ViewImplementation {
 public:
     WebViewImplementationNative(jobject thiz);
@@ -42,4 +43,5 @@ private:
     jobject m_java_instance = nullptr;
     Web::DevicePixelSize m_viewport_size;
 };
+
 }

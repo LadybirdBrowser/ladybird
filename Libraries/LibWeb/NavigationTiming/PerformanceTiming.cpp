@@ -10,6 +10,7 @@
 #include <LibWeb/NavigationTiming/PerformanceTiming.h>
 
 namespace Web::NavigationTiming {
+
 GC_DEFINE_ALLOCATOR(PerformanceTiming);
 
 PerformanceTiming::PerformanceTiming(JS::Realm& realm)

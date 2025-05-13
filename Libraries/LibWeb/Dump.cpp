@@ -924,4 +924,5 @@ void dump_nested_declarations(StringBuilder& builder, CSS::CSSNestedDeclarations
     builder.append("  Nested declarations:\n"sv);
     dump_style_properties(builder, declarations.declaration(), indent_levels + 1);
 }
+
 }

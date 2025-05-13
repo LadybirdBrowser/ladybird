@@ -240,4 +240,5 @@ void HTMLMeterElement::update_meter_value_element()
     double position = (value - min) / (max - min) * 100;
     MUST(m_meter_value_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
 }
+
 }

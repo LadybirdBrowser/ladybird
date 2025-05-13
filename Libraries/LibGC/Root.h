@@ -179,6 +179,7 @@ struct Formatter<GC::Root<T>> : Formatter<T const*> {
 };
 
 namespace Detail {
+
 template<typename T>
 inline constexpr bool IsHashCompatible<GC::Root<T>, T> = true;
 

@@ -111,4 +111,5 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
 };
 
 bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin);
+
 }

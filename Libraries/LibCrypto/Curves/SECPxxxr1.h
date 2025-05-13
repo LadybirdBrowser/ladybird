@@ -14,8 +14,10 @@
 #include <LibCrypto/OpenSSL.h>
 
 namespace {
+
 // Used by ASN1 macros
 static String s_error_string;
+
 }
 
 namespace Crypto::Curves {
