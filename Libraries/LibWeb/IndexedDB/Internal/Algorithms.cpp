@@ -1946,4 +1946,18 @@ JS::Value retrieve_a_referenced_value_from_an_index(JS::Realm& realm, GC::Ref<In
     return MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
 }
 
+// https://w3c.github.io/IndexedDB/#retrieve-a-value-from-an-index
+JS::Value retrieve_a_value_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Let record be the first record in index’s list of records whose key is in range, if any.
+    auto record = index->first_in_range(range);
+
+    // 2. If record was not found, return undefined.
+    if (!record.has_value())
+        return JS::js_undefined();
+
+    // 3. Return the result of converting a key to a value with record’s value.
+    return convert_a_key_to_a_value(realm, record->value);
+}
+
 }
