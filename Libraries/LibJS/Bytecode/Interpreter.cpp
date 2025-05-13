@@ -1431,6 +1431,24 @@ inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<FlyStri
                     case TypedArrayBase::Kind::Float64Array:
                         fast_typed_array_set_element<double>(typed_array, index, value.as_double());
                         return {};
+                    case TypedArrayBase::Kind::Int8Array:
+                        fast_typed_array_set_element<i8>(typed_array, index, MUST(value.to_i8(vm)));
+                        return {};
+                    case TypedArrayBase::Kind::Int16Array:
+                        fast_typed_array_set_element<i16>(typed_array, index, MUST(value.to_i16(vm)));
+                        return {};
+                    case TypedArrayBase::Kind::Int32Array:
+                        fast_typed_array_set_element<i32>(typed_array, index, MUST(value.to_i32(vm)));
+                        return {};
+                    case TypedArrayBase::Kind::Uint8Array:
+                        fast_typed_array_set_element<u8>(typed_array, index, MUST(value.to_u8(vm)));
+                        return {};
+                    case TypedArrayBase::Kind::Uint16Array:
+                        fast_typed_array_set_element<u16>(typed_array, index, MUST(value.to_u16(vm)));
+                        return {};
+                    case TypedArrayBase::Kind::Uint32Array:
+                        fast_typed_array_set_element<u32>(typed_array, index, MUST(value.to_u32(vm)));
+                        return {};
                     default:
                         break;
                     }
