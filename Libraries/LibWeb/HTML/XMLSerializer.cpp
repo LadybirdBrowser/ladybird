@@ -766,11 +766,25 @@ static WebIDL::ExceptionOr<String> serialize_comment(DOM::Comment const& comment
     return MUST(String::formatted("<!--{}-->", comment.data()));
 }
 
-// https://w3c.github.io/DOM-Parsing/#xml-serializing-a-text-node
-static WebIDL::ExceptionOr<String> serialize_text(DOM::Text const& text, [[maybe_unused]] RequireWellFormed require_well_formed)
+static bool is_valid_xml_char(u32 code_point)
 {
-    // FIXME: 1. If the require well-formed flag is set (its value is true), and node's data contains characters that are not matched by the XML Char production,
-    //           then throw an exception; the serialization of this node's data would not be well-formed.
+    // XML 1.0 Char production:
+    // https://www.w3.org/TR/xml/#charsets
+    // #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+    return code_point == 0x9 || code_point == 0xA || code_point == 0xD || (code_point >= 0x20 && code_point <= 0xD7FF) || (code_point >= 0xE000 && code_point <= 0xFFFD) || (code_point >= 0x10000 && code_point <= 0x10FFFF);
+}
+
+// https://w3c.github.io/DOM-Parsing/#xml-serializing-a-text-node
+static WebIDL::ExceptionOr<String> serialize_text(DOM::Text const& text, RequireWellFormed require_well_formed)
+{
+    // 1. If the require well-formed flag is set (its value is true), and node's data contains characters that are not matched by the XML Char production,
+    //    then throw an exception; the serialization of this node's data would not be well-formed.
+    if (require_well_formed == RequireWellFormed::Yes) {
+        for (u32 code_point : text.data().code_points()) {
+            if (!is_valid_xml_char(code_point))
+                return WebIDL::InvalidStateError::create(text.realm(), "Text contains characters not allowed in XML"_string);
+        }
+    }
 
     // 2. Let markup be the value of node's data.
     auto markup = text.data();
