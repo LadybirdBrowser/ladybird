@@ -47,6 +47,7 @@ public:
 
     WebIDL::ExceptionOr<void> advance(WebIDL::UnsignedLong);
     WebIDL::ExceptionOr<void> continue_(JS::Value);
+    WebIDL::ExceptionOr<void> continue_primary_key(JS::Value, JS::Value);
 
     [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
     [[nodiscard]] GC::Ref<IDBKeyRange> range() { return m_range; }
