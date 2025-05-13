@@ -624,6 +624,7 @@ class Performance;
 namespace Web::IndexedDB {
 class Database;
 class IDBCursor;
+class IDBCursorWithValue;
 class IDBDatabase;
 class IDBFactory;
 class IDBIndex;
