@@ -14,6 +14,8 @@ if (POLICY CMP0140)
     cmake_policy(SET CMP0140 NEW)
 endif()
 
+serenity_option(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries instead of static libraries")
+
 serenity_option(ENABLE_COMPILETIME_FORMAT_CHECK ON CACHE BOOL "Enable compiletime format string checks")
 serenity_option(ENABLE_UNDEFINED_SANITIZER OFF CACHE BOOL "Enable undefined behavior sanitizer testing in gcc/clang")
 serenity_option(UNDEFINED_BEHAVIOR_IS_FATAL OFF CACHE BOOL "Make undefined behavior sanitizer errors non-recoverable")
