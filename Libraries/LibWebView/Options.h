@@ -56,10 +56,12 @@ struct SystemDNS { };
 struct DNSOverTLS {
     ByteString server_address;
     u16 port;
+    bool validate_dnssec_locally;
 };
 struct DNSOverUDP {
     ByteString server_address;
     u16 port;
+    bool validate_dnssec_locally;
 };
 
 using DNSSettings = Variant<SystemDNS, DNSOverTLS, DNSOverUDP>;

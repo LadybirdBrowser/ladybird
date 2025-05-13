@@ -220,12 +220,12 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     WebView::Application::settings().dns_settings().visit(
         [](WebView::SystemDNS) {},
         [&](WebView::DNSOverTLS const& dns_over_tls) {
-            dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
-            client->async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
+            dbgln("Setting DNS server to {}:{} with TLS ({} local dnssec)", dns_over_tls.server_address, dns_over_tls.port, dns_over_tls.validate_dnssec_locally ? "with" : "without");
+            client->async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
         },
         [&](WebView::DNSOverUDP const& dns_over_udp) {
-            dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
-            client->async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
+            dbgln("Setting DNS server to {}:{} ({} local dnssec)", dns_over_udp.server_address, dns_over_udp.port, dns_over_udp.validate_dnssec_locally ? "with" : "without");
+            client->async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
         });
 
     return client;

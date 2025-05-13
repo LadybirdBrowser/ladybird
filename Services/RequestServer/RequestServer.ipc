@@ -9,7 +9,7 @@ endpoint RequestServer
     connect_new_client() => (IPC::File client_socket)
 
     // use_tls: enable DNS over TLS
-    set_dns_server(ByteString host_or_address, u16 port, bool use_tls) =|
+    set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) =|
     set_use_system_dns() =|
 
     // Test if a specific protocol is supported, e.g "http"
