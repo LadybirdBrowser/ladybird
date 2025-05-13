@@ -61,9 +61,19 @@ static ErrorOr<ECPublicKey<>> read_ec_public_key(ReadonlyBytes bytes, Vector<Str
             UnsignedBigInteger::import_data(bytes.slice(1 + half_size, half_size)),
             half_size,
         };
-    } else {
-        ERROR_WITH_SCOPE("Unsupported public key format");
     }
+
+    if (bytes.size() % 2 == 0) {
+        // Raw public key, without the 0x04 prefix
+        auto half_size = bytes.size() / 2;
+        return ::Crypto::PK::ECPublicKey<> {
+            UnsignedBigInteger::import_data(bytes.slice(0, half_size)),
+            UnsignedBigInteger::import_data(bytes.slice(half_size, half_size)),
+            half_size,
+        };
+    }
+
+    ERROR_WITH_SCOPE("Unsupported public key format");
 }
 
 // https://www.rfc-editor.org/rfc/rfc5915#section-3
