@@ -169,4 +169,50 @@ JS::Value IDBCursor::primary_key() const
     return convert_a_key_to_a_value(realm(), effective_key());
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbcursor-advance
+WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
+{
+    auto& realm = this->realm();
+
+    // 1. If count is 0 (zero), throw a TypeError.
+    if (count == 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Count must not be zero (0)"_string };
+
+    // 2. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (transaction->state() != IDBTransaction::TransactionState::Active)
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while advancing cursor"_string);
+
+    // FIXME: 4. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 5. If this’s got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
+    if (!m_got_value)
+        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while advancing"_string);
+
+    // 6. Set this’s got value flag to false.
+    m_got_value = false;
+
+    // 7. Let request be this’s request.
+    auto request = this->request();
+
+    // 8. Set request’s processed flag to false.
+    request->set_processed(false);
+
+    // 9. Set request’s done flag to false.
+    request->set_done(false);
+
+    // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and count.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, count] -> WebIDL::ExceptionOr<JS::Value> {
+        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, nullptr, nullptr, count));
+    });
+
+    // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
+    asynchronously_execute_a_request(realm, source_handle(), operation, request);
+    dbgln_if(IDB_DEBUG, "Executing request for cursor advance with uuid {}", request->uuid());
+
+    return {};
+}
+
 }
