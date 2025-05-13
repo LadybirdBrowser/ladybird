@@ -351,6 +351,7 @@ struct ContentData {
         Normal,
         None,
         String,
+        Image,
     } type { Type::Normal };
 
     // FIXME: Data is a list of identifiers, strings and image values.
@@ -574,6 +575,8 @@ public:
 
     CSS::ScrollbarWidth scrollbar_width() const { return m_noninherited.scrollbar_width; }
 
+    RefPtr<AbstractImageStyleValue const> content_image() const { return m_noninherited.content_image; }
+
     NonnullOwnPtr<ComputedValues> clone_inherited_values() const
     {
         auto clone = make<ComputedValues>();
@@ -760,6 +763,8 @@ protected:
         Vector<CounterData, 0> counter_increment;
         Vector<CounterData, 0> counter_reset;
         Vector<CounterData, 0> counter_set;
+
+        RefPtr<CSS::AbstractImageStyleValue const> content_image;
     } m_noninherited;
 };
 
@@ -959,6 +964,8 @@ public:
     void set_counter_increment(Vector<CounterData> value) { m_noninherited.counter_increment = move(value); }
     void set_counter_reset(Vector<CounterData> value) { m_noninherited.counter_reset = move(value); }
     void set_counter_set(Vector<CounterData> value) { m_noninherited.counter_set = move(value); }
+
+    void set_content_image(CSS::AbstractImageStyleValue const& value) { m_noninherited.content_image = value; }
 };
 
 }

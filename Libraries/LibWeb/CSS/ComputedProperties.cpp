@@ -943,13 +943,19 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                 }
             } else if (item->is_counter()) {
                 builder.append(item->as_counter().resolve(element));
+            } else if (item->is_abstract_image()) {
+                // For now IMAGE and TEXT types are mutually exclusive.
+                content_data.type = ContentData::Type::Image;
+                break;
             } else {
                 // TODO: Implement images, and other things.
                 dbgln("`{}` is not supported in `content` (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
             }
         }
-        content_data.type = ContentData::Type::String;
-        content_data.data = MUST(builder.to_string());
+        if (content_data.type != ContentData::Type::Image) {
+            content_data.type = ContentData::Type::String;
+            content_data.data = MUST(builder.to_string());
+        }
 
         if (content_style_value.has_alt_text()) {
             StringBuilder alt_text_builder;
