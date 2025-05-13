@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Add declarations
-Fail	Remove declarations
+2 Pass
+Pass	Add declarations
+Pass	Remove declarations

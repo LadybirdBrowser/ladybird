@@ -40,6 +40,49 @@
 
 namespace Web::CSS::Parser {
 
+// A helper that ensures only the last instance of each descriptor is included, while also handling shorthands.
+class DescriptorList {
+public:
+    DescriptorList(AtRuleID at_rule)
+        : m_at_rule(at_rule)
+    {
+    }
+
+    void append(Descriptor&& descriptor)
+    {
+        if (is_shorthand(m_at_rule, descriptor.descriptor_id)) {
+            for_each_expanded_longhand(m_at_rule, descriptor.descriptor_id, descriptor.value, [this](auto longhand_id, auto longhand_value) {
+                append_internal(Descriptor { longhand_id, longhand_value.release_nonnull() });
+            });
+            return;
+        }
+
+        append_internal(move(descriptor));
+    }
+
+    Vector<Descriptor> release_descriptors()
+    {
+        return move(m_descriptors);
+    }
+
+private:
+    void append_internal(Descriptor&& descriptor)
+    {
+        if (m_seen_descriptor_ids.contains(descriptor.descriptor_id)) {
+            m_descriptors.remove_first_matching([&descriptor](Descriptor const& existing) {
+                return existing.descriptor_id == descriptor.descriptor_id;
+            });
+        } else {
+            m_seen_descriptor_ids.set(descriptor.descriptor_id);
+        }
+        m_descriptors.append(move(descriptor));
+    }
+
+    AtRuleID m_at_rule;
+    Vector<Descriptor> m_descriptors;
+    HashTable<DescriptorID> m_seen_descriptor_ids;
+};
+
 GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 {
     return rule.visit(
@@ -582,22 +625,14 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-fonts/#font-face-rule
-    Vector<Descriptor> descriptors;
-    HashTable<DescriptorID> seen_descriptor_ids;
+    DescriptorList descriptors { AtRuleID::FontFace };
     rule.for_each_as_declaration_list([&](auto& declaration) {
         if (auto descriptor = convert_to_descriptor(AtRuleID::FontFace, declaration); descriptor.has_value()) {
-            if (seen_descriptor_ids.contains(descriptor->descriptor_id)) {
-                descriptors.remove_first_matching([&descriptor](Descriptor const& existing) {
-                    return existing.descriptor_id == descriptor->descriptor_id;
-                });
-            } else {
-                seen_descriptor_ids.set(descriptor->descriptor_id);
-            }
             descriptors.append(descriptor.release_value());
         }
     });
 
-    return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), move(descriptors)));
+    return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), descriptors.release_descriptors()));
 }
 
 static Optional<PageSelectorList> parse_page_selector_list(Vector<ComponentValue> const& component_values)
@@ -671,8 +706,7 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& rule)
         return nullptr;
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
-    Vector<Descriptor> descriptors;
-    HashTable<DescriptorID> seen_descriptor_ids;
+    DescriptorList descriptors { AtRuleID::Page };
     rule.for_each_as_declaration_rule_list(
         [&](auto& at_rule) {
             // FIXME: Parse margin rules here.
@@ -680,19 +714,12 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& rule)
         },
         [&](auto& declaration) {
             if (auto descriptor = convert_to_descriptor(AtRuleID::Page, declaration); descriptor.has_value()) {
-                if (seen_descriptor_ids.contains(descriptor->descriptor_id)) {
-                    descriptors.remove_first_matching([&descriptor](Descriptor const& existing) {
-                        return existing.descriptor_id == descriptor->descriptor_id;
-                    });
-                } else {
-                    seen_descriptor_ids.set(descriptor->descriptor_id);
-                }
                 descriptors.append(descriptor.release_value());
             }
         });
 
     auto rule_list = CSSRuleList::create(realm(), child_rules);
-    return CSSPageRule::create(realm(), page_selectors.release_value(), CSSPageDescriptors::create(realm(), move(descriptors)), rule_list);
+    return CSSPageRule::create(realm(), page_selectors.release_value(), CSSPageDescriptors::create(realm(), descriptors.release_descriptors()), rule_list);
 }
 
 }

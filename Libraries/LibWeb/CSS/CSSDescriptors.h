@@ -45,4 +45,7 @@ private:
     Vector<Descriptor> m_descriptors;
 };
 
+bool is_shorthand(AtRuleID, DescriptorID);
+void for_each_expanded_longhand(AtRuleID, DescriptorID, RefPtr<CSSStyleValue const>, Function<void(DescriptorID, RefPtr<CSSStyleValue const>)>);
+
 }
