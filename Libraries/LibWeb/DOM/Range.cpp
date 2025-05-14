@@ -68,6 +68,9 @@ Range::Range(Document& document)
 Range::Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset)
     : AbstractRange(start_container, start_offset, end_container, end_offset)
 {
+    VERIFY(start_offset <= start_container->length());
+    VERIFY(end_offset <= end_container->length());
+
     live_ranges().set(this);
 }
 
