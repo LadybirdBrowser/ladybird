@@ -1112,6 +1112,7 @@ ThrowCompletionOr<Vector<PropertyKey>> Object::internal_own_property_keys() cons
 {
     // 1. Let keys be a new empty List.
     Vector<PropertyKey> keys;
+    keys.ensure_capacity(m_indexed_properties.real_size() + shape().property_count());
 
     // 2. For each own property key P of O such that P is an array index, in ascending numeric index order, do
     for (auto const& entry : m_indexed_properties) {
