@@ -61,6 +61,36 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
             },
             [&](DescriptorMetadata::ValueType value_type) -> RefPtr<CSSStyleValue const> {
                 switch (value_type) {
+                case DescriptorMetadata::ValueType::CropOrCross: {
+                    // crop || cross
+                    auto first = parse_keyword_value(tokens);
+                    auto second = parse_keyword_value(tokens);
+
+                    if (!first)
+                        return nullptr;
+
+                    RefPtr<CSSStyleValue const> crop;
+                    RefPtr<CSSStyleValue const> cross;
+
+                    if (first->to_keyword() == Keyword::Crop)
+                        crop = first;
+                    else if (first->to_keyword() == Keyword::Cross)
+                        cross = first;
+                    else
+                        return nullptr;
+
+                    if (!second)
+                        return first.release_nonnull();
+
+                    if (crop.is_null() && second->to_keyword() == Keyword::Crop)
+                        crop = second.release_nonnull();
+                    else if (cross.is_null() && second->to_keyword() == Keyword::Cross)
+                        cross = second.release_nonnull();
+                    else
+                        return nullptr;
+
+                    return StyleValueList::create(StyleValueVector { crop.release_nonnull(), cross.release_nonnull() }, StyleValueList::Separator::Space);
+                }
                 case DescriptorMetadata::ValueType::FamilyName:
                     return parse_family_name_value(tokens);
                 case DescriptorMetadata::ValueType::FontSrcList: {
@@ -84,6 +114,8 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
                         return nullptr;
                     return StyleValueList::create(move(valid_sources), StyleValueList::Separator::Comma);
                 }
+                case DescriptorMetadata::ValueType::Length:
+                    return parse_length_value(tokens);
                 case DescriptorMetadata::ValueType::OptionalDeclarationValue: {
                     // `component_values` already has what we want. Just skip through its tokens so code below knows we consumed them.
                     while (tokens.has_next_token())
