@@ -18,12 +18,12 @@
         "llvm_version": {
             "type": "string",
             "proposals": [
-                17,
                 18,
                 19,
+                20,
                 "trunk"
             ],
-            "default": 19,
+            "default": 20,
             "description": "Select LLVM compiler version to use"
         }
     }
