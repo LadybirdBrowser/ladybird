@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -83,12 +84,69 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
                         return nullptr;
                     return StyleValueList::create(move(valid_sources), StyleValueList::Separator::Comma);
                 }
-                case DescriptorMetadata::ValueType::OptionalDeclarationValue:
+                case DescriptorMetadata::ValueType::OptionalDeclarationValue: {
                     // `component_values` already has what we want. Just skip through its tokens so code below knows we consumed them.
                     while (tokens.has_next_token())
                         tokens.discard_a_token();
                     return UnresolvedStyleValue::create(move(component_values), false, {});
-                case DescriptorMetadata::ValueType::PositivePercentage:
+                }
+                case DescriptorMetadata::ValueType::PageSize: {
+                    // https://drafts.csswg.org/css-page-3/#page-size-prop
+                    // <length [0,∞]>{1,2} | auto | [ <page-size> || [ portrait | landscape ] ]
+
+                    // auto
+                    if (auto value = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+                        return value.release_nonnull();
+
+                    // <length [0,∞]>{1,2}
+                    if (auto first_length = parse_length_value(tokens)) {
+                        if (first_length->is_length() && first_length->as_length().length().raw_value() < 0)
+                            return nullptr;
+
+                        if (auto second_length = parse_length_value(tokens)) {
+                            if (second_length->is_length() && second_length->as_length().length().raw_value() < 0)
+                                return nullptr;
+
+                            return StyleValueList::create(StyleValueVector { first_length.release_nonnull(), second_length.release_nonnull() }, StyleValueList::Separator::Space);
+                        }
+
+                        return first_length.release_nonnull();
+                    }
+
+                    // [ <page-size> || [ portrait | landscape ] ]
+                    RefPtr<CSSStyleValue const> page_size;
+                    RefPtr<CSSStyleValue const> orientation;
+                    if (auto first_keyword = parse_keyword_value(tokens)) {
+                        if (first_is_one_of(first_keyword->to_keyword(), Keyword::Landscape, Keyword::Portrait)) {
+                            orientation = first_keyword.release_nonnull();
+                        } else if (keyword_to_page_size(first_keyword->to_keyword()).has_value()) {
+                            page_size = first_keyword.release_nonnull();
+                        } else {
+                            return nullptr;
+                        }
+                    } else {
+                        return nullptr;
+                    }
+
+                    if (auto second_keyword = parse_keyword_value(tokens)) {
+                        if (orientation.is_null() && first_is_one_of(second_keyword->to_keyword(), Keyword::Landscape, Keyword::Portrait)) {
+                            orientation = second_keyword.release_nonnull();
+                        } else if (page_size.is_null() && keyword_to_page_size(second_keyword->to_keyword()).has_value()) {
+                            page_size = second_keyword.release_nonnull();
+                        } else {
+                            return nullptr;
+                        }
+
+                        // Portrait is considered the default orientation, so don't include it.
+                        if (orientation->to_keyword() == Keyword::Portrait)
+                            return page_size.release_nonnull();
+
+                        return StyleValueList::create(StyleValueVector { page_size.release_nonnull(), orientation.release_nonnull() }, StyleValueList::Separator::Space);
+                    }
+
+                    return page_size ? page_size.release_nonnull() : orientation.release_nonnull();
+                }
+                case DescriptorMetadata::ValueType::PositivePercentage: {
                     if (auto percentage_value = parse_percentage_value(tokens)) {
                         if (percentage_value->is_percentage()) {
                             if (percentage_value->as_percentage().value() < 0)
@@ -104,12 +162,14 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
                         }
                     }
                     return nullptr;
+                }
                 case DescriptorMetadata::ValueType::String:
                     return parse_string_value(tokens);
-                case DescriptorMetadata::ValueType::UnicodeRangeTokens:
+                case DescriptorMetadata::ValueType::UnicodeRangeTokens: {
                     return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<CSSStyleValue const> {
                         return parse_unicode_range_value(tokens);
                     });
+                }
                 }
                 return nullptr;
             });

@@ -2,20 +2,19 @@ Harness status: OK
 
 Found 15 tests
 
-1 Pass
-14 Fail
+15 Pass
 Pass	Test setup
-Fail	size: 640px 480px
-Fail	size: 8.5in 11in
-Fail	size: 3in 10in
-Fail	size: auto
-Fail	size: a5
-Fail	size: a4
-Fail	size: a3
-Fail	size: b5
-Fail	size: b4
-Fail	size: jis-b5
-Fail	size: jis-b4
-Fail	size: landscape
-Fail	size: letter
-Fail	size: legal landscape
+Pass	size: 640px 480px
+Pass	size: 8.5in 11in
+Pass	size: 3in 10in
+Pass	size: auto
+Pass	size: a5
+Pass	size: a4
+Pass	size: a3
+Pass	size: b5
+Pass	size: b4
+Pass	size: jis-b5
+Pass	size: jis-b4
+Pass	size: landscape
+Pass	size: letter
+Pass	size: legal landscape

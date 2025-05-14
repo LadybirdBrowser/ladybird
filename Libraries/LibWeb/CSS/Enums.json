@@ -481,6 +481,18 @@
     "scroll",
     "visible"
   ],
+  "page-size": [
+    "a5",
+    "a4",
+    "a3",
+    "b5",
+    "b4",
+    "jis-b5",
+    "jis-b4",
+    "letter",
+    "legal",
+    "ledger"
+  ],
   "pointer-events": [
     "auto",
     "all",

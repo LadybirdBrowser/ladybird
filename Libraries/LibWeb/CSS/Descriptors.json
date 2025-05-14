@@ -137,6 +137,13 @@
         "syntax": [
           "<'margin-top'>"
         ]
+      },
+      "size": {
+        "initial": "auto",
+        "FIXME": "Replace with actual syntax once we parse grammar properly",
+        "syntax": [
+          "<page-size>"
+        ]
       }
     }
   },

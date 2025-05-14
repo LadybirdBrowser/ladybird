@@ -121,6 +121,7 @@ struct DescriptorMetadata {
         FamilyName,
         FontSrcList,
         OptionalDeclarationValue,
+        PageSize,
         PositivePercentage,
         String,
         UnicodeRangeTokens,
@@ -386,6 +387,8 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "FontSrcList"_string;
                         if (syntax_string == "<declaration-value>?"sv)
                             return "OptionalDeclarationValue"_string;
+                        if (syntax_string == "<page-size>"sv)
+                            return "PageSize"_string;
                         if (syntax_string == "<percentage [0,∞]>"sv)
                             return "PositivePercentage"_string;
                         if (syntax_string == "<string>"sv)
