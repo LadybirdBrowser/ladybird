@@ -228,15 +228,12 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_delete(JS::PropertyKey const& 
 }
 
 // 7.4.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/window-object.html#windowproxy-ownpropertykeys
-JS::ThrowCompletionOr<GC::RootVector<JS::Value>> WindowProxy::internal_own_property_keys() const
+JS::ThrowCompletionOr<Vector<JS::PropertyKey>> WindowProxy::internal_own_property_keys() const
 {
-    auto& event_loop = main_thread_event_loop();
-    auto& vm = event_loop.vm();
-
     // 1. Let W be the value of the [[Window]] internal slot of this.
 
     // 2. Let keys be a new empty List.
-    auto keys = GC::RootVector<JS::Value> { vm.heap() };
+    Vector<JS::PropertyKey> keys;
 
     // 3. Let maxProperties be W's associated Document's document-tree child navigables's size.
     auto max_properties = m_window->associated_document().document_tree_child_navigables().size();
@@ -245,7 +242,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> WindowProxy::internal_own_prope
     // 5. Repeat while index < maxProperties,
     for (size_t i = 0; i < max_properties; ++i) {
         // 1. Add ! ToString(index) as the last element of keys.
-        keys.append(JS::PrimitiveString::create(vm, ByteString::number(i)));
+        keys.append(String::number(i));
 
         // 2. Increment index by 1.
     }

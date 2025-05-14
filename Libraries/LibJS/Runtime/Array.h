@@ -50,7 +50,7 @@ public:
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override final;
     virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override final;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
-    virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override final;
+    virtual ThrowCompletionOr<Vector<PropertyKey>> internal_own_property_keys() const override final;
 
     [[nodiscard]] bool length_is_writable() const { return m_length_writable; }
 

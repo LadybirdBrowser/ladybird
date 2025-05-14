@@ -330,12 +330,12 @@ ThrowCompletionOr<bool> Array::internal_delete(PropertyKey const& property_key)
 }
 
 // NON-STANDARD: Used to inject the ephemeral length property's key
-ThrowCompletionOr<GC::RootVector<Value>> Array::internal_own_property_keys() const
+ThrowCompletionOr<Vector<PropertyKey>> Array::internal_own_property_keys() const
 {
     auto& vm = this->vm();
     auto keys = TRY(Object::internal_own_property_keys());
     // FIXME: This is pretty expensive, find a better way to do this
-    keys.insert(indexed_properties().real_size(), PrimitiveString::create(vm, vm.names.length.as_string()));
+    keys.insert(indexed_properties().real_size(), PropertyKey { vm.names.length.as_string() });
     return { move(keys) };
 }
 

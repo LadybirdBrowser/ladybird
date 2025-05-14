@@ -36,7 +36,6 @@ Location::~Location() = default;
 void Location::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_default_properties);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
@@ -623,10 +622,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_o
 
         // 2. If the value of the [[DefaultProperties]] internal slot of this contains P, then set desc.[[Configurable]] to true.
         // FIXME: This doesn't align with what the other browsers do. Spec issue: https://github.com/whatwg/html/issues/4157
-        auto property_key_value = property_key.is_symbol()
-            ? JS::Value { property_key.as_symbol() }
-            : JS::PrimitiveString::create(vm, property_key.to_string());
-        if (m_default_properties.contains_slow(property_key_value))
+        if (m_default_properties.contains_slow(property_key))
             descriptor->configurable = true;
 
         // 3. Return desc.
@@ -696,7 +692,7 @@ JS::ThrowCompletionOr<bool> Location::internal_delete(JS::PropertyKey const& pro
 }
 
 // 7.10.5.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-ownpropertykeys
-JS::ThrowCompletionOr<GC::RootVector<JS::Value>> Location::internal_own_property_keys() const
+JS::ThrowCompletionOr<Vector<JS::PropertyKey>> Location::internal_own_property_keys() const
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return OrdinaryOwnPropertyKeys(this).
     if (HTML::is_platform_object_same_origin(*this))

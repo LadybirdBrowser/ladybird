@@ -105,11 +105,11 @@ static ThrowCompletionOr<GC::RootVector<Value>> get_own_property_keys(VM& vm, Va
     auto name_list = GC::RootVector<Value> { vm.heap() };
 
     // 4. For each element nextKey of keys, do
-    for (auto& next_key : keys) {
+    for (auto& next_property_key : keys) {
         // a. If Type(nextKey) is Symbol and type is symbol or Type(nextKey) is String and type is string, then
-        if ((next_key.is_symbol() && type == GetOwnPropertyKeysType::Symbol) || (next_key.is_string() && type == GetOwnPropertyKeysType::String)) {
+        if ((next_property_key.is_symbol() && type == GetOwnPropertyKeysType::Symbol) || ((next_property_key.is_string() || next_property_key.is_number()) && type == GetOwnPropertyKeysType::String)) {
             // i. Append nextKey as the last element of nameList.
-            name_list.append(next_key);
+            name_list.append(next_property_key.to_value(vm));
         }
     }
 
@@ -142,21 +142,19 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectConstructor::assign)
         auto keys = TRY(from->internal_own_property_keys());
 
         // iii. For each element nextKey of keys, do
-        for (auto& next_key : keys) {
-            auto property_key = MUST(PropertyKey::from_value(vm, next_key));
-
+        for (auto& next_property_key : keys) {
             // 1. Let desc be ? from.[[GetOwnProperty]](nextKey).
-            auto desc = TRY(from->internal_get_own_property(property_key));
+            auto desc = TRY(from->internal_get_own_property(next_property_key));
 
             // 2. If desc is not undefined and desc.[[Enumerable]] is true, then
             if (!desc.has_value() || !*desc->enumerable)
                 continue;
 
             // a. Let propValue be ? Get(from, nextKey).
-            auto prop_value = TRY(from->get(property_key));
+            auto prop_value = TRY(from->get(next_property_key));
 
             // b. Perform ? Set(to, nextKey, propValue, true).
-            TRY(to->set(property_key, prop_value, Object::ShouldThrowExceptions::Yes));
+            TRY(to->set(next_property_key, prop_value, Object::ShouldThrowExceptions::Yes));
         }
     }
 
@@ -327,9 +325,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectConstructor::get_own_property_descriptors)
     auto descriptors = Object::create(realm, realm.intrinsics().object_prototype());
 
     // 4. For each element key of ownKeys, do
-    for (auto& key : own_keys) {
-        auto property_key = MUST(PropertyKey::from_value(vm, key));
-
+    for (auto& property_key : own_keys) {
         // a. Let desc be ? obj.[[GetOwnProperty]](key).
         auto desc = TRY(object->internal_get_own_property(property_key));
 

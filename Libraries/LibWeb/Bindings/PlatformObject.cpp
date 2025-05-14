@@ -400,21 +400,19 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_prevent_extensions()
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-ownpropertykeys
-JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_property_keys() const
+JS::ThrowCompletionOr<Vector<JS::PropertyKey>> PlatformObject::internal_own_property_keys() const
 {
     if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
         return Base::internal_own_property_keys();
 
-    auto& vm = this->vm();
-
     // 1. Let keys be a new empty list of ECMAScript String and Symbol values.
-    GC::RootVector<JS::Value> keys { heap() };
+    Vector<JS::PropertyKey> keys;
 
     // 2. If O supports indexed properties, then for each index of O’s supported property indices, in ascending numerical order, append ! ToString(index) to keys.
     if (m_legacy_platform_object_flags->supports_indexed_properties) {
         for (u64 index = 0; index <= NumericLimits<u32>::max(); ++index) {
             if (is_supported_property_index(index))
-                keys.append(JS::PrimitiveString::create(vm, String::number(index)));
+                keys.append(String::number(index));
             else
                 break;
         }
@@ -422,22 +420,22 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
 
     // 3. If O supports named properties, then for each P of O’s supported property names that is visible according to the named property visibility algorithm, append P to keys.
     if (m_legacy_platform_object_flags->supports_named_properties) {
-        for (auto& named_property : supported_property_names()) {
+        for (auto const& named_property : supported_property_names()) {
             if (TRY(is_named_property_exposed_on_object(named_property)))
-                keys.append(JS::PrimitiveString::create(vm, named_property));
+                keys.append(named_property);
         }
     }
 
     // 4. For each P of O’s own property keys that is a String, in ascending chronological order of property creation, append P to keys.
-    for (auto& it : shape().property_table()) {
+    for (auto const& it : shape().property_table()) {
         if (it.key.is_string())
-            keys.append(it.key.to_value(vm));
+            keys.append(it.key);
     }
 
     // 5. For each P of O’s own property keys that is a Symbol, in ascending chronological order of property creation, append P to keys.
-    for (auto& it : shape().property_table()) {
+    for (auto const& it : shape().property_table()) {
         if (it.key.is_symbol())
-            keys.append(it.key.to_value(vm));
+            keys.append(it.key);
     }
 
     // FIXME: 6. Assert: keys has no duplicate items.

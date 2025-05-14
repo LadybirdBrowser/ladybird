@@ -659,7 +659,7 @@ ThrowCompletionOr<bool> ProxyObject::internal_delete(PropertyKey const& property
 }
 
 // 10.5.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
-ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys() const
+ThrowCompletionOr<Vector<PropertyKey>> ProxyObject::internal_own_property_keys() const
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 
@@ -693,6 +693,10 @@ ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys
         unique_keys.set(property_key, AK::HashSetExistingEntryBehavior::Keep);
         return {};
     }));
+    Vector<PropertyKey> trap_result_property_keys;
+    for (auto const& key : trap_result) {
+        trap_result_property_keys.append(MUST(PropertyKey::from_value(vm, key)));
+    }
 
     // 9. If trapResult contains any duplicate entries, throw a TypeError exception.
     if (unique_keys.size() != trap_result.size())
@@ -708,74 +712,72 @@ ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys
     // 13. Assert: targetKeys contains no duplicate entries.
 
     // 14. Let targetConfigurableKeys be a new empty List.
-    auto target_configurable_keys = GC::RootVector<Value> { heap() };
+    Vector<PropertyKey> target_configurable_keys;
 
     // 15. Let targetNonconfigurableKeys be a new empty List.
-    auto target_nonconfigurable_keys = GC::RootVector<Value> { heap() };
+    Vector<PropertyKey> target_nonconfigurable_keys;
 
     // 16. For each element key of targetKeys, do
-    for (auto& key : target_keys) {
-        auto property_key = MUST(PropertyKey::from_value(vm, key));
-
+    for (auto& property_key : target_keys) {
         // a. Let desc be ? target.[[GetOwnProperty]](key).
         auto descriptor = TRY(m_target->internal_get_own_property(property_key));
 
         // b. If desc is not undefined and desc.[[Configurable]] is false, then
         if (descriptor.has_value() && !*descriptor->configurable) {
             // i. Append key as an element of targetNonconfigurableKeys.
-            target_nonconfigurable_keys.append(key);
+            target_nonconfigurable_keys.append(property_key);
         }
         // c. Else,
         else {
             // i. Append key as an element of targetConfigurableKeys.
-            target_configurable_keys.append(key);
+            target_configurable_keys.append(property_key);
         }
     }
 
     // 17. If extensibleTarget is true and targetNonconfigurableKeys is empty, then
     if (extensible_target && target_nonconfigurable_keys.is_empty()) {
         // a. Return trapResult.
-        return { move(trap_result) };
+        return { move(trap_result_property_keys) };
     }
 
     // 18. Let uncheckedResultKeys be a List whose elements are the elements of trapResult.
-    auto unchecked_result_keys = GC::RootVector<Value> { heap() };
-    unchecked_result_keys.extend(trap_result);
+    Vector<PropertyKey> unchecked_result_keys;
+    unchecked_result_keys.extend(trap_result_property_keys);
 
     // 19. For each element key of targetNonconfigurableKeys, do
-    for (auto& key : target_nonconfigurable_keys) {
+    for (auto& property_key : target_nonconfigurable_keys) {
         // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.
-        if (!unchecked_result_keys.contains_slow(key))
-            return vm.throw_completion<TypeError>(ErrorType::ProxyOwnPropertyKeysSkippedNonconfigurableProperty, key.to_string_without_side_effects());
+        if (!unchecked_result_keys.contains_slow(property_key))
+            return vm.throw_completion<TypeError>(ErrorType::ProxyOwnPropertyKeysSkippedNonconfigurableProperty, property_key.to_string());
 
         // b. Remove key from uncheckedResultKeys.
         unchecked_result_keys.remove_first_matching([&](auto& value) {
-            return same_value(value, key);
+            return value == property_key;
         });
     }
 
     // 20. If extensibleTarget is true, return trapResult.
     if (extensible_target)
-        return { move(trap_result) };
+        return { move(trap_result_property_keys) };
 
     // 21. For each element key of targetConfigurableKeys, do
-    for (auto& key : target_configurable_keys) {
+    for (auto& property_key : target_configurable_keys) {
         // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.
-        if (!unchecked_result_keys.contains_slow(key))
-            return vm.throw_completion<TypeError>(ErrorType::ProxyOwnPropertyKeysNonExtensibleSkippedProperty, key.to_string_without_side_effects());
+        if (!unchecked_result_keys.contains_slow(property_key))
+            return vm.throw_completion<TypeError>(ErrorType::ProxyOwnPropertyKeysNonExtensibleSkippedProperty, property_key.to_string());
 
         // b. Remove key from uncheckedResultKeys.
         unchecked_result_keys.remove_first_matching([&](auto& value) {
-            return same_value(value, key);
+            return value == property_key;
         });
     }
 
     // 22. If uncheckedResultKeys is not empty, throw a TypeError exception.
     if (!unchecked_result_keys.is_empty())
-        return vm.throw_completion<TypeError>(ErrorType::ProxyOwnPropertyKeysNonExtensibleNewProperty, unchecked_result_keys[0].to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::ProxyOwnPropertyKeysNonExtensibleNewProperty, unchecked_result_keys[0].to_string());
 
     // 23. Return trapResult.
-    return { move(trap_result) };
+    return { move(trap_result_property_keys) };
 }
 
 // 10.5.12 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-call-thisargument-argumentslist
