@@ -1304,6 +1304,10 @@ void Document::update_layout(UpdateLayoutReason reason)
     if (m_created_for_appropriate_template_contents)
         return;
 
+    // Clear text blocks cache so we rebuild them on the next find action.
+    if (m_layout_root)
+        m_layout_root->invalidate_text_blocks_cache();
+
     invalidate_display_list();
 
     auto* document_element = this->document_element();

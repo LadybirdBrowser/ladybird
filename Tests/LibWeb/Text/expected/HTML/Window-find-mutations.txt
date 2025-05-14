@@ -1,0 +1,3 @@
+Selection: [object Text] 0 - [object Text] 6
+Selection: [object Text] 0 - [object Text] 3
+Expected exception: IndexSizeError: Selection.getRangeAt() on empty Selection or with invalid argument

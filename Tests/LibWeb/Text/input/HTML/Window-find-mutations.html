@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div>foobar</div>
+<script>
+test(() => {
+    function showSelection() {
+        let range = getSelection().getRangeAt(0);
+        println(`Selection: ${range.startContainer} ${range.startOffset} - ${range.endContainer} ${range.endOffset}`);
+    }
+
+    // Select 'foobar'.
+    window.find('foobar');
+    showSelection();
+
+    // Remove 'bar'.
+    document.querySelector('div').childNodes[0].deleteData(3, 3);
+    showSelection();
+
+    // Try to find 'bar'.
+    getSelection().empty();
+    window.find('bar');
+
+    // This should now fail.
+    try {
+        showSelection();
+    } catch (e) {
+        println(`Expected exception: ${e}`);
+    }
+});
+</script>
