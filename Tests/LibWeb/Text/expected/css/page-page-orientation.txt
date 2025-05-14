@@ -1,0 +1,7 @@
+"page-orientation: upright": parsed as "upright"
+"page-orientation: rotate-left": parsed as "rotate-left"
+"page-orientation: rotate-right": parsed as "rotate-right"
+"page-orientation: auto": INVALID
+"page-orientation: none": INVALID
+"page-orientation: rotate-left rotate-right": INVALID
+"page-orientation: 90deg": INVALID

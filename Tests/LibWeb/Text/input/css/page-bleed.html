@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+@page {}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let page = document.styleSheets[0].cssRules[0];
+        const testCases = [
+            "auto",
+            "1in",
+            "-2cm",
+            // Invalid
+            "auto 1in",
+            "3cm auto",
+            "1cm 2cm",
+            "orange",
+            "none"
+        ];
+
+        for (let testCase of testCases) {
+            page.style.removeProperty("bleed");
+            page.style.bleed = testCase;
+            let parsed = page.style.bleed;
+            if (parsed.length)
+                println(`"bleed: ${testCase}": parsed as "${parsed}"`);
+            else
+                println(`"bleed: ${testCase}": INVALID`);
+        }
+    });
+</script>

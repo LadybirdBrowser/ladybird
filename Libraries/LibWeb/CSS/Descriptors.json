@@ -108,6 +108,13 @@
     "spec": "https://drafts.csswg.org/css-page-3/#at-page-rule",
     "FIXME": "There are a lot more properties that are valid, see https://drafts.csswg.org/css-page-3/#properties-list",
     "descriptors": {
+      "bleed": {
+        "initial": "auto",
+        "syntax": [
+          "auto",
+          "<length>"
+        ]
+      },
       "margin": {
         "initial": "0",
         "syntax": [
@@ -136,6 +143,21 @@
         "initial": "0",
         "syntax": [
           "<'margin-top'>"
+        ]
+      },
+      "marks": {
+        "initial": "none",
+        "syntax": [
+          "none",
+          "crop || cross"
+        ]
+      },
+      "page-orientation": {
+        "initial": "upright",
+        "syntax": [
+          "upright",
+          "rotate-left",
+          "rotate-right"
         ]
       },
       "size": {

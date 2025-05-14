@@ -118,8 +118,10 @@ RefPtr<CSSStyleValue const> descriptor_initial_value(AtRuleID, DescriptorID);
 struct DescriptorMetadata {
     enum class ValueType {
         // FIXME: Parse the grammar instead of hard-coding all the options!
+        CropOrCross,
         FamilyName,
         FontSrcList,
+        Length,
         OptionalDeclarationValue,
         PageSize,
         PositivePercentage,
@@ -387,6 +389,8 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "FontSrcList"_string;
                         if (syntax_string == "<declaration-value>?"sv)
                             return "OptionalDeclarationValue"_string;
+                        if (syntax_string == "<length>"sv)
+                            return "Length"_string;
                         if (syntax_string == "<page-size>"sv)
                             return "PageSize"_string;
                         if (syntax_string == "<percentage [0,∞]>"sv)
@@ -395,13 +399,18 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "String"_string;
                         if (syntax_string == "<unicode-range-token>#"sv)
                             return "UnicodeRangeTokens"_string;
+                        dbgln("Unrecognized value type: `{}`", syntax_string);
                         VERIFY_NOT_REACHED();
                     }();
                     option_generator.set("value_type"sv, value_type);
                     option_generator.append(R"~~~(
             metadata.syntax.empend(DescriptorMetadata::ValueType::@value_type@);
 )~~~");
-
+                } else if (syntax_string == "crop || cross"sv) {
+                    // FIXME: This is extra hacky.
+                    option_generator.append(R"~~~(
+            metadata.syntax.empend(DescriptorMetadata::ValueType::CropOrCross);
+)~~~");
                 } else {
                     // Keyword
                     option_generator.set("keyword:titlecase"sv, title_casify(syntax_string));
