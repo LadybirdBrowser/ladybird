@@ -62,3 +62,4 @@ check_cxx_source_compiles([=[
     int main() { auto b = ^{}; auto __weak w = b; w(); }
 ]=] CXX_COMPILER_SUPPORTS_OBJC_ARC)
 unset(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_LIBRARIES)
