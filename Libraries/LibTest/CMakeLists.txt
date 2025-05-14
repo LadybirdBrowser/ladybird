@@ -2,10 +2,9 @@ serenity_install_sources("Libraries/LibTest")
 
 set(SOURCES
     TestSuite.cpp
-    CrashTest.cpp
 )
 
-serenity_lib(LibTest test)
+serenity_lib(LibTest test EXPLICIT_SYMBOL_EXPORT ENABLE_WINDOWS)
 
 add_library(LibTestMain OBJECT TestMain.cpp)
 add_library(JavaScriptTestRunnerMain OBJECT JavaScriptTestRunnerMain.cpp)

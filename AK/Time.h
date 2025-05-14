@@ -14,8 +14,8 @@
 #include <AK/Types.h>
 #ifdef AK_OS_WINDOWS
 struct timeval {
-    long tv_sec;
-    long tv_usec;
+    long long tv_sec { 0 };
+    long long tv_usec { 0 };
 };
 #else
 #    include <sys/time.h>

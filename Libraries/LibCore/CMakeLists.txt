@@ -22,7 +22,7 @@ else()
         System.cpp)
 endif()
 
-serenity_lib(LibCoreMinimal coreminimal)
+serenity_lib(LibCoreMinimal coreminimal ENABLE_WINDOWS)
 
 if (WIN32)
     find_path(DIRENT_INCLUDE_DIR dirent.h REQUIRED)
@@ -101,7 +101,7 @@ if (APPLE)
     list(APPEND SOURCES IOSurface.cpp)
 endif()
 
-serenity_lib(LibCore core)
+serenity_lib(LibCore core ENABLE_WINDOWS)
 target_link_libraries(LibCore PRIVATE LibUnicode LibURL)
 target_link_libraries(LibCore PUBLIC LibCoreMinimal)
 

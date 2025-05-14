@@ -968,6 +968,24 @@ ErrorOr<void> Formatter<char>::format(FormatBuilder& builder, char value)
 ErrorOr<void> Formatter<wchar_t>::format(FormatBuilder& builder, wchar_t value)
 {
     if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
+#ifdef AK_OS_WINDOWS
+        Formatter<u16> formatter { *this };
+        return formatter.format(builder, static_cast<u16>(value));
+#else
+        Formatter<u32> formatter { *this };
+        return formatter.format(builder, static_cast<u32>(value));
+#endif
+    } else {
+        StringBuilder codepoint;
+        codepoint.append_code_point(value);
+
+        Formatter<StringView> formatter { *this };
+        return formatter.format(builder, codepoint.string_view());
+    }
+}
+ErrorOr<void> Formatter<char32_t>::format(FormatBuilder& builder, char32_t value)
+{
+    if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
         Formatter<u32> formatter { *this };
         return formatter.format(builder, static_cast<u32>(value));
     } else {

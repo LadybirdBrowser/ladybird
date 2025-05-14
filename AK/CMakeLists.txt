@@ -41,7 +41,7 @@ else()
     list(APPEND SOURCES LexicalPath.cpp)
 endif()
 
-serenity_lib(AK ak)
+serenity_lib(AK ak ENABLE_WINDOWS)
 
 include(stacktrace)
 configure_file(Backtrace.h.in Backtrace.h @ONLY)
@@ -72,4 +72,6 @@ endif()
 if (WIN32)
     # FIXME: Windows on ARM
     target_link_libraries(AK PRIVATE clang_rt.builtins-x86_64.lib)
+elseif (APPLE)
+    target_link_options(AK PRIVATE LINKER:-U,_ak_assertion_handler)
 endif()

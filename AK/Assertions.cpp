@@ -8,6 +8,12 @@
 #include <AK/Backtrace.h>
 #include <AK/Format.h>
 #include <AK/Platform.h>
+#include <AK/Vector.h>
+
+#ifdef AK_OS_WINDOWS
+#    include <Windows.h>
+#    include <psapi.h>
+#endif
 
 #if defined(AK_OS_ANDROID) && (__ANDROID_API__ >= 33)
 #    include <android/log.h>
@@ -114,8 +120,45 @@ void ak_trap(void)
     __builtin_trap();
 }
 
-void ak_verification_failed(char const* message)
+#ifdef AK_OS_WINDOWS
+void ak_invoke_assertion_handler_windows(const char* message)
 {
+    const HANDLE process = GetCurrentProcess();
+    DWORD needed;
+    EnumProcessModules(process, nullptr, 0, &needed);
+    Vector<HMODULE> modules;
+    modules.resize(needed / sizeof(HMODULE));
+    EnumProcessModules(process, modules.data(), needed, &needed);
+
+    if (EnumProcessModules(process, modules.data(), static_cast<DWORD>(modules.size()), &needed)) {
+        for (size_t i = 0; i < modules.size(); ++i) {
+            typedef void (*assertion_handler_func)(char const*);
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
+            const auto handler_ptr = reinterpret_cast<assertion_handler_func>(
+                GetProcAddress(modules[i], "ak_assertion_handler"));
+#    pragma clang diagnostic pop
+
+            if (handler_ptr) {
+                handler_ptr(message);
+                break;
+            }
+        }
+    }
+}
+#else
+[[gnu::weak]] void ak_assertion_handler(char const* message);
+#endif
+
+void ak_verification_failed(const char* message)
+{
+#ifdef AK_OS_WINDOWS
+    ak_invoke_assertion_handler_windows(message);
+#else
+    if (ak_assertion_handler) {
+        ak_assertion_handler(message);
+    }
+#endif
     if (ak_colorize_output())
         ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
     else

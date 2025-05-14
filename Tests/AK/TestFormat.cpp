@@ -9,8 +9,10 @@
 #include <AK/ByteString.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
-#include <math.h>
-#include <unistd.h>
+
+#ifdef AK_OS_WINDOWS
+#    include <stdio.h>
+#endif
 
 TEST_CASE(is_integral_works_properly)
 {
@@ -232,8 +234,12 @@ TEST_CASE(file_descriptor)
 {
     char filename[] = "/tmp/test-file-descriptor-XXXXXX";
 
+#ifdef AK_OS_WINDOWS
+    FILE* file = tmpfile();
+#else
     int fd = mkstemp(filename);
     FILE* file = fdopen(fd, "w+");
+#endif
 
     outln(file, "{}", "Hello, World!");
     out(file, "foo");
@@ -398,14 +404,35 @@ TEST_CASE(vector_format)
 
 TEST_CASE(format_wchar)
 {
-    EXPECT_EQ(ByteString::formatted("{}", L'a'), "a");
+    // The shenanigans below is because Formatter supported wchar_t only, which is 16 bits on Windows,
+    // not 32 bits. So char32_t format support was added so Windows could have equivalent tests here.
+
+    EXPECT_EQ(ByteString::formatted("{}", 'a'), "a");
+#ifdef AK_OS_WINDOWS
+    EXPECT_EQ(ByteString::formatted("{}", U'\U0001F41E'), "\xF0\x9F\x90\x9E");
+#else
     EXPECT_EQ(ByteString::formatted("{}", L'\U0001F41E'), "\xF0\x9F\x90\x9E");
+#endif
+
     EXPECT_EQ(ByteString::formatted("{:x}", L'a'), "61");
+#ifdef AK_OS_WINDOWS
+    EXPECT_EQ(ByteString::formatted("{:x}", U'\U0001F41E'), "1f41e");
+#else
     EXPECT_EQ(ByteString::formatted("{:x}", L'\U0001F41E'), "1f41e");
+#endif
+
     EXPECT_EQ(ByteString::formatted("{:d}", L'a'), "97");
+#ifdef AK_OS_WINDOWS
+    EXPECT_EQ(ByteString::formatted("{:d}", U'\U0001F41E'), "128030");
+#else
     EXPECT_EQ(ByteString::formatted("{:d}", L'\U0001F41E'), "128030");
+#endif
 
     EXPECT_EQ(ByteString::formatted("{:6}", L'a'), "a     ");
     EXPECT_EQ(ByteString::formatted("{:6d}", L'a'), "    97");
+#ifdef AK_OS_WINDOWS
+    EXPECT_EQ(ByteString::formatted("{:#x}", U'\U0001F41E'), "0x1f41e");
+#else
     EXPECT_EQ(ByteString::formatted("{:#x}", L'\U0001F41E'), "0x1f41e");
+#endif
 }

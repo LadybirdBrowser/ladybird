@@ -7,7 +7,6 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/Time.h>
-#include <sys/time.h>
 
 using AK::Duration;
 

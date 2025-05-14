@@ -19,6 +19,6 @@ set(SOURCES
     Pattern/Tokenizer.cpp
 )
 
-serenity_lib(LibURL url)
+serenity_lib(LibURL url ENABLE_WINDOWS)
 target_link_libraries(LibURL PRIVATE LibUnicode LibTextCodec LibRegex)
 target_compile_definitions(LibURL PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
