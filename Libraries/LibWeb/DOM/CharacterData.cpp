@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,7 +11,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/Range.h>
-#include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/Layout/TextNode.h>
 
 namespace Web::DOM {
@@ -105,31 +105,32 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // NOTE: We do this later so that the mutation observer may notify UI clients of this node's new value.
     queue_mutation_record(MutationType::characterData, {}, {}, old_data, {}, {}, nullptr, nullptr);
 
-    // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to offset plus count, set its start offset to offset.
-    for (auto& range : Range::live_ranges()) {
+    // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to
+    //    offset plus count, set its start offset to offset.
+    for (auto* range : Range::live_ranges()) {
         if (range->start_container() == this && range->start_offset() > offset && range->start_offset() <= (offset + count))
-            TRY(range->set_start(*range->start_container(), offset));
+            range->set_start_offset(offset);
     }
 
-    // 9. For each live range whose end node is node and end offset is greater than offset but less than or equal to offset plus count, set its end offset to offset.
-    for (auto& range : Range::live_ranges()) {
+    // 9. For each live range whose end node is node and end offset is greater than offset but less than or equal to
+    //    offset plus count, set its end offset to offset.
+    for (auto* range : Range::live_ranges()) {
         if (range->end_container() == this && range->end_offset() > offset && range->end_offset() <= (offset + count))
-            TRY(range->set_end(*range->end_container(), offset));
+            range->set_end_offset(offset);
     }
 
-    // 10. For each live range whose start node is node and start offset is greater than offset plus count, increase its start offset by data’s length and decrease it by count.
-    for (auto& range : Range::live_ranges()) {
+    // 10. For each live range whose start node is node and start offset is greater than offset plus count, increase its
+    //     start offset by data’s length and decrease it by count.
+    for (auto* range : Range::live_ranges()) {
         if (range->start_container() == this && range->start_offset() > (offset + count))
-            TRY(range->set_start(*range->start_container(), range->start_offset() + inserted_data_result.data.size() - count));
+            range->set_start_offset(range->start_offset() + inserted_data_result.data.size() - count);
     }
 
-    // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end offset by data’s length and decrease it by count.
-    for (auto& range : Range::live_ranges()) {
-        if (range->end_container() == this && range->end_offset() > (offset + count)) {
-            // AD-HOC: Clamp offset to the end of the data if it's too large.
-            auto new_offset = min(range->end_offset() + inserted_data_result.data.size() - count, length_in_utf16_code_units());
-            TRY(range->set_end(*range->end_container(), new_offset));
-        }
+    // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end
+    //     offset by data’s length and decrease it by count.
+    for (auto* range : Range::live_ranges()) {
+        if (range->end_container() == this && range->end_offset() > (offset + count))
+            range->set_end_offset(range->end_offset() + inserted_data_result.data.size() - count);
     }
 
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.

@@ -47,11 +47,6 @@ public:
     void collapse(bool to_start);
     WebIDL::ExceptionOr<void> select_node_contents(GC::Ref<Node>);
 
-    void increase_start_offset(Badge<Node>, WebIDL::UnsignedLong);
-    void increase_end_offset(Badge<Node>, WebIDL::UnsignedLong);
-    void decrease_start_offset(Badge<Node>, WebIDL::UnsignedLong);
-    void decrease_end_offset(Badge<Node>, WebIDL::UnsignedLong);
-
     // https://dom.spec.whatwg.org/#dom-range-start_to_start
     enum HowToCompareBoundaryPoints : WebIDL::UnsignedShort {
         START_TO_START = 0,
@@ -123,6 +118,10 @@ public:
     }
 
 private:
+    friend class CharacterData;
+    friend class Node;
+    friend class Text;
+
     explicit Range(Document&);
     Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);
 
@@ -137,6 +136,16 @@ private:
         Start,
         End,
     };
+
+    void set_start_node(GC::Ref<Node> node) { m_start_container = node; }
+    void set_start_offset(WebIDL::UnsignedLong offset) { m_start_offset = offset; }
+    void set_end_node(GC::Ref<Node> node) { m_end_container = node; }
+    void set_end_offset(WebIDL::UnsignedLong offset) { m_end_offset = offset; }
+
+    void increase_start_offset(WebIDL::UnsignedLong count) { m_start_offset += count; }
+    void increase_end_offset(WebIDL::UnsignedLong count) { m_end_offset += count; }
+    void decrease_start_offset(WebIDL::UnsignedLong count) { m_start_offset -= count; }
+    void decrease_end_offset(WebIDL::UnsignedLong count) { m_end_offset -= count; }
 
     WebIDL::ExceptionOr<void> set_start_or_end(GC::Ref<Node> node, u32 offset, StartOrEnd start_or_end);
     WebIDL::ExceptionOr<void> select(GC::Ref<Node> node);

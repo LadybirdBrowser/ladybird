@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -75,29 +76,36 @@ WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)
         // 1. Insert new node into parent before node’s next sibling.
         parent->insert_before(*new_node, next_sibling());
 
-        // 2. For each live range whose start node is node and start offset is greater than offset, set its start node to new node and decrease its start offset by offset.
-        for (auto& range : Range::live_ranges()) {
-            if (range->start_container() == this && range->start_offset() > offset)
-                TRY(range->set_start(*new_node, range->start_offset() - offset));
-        }
-
-        // 3. For each live range whose end node is node and end offset is greater than offset, set its end node to new node and decrease its end offset by offset.
-        for (auto& range : Range::live_ranges()) {
-            if (range->end_container() == this && range->end_offset() > offset)
-                TRY(range->set_end(*new_node, range->end_offset() - offset));
-        }
-
-        // 4. For each live range whose start node is parent and start offset is equal to the index of node plus 1, increase its start offset by 1.
-        for (auto& range : Range::live_ranges()) {
-            if (range->start_container() == parent.ptr() && range->start_offset() == index() + 1)
-                TRY(range->set_start(*range->start_container(), range->start_offset() + 1));
-        }
-
-        // 5. For each live range whose end node is parent and end offset is equal to the index of node plus 1, increase its end offset by 1.
-        for (auto& range : Range::live_ranges()) {
-            if (range->end_container() == parent.ptr() && range->end_offset() == index() + 1) {
-                TRY(range->set_end(*range->end_container(), range->end_offset() + 1));
+        // 2. For each live range whose start node is node and start offset is greater than offset, set its start node
+        //    to new node and decrease its start offset by offset.
+        for (auto* range : Range::live_ranges()) {
+            if (range->start_container() == this && range->start_offset() > offset) {
+                range->set_start_node(*new_node);
+                range->decrease_start_offset(offset);
             }
+        }
+
+        // 3. For each live range whose end node is node and end offset is greater than offset, set its end node to new
+        //    node and decrease its end offset by offset.
+        for (auto* range : Range::live_ranges()) {
+            if (range->end_container() == this && range->end_offset() > offset) {
+                range->set_end_node(*new_node);
+                range->decrease_end_offset(offset);
+            }
+        }
+
+        // 4. For each live range whose start node is parent and start offset is equal to the index of node plus 1,
+        //    increase its start offset by 1.
+        for (auto* range : Range::live_ranges()) {
+            if (range->start_container() == parent.ptr() && range->start_offset() == index() + 1)
+                range->increase_start_offset(1);
+        }
+
+        // 5. For each live range whose end node is parent and end offset is equal to the index of node plus 1, increase
+        //    its end offset by 1.
+        for (auto* range : Range::live_ranges()) {
+            if (range->end_container() == parent.ptr() && range->end_offset() == index() + 1)
+                range->increase_end_offset(1);
         }
     }
 
