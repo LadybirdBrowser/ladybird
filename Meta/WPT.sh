@@ -470,21 +470,19 @@ run_wpt_chunked() {
     fi
 
     if [ "$procs" -le 1 ]; then
-        command=(./wpt run -f --processes="${WPT_PROCESSES}" "$@")
+        command=(./wpt run -f --browser-version="1.0-$(ladybird_git_hash)" --processes="${WPT_PROCESSES}" "$@")
         echo "${command[@]}"
         "${command[@]}"
         return
     fi
 
     concurrency=$(( $(nproc) * 2 / procs ))
-    LADYBIRD_GIT_VERSION="$(ladybird_git_hash)"
 
     echo "Preparing the venv setup..."
     base_venv="${BUILD_DIR}/wpt-prep/_venv"
     ./wpt --venv "$base_venv" run "${WPT_ARGS[@]}" ladybird THIS_TEST_CANNOT_POSSIBLY_EXIST || true
 
     echo "Launching $procs chunked instances (concurrency=$concurrency each)"
-    export LADYBIRD_GIT_VERSION
     local logs=()
 
     for i in $(seq 0 $((procs - 1))); do
@@ -504,9 +502,10 @@ run_wpt_chunked() {
             --total-chunks="$procs" \
             --chunk-type=hash \
             -f \
+            --browser-version="1.0-$(ladybird_git_hash)"
             --processes="$concurrency" \
             "$@")
-        echo "[INSTANCE $i / ns wptns$i] LADYBIRD_GIT_VERSION=$LADYBIRD_GIT_VERSION ${command[*]}"
+        echo "[INSTANCE $i / ns wptns$i] ${command[*]}"
         instance_run "$i" "$rundir" script -q "$logpath" -c "$(printf "%q " "${command[@]}")" &>/dev/null &
     done
 
