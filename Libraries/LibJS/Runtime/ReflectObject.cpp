@@ -226,7 +226,11 @@ JS_DEFINE_NATIVE_FUNCTION(ReflectObject::own_keys)
         return vm.throw_completion<TypeError>(ErrorType::NotAnObject, target.to_string_without_side_effects());
 
     // 2. Let keys be ? target.[[OwnPropertyKeys]]().
-    auto keys = TRY(target.as_object().internal_own_property_keys());
+    auto property_keys = TRY(target.as_object().internal_own_property_keys());
+    GC::RootVector<Value> keys { vm.heap() };
+    keys.ensure_capacity(property_keys.size());
+    for (auto& property_key : property_keys)
+        keys.append(property_key.to_value(vm));
 
     // 3. Return CreateArrayFromList(keys).
     return Array::create_from(realm, keys);

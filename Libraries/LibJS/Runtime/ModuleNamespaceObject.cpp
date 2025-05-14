@@ -211,11 +211,11 @@ ThrowCompletionOr<bool> ModuleNamespaceObject::internal_delete(PropertyKey const
 }
 
 // 10.4.6.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-ownpropertykeys
-ThrowCompletionOr<GC::RootVector<Value>> ModuleNamespaceObject::internal_own_property_keys() const
+ThrowCompletionOr<Vector<PropertyKey>> ModuleNamespaceObject::internal_own_property_keys() const
 {
     // 1. Let exports be O.[[Exports]].
     // NOTE: We only add the exports after we know the size of symbolKeys
-    GC::RootVector<Value> exports { vm().heap() };
+    Vector<PropertyKey> exports;
 
     // 2. Let symbolKeys be OrdinaryOwnPropertyKeys(O).
     auto symbol_keys = MUST(Object::internal_own_property_keys());
@@ -223,7 +223,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ModuleNamespaceObject::internal_own_pro
     // 3. Return the list-concatenation of exports and symbolKeys.
     exports.ensure_capacity(m_exports.size() + symbol_keys.size());
     for (auto const& export_name : m_exports)
-        exports.unchecked_append(PrimitiveString::create(vm(), export_name));
+        exports.unchecked_append(export_name);
     exports.extend(symbol_keys);
 
     return exports;
