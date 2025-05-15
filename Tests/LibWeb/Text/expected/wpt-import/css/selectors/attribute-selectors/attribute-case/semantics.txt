@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 955 tests
 
-926 Pass
-29 Fail
+934 Pass
+21 Fail
 Pass	[foo='BAR'] /* sanity check (match) */ <div foo="BAR"> in standards mode
 Pass	[foo='BAR'] /* sanity check (match) */ <div foo="BAR"> with querySelector in standards mode
 Pass	[foo='bar'] /* sanity check (match) */ <div foo="bar"> in standards mode
@@ -115,10 +115,10 @@ Pass	[id^='a'] /* sanity check (no match) */ <div id="AB"> in standards mode
 Pass	[id^='a'] /* sanity check (no match) */ <div id="AB"> with querySelector in standards mode
 Pass	[id$='A'] <div id="xa"> in standards mode
 Pass	[id$='A'] <div id="xa"> with querySelector in standards mode
-Fail	[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
-Fail	[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in standards mode
-Fail	[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
-Fail	[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in standards mode
+Pass	[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
+Pass	[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in standards mode
+Pass	[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
+Pass	[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in standards mode
 Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
 Pass	[foo='' i] <div foo="BAR"> in standards mode
 Pass	[foo='' i] <div foo="BAR"> with querySelector in standards mode
@@ -436,10 +436,10 @@ Pass	[id^='a'] /* sanity check (no match) */ <div id="AB"> in quirks mode
 Pass	[id^='a'] /* sanity check (no match) */ <div id="AB"> with querySelector in quirks mode
 Pass	[id$='A'] <div id="xa"> in quirks mode
 Pass	[id$='A'] <div id="xa"> with querySelector in quirks mode
-Fail	[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
-Fail	[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in quirks mode
-Fail	[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
-Fail	[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in quirks mode
+Pass	[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
+Pass	[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in quirks mode
+Pass	[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
+Pass	[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in quirks mode
 Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
 Pass	[foo='' i] <div foo="BAR"> in quirks mode
 Pass	[foo='' i] <div foo="BAR"> with querySelector in quirks mode

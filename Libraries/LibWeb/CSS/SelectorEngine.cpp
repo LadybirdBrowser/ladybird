@@ -303,6 +303,7 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
             // See: https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
             if (element.document().is_html_document()
                 && element.namespace_uri() == Namespace::HTML
+                && attribute.qualified_name.namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default
                 && attribute_name.is_one_of(
                     HTML::AttributeNames::accept, HTML::AttributeNames::accept_charset, HTML::AttributeNames::align,
                     HTML::AttributeNames::alink, HTML::AttributeNames::axis, HTML::AttributeNames::bgcolor, HTML::AttributeNames::charset,
