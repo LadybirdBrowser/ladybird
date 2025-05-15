@@ -42,19 +42,19 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
 
 RuleContext rule_context_type_for_at_rule(FlyString const& name)
 {
-    if (name == "media")
+    if (name.equals_ignoring_ascii_case("media"sv))
         return RuleContext::AtMedia;
-    if (name == "font-face")
+    if (name.equals_ignoring_ascii_case("font-face"sv))
         return RuleContext::AtFontFace;
-    if (name == "keyframes")
+    if (name.equals_ignoring_ascii_case("keyframes"sv))
         return RuleContext::AtKeyframes;
-    if (name == "supports")
+    if (name.equals_ignoring_ascii_case("supports"sv))
         return RuleContext::AtSupports;
-    if (name == "layer")
+    if (name.equals_ignoring_ascii_case("layer"sv))
         return RuleContext::AtLayer;
-    if (name == "property")
+    if (name.equals_ignoring_ascii_case("property"sv))
         return RuleContext::AtProperty;
-    if (name == "page")
+    if (name.equals_ignoring_ascii_case("page"sv))
         return RuleContext::AtPage;
     return RuleContext::Unknown;
 }
