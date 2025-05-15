@@ -150,35 +150,15 @@ String isomorphic_decode(ReadonlyBytes input)
 // https://infra.spec.whatwg.org/#code-unit-less-than
 bool code_unit_less_than(StringView a, StringView b)
 {
-    // FIXME: There should be a way to do this without converting to utf16
+    // FIXME: Perhaps there is a faster way to do this?
 
-    // 1. If b is a code unit prefix of a, then return false.
-    if (is_code_unit_prefix(b, a))
-        return false;
+    // Fastpath for ASCII-only strings.
+    if (a.is_ascii() && b.is_ascii())
+        return a < b;
 
-    // 2. If a is a code unit prefix of b, then return true.
-    if (is_code_unit_prefix(a, b))
-        return true;
-
-    auto code_units_a = MUST(utf8_to_utf16(a));
-    auto code_units_b = MUST(utf8_to_utf16(b));
-
-    auto view_a = Utf16View(code_units_a);
-    auto view_b = Utf16View(code_units_b);
-
-    // 3. Let n be the smallest index such that the nth code unit of a is different from the nth code unit of b.
-    //    (There has to be such an index, since neither string is a prefix of the other.)
-    size_t n = 0;
-    size_t min_length = min(view_a.length_in_code_units(), view_b.length_in_code_units());
-    while (n < min_length && view_a.code_unit_at(n) == view_b.code_unit_at(n))
-        ++n;
-
-    // 4. If the nth code unit of a is less than the nth code unit of b, then return true.
-    if (view_a.code_unit_at(n) < view_b.code_unit_at(n))
-        return true;
-
-    // 5. Return false.
-    return false;
+    auto a_utf16 = MUST(utf8_to_utf16(a));
+    auto b_utf16 = MUST(utf8_to_utf16(b));
+    return Utf16View { a_utf16 }.is_code_unit_less_than(Utf16View { b_utf16 });
 }
 
 }
