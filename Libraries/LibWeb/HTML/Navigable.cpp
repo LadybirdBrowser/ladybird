@@ -362,17 +362,6 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
 Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
 {
-    // NOTE: Implementation for step 7 here.
-    GC::Ptr<Navigable> navigable_by_target_name = nullptr;
-    auto find_and_assign_navigable_by_target_name = [&](StringView name) {
-        auto maybe_navigable = find_a_navigable_by_target_name(name);
-        if (maybe_navigable) {
-            navigable_by_target_name = maybe_navigable;
-            return true;
-        }
-        return false;
-    };
-
     // 1. Let chosen be null.
     GC::Ptr<Navigable> chosen = nullptr;
 
@@ -402,16 +391,16 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
         chosen = traversable_navigable();
     }
 
-    // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank", and there exists a navigable that is
-    //    the result of finding a navigable by target name given name and currentNavigable, set chosen to that navigable.
-    else if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv) && find_and_assign_navigable_by_target_name(name)) {
-        chosen = navigable_by_target_name;
+    // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank" and noopener is false, then set chosen
+    //    to the result of finding a navigable by target name given name and currentNavigable.
+    else if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv) && no_opener == TokenizedFeature::NoOpener::No) {
+        chosen = find_a_navigable_by_target_name(name);
     }
 
-    // 8. Otherwise, a new top-level traversable is being requested, and what happens depends on the
-    // user agent's configuration and abilities — it is determined by the rules given for the first
-    // applicable option from the following list:
-    else {
+    // 8. If chosen is null, then a new top-level traversable is being requested, and what happens depends on the user
+    //    agent's configuration and abilities — it is determined by the rules given for the first applicable option
+    //    from the following list:
+    if (!chosen) {
         // --> If currentNavigable's active window does not have transient activation and the user agent has been configured to
         //     not show popups (i.e., the user agent has a "popup blocker" enabled)
         if (active_window() && !active_window()->has_transient_activation() && traversable_navigable()->page().should_block_pop_ups()) {
