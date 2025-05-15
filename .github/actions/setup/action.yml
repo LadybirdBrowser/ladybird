@@ -33,8 +33,10 @@ runs:
 
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
-        curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
-        echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+        if [ ! -f /etc/apt/sources.list.d/llvm.list ]; then
+          curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
+          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+        fi
 
         sudo apt-get update -y
         sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 \
