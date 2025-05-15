@@ -53,6 +53,67 @@ static inline GC::Ptr<DOM::Node const> traverse_up(GC::Ptr<DOM::Node const> node
     return node->parent();
 }
 
+// https://www.rfc-editor.org/rfc/rfc4647.html#section-3.3.2
+// NB: Language tags only use ASCII characters, so we can get away with using StringView.
+static bool language_range_matches_tag(StringView language_range, StringView language_tag)
+{
+    // 1. Split both the extended language range and the language tag being compared into a list of subtags by
+    //    dividing on the hyphen (%x2D) character.
+    auto range_subtags = language_range.split_view('-', SplitBehavior::KeepEmpty);
+    auto tag_subtags = language_tag.split_view('-', SplitBehavior::KeepEmpty);
+
+    //    Two subtags match if either they are the same when compared case-insensitively or the language range's subtag
+    //    is the wildcard '*'.
+    auto subtags_match = [](StringView language_range_subtag, StringView language_subtag) {
+        return language_range_subtag == "*"sv
+            || Infra::is_ascii_case_insensitive_match(language_range_subtag, language_subtag);
+    };
+
+    // 2. Begin with the first subtag in each list. If the first subtag in the range does not match the first
+    //    subtag in the tag, the overall match fails. Otherwise, move to the next subtag in both the range and the
+    //    tag.
+    auto tag_subtag = tag_subtags.begin();
+    auto range_subtag = range_subtags.begin();
+    if (!subtags_match(*range_subtag, *tag_subtag))
+        return false;
+    ++tag_subtag;
+    ++range_subtag;
+
+    // 3. While there are more subtags left in the language range's list:
+    while (!range_subtag.is_end()) {
+        // A. If the subtag currently being examined in the range is the wildcard ('*'), move to the next subtag in
+        //    the range and continue with the loop.
+        if (*range_subtag == "*"sv) {
+            ++range_subtag;
+            continue;
+        }
+
+        // B. Else, if there are no more subtags in the language tag's list, the match fails.
+        if (tag_subtag.is_end())
+            return false;
+
+        // C. Else, if the current subtag in the range's list matches the current subtag in the language tag's
+        //    list, move to the next subtag in both lists and continue with the loop.
+        if (subtags_match(*range_subtag, *tag_subtag)) {
+            ++range_subtag;
+            ++tag_subtag;
+            continue;
+        }
+
+        // D. Else, if the language tag's subtag is a "singleton" (a single letter or digit, which includes the
+        //    private-use subtag 'x') the match fails.
+        if (tag_subtag->length() == 1 && is_ascii_alphanumeric((*tag_subtag)[0])) {
+            return false;
+        }
+
+        // E. Else, move to the next subtag in the language tag's list and continue with the loop.
+        ++tag_subtag;
+    }
+
+    // 4. When the language range's list has no more subtags, the match succeeds.
+    return true;
+}
+
 // https://drafts.csswg.org/selectors-4/#the-lang-pseudo
 static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector<FlyString> const& languages)
 {
@@ -62,21 +123,17 @@ static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector
 
     auto element_language = maybe_element_language.release_value();
 
-    // FIXME: This is ad-hoc. Implement a proper language range matching algorithm as recommended by BCP47.
-    for (auto const& language : languages) {
-        if (language.is_empty())
-            continue;
-        if (language == "*"sv)
+    // The element’s content language matches a language range if its content language, as represented in BCP 47
+    // syntax, matches the given language range in an extended filtering operation per [RFC4647] Matching of Language
+    // Tags (section 3.3.2). Both the content language and the language range must be canonicalized and converted to
+    // extlang form as per section 4.5 of [RFC5646] prior to the extended filtering operation. The matching is
+    // performed case-insensitively within the ASCII range.
+
+    // FIXME: Canonicalize both as extlang.
+
+    for (auto const& language_range : languages) {
+        if (language_range_matches_tag(language_range, element_language))
             return true;
-        auto element_language_length = element_language.bytes_as_string_view().length();
-        auto language_length = language.bytes_as_string_view().length();
-        if (element_language_length == language_length) {
-            if (Infra::is_ascii_case_insensitive_match(element_language, language))
-                return true;
-        } else if (element_language_length > language_length) {
-            if (element_language.starts_with_bytes(language, CaseSensitivity::CaseInsensitive) && element_language.bytes_as_string_view()[language_length] == '-')
-                return true;
-        }
     }
     return false;
 }
