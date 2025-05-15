@@ -80,6 +80,7 @@ set(SOURCES
     CSS/CSSKeyframesRule.cpp
     CSS/CSSLayerBlockRule.cpp
     CSS/CSSLayerStatementRule.cpp
+    CSS/CSSMarginRule.cpp
     CSS/CSSMediaRule.cpp
     CSS/CSSNamespaceRule.cpp
     CSS/CSSNestedDeclarations.cpp

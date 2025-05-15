@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
+#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
@@ -687,6 +688,9 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
     case CSS::CSSRule::Type::LayerStatement:
         dump_layer_statement_rule(builder, as<CSS::CSSLayerStatementRule const>(rule), indent_levels);
         break;
+    case CSS::CSSRule::Type::Margin:
+        dump_margin_rule(builder, as<CSS::CSSMarginRule const>(rule), indent_levels);
+        break;
     case CSS::CSSRule::Type::Media:
         dump_media_rule(builder, as<CSS::CSSMediaRule const>(rule), indent_levels);
         break;
@@ -774,6 +778,18 @@ void dump_page_rule(StringBuilder& builder, CSS::CSSPageRule const& page, int in
     indent(builder, indent_levels + 1);
     builder.appendff("selector: {}\n", page.selector_text());
     dump_descriptors(builder, page.descriptors(), indent_levels + 1);
+
+    indent(builder, indent_levels + 1);
+    builder.appendff("  Rules ({}):\n", page.css_rules().length());
+    for (auto& rule : page.css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
+}
+
+void dump_margin_rule(StringBuilder& builder, CSS::CSSMarginRule const& margin, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("name: {}\n", margin.name());
+    dump_style_properties(builder, margin.style(), indent_levels + 1);
 }
 
 void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supports, int indent_levels)

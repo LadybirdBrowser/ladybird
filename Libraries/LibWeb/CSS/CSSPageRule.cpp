@@ -104,7 +104,7 @@ String CSSPageRule::serialized() const
 
     StringBuilder builder;
 
-    // AD-HOC: There's no spec for this yet.
+    // AD-HOC: There's no spec for this yet, but Chrome puts declarations before margin rules.
     builder.append("@page "sv);
     if (auto selector = selector_text(); !selector.is_empty())
         builder.appendff("{} ", selector);
@@ -112,6 +112,15 @@ String CSSPageRule::serialized() const
     if (descriptors.length() > 0) {
         builder.append(descriptors.serialized());
         builder.append(' ');
+    }
+    for (size_t i = 0; i < css_rules().length(); i++) {
+        auto rule = css_rules().item(i);
+        auto result = rule->css_text();
+
+        if (result.is_empty())
+            continue;
+
+        builder.appendff("{} ", result);
     }
     builder.append("}"sv);
 

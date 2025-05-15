@@ -243,6 +243,7 @@ private:
     GC::Ptr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
     GC::Ptr<CSSImportRule> convert_to_import_rule(AtRule const&);
     GC::Ptr<CSSRule> convert_to_layer_rule(AtRule const&, Nested);
+    GC::Ptr<CSSMarginRule> convert_to_margin_rule(AtRule const&);
     GC::Ptr<CSSMediaRule> convert_to_media_rule(AtRule const&, Nested);
     GC::Ptr<CSSNamespaceRule> convert_to_namespace_rule(AtRule const&);
     GC::Ptr<CSSPageRule> convert_to_page_rule(AtRule const& rule);

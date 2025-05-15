@@ -46,6 +46,7 @@ CSSKeyframeRule
 CSSKeyframesRule
 CSSLayerBlockRule
 CSSLayerStatementRule
+CSSMarginRule
 CSSMediaRule
 CSSNamespaceRule
 CSSNestedDeclarations
