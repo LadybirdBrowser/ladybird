@@ -1453,7 +1453,8 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 // an optional entry list or null formDataEntryList (default null),
 // an optional referrer policy referrerPolicy (default the empty string),
 // an optional user navigation involvement userInvolvement (default "none"),
-// and an optional Element sourceElement (default null):
+// an optional Element sourceElement (default null),
+// and an optional boolean initialInsertion (default false):
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 void Navigable::begin_navigation(NavigateParams params)
@@ -1472,6 +1473,7 @@ void Navigable::begin_navigation(NavigateParams params)
     auto referrer_policy = params.referrer_policy;
     auto user_involvement = params.user_involvement;
     auto source_element = params.source_element;
+    auto initial_insertion = params.initial_insertion;
     auto& active_document = *this->active_document();
     auto& vm = this->vm();
 
@@ -1575,10 +1577,10 @@ void Navigable::begin_navigation(NavigateParams params)
 
     // 19. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
-        // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, and cspNavigationType.
+        // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, and initialInsertion.
         VERIFY(active_window());
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, navigation_id] {
-            navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, navigation_id);
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
+            navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id);
         }));
 
         // 2. Return.
@@ -1921,7 +1923,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, String navigation_id)
+void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion initial_insertion, String navigation_id)
 {
     auto& vm = this->vm();
 
@@ -1947,8 +1949,15 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     // 6. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, url, initiatorOrigin, and userInvolvement.
     auto new_document = evaluate_javascript_url(url, initiator_origin, user_involvement, navigation_id);
 
-    // 7. If newDocument is null, then return.
+    // 7. If newDocument is null:
     if (!new_document) {
+        // 1. If initialInsertion is true and targetNavigable's active document's is initial about:blank is true,
+        //    then run the iframe load event steps given targetNavigable's container.
+        if (initial_insertion == InitialInsertion::Yes && active_document()->is_initial_about_blank()) {
+            run_iframe_load_event_steps(as<HTMLIFrameElement>(*container()));
+        }
+
+        // 2. Return.
         // NOTE: In this case, some JavaScript code was executed, but no new Document was created, so we will not perform a navigation.
         return;
     }
