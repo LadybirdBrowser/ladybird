@@ -16,6 +16,11 @@ test(() => {
     document.querySelector('div').childNodes[0].deleteData(3, 3);
     showSelection();
 
+    // Try to find 'baz'.
+    window.find('baz');
+    // Selection should be untouched, since 'baz' was not found
+    showSelection();
+
     // Try to find 'bar'.
     getSelection().empty();
     window.find('bar');
