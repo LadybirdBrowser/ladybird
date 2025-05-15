@@ -12,8 +12,6 @@
 #include <LibTest/TestResult.h>
 #include <LibTest/TestSuite.h>
 #include <math.h>
-#include <stdlib.h>
-#include <sys/time.h>
 
 namespace Test {
 

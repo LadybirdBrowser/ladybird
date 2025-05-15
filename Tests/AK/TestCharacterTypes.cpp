@@ -151,44 +151,22 @@ TEST_CASE(parse_ascii_base36_digit)
     EXPECT_EQ(parse_ascii_base36_digit('Z'), 35u);
     EXPECT_EQ(parse_ascii_base36_digit('a'), 10u);
     EXPECT_EQ(parse_ascii_base36_digit('z'), 35u);
-    EXPECT_CRASH("parsing Base36 digit before valid numeric range", [] {
-        parse_ascii_base36_digit('/');
-        return Test::Crash::Failure::DidNotCrash;
-    });
-    EXPECT_CRASH("parsing Base36 digit after valid numeric range", [] {
-        parse_ascii_base36_digit(':');
-        return Test::Crash::Failure::DidNotCrash;
-    });
-    EXPECT_CRASH("parsing Base36 digit before valid uppercase range", [] {
-        parse_ascii_base36_digit('@');
-        return Test::Crash::Failure::DidNotCrash;
-    });
-    EXPECT_CRASH("parsing Base36 digit after valid uppercase range", [] {
-        parse_ascii_base36_digit('[');
-        return Test::Crash::Failure::DidNotCrash;
-    });
-    EXPECT_CRASH("parsing Base36 digit before valid lowercase range", [] {
-        parse_ascii_base36_digit('`');
-        return Test::Crash::Failure::DidNotCrash;
-    });
-    EXPECT_CRASH("parsing Base36 digit after valid lowercase range", [] {
-        parse_ascii_base36_digit('{');
-        return Test::Crash::Failure::DidNotCrash;
-    });
+
+    EXPECT_DEATH("parsing Base36 digit before valid numeric range", parse_ascii_base36_digit('/'));
+    EXPECT_DEATH("parsing Base36 digit after valid numeric range", parse_ascii_base36_digit(':'));
+    EXPECT_DEATH("parsing Base36 digit before valid uppercase range", parse_ascii_base36_digit('@'));
+    EXPECT_DEATH("parsing Base36 digit after valid uppercase range", parse_ascii_base36_digit('['));
+    EXPECT_DEATH("parsing Base36 digit before valid lowercase range", parse_ascii_base36_digit('`'));
+    EXPECT_DEATH("parsing Base36 digit after valid lowercase range", parse_ascii_base36_digit('{'));
 }
 
 TEST_CASE(parse_ascii_digit)
 {
     EXPECT_EQ(parse_ascii_digit('0'), 0u);
     EXPECT_EQ(parse_ascii_digit('9'), 9u);
-    EXPECT_CRASH("parsing invalid ASCII digit", [] {
-        parse_ascii_digit('a');
-        return Test::Crash::Failure::DidNotCrash;
-    });
-    EXPECT_CRASH("parsing invalid unicode digit", [] {
-        parse_ascii_digit(0x00A9);
-        return Test::Crash::Failure::DidNotCrash;
-    });
+
+    EXPECT_DEATH("parsing invalid ASCII digit", parse_ascii_digit('a'));
+    EXPECT_DEATH("parsing invalid unicode digit", parse_ascii_digit(0x00A9));
 }
 
 TEST_CASE(parse_ascii_hex_digit)
@@ -196,10 +174,8 @@ TEST_CASE(parse_ascii_hex_digit)
     EXPECT_EQ(parse_ascii_hex_digit('0'), 0u);
     EXPECT_EQ(parse_ascii_hex_digit('F'), 15u);
     EXPECT_EQ(parse_ascii_hex_digit('f'), 15u);
-    EXPECT_CRASH("parsing invalid ASCII hex digit", [] {
-        parse_ascii_hex_digit('g');
-        return Test::Crash::Failure::DidNotCrash;
-    });
+
+    EXPECT_DEATH("parsing invalid ASCII hex digit", parse_ascii_hex_digit('g'));
 }
 
 BENCHMARK_CASE(is_ascii)

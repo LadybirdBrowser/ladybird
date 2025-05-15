@@ -7,11 +7,10 @@
 
 #pragma once
 
-#include <AK/Assertions.h>
 #include <AK/CheckedFormatString.h>
 #include <AK/Math.h>
 #include <AK/SourceLocation.h>
-#include <LibTest/CrashTest.h>
+#include <LibTest/AssertionHandler.h>
 #include <LibTest/Export.h>
 #include <LibTest/Randomized/RandomnessSource.h>
 #include <LibTest/TestResult.h>
@@ -185,29 +184,32 @@ consteval void expect_consteval(T) { }
 
 #define EXPECT_CONSTEVAL(...) ::Test::expect_consteval(__VA_ARGS__)
 
-// To use, specify the lambda to execute in a sub process and verify it exits:
-//  EXPECT_CRASH("This should fail", []{
-//      return Test::Crash::Failure::DidNotCrash;
-//  });
-#define EXPECT_CRASH(test_message, test_func)                            \
-    do {                                                                 \
-        Test::Crash crash(test_message, test_func);                      \
-        if (!crash.run())                                                \
-            ::Test::set_current_test_result(::Test::TestResult::Failed); \
+#define EXPECT_DEATH(message, expression)                                                                                  \
+    do {                                                                                                                   \
+        ::Test::set_assertion_jump_validity(true);                                                                         \
+        if (LIBTEST_SETJMP(::Test::assertion_jump_buffer()) == 0) {                                                        \
+            (expression);                                                                                                  \
+            ::Test::set_assertion_jump_validity(false);                                                                    \
+            if (::Test::is_reporting_enabled())                                                                            \
+                ::AK::warnln("\033[31;1mFAIL\033[0m: {}:{}: EXPECT_DEATH({}) did not crash", __FILE__, __LINE__, message); \
+            ::Test::set_current_test_result(::Test::TestResult::Failed);                                                   \
+        } else {                                                                                                           \
+            ::Test::set_assertion_jump_validity(false);                                                                    \
+        }                                                                                                                  \
     } while (false)
 
-#define EXPECT_CRASH_WITH_SIGNAL(test_message, signal, test_func)        \
-    do {                                                                 \
-        Test::Crash crash(test_message, test_func, (signal));            \
-        if (!crash.run())                                                \
-            ::Test::set_current_test_result(::Test::TestResult::Failed); \
-    } while (false)
-
-#define EXPECT_NO_CRASH(test_message, test_func)                         \
-    do {                                                                 \
-        Test::Crash crash(test_message, test_func, 0);                   \
-        if (!crash.run())                                                \
-            ::Test::set_current_test_result(::Test::TestResult::Failed); \
+#define EXPECT_NO_DEATH(message, expression)                                                                            \
+    do {                                                                                                                \
+        ::Test::set_assertion_jump_validity(true);                                                                      \
+        if (LIBTEST_SETJMP(::Test::assertion_jump_buffer()) == 0) {                                                     \
+            (expression);                                                                                               \
+            ::Test::set_assertion_jump_validity(false);                                                                 \
+        } else {                                                                                                        \
+            ::Test::set_assertion_jump_validity(false);                                                                 \
+            if (::Test::is_reporting_enabled())                                                                         \
+                ::AK::warnln("\033[31;1mFAIL\033[0m: {}:{}: EXPECT_NO_DEATH({}) crashed", __FILE__, __LINE__, message); \
+            ::Test::set_current_test_result(::Test::TestResult::Failed);                                                \
+        }                                                                                                               \
     } while (false)
 
 #define TRY_OR_FAIL(expression)                                                                      \
