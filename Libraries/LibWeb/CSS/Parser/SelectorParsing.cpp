@@ -383,6 +383,8 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
         }
     }
 
+    attribute_tokens.discard_whitespace();
+
     if (attribute_tokens.has_next_token()) {
         dbgln_if(CSS_PARSER_DEBUG, "Was not expecting anything else inside attribute selector.");
         return ParseError::SyntaxError;
