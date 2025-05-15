@@ -183,6 +183,138 @@ bool matches_mp4_signature(ReadonlyBytes sequence)
     return false;
 }
 
+struct VintResult {
+    u64 value;
+    size_t length;
+};
+
+// https://mimesniff.spec.whatwg.org/#parse-a-vint
+VintResult parse_a_vint(ReadonlyBytes sequence, size_t iter)
+{
+    // To parse a vint on a byte sequence sequence of size length, starting at index iter use the following steps:
+    sequence = sequence.slice(iter);
+    auto length = sequence.size();
+
+    // 1. let mask be 128.
+    u8 mask = 128;
+
+    // 2. Let max vint length be 8.
+    size_t const max_vint_length = 8;
+
+    // 3. Let number size be 1.
+    size_t number_size = 1;
+
+    // 5. Let index be 0.
+    // NOTE: spec declares this after step four, but it is needed before to use in the loop.
+    size_t index = 0;
+
+    // 4. While number size is less than max vint length, and less than length, continuously loop through these steps:
+    while (number_size < max_vint_length && number_size < length) {
+        // 1. If the sequence[index] & mask is not zero, abort these steps.
+        if (sequence[index] & mask)
+            break;
+
+        // 2. Let mask be the value of mask >> 1.
+        mask >>= 1;
+
+        // 3. Increment number size by one.
+        number_size++;
+    }
+
+    // 6. Let parsed number be sequence[index] & ~mask.
+    u64 parsed_number = sequence[index] & ~mask;
+
+    // 7. Increment index by one.
+    index++;
+
+    // 8. Let bytes remaining be the value of number size - 1.
+    auto bytes_remaining = number_size - 1;
+
+    // 9. While bytes remaining is not zero, execute there steps:
+    while (bytes_remaining != 0) {
+        // 1. Let parsed number be parsed number << 8.
+        parsed_number <<= 8;
+
+        // 2. Let parsed number be parsed number | sequence[index].
+        parsed_number |= sequence[index];
+
+        // 3. Increment index by one.
+        index++;
+
+        // 4. If index is greater or equal than length, abort these steps.
+        if (index >= length)
+            break;
+
+        // 5. Decrement bytes remaining by one.
+        bytes_remaining--;
+    }
+
+    // 10. Return parsed number and number size
+    return { parsed_number, number_size };
+}
+
+// https://mimesniff.spec.whatwg.org/#signature-for-webm
+bool matches_webm_signature(ReadonlyBytes sequence)
+{
+    // 1. Let sequence be the byte sequence to be matched, where sequence[s] is byte s in sequence and sequence[0] is the first byte in sequence.
+
+    // 2. Let length be the number of bytes in sequence.
+    auto length = sequence.size();
+
+    // 3. If length is less than 4, return false.
+    if (length < 4)
+        return false;
+
+    // 4. If the four bytes from sequence[0] to sequence[3], are not equal to 0x1A 0x45 0xDF 0xA3, return false.
+    static auto constexpr webm_signature = "\x1A\x45\xDF\xA3"sv;
+    if (!sequence.starts_with(webm_signature.bytes()))
+        return false;
+
+    // 5. let iter be 4.
+    size_t iter = 4;
+
+    // 6. While iter is less than length and iter is less than 38, continuously loop through these steps:
+    while (iter < length && iter < 38) {
+        // before slicing 2 bytes, ensure there are at least 2 bytes
+        if (iter + 1 >= length)
+            break;
+
+        // 1. If the two bytes from sequence[iter] to sequence[iter + 1] are equal to 0x42 0x82,
+        if (sequence.slice(iter, 2) == "\x42\x82"sv.bytes()) {
+            // 1. increment iter by 2.
+            iter += 2;
+
+            // 2. If iter is greater or equal than length, abort these steps.
+            if (iter >= length)
+                break;
+
+            // 3. Let number size be the result of parsing a vint starting at sequence[iter].
+
+            auto const number_size = parse_a_vint(sequence, iter).length;
+
+            // 4. Increment iter by number size.
+            iter += number_size;
+
+            // 5. If iter is greater than or equal to length - 4, abort these steps.
+            if (iter >= length - 4)
+                break;
+
+            // 6. Let matched be the result of matching a padded sequence 0x77 0x65 0x62 0x6D ("webm") on sequence at offset iter.
+            bool matched = sequence.slice(iter, 4) == "\x77\x65\x62\x6D"sv.bytes();
+
+            // 7. If matched is true, abort these steps and return true.
+            if (matched)
+                return true;
+        }
+
+        // 2. Increment iter by 1.
+        iter += 1;
+    }
+
+    // 7. Return false.
+    return false;
+}
+
 // https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
 Optional<MimeType> match_an_audio_or_video_type_pattern(ReadonlyBytes input)
 {
@@ -225,7 +357,10 @@ Optional<MimeType> match_an_audio_or_video_type_pattern(ReadonlyBytes input)
     if (matches_mp4_signature(input))
         return MimeType::create("video"_string, "mp4"_string);
 
-    // FIXME: 3. If input matches the signature for WebM, return "video/webm".
+    // 3. If input matches the signature for WebM, return "video/webm".
+    if (matches_webm_signature(input))
+        return MimeType::create("video"_string, "webm"_string);
+
     // FIXME: 4. If input matches the signature for MP3 without ID3, return "audio/mpeg".
 
     // 5. Return undefined.
