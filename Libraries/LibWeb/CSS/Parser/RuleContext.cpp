@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 
 namespace Web::CSS::Parser {
@@ -25,6 +26,8 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
         return RuleContext::AtSupports;
     case CSSRule::Type::LayerBlock:
         return RuleContext::AtLayer;
+    case CSSRule::Type::Margin:
+        return RuleContext::Margin;
     case CSSRule::Type::NestedDeclarations:
         return RuleContext::Style;
     case CSSRule::Type::Page:
@@ -56,6 +59,8 @@ RuleContext rule_context_type_for_at_rule(FlyString const& name)
         return RuleContext::AtProperty;
     if (name.equals_ignoring_ascii_case("page"sv))
         return RuleContext::AtPage;
+    if (is_margin_rule_name(name))
+        return RuleContext::Margin;
     return RuleContext::Unknown;
 }
 

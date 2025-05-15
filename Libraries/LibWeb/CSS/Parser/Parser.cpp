@@ -14,6 +14,7 @@
 
 #include <AK/Debug.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -1438,7 +1439,8 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
     case RuleContext::AtFontFace:
     case RuleContext::AtPage:
     case RuleContext::AtProperty:
-        // @font-face, @page, and @property have descriptor declarations
+    case RuleContext::Margin:
+        // These have descriptor declarations
         return true;
 
     case RuleContext::AtKeyframes:
@@ -1455,9 +1457,9 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
 
 bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
 {
-    // All at-rules can appear at the top level
+    // All at-rules can appear at the top level, except margin rules
     if (m_rule_context.is_empty())
-        return true;
+        return !is_margin_rule_name(at_rule.name);
 
     // Only grouping rules can be nested within style rules
     if (m_rule_context.contains_slow(RuleContext::Style))
@@ -1482,13 +1484,16 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
         // @supports cannot check for at-rules
         return false;
 
+    case RuleContext::AtPage:
+        // @page rules can contain margin rules
+        return is_margin_rule_name(at_rule.name);
+
     case RuleContext::AtFontFace:
     case RuleContext::AtKeyframes:
     case RuleContext::Keyframe:
-    case RuleContext::AtPage:
     case RuleContext::AtProperty:
+    case RuleContext::Margin:
         // These can't contain any at-rules
-        // FIXME: Eventually @page can contain margin-box at-rules: https://drafts.csswg.org/css-page-3/#margin-at-rules
         return false;
     }
 
@@ -1530,6 +1535,7 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
     case RuleContext::AtPage:
     case RuleContext::AtProperty:
     case RuleContext::Keyframe:
+    case RuleContext::Margin:
         // These can't contain qualified rules
         return false;
     }

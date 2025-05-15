@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
+#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
@@ -101,6 +102,9 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 
             if (at_rule.name.equals_ignoring_ascii_case("layer"sv))
                 return convert_to_layer_rule(at_rule, nested);
+
+            if (is_margin_rule_name(at_rule.name))
+                return convert_to_margin_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("media"sv))
                 return convert_to_media_rule(at_rule, nested);
@@ -697,20 +701,25 @@ static Optional<PageSelectorList> parse_page_selector_list(Vector<ComponentValue
     return selector_list;
 }
 
-GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& rule)
+GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 {
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // @page = @page <page-selector-list>? { <declaration-rule-list> }
-    auto page_selectors = parse_page_selector_list(rule.prelude);
+    auto page_selectors = parse_page_selector_list(page_rule.prelude);
     if (!page_selectors.has_value())
         return nullptr;
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
     DescriptorList descriptors { AtRuleID::Page };
-    rule.for_each_as_declaration_rule_list(
+    page_rule.for_each_as_declaration_rule_list(
         [&](auto& at_rule) {
-            // FIXME: Parse margin rules here.
-            (void)at_rule;
+            if (auto converted_rule = convert_to_rule(at_rule, Nested::No)) {
+                if (is<CSSMarginRule>(*converted_rule)) {
+                    child_rules.append(*converted_rule);
+                } else {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested {} is not allowed inside @page rule; discarding.", converted_rule->class_name());
+                }
+            }
         },
         [&](auto& declaration) {
             if (auto descriptor = convert_to_descriptor(AtRuleID::Page, declaration); descriptor.has_value()) {
@@ -720,6 +729,23 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& rule)
 
     auto rule_list = CSSRuleList::create(realm(), child_rules);
     return CSSPageRule::create(realm(), page_selectors.release_value(), CSSPageDescriptors::create(realm(), descriptors.release_descriptors()), rule_list);
+}
+
+GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
+{
+    // https://drafts.csswg.org/css-page-3/#syntax-page-selector
+    // There are lots of these, but they're all in the format:
+    // @foo = @foo { <declaration-list> };
+
+    // FIXME: The declaration list should be a CSSMarginDescriptors, but that has no spec definition:
+    //        https://github.com/w3c/csswg-drafts/issues/10106
+    //        So, we just parse a CSSStyleProperties instead for now.
+    PropertiesAndCustomProperties properties;
+    rule.for_each_as_declaration_list([&](auto const& declaration) {
+        extract_property(declaration, properties);
+    });
+    auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
+    return CSSMarginRule::create(realm(), rule.name, style);
 }
 
 }
