@@ -300,6 +300,22 @@ bool Utf16View::starts_with(Utf16View const& needle) const
     return true;
 }
 
+// https://infra.spec.whatwg.org/#code-unit-less-than
+bool Utf16View::is_code_unit_less_than(Utf16View const& other) const
+{
+    auto a = m_code_units;
+    auto b = other.m_code_units;
+
+    auto common_length = min(a.size(), b.size());
+
+    for (size_t position = 0; position < common_length; ++position) {
+        if (a[position] != b[position])
+            return a[position] < b[position];
+    }
+
+    return a.size() < b.size();
+}
+
 bool Utf16View::validate() const
 {
     return simdutf::validate_utf16(char_data(), length_in_code_units());
