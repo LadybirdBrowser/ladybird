@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 955 tests
 
-934 Pass
-21 Fail
+955 Pass
 Pass	[foo='BAR'] /* sanity check (match) */ <div foo="BAR"> in standards mode
 Pass	[foo='BAR'] /* sanity check (match) */ <div foo="BAR"> with querySelector in standards mode
 Pass	[foo='bar'] /* sanity check (match) */ <div foo="bar"> in standards mode
@@ -22,7 +21,7 @@ Pass	[lang|='a'] /* sanity check (match) */ <div lang="a-b"> in standards mode
 Pass	[lang|='a'] /* sanity check (match) */ <div lang="a-b"> with querySelector in standards mode
 Pass	[lang*='A'] /* sanity check (match) */ <div lang="XAB"> in standards mode
 Pass	[lang*='A'] /* sanity check (match) */ <div lang="XAB"> with querySelector in standards mode
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
 Pass	[foo='bar' i] <div foo="BAR"> in standards mode
 Pass	[foo='bar' i] <div foo="BAR"> with querySelector in standards mode
 Pass	[foo='' i] <div foo=""> in standards mode
@@ -31,8 +30,8 @@ Pass	[foo='ä' i] /* COMBINING in both */ <div foo="Ä"> in standards mode
 Pass	[foo='ä' i] /* COMBINING in both */ <div foo="Ä"> with querySelector in standards mode
 Pass	[foo='Ä' i] /* COMBINING in both */ <div foo="ä"> in standards mode
 Pass	[foo='Ä' i] /* COMBINING in both */ <div foo="ä"> with querySelector in standards mode
-Fail	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> in standards mode
-Fail	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> with querySelector in standards mode
+Pass	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> in standards mode
+Pass	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> with querySelector in standards mode
 Pass	[*|foo='bar' i] <div foo="BAR" {a}foo="x" {b}foo="x" {c}foo="x"> in standards mode
 Pass	[*|foo='bar' i] <div foo="BAR" {a}foo="x" {b}foo="x" {c}foo="x"> with querySelector in standards mode
 Pass	[align='left' i] <div align="LEFT"> in standards mode
@@ -55,7 +54,7 @@ Pass	[*|lang='a' i] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in stan
 Pass	[*|lang='a' i] <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in standards mode
 Pass	[*|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
 Pass	[*|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in standards mode
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
 Pass	[foo='bar' i][foo='bar' i] <div foo="BAR"> in standards mode
 Pass	[foo='bar' i][foo='bar' i] <div foo="BAR"> with querySelector in standards mode
 Pass	[foo='BAR'][foo='bar' i] <div foo="BAR"> in standards mode
@@ -68,8 +67,8 @@ Pass	[foo='' s] <div foo=""> in standards mode
 Pass	[foo='' s] <div foo=""> with querySelector in standards mode
 Pass	[foo='ä' s] /* COMBINING in both */ <div foo="ä"> in standards mode
 Pass	[foo='ä' s] /* COMBINING in both */ <div foo="ä"> with querySelector in standards mode
-Fail	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> in standards mode
-Fail	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> with querySelector in standards mode
+Pass	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> in standards mode
+Pass	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> with querySelector in standards mode
 Pass	[*|foo='bar' s] <div foo="bar" {a}foo="x" {b}foo="x" {c}foo="x"> in standards mode
 Pass	[*|foo='bar' s] <div foo="bar" {a}foo="x" {b}foo="x" {c}foo="x"> with querySelector in standards mode
 Pass	[align='left' s] <div align="left"> in standards mode
@@ -92,7 +91,7 @@ Pass	[*|lang='a' s] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in stan
 Pass	[*|lang='a' s] <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in standards mode
 Pass	[*|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
 Pass	[*|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in standards mode
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
 Pass	[foo='BAR' s][foo='BAR' s] <div foo="BAR"> in standards mode
 Pass	[foo='BAR' s][foo='BAR' s] <div foo="BAR"> with querySelector in standards mode
 Pass	[align='left'] /* sanity check (match HTML) */ <div align="LEFT"> in standards mode
@@ -343,7 +342,7 @@ Pass	[lang|='a'] /* sanity check (match) */ <div lang="a-b"> in quirks mode
 Pass	[lang|='a'] /* sanity check (match) */ <div lang="a-b"> with querySelector in quirks mode
 Pass	[lang*='A'] /* sanity check (match) */ <div lang="XAB"> in quirks mode
 Pass	[lang*='A'] /* sanity check (match) */ <div lang="XAB"> with querySelector in quirks mode
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
 Pass	[foo='bar' i] <div foo="BAR"> in quirks mode
 Pass	[foo='bar' i] <div foo="BAR"> with querySelector in quirks mode
 Pass	[foo='' i] <div foo=""> in quirks mode
@@ -352,8 +351,8 @@ Pass	[foo='ä' i] /* COMBINING in both */ <div foo="Ä"> in quirks mode
 Pass	[foo='ä' i] /* COMBINING in both */ <div foo="Ä"> with querySelector in quirks mode
 Pass	[foo='Ä' i] /* COMBINING in both */ <div foo="ä"> in quirks mode
 Pass	[foo='Ä' i] /* COMBINING in both */ <div foo="ä"> with querySelector in quirks mode
-Fail	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> in quirks mode
-Fail	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> with querySelector in quirks mode
+Pass	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> in quirks mode
+Pass	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> with querySelector in quirks mode
 Pass	[*|foo='bar' i] <div foo="BAR" {a}foo="x" {b}foo="x" {c}foo="x"> in quirks mode
 Pass	[*|foo='bar' i] <div foo="BAR" {a}foo="x" {b}foo="x" {c}foo="x"> with querySelector in quirks mode
 Pass	[align='left' i] <div align="LEFT"> in quirks mode
@@ -376,7 +375,7 @@ Pass	[*|lang='a' i] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quir
 Pass	[*|lang='a' i] <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in quirks mode
 Pass	[*|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
 Pass	[*|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in quirks mode
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
 Pass	[foo='bar' i][foo='bar' i] <div foo="BAR"> in quirks mode
 Pass	[foo='bar' i][foo='bar' i] <div foo="BAR"> with querySelector in quirks mode
 Pass	[foo='BAR'][foo='bar' i] <div foo="BAR"> in quirks mode
@@ -389,8 +388,8 @@ Pass	[foo='' s] <div foo=""> in quirks mode
 Pass	[foo='' s] <div foo=""> with querySelector in quirks mode
 Pass	[foo='ä' s] /* COMBINING in both */ <div foo="ä"> in quirks mode
 Pass	[foo='ä' s] /* COMBINING in both */ <div foo="ä"> with querySelector in quirks mode
-Fail	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> in quirks mode
-Fail	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> with querySelector in quirks mode
+Pass	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> in quirks mode
+Pass	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> with querySelector in quirks mode
 Pass	[*|foo='bar' s] <div foo="bar" {a}foo="x" {b}foo="x" {c}foo="x"> in quirks mode
 Pass	[*|foo='bar' s] <div foo="bar" {a}foo="x" {b}foo="x" {c}foo="x"> with querySelector in quirks mode
 Pass	[align='left' s] <div align="left"> in quirks mode
@@ -413,7 +412,7 @@ Pass	[*|lang='a' s] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quir
 Pass	[*|lang='a' s] <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in quirks mode
 Pass	[*|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
 Pass	[*|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in quirks mode
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
 Pass	[foo='BAR' s][foo='BAR' s] <div foo="BAR"> in quirks mode
 Pass	[foo='BAR' s][foo='BAR' s] <div foo="BAR"> with querySelector in quirks mode
 Pass	[align='left'] /* sanity check (match HTML) */ <div align="LEFT"> in quirks mode
@@ -664,7 +663,7 @@ Pass	[lang|='a'] /* sanity check (match) */ <div lang="a-b"> in XML
 Pass	[lang|='a'] /* sanity check (match) */ <div lang="a-b"> with querySelector in XML
 Pass	[lang*='A'] /* sanity check (match) */ <div lang="XAB"> in XML
 Pass	[lang*='A'] /* sanity check (match) */ <div lang="XAB"> with querySelector in XML
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
 Pass	[foo='bar' i] <div foo="BAR"> in XML
 Pass	[foo='bar' i] <div foo="BAR"> with querySelector in XML
 Pass	[foo='' i] <div foo=""> in XML
@@ -673,8 +672,8 @@ Pass	[foo='ä' i] /* COMBINING in both */ <div foo="Ä"> in XML
 Pass	[foo='ä' i] /* COMBINING in both */ <div foo="Ä"> with querySelector in XML
 Pass	[foo='Ä' i] /* COMBINING in both */ <div foo="ä"> in XML
 Pass	[foo='Ä' i] /* COMBINING in both */ <div foo="ä"> with querySelector in XML
-Fail	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> in XML
-Fail	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> with querySelector in XML
+Pass	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> in XML
+Pass	[*|foo='bar' i] <div foo="x" {a}foo="x" {b}foo="BAR" {c}foo="x"> with querySelector in XML
 Pass	[*|foo='bar' i] <div foo="BAR" {a}foo="x" {b}foo="x" {c}foo="x"> in XML
 Pass	[*|foo='bar' i] <div foo="BAR" {a}foo="x" {b}foo="x" {c}foo="x"> with querySelector in XML
 Pass	[align='left' i] <div align="LEFT"> in XML
@@ -697,7 +696,7 @@ Pass	[*|lang='a' i] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
 Pass	[*|lang='a' i] <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in XML
 Pass	[*|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in XML
 Pass	[*|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in XML
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in XML
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in XML
 Pass	[foo='bar' i][foo='bar' i] <div foo="BAR"> in XML
 Pass	[foo='bar' i][foo='bar' i] <div foo="BAR"> with querySelector in XML
 Pass	[foo='BAR'][foo='bar' i] <div foo="BAR"> in XML
@@ -710,8 +709,8 @@ Pass	[foo='' s] <div foo=""> in XML
 Pass	[foo='' s] <div foo=""> with querySelector in XML
 Pass	[foo='ä' s] /* COMBINING in both */ <div foo="ä"> in XML
 Pass	[foo='ä' s] /* COMBINING in both */ <div foo="ä"> with querySelector in XML
-Fail	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> in XML
-Fail	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> with querySelector in XML
+Pass	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> in XML
+Pass	[*|foo='bar' s] <div foo="x" {a}foo="x" {b}foo="bar" {c}foo="x"> with querySelector in XML
 Pass	[*|foo='bar' s] <div foo="bar" {a}foo="x" {b}foo="x" {c}foo="x"> in XML
 Pass	[*|foo='bar' s] <div foo="bar" {a}foo="x" {b}foo="x" {c}foo="x"> with querySelector in XML
 Pass	[align='left' s] <div align="left"> in XML
@@ -734,7 +733,7 @@ Pass	[*|lang='a' s] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in XML
 Pass	[*|lang='a' s] <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in XML
 Pass	[*|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
 Pass	[*|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in XML
-Fail	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
+Pass	@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
 Pass	[foo='BAR' s][foo='BAR' s] <div foo="BAR"> in XML
 Pass	[foo='BAR' s][foo='BAR' s] <div foo="BAR"> with querySelector in XML
 Pass	[missingattr] /* sanity check (no match) */ <div foo="BAR"> in XML
