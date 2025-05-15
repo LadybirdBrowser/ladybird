@@ -9,7 +9,7 @@
 
 TEST_CASE(char_data_ending)
 {
-    EXPECT_NO_CRASH("parsing character data ending by itself should not crash", [] {
+    EXPECT_NO_DEATH("parsing character data ending by itself should not crash", [] {
         // After seeing `<C>`, the parser will start parsing the content of the element. The content parser will then parse any character data it sees.
         // The character parser would see the first two `]]` and consume them. Then, it would see the `>` and set the state machine to say we have seen this,
         // but it did _not_ consume it and would instead tell GenericLexer that it should stop consuming characters. Therefore, we only consumed 2 characters.
@@ -17,17 +17,15 @@ TEST_CASE(char_data_ending)
         // input when we only have 2 characters, causing an assertion failure as we are asking to take off more characters than there really is.
         XML::Parser parser("<C>]]>"sv);
         (void)parser.parse();
-        return Test::Crash::Failure::DidNotCrash;
-    });
+    }());
 }
 
 TEST_CASE(character_reference_integer_overflow)
 {
-    EXPECT_NO_CRASH("parsing character references that do not fit in 32 bits should not crash", [] {
+    EXPECT_NO_DEATH("parsing character references that do not fit in 32 bits should not crash", [] {
         XML::Parser parser("<G>&#6666666666"sv);
         (void)parser.parse();
-        return Test::Crash::Failure::DidNotCrash;
-    });
+    }());
 }
 
 TEST_CASE(predefined_character_reference)
