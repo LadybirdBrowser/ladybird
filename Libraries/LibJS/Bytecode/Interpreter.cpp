@@ -1921,7 +1921,7 @@ static void dump_object(Object& o, HashTable<Object const*>& seen, int indent = 
     seen.set(&o);
     for (auto& it : o.shape().property_table()) {
         auto value = o.get_direct(it.value.offset);
-        dbgln("{}  {} -> {}", String::repeated(' ', indent).release_value(), it.key.to_display_string(), value);
+        dbgln("{}  {} -> {}", String::repeated(' ', indent).release_value(), it.key.to_string(), value);
         if (value.is_object()) {
             dump_object(value.as_object(), seen, indent + 2);
         }

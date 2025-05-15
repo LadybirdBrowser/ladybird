@@ -196,47 +196,47 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_iterator_result_object_shape->set_prototype_without_transition(m_object_prototype);
     m_iterator_result_object_shape->add_property_without_transition(vm.names.value, Attribute::Writable | Attribute::Configurable | Attribute::Enumerable);
     m_iterator_result_object_shape->add_property_without_transition(vm.names.done, Attribute::Writable | Attribute::Configurable | Attribute::Enumerable);
-    m_iterator_result_object_value_offset = m_iterator_result_object_shape->lookup(vm.names.value.to_string_or_symbol()).value().offset;
-    m_iterator_result_object_done_offset = m_iterator_result_object_shape->lookup(vm.names.done.to_string_or_symbol()).value().offset;
+    m_iterator_result_object_value_offset = m_iterator_result_object_shape->lookup(vm.names.value).value().offset;
+    m_iterator_result_object_done_offset = m_iterator_result_object_shape->lookup(vm.names.done).value().offset;
 
     m_normal_function_prototype_shape = heap().allocate<Shape>(realm);
     m_normal_function_prototype_shape->set_prototype_without_transition(m_object_prototype);
     m_normal_function_prototype_shape->add_property_without_transition(vm.names.constructor, Attribute::Writable | Attribute::Configurable);
-    m_normal_function_prototype_constructor_offset = m_normal_function_prototype_shape->lookup(vm.names.constructor.to_string_or_symbol()).value().offset;
+    m_normal_function_prototype_constructor_offset = m_normal_function_prototype_shape->lookup(vm.names.constructor).value().offset;
 
     m_normal_function_shape = heap().allocate<Shape>(realm);
     m_normal_function_shape->set_prototype_without_transition(m_function_prototype);
     m_normal_function_shape->add_property_without_transition(vm.names.length, Attribute::Configurable);
     m_normal_function_shape->add_property_without_transition(vm.names.name, Attribute::Configurable);
     m_normal_function_shape->add_property_without_transition(vm.names.prototype, Attribute::Writable);
-    m_normal_function_length_offset = m_normal_function_shape->lookup(vm.names.length.to_string_or_symbol()).value().offset;
-    m_normal_function_name_offset = m_normal_function_shape->lookup(vm.names.name.to_string_or_symbol()).value().offset;
-    m_normal_function_prototype_offset = m_normal_function_shape->lookup(vm.names.prototype.to_string_or_symbol()).value().offset;
+    m_normal_function_length_offset = m_normal_function_shape->lookup(vm.names.length).value().offset;
+    m_normal_function_name_offset = m_normal_function_shape->lookup(vm.names.name).value().offset;
+    m_normal_function_prototype_offset = m_normal_function_shape->lookup(vm.names.prototype).value().offset;
 
     m_native_function_shape = heap().allocate<Shape>(realm);
     m_native_function_shape->set_prototype_without_transition(m_function_prototype);
     m_native_function_shape->add_property_without_transition(vm.names.length, Attribute::Configurable);
     m_native_function_shape->add_property_without_transition(vm.names.name, Attribute::Configurable);
-    m_native_function_length_offset = m_native_function_shape->lookup(vm.names.length.to_string_or_symbol()).value().offset;
-    m_native_function_name_offset = m_native_function_shape->lookup(vm.names.name.to_string_or_symbol()).value().offset;
+    m_native_function_length_offset = m_native_function_shape->lookup(vm.names.length).value().offset;
+    m_native_function_name_offset = m_native_function_shape->lookup(vm.names.name).value().offset;
 
     m_unmapped_arguments_object_shape = heap().allocate<Shape>(realm);
     m_unmapped_arguments_object_shape->set_prototype_without_transition(m_object_prototype);
     m_unmapped_arguments_object_shape->add_property_without_transition(vm.names.length, Attribute::Writable | Attribute::Configurable);
     m_unmapped_arguments_object_shape->add_property_without_transition(vm.well_known_symbol_iterator(), Attribute::Writable | Attribute::Configurable);
     m_unmapped_arguments_object_shape->add_property_without_transition(vm.names.callee, 0);
-    m_unmapped_arguments_object_length_offset = m_unmapped_arguments_object_shape->lookup(vm.names.length.to_string_or_symbol()).value().offset;
-    m_unmapped_arguments_object_well_known_symbol_iterator_offset = m_unmapped_arguments_object_shape->lookup(StringOrSymbol(vm.well_known_symbol_iterator())).value().offset;
-    m_unmapped_arguments_object_callee_offset = m_unmapped_arguments_object_shape->lookup(vm.names.callee.to_string_or_symbol()).value().offset;
+    m_unmapped_arguments_object_length_offset = m_unmapped_arguments_object_shape->lookup(vm.names.length).value().offset;
+    m_unmapped_arguments_object_well_known_symbol_iterator_offset = m_unmapped_arguments_object_shape->lookup(vm.well_known_symbol_iterator()).value().offset;
+    m_unmapped_arguments_object_callee_offset = m_unmapped_arguments_object_shape->lookup(vm.names.callee).value().offset;
 
     m_mapped_arguments_object_shape = heap().allocate<Shape>(realm);
     m_mapped_arguments_object_shape->set_prototype_without_transition(m_object_prototype);
     m_mapped_arguments_object_shape->add_property_without_transition(vm.names.length, Attribute::Writable | Attribute::Configurable);
     m_mapped_arguments_object_shape->add_property_without_transition(vm.well_known_symbol_iterator(), Attribute::Writable | Attribute::Configurable);
     m_mapped_arguments_object_shape->add_property_without_transition(vm.names.callee, Attribute::Writable | Attribute::Configurable);
-    m_mapped_arguments_object_length_offset = m_mapped_arguments_object_shape->lookup(vm.names.length.to_string_or_symbol()).value().offset;
-    m_mapped_arguments_object_well_known_symbol_iterator_offset = m_mapped_arguments_object_shape->lookup(StringOrSymbol(vm.well_known_symbol_iterator())).value().offset;
-    m_mapped_arguments_object_callee_offset = m_mapped_arguments_object_shape->lookup(vm.names.callee.to_string_or_symbol()).value().offset;
+    m_mapped_arguments_object_length_offset = m_mapped_arguments_object_shape->lookup(vm.names.length).value().offset;
+    m_mapped_arguments_object_well_known_symbol_iterator_offset = m_mapped_arguments_object_shape->lookup(vm.well_known_symbol_iterator()).value().offset;
+    m_mapped_arguments_object_callee_offset = m_mapped_arguments_object_shape->lookup(vm.names.callee).value().offset;
 
     // Normally Realm::create() takes care of this, but these are allocated via Heap::allocate().
     m_function_prototype->initialize(realm);

@@ -78,7 +78,7 @@ Completion Reference::throw_reference_error(VM& vm) const
     if (is_private_reference())
         return vm.throw_completion<ReferenceError>(ErrorType::ReferenceUnresolvable);
     else
-        return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, name().to_string_or_symbol().to_display_string());
+        return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, name().to_string());
 }
 
 // 6.2.4.5 GetValue ( V ), https://tc39.es/ecma262/#sec-getvalue
