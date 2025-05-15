@@ -9,6 +9,10 @@
 #include <AK/Format.h>
 #include <AK/Platform.h>
 
+#ifdef AK_OS_WINDOWS
+#    include <Windows.h>
+#endif
+
 #if defined(AK_OS_ANDROID) && (__ANDROID_API__ >= 33)
 #    include <android/log.h>
 #    define EXECINFO_BACKTRACE
@@ -114,8 +118,37 @@ void ak_trap(void)
     __builtin_trap();
 }
 
+#ifndef AK_OS_WINDOWS
+[[gnu::weak]] void ak_assertion_handler(char const* message);
+#endif
+
+using AssertionHandlerFunc = void (*)(char const*);
+static AssertionHandlerFunc get_custom_assertion_handler()
+{
+#ifndef AK_OS_WINDOWS
+    return ak_assertion_handler;
+#else
+    // Windows doesn't support weak symbols as nicely as ELF platforms.
+    // Instead, rely on the fact that we only want this to be overridden from
+    // the main executable, and grab it from there if present.
+    if (HMODULE module = GetModuleHandle(nullptr)) {
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
+        auto handler = reinterpret_cast<AssertionHandlerFunc>(GetProcAddress(module, "ak_assertion_handler"));
+#    pragma clang diagnostic pop
+        FreeLibrary(module);
+        return handler;
+    }
+    return nullptr;
+
+#endif
+}
+
 void ak_verification_failed(char const* message)
 {
+    if (auto assertion_handler = get_custom_assertion_handler()) {
+        assertion_handler(message);
+    }
     if (ak_colorize_output())
         ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
     else
@@ -126,6 +159,9 @@ void ak_verification_failed(char const* message)
 
 void ak_assertion_failed(char const* message)
 {
+    if (auto assertion_handler = get_custom_assertion_handler()) {
+        assertion_handler(message);
+    }
     if (ak_colorize_output())
         ERRORLN("\033[31;1mASSERTION FAILED\033[0m: {}", message);
     else
