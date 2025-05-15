@@ -243,7 +243,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
             auto copy_initializer = m_initializer;
             auto name = property_key_or_private_name.visit(
                 [&](PropertyKey const& property_key) -> String {
-                    return property_key.is_number() ? property_key.to_string() : property_key.to_string_or_symbol().to_display_string();
+                    return property_key.to_string();
                 },
                 [&](PrivateName const& private_name) -> String {
                     return private_name.description.to_string();

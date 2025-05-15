@@ -917,7 +917,7 @@ ThrowCompletionOr<PropertyKey> Value::to_property_key(VM& vm) const
     // 2. If key is a Symbol, then
     if (key.is_symbol()) {
         // a. Return key.
-        return &key.as_symbol();
+        return key.as_symbol();
     }
 
     // 3. Return ! ToString(key).
