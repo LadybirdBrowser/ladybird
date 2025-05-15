@@ -726,10 +726,10 @@ Page::FindInPageResult Page::find_in_page_previous_match()
 
 void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
 {
-    clear_selection();
-
     if (matches.is_empty())
         return;
+
+    clear_selection();
 
     auto current_range = matches[m_find_in_page_match_index];
     auto common_ancestor_container = current_range->common_ancestor_container();
