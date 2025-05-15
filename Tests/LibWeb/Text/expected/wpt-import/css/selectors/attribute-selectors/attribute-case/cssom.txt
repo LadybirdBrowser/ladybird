@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 72 tests
 
-60 Pass
-12 Fail
+72 Pass
 Pass	[foo="bar"] /* sanity check */ insertRule
 Pass	[foo="bar"] /* sanity check */ getting CSSRule#cssText
 Pass	[foo="bar"] /* sanity check */ getting CSSStyleRule#selectorText
@@ -37,13 +36,13 @@ Pass	[foo="bar"/**/i] getting CSSRule#cssText in @media
 Pass	[foo="bar"/**/i] getting CSSStyleRule#selectorText in @media
 Pass	[foo="bar"/**/i] setting CSSStyleRule#selectorText in @media
 Pass	[*|foo="bar" i] insertRule
-Fail	[*|foo="bar" i] getting CSSRule#cssText
-Fail	[*|foo="bar" i] getting CSSStyleRule#selectorText
-Fail	[*|foo="bar" i] setting CSSStyleRule#selectorText
+Pass	[*|foo="bar" i] getting CSSRule#cssText
+Pass	[*|foo="bar" i] getting CSSStyleRule#selectorText
+Pass	[*|foo="bar" i] setting CSSStyleRule#selectorText
 Pass	[*|foo="bar" i] insertRule in @media
-Fail	[*|foo="bar" i] getting CSSRule#cssText in @media
-Fail	[*|foo="bar" i] getting CSSStyleRule#selectorText in @media
-Fail	[*|foo="bar" i] setting CSSStyleRule#selectorText in @media
+Pass	[*|foo="bar" i] getting CSSRule#cssText in @media
+Pass	[*|foo="bar" i] getting CSSStyleRule#selectorText in @media
+Pass	[*|foo="bar" i] setting CSSStyleRule#selectorText in @media
 Pass	[foo="bar" s] insertRule
 Pass	[foo="bar" s] getting CSSRule#cssText
 Pass	[foo="bar" s] getting CSSStyleRule#selectorText
@@ -69,10 +68,10 @@ Pass	[foo="bar"/**/s] getting CSSRule#cssText in @media
 Pass	[foo="bar"/**/s] getting CSSStyleRule#selectorText in @media
 Pass	[foo="bar"/**/s] setting CSSStyleRule#selectorText in @media
 Pass	[*|foo="bar" s] insertRule
-Fail	[*|foo="bar" s] getting CSSRule#cssText
-Fail	[*|foo="bar" s] getting CSSStyleRule#selectorText
-Fail	[*|foo="bar" s] setting CSSStyleRule#selectorText
+Pass	[*|foo="bar" s] getting CSSRule#cssText
+Pass	[*|foo="bar" s] getting CSSStyleRule#selectorText
+Pass	[*|foo="bar" s] setting CSSStyleRule#selectorText
 Pass	[*|foo="bar" s] insertRule in @media
-Fail	[*|foo="bar" s] getting CSSRule#cssText in @media
-Fail	[*|foo="bar" s] getting CSSStyleRule#selectorText in @media
-Fail	[*|foo="bar" s] setting CSSStyleRule#selectorText in @media
+Pass	[*|foo="bar" s] getting CSSRule#cssText in @media
+Pass	[*|foo="bar" s] getting CSSStyleRule#selectorText in @media
+Pass	[*|foo="bar" s] setting CSSStyleRule#selectorText in @media

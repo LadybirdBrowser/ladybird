@@ -348,6 +348,8 @@ String Selector::SimpleSelector::serialize() const
         if (attribute.qualified_name.namespace_type == QualifiedName::NamespaceType::Named) {
             serialize_an_identifier(s, attribute.qualified_name.namespace_);
             s.append('|');
+        } else if (attribute.qualified_name.namespace_type == QualifiedName::NamespaceType::Any) {
+            s.append("*|"sv);
         }
 
         // 3. Append the serialization of the attribute name as an identifier to s.
