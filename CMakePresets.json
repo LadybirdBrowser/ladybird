@@ -55,14 +55,18 @@
     {
       "hidden": true,
       "name": "windows_ci",
+      "binaryDir": "${fileDir}/Build/release",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "ENABLE_WINDOWS_CI": "ON"
       }
     },
     {
       "hidden": true,
       "name": "windows_dev",
+      "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
         "ENABLE_WINDOWS_CI": "OFF"
       }
     },
