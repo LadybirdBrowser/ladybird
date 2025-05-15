@@ -33,7 +33,7 @@ runs:
 
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
-        wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
+        curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
         echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
         sudo apt-get update -y
@@ -52,7 +52,7 @@ runs:
 
         # FIXME: https://github.com/WebAssembly/wabt/issues/2533
         #        wabt doesn't have binary releases for arm64 Linux
-        wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
+        curl -f -L -o wabt-1.0.35-ubuntu-20.04.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
         tar -xzf ./wabt-1.0.35-ubuntu-20.04.tar.gz
         rm ./wabt-1.0.35-ubuntu-20.04.tar.gz
         echo "${{ github.workspace }}/wabt-1.0.35/bin" >> $GITHUB_PATH
