@@ -295,6 +295,34 @@ TEST_CASE(determine_computed_mime_type_when_trying_to_match_mp4_signature)
     }
 }
 
+TEST_CASE(determine_computed_mime_type_when_trying_to_match_webm_signature)
+{
+
+    HashMap<StringView, Vector<StringView>> mime_type_to_headers_map;
+
+    mime_type_to_headers_map.set("application/octet-stream"sv, {
+                                                                   // Payload length < 4.
+                                                                   "<4"sv,
+                                                                   // First four bytes are not 0x1A 0x45 0xDF 0xA3.
+                                                                   "\x00\x00\x00\x00"sv,
+                                                                   // Correct first four bytes, but no following WebM element
+                                                                   "\x1A\x45\xDF\xA3\x00\x00\x00\x00"sv,
+                                                               });
+    mime_type_to_headers_map.set("video/webm"sv, {
+                                                     // Input that should parse correctly.
+                                                     "\x1A\x45\xDF\xA3\x42\x82\x84\x77\x65\x62\x6D\x00"sv,
+                                                 });
+
+    for (auto const& mime_type_to_headers : mime_type_to_headers_map) {
+        auto mime_type = mime_type_to_headers.key;
+
+        for (auto const& header : mime_type_to_headers.value) {
+            auto computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo });
+            EXPECT_EQ(mime_type, computed_mime_type.serialized());
+        }
+    }
+}
+
 TEST_CASE(determine_computed_mime_type_in_a_font_context)
 {
     // Cover case where supplied type is an XML MIME type.
