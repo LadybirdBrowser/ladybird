@@ -2390,36 +2390,18 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
 
     // 3. If px is a String and py is a String, then
     if (x_primitive.is_string() && y_primitive.is_string()) {
-        auto x_string = x_primitive.as_string().utf8_string_view();
-        auto y_string = y_primitive.as_string().utf8_string_view();
-
-        Utf8View x_code_points { x_string };
-        Utf8View y_code_points { y_string };
+        auto x_string = x_primitive.as_string().utf16_string_view();
+        auto y_string = y_primitive.as_string().utf16_string_view();
 
         // a. Let lx be the length of px.
         // b. Let ly be the length of py.
         // c. For each integer i such that 0 ≤ i < min(lx, ly), in ascending order, do
-        for (auto k = x_code_points.begin(), l = y_code_points.begin();
-            k != x_code_points.end() && l != y_code_points.end();
-            ++k, ++l) {
-            // i. Let cx be the integer that is the numeric value of the code unit at index i within px.
-            // ii. Let cy be the integer that is the numeric value of the code unit at index i within py.
-            if (*k != *l) {
-                // iii. If cx < cy, return true.
-                if (*k < *l) {
-                    return TriState::True;
-                }
-                // iv. If cx > cy, return false.
-                else {
-                    return TriState::False;
-                }
-            }
-        }
-
+        //     i. Let cx be the integer that is the numeric value of the code unit at index i within px.
+        //     ii. Let cy be the integer that is the numeric value of the code unit at index i within py.
+        //     iii. If cx < cy, return true.
+        //     iv. If cx > cy, return false.
         // d. If lx < ly, return true. Otherwise, return false.
-        return x_code_points.length() < y_code_points.length()
-            ? TriState::True
-            : TriState::False;
+        return x_string.is_code_unit_less_than(y_string) ? TriState::True : TriState::False;
     }
 
     // 4. Else,

@@ -40,3 +40,18 @@ test("properties", () => {
     expect(Object.getOwnPropertyNames("abc")).toEqual(["0", "1", "2", "length"]);
     expect(Object.getOwnPropertyNames("😀")).toEqual(["0", "1", "length"]);
 });
+
+test("less than", () => {
+    expect("a" < "").toBe(false);
+    expect("a" < "b").toBe(true);
+    expect("a" < "aa").toBe(true);
+    expect("aa" < "a").toBe(false);
+    expect("abc" < "abd").toBe(true);
+    expect("abc" < "abcd").toBe(true);
+    expect("😀" < "😁").toBe(true);
+    expect("" < "😁").toBe(true);
+    expect("😁" < "").toBe(false);
+    expect("a" < "A").toBe(false);
+    expect("a" < "a").toBe(false);
+    expect("～" < "😀").toBe(false);
+});
