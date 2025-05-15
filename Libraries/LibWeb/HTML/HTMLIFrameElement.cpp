@@ -93,7 +93,7 @@ void HTMLIFrameElement::post_connection()
         //           value and insertedNode's iframe sandboxing flag set.
 
         // 3. Process the iframe attributes for insertedNode, with initialInsertion set to true.
-        process_the_iframe_attributes(true);
+        process_the_iframe_attributes(InitialInsertion::Yes);
 
         if (auto navigable = content_navigable()) {
             auto traversable = navigable->traversable_navigable();
@@ -105,7 +105,7 @@ void HTMLIFrameElement::post_connection()
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#process-the-iframe-attributes
-void HTMLIFrameElement::process_the_iframe_attributes(bool initial_insertion)
+void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_insertion)
 {
     if (!content_navigable())
         return;
@@ -152,7 +152,7 @@ void HTMLIFrameElement::process_the_iframe_attributes(bool initial_insertion)
     }
 
     // 3. If url matches about:blank and initialInsertion is true, then:
-    if (url_matches_about_blank(*url) && initial_insertion) {
+    if (url_matches_about_blank(*url) && initial_insertion == InitialInsertion::Yes) {
         // 1. Run the iframe load event steps given element.
         run_iframe_load_event_steps(*this);
 
