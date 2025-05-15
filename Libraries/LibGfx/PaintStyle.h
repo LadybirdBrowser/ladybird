@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/String.h>
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/QuickSort.h>
@@ -160,6 +161,57 @@ private:
     float m_start_radius { 0.0f };
     FloatPoint m_end_center;
     float m_end_radius { 0.0f };
+};
+
+class SVGPatternPaintStyle final : public PaintStyle {
+public:
+    enum class PatternUnits : u8 {
+        UserSpaceOnUse,
+        ObjectBoundingBox
+    };
+
+    enum class PatternContentUnits {
+        UserSpaceOnUse,
+        ObjectBoundingBox
+    };
+
+    static ErrorOr<NonnullRefPtr<SVGPatternPaintStyle>> create(FloatRect pattern_box)
+    {
+        return adopt_nonnull_ref_or_enomem(new (nothrow) SVGPatternPaintStyle(pattern_box));
+    }
+
+    FloatRect const& pattern_box() const { return m_pattern_box; }
+    void set_pattern_box(FloatRect pattern_box) { m_pattern_box = pattern_box; }
+
+    Optional<AffineTransform> const& pattern_transform() const { return m_pattern_transform; }
+    void set_pattern_transform(AffineTransform transform) { m_pattern_transform = transform; }
+
+    PatternUnits pattern_units() const { return m_pattern_units; }
+    void set_pattern_units(PatternUnits units) { m_pattern_units = units; }
+
+    PatternContentUnits pattern_content_units() const { return m_pattern_content_units; }
+    void set_pattern_content_units(PatternContentUnits units) { m_pattern_content_units = units; }
+
+    Optional<FloatRect> const& view_box() const { return m_view_box; }
+    void set_view_box(FloatRect view_box) { m_view_box = view_box; }
+
+    String const& preserve_aspect_ratio() const { return m_preserve_aspect_ratio; }
+    void set_preserve_aspect_ratio(String preserve_aspect_ratio) { m_preserve_aspect_ratio = move(preserve_aspect_ratio); }
+
+private:
+    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
+
+    SVGPatternPaintStyle(FloatRect pattern_box)
+        : m_pattern_box(pattern_box)
+    {
+    }
+
+    FloatRect m_pattern_box;
+    Optional<AffineTransform> m_pattern_transform;
+    PatternUnits m_pattern_units { PatternUnits::ObjectBoundingBox };
+    PatternContentUnits m_pattern_content_units { PatternContentUnits::UserSpaceOnUse };
+    Optional<FloatRect> m_view_box;
+    String m_preserve_aspect_ratio; // TODO per spec default should be "xMidYMid meet"
 };
 
 // The following paint styles implement the gradients required for SVGs

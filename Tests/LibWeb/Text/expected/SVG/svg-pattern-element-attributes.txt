@@ -1,0 +1,10 @@
+Element found: true
+id: pattern-element
+x.baseVal.value: 10
+y.baseVal.value: 20
+width.baseVal.value: 30
+height.baseVal.value: 40
+x attribute: 10
+y attribute: 20
+width attribute: 30
+height attribute: 40

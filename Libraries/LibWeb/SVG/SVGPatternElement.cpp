@@ -41,18 +41,7 @@ void SVGPatternElement::attribute_changed(FlyString const& name, Optional<String
     Base::attribute_changed(name, old_value, value, namespace_);
 
     // Reset cached paint style when attributes change
-    if (name == SVG::AttributeNames::width ||
-        name == SVG::AttributeNames::height ||
-        name == SVG::AttributeNames::x ||
-        name == SVG::AttributeNames::y ||
-        name == SVG::AttributeNames::patternUnits ||
-        name == SVG::AttributeNames::patternContentUnits ||
-        name == SVG::AttributeNames::patternTransform ||
-        name == SVG::AttributeNames::viewBox ||
-        name == SVG::AttributeNames::preserveAspectRatio ||
-        name == SVG::AttributeNames::href ||
-        name == AttributeNames::xlink_href)
-    {
+    if (name == SVG::AttributeNames::width || name == SVG::AttributeNames::height || name == SVG::AttributeNames::x || name == SVG::AttributeNames::y || name == SVG::AttributeNames::patternUnits || name == SVG::AttributeNames::patternContentUnits || name == SVG::AttributeNames::patternTransform || name == SVG::AttributeNames::viewBox || name == SVG::AttributeNames::preserveAspectRatio || name == SVG::AttributeNames::href || name == AttributeNames::xlink_href) {
         m_paint_style = nullptr;
     }
 }
