@@ -1936,7 +1936,7 @@ RefPtr<CSSStyleValue const> Parser::parse_color_value(TokenStream<ComponentValue
         }
         for (auto i = 1u; i < m_value_context.size() && quirky_color_allowed; i++) {
             quirky_color_allowed = m_value_context[i].visit(
-                [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::UnitlessLength); },
+                [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::HashlessHexColor); },
                 [](FunctionContext const&) { return false; },
                 [](DescriptorContext const&) { return false; });
         }
