@@ -50,15 +50,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
+          curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
           echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
           sudo apt-get update -y
-          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq wget curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync
+          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync
 
           test -e /opt/wabt-1.0.35 || (
             cd /tmp
-            wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
+            curl -f -L -o wabt-1.0.35-ubuntu-20.04.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
             sudo tar xf wabt-1.0.35-ubuntu-20.04.tar.gz -C /opt
             rm wabt-1.0.35-ubuntu-20.04.tar.gz
           )
