@@ -1,0 +1,697 @@
+Harness status: OK
+
+Found 692 tests
+
+692 Pass
+Pass	123
+Pass	123 (SVG)
+Pass	023
+Pass	023 (SVG)
+Pass	003
+Pass	003 (SVG)
+Pass	000
+Pass	000 (SVG)
+Pass	abc
+Pass	abc (SVG)
+Pass	ABC
+Pass	ABC (SVG)
+Pass	1ab
+Pass	1ab (SVG)
+Pass	1AB
+Pass	1AB (SVG)
+Pass	112233
+Pass	112233 (SVG)
+Pass	012233
+Pass	012233 (SVG)
+Pass	002233
+Pass	002233 (SVG)
+Pass	000233
+Pass	000233 (SVG)
+Pass	000033
+Pass	000033 (SVG)
+Pass	000003
+Pass	000003 (SVG)
+Pass	000000
+Pass	000000 (SVG)
+Pass	aabbcc
+Pass	aabbcc (SVG)
+Pass	AABBCC
+Pass	AABBCC (SVG)
+Pass	11aabb
+Pass	11aabb (SVG)
+Pass	11AABB
+Pass	11AABB (SVG)
+Pass	\31 23
+Pass	\31 23 (SVG)
+Pass	\61 bc
+Pass	\61 bc (SVG)
+Pass	\41 BC
+Pass	\41 BC (SVG)
+Pass	\31 ab
+Pass	\31 ab (SVG)
+Pass	\31 AB
+Pass	\31 AB (SVG)
+Pass	\31 12233
+Pass	\31 12233 (SVG)
+Pass	\61 abbcc
+Pass	\61 abbcc (SVG)
+Pass	\41 ABBCC
+Pass	\41 ABBCC (SVG)
+Pass	\31 1aabb
+Pass	\31 1aabb (SVG)
+Pass	\31 1AABB
+Pass	\31 1AABB (SVG)
+Pass	12\33 
+Pass	12\33  (SVG)
+Pass	1
+Pass	1 (SVG)
+Pass	12
+Pass	12 (SVG)
+Pass	1234
+Pass	1234 (SVG)
+Pass	12345
+Pass	12345 (SVG)
+Pass	1234567
+Pass	1234567 (SVG)
+Pass	12345678
+Pass	12345678 (SVG)
+Pass	a
+Pass	a (SVG)
+Pass	aa
+Pass	aa (SVG)
+Pass	aaaa
+Pass	aaaa (SVG)
+Pass	aaaaa
+Pass	aaaaa (SVG)
+Pass	aaaaaaa
+Pass	aaaaaaa (SVG)
+Pass	aaaaaaaa
+Pass	aaaaaaaa (SVG)
+Pass	A
+Pass	A (SVG)
+Pass	AA
+Pass	AA (SVG)
+Pass	AAAA
+Pass	AAAA (SVG)
+Pass	AAAAA
+Pass	AAAAA (SVG)
+Pass	AAAAAAA
+Pass	AAAAAAA (SVG)
+Pass	AAAAAAAA
+Pass	AAAAAAAA (SVG)
+Pass	1a
+Pass	1a (SVG)
+Pass	1abc
+Pass	1abc (SVG)
+Pass	1abcd
+Pass	1abcd (SVG)
+Pass	1abcdef
+Pass	1abcdef (SVG)
+Pass	1abcdeff
+Pass	1abcdeff (SVG)
+Pass	+1
+Pass	+1 (SVG)
+Pass	+12
+Pass	+12 (SVG)
+Pass	+123
+Pass	+123 (SVG)
+Pass	+1234
+Pass	+1234 (SVG)
+Pass	+12345
+Pass	+12345 (SVG)
+Pass	+123456
+Pass	+123456 (SVG)
+Pass	+1234567
+Pass	+1234567 (SVG)
+Pass	+12345678
+Pass	+12345678 (SVG)
+Pass	-1
+Pass	-1 (SVG)
+Pass	-12
+Pass	-12 (SVG)
+Pass	-123
+Pass	-123 (SVG)
+Pass	-1234
+Pass	-1234 (SVG)
+Pass	-12345
+Pass	-12345 (SVG)
+Pass	-123456
+Pass	-123456 (SVG)
+Pass	-1234567
+Pass	-1234567 (SVG)
+Pass	-12345678
+Pass	-12345678 (SVG)
+Pass	+1a
+Pass	+1a (SVG)
+Pass	+12a
+Pass	+12a (SVG)
+Pass	+123a
+Pass	+123a (SVG)
+Pass	+1234a
+Pass	+1234a (SVG)
+Pass	+12345a
+Pass	+12345a (SVG)
+Pass	+123456a
+Pass	+123456a (SVG)
+Pass	+1234567a
+Pass	+1234567a (SVG)
+Pass	-1a
+Pass	-1a (SVG)
+Pass	-12a
+Pass	-12a (SVG)
+Pass	-123a
+Pass	-123a (SVG)
+Pass	-1234a
+Pass	-1234a (SVG)
+Pass	-12345a
+Pass	-12345a (SVG)
+Pass	-123456a
+Pass	-123456a (SVG)
+Pass	-1234567a
+Pass	-1234567a (SVG)
+Pass	-12345678a
+Pass	-12345678a (SVG)
+Pass	+1A
+Pass	+1A (SVG)
+Pass	+12A
+Pass	+12A (SVG)
+Pass	+123A
+Pass	+123A (SVG)
+Pass	+1234A
+Pass	+1234A (SVG)
+Pass	+12345A
+Pass	+12345A (SVG)
+Pass	+123456A
+Pass	+123456A (SVG)
+Pass	+1234567A
+Pass	+1234567A (SVG)
+Pass	-1A
+Pass	-1A (SVG)
+Pass	-12A
+Pass	-12A (SVG)
+Pass	-123A
+Pass	-123A (SVG)
+Pass	-1234A
+Pass	-1234A (SVG)
+Pass	-12345A
+Pass	-12345A (SVG)
+Pass	-123456A
+Pass	-123456A (SVG)
+Pass	-1234567A
+Pass	-1234567A (SVG)
+Pass	-12345678A
+Pass	-12345678A (SVG)
+Pass	+a
+Pass	+a (SVG)
+Pass	+aa
+Pass	+aa (SVG)
+Pass	+aaa
+Pass	+aaa (SVG)
+Pass	+aaaa
+Pass	+aaaa (SVG)
+Pass	+aaaaa
+Pass	+aaaaa (SVG)
+Pass	+aaaaaa
+Pass	+aaaaaa (SVG)
+Pass	+aaaaaaa
+Pass	+aaaaaaa (SVG)
+Pass	+aaaaaaaa
+Pass	+aaaaaaaa (SVG)
+Pass	-a
+Pass	-a (SVG)
+Pass	-aa
+Pass	-aa (SVG)
+Pass	-aaa
+Pass	-aaa (SVG)
+Pass	-aaaa
+Pass	-aaaa (SVG)
+Pass	-aaaaa
+Pass	-aaaaa (SVG)
+Pass	-aaaaaa
+Pass	-aaaaaa (SVG)
+Pass	-aaaaaaa
+Pass	-aaaaaaa (SVG)
+Pass	-aaaaaaaa
+Pass	-aaaaaaaa (SVG)
+Pass	-aaaaaaaaa
+Pass	-aaaaaaaaa (SVG)
+Pass	+A
+Pass	+A (SVG)
+Pass	+AA
+Pass	+AA (SVG)
+Pass	+AAA
+Pass	+AAA (SVG)
+Pass	+AAAA
+Pass	+AAAA (SVG)
+Pass	+AAAAA
+Pass	+AAAAA (SVG)
+Pass	+AAAAAA
+Pass	+AAAAAA (SVG)
+Pass	+AAAAAAA
+Pass	+AAAAAAA (SVG)
+Pass	+AAAAAAAA
+Pass	+AAAAAAAA (SVG)
+Pass	-A
+Pass	-A (SVG)
+Pass	-AA
+Pass	-AA (SVG)
+Pass	-AAA
+Pass	-AAA (SVG)
+Pass	-AAAA
+Pass	-AAAA (SVG)
+Pass	-AAAAA
+Pass	-AAAAA (SVG)
+Pass	-AAAAAA
+Pass	-AAAAAA (SVG)
+Pass	-AAAAAAA
+Pass	-AAAAAAA (SVG)
+Pass	-AAAAAAAA
+Pass	-AAAAAAAA (SVG)
+Pass	-AAAAAAAAA
+Pass	-AAAAAAAAA (SVG)
+Pass	1.1
+Pass	1.1 (SVG)
+Pass	1.11
+Pass	1.11 (SVG)
+Pass	1.111
+Pass	1.111 (SVG)
+Pass	1.1111
+Pass	1.1111 (SVG)
+Pass	1.11111
+Pass	1.11111 (SVG)
+Pass	1.111111
+Pass	1.111111 (SVG)
+Pass	1.1111111
+Pass	1.1111111 (SVG)
+Pass	+1.1
+Pass	+1.1 (SVG)
+Pass	+1.11
+Pass	+1.11 (SVG)
+Pass	+1.111
+Pass	+1.111 (SVG)
+Pass	+1.1111
+Pass	+1.1111 (SVG)
+Pass	+1.11111
+Pass	+1.11111 (SVG)
+Pass	+1.111111
+Pass	+1.111111 (SVG)
+Pass	+1.1111111
+Pass	+1.1111111 (SVG)
+Pass	-1.1
+Pass	-1.1 (SVG)
+Pass	-1.11
+Pass	-1.11 (SVG)
+Pass	-1.111
+Pass	-1.111 (SVG)
+Pass	-1.1111
+Pass	-1.1111 (SVG)
+Pass	-1.11111
+Pass	-1.11111 (SVG)
+Pass	-1.111111
+Pass	-1.111111 (SVG)
+Pass	-1.1111111
+Pass	-1.1111111 (SVG)
+Pass	1.1a
+Pass	1.1a (SVG)
+Pass	1.11a
+Pass	1.11a (SVG)
+Pass	1.111a
+Pass	1.111a (SVG)
+Pass	1.1111a
+Pass	1.1111a (SVG)
+Pass	1.11111a
+Pass	1.11111a (SVG)
+Pass	1.111111a
+Pass	1.111111a (SVG)
+Pass	+1.1a
+Pass	+1.1a (SVG)
+Pass	+1.11a
+Pass	+1.11a (SVG)
+Pass	+1.111a
+Pass	+1.111a (SVG)
+Pass	+1.1111a
+Pass	+1.1111a (SVG)
+Pass	+1.11111a
+Pass	+1.11111a (SVG)
+Pass	+1.111111a
+Pass	+1.111111a (SVG)
+Pass	-1.1a
+Pass	-1.1a (SVG)
+Pass	-1.11a
+Pass	-1.11a (SVG)
+Pass	-1.111a
+Pass	-1.111a (SVG)
+Pass	-1.1111a
+Pass	-1.1111a (SVG)
+Pass	-1.11111a
+Pass	-1.11111a (SVG)
+Pass	-1.111111a
+Pass	-1.111111a (SVG)
+Pass	1.0
+Pass	1.0 (SVG)
+Pass	11.0
+Pass	11.0 (SVG)
+Pass	111.0
+Pass	111.0 (SVG)
+Pass	1111.0
+Pass	1111.0 (SVG)
+Pass	11111.0
+Pass	11111.0 (SVG)
+Pass	111111.0
+Pass	111111.0 (SVG)
+Pass	1111111.0
+Pass	1111111.0 (SVG)
+Pass	11111111.0
+Pass	11111111.0 (SVG)
+Pass	+1.0
+Pass	+1.0 (SVG)
+Pass	+11.0
+Pass	+11.0 (SVG)
+Pass	+111.0
+Pass	+111.0 (SVG)
+Pass	+1111.0
+Pass	+1111.0 (SVG)
+Pass	+11111.0
+Pass	+11111.0 (SVG)
+Pass	+111111.0
+Pass	+111111.0 (SVG)
+Pass	+1111111.0
+Pass	+1111111.0 (SVG)
+Pass	+11111111.0
+Pass	+11111111.0 (SVG)
+Pass	-1.0
+Pass	-1.0 (SVG)
+Pass	-11.0
+Pass	-11.0 (SVG)
+Pass	-111.0
+Pass	-111.0 (SVG)
+Pass	-1111.0
+Pass	-1111.0 (SVG)
+Pass	-11111.0
+Pass	-11111.0 (SVG)
+Pass	-111111.0
+Pass	-111111.0 (SVG)
+Pass	-1111111.0
+Pass	-1111111.0 (SVG)
+Pass	-11111111.0
+Pass	-11111111.0 (SVG)
+Pass	1.0a
+Pass	1.0a (SVG)
+Pass	11.0a
+Pass	11.0a (SVG)
+Pass	111.0a
+Pass	111.0a (SVG)
+Pass	1111.0a
+Pass	1111.0a (SVG)
+Pass	11111.0a
+Pass	11111.0a (SVG)
+Pass	111111.0a
+Pass	111111.0a (SVG)
+Pass	1111111.0a
+Pass	1111111.0a (SVG)
+Pass	+1.0a
+Pass	+1.0a (SVG)
+Pass	+11.0a
+Pass	+11.0a (SVG)
+Pass	+111.0a
+Pass	+111.0a (SVG)
+Pass	+1111.0a
+Pass	+1111.0a (SVG)
+Pass	+11111.0a
+Pass	+11111.0a (SVG)
+Pass	+111111.0a
+Pass	+111111.0a (SVG)
+Pass	+1111111.0a
+Pass	+1111111.0a (SVG)
+Pass	-1.0a
+Pass	-1.0a (SVG)
+Pass	-11.0a
+Pass	-11.0a (SVG)
+Pass	-111.0a
+Pass	-111.0a (SVG)
+Pass	-1111.0a
+Pass	-1111.0a (SVG)
+Pass	-11111.0a
+Pass	-11111.0a (SVG)
+Pass	-111111.0a
+Pass	-111111.0a (SVG)
+Pass	-1111111.0a
+Pass	-1111111.0a (SVG)
+Pass	+/**/123
+Pass	+/**/123 (SVG)
+Pass	-/**/123
+Pass	-/**/123 (SVG)
+Pass	+/**/123456
+Pass	+/**/123456 (SVG)
+Pass	-/**/123456
+Pass	-/**/123456 (SVG)
+Pass	+/**/abc
+Pass	+/**/abc (SVG)
+Pass	-/**/abc
+Pass	-/**/abc (SVG)
+Pass	+/**/abcdef
+Pass	+/**/abcdef (SVG)
+Pass	-/**/abcdef
+Pass	-/**/abcdef (SVG)
+Pass	+/**/12a
+Pass	+/**/12a (SVG)
+Pass	-/**/12a
+Pass	-/**/12a (SVG)
+Pass	+/**/12345a
+Pass	+/**/12345a (SVG)
+Pass	-/**/12345a
+Pass	-/**/12345a (SVG)
+Pass	abg
+Pass	abg (SVG)
+Pass	aabbcg
+Pass	aabbcg (SVG)
+Pass	1ag
+Pass	1ag (SVG)
+Pass	1122ag
+Pass	1122ag (SVG)
+Pass	ABG
+Pass	ABG (SVG)
+Pass	AABBCG
+Pass	AABBCG (SVG)
+Pass	1AG
+Pass	1AG (SVG)
+Pass	1122AG
+Pass	1122AG (SVG)
+Pass	@a
+Pass	@a (SVG)
+Pass	@ab
+Pass	@ab (SVG)
+Pass	@abc
+Pass	@abc (SVG)
+Pass	@abcd
+Pass	@abcd (SVG)
+Pass	@abcde
+Pass	@abcde (SVG)
+Pass	@abcdef
+Pass	@abcdef (SVG)
+Pass	@1
+Pass	@1 (SVG)
+Pass	@11
+Pass	@11 (SVG)
+Pass	@111
+Pass	@111 (SVG)
+Pass	@1111
+Pass	@1111 (SVG)
+Pass	@11111
+Pass	@11111 (SVG)
+Pass	@111111
+Pass	@111111 (SVG)
+Pass	@1a
+Pass	@1a (SVG)
+Pass	@11a
+Pass	@11a (SVG)
+Pass	@111a
+Pass	@111a (SVG)
+Pass	@1111a
+Pass	@1111a (SVG)
+Pass	@11111a
+Pass	@11111a (SVG)
+Pass	"a"
+Pass	"a" (SVG)
+Pass	"ab"
+Pass	"ab" (SVG)
+Pass	"abc"
+Pass	"abc" (SVG)
+Pass	"abcd"
+Pass	"abcd" (SVG)
+Pass	"abcde"
+Pass	"abcde" (SVG)
+Pass	"abcdef"
+Pass	"abcdef" (SVG)
+Pass	"1"
+Pass	"1" (SVG)
+Pass	"11"
+Pass	"11" (SVG)
+Pass	"111"
+Pass	"111" (SVG)
+Pass	"1111"
+Pass	"1111" (SVG)
+Pass	"11111"
+Pass	"11111" (SVG)
+Pass	"111111"
+Pass	"111111" (SVG)
+Pass	"1a"
+Pass	"1a" (SVG)
+Pass	"11a"
+Pass	"11a" (SVG)
+Pass	"111a"
+Pass	"111a" (SVG)
+Pass	"1111a"
+Pass	"1111a" (SVG)
+Pass	"11111a"
+Pass	"11111a" (SVG)
+Pass	url(a)
+Pass	url(a) (SVG)
+Pass	url(aa)
+Pass	url(aa) (SVG)
+Pass	url(aaa)
+Pass	url(aaa) (SVG)
+Pass	url(aaaa)
+Pass	url(aaaa) (SVG)
+Pass	url(aaaaa)
+Pass	url(aaaaa) (SVG)
+Pass	url(aaaaaa)
+Pass	url(aaaaaa) (SVG)
+Pass	url('a')
+Pass	url('a') (SVG)
+Pass	url('aa')
+Pass	url('aa') (SVG)
+Pass	url('aaa')
+Pass	url('aaa') (SVG)
+Pass	url('aaaa')
+Pass	url('aaaa') (SVG)
+Pass	url('aaaaa')
+Pass	url('aaaaa') (SVG)
+Pass	url('aaaaaa')
+Pass	url('aaaaaa') (SVG)
+Pass	#a
+Pass	#a (SVG)
+Pass	#aa
+Pass	#aa (SVG)
+Pass	#aaaaa
+Pass	#aaaaa (SVG)
+Pass	#aaaaaaa
+Pass	#aaaaaaa (SVG)
+Pass	#1
+Pass	#1 (SVG)
+Pass	#11
+Pass	#11 (SVG)
+Pass	#11111
+Pass	#11111 (SVG)
+Pass	#1111111
+Pass	#1111111 (SVG)
+Pass	#1a
+Pass	#1a (SVG)
+Pass	#1111a
+Pass	#1111a (SVG)
+Pass	#111111a
+Pass	#111111a (SVG)
+Pass	1%
+Pass	1% (SVG)
+Pass	11%
+Pass	11% (SVG)
+Pass	111%
+Pass	111% (SVG)
+Pass	1111%
+Pass	1111% (SVG)
+Pass	11111%
+Pass	11111% (SVG)
+Pass	111111%
+Pass	111111% (SVG)
+Pass	calc(123)
+Pass	calc(123) (SVG)
+Pass	rgb(119, 255, 255)
+Pass	rgb(119, 255, 255) (SVG)
+Pass	rgba(119, 255, 255, 001)
+Pass	rgba(119, 255, 255, 001) (SVG)
+Pass	hsl(100, 100%, 100%)
+Pass	hsl(100, 100%, 100%) (SVG)
+Pass	hsla(100, 100%, 100%, 001)
+Pass	hsla(100, 100%, 100%, 001) (SVG)
+Pass	rgb(calc(100 + 155), 255, 255)
+Pass	rgb(calc(100 + 155), 255, 255) (SVG)
+Pass	rgba(calc(100 + 155), 255, 255, 001)
+Pass	rgba(calc(100 + 155), 255, 255, 001) (SVG)
+Pass	hsl(calc(050 + 050), 100%, 100%)
+Pass	hsl(calc(050 + 050), 100%, 100%) (SVG)
+Pass	hsla(calc(050 + 050), 100%, 100%, 001)
+Pass	hsla(calc(050 + 050), 100%, 100%, 001) (SVG)
+Pass	rgb(/**/255, 255, 255)
+Pass	rgb(/**/255, 255, 255) (SVG)
+Pass	rgb(/**/255/**/, /**/255/**/, /**/255/**/)
+Pass	rgb(/**/255/**/, /**/255/**/, /**/255/**/) (SVG)
+Pass	rgb(calc(/**/100/**/ + /**/155/**/), 255, 255)
+Pass	rgb(calc(/**/100/**/ + /**/155/**/), 255, 255) (SVG)
+Pass	#123 123 abc 12a
+Pass	#123 123 abc 12a (SVG)
+Pass	rgb(119, 255, 255) 123
+Pass	rgb(119, 255, 255) 123 (SVG)
+Pass	123 rgb(119, 255, 255)
+Pass	123 rgb(119, 255, 255) (SVG)
+Pass	1e1
+Pass	1e1 (SVG)
+Pass	11e1
+Pass	11e1 (SVG)
+Pass	111e1
+Pass	111e1 (SVG)
+Pass	1111e1
+Pass	1111e1 (SVG)
+Pass	11111e1
+Pass	11111e1 (SVG)
+Pass	111111e1
+Pass	111111e1 (SVG)
+Pass	1e+1
+Pass	1e+1 (SVG)
+Pass	11e+1
+Pass	11e+1 (SVG)
+Pass	111e+1
+Pass	111e+1 (SVG)
+Pass	1111e+1
+Pass	1111e+1 (SVG)
+Pass	11111e+1
+Pass	11111e+1 (SVG)
+Pass	111111e+1
+Pass	111111e+1 (SVG)
+Pass	1e-0
+Pass	1e-0 (SVG)
+Pass	11e-0
+Pass	11e-0 (SVG)
+Pass	111e-0
+Pass	111e-0 (SVG)
+Pass	1111e-0
+Pass	1111e-0 (SVG)
+Pass	11111e-0
+Pass	11111e-0 (SVG)
+Pass	111111e-0
+Pass	111111e-0 (SVG)
+Pass	1e1a
+Pass	1e1a (SVG)
+Pass	11e1a
+Pass	11e1a (SVG)
+Pass	111e1a
+Pass	111e1a (SVG)
+Pass	1111e1a
+Pass	1111e1a (SVG)
+Pass	11111e1a
+Pass	11111e1a (SVG)
+Pass	111111e1a
+Pass	111111e1a (SVG)
+Pass	1111111111...
+Pass	1111111111... (SVG)
+Pass	1111111111...a
+Pass	1111111111...a (SVG)
+Pass	a1111111111...
+Pass	a1111111111... (SVG)
+Pass	The hashless hex color quirk (quirks), excluded property background:abc
+Pass	The hashless hex color quirk (quirks), excluded property border-top:1px solid abc
+Pass	The hashless hex color quirk (quirks), excluded property border-right:1px solid abc
+Pass	The hashless hex color quirk (quirks), excluded property border-bottom:1px solid abc
+Pass	The hashless hex color quirk (quirks), excluded property border-left:1px solid abc
+Pass	The hashless hex color quirk (quirks), excluded property border:1px solid abc
+Pass	The hashless hex color quirk (quirks), excluded property outline-color:abc
+Pass	The hashless hex color quirk (quirks), excluded property outline:1px solid abc
