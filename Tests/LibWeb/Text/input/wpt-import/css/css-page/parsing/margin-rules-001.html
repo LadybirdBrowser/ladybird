@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-page-3/#margin-at-rules">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<style>
+#test{ }
+</style>
+<script>
+'use strict';
+test(t => {
+  const ruleTypes = [
+    "@top-left-corner",
+    "@top-left",
+    "@top-center",
+    "@top-right",
+    "@top-right-corner",
+    "@bottom-left-corner",
+    "@bottom-left",
+    "@bottom-center",
+    "@bottom-right",
+    "@bottom-right-corner",
+    "@left-top",
+    "@left-middle",
+    "@left-bottom",
+    "@right-top",
+    "@right-middle",
+    "@right-bottom"
+  ];
+  // Test that margin-rules are not valid at a top-level.
+  for(let t in ruleTypes){
+    test_invalid_rule(ruleTypes[t] + "{ }");
+  }
+  // Test that margin-rules are not valid in style rules.
+  assert_equals(document.styleSheets.length, 1);
+  let styleSheet = document.styleSheets[0];
+  assert_equals(styleSheet.rules.length, 1);
+  let rule = styleSheet.rules[0];
+  for(let t in ruleTypes){
+    assert_throws_dom(
+        DOMException.SYNTAX_ERR,
+        () => rule.insertRule(ruleTypes[t] + "{ }"),
+        "Should not be able to add " + ruleTypes[t]  + " to a style rule");
+  }
+  // Test that margin-rules are valid inside page-rules.
+  for(let t in ruleTypes){
+    test_valid_rule("@page { " + ruleTypes[t] + " { } }");
+  }
+}, "margin-rules-001");
+</script>
