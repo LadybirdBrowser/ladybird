@@ -486,6 +486,8 @@ run_wpt_chunked() {
     echo "Launching $procs chunked instances (concurrency=$concurrency each)"
     export LADYBIRD_GIT_VERSION
     local logs=()
+    local run_start_time
+    run_start_time=$(date +"%Y%m%d%H%M%S")
 
     for i in $(seq 0 $((procs - 1))); do
         local rundir runpath logpath
@@ -513,7 +515,7 @@ run_wpt_chunked() {
     show_files "${logs[@]}"
     wait
 
-    copy_results_to "${BUILD_DIR}/wpt-run-$(date +%s)" "$procs"
+    copy_results_to "${BUILD_DIR}/wpt-run-${run_start_time}" "$procs"
     show_summary "${logs[@]}"
 }
 
