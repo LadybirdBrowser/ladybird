@@ -106,6 +106,8 @@ public:
     bool indeterminate() const { return m_indeterminate; }
     void set_indeterminate(bool);
 
+    bool can_have_text_editing_cursor() const;
+
     GC::Ptr<HTMLDataListElement const> list() const;
 
     void did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state);
