@@ -164,7 +164,10 @@ public:
     FunctionObject const* active_function_object() const { return running_execution_context().function; }
     FunctionObject* active_function_object() { return running_execution_context().function; }
 
-    bool in_strict_mode() const;
+    bool in_strict_mode() const
+    {
+        return running_execution_context().is_strict_mode;
+    }
 
     size_t argument_count() const
     {
