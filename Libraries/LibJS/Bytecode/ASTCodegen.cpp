@@ -3456,8 +3456,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassFieldInitializerSt
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(*m_expression, generator.intern_identifier(m_class_field_identifier_name), preferred_dst));
+    VERIFY(value.has_value());
     generator.perform_needed_unwinds<Bytecode::Op::Return>();
-    generator.emit<Bytecode::Op::Return>(value.has_value() ? value->operand() : Optional<Operand> {});
+    generator.emit<Bytecode::Op::Return>(value->operand());
     return value;
 }
 
