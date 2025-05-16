@@ -14,6 +14,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <compare>
 
 namespace Web::IndexedDB {
 
@@ -66,9 +67,21 @@ public:
     [[nodiscard]] static GC::Ref<Key> create_invalid(JS::Realm& realm, AK::String const& value) { return create(realm, Invalid, value); }
 
     [[nodiscard]] static i8 compare_two_keys(GC::Ref<Key> a, GC::Ref<Key> b);
-    [[nodiscard]] static bool equals(GC::Ref<Key> a, GC::Ref<Key> b) { return compare_two_keys(a, b) == 0; }
-    [[nodiscard]] static bool less_than(GC::Ref<Key> a, GC::Ref<Key> b) { return compare_two_keys(a, b) < 0; }
-    [[nodiscard]] static bool greater_than(GC::Ref<Key> a, GC::Ref<Key> b) { return compare_two_keys(a, b) > 0; }
+
+    bool operator==(Key& other)
+    {
+        return compare_two_keys(*this, other) == 0;
+    }
+
+    std::strong_ordering operator<=>(Key& other)
+    {
+        auto value = compare_two_keys(*this, other);
+        if (value == 0)
+            return std::strong_ordering::equal;
+        if (value < 0)
+            return std::strong_ordering::less;
+        return std::strong_ordering::greater;
+    }
 
 private:
     Key(KeyType type, KeyValue value)

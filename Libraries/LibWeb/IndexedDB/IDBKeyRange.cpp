@@ -50,10 +50,10 @@ bool IDBKeyRange::is_in_range(GC::Ref<Key> key) const
     // A key is in a key range range if both of the following conditions are fulfilled:
 
     // The range’s lower bound is null, or it is less than key, or it is both equal to key and the range’s lower open flag is false.
-    auto lower_bound_in_range = this->lower_key() == nullptr || Key::less_than(*this->lower_key(), key) || (Key::equals(key, *this->lower_key()) && !this->lower_open());
+    auto lower_bound_in_range = this->lower_key() == nullptr || *this->lower_key() < *key || (*key == *this->lower_key() && !this->lower_open());
 
     // The range’s upper bound is null, or it is greater than key, or it is both equal to key and the range’s upper open flag is false.
-    auto upper_bound_in_range = this->upper_key() == nullptr || Key::greater_than(*this->upper_key(), key) || (Key::equals(key, *this->upper_key()) && !this->upper_open());
+    auto upper_bound_in_range = this->upper_key() == nullptr || *this->upper_key() > *key || (*key == *this->upper_key() && !this->upper_open());
 
     return lower_bound_in_range && upper_bound_in_range;
 }
@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::bound(JS::VM& vm, JS::Val
         return WebIDL::DataError::create(realm, "Value is invalid"_string);
 
     // 5. If lowerKey is greater than upperKey, throw a "DataError" DOMException.
-    if (Key::less_than(upper_key, lower_key))
+    if (*lower_key > *upper_key)
         return WebIDL::DataError::create(realm, "Lower key is greater than upper key"_string);
 
     // 6. Create and return a new key range with lower bound set to lowerKey, lower open flag set to lowerOpen, upper bound set to upperKey and upper open flag set to upperOpen.

@@ -1546,7 +1546,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto is_greater_than_or_equal = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [key](auto const& inner_record) {
-                    return Key::greater_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
+                    return *inner_record.key >= *key;
                 });
 
             if (!is_greater_than_or_equal)
@@ -1558,11 +1558,11 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto const& inner_record = record.get<IndexRecord>();
 
             // * the record’s key is equal to key and the record’s value is greater than or equal to primaryKey,
-            if (!(Key::equals(inner_record.key, *key) && (Key::greater_than(inner_record.value, *primary_key) || Key::equals(inner_record.value, *primary_key))))
+            if (!(*inner_record.key == *key && *inner_record.value >= *primary_key))
                 return false;
 
             // * or the record’s key is greater than key.
-            if (!Key::greater_than(inner_record.key, *key))
+            if (!(*inner_record.key > *key))
                 return false;
         }
 
@@ -1571,7 +1571,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto const& inner_record = record.get<Record>();
 
             // * the record’s key is greater than position.
-            if (!Key::greater_than(inner_record.key, *position))
+            if (!(*inner_record.key > *position))
                 return false;
         }
 
@@ -1580,11 +1580,11 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto const& inner_record = record.get<IndexRecord>();
 
             // * the record’s key is equal to position and the record’s value is greater than object store position
-            if (!(Key::equals(inner_record.key, *position) && (Key::greater_than(inner_record.value, *object_store_position))))
+            if (!(*inner_record.key == *position || *inner_record.value <= *object_store_position))
                 return false;
 
             // * or the record’s key is greater than position.
-            if (!Key::greater_than(inner_record.key, *position))
+            if (!(*inner_record.key > *position))
                 return false;
         }
 
@@ -1605,7 +1605,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto is_greater_than_or_equal = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [key](auto const& inner_record) {
-                    return Key::greater_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
+                    return *inner_record.key >= *key;
                 });
 
             if (!is_greater_than_or_equal)
@@ -1618,7 +1618,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto is_greater_than_position = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [position](auto const& inner_record) {
-                    return Key::greater_than(inner_record.key, *position) || Key::equals(inner_record.key, *position);
+                    return *inner_record.key > *position;
                 });
 
             if (!is_greater_than_position)
@@ -1642,7 +1642,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto is_less_than_or_equal = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [key](auto const& inner_record) {
-                    return Key::less_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
+                    return *inner_record.key <= *key;
                 });
 
             if (!is_less_than_or_equal)
@@ -1654,11 +1654,11 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto const& inner_record = record.get<IndexRecord>();
 
             // * the record’s key is equal to key and the record’s value is less than or equal to primaryKey,
-            if (!(Key::equals(inner_record.key, *key) && (Key::less_than(inner_record.value, *primary_key) || Key::equals(inner_record.value, *primary_key))))
+            if (!(*inner_record.key == *key && *inner_record.value <= *primary_key))
                 return false;
 
             // * or the record’s key is less than key.
-            if (!Key::less_than(inner_record.key, *key))
+            if (!(*inner_record.key < *key))
                 return false;
         }
 
@@ -1667,7 +1667,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto const& inner_record = record.get<Record>();
 
             // * the record’s key is less than position.
-            if (!Key::less_than(inner_record.key, *position))
+            if (!(*inner_record.key < *position))
                 return false;
         }
 
@@ -1676,11 +1676,11 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto const& inner_record = record.get<IndexRecord>();
 
             // * the record’s key is equal to position and the record’s value is less than object store position
-            if (!(Key::equals(inner_record.key, *position) && Key::less_than(inner_record.value, *object_store_position)))
+            if (!(*inner_record.key == *position && *inner_record.value < *object_store_position))
                 return false;
 
             // * or the record’s key is less than position.
-            if (!Key::less_than(inner_record.key, *position))
+            if (!(*inner_record.key < *position))
                 return false;
         }
 
@@ -1701,7 +1701,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto is_less_than_or_equal = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [key](auto const& inner_record) {
-                    return Key::less_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
+                    return *inner_record.key <= *key;
                 });
 
             if (!is_less_than_or_equal)
@@ -1714,7 +1714,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             auto is_less_than_position = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [position](auto const& inner_record) {
-                    return Key::less_than(inner_record.key, *position) || Key::equals(inner_record.key, *position);
+                    return *inner_record.key < *position;
                 });
 
             if (!is_less_than_position)
@@ -1788,7 +1788,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
                 found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
                     auto value = content.first_matching([&](auto const& content_record) {
-                        return Key::equals(content_record.key, temp_record_key);
+                        return *content_record.key == *temp_record_key;
                     });
                     if (value.has_value())
                         return *value;
