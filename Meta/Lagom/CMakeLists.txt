@@ -184,6 +184,8 @@ function(lagom_generate_export_header name fs_name)
     # to gradually slowly migrate instead of an all-or-nothing approach.
     if (NOT WIN32)
         target_compile_options(${name} PRIVATE -fvisibility=hidden)
+    else()
+        set_target_properties(${name} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     endif()
     include(GenerateExportHeader)
     string(TOUPPER ${fs_name} fs_name_upper)
