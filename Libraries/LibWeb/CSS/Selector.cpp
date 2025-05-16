@@ -501,7 +501,8 @@ String Selector::serialize() const
             for (auto& simple_selector : compound_selector.simple_selectors) {
                 if (simple_selector.type == SimpleSelector::Type::Universal) {
                     auto qualified_name = simple_selector.qualified_name();
-                    if (qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Default)
+                    if (qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Default
+                        || qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Any)
                         continue;
                     // FIXME: I *think* if we have a namespace prefix that happens to equal the same as the default namespace,
                     //        we also should skip it. But we don't have access to that here. eg:
