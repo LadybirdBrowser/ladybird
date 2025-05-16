@@ -3333,9 +3333,10 @@ Vector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::Ref<DOM::Node>> 
     // 2. For each node in node list, for each command in the list "subscript", "bold", "fontName",
     //    "fontSize", "foreColor", "hiliteColor", "italic", "strikethrough", and "underline" in that
     //    order:
+    // AD-HOC: We include "preserveWhitespace" as well.
     Array const commands = { CommandNames::subscript, CommandNames::bold, CommandNames::fontName,
         CommandNames::fontSize, CommandNames::foreColor, CommandNames::hiliteColor, CommandNames::italic,
-        CommandNames::strikethrough, CommandNames::underline };
+        CommandNames::strikethrough, CommandNames::underline, CommandNames::preserveWhitespace };
     for (auto node : node_list) {
         for (auto command : commands) {
             // 1. Let ancestor equal node.
