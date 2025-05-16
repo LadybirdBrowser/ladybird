@@ -582,7 +582,7 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                     break;
                 }
                 case CSS::PseudoClassMetadata::ParameterType::Ident:
-                    builder.appendff("(keyword={})", string_from_keyword(pseudo_class.keyword.value()));
+                    builder.appendff("(ident={})", pseudo_class.ident->string_value);
                     break;
                 case CSS::PseudoClassMetadata::ParameterType::LanguageRanges: {
                     builder.append('(');

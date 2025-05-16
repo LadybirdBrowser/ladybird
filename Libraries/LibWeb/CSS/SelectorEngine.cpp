@@ -792,13 +792,15 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Dir: {
         // "Values other than ltr and rtl are not invalid, but do not match anything."
         // - https://www.w3.org/TR/selectors-4/#the-dir-pseudo
-        if (!first_is_one_of(pseudo_class.keyword, CSS::Keyword::Ltr, CSS::Keyword::Rtl))
+        if (!pseudo_class.ident.has_value())
+            return false;
+        if (!first_is_one_of(pseudo_class.ident->keyword, CSS::Keyword::Ltr, CSS::Keyword::Rtl))
             return false;
         switch (element.directionality()) {
         case DOM::Element::Directionality::Ltr:
-            return pseudo_class.keyword == CSS::Keyword::Ltr;
+            return pseudo_class.ident->keyword == CSS::Keyword::Ltr;
         case DOM::Element::Directionality::Rtl:
-            return pseudo_class.keyword == CSS::Keyword::Rtl;
+            return pseudo_class.ident->keyword == CSS::Keyword::Rtl;
         }
         VERIFY_NOT_REACHED();
     }

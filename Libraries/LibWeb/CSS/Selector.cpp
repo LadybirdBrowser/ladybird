@@ -461,7 +461,7 @@ String Selector::SimpleSelector::serialize() const
                 s.append(serialize_a_group_of_selectors(pseudo_class.argument_selector_list));
                 break;
             case PseudoClassMetadata::ParameterType::Ident:
-                s.append(string_from_keyword(pseudo_class.keyword.value()));
+                s.append(serialize_an_identifier(pseudo_class.ident->string_value));
                 break;
             case PseudoClassMetadata::ParameterType::LanguageRanges:
                 // The serialization of a comma-separated list of each argument’s serialization as a string, preserving relative order.

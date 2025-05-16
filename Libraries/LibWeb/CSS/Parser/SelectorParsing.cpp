@@ -695,24 +695,24 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         case PseudoClassMetadata::ParameterType::Ident: {
             auto function_token_stream = TokenStream(pseudo_function.value);
             function_token_stream.discard_whitespace();
-            auto const& maybe_keyword_token = function_token_stream.consume_a_token();
+            auto const& maybe_ident_token = function_token_stream.consume_a_token();
             function_token_stream.discard_whitespace();
-            if (!maybe_keyword_token.is(Token::Type::Ident) || function_token_stream.has_next_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: not an ident", pseudo_function.name);
+            if (!maybe_ident_token.is(Token::Type::Ident) || function_token_stream.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter: not an ident", pseudo_function.name);
                 return ParseError::SyntaxError;
             }
 
-            auto maybe_keyword = keyword_from_string(maybe_keyword_token.token().ident());
-            if (!maybe_keyword.has_value()) {
-                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: unrecognized keyword", pseudo_function.name);
-                return ParseError::SyntaxError;
-            }
+            auto& ident = maybe_ident_token.token().ident();
 
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoClass,
                 .value = Selector::SimpleSelector::PseudoClassSelector {
                     .type = pseudo_class,
-                    .keyword = maybe_keyword.value() }
+                    .ident = Selector::SimpleSelector::PseudoClassSelector::Ident {
+                        .keyword = keyword_from_string(ident).value_or(Keyword::Invalid),
+                        .string_value = ident,
+                    },
+                }
             };
         }
         case PseudoClassMetadata::ParameterType::LanguageRanges: {

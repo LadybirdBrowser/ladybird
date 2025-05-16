@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 10 tests
 
-9 Pass
-1 Fail
+10 Pass
 Pass	":dir(rtl)" should be a valid selector
 Pass	":dir(    rtl )" should be a valid selector
 Pass	":dir(ltr):dir(rtl)" should be a valid selector
 Pass	"foo:dir(RTL)" should be a valid selector
 Pass	":dir(auto)" should be a valid selector
 Pass	":dir(none)" should be a valid selector
-Fail	":dir(something-made-up)" should be a valid selector
+Pass	":dir(something-made-up)" should be a valid selector
 Pass	":dir()" should be an invalid selector
 Pass	":dir(\"ltr\")" should be an invalid selector
 Pass	":dir(ltr, rtl)" should be an invalid selector
