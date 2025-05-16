@@ -101,6 +101,7 @@ public:
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CursorData cursor() { return { CSS::Cursor::Auto }; }
     static CSS::WhiteSpace white_space() { return CSS::WhiteSpace::Normal; }
+    static CSS::WhiteSpaceCollapse white_space_collapse() { return CSS::WhiteSpaceCollapse::Collapse; }
     static CSS::WordBreak word_break() { return CSS::WordBreak::Normal; }
     static CSS::LengthOrCalculated word_spacing() { return CSS::Length::make_px(0); }
     static LengthOrCalculated letter_spacing() { return CSS::Length::make_px(0); }
@@ -423,6 +424,7 @@ public:
     Vector<ShadowData> const& text_shadow() const { return m_inherited.text_shadow; }
     CSS::Positioning position() const { return m_noninherited.position; }
     CSS::WhiteSpace white_space() const { return m_inherited.white_space; }
+    CSS::WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
     CSS::LengthOrCalculated word_spacing() const { return m_inherited.word_spacing; }
     LengthOrCalculated letter_spacing() const { return m_inherited.letter_spacing; }
     CSS::FlexDirection flex_direction() const { return m_noninherited.flex_direction; }
@@ -616,6 +618,7 @@ protected:
         CSS::TextTransform text_transform { InitialValues::text_transform() };
         CSS::LengthPercentage text_indent { InitialValues::text_indent() };
         CSS::WhiteSpace white_space { InitialValues::white_space() };
+        CSS::WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
         CSS::WordBreak word_break { InitialValues::word_break() };
         CSS::LengthOrCalculated word_spacing { InitialValues::word_spacing() };
         LengthOrCalculated letter_spacing { InitialValues::letter_spacing() };
@@ -819,6 +822,7 @@ public:
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
     void set_white_space(CSS::WhiteSpace value) { m_inherited.white_space = value; }
+    void set_white_space_collapse(CSS::WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
     void set_word_spacing(CSS::LengthOrCalculated value) { m_inherited.word_spacing = move(value); }
     void set_word_break(CSS::WordBreak value) { m_inherited.word_break = value; }
     void set_letter_spacing(CSS::LengthOrCalculated value) { m_inherited.letter_spacing = value; }

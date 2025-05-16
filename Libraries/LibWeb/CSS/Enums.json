@@ -676,6 +676,14 @@
     "pre-line",
     "pre-wrap"
   ],
+  "white-space-collapse": [
+    "collapse",
+    "discard",
+    "preserve",
+    "preserve-breaks",
+    "preserve-spaces",
+    "break-spaces"
+  ],
   "word-break": [
     "normal",
     "keep-all",

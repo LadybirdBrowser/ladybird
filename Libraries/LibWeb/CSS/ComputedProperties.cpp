@@ -830,6 +830,12 @@ WhiteSpace ComputedProperties::white_space() const
     return keyword_to_white_space(value.to_keyword()).release_value();
 }
 
+WhiteSpaceCollapse ComputedProperties::white_space_collapse() const
+{
+    auto const& value = property(PropertyID::WhiteSpaceCollapse);
+    return keyword_to_white_space_collapse(value.to_keyword()).release_value();
+}
+
 Optional<LengthOrCalculated> ComputedProperties::letter_spacing() const
 {
     auto const& value = property(PropertyID::LetterSpacing);

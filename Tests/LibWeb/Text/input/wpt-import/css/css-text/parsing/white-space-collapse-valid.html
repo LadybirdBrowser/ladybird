@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Module Test: parsing white-space-collapse with valid values</title>
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#white-space-collapsing">
+<meta name="assert" content="white-space-collapse supports the full grammar 'collapse | discard | preserve | preserve-breaks | preserve-spaces | break-spaces'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("white-space-collapse", "collapse");
+test_valid_value("white-space-collapse", "preserve");
+test_valid_value("white-space-collapse", "preserve-breaks");
+test_valid_value("white-space-collapse", "break-spaces");
+test_valid_value("white-space-collapse", "initial");
+test_valid_value("white-space-collapse", "inherit");
+test_valid_value("white-space-collapse", "unset");
+test_valid_value("white-space-collapse", "revert");
+test_valid_value("white-space-collapse", "revert-layer");
+</script>
+</body>
+</html>

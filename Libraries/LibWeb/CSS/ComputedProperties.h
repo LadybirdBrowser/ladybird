@@ -101,6 +101,7 @@ public:
     Vector<CursorData> cursor() const;
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
     WhiteSpace white_space() const;
+    WhiteSpaceCollapse white_space_collapse() const;
     WordBreak word_break() const;
     Optional<LengthOrCalculated> word_spacing() const;
     Optional<LengthOrCalculated> letter_spacing() const;

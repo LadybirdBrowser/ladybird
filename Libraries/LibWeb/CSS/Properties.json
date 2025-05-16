@@ -3126,6 +3126,14 @@
       "white-space"
     ]
   },
+  "white-space-collapse": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "collapse",
+    "valid-types": [
+      "white-space-collapse"
+    ]
+  },
   "width": {
     "animation-type": "by-computed-value",
     "inherited": false,

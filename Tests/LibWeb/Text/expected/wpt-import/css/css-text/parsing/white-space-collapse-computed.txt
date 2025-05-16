@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Property white-space-collapse value 'collapse'
+Pass	Property white-space-collapse value 'preserve'
+Pass	Property white-space-collapse value 'preserve-breaks'
+Pass	Property white-space-collapse value 'break-spaces'
