@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 18 tests
 
-17 Pass
-1 Fail
+18 Pass
 Pass	e.style['font-variation-settings'] = "700" should not set the property value
 Pass	e.style['font-variation-settings'] = "\"XHGT\"" should not set the property value
 Pass	e.style['font-variation-settings'] = "wght 700" should not set the property value
@@ -16,7 +15,7 @@ Pass	e.style['font-variation-settings'] = "\"abcA9\" 0.5" should not set the pro
 Pass	e.style['font-variation-settings'] = "'wght' 200 'abcd' 400" should not set the property value
 Pass	e.style['font-variation-settings'] = "'a' 1234" should not set the property value
 Pass	e.style['font-variation-settings'] = "'abcde' 1234" should not set the property value
-Fail	e.style['font-variation-settings'] = "'wght' 200, " should not set the property value
+Pass	e.style['font-variation-settings'] = "'wght' 200, " should not set the property value
 Pass	e.style['font-variation-settings'] = "'abcd\" 123" should not set the property value
 Pass	e.style['font-variation-settings'] = "'wght' 100px" should not set the property value
 Pass	e.style['font-variation-settings'] = "'wght' calc(100px + 200px)" should not set the property value
