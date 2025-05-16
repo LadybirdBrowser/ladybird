@@ -193,7 +193,7 @@ public:
     ByteCode(Base&&) = delete;
     ByteCode(Base const&) = delete;
 
-    virtual ~ByteCode() = default;
+    ~ByteCode() = default;
 
     ByteCode& operator=(ByteCode const&) = default;
     ByteCode& operator=(ByteCode&&) = default;

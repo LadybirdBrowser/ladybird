@@ -313,7 +313,7 @@ class FontLoader : public Weakable<FontLoader> {
 public:
     FontLoader(StyleComputer& style_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
 
-    virtual ~FontLoader();
+    ~FontLoader();
 
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     RefPtr<Gfx::Typeface const> vector_font() const { return m_vector_font; }
