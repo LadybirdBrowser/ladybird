@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 34 tests
+
+25 Pass
+9 Fail
+Pass	Test parsing '' with matchMedia
+Pass	Test parsing ' ' with matchMedia
+Pass	Test parsing 'all' with matchMedia
+Pass	Test parsing ' all' with matchMedia
+Pass	Test parsing '   all   ' with matchMedia
+Pass	Test parsing 'all,all' with matchMedia
+Pass	Test parsing ' all , all ' with matchMedia
+Pass	Test parsing '(color)' with matchMedia
+Pass	Test parsing '(color' with matchMedia
+Pass	Test parsing ' (color)' with matchMedia
+Pass	Test parsing ' ( color  )  ' with matchMedia
+Pass	Test parsing ' ( color   ' with matchMedia
+Pass	Test parsing 'color)' with matchMedia
+Pass	Test parsing '  color)' with matchMedia
+Pass	Test parsing '  color ), ( color' with matchMedia
+Fail	Test parsing ' foo ' with matchMedia
+Fail	Test parsing ',' with matchMedia
+Pass	Test parsing ' , ' with matchMedia
+Fail	Test parsing ',,' with matchMedia
+Pass	Test parsing '  ,  ,  ' with matchMedia
+Fail	Test parsing ' foo,' with matchMedia
+Fail	Test parsing '(min-resolution: 1x)' with matchMedia
+Pass	Test parsing '(min-resolution: calc(1x))' with matchMedia
+Fail	Test parsing '(resolution: 2x)' with matchMedia
+Pass	Test parsing '(resolution: calc(2x))' with matchMedia
+Fail	Test parsing '(max-resolution: 7x)' with matchMedia
+Pass	Test parsing '(max-resolution: calc(7x))' with matchMedia
+Pass	Test parsing '(resolution: 2dppx)' with matchMedia
+Fail	Test parsing '(resolution: 600dpi)' with matchMedia
+Fail	Test parsing '(resolution: 77dpcm)' with matchMedia
+Pass	Test parsing '(resolution: calc(1x + 2x))' with matchMedia
+Pass	Test parsing '(resolution: calc(5x - 2x))' with matchMedia
+Pass	Test parsing '(resolution: calc(1x * 3))' with matchMedia
+Pass	Test parsing '(resolution: calc(6x / 2))' with matchMedia
