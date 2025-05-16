@@ -413,13 +413,15 @@ public:
     }
 
     // 10.4.5.8 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-ownpropertykeys
-    virtual ThrowCompletionOr<Vector<PropertyKey>> internal_own_property_keys() const override
+    virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override
     {
+        auto& vm = this->vm();
+
         // 1. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
         auto typed_array_record = make_typed_array_with_buffer_witness_record(*this, ArrayBuffer::Order::SeqCst);
 
         // 2. Let keys be a new empty List.
-        Vector<PropertyKey> keys;
+        auto keys = GC::RootVector<Value> { heap() };
 
         // 3. If IsTypedArrayOutOfBounds(taRecord) is false, then
         if (!is_typed_array_out_of_bounds(typed_array_record)) {
@@ -429,7 +431,7 @@ public:
             // b. For each integer i such that 0 ≤ i < length, in ascending order, do
             for (size_t i = 0; i < length; ++i) {
                 // i. Append ! ToString(𝔽(i)) to keys.
-                keys.append(String::number(i));
+                keys.append(PrimitiveString::create(vm, String::number(i)));
             }
         }
 
@@ -437,7 +439,7 @@ public:
         for (auto& it : shape().property_table()) {
             if (it.key.is_string()) {
                 // a. Append P to keys.
-                keys.append(it.key);
+                keys.append(it.key.to_value(vm));
             }
         }
 
@@ -445,7 +447,7 @@ public:
         for (auto& it : shape().property_table()) {
             if (it.key.is_symbol()) {
                 // a. Append P to keys.
-                keys.append(it.key);
+                keys.append(it.key.to_value(vm));
             }
         }
 

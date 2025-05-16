@@ -128,10 +128,12 @@ ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey c
 }
 
 // 10.4.3.3 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-string-exotic-objects-ownpropertykeys
-ThrowCompletionOr<Vector<PropertyKey>> StringObject::internal_own_property_keys() const
+ThrowCompletionOr<GC::RootVector<Value>> StringObject::internal_own_property_keys() const
 {
+    auto& vm = this->vm();
+
     // 1. Let keys be a new empty List.
-    Vector<PropertyKey> keys;
+    auto keys = GC::RootVector<Value> { heap() };
 
     // 2. Let str be O.[[StringData]].
     // 3. Assert: str is a String.
@@ -141,30 +143,30 @@ ThrowCompletionOr<Vector<PropertyKey>> StringObject::internal_own_property_keys(
     // 5. For each integer i starting with 0 such that i < len, in ascending order, do
     for (size_t i = 0; i < length; ++i) {
         // a. Add ! ToString(𝔽(i)) as the last element of keys.
-        keys.append(String::number(i));
+        keys.append(PrimitiveString::create(vm, String::number(i)));
     }
 
     // 6. For each own property key P of O such that P is an array index and ! ToIntegerOrInfinity(P) ≥ len, in ascending numeric index order, do
-    for (auto const& entry : indexed_properties()) {
+    for (auto& entry : indexed_properties()) {
         if (entry.index() >= length) {
             // a. Add P as the last element of keys.
-            keys.append(String::number(entry.index()));
+            keys.append(PrimitiveString::create(vm, String::number(entry.index())));
         }
     }
 
     // 7. For each own property key P of O such that P is a String and P is not an array index, in ascending chronological order of property creation, do
-    for (auto const& it : shape().property_table()) {
+    for (auto& it : shape().property_table()) {
         if (it.key.is_string()) {
             // a. Add P as the last element of keys.
-            keys.append(it.key);
+            keys.append(it.key.to_value(vm));
         }
     }
 
     // 8. For each own property key P of O such that P is a Symbol, in ascending chronological order of property creation, do
-    for (auto const& it : shape().property_table()) {
+    for (auto& it : shape().property_table()) {
         if (it.key.is_symbol()) {
             // a. Add P as the last element of keys.
-            keys.append(it.key);
+            keys.append(it.key.to_value(vm));
         }
     }
 

@@ -1139,14 +1139,17 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
     auto record_keys@recursion_depth@ = TRY(@js_name@@js_suffix@_object.internal_own_property_keys());
 
-    for (auto& property_key@recursion_depth@ : record_keys@recursion_depth@) {
+    for (auto& key@recursion_depth@ : record_keys@recursion_depth@) {
+        auto property_key@recursion_depth@ = MUST(JS::PropertyKey::from_value(vm, key@recursion_depth@));
+
         auto descriptor@recursion_depth@ = TRY(@js_name@@js_suffix@_object.internal_get_own_property(property_key@recursion_depth@));
 
         if (!descriptor@recursion_depth@.has_value() || !descriptor@recursion_depth@->enumerable.has_value() || !descriptor@recursion_depth@->enumerable.value())
             continue;
-
-        auto key_string = TRY(WebIDL::to_byte_string(vm, property_key@recursion_depth@.to_value(vm)));
 )~~~");
+
+        IDL::Parameter key_parameter { .type = parameterized_type.parameters()[0], .name = acceptable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
+        generate_to_cpp(record_generator, key_parameter, "key", ByteString::number(recursion_depth), ByteString::formatted("typed_key{}", recursion_depth), interface, false, false, {}, false, recursion_depth + 1);
 
         record_generator.append(R"~~~(
         auto value@recursion_depth@ = TRY(@js_name@@js_suffix@_object.get(property_key@recursion_depth@));
@@ -1157,7 +1160,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         generate_to_cpp(record_generator, value_parameter, "value", ByteString::number(recursion_depth), ByteString::formatted("typed_value{}", recursion_depth), interface, false, false, {}, false, recursion_depth + 1);
 
         record_generator.append(R"~~~(
-        @cpp_name@.set(key_string, typed_value@recursion_depth@);
+        @cpp_name@.set(typed_key@recursion_depth@, typed_value@recursion_depth@);
     }
 )~~~");
     } else if (is<IDL::UnionType>(*parameter.type)) {

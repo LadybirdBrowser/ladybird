@@ -1863,8 +1863,8 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
         seen_objects.set(*object_to_check);
         auto keys = TRY(object_to_check->internal_own_property_keys());
         properties.ensure_capacity(properties.size() + keys.size());
-        for (auto& property_key : keys) {
-            if (property_key.is_symbol())
+        for (auto& key : keys) {
+            if (key.is_symbol())
                 continue;
 
             // NOTE: If there is a non-enumerable property higher up the prototype chain with the same key,
@@ -1872,7 +1872,7 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
             //       This is achieved with the PropertyKeyAndEnumerableFlag struct, which doesn't consider
             //       the enumerable flag when comparing keys.
             PropertyKeyAndEnumerableFlag new_entry {
-                .key = property_key,
+                .key = TRY(PropertyKey::from_value(vm, key)),
                 .enumerable = false,
             };
 
@@ -1884,7 +1884,7 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
                 continue;
 
             new_entry.enumerable = *descriptor->enumerable;
-            properties.set(move(new_entry), property_key.to_value(vm), AK::HashSetExistingEntryBehavior::Keep);
+            properties.set(move(new_entry), key, AK::HashSetExistingEntryBehavior::Keep);
         }
     }
 

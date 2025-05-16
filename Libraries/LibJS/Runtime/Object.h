@@ -147,7 +147,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const;
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&);
-    virtual ThrowCompletionOr<Vector<PropertyKey>> internal_own_property_keys() const;
+    virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const;
 
     // NOTE: Any subclass of Object that overrides property access slots ([[Get]], [[Set]] etc)
     //       to customize access to indexed properties (properties where the name is a positive integer)
