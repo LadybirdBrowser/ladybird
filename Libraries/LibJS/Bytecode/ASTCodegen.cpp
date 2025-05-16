@@ -621,7 +621,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                 // ii. Let rval be ? GetValue(rref).
                 auto rval = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
                     if (lhs->is_identifier()) {
-                        return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs).string()))).value();
+                        return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs).string())));
                     } else {
                         return TRY(m_rhs->generate_bytecode(generator)).value();
                     }
@@ -731,7 +731,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
 
     auto rhs = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
         if (lhs_expression->is_identifier()) {
-            return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs_expression).string()))).value();
+            return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs_expression).string())));
         }
         return TRY(m_rhs->generate_bytecode(generator)).value();
     }());
@@ -1183,7 +1183,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
                 else if (property_kind == Bytecode::Op::PropertyKind::Setter)
                     identifier = MUST(String::formatted("set {}", identifier));
                 auto name = generator.intern_identifier(identifier);
-                value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name)).value();
+                value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name));
             }
 
             generator.emit<Bytecode::Op::PutById>(object, key_name, *value, property_kind, generator.next_property_lookup_cache());
@@ -1370,9 +1370,9 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
             generator.switch_to_basic_block(if_undefined_block);
             Optional<ScopedOperand> default_value;
             if (auto const* alias_identifier = alias.get_pointer<NonnullRefPtr<Identifier const>>()) {
-                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*alias_identifier)->string()))).value();
+                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*alias_identifier)->string())));
             } else if (auto const* lhs = name.get_pointer<NonnullRefPtr<Identifier const>>()) {
-                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*lhs)->string()))).value();
+                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*lhs)->string())));
             } else {
                 default_value = TRY(initializer->generate_bytecode(generator)).value();
             }
@@ -1543,9 +1543,9 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
 
             Optional<ScopedOperand> default_value;
             if (auto const* alias_identifier = alias.get_pointer<NonnullRefPtr<Identifier const>>()) {
-                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*alias_identifier)->string()))).value();
+                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*alias_identifier)->string())));
             } else if (auto const* name_identifier = name.get_pointer<NonnullRefPtr<Identifier const>>()) {
-                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*name_identifier)->string()))).value();
+                default_value = TRY(generator.emit_named_evaluation_if_anonymous_function(*initializer, generator.intern_identifier((*name_identifier)->string())));
             } else {
                 default_value = TRY(initializer->generate_bytecode(generator)).value();
             }
@@ -1618,7 +1618,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> VariableDeclaration::ge
         if (declarator->init()) {
             auto value = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
                 if (auto const* lhs = declarator->target().get_pointer<NonnullRefPtr<Identifier const>>()) {
-                    return TRY(generator.emit_named_evaluation_if_anonymous_function(*declarator->init(), generator.intern_identifier((*lhs)->string()), init_dst)).value();
+                    return TRY(generator.emit_named_evaluation_if_anonymous_function(*declarator->init(), generator.intern_identifier((*lhs)->string()), init_dst));
                 } else {
                     return TRY(declarator->init()->generate_bytecode(generator, init_dst)).value();
                 }
@@ -3061,7 +3061,7 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
                 VERIFY(variable->target().has<NonnullRefPtr<Identifier const>>());
                 auto identifier = variable->target().get<NonnullRefPtr<Identifier const>>();
                 auto identifier_table_ref = generator.intern_identifier(identifier->string());
-                auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(*variable->init(), identifier_table_ref)).value();
+                auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(*variable->init(), identifier_table_ref));
                 generator.emit_set_variable(*identifier, value);
             }
         } else {
@@ -3456,9 +3456,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassFieldInitializerSt
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(*m_expression, generator.intern_identifier(m_class_field_identifier_name), preferred_dst));
-    VERIFY(value.has_value());
     generator.perform_needed_unwinds<Bytecode::Op::Return>();
-    generator.emit<Bytecode::Op::Return>(value->operand());
+    generator.emit<Bytecode::Op::Return>(value.operand());
     return value;
 }
 
@@ -3573,7 +3572,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExportStatement::genera
     }
 
     if (is<ClassExpression>(*m_statement)) {
-        auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<ClassExpression const&>(*m_statement), generator.intern_identifier("default"_fly_string))).value();
+        auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<ClassExpression const&>(*m_statement), generator.intern_identifier("default"_fly_string)));
 
         if (!static_cast<ClassExpression const&>(*m_statement).has_name()) {
             generator.emit<Bytecode::Op::InitializeLexicalBinding>(
@@ -3586,7 +3585,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ExportStatement::genera
 
     // ExportDeclaration : export default AssignmentExpression ;
     VERIFY(is<Expression>(*m_statement));
-    auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<Expression const&>(*m_statement), generator.intern_identifier("default"_fly_string))).value();
+    auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(static_cast<Expression const&>(*m_statement), generator.intern_identifier("default"_fly_string)));
     generator.emit<Bytecode::Op::InitializeLexicalBinding>(
         generator.intern_identifier(ExportStatement::local_name_for_default),
         value);
