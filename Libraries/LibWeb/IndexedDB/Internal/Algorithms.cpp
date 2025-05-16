@@ -1540,9 +1540,9 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     // NOTE: This is handled by the default parameter
 
     auto next_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
-        // * If key is defined,
+        // * If key is defined:
         if (key) {
-            // * the record’s key is greater than or equal to key.
+            // * The record’s key is greater than or equal to key.
             auto is_greater_than_or_equal = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [key](auto const& inner_record) {
@@ -1553,37 +1553,37 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
                 return false;
         }
 
-        // * If primaryKey is defined,
+        // * If primaryKey is defined:
         if (primary_key) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * the record’s key is equal to key and the record’s value is greater than or equal to primaryKey,
+            // * The record’s key is equal to key and the record’s value is greater than or equal to primaryKey
             if (!(Key::equals(inner_record.key, *key) && (Key::greater_than(inner_record.value, *primary_key) || Key::equals(inner_record.value, *primary_key))))
                 return false;
 
-            // * or the record’s key is greater than key.
+            // * The record’s key is greater than key.
             if (!Key::greater_than(inner_record.key, *key))
                 return false;
         }
 
-        // * If position is defined, and source is an object store,
+        // * If position is defined and source is an object store:
         if (position && source.has<GC::Ref<ObjectStore>>()) {
             auto const& inner_record = record.get<Record>();
 
-            // * the record’s key is greater than position.
+            // * The record’s key is greater than position.
             if (!Key::greater_than(inner_record.key, *position))
                 return false;
         }
 
-        // * If position is defined, and source is an index,
+        // * If position is defined and source is an index:
         if (position && source.has<GC::Ref<Index>>()) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * the record’s key is equal to position and the record’s value is greater than object store position
+            // * The record’s key is equal to position and the record’s value is greater than object store position
             if (!(Key::equals(inner_record.key, *position) && (Key::greater_than(inner_record.value, *object_store_position))))
                 return false;
 
-            // * or the record’s key is greater than position.
+            // * The record’s key is greater than position.
             if (!Key::greater_than(inner_record.key, *position))
                 return false;
         }
@@ -1599,9 +1599,9 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     };
 
     auto next_unique_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
-        // * If key is defined,
+        // * If key is defined:
         if (key) {
-            // * the record’s key is greater than or equal to key.
+            // * The record’s key is greater than or equal to key.
             auto is_greater_than_or_equal = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [key](auto const& inner_record) {
@@ -1612,9 +1612,9 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
                 return false;
         }
 
-        // * If position is defined,
+        // * If position is defined:
         if (position) {
-            // * the record’s key is greater than position.
+            // * The record’s key is greater than position.
             auto is_greater_than_position = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [position](auto const& inner_record) {
@@ -1636,9 +1636,9 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     };
 
     auto prev_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
-        // * If key is defined,
+        // * If key is defined:
         if (key) {
-            // * the record’s key is less than or equal to key.
+            // * The record’s key is less than or equal to key.
             auto is_less_than_or_equal = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [key](auto const& inner_record) {
@@ -1649,37 +1649,37 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
                 return false;
         }
 
-        // * If primaryKey is defined,
+        // * If primaryKey is defined:
         if (primary_key) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * the record’s key is equal to key and the record’s value is less than or equal to primaryKey,
+            // * The record’s key is equal to key and the record’s value is less than or equal to primaryKey
             if (!(Key::equals(inner_record.key, *key) && (Key::less_than(inner_record.value, *primary_key) || Key::equals(inner_record.value, *primary_key))))
                 return false;
 
-            // * or the record’s key is less than key.
+            // * The record’s key is less than key.
             if (!Key::less_than(inner_record.key, *key))
                 return false;
         }
 
-        // * If position is defined, and source is an object store,
+        // * If position is defined and source is an object store:
         if (position && source.has<GC::Ref<ObjectStore>>()) {
             auto const& inner_record = record.get<Record>();
 
-            // * the record’s key is less than position.
+            // * The record’s key is less than position.
             if (!Key::less_than(inner_record.key, *position))
                 return false;
         }
 
-        // * If position is defined, and source is an index,
+        // * If position is defined and source is an index:
         if (position && source.has<GC::Ref<Index>>()) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * the record’s key is equal to position and the record’s value is less than object store position
+            // * The record’s key is equal to position and the record’s value is less than object store position
             if (!(Key::equals(inner_record.key, *position) && Key::less_than(inner_record.value, *object_store_position)))
                 return false;
 
-            // * or the record’s key is less than position.
+            // * The record’s key is less than position.
             if (!Key::less_than(inner_record.key, *position))
                 return false;
         }
@@ -1695,9 +1695,9 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     };
 
     auto prev_unique_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
-        // * If key is defined,
+        // * If key is defined:
         if (key) {
-            // * the record’s key is less than or equal to key.
+            // * The record’s key is less than or equal to key.
             auto is_less_than_or_equal = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [key](auto const& inner_record) {
@@ -1708,9 +1708,9 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
                 return false;
         }
 
-        //* If position is defined,
+        //* If position is defined:
         if (position) {
-            // * the record’s key is less than position.
+            // * The record’s key is less than position.
             auto is_less_than_position = record.visit(
                 [](Empty) { VERIFY_NOT_REACHED(); },
                 [position](auto const& inner_record) {
