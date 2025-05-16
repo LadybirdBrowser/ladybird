@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/TemporaryChange.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
@@ -25,8 +26,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     // AD-HOC: All major browsers refuse to recursively execute execCommand() (e.g. inside input event handlers).
     if (m_inside_exec_command)
         return false;
-    ScopeGuard guard_recursion = [&] { m_inside_exec_command = false; };
-    m_inside_exec_command = true;
+    TemporaryChange guard_recursion { m_inside_exec_command, true };
 
     // 1. If only one argument was provided, let show UI be false.
     // 2. If only one or two arguments were provided, let value be the empty string.
