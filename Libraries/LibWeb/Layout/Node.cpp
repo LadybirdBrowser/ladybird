@@ -76,6 +76,9 @@ bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
 
 bool Node::can_contain_boxes_with_position_absolute() const
 {
+    if (!is<Box>(*this))
+        return false;
+
     if (computed_values().position() != CSS::Positioning::Static)
         return true;
 
