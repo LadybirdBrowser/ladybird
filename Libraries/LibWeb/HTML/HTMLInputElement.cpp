@@ -1320,6 +1320,7 @@ void HTMLInputElement::user_interaction_did_change_input_value()
     // then when the user changes the element's value, the user agent must queue an element task on the user interaction task source
     // given the input element to fire an event named input at the input element, with the bubbles and composed attributes initialized to true
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
+        // FIXME: If a string was added to this input, this input event's .data should be set to it.
         auto input_event = DOM::Event::create(realm(), HTML::EventNames::input);
         input_event->set_bubbles(true);
         input_event->set_composed(true);
