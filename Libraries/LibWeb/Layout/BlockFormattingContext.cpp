@@ -817,9 +817,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed) {
             m_margin_state.reset();
         }
-        auto box_height = box_state.offset.y() + box_state.content_height() + box_state.border_box_bottom();
-        if (!m_y_offset_of_current_block_container.has_value() || box_height > m_y_offset_of_current_block_container.value())
-            m_y_offset_of_current_block_container = box_height;
+        m_y_offset_of_current_block_container = box_state.offset.y() + box_state.content_height() + box_state.border_box_bottom();
     }
     m_margin_state.box_last_in_flow_child_margin_bottom_collapsed = false;
 
