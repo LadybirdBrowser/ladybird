@@ -133,7 +133,11 @@ public:
             Vector<FlyString> languages {};
 
             // Used by :dir()
-            Optional<Keyword> keyword {};
+            struct Ident {
+                Keyword keyword;
+                FlyString string_value;
+            };
+            Optional<Ident> ident {};
         };
 
         struct Name {
