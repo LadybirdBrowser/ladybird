@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Flex.h"
+#include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Percentage.h>
 
 namespace Web::CSS {
@@ -25,9 +25,11 @@ Flex Flex::percentage_of(Percentage const& percentage) const
     return Flex { percentage.as_fraction() * m_value, m_type };
 }
 
-String Flex::to_string() const
+String Flex::to_string(SerializationMode serialization_mode) const
 {
-    return MUST(String::formatted("{}fr", to_fr()));
+    if (serialization_mode == SerializationMode::ResolvedValue)
+        return MUST(String::formatted("{}fr", to_fr()));
+    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
 }
 
 double Flex::to_fr() const

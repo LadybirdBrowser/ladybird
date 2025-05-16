@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -15,7 +16,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-grid-2/#typedef-flex
 class Flex {
 public:
-    enum class Type {
+    enum class Type : u8 {
         Fr,
     };
 
@@ -25,7 +26,7 @@ public:
     static Flex make_fr(double);
     Flex percentage_of(Percentage const&) const;
 
-    String to_string() const;
+    String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_fr() const;
 
     Type type() const { return m_type; }

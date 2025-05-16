@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Resolution.h"
+#include <LibWeb/CSS/Resolution.h>
 
 namespace Web::CSS {
 
@@ -20,9 +20,11 @@ Resolution Resolution::make_dots_per_pixel(double value)
     return { value, Type::Dppx };
 }
 
-String Resolution::to_string() const
+String Resolution::to_string(SerializationMode serialization_mode) const
 {
-    return MUST(String::formatted("{}dppx", to_dots_per_pixel()));
+    if (serialization_mode == SerializationMode::ResolvedValue)
+        return MUST(String::formatted("{}dppx", to_dots_per_pixel()));
+    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
 }
 
 double Resolution::to_dots_per_pixel() const
