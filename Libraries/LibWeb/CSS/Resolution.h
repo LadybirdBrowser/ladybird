@@ -17,6 +17,7 @@ public:
         Dpi,
         Dpcm,
         Dppx,
+        X,
     };
 
     static Optional<Type> unit_from_name(StringView);
