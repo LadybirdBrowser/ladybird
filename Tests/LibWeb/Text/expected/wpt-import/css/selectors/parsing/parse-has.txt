@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 29 tests
 
-26 Pass
-3 Fail
+29 Pass
 Pass	":has(a)" should be a valid selector
 Pass	":has(#a)" should be a valid selector
 Pass	":has(.a)" should be a valid selector
@@ -13,9 +12,9 @@ Pass	":has([a|=\"b\"])" should be a valid selector
 Pass	":has(:hover)" should be a valid selector
 Pass	"*:has(.a)" should be a valid selector
 Pass	".a:has(.b)" should be a valid selector
-Fail	".a:has(> .b)" should be a valid selector
-Fail	".a:has(~ .b)" should be a valid selector
-Fail	".a:has(+ .b)" should be a valid selector
+Pass	".a:has(> .b)" should be a valid selector
+Pass	".a:has(~ .b)" should be a valid selector
+Pass	".a:has(+ .b)" should be a valid selector
 Pass	".a:has(.b) .c" should be a valid selector
 Pass	".a .b:has(.c)" should be a valid selector
 Pass	".a .b:has(.c .d)" should be a valid selector
