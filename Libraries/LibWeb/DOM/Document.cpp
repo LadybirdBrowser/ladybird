@@ -6306,9 +6306,12 @@ GC::Ptr<DOM::Position> Document::cursor_position() const
         return nullptr;
 
     Optional<HTML::FormAssociatedTextControlElement const&> target {};
-    if (is<HTML::HTMLInputElement>(*focused_element))
-        target = static_cast<HTML::HTMLInputElement const&>(*focused_element);
-    else if (is<HTML::HTMLTextAreaElement>(*focused_element))
+    if (auto const* input_element = as_if<HTML::HTMLInputElement>(*focused_element)) {
+        // Some types of <input> tags shouldn't have a cursor, like buttons
+        if (!input_element->can_have_text_editing_cursor())
+            return nullptr;
+        target = *input_element;
+    } else if (is<HTML::HTMLTextAreaElement>(*focused_element))
         target = static_cast<HTML::HTMLTextAreaElement const&>(*focused_element);
 
     if (target.has_value())
