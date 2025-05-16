@@ -496,6 +496,26 @@ String Selector::serialize() const
 {
     StringBuilder s;
 
+    // AD-HOC: If this is a relative selector, we need to serialize the starting combinator.
+    if (!compound_selectors().is_empty()) {
+        switch (compound_selectors().first().combinator) {
+        case Combinator::ImmediateChild:
+            s.append("> "sv);
+            break;
+        case Combinator::NextSibling:
+            s.append("+ "sv);
+            break;
+        case Combinator::SubsequentSibling:
+            s.append("~ "sv);
+            break;
+        case Combinator::Column:
+            s.append("|| "sv);
+            break;
+        default:
+            break;
+        }
+    }
+
     // To serialize a selector let s be the empty string, run the steps below for each part of the chain of the selector, and finally return s:
     for (size_t i = 0; i < compound_selectors().size(); ++i) {
         auto const& compound_selector = compound_selectors()[i];
