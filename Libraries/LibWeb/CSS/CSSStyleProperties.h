@@ -13,7 +13,7 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom/#cssstyleproperties
-class CSSStyleProperties
+class CSSStyleProperties final
     : public CSSStyleDeclaration
     , public Bindings::GeneratedCSSStyleProperties {
     WEB_PLATFORM_OBJECT(CSSStyleProperties, CSSStyleDeclaration);
