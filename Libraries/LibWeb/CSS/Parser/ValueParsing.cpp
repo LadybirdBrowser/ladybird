@@ -4051,6 +4051,9 @@ bool Parser::expand_variables(DOM::Element& element, Optional<PseudoElement> pse
     };
 
     while (source.has_next_token()) {
+        // FIXME: We should properly cascade here instead of doing a basic fallback for CSS-wide keywords.
+        if (auto builtin_value = parse_builtin_value(source))
+            continue;
         auto const& value = source.consume_a_token();
         if (value.is_block()) {
             auto const& source_block = value.block();
