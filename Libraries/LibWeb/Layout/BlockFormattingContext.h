@@ -17,7 +17,7 @@ namespace Web::Layout {
 class LineBuilder;
 
 // https://www.w3.org/TR/css-display/#block-formatting-context
-class BlockFormattingContext : public FormattingContext {
+class BlockFormattingContext final : public FormattingContext {
 public:
     explicit BlockFormattingContext(LayoutState&, LayoutMode layout_mode, BlockContainer const&, FormattingContext* parent);
     ~BlockFormattingContext();

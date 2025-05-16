@@ -41,7 +41,7 @@ struct CanvasRenderingContext2DSettings {
     bool will_read_frequently { false };
 };
 
-class CanvasRenderingContext2D
+class CanvasRenderingContext2D final
     : public Bindings::PlatformObject
     , public CanvasPath
     , public CanvasState

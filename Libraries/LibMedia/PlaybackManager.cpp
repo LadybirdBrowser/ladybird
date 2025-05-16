@@ -381,7 +381,7 @@ protected:
     bool m_playing { false };
 };
 
-class PlaybackManager::PlayingStateHandler : public PlaybackManager::PlaybackStateHandler {
+class PlaybackManager::PlayingStateHandler final : public PlaybackManager::PlaybackStateHandler {
 public:
     PlayingStateHandler(PlaybackManager& manager)
         : PlaybackStateHandler(manager)
@@ -507,7 +507,7 @@ private:
     MonotonicTime m_last_present_in_real_time = MonotonicTime::now_coarse();
 };
 
-class PlaybackManager::PausedStateHandler : public PlaybackManager::PlaybackStateHandler {
+class PlaybackManager::PausedStateHandler final : public PlaybackManager::PlaybackStateHandler {
 public:
     PausedStateHandler(PlaybackManager& manager)
         : PlaybackStateHandler(manager)
@@ -556,7 +556,7 @@ class PlaybackManager::BufferingStateHandler : public PlaybackManager::ResumingS
     PlaybackState get_state() const override { return PlaybackState::Buffering; }
 };
 
-class PlaybackManager::SeekingStateHandler : public PlaybackManager::ResumingStateHandler {
+class PlaybackManager::SeekingStateHandler final : public PlaybackManager::ResumingStateHandler {
 public:
     SeekingStateHandler(PlaybackManager& manager, bool playing, AK::Duration target_timestamp, SeekMode seek_mode)
         : ResumingStateHandler(manager, playing)
@@ -670,7 +670,7 @@ private:
     SeekMode m_seek_mode { SeekMode::Accurate };
 };
 
-class PlaybackManager::StoppedStateHandler : public PlaybackManager::PlaybackStateHandler {
+class PlaybackManager::StoppedStateHandler final : public PlaybackManager::PlaybackStateHandler {
 public:
     StoppedStateHandler(PlaybackManager& manager)
         : PlaybackStateHandler(manager)
