@@ -4051,6 +4051,8 @@ bool Parser::expand_variables(DOM::Element& element, Optional<PseudoElement> pse
     };
 
     while (source.has_next_token()) {
+        if (auto builtin_value = parse_builtin_value(source))
+            continue;
         auto const& value = source.consume_a_token();
         if (value.is_block()) {
             auto const& source_block = value.block();
