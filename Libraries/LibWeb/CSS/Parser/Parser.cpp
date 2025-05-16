@@ -1309,14 +1309,20 @@ Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_component
     Vector<Vector<ComponentValue>> groups;
 
     // 3. While input is not empty:
+    bool just_consumed_comma = false;
     while (!input.is_empty()) {
 
         // 1. Consume a list of component values from input, with <comma-token> as the stop token, and append the result to groups.
         groups.append(consume_a_list_of_component_values(input, Token::Type::Comma));
 
         // 2. Discard a token from input.
-        input.discard_a_token();
+        just_consumed_comma = input.consume_a_token().is(Token::Type::Comma);
     }
+
+    // AD-HOC: Also append an empty group if there was a trailing comma.
+    // Some related spec discussion: https://github.com/w3c/csswg-drafts/issues/11254
+    if (just_consumed_comma)
+        groups.append({});
 
     // 4. Return groups.
     return groups;
