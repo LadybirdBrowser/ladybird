@@ -16,6 +16,7 @@
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Op.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -1780,7 +1781,7 @@ inline ThrowCompletionOr<Value> delete_by_value_with_this(Bytecode::Interpreter&
     return Value(TRY(reference.delete_(vm)));
 }
 
-class PropertyNameIterator final
+class JS_API PropertyNameIterator final
     : public Object
     , public BuiltinIterator {
     JS_OBJECT(PropertyNameIterator, Object);
