@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['white-space-collapse'] = "auto" should not set the property value
+Pass	e.style['white-space-collapse'] = "none" should not set the property value
+Pass	e.style['white-space-collapse'] = "collapse preserve" should not set the property value
+Pass	e.style['white-space-collapse'] = "preserve preserve-breaks" should not set the property value
+Pass	e.style['white-space-collapse'] = "delicious collapse" should not set the property value
+Pass	e.style['white-space-collapse'] = "5px" should not set the property value
