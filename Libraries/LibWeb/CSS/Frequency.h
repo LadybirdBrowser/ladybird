@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,13 +7,14 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
 class Frequency {
 public:
-    enum class Type {
+    enum class Type : u8 {
         Hz,
         kHz
     };
@@ -24,7 +25,7 @@ public:
     static Frequency make_hertz(double);
     Frequency percentage_of(Percentage const&) const;
 
-    String to_string() const;
+    String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_hertz() const;
 
     Type type() const { return m_type; }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,13 +7,13 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/CSS/SerializationMode.h>
 
 namespace Web::CSS {
 
 class Resolution {
 public:
-    enum class Type {
+    enum class Type : u8 {
         Dpi,
         Dpcm,
         Dppx,
@@ -24,7 +24,7 @@ public:
     Resolution(double value, Type type);
     static Resolution make_dots_per_pixel(double);
 
-    String to_string() const;
+    String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_dots_per_pixel() const;
 
     Type type() const { return m_type; }

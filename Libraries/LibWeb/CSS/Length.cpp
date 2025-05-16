@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -198,10 +198,14 @@ CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
     return viewport_relative_length_to_px(viewport_rect);
 }
 
-String Length::to_string() const
+String Length::to_string(SerializationMode serialization_mode) const
 {
     if (is_auto())
         return "auto"_string;
+    // FIXME: Manually skip this for px so we avoid rounding errors in absolute_length_to_px.
+    //        Maybe provide alternative functions that don't produce CSSPixels?
+    if (serialization_mode == SerializationMode::ResolvedValue && is_absolute() && m_type != Type::Px)
+        return MUST(String::formatted("{:.5}px", absolute_length_to_px()));
     return MUST(String::formatted("{:.5}{}", m_value, unit_name()));
 }
 

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 34 tests
 
-25 Pass
-9 Fail
+27 Pass
+7 Fail
 Pass	Test parsing '' with matchMedia
 Pass	Test parsing ' ' with matchMedia
 Pass	Test parsing 'all' with matchMedia
@@ -32,8 +32,8 @@ Pass	Test parsing '(resolution: calc(2x))' with matchMedia
 Fail	Test parsing '(max-resolution: 7x)' with matchMedia
 Pass	Test parsing '(max-resolution: calc(7x))' with matchMedia
 Pass	Test parsing '(resolution: 2dppx)' with matchMedia
-Fail	Test parsing '(resolution: 600dpi)' with matchMedia
-Fail	Test parsing '(resolution: 77dpcm)' with matchMedia
+Pass	Test parsing '(resolution: 600dpi)' with matchMedia
+Pass	Test parsing '(resolution: 77dpcm)' with matchMedia
 Pass	Test parsing '(resolution: calc(1x + 2x))' with matchMedia
 Pass	Test parsing '(resolution: calc(5x - 2x))' with matchMedia
 Pass	Test parsing '(resolution: calc(1x * 3))' with matchMedia
