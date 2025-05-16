@@ -106,6 +106,11 @@ Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::Pa
     return adapt_nested_relative_selector_list(*maybe_selectors);
 }
 
+Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const& params, StringView selector_text)
+{
+    return CSS::Parser::Parser::create(params, selector_text).parse_as_page_selector_list();
+}
+
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const& context, StringView selector_text)
 {
     return CSS::Parser::Parser::create(context, selector_text).parse_as_pseudo_element_selector();
