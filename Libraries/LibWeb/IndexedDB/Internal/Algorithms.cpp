@@ -110,12 +110,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         auto open_connections = db->associated_connections_except(connection);
 
         // 2. For each entry of openConnections that does not have its close pending flag set to true,
-        //    queue a task to fire a version change event named versionchange at entry with db’s version and version.
+        //    queue a database task to fire a version change event named versionchange at entry with db’s version and version.
         IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_to_fire = open_connections.size();
         IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_fired = 0;
         for (auto const& entry : open_connections) {
             if (!entry->close_pending()) {
-                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, version, &events_fired]() {
+                queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version, &events_fired]() {
                     fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), version);
                     events_fired++;
                 }));
@@ -135,10 +135,10 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         }));
 
         // 4. If any of the connections in openConnections are still not closed,
-        //    queue a task to fire a version change event named blocked at request with db’s version and version.
+        //    queue a database task to fire a version change event named blocked at request with db’s version and version.
         for (auto const& entry : open_connections) {
             if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
+                queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
                     fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), version);
                 }));
             }
@@ -387,8 +387,8 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
     // 9. Set request’s processed flag to true.
     request->set_processed(true);
 
-    // 10. Queue a task to run these steps:
-    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {
+    // 10. Queue a database task to run these steps:
+    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {
         // 1. Set request’s result to connection.
         request->set_result(connection);
 
@@ -469,12 +469,12 @@ WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::Storage
     auto open_connections = db->associated_connections();
 
     // 6. For each entry of openConnections that does not have its close pending flag set to true,
-    //    queue a task to fire a version change event named versionchange at entry with db’s version and null.
+    //    queue a database task to fire a version change event named versionchange at entry with db’s version and null.
     IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_to_fire = open_connections.size();
     IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_fired = 0;
     for (auto const& entry : open_connections) {
         if (!entry->close_pending()) {
-            HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, &events_fired]() {
+            queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, &events_fired]() {
                 fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), {});
                 events_fired++;
             }));
@@ -493,10 +493,10 @@ WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::Storage
         return events_fired == events_to_fire;
     }));
 
-    // 8. If any of the connections in openConnections are still not closed, queue a task to fire a version change event named blocked at request with db’s version and null.
+    // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a version change event named blocked at request with db’s version and null.
     for (auto const& entry : open_connections) {
         if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-            HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
+            queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
                 fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), {});
             }));
         }
@@ -562,8 +562,8 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
         // set request’s processed flag to true
         request->set_processed(true);
 
-        // and queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction->realm().vm().heap(), [request]() {
+        // and queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [request]() {
             // 1. Set request’s done flag to true.
             request->set_done(true);
 
@@ -578,8 +578,8 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
         }));
     }
 
-    // 6. Queue a task to run these steps:
-    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction->realm().vm().heap(), [transaction]() {
+    // 6. Queue a database task to run these steps:
+    queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [transaction]() {
         // 1. If transaction is an upgrade transaction, then set transaction’s connection's associated database's upgrade transaction to null.
         if (transaction->is_upgrade_transaction())
             transaction->connection()->associated_database()->set_upgrade_transaction(nullptr);
@@ -772,8 +772,8 @@ void commit_a_transaction(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
         // FIXME: 3. Attempt to write any outstanding changes made by transaction to the database, considering transaction’s durability hint.
         // FIXME: 4. If an error occurs while writing the changes to the database, then run abort a transaction with transaction and an appropriate type for the error, for example "QuotaExceededError" or "UnknownError" DOMException, and terminate these steps.
 
-        // 5. Queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction->realm().vm().heap(), [transaction]() {
+        // 5. Queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [transaction]() {
             // 1. If transaction is an upgrade transaction, then set transaction’s connection's associated database's upgrade transaction to null.
             if (transaction->is_upgrade_transaction())
                 transaction->connection()->associated_database()->set_upgrade_transaction(nullptr);
@@ -1184,8 +1184,8 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
         // 5. Set request’s processed flag to true.
         request->set_processed(true);
 
-        // 6. Queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
+        // 6. Queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
             // 1. Remove request from transaction’s request list.
             transaction->request_list().remove_first_matching([&request](auto& entry) { return entry.ptr() == request.ptr(); });
 
@@ -2042,6 +2042,13 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm& realm, GC::
 
     // 7. Return list converted to a sequence<any>.
     return list;
+}
+
+// https://w3c.github.io/IndexedDB/#queue-a-database-task
+void queue_a_database_task(GC::Ref<GC::Function<void()>> steps)
+{
+    // To queue a database task, perform queue a task on the database access task source.
+    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, steps);
 }
 
 }
