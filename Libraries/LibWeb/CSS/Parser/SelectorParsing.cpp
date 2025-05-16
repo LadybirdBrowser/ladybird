@@ -831,7 +831,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
             tokens.reconsume_current_input_token();
             return Optional<Selector::SimpleSelector> {};
         default:
-            dbgln_if(CSS_PARSER_DEBUG, "!!! Invalid simple selector!");
+            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized delimiter in selector: '{}'", first_value.token().to_string());
             return ParseError::SyntaxError;
         }
     }
@@ -853,7 +853,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
     if (first_value.is(Token::Type::Colon))
         return TRY(parse_pseudo_simple_selector(tokens));
 
-    dbgln_if(CSS_PARSER_DEBUG, "!!! Invalid simple selector!");
+    dbgln_if(CSS_PARSER_DEBUG, "Invalid simple selector: {}", first_value.to_debug_string());
     return ParseError::SyntaxError;
 }
 
