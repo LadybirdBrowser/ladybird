@@ -442,21 +442,31 @@ String Selector::SimpleSelector::serialize() const
             s.append(':');
             s.append(pseudo_class_name(pseudo_class.type));
             s.append('(');
-            if (pseudo_class.type == PseudoClass::NthChild
-                || pseudo_class.type == PseudoClass::NthLastChild
-                || pseudo_class.type == PseudoClass::NthOfType
-                || pseudo_class.type == PseudoClass::NthLastOfType) {
+            // NB: The spec list is incomplete. For ease of maintenance, we use the data from PseudoClasses.json for
+            //     this instead of a hard-coded list.
+            switch (metadata.parameter_type) {
+            case PseudoClassMetadata::ParameterType::None:
+                break;
+            case PseudoClassMetadata::ParameterType::ANPlusB:
+            case PseudoClassMetadata::ParameterType::ANPlusBOf:
                 // The result of serializing the value using the rules to serialize an <an+b> value.
                 s.append(pseudo_class.nth_child_pattern.serialize());
-            } else if (pseudo_class.type == PseudoClass::Not
-                || pseudo_class.type == PseudoClass::Is
-                || pseudo_class.type == PseudoClass::Where) {
+                break;
+            case PseudoClassMetadata::ParameterType::CompoundSelector:
+            case PseudoClassMetadata::ParameterType::ForgivingSelectorList:
+            case PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
+            case PseudoClassMetadata::ParameterType::RelativeSelectorList:
+            case PseudoClassMetadata::ParameterType::SelectorList:
                 // The result of serializing the value using the rules for serializing a group of selectors.
-                // NOTE: `:is()` and `:where()` aren't in the spec for this yet, but it should be!
                 s.append(serialize_a_group_of_selectors(pseudo_class.argument_selector_list));
-            } else if (pseudo_class.type == PseudoClass::Lang) {
+                break;
+            case PseudoClassMetadata::ParameterType::Ident:
+                s.append(string_from_keyword(pseudo_class.keyword.value()));
+                break;
+            case PseudoClassMetadata::ParameterType::LanguageRanges:
                 // The serialization of a comma-separated list of each argument’s serialization as a string, preserving relative order.
                 s.join(", "sv, pseudo_class.languages);
+                break;
             }
             s.append(')');
         }
