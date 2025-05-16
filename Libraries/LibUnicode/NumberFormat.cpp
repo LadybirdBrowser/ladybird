@@ -590,6 +590,8 @@ static void flatten_partitions(Vector<PartitionRange>& partitions)
     quick_sort(partitions);
 }
 
+namespace {
+
 class NumberFormatImpl : public NumberFormat {
 public:
     NumberFormatImpl(icu::Locale& locale, icu::number::LocalizedNumberFormatter formatter, bool is_unit)
@@ -863,6 +865,8 @@ private:
 
     bool m_is_unit { false };
 };
+
+}
 
 NonnullOwnPtr<NumberFormat> NumberFormat::create(
     StringView locale,
