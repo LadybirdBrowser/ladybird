@@ -116,6 +116,7 @@ set(SOURCES
     CSS/MediaQueryList.cpp
     CSS/MediaQueryListEvent.cpp
     CSS/Number.cpp
+    CSS/PageSelector.cpp
     CSS/ParsedFontFace.cpp
     CSS/Parser/ComponentValue.cpp
     CSS/Parser/DescriptorParsing.cpp
