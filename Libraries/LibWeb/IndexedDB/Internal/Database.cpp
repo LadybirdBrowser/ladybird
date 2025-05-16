@@ -104,4 +104,16 @@ ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey& key, Str
     return {};
 }
 
+Vector<GC::Root<Database>> Database::all()
+{
+    Vector<GC::Root<Database>> databases;
+    for (auto const& [key, mapping] : m_databases) {
+        for (auto const& database_mapping : mapping) {
+            databases.append(database_mapping.value);
+        }
+    }
+
+    return databases;
+}
+
 }

@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -603,7 +604,8 @@ void EventLoop::perform_a_microtask_checkpoint()
         global->notify_about_rejected_promises({});
     }
 
-    // FIXME: 5. Cleanup Indexed Database transactions.
+    // 5. Cleanup Indexed Database transactions.
+    IndexedDB::cleanup_indexed_database_transactions(*this);
 
     // 6. Perform ClearKeptObjects().
     vm().finish_execution_generation();

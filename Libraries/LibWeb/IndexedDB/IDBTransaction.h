@@ -47,6 +47,7 @@ public:
     [[nodiscard]] RequestList& request_list() { return m_request_list; }
     [[nodiscard]] ReadonlySpan<GC::Ref<ObjectStore>> scope() const { return m_scope; }
     [[nodiscard]] String uuid() const { return m_uuid; }
+    [[nodiscard]] GC::Ptr<HTML::EventLoop> cleanup_event_loop() const { return m_cleanup_event_loop; }
 
     void set_mode(Bindings::IDBTransactionMode mode) { m_mode = mode; }
     void set_error(GC::Ptr<WebIDL::DOMException> error) { m_error = error; }
