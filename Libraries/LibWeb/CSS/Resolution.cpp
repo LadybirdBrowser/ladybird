@@ -35,6 +35,7 @@ double Resolution::to_dots_per_pixel() const
     case Type::Dpcm:
         return m_value / (96.0 / 2.54); // 1cm = 96px/2.54
     case Type::Dppx:
+    case Type::X:
         return m_value;
     }
     VERIFY_NOT_REACHED();
@@ -49,19 +50,22 @@ StringView Resolution::unit_name() const
         return "dpcm"sv;
     case Type::Dppx:
         return "dppx"sv;
+    case Type::X:
+        return "x"sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<Resolution::Type> Resolution::unit_from_name(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("dpi"sv)) {
+    if (name.equals_ignoring_ascii_case("dpi"sv))
         return Type::Dpi;
-    } else if (name.equals_ignoring_ascii_case("dpcm"sv)) {
+    if (name.equals_ignoring_ascii_case("dpcm"sv))
         return Type::Dpcm;
-    } else if (name.equals_ignoring_ascii_case("dppx"sv) || name.equals_ignoring_ascii_case("x"sv)) {
+    if (name.equals_ignoring_ascii_case("dppx"sv))
         return Type::Dppx;
-    }
+    if (name.equals_ignoring_ascii_case("x"sv))
+        return Type::X;
     return {};
 }
 
