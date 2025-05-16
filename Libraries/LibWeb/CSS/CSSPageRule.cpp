@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/DescriptorID.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -45,12 +46,17 @@ String CSSPageRule::selector_text() const
 }
 
 // https://drafts.csswg.org/cssom/#dom-csspagerule-selectortext
-void CSSPageRule::set_selector_text(StringView)
+void CSSPageRule::set_selector_text(StringView text)
 {
-    // FIXME: On setting the selectorText attribute these steps must be run:
-    //  1. Run the parse a list of CSS page selectors algorithm on the given value.
-    //  2. If the algorithm returns a non-null value replace the associated selector list with the returned value.
-    //  3. Otherwise, if the algorithm returns a null value, do nothing.
+    // On setting the selectorText attribute these steps must be run:
+    // 1. Run the parse a list of CSS page selectors algorithm on the given value.
+    auto page_selector_list = parse_page_selector_list(Parser::ParsingParams {}, text);
+
+    // 2. If the algorithm returns a non-null value replace the associated selector list with the returned value.
+    if (page_selector_list.has_value())
+        m_selectors = page_selector_list.release_value();
+
+    // 3. Otherwise, if the algorithm returns a null value, do nothing.
 }
 
 // https://drafts.csswg.org/cssom/#ref-for-csspagerule
