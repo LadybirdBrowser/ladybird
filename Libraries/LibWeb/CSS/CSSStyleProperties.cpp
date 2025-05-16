@@ -392,8 +392,8 @@ String CSSStyleProperties::get_property_value(StringView property_name) const
         auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
         if (maybe_custom_property.has_value()) {
             return maybe_custom_property.value().value->to_string(
-                is_computed() ? CSSStyleValue::SerializationMode::ResolvedValue
-                              : CSSStyleValue::SerializationMode::Normal);
+                is_computed() ? SerializationMode::ResolvedValue
+                              : SerializationMode::Normal);
         }
         return {};
     }
@@ -402,8 +402,8 @@ String CSSStyleProperties::get_property_value(StringView property_name) const
     if (!maybe_property.has_value())
         return {};
     return maybe_property->value->to_string(
-        is_computed() ? CSSStyleValue::SerializationMode::ResolvedValue
-                      : CSSStyleValue::SerializationMode::Normal);
+        is_computed() ? SerializationMode::ResolvedValue
+                      : SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
@@ -1109,7 +1109,7 @@ String CSSStyleProperties::serialized() const
         // NB: There are no shorthands for custom properties.
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = declaration.value.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
+        auto value = declaration.value.value->to_string(Web::CSS::SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
@@ -1137,7 +1137,7 @@ String CSSStyleProperties::serialized() const
         // FIXME: 4. Shorthand loop: For each shorthand in shorthands, follow these substeps: ...
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = declaration.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
+        auto value = declaration.value->to_string(Web::CSS::SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.

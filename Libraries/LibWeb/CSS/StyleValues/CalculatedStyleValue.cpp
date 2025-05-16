@@ -130,17 +130,17 @@ static NonnullRefPtr<CalculationNode const> simplify_2_children(T const& origina
     return original;
 }
 
-static String serialize_a_calculation_tree(CalculationNode const&, CalculationContext const&, CSSStyleValue::SerializationMode);
+static String serialize_a_calculation_tree(CalculationNode const&, CalculationContext const&, SerializationMode);
 
 // https://drafts.csswg.org/css-values-4/#serialize-a-math-function
-static String serialize_a_math_function(CalculationNode const& fn, CalculationContext const& context, CSSStyleValue::SerializationMode serialization_mode)
+static String serialize_a_math_function(CalculationNode const& fn, CalculationContext const& context, SerializationMode serialization_mode)
 {
     // To serialize a math function fn:
 
     // 1. If the root of the calculation tree fn represents is a numeric value (number, percentage, or dimension), and
     //    the serialization being produced is of a computed value or later, then clamp the value to the range allowed
     //    for its context (if necessary), then serialize the value as normal and return the result.
-    if (fn.type() == CalculationNode::Type::Numeric && serialization_mode == CSSStyleValue::SerializationMode::ResolvedValue) {
+    if (fn.type() == CalculationNode::Type::Numeric && serialization_mode == SerializationMode::ResolvedValue) {
         // FIXME: Clamp the value. Note that we might have an infinite/nan value here.
         return static_cast<NumericCalculationNode const&>(fn).value_to_string();
     }
@@ -311,7 +311,7 @@ static Vector<NonnullRefPtr<CalculationNode const>> sort_a_calculations_children
 }
 
 // https://drafts.csswg.org/css-values-4/#serialize-a-calculation-tree
-static String serialize_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, CSSStyleValue::SerializationMode serialization_mode)
+static String serialize_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, SerializationMode serialization_mode)
 {
     // 1. Let root be the root node of the calculation tree.
     // NOTE: Already the case.

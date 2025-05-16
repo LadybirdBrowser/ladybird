@@ -182,7 +182,7 @@ Size ComputedProperties::size_value(PropertyID id) const
     }
 
     // FIXME: Support `fit-content(<length>)`
-    dbgln("FIXME: Unsupported size value: `{}`, treating as `auto`", value.to_string(CSSStyleValue::SerializationMode::Normal));
+    dbgln("FIXME: Unsupported size value: `{}`, treating as `auto`", value.to_string(SerializationMode::Normal));
     return Size::make_auto();
 }
 
@@ -310,7 +310,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
         if (line_height.as_calculated().resolves_to_number()) {
             auto resolved = line_height.as_calculated().resolve_number(context);
             if (!resolved.has_value()) {
-                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
+                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_calculated().to_string(SerializationMode::Normal));
                 return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
             }
             return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
@@ -318,7 +318,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
 
         auto resolved = line_height.as_calculated().resolve_length(context);
         if (!resolved.has_value()) {
-            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
+            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_calculated().to_string(SerializationMode::Normal));
             return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
         }
         return resolved->to_px(viewport_rect, font_metrics, root_font_metrics);
@@ -358,13 +358,13 @@ float ComputedProperties::resolve_opacity_value(CSSStyleValue const& value)
             if (maybe_percentage.has_value())
                 unclamped_opacity = maybe_percentage->as_fraction();
             else
-                dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
+                dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string(SerializationMode::Normal));
         } else if (calculated.resolves_to_number()) {
             auto maybe_number = value.as_calculated().resolve_number(context);
             if (maybe_number.has_value())
                 unclamped_opacity = maybe_number.value();
             else
-                dbgln("Unable to resolve calc() as opacity (number): {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
+                dbgln("Unable to resolve calc() as opacity (number): {}", value.to_string(SerializationMode::Normal));
         }
     } else if (value.is_percentage()) {
         unclamped_opacity = value.as_percentage().percentage().as_fraction();
@@ -938,14 +938,14 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                         quote_nesting_level--;
                     break;
                 default:
-                    dbgln("`{}` is not supported in `content` (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
+                    dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));
                     break;
                 }
             } else if (item->is_counter()) {
                 builder.append(item->as_counter().resolve(element));
             } else {
                 // TODO: Implement images, and other things.
-                dbgln("`{}` is not supported in `content` (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
+                dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));
             }
         }
         content_data.type = ContentData::Type::String;
@@ -959,7 +959,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                 } else if (item->is_counter()) {
                     alt_text_builder.append(item->as_counter().resolve(element));
                 } else {
-                    dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
+                    dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string(SerializationMode::Normal));
                 }
             }
             content_data.alt_text = MUST(alt_text_builder.to_string());
@@ -1048,7 +1048,7 @@ Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const
         return { keyword_to_text_decoration_line(value.to_keyword()).release_value() };
     }
 
-    dbgln("FIXME: Unsupported value for text-decoration-line: {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
+    dbgln("FIXME: Unsupported value for text-decoration-line: {}", value.to_string(SerializationMode::Normal));
     return {};
 }
 
@@ -1686,7 +1686,7 @@ Containment ComputedProperties::contain() const
                     containment.paint_containment = true;
                     break;
                 default:
-                    dbgln("`{}` is not supported in `contain` (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
+                    dbgln("`{}` is not supported in `contain` (yet?)", item->to_string(SerializationMode::Normal));
                     break;
                 }
             }
@@ -1789,7 +1789,7 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
                     if (maybe_int.has_value())
                         data.value = AK::clamp_to<i32>(*maybe_int);
                 } else {
-                    dbgln("Unimplemented type for {} integer value: '{}'", string_from_property_id(property_id), counter.value->to_string(CSSStyleValue::SerializationMode::Normal));
+                    dbgln("Unimplemented type for {} integer value: '{}'", string_from_property_id(property_id), counter.value->to_string(SerializationMode::Normal));
                 }
             }
             result.append(move(data));
@@ -1800,7 +1800,7 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
     if (value.to_keyword() == Keyword::None)
         return {};
 
-    dbgln("Unhandled type for {} value: '{}'", string_from_property_id(property_id), value.to_string(CSSStyleValue::SerializationMode::Normal));
+    dbgln("Unhandled type for {} value: '{}'", string_from_property_id(property_id), value.to_string(SerializationMode::Normal));
     return {};
 }
 

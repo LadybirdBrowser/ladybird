@@ -30,7 +30,7 @@ CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, FlyString name, FlyString syn
 Optional<String> CSSPropertyRule::initial_value() const
 {
     if (m_initial_value)
-        return m_initial_value->to_string(CSSStyleValue::SerializationMode::Normal);
+        return m_initial_value->to_string(SerializationMode::Normal);
     return {};
 }
 

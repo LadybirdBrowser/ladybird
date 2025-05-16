@@ -270,7 +270,7 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
                 } else if (calculated.resolves_to_number()) {
                     values.append(NumberPercentage { calculated });
                 } else {
-                    dbgln("Calculation `{}` inside {} transform-function is not a recognized type", calculated.to_string(CSSStyleValue::SerializationMode::Normal), to_string(transformation.transform_function()));
+                    dbgln("Calculation `{}` inside {} transform-function is not a recognized type", calculated.to_string(SerializationMode::Normal), to_string(transformation.transform_function()));
                     return {};
                 }
                 break;

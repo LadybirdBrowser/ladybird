@@ -178,7 +178,7 @@ String CSSDescriptors::get_property_value(StringView property) const
     if (descriptor_id.has_value()) {
         auto match = m_descriptors.first_matching([descriptor_id](auto& entry) { return entry.descriptor_id == *descriptor_id; });
         if (match.has_value())
-            return match->value->to_string(CSSStyleValue::SerializationMode::Normal);
+            return match->value->to_string(SerializationMode::Normal);
     }
 
     // 3. Return the empty string.
@@ -215,7 +215,7 @@ String CSSDescriptors::serialized() const
         // NB: Descriptors can't be shorthands.
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = descriptor.value->to_string(CSSStyleValue::SerializationMode::Normal);
+        auto value = descriptor.value->to_string(SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value, and the important flag set if declaration has its important flag set.
         auto serialized_declaration = serialize_a_css_declaration(property, value, Important::No);

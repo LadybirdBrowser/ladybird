@@ -22,6 +22,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -385,10 +386,6 @@ public:
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const { return {}; }
     Keyword to_keyword() const;
 
-    enum class SerializationMode {
-        Normal,
-        ResolvedValue,
-    };
     virtual String to_string(SerializationMode) const = 0;
 
     [[nodiscard]] int to_font_weight() const;
@@ -432,6 +429,6 @@ template<>
 struct AK::Formatter<Web::CSS::CSSStyleValue> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSStyleValue const& style_value)
     {
-        return Formatter<StringView>::format(builder, style_value.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+        return Formatter<StringView>::format(builder, style_value.to_string(Web::CSS::SerializationMode::Normal));
     }
 };

@@ -34,7 +34,7 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) c
     return path_from_resolved_rect(top, right, bottom, left);
 }
 
-String Inset::to_string(CSSStyleValue::SerializationMode) const
+String Inset::to_string(SerializationMode) const
 {
     return MUST(String::formatted("inset({} {} {} {})", inset_box.top(), inset_box.right(), inset_box.bottom(), inset_box.left()));
 }
@@ -49,7 +49,7 @@ Gfx::Path Xywh::to_path(CSSPixelRect reference_box, Layout::Node const& node) co
     return path_from_resolved_rect(top, right, bottom, left);
 }
 
-String Xywh::to_string(CSSStyleValue::SerializationMode) const
+String Xywh::to_string(SerializationMode) const
 {
     return MUST(String::formatted("xywh({} {} {} {})", x, y, width, height));
 }
@@ -68,7 +68,7 @@ Gfx::Path Rect::to_path(CSSPixelRect reference_box, Layout::Node const& node) co
     return path_from_resolved_rect(top, max(right, left), max(bottom, top), left);
 }
 
-String Rect::to_string(CSSStyleValue::SerializationMode) const
+String Rect::to_string(SerializationMode) const
 {
     return MUST(String::formatted("rect({} {} {} {})", box.top(), box.right(), box.bottom(), box.left()));
 }
@@ -123,7 +123,7 @@ Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) 
     return path;
 }
 
-String Circle::to_string(CSSStyleValue::SerializationMode mode) const
+String Circle::to_string(SerializationMode mode) const
 {
     return MUST(String::formatted("circle({} at {})", radius_to_string(radius), position->to_string(mode)));
 }
@@ -168,7 +168,7 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
     return path;
 }
 
-String Ellipse::to_string(CSSStyleValue::SerializationMode mode) const
+String Ellipse::to_string(SerializationMode mode) const
 {
     return MUST(String::formatted("ellipse({} {} at {})", radius_to_string(radius_x), radius_to_string(radius_y), position->to_string(mode)));
 }
@@ -193,7 +193,7 @@ Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node)
     return path;
 }
 
-String Polygon::to_string(CSSStyleValue::SerializationMode) const
+String Polygon::to_string(SerializationMode) const
 {
     StringBuilder builder;
     builder.append("polygon("sv);
