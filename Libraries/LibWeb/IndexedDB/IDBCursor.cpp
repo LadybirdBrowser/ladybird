@@ -139,13 +139,11 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
         key_value = r;
 
         // 4. If key is less than or equal to this's position and this's direction is "next" or "nextunique", then throw a "DataError" DOMException.
-        auto is_less_than_or_equal_to = Key::less_than(*key_value, *this->position()) || Key::equals(*key_value, *this->position());
-        if (is_less_than_or_equal_to && (m_direction == Bindings::IDBCursorDirection::Next || m_direction == Bindings::IDBCursorDirection::Nextunique))
+        if (*key_value <= *this->position() && (m_direction == Bindings::IDBCursorDirection::Next || m_direction == Bindings::IDBCursorDirection::Nextunique))
             return WebIDL::DataError::create(realm, "Key is less than or equal to cursor's position"_string);
 
         // 5. If key is greater than or equal to this's position and this's direction is "prev" or "prevunique", then throw a "DataError" DOMException.
-        auto is_greater_than_or_equal_to = Key::greater_than(*key_value, *this->position()) || Key::equals(*key_value, *this->position());
-        if (is_greater_than_or_equal_to && (m_direction == Bindings::IDBCursorDirection::Prev || m_direction == Bindings::IDBCursorDirection::Prevunique))
+        if (*key_value >= *this->position() && (m_direction == Bindings::IDBCursorDirection::Prev || m_direction == Bindings::IDBCursorDirection::Prevunique))
             return WebIDL::DataError::create(realm, "Key is greater than or equal to cursor's position"_string);
     }
 
@@ -287,19 +285,19 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
     auto primary_key = r;
 
     // 13. If key is less than this’s position and this’s direction is "next", throw a "DataError" DOMException.
-    if (Key::less_than(*key, *this->position()) && m_direction == Bindings::IDBCursorDirection::Next)
+    if (*key < *this->position() && m_direction == Bindings::IDBCursorDirection::Next)
         return WebIDL::DataError::create(realm, "Key is less than cursor's position"_string);
 
     // 14. If key is greater than this’s position and this’s direction is "prev", throw a "DataError" DOMException.
-    if (Key::greater_than(*key, *this->position()) && m_direction == Bindings::IDBCursorDirection::Prev)
+    if (*key > *this->position() && m_direction == Bindings::IDBCursorDirection::Prev)
         return WebIDL::DataError::create(realm, "Key is greater than cursor's position"_string);
 
     // 15. If key is equal to this’s position and primaryKey is less than or equal to this’s object store position and this’s direction is "next", throw a "DataError" DOMException.
-    if (Key::equals(*key, *this->position()) && (Key::less_than(*primary_key, *this->object_store_position()) || Key::equals(*primary_key, *this->object_store_position())) && m_direction == Bindings::IDBCursorDirection::Next)
+    if (*key == *this->position() && *primary_key <= *this->object_store_position() && m_direction == Bindings::IDBCursorDirection::Next)
         return WebIDL::DataError::create(realm, "Key is equal to cursor's position"_string);
 
     // 16. If key is equal to this’s position and primaryKey is greater than or equal to this’s object store position and this’s direction is "prev", throw a "DataError" DOMException.
-    if (Key::equals(*key, *this->position()) && (Key::greater_than(*primary_key, *this->object_store_position()) || Key::equals(*primary_key, *this->object_store_position())) && m_direction == Bindings::IDBCursorDirection::Prev)
+    if (*key == *this->position() && *primary_key >= *this->object_store_position() && m_direction == Bindings::IDBCursorDirection::Prev)
         return WebIDL::DataError::create(realm, "Key is equal to cursor's position"_string);
 
     // 17. Set this’s got value flag to false.
@@ -386,7 +384,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
         if (kpk_value->is_invalid())
             return WebIDL::DataError::create(realm, "Key path is invalid"_string);
 
-        if (!Key::equals(*kpk_value, *this->effective_key()))
+        if (*kpk_value != *this->effective_key())
             return WebIDL::DataError::create(realm, "Key path is not equal to effective key"_string);
     }
 

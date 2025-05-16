@@ -52,7 +52,7 @@ void Index::set_name(String name)
 bool Index::has_record_with_key(GC::Ref<Key> key)
 {
     auto index = m_records.find_if([&key](auto const& record) {
-        return Key::equals(record.key, key);
+        return *record.key == *key;
     });
 
     return index != m_records.end();
@@ -66,7 +66,7 @@ HTML::SerializationRecord Index::referenced_value(IndexRecord const& index_recor
     return m_object_store
         ->records()
         .first_matching([&](auto const& store_record) {
-            return Key::equals(store_record.key, index_record.value);
+            return *store_record.key == *index_record.value;
         })
         .value()
         .value;
