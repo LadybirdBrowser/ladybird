@@ -74,7 +74,7 @@ public:
                 }
             },
             [](NonnullRefPtr<CalculatedStyleValue const> const& calculated) {
-                return calculated->to_string(CSSStyleValue::SerializationMode::Normal);
+                return calculated->to_string(SerializationMode::Normal);
             });
     }
 

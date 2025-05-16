@@ -315,7 +315,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
                     dbgln("+ Element {}", element->debug_description());
                     for (size_t i = 0; i < Web::CSS::ComputedProperties::number_of_properties; ++i) {
                         auto property = styles->maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
-                        dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal) : ""_string);
+                        dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::SerializationMode::Normal) : ""_string);
                     }
                     dbgln("---");
                 }
@@ -483,7 +483,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
         properties->for_each_property([&](auto property_id, auto& value) {
             serialized.set(
                 Web::CSS::string_from_property_id(property_id),
-                value.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+                value.to_string(Web::CSS::SerializationMode::Normal));
         });
 
         return serialized;
@@ -517,12 +517,12 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
         serialized.set("border-bottom-width"sv, box_model.border.bottom.to_double());
         serialized.set("border-left-width"sv, box_model.border.left.to_double());
 
-        serialized.set("box-sizing"sv, properties->property(Web::CSS::PropertyID::BoxSizing).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
-        serialized.set("display"sv, properties->property(Web::CSS::PropertyID::Display).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
-        serialized.set("float"sv, properties->property(Web::CSS::PropertyID::Float).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
-        serialized.set("line-height"sv, properties->property(Web::CSS::PropertyID::LineHeight).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
-        serialized.set("position"sv, properties->property(Web::CSS::PropertyID::Position).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
-        serialized.set("z-index"sv, properties->property(Web::CSS::PropertyID::ZIndex).to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
+        serialized.set("box-sizing"sv, properties->property(Web::CSS::PropertyID::BoxSizing).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("display"sv, properties->property(Web::CSS::PropertyID::Display).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("float"sv, properties->property(Web::CSS::PropertyID::Float).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("line-height"sv, properties->property(Web::CSS::PropertyID::LineHeight).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("position"sv, properties->property(Web::CSS::PropertyID::Position).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("z-index"sv, properties->property(Web::CSS::PropertyID::ZIndex).to_string(Web::CSS::SerializationMode::Normal));
 
         return serialized;
     };

@@ -646,7 +646,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         auto new_style_value = CSS::StyleValueList::create(move(new_values), value_list.separator());
         MUST(inline_style->set_property(
             string_from_property_id(CSS::PropertyID::TextDecoration),
-            new_style_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal),
+            new_style_value->to_string(CSS::SerializationMode::Normal),
             {}));
     };
     if (command == CommandNames::strikethrough)
@@ -1184,7 +1184,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         auto resolved_value = resolved_background_color();
         if (!resolved_value.has_value())
             return {};
-        return resolved_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::ResolvedValue);
+        return resolved_value.value()->to_string(CSS::SerializationMode::ResolvedValue);
     }
 
     // 5. If command is "subscript" or "superscript":
@@ -1264,7 +1264,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
     auto optional_value = resolved_value(*node, command_definition.relevant_css_property.value());
     if (!optional_value.has_value())
         return {};
-    return optional_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::ResolvedValue);
+    return optional_value.value()->to_string(CSS::SerializationMode::ResolvedValue);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#first-equivalent-point
@@ -2741,7 +2741,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
                     && element->inline_style()->length() == 1) {
                     auto text_align = element->inline_style()->property(CSS::PropertyID::TextAlign);
                     if (text_align.has_value()) {
-                        auto align_value = text_align.value().value->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+                        auto align_value = text_align.value().value->to_string(CSS::SerializationMode::Normal);
                         if (align_value.equals_ignoring_ascii_case(alignment_keyword))
                             ++number_of_matching_attributes;
                     }
@@ -3927,7 +3927,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     //     that it sets property to.
     auto style_value = property_in_style_attribute(element, property.value());
     if (style_value.has_value())
-        return style_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+        return style_value.value()->to_string(CSS::SerializationMode::Normal);
 
     // 11. If element is a font element that has an attribute whose effect is to create a presentational hint for
     //     property, return the value that the hint sets property to. (For a size of 7, this will be the non-CSS value
@@ -3938,7 +3938,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         font_element.apply_presentational_hints(cascaded_properties);
         auto property_value = cascaded_properties->property(property.value());
         if (property_value)
-            return property_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+            return property_value->to_string(CSS::SerializationMode::Normal);
     }
 
     // 12. If element is in the following list, and property is equal to the CSS property name listed for it, return the

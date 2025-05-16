@@ -82,7 +82,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
             font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, MUST(String::formatted("FontFace constructor: Invalid {}", to_string(descriptor_id)))));
             return {};
         }
-        return result->to_string(CSSStyleValue::SerializationMode::Normal);
+        return result->to_string(SerializationMode::Normal);
     };
     font_face->m_family = try_parse_descriptor(DescriptorID::FontFamily, family);
     font_face->m_style = try_parse_descriptor(DescriptorID::FontStyle, descriptors.style);
@@ -224,7 +224,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-family property
     }
 
-    m_family = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_family = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -244,7 +244,7 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-style property
     }
 
-    m_style = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_style = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -264,7 +264,7 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-weight property
     }
 
-    m_weight = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_weight = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -285,7 +285,7 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_stretch = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_stretch = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -305,7 +305,7 @@ WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_unicode_range = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_unicode_range = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -325,7 +325,7 @@ WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_feature_settings = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_feature_settings = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -345,7 +345,7 @@ WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_variation_settings = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_variation_settings = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -365,7 +365,7 @@ WebIDL::ExceptionOr<void> FontFace::set_display(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_display = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_display = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -385,7 +385,7 @@ WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_ascent_override = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_ascent_override = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -405,7 +405,7 @@ WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_descent_override = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_descent_override = property->to_string(SerializationMode::Normal);
 
     return {};
 }
@@ -425,7 +425,7 @@ WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_line_gap_override = property->to_string(CSSStyleValue::SerializationMode::Normal);
+    m_line_gap_override = property->to_string(SerializationMode::Normal);
 
     return {};
 }
