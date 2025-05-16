@@ -56,5 +56,6 @@ JS::Value retrieve_a_referenced_value_from_an_index(JS::Realm&, GC::Ref<Index>, 
 JS::Value retrieve_a_value_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>);
 GC::Ref<JS::Array> retrieve_multiple_referenced_values_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
 GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
+bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop>);
 
 }

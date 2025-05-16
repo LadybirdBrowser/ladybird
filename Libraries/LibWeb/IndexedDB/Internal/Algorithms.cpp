@@ -2044,4 +2044,35 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm& realm, GC::
     return list;
 }
 
+// https://w3c.github.io/IndexedDB/#cleanup-indexed-database-transactions
+bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
+{
+    GC::ConservativeVector<GC::Ref<IDBTransaction>> matching_cleanup_loop(event_loop->heap());
+    auto databases = Database::all();
+    for (auto& database : databases) {
+        for (auto const& connection : database->associated_connections()) {
+            for (auto const& transaction : connection->transactions()) {
+                if (transaction->cleanup_event_loop() && transaction->cleanup_event_loop() == event_loop)
+                    matching_cleanup_loop.append(transaction);
+            }
+        }
+    }
+
+    // 1. If there are no transactions with cleanup event loop matching the current event loop, return false.
+    if (matching_cleanup_loop.is_empty())
+        return false;
+
+    // 2. For each transaction transaction with cleanup event loop matching the current event loop:
+    for (auto transaction : matching_cleanup_loop) {
+        // 1. Set transaction’s state to inactive.
+        transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+        // 2. Clear transaction’s cleanup event loop.
+        transaction->set_cleanup_event_loop(nullptr);
+    }
+
+    // 3. Return true.
+    return true;
+}
+
 }
