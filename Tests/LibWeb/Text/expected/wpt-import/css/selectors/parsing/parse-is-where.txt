@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 33 tests
+
+24 Pass
+9 Fail
+Pass	":is(div )" should be a valid selector
+Pass	":where(div )" should be a valid selector
+Pass	":is(div + bar, div ~ .baz)" should be a valid selector
+Pass	":where(div + bar, div ~ .baz)" should be a valid selector
+Pass	":is(:is(div))" should be a valid selector
+Pass	":where(:is(div))" should be a valid selector
+Pass	":is(:where(div))" should be a valid selector
+Pass	":where(:where(div))" should be a valid selector
+Pass	":host(:is(div))" should be a valid selector
+Pass	":host(:where(div))" should be a valid selector
+Pass	":host(:is(div ))" should be a valid selector
+Pass	":host(:where(div ))" should be a valid selector
+Fail	":host(:is(div .foo))" should be a valid selector
+Fail	":host(:where(div .foo))" should be a valid selector
+Pass	":is(:hover, :active)" should be a valid selector
+Pass	":where(:hover, :active)" should be a valid selector
+Pass	":is(div):hover" should be a valid selector
+Pass	":where(div):hover" should be a valid selector
+Pass	":is(div)::before" should be a valid selector
+Pass	":where(div)::before" should be a valid selector
+Fail	":is(::before)" should be a valid selector
+Fail	":where(::before)" should be a valid selector
+Pass	":is(div) + bar" should be a valid selector
+Pass	":where(div) + bar" should be a valid selector
+Fail	"::part(foo):is(:hover)" should be a valid selector
+Fail	"::part(foo):where(:hover)" should be a valid selector
+Fail	"::part(foo):is([attr='value'])" should be a valid selector
+Fail	"::part(foo):where([attr='value'])" should be a valid selector
+Pass	":not(:is(div))" should be a valid selector
+Pass	":not(:where(div))" should be a valid selector
+Pass	":not(:is(div .foo))" should be a valid selector
+Pass	":not(:where(div .foo))" should be a valid selector
+Fail	":is(# C4єанйтж╕/┘ГЁжЮХєа▓┐ЁЭБМєаСеЁЭЖА%=[ямм0)" should be an invalid selector

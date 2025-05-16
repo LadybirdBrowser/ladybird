@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 29 tests
+
+6 Pass
+23 Fail
+Fail	":has(a)" should be a valid selector
+Fail	":has(#a)" should be a valid selector
+Fail	":has(.a)" should be a valid selector
+Fail	":has([a])" should be a valid selector
+Fail	":has([a=\"b\"])" should be a valid selector
+Fail	":has([a|=\"b\"])" should be a valid selector
+Fail	":has(:hover)" should be a valid selector
+Fail	"*:has(.a)" should be a valid selector
+Fail	".a:has(.b)" should be a valid selector
+Fail	".a:has(> .b)" should be a valid selector
+Fail	".a:has(~ .b)" should be a valid selector
+Fail	".a:has(+ .b)" should be a valid selector
+Fail	".a:has(.b) .c" should be a valid selector
+Fail	".a .b:has(.c)" should be a valid selector
+Fail	".a .b:has(.c .d)" should be a valid selector
+Fail	".a .b:has(.c .d) .e" should be a valid selector
+Fail	".a:has(.b:is(.c .d))" should be a valid selector
+Fail	".a:is(.b:has(.c) .d)" should be a valid selector
+Fail	".a:not(:has(.b))" should be a valid selector
+Fail	".a:has(:not(.b))" should be a valid selector
+Fail	".a:has(.b):has(.c)" should be a valid selector
+Fail	"*|*:has(*)" should be a valid selector
+Fail	":has(*|*)" should be a valid selector
+Pass	":has" should be an invalid selector
+Pass	".a:has" should be an invalid selector
+Pass	".a:has b" should be an invalid selector
+Pass	":has()" should be an invalid selector
+Pass	":has(123)" should be an invalid selector
+Pass	":has(.a, 123)" should be an invalid selector

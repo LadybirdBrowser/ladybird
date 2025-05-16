@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 26 tests
+
+23 Pass
+3 Fail
+Pass	"button:not([disabled])" should be a valid selector
+Pass	"*:not(foo)" should be a valid selector
+Pass	":not(:link):not(:visited)" should be a valid selector
+Fail	"*|*:not(*)" should be a valid selector
+Pass	":not(:hover)" should be a valid selector
+Pass	":not(*|*)" should be a valid selector
+Pass	"foo:not(bar)" should be a valid selector
+Pass	":not(:not(foo))" should be a valid selector
+Pass	":not(.a .b)" should be a valid selector
+Pass	":not(.a + .b)" should be a valid selector
+Pass	":not(.a .b ~ c)" should be a valid selector
+Pass	":not(span.a, div.b)" should be a valid selector
+Pass	":not(.a .b ~ c, .d .e)" should be a valid selector
+Pass	":not(:host)" should be a valid selector
+Pass	":not(:host(.a))" should be a valid selector
+Pass	":host(:not(.a))" should be a valid selector
+Pass	":not(:host(:not(.a)))" should be a valid selector
+Pass	":not([disabled][selected])" should be a valid selector
+Pass	":not([disabled],[selected])" should be a valid selector
+Pass	":not()" should be an invalid selector
+Pass	":not(:not())" should be an invalid selector
+Fail	":not(::before)" should be an invalid selector
+Pass	":not(:unknownpseudo)" should be an invalid selector
+Pass	":not(.a, :unknownpseudo)" should be an invalid selector
+Pass	":not(:unknownpseudo, .a)" should be an invalid selector
+Fail	":host(:not(.a .b))" should be an invalid selector
