@@ -2896,10 +2896,7 @@ void NewFunction::execute_impl(Bytecode::Interpreter& interpreter) const
 
 void Return::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    if (m_value.has_value())
-        interpreter.do_return(interpreter.get(*m_value));
-    else
-        interpreter.do_return(js_undefined());
+    interpreter.do_return(interpreter.get(m_value));
 }
 
 ThrowCompletionOr<void> Increment::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3758,9 +3755,7 @@ ByteString NewClass::to_byte_string_impl(Bytecode::Executable const& executable)
 
 ByteString Return::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    if (m_value.has_value())
-        return ByteString::formatted("Return {}", format_operand("value"sv, m_value.value(), executable));
-    return "Return";
+    return ByteString::formatted("Return {}", format_operand("value"sv, m_value, executable));
 }
 
 ByteString Increment::to_byte_string_impl(Bytecode::Executable const& executable) const
