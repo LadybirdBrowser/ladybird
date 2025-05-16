@@ -471,6 +471,7 @@ void HTMLTextAreaElement::did_edit_text_node()
 void HTMLTextAreaElement::queue_firing_input_event()
 {
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
+        // FIXME: If a string was added to this textarea, this input event's .data should be set to it.
         auto change_event = DOM::Event::create(realm(), HTML::EventNames::input, { .bubbles = true, .composed = true });
         dispatch_event(change_event);
     });
