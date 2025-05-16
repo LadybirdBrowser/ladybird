@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/Descriptor.h>
 #include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/MediaQuery.h>
+#include <LibWeb/CSS/PageSelector.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Parser/Dimension.h>
@@ -117,6 +118,8 @@ public:
 
     Optional<Selector::PseudoElementSelector> parse_as_pseudo_element_selector();
 
+    Optional<PageSelectorList> parse_as_page_selector_list();
+
     Vector<NonnullRefPtr<MediaQuery>> parse_as_media_query_list();
     RefPtr<MediaQuery> parse_as_media_query();
 
@@ -187,6 +190,9 @@ private:
     };
     template<typename T>
     ParseErrorOr<SelectorList> parse_a_selector_list(TokenStream<T>&, SelectorType, SelectorParsingMode = SelectorParsingMode::Standard);
+
+    template<typename T>
+    ParseErrorOr<PageSelectorList> parse_a_page_selector_list(TokenStream<T>&);
 
     template<typename T>
     Vector<NonnullRefPtr<MediaQuery>> parse_a_media_query_list(TokenStream<T>&);
@@ -523,6 +529,7 @@ RefPtr<CSS::CSSStyleValue const> parse_css_value(CSS::Parser::ParsingParams cons
 RefPtr<CSS::CSSStyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorID, StringView);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView);
+Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, StringView);
 CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, StringView);
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, StringView);
