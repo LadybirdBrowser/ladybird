@@ -279,6 +279,8 @@ ThrowCompletionOr<bool> Object::has_own_property(PropertyKey const& property_key
 // 7.3.16 SetIntegrityLevel ( O, level ), https://tc39.es/ecma262/#sec-setintegritylevel
 ThrowCompletionOr<bool> Object::set_integrity_level(IntegrityLevel level)
 {
+    auto& vm = this->vm();
+
     // 1. Let status be ? O.[[PreventExtensions]]().
     auto status = TRY(internal_prevent_extensions());
 
@@ -292,7 +294,9 @@ ThrowCompletionOr<bool> Object::set_integrity_level(IntegrityLevel level)
     // 4. If level is sealed, then
     if (level == IntegrityLevel::Sealed) {
         // a. For each element k of keys, do
-        for (auto& property_key : keys) {
+        for (auto& key : keys) {
+            auto property_key = MUST(PropertyKey::from_value(vm, key));
+
             // i. Perform ? DefinePropertyOrThrow(O, k, PropertyDescriptor { [[Configurable]]: false }).
             TRY(define_property_or_throw(property_key, { .configurable = false }));
         }
@@ -302,7 +306,9 @@ ThrowCompletionOr<bool> Object::set_integrity_level(IntegrityLevel level)
         // a. Assert: level is frozen.
 
         // b. For each element k of keys, do
-        for (auto& property_key : keys) {
+        for (auto& key : keys) {
+            auto property_key = MUST(PropertyKey::from_value(vm, key));
+
             // i. Let currentDesc be ? O.[[GetOwnProperty]](k).
             auto current_descriptor = TRY(internal_get_own_property(property_key));
 
@@ -335,6 +341,8 @@ ThrowCompletionOr<bool> Object::set_integrity_level(IntegrityLevel level)
 // 7.3.17 TestIntegrityLevel ( O, level ), https://tc39.es/ecma262/#sec-testintegritylevel
 ThrowCompletionOr<bool> Object::test_integrity_level(IntegrityLevel level) const
 {
+    auto& vm = this->vm();
+
     // 1. Let extensible be ? IsExtensible(O).
     auto extensible = TRY(is_extensible());
 
@@ -347,7 +355,9 @@ ThrowCompletionOr<bool> Object::test_integrity_level(IntegrityLevel level) const
     auto keys = TRY(internal_own_property_keys());
 
     // 5. For each element k of keys, do
-    for (auto& property_key : keys) {
+    for (auto& key : keys) {
+        auto property_key = MUST(PropertyKey::from_value(vm, key));
+
         // a. Let currentDesc be ? O.[[GetOwnProperty]](k).
         auto current_descriptor = TRY(internal_get_own_property(property_key));
 
@@ -386,11 +396,11 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::enumerable_own_property_names(P
     auto properties = GC::RootVector<Value> { heap() };
 
     // 3. For each element key of ownKeys, do
-    for (auto& property_key : own_keys) {
+    for (auto& key : own_keys) {
         // a. If Type(key) is String, then
-        if (!property_key.is_string() && !property_key.is_number()) {
+        if (!key.is_string())
             continue;
-        }
+        auto property_key = MUST(PropertyKey::from_value(vm, key));
 
         // i. Let desc be ? O.[[GetOwnProperty]](key).
         auto descriptor = TRY(internal_get_own_property(property_key));
@@ -399,7 +409,7 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::enumerable_own_property_names(P
         if (descriptor.has_value() && *descriptor->enumerable) {
             // 1. If kind is key, append key to properties.
             if (kind == PropertyKind::Key) {
-                properties.append(property_key.to_value(vm));
+                properties.append(key);
                 continue;
             }
             // 2. Else,
@@ -418,7 +428,7 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::enumerable_own_property_names(P
             VERIFY(kind == PropertyKind::KeyAndValue);
 
             // ii. Let entry be CreateArrayFromList(« key, value »).
-            auto entry = Array::create_from(realm, { property_key.to_value(vm), value });
+            auto entry = Array::create_from(realm, { key, value });
 
             // iii. Append entry to properties.
             properties.append(entry);
@@ -444,23 +454,25 @@ ThrowCompletionOr<void> Object::copy_data_properties(VM& vm, Value source, HashT
     auto keys = TRY(from->internal_own_property_keys());
 
     // 4. For each element nextKey of keys, do
-    for (auto& next_property_key : keys) {
+    for (auto& next_key_value : keys) {
+        auto next_key = MUST(PropertyKey::from_value(vm, next_key_value));
+
         // a. Let excluded be false.
         // b. For each element e of excludedKeys, do
         //    i. If SameValue(e, nextKey) is true, then
         //        1. Set excluded to true.
-        if (excluded_keys.contains(next_property_key))
+        if (excluded_keys.contains(next_key))
             continue;
 
         // c. If excluded is false, then
 
         // i. Let desc be ? from.[[GetOwnProperty]](nextKey).
-        auto desc = TRY(from->internal_get_own_property(next_property_key));
+        auto desc = TRY(from->internal_get_own_property(next_key));
 
         // ii. If desc is not undefined and desc.[[Enumerable]] is true, then
         if (desc.has_value() && desc->attributes().is_enumerable()) {
             // 1. Let propValue be ? Get(from, nextKey).
-            auto prop_value = TRY(from->get(next_property_key));
+            auto prop_value = TRY(from->get(next_key));
 
             // 2. If excludedValues is present, then
             //     a. For each element e of excludedValues, do
@@ -469,7 +481,7 @@ ThrowCompletionOr<void> Object::copy_data_properties(VM& vm, Value source, HashT
             // 3. If excluded is false, Perform ! CreateDataPropertyOrThrow(target, nextKey, propValue).
             // NOTE: HashTable traits for JS::Value uses SameValue.
             if (!excluded_values.contains(prop_value))
-                MUST(create_data_property_or_throw(next_property_key, prop_value));
+                MUST(create_data_property_or_throw(next_key, prop_value));
         }
     }
 
@@ -1108,30 +1120,33 @@ ThrowCompletionOr<bool> Object::internal_delete(PropertyKey const& property_key)
     return false;
 }
 
-ThrowCompletionOr<Vector<PropertyKey>> Object::internal_own_property_keys() const
+// 10.1.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
+ThrowCompletionOr<GC::RootVector<Value>> Object::internal_own_property_keys() const
 {
+    auto& vm = this->vm();
+
     // 1. Let keys be a new empty List.
-    Vector<PropertyKey> keys;
+    GC::RootVector<Value> keys { heap() };
 
     // 2. For each own property key P of O such that P is an array index, in ascending numeric index order, do
-    for (auto const& entry : m_indexed_properties) {
+    for (auto& entry : m_indexed_properties) {
         // a. Add P as the last element of keys.
-        keys.append(String::number(entry.index()));
+        keys.append(PrimitiveString::create(vm, String::number(entry.index())));
     }
 
     // 3. For each own property key P of O such that Type(P) is String and P is not an array index, in ascending chronological order of property creation, do
-    for (auto const& it : shape().property_table()) {
+    for (auto& it : shape().property_table()) {
         if (it.key.is_string()) {
             // a. Add P as the last element of keys.
-            keys.append(it.key);
+            keys.append(it.key.to_value(vm));
         }
     }
 
     // 4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
-    for (auto const& it : shape().property_table()) {
+    for (auto& it : shape().property_table()) {
         if (it.key.is_symbol()) {
             // a. Add P as the last element of keys.
-            keys.append(it.key);
+            keys.append(it.key.to_value(vm));
         }
     }
 
@@ -1361,20 +1376,22 @@ ThrowCompletionOr<Object*> Object::define_properties(Value properties)
     Vector<NameAndDescriptor> descriptors;
 
     // 4. For each element nextKey of keys, do
-    for (auto& next_property_key : keys) {
+    for (auto& next_key : keys) {
+        auto property_key = MUST(PropertyKey::from_value(vm, next_key));
+
         // a. Let propDesc be ? props.[[GetOwnProperty]](nextKey).
-        auto property_descriptor = TRY(props->internal_get_own_property(next_property_key));
+        auto property_descriptor = TRY(props->internal_get_own_property(property_key));
 
         // b. If propDesc is not undefined and propDesc.[[Enumerable]] is true, then
         if (property_descriptor.has_value() && *property_descriptor->enumerable) {
             // i. Let descObj be ? Get(props, nextKey).
-            auto descriptor_object = TRY(props->get(next_property_key));
+            auto descriptor_object = TRY(props->get(property_key));
 
             // ii. Let desc be ? ToPropertyDescriptor(descObj).
             auto descriptor = TRY(to_property_descriptor(vm, descriptor_object));
 
             // iii. Append the pair (a two element List) consisting of nextKey and desc to the end of descriptors.
-            descriptors.append({ next_property_key, descriptor });
+            descriptors.append({ property_key, descriptor });
         }
     }
 
@@ -1403,24 +1420,24 @@ Optional<Completion> Object::enumerate_object_properties(Function<Optional<Compl
     //    * Enumerating the properties of the target object includes enumerating properties of its prototype, and the prototype of the prototype, and so on, recursively.
     //    * A property of a prototype is not processed if it has the same name as a property that has already been processed.
 
-    auto& vm = this->vm();
     HashTable<FlyString> visited;
 
     auto const* target = this;
     while (target) {
         auto own_keys = TRY(target->internal_own_property_keys());
-        for (auto& property_key : own_keys) {
-            if (!property_key.is_string())
+        for (auto& key : own_keys) {
+            if (!key.is_string())
                 continue;
-            if (visited.contains(property_key.as_string()))
+            FlyString property_key = key.as_string().utf8_string();
+            if (visited.contains(property_key))
                 continue;
             auto descriptor = TRY(target->internal_get_own_property(property_key));
             if (!descriptor.has_value())
                 continue;
-            visited.set(property_key.as_string());
+            visited.set(property_key);
             if (!*descriptor->enumerable)
                 continue;
-            if (auto completion = callback(property_key.to_value(vm)); completion.has_value())
+            if (auto completion = callback(key); completion.has_value())
                 return completion.release_value();
         }
 

@@ -236,20 +236,20 @@ JS::ThrowCompletionOr<bool> cross_origin_set(JS::VM& vm, JS::Object& object, JS:
 }
 
 // 7.2.3.7 CrossOriginOwnPropertyKeys ( O ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginownpropertykeys-(-o-)
-Vector<JS::PropertyKey> cross_origin_own_property_keys(Variant<HTML::Location const*, HTML::Window const*> const& object)
+GC::RootVector<JS::Value> cross_origin_own_property_keys(Variant<HTML::Location const*, HTML::Window const*> const& object)
 {
     auto& event_loop = HTML::main_thread_event_loop();
     auto& vm = event_loop.vm();
 
     // 1. Let keys be a new empty List.
-    Vector<JS::PropertyKey> keys;
+    auto keys = GC::RootVector<JS::Value> { vm.heap() };
 
     // 2. For each e of CrossOriginProperties(O), append e.[[Property]] to keys.
     for (auto& entry : cross_origin_properties(object))
-        keys.append(entry.property);
+        keys.append(JS::PrimitiveString::create(vm, move(entry.property)));
 
     // 3. Return the concatenation of keys and « "then", @@toStringTag, @@hasInstance, @@isConcatSpreadable ».
-    keys.append(vm.names.then.as_string());
+    keys.append(JS::PrimitiveString::create(vm, vm.names.then.as_string()));
     keys.append(vm.well_known_symbol_to_string_tag());
     keys.append(vm.well_known_symbol_has_instance());
     keys.append(vm.well_known_symbol_is_concat_spreadable());

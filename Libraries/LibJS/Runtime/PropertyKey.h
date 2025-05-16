@@ -84,8 +84,7 @@ public:
 
     String to_string() const
     {
-        if (is_symbol())
-            return as_symbol()->descriptive_string().release_value();
+        VERIFY(!is_symbol());
         if (is_string())
             return as_string().to_string();
         return String::number(as_number());
@@ -97,15 +96,6 @@ public:
         if (is_string())
             return StringOrSymbol(as_string());
         return StringOrSymbol(as_symbol());
-    }
-
-    Value to_value(VM& vm) const
-    {
-        if (is_string())
-            return Value { PrimitiveString::create(vm, as_string()) };
-        if (is_symbol())
-            return Value { as_symbol() };
-        return Value { PrimitiveString::create(vm, String::number(as_number())) };
     }
 
     bool operator==(PropertyKey const&) const = default;
