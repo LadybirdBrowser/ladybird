@@ -659,7 +659,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     auto traversable = navigable->traversable_navigable();
 
     // 11. Let sourceSnapshotParams be the result of snapshotting source snapshot params given document.
-    auto source_snapshot_params = document.snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(realm.heap(), document);
 
     // 12. Append the following session history traversal steps to traversable:
     traversable->append_session_history_traversal_steps(GC::create_function(heap(), [key, api_method_tracker, navigable, source_snapshot_params, traversable, this] {

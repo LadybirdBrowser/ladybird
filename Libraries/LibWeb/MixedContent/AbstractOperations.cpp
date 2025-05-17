@@ -14,6 +14,10 @@ namespace Web::MixedContent {
 // https://w3c.github.io/webappsec-mixed-content/#upgrade-algorithm
 void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request& request)
 {
+    // AD-HOC: Browser-UI initiated navigations should not be upgraded.
+    if (!request.client())
+        return;
+
     // 1. If one or more of the following conditions is met, return without modifying request:
     if (
         // 1. request’s URL is a potentially trustworthy URL.
@@ -22,7 +26,7 @@ void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropr
         // 2. request’s URL’s host is an IP address.
         || (request.url().host().has_value() && (request.url().host()->has<URL::IPv4Address>() || request.url().host()->has<URL::IPv6Address>()))
 
-        // 3. § 4.3 Does settings prohibit mixed security contexts? returns "Does Not Restrict Mixed Security Contents" when applied to request’s client.
+        // 3. § 4.3 Does settings prohibit mixed security contexts? returns "Does Not Restrict Mixed Security Contents" when applied to request’s client.
         || does_settings_prohibit_mixed_security_contexts(request.client()) == ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts
 
         // 4. request’s destination is not "image", "audio", or "video".
@@ -68,6 +72,10 @@ ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(GC
 // https://w3c.github.io/webappsec-mixed-content/#should-block-fetch
 Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request& request)
 {
+    // AD-HOC: Browser-UI initiated navigations should not be blocked.
+    if (!request.client())
+        return Fetch::Infrastructure::RequestOrResponseBlocking::Allowed;
+
     // 1. Return allowed if one or more of the following conditions are met:
     if (
         // 1. § 4.3 Does settings prohibit mixed security contexts? returns "Does Not Restrict Mixed Security Contexts" when applied to request’s client.
@@ -93,6 +101,10 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
 // https://w3c.github.io/webappsec-mixed-content/#should-block-response
 Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request& request, GC::Ref<Fetch::Infrastructure::Response>& response)
 {
+    // AD-HOC: Browser-UI initiated navigations should not be blocked.
+    if (!request.client())
+        return Fetch::Infrastructure::RequestOrResponseBlocking::Allowed;
+
     // 1. Return allowed if one or more of the following conditions are met:
     if (
         // 1. § 4.3 Does settings prohibit mixed security contexts? returns Does Not Restrict Mixed Content when applied to request’s client.

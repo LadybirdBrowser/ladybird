@@ -638,7 +638,8 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
 
                 // 4. If potentiallyTargetSpecificSourceSnapshotParams is null, then set it to the result of snapshotting source snapshot params given navigable's active document.
                 if (!potentially_target_specific_source_snapshot_params) {
-                    potentially_target_specific_source_snapshot_params = navigable->active_document()->snapshot_source_snapshot_params();
+                    auto navigables_document = navigable->active_document();
+                    potentially_target_specific_source_snapshot_params = snapshot_source_snapshot_params(navigable->heap(), navigables_document);
                 }
 
                 // 5. Set targetEntry's document state's reload pending to false.
@@ -1152,7 +1153,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
     // 1. If sourceDocument is given, then:
     if (source_document) {
         // 1. Set sourceSnapshotParams to the result of snapshotting source snapshot params given sourceDocument.
-        source_snapshot_params = source_document->snapshot_source_snapshot_params();
+        source_snapshot_params = snapshot_source_snapshot_params(source_document->heap(), source_document);
 
         // 2. Set initiatorToCheck to sourceDocument's node navigable.
         initiator_to_check = source_document->navigable();

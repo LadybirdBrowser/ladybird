@@ -819,7 +819,7 @@ void Window::close()
     auto browsing_context = traversable->active_browsing_context();
 
     // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
-    auto source_snapshot_params = traversable->active_document()->snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(heap(), traversable->active_document());
 
     auto& incumbent_global_object = as<HTML::Window>(HTML::incumbent_global_object());
 
