@@ -965,19 +965,6 @@ ErrorOr<void> Formatter<char>::format(FormatBuilder& builder, char value)
         return formatter.format(builder, { &value, 1 });
     }
 }
-ErrorOr<void> Formatter<wchar_t>::format(FormatBuilder& builder, wchar_t value)
-{
-    if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
-        Formatter<u32> formatter { *this };
-        return formatter.format(builder, static_cast<u32>(value));
-    } else {
-        StringBuilder codepoint;
-        codepoint.append_code_point(value);
-
-        Formatter<StringView> formatter { *this };
-        return formatter.format(builder, codepoint.string_view());
-    }
-}
 ErrorOr<void> Formatter<bool>::format(FormatBuilder& builder, bool value)
 {
     if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {

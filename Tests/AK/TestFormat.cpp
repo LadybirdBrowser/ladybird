@@ -396,16 +396,13 @@ TEST_CASE(vector_format)
     }
 }
 
-TEST_CASE(format_wchar)
+TEST_CASE(format_utf8)
 {
-    EXPECT_EQ(ByteString::formatted("{}", L'a'), "a");
-    EXPECT_EQ(ByteString::formatted("{}", L'\U0001F41E'), "\xF0\x9F\x90\x9E");
-    EXPECT_EQ(ByteString::formatted("{:x}", L'a'), "61");
-    EXPECT_EQ(ByteString::formatted("{:x}", L'\U0001F41E'), "1f41e");
-    EXPECT_EQ(ByteString::formatted("{:d}", L'a'), "97");
-    EXPECT_EQ(ByteString::formatted("{:d}", L'\U0001F41E'), "128030");
-
-    EXPECT_EQ(ByteString::formatted("{:6}", L'a'), "a     ");
-    EXPECT_EQ(ByteString::formatted("{:6d}", L'a'), "    97");
-    EXPECT_EQ(ByteString::formatted("{:#x}", L'\U0001F41E'), "0x1f41e");
+    EXPECT_EQ(ByteString::formatted("{}", 'a'), "a");
+    EXPECT_EQ(ByteString::formatted("{}", "\u30a2"sv), "\xE3\x82\xA2");
+    EXPECT_EQ(ByteString::formatted("{:x}", 'a'), "61");
+    EXPECT_EQ(ByteString::formatted("{:hex-dump}", "\u30a2"sv), "e382a2");
+    EXPECT_EQ(ByteString::formatted("{:d}", 'a'), "97");
+    EXPECT_EQ(ByteString::formatted("{:6}", 'a'), "a     ");
+    EXPECT_EQ(ByteString::formatted("{:6d}", 'a'), "    97");
 }
