@@ -61,6 +61,7 @@ if (WIN32)
   add_compile_definitions(NAME_MAX=255)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
   add_compile_options(-Wno-deprecated-declarations)
+  add_compile_options(/utf-8)
 endif()
 
 if (MSVC)
