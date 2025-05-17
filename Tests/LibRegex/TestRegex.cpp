@@ -1139,6 +1139,8 @@ TEST_CASE(optimizer_alternation)
         Tuple { "(?!\\d*|[g-ta-r]+|[h-l]|\\S|\\S|\\S){,9}|\\S{7,8}|\\d|(?<wnvdfimiwd>)|[c-mj-tb-o]*|\\s"sv, "rjvogg7pm|li4nmct mjb2|pk7s8e0"sv, 0u },
         // Use the right offset when patching jumps through a fork-tree
         Tuple { "(?!a)|(?!a)b"sv, "b"sv, 0u },
+        // Optimizer should maintain the correct ordering between the alternatives
+        Tuple { "\\\\junk|(\\\\[a-zA-Z@]+)|\\\\[^X]"sv, "\\sqrt"sv, 5u },
     };
 
     for (auto& test : tests) {
