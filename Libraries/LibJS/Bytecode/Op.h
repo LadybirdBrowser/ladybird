@@ -2176,7 +2176,7 @@ class Return final : public Instruction {
 public:
     constexpr static bool IsTerminator = true;
 
-    explicit Return(Optional<Operand> value = {})
+    explicit Return(Operand value)
         : Instruction(Type::Return)
         , m_value(value)
     {
@@ -2186,14 +2186,13 @@ public:
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
     void visit_operands_impl(Function<void(Operand&)> visitor)
     {
-        if (m_value.has_value())
-            visitor(m_value.value());
+        visitor(m_value);
     }
 
-    Optional<Operand> const& value() const { return m_value; }
+    Operand const& value() const { return m_value; }
 
 private:
-    Optional<Operand> m_value;
+    Operand m_value;
 };
 
 class Increment final : public Instruction {

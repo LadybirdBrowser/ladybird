@@ -151,7 +151,7 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(ExecutionContext& callee_
     callee_context.private_environment = caller_context.private_environment;
 
     // NOTE: This is a LibJS specific hack for NativeFunction to inherit the strictness of its caller.
-    callee_context.is_strict_mode = vm.in_strict_mode();
+    callee_context.is_strict_mode = caller_context.is_strict_mode;
 
     // </8.> --------------------------------------------------------------------------
 
@@ -210,7 +210,7 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ReadonlySp
     callee_context->variable_environment = caller_context.variable_environment;
 
     // NOTE: This is a LibJS specific hack for NativeFunction to inherit the strictness of its caller.
-    callee_context->is_strict_mode = vm.in_strict_mode();
+    callee_context->is_strict_mode = caller_context.is_strict_mode;
 
     // </8.> --------------------------------------------------------------------------
 

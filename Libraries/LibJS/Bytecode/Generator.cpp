@@ -1090,7 +1090,7 @@ void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& f
     }
 }
 
-CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_named_evaluation_if_anonymous_function(Expression const& expression, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst)
+CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymous_function(Expression const& expression, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst)
 {
     if (is<FunctionExpression>(expression)) {
         auto const& function_expression = static_cast<FunctionExpression const&>(expression);
@@ -1106,7 +1106,7 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_named_evaluation_
         }
     }
 
-    return expression.generate_bytecode(*this, preferred_dst);
+    return TRY(expression.generate_bytecode(*this, preferred_dst)).value();
 }
 
 void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier)
