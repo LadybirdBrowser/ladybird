@@ -100,10 +100,26 @@ ErrorOr<void> TransportSocketWindows::duplicate_handles(Bytes bytes, Vector<size
     return {};
 }
 
-ErrorOr<void> TransportSocketWindows::transfer(Bytes bytes_to_write, Vector<size_t> const& handle_offsets)
-{
-    TRY(duplicate_handles(bytes_to_write, handle_offsets));
+struct MessageHeader {
+    u32 size { 0 };
+};
 
+ErrorOr<void> TransportSocketWindows::transfer_message(ReadonlyBytes bytes, Vector<size_t> const& handle_offsets)
+{
+    Vector<u8> message_buffer;
+    message_buffer.resize(sizeof(MessageHeader) + bytes.size());
+    MessageHeader header;
+    header.size = bytes.size();
+    memcpy(message_buffer.data(), &header, sizeof(MessageHeader));
+    memcpy(message_buffer.data() + sizeof(MessageHeader), bytes.data(), bytes.size());
+
+    TRY(duplicate_handles({ message_buffer.data() + sizeof(MessageHeader), bytes.size() }, handle_offsets));
+
+    return transfer(message_buffer.span());
+}
+
+ErrorOr<void> TransportSocketWindows::transfer(ReadonlyBytes bytes_to_write)
+{
     while (!bytes_to_write.is_empty()) {
 
         ErrorOr<size_t> maybe_nwritten = m_socket->write_some(bytes_to_write);
@@ -132,9 +148,9 @@ ErrorOr<void> TransportSocketWindows::transfer(Bytes bytes_to_write, Vector<size
     return {};
 }
 
-TransportSocketWindows::ReadResult TransportSocketWindows::read_as_much_as_possible_without_blocking(Function<void()> schedule_shutdown)
+TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
 {
-    ReadResult result;
+    auto should_shutdown = ShouldShutdown::No;
 
     while (is_open()) {
 
@@ -146,7 +162,7 @@ TransportSocketWindows::ReadResult TransportSocketWindows::read_as_much_as_possi
             if (error.code() == EWOULDBLOCK)
                 break;
             if (error.code() == ECONNRESET) {
-                schedule_shutdown();
+                should_shutdown = ShouldShutdown::Yes;
                 break;
             }
             VERIFY_NOT_REACHED();
@@ -154,14 +170,33 @@ TransportSocketWindows::ReadResult TransportSocketWindows::read_as_much_as_possi
 
         auto bytes_read = maybe_bytes_read.release_value();
         if (bytes_read.is_empty()) {
-            schedule_shutdown();
+            should_shutdown = ShouldShutdown::Yes;
             break;
         }
 
-        result.bytes.append(bytes_read.data(), bytes_read.size());
+        m_unprocessed_bytes.append(bytes_read.data(), bytes_read.size());
     }
 
-    return result;
+    size_t index = 0;
+    while (index + sizeof(MessageHeader) <= m_unprocessed_bytes.size()) {
+        MessageHeader header;
+        memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
+        if (header.size + sizeof(MessageHeader) > m_unprocessed_bytes.size() - index)
+            break;
+        Message message;
+        message.bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.size);
+        callback(move(message));
+        index += header.size + sizeof(MessageHeader);
+    }
+
+    if (index < m_unprocessed_bytes.size()) {
+        auto remaining_bytes = MUST(ByteBuffer::copy(m_unprocessed_bytes.span().slice(index)));
+        m_unprocessed_bytes = move(remaining_bytes);
+    } else {
+        m_unprocessed_bytes.clear();
+    }
+
+    return should_shutdown;
 }
 
 ErrorOr<int> TransportSocketWindows::release_underlying_transport_for_transfer()
