@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
+#include <LibIPC/AutoCloseFileDescriptor.h>
 #include <LibIPC/File.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/MutexProtected.h>
@@ -17,24 +18,6 @@
 #include <LibThreading/Thread.h>
 
 namespace IPC {
-
-class AutoCloseFileDescriptor : public RefCounted<AutoCloseFileDescriptor> {
-public:
-    AutoCloseFileDescriptor(int fd);
-    ~AutoCloseFileDescriptor();
-
-    int value() const { return m_fd; }
-
-    int take_fd()
-    {
-        int fd = m_fd;
-        m_fd = -1;
-        return fd;
-    }
-
-private:
-    int m_fd;
-};
 
 class SendQueue : public AtomicRefCounted<SendQueue> {
 public:
