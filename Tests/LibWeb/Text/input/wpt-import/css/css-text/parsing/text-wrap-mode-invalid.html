@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Module Test: parsing text-wrap-mode with invalid values</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#text-wrap-mode">
+<meta name="assert" content="text-wrap-mode supports only the grammar '<text-wrap-mode>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("text-wrap-mode", "auto");
+test_invalid_value("text-wrap-mode", "normal");
+test_invalid_value("text-wrap-mode", "none");
+test_invalid_value("text-wrap-mode", "balance");
+test_invalid_value("text-wrap-mode", "pretty");
+test_invalid_value("text-wrap-mode", "stable");
+test_invalid_value("text-wrap-mode", "wrap stable");
+test_invalid_value("text-wrap-mode", "nowrap stable");
+test_invalid_value("text-wrap-mode", "wrap auto");
+test_invalid_value("text-wrap-mode", "balance balance");
+test_invalid_value("text-wrap-mode", "pretty pretty");
+test_invalid_value("text-wrap-mode", "stable stable");
+test_invalid_value("text-wrap-mode", "wrap nowrap");
+test_invalid_value("text-wrap-mode", "pretty balance");
+test_invalid_value("text-wrap-mode", "balance stable");
+test_invalid_value("text-wrap-mode", "stable pretty");
+test_invalid_value("text-wrap-mode", "delicious wrap");
+test_invalid_value("text-wrap-mode", "5px");
+</script>
+</body>
+</html>

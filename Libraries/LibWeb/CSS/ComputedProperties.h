@@ -111,6 +111,7 @@ public:
     TextDecorationStyle text_decoration_style() const;
     TextTransform text_transform() const;
     Vector<ShadowData> text_shadow(Layout::Node const&) const;
+    TextWrapMode text_wrap_mode() const;
     ListStyleType list_style_type() const;
     ListStylePosition list_style_position() const;
     FlexDirection flex_direction() const;

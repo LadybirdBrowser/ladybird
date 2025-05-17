@@ -2937,6 +2937,14 @@
       "text-transform"
     ]
   },
+  "text-wrap-mode": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "wrap",
+    "valid-types": [
+      "text-wrap-mode"
+    ]
+  },
   "top": {
     "animation-type": "by-computed-value",
     "inherited": false,

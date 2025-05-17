@@ -640,6 +640,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     if (auto text_indent = computed_style.length_percentage(CSS::PropertyID::TextIndent); text_indent.has_value())
         computed_values.set_text_indent(text_indent.release_value());
 
+    computed_values.set_text_wrap_mode(computed_style.text_wrap_mode());
     computed_values.set_tab_size(computed_style.tab_size());
 
     computed_values.set_white_space(computed_style.white_space());
