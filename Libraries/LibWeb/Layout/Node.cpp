@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -956,6 +957,17 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_contain(computed_style.contain());
 
     computed_values.set_caret_color(computed_style.caret_color(*this));
+
+    auto const& maybe_content = computed_style.property(CSS::PropertyID::Content);
+    if (maybe_content.is_content()) {
+        auto& content_style_value = maybe_content.as_content();
+        for (auto const& item : content_style_value.content().values()) {
+            if (item->is_abstract_image()) {
+                computed_values.set_content_image(item->as_abstract_image());
+                const_cast<CSS::AbstractImageStyleValue&>(item->as_abstract_image()).load_any_resources(document());
+            }
+        }
+    }
 
     propagate_style_to_anonymous_wrappers();
 
