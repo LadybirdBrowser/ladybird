@@ -115,6 +115,7 @@ public:
     static CSS::TextTransform text_transform() { return CSS::TextTransform::None; }
     static CSS::TextOverflow text_overflow() { return CSS::TextOverflow::Clip; }
     static CSS::LengthPercentage text_indent() { return CSS::Length::make_px(0); }
+    static CSS::TextWrapMode text_wrap_mode() { return CSS::TextWrapMode::Wrap; }
     static CSS::Display display() { return CSS::Display { CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow }; }
     static Color color() { return Color::Black; }
     static Color stop_color() { return Color::Black; }
@@ -415,6 +416,7 @@ public:
     CSS::TextAlign text_align() const { return m_inherited.text_align; }
     CSS::TextJustify text_justify() const { return m_inherited.text_justify; }
     CSS::LengthPercentage const& text_indent() const { return m_inherited.text_indent; }
+    CSS::TextWrapMode text_wrap_mode() const { return m_inherited.text_wrap_mode; }
     Vector<CSS::TextDecorationLine> const& text_decoration_line() const { return m_noninherited.text_decoration_line; }
     CSS::LengthPercentage const& text_decoration_thickness() const { return m_noninherited.text_decoration_thickness; }
     CSS::TextDecorationStyle text_decoration_style() const { return m_noninherited.text_decoration_style; }
@@ -617,6 +619,7 @@ protected:
         CSS::TextJustify text_justify { InitialValues::text_justify() };
         CSS::TextTransform text_transform { InitialValues::text_transform() };
         CSS::LengthPercentage text_indent { InitialValues::text_indent() };
+        CSS::TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
         CSS::WhiteSpace white_space { InitialValues::white_space() };
         CSS::WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
         CSS::WordBreak word_break { InitialValues::word_break() };
@@ -818,6 +821,7 @@ public:
     void set_text_transform(CSS::TextTransform value) { m_inherited.text_transform = value; }
     void set_text_shadow(Vector<ShadowData>&& value) { m_inherited.text_shadow = move(value); }
     void set_text_indent(CSS::LengthPercentage value) { m_inherited.text_indent = move(value); }
+    void set_text_wrap_mode(CSS::TextWrapMode value) { m_inherited.text_wrap_mode = value; }
     void set_text_overflow(CSS::TextOverflow value) { m_noninherited.text_overflow = value; }
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }

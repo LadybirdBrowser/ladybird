@@ -1180,6 +1180,12 @@ Vector<ShadowData> ComputedProperties::text_shadow(Layout::Node const& layout_no
     return shadow(PropertyID::TextShadow, layout_node);
 }
 
+TextWrapMode ComputedProperties::text_wrap_mode() const
+{
+    auto const& value = property(PropertyID::TextWrapMode);
+    return keyword_to_text_wrap_mode(value.to_keyword()).release_value();
+}
+
 BoxSizing ComputedProperties::box_sizing() const
 {
     auto const& value = property(PropertyID::BoxSizing);
