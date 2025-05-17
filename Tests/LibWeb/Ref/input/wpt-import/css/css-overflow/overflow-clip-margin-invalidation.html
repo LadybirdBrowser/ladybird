@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+<title>CSS Overflow: overflow-clip-margin: invalidation on change</title>
+<link rel="help" href="https://www.w3.org/TR/css-overflow-3/#propdef-overflow-clip-margin">
+<meta name="assert" content="overflow-clip-margin: toggling should invalidate.">
+<link rel="author" title="Scott Violet" href="mailto:sky@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-overflow/overflow-clip-margin-invalidation-ref.html">
+<style>
+  .container {
+      display: flex;
+  }
+  .parent {
+      flex: none;
+      width: 100px;
+      height: 100px;
+      flex: none;
+      overflow: clip;
+  }
+  .child {
+      width: 200px;
+      height: 200px;
+      position: relative;
+      top: -50px;
+      left: -50px;
+      background-color: green;
+  }
+  .spacer {
+      flex: none;
+      height: 100px;
+      width: 100px;
+  }
+  .margin {
+    overflow-clip-margin: 10px;
+  }
+</style>
+<script src="../../common/reftest-wait.js"></script>
+<script src="../../common/rendering-utils.js"></script>
+</head>
+<body>
+<div class="spacer"></div>
+<div class="container">
+  <div class="spacer"></div>
+  <div id="div_with_margin" class="parent margin">
+    <div class="child"></div>
+  </div>
+<div class="spacer"></div>
+<div class="container">
+  <div class="spacer"></div>
+  <div id="div_without_margin" class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+<script>
+async function runTest() {
+  document.getElementById('div_with_margin').classList.remove("margin");
+  document.getElementById('div_without_margin').classList.add("margin");
+  takeScreenshot();
+}
+onload = () => {
+  waitForAtLeastOneFrame().then(() => { runTest() });
+}
+</script>
+</html>

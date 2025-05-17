@@ -2409,6 +2409,101 @@
       "overflow"
     ]
   },
+  "overflow-clip-margin": {
+    "inherited": false,
+    "initial": "0px",
+    "longhands": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-block": {
+    "initial": "0px",
+    "logical-alias-for": [
+      "overflow-clip-margin"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-block-end": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-block-start": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-bottom": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-inline": {
+    "initial": "0px",
+    "logical-alias-for": [
+      "overflow-clip-margin"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-inline-end": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-inline-start": {
+    "logical-alias-for": [
+      "overflow-clip-margin-top",
+      "overflow-clip-margin-right",
+      "overflow-clip-margin-bottom",
+      "overflow-clip-margin-left"
+    ]
+  },
+  "overflow-clip-margin-left": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-right": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "overflow-clip-margin-top": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0px",
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
   "overflow-x": {
     "animation-type": "discrete",
     "inherited": false,

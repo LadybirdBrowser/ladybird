@@ -553,6 +553,13 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID pro
             auto left = get_property_internal(PropertyID::PaddingLeft);
             return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
         }
+        case PropertyID::OverflowClipMargin: {
+            auto top = get_property_internal(PropertyID::OverflowClipMarginTop);
+            auto right = get_property_internal(PropertyID::OverflowClipMarginRight);
+            auto bottom = get_property_internal(PropertyID::OverflowClipMarginBottom);
+            auto left = get_property_internal(PropertyID::OverflowClipMarginLeft);
+            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
+        }
         default:
             break;
         }
