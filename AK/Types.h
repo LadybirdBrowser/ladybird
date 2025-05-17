@@ -86,12 +86,6 @@ template<>
 struct __MakeSigned<char> {
     using Type = char;
 };
-#if ARCH(AARCH64)
-template<>
-struct __MakeSigned<wchar_t> {
-    using Type = void;
-};
-#endif
 
 template<typename T>
 using MakeSigned = typename __MakeSigned<T>::Type;
