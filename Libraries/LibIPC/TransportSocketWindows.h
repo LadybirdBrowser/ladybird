@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Queue.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/File.h>
 
@@ -26,13 +27,17 @@ public:
 
     void wait_until_readable();
 
-    ErrorOr<void> transfer(Bytes, Vector<size_t> const& handle_offsets);
+    ErrorOr<void> transfer_message(ReadonlyBytes, Vector<size_t> const& handle_offsets);
 
-    struct [[nodiscard]] ReadResult {
-        Vector<u8> bytes;
-        Vector<int> fds; // always empty, present to avoid OS #ifdefs in Connection.cpp
+    enum class ShouldShutdown {
+        No,
+        Yes,
     };
-    ReadResult read_as_much_as_possible_without_blocking(Function<void()> schedule_shutdown);
+    struct Message {
+        Vector<u8> bytes;
+        Queue<File> fds; // always empty, present to avoid OS #ifdefs in Connection.cpp
+    };
+    ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
     // Obnoxious name to make it clear that this is a dangerous operation.
     ErrorOr<int> release_underlying_transport_for_transfer();
@@ -41,9 +46,11 @@ public:
 
 private:
     ErrorOr<void> duplicate_handles(Bytes, Vector<size_t> const& handle_offsets);
+    ErrorOr<void> transfer(ReadonlyBytes);
 
 private:
     NonnullOwnPtr<Core::LocalSocket> m_socket;
+    ByteBuffer m_unprocessed_bytes;
     int m_peer_pid = -1;
 };
 
