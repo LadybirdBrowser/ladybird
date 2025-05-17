@@ -57,6 +57,7 @@ bool is_an_assigned_slottable(GC::Ref<Node>);
 
 GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const&, OpenFlag = OpenFlag::Unset);
 Vector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement>);
+Vector<Slottable> find_flattened_slottables(GC::Ref<HTML::HTMLSlotElement>);
 void assign_slottables(GC::Ref<HTML::HTMLSlotElement>);
 void assign_slottables_for_a_tree(GC::Ref<Node>);
 void assign_a_slot(Slottable const&);

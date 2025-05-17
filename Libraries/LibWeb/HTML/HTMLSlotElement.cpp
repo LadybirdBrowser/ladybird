@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -54,8 +55,17 @@ Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesOptions
         return assigned_nodes;
     }
 
-    // FIXME: 2. Return the result of finding flattened slottables with this.
-    return {};
+    // 2. Return the result of finding flattened slottables with this.
+    // FIXME: Make this a lot less awkward!
+    auto nodes = DOM::find_flattened_slottables(const_cast<HTMLSlotElement&>(*this));
+    Vector<GC::Root<DOM::Node>> assigned_nodes;
+    assigned_nodes.ensure_capacity(nodes.size());
+    for (auto const& node : nodes) {
+        node.visit([&](auto const& slottable) {
+            assigned_nodes.unchecked_append(*slottable);
+        });
+    }
+    return assigned_nodes;
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignedelements
@@ -73,8 +83,14 @@ Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(AssignedNodesO
         return assigned_nodes;
     }
 
-    // FIXME: 2. Return the result of finding flattened slottables with this, filtered to contain only Element nodes.
-    return {};
+    // 2. Return the result of finding flattened slottables with this, filtered to contain only Element nodes.
+    auto result = DOM::find_flattened_slottables(const_cast<HTMLSlotElement&>(*this));
+    Vector<GC::Root<DOM::Element>> assigned_nodes;
+    for (auto const& node : result) {
+        if (auto const* element = node.get_pointer<GC::Ref<DOM::Element>>())
+            assigned_nodes.append(*element);
+    }
+    return assigned_nodes;
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assign
