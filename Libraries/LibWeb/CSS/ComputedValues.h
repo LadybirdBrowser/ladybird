@@ -334,6 +334,12 @@ struct TouchActionData {
     }
 };
 
+struct WhiteSpaceTrimData {
+    bool discard_before : 1 { false };
+    bool discard_after : 1 { false };
+    bool discard_inner : 1 { false };
+};
+
 struct TransformOrigin {
     CSS::LengthPercentage x { Percentage(50) };
     CSS::LengthPercentage y { Percentage(50) };
@@ -427,6 +433,7 @@ public:
     CSS::Positioning position() const { return m_noninherited.position; }
     CSS::WhiteSpace white_space() const { return m_inherited.white_space; }
     CSS::WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
+    WhiteSpaceTrimData white_space_trim() const { return m_noninherited.white_space_trim; }
     CSS::LengthOrCalculated word_spacing() const { return m_inherited.word_spacing; }
     LengthOrCalculated letter_spacing() const { return m_inherited.letter_spacing; }
     CSS::FlexDirection flex_direction() const { return m_noninherited.flex_direction; }
@@ -742,6 +749,7 @@ protected:
         CSS::Isolation isolation { InitialValues::isolation() };
         CSS::Containment contain { InitialValues::contain() };
         CSS::MixBlendMode mix_blend_mode { InitialValues::mix_blend_mode() };
+        WhiteSpaceTrimData white_space_trim;
         Optional<FlyString> view_transition_name;
         TouchActionData touch_action;
 
@@ -827,6 +835,7 @@ public:
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
     void set_white_space(CSS::WhiteSpace value) { m_inherited.white_space = value; }
     void set_white_space_collapse(CSS::WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
+    void set_white_space_trim(WhiteSpaceTrimData value) { m_noninherited.white_space_trim = value; }
     void set_word_spacing(CSS::LengthOrCalculated value) { m_inherited.word_spacing = move(value); }
     void set_word_break(CSS::WordBreak value) { m_inherited.word_break = value; }
     void set_letter_spacing(CSS::LengthOrCalculated value) { m_inherited.letter_spacing = value; }

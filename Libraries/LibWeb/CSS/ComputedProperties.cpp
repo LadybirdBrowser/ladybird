@@ -836,6 +836,38 @@ WhiteSpaceCollapse ComputedProperties::white_space_collapse() const
     return keyword_to_white_space_collapse(value.to_keyword()).release_value();
 }
 
+WhiteSpaceTrimData ComputedProperties::white_space_trim() const
+{
+    auto const& value = property(PropertyID::WhiteSpaceTrim);
+
+    if (value.is_keyword() && value.to_keyword() == Keyword::None)
+        return WhiteSpaceTrimData {};
+
+    if (value.is_value_list()) {
+        auto white_space_trim_data = WhiteSpaceTrimData {};
+
+        for (auto const& value : value.as_value_list().values()) {
+            switch (value->as_keyword().keyword()) {
+            case Keyword::DiscardBefore:
+                white_space_trim_data.discard_before = true;
+                break;
+            case Keyword::DiscardAfter:
+                white_space_trim_data.discard_after = true;
+                break;
+            case Keyword::DiscardInner:
+                white_space_trim_data.discard_inner = true;
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }
+
+        return white_space_trim_data;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 Optional<LengthOrCalculated> ComputedProperties::letter_spacing() const
 {
     auto const& value = property(PropertyID::LetterSpacing);

@@ -650,6 +650,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'white-space': 'normal'
 'whiteSpaceCollapse': 'collapse'
 'white-space-collapse': 'collapse'
+'whiteSpaceTrim': 'none'
+'white-space-trim': 'none'
 'width': '284px'
 'wordBreak': 'normal'
 'word-break': 'normal'

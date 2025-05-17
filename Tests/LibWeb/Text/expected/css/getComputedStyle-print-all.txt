@@ -231,6 +231,7 @@ unicode-bidi: normal
 user-select: auto
 vertical-align: baseline
 view-transition-name: none
+white-space-trim: none
 width: 784px
 x: 0px
 y: 0px

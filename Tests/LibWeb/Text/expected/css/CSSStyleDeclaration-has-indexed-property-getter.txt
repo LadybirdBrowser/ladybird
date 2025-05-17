@@ -233,10 +233,11 @@ All properties associated with getComputedStyle(document.body):
     "230": "user-select",
     "231": "vertical-align",
     "232": "view-transition-name",
-    "233": "width",
-    "234": "x",
-    "235": "y",
-    "236": "z-index"
+    "233": "white-space-trim",
+    "234": "width",
+    "235": "x",
+    "236": "y",
+    "237": "z-index"
 }
 All properties associated with document.body.style by default:
 {}
