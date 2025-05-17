@@ -290,3 +290,6 @@ else()
 endif()
 
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
+
+include(GenerateExportHeader)
+generate_export_header(LibJS EXPORT_MACRO_NAME JS_API EXPORT_FILE_NAME "Export.h")

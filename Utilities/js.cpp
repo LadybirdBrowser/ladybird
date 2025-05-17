@@ -2,12 +2,14 @@
  * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2020-2022, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2025, Ryszard Goc <ryszardgoc@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/JsonValue.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Platform.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ConfigFile.h>
@@ -26,10 +28,13 @@
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/SourceTextModule.h>
-#include <LibLine/Editor.h>
 #include <LibMain/Main.h>
 #include <LibTextCodec/Decoder.h>
 #include <signal.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <LibLine/Editor.h>
+#endif
 
 // FIXME: https://github.com/LadybirdBrowser/ladybird/issues/2412
 //    We should be able to destroy the VM on process exit.
@@ -81,9 +86,11 @@ static bool s_as_module = false;
 static bool s_print_last_result = false;
 static bool s_strip_ansi = false;
 static bool s_disable_source_location_hints = false;
+#if !defined(AK_OS_WINDOWS)
 static RefPtr<Line::Editor> s_editor;
+#endif
 static String s_history_path = String {};
-static int s_repl_line_level = 0;
+[[maybe_unused]] static int s_repl_line_level = 0;
 static bool s_keep_running_repl = true;
 static int s_exit_code = 0;
 
@@ -105,7 +112,7 @@ static ErrorOr<void> print(JS::Value value, PrintTarget target = PrintTarget::St
 }
 
 static size_t s_ctrl_c_hit_count = 0;
-static ErrorOr<String> prompt_for_level(int level)
+[[maybe_unused]] static ErrorOr<String> prompt_for_level(int level)
 {
     static StringBuilder prompt_builder;
     prompt_builder.clear();
@@ -119,6 +126,7 @@ static ErrorOr<String> prompt_for_level(int level)
     return prompt_builder.to_string();
 }
 
+#if !defined(AK_OS_WINDOWS)
 static ErrorOr<String> read_next_piece()
 {
     StringBuilder piece;
@@ -191,6 +199,7 @@ static ErrorOr<String> read_next_piece()
 
     return piece.to_string();
 }
+#endif
 
 static ErrorOr<void> write_to_file(String const& path)
 {
@@ -437,6 +446,7 @@ JS_DEFINE_NATIVE_FUNCTION(ScriptObject::print)
     return JS::js_undefined();
 }
 
+#if !defined(AK_OS_WINDOWS)
 static ErrorOr<void> repl(JS::Realm& realm)
 {
     while (s_keep_running_repl) {
@@ -449,6 +459,7 @@ static ErrorOr<void> repl(JS::Realm& realm)
     }
     return {};
 }
+#endif
 
 class ReplConsoleClient final : public JS::ConsoleClient {
     GC_CELL(ReplConsoleClient, JS::ConsoleClient);
@@ -553,7 +564,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_positional_argument(script_paths, "Path to script files", "scripts", Core::ArgsParser::Required::No);
     args_parser.parse(arguments);
 
-    bool syntax_highlight = !disable_syntax_highlight;
+    [[maybe_unused]] bool syntax_highlight = !disable_syntax_highlight;
 
     AK::set_debug_enabled(!disable_debug_printing);
     s_history_path = TRY(String::formatted("{}/.js-history", Core::StandardPaths::home_directory()));
@@ -584,6 +595,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     // FIXME: Figure out some way to interrupt the interpreter now that vm.exception() is gone.
 
     if (evaluate_script.is_empty() && script_paths.is_empty()) {
+#if defined(AK_OS_WINDOWS)
+        dbgln("REPL functionality is not supported on Windows");
+        VERIFY_NOT_REACHED();
+#else
+
         s_print_last_result = true;
 
         auto root_execution_context = JS::create_simple_execution_context<ReplObject>(*g_vm);
@@ -810,6 +826,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         s_editor->on_tab_complete = move(complete);
         TRY(repl(realm));
         s_editor->save_history(s_history_path.to_byte_string());
+#endif
     } else {
         OwnPtr<JS::ExecutionContext> root_execution_context;
         if (use_test262_global)
