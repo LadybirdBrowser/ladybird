@@ -22,7 +22,7 @@ class PageHost {
 
 public:
     static NonnullOwnPtr<PageHost> create(ConnectionFromClient& client) { return adopt_own(*new PageHost(client)); }
-    virtual ~PageHost();
+    ~PageHost();
 
     Optional<PageClient&> page(u64 index);
     PageClient& create_page();

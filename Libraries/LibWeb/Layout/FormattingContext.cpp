@@ -171,7 +171,7 @@ Optional<FormattingContext::Type> FormattingContext::formatting_context_type_cre
 }
 
 // FIXME: This is a hack. Get rid of it.
-struct ReplacedFormattingContext : public FormattingContext {
+struct ReplacedFormattingContext final : public FormattingContext {
     ReplacedFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& box)
         : FormattingContext(Type::InternalReplaced, layout_mode, state, box)
     {
@@ -182,7 +182,7 @@ struct ReplacedFormattingContext : public FormattingContext {
 };
 
 // FIXME: This is a hack. Get rid of it.
-struct DummyFormattingContext : public FormattingContext {
+struct DummyFormattingContext final : public FormattingContext {
     DummyFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& box)
         : FormattingContext(Type::InternalDummy, layout_mode, state, box)
     {

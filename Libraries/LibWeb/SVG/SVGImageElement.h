@@ -13,7 +13,7 @@
 
 namespace Web::SVG {
 
-class SVGImageElement
+class SVGImageElement final
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
     , public Layout::ImageProvider {

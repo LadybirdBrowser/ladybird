@@ -193,7 +193,7 @@ public:
     ByteCode(Base&&) = delete;
     ByteCode(Base const&) = delete;
 
-    virtual ~ByteCode() = default;
+    ~ByteCode() = default;
 
     ByteCode& operator=(ByteCode const&) = default;
     ByteCode& operator=(ByteCode&&) = default;
@@ -864,7 +864,7 @@ private:
     ALWAYS_INLINE static void compare_script_extension(MatchInput const& input, MatchState& state, Unicode::Script script, bool inverse, bool& inverse_matched);
 };
 
-class OpCode_Repeat : public OpCode {
+class OpCode_Repeat final : public OpCode {
 public:
     ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
     ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::Repeat; }
@@ -885,7 +885,7 @@ public:
     }
 };
 
-class OpCode_ResetRepeat : public OpCode {
+class OpCode_ResetRepeat final : public OpCode {
 public:
     ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
     ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::ResetRepeat; }
