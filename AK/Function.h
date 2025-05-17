@@ -205,7 +205,6 @@ private:
         virtual ~CallableWrapperBase() = default;
         // Note: This is not const to allow storing mutable lambdas.
         virtual Out call(In...) = 0;
-        virtual void destroy() = 0;
         virtual void init_and_swap(u8*, size_t) = 0;
         virtual void const* raw_callable() const = 0;
     };
@@ -226,16 +225,13 @@ private:
             return m_callable(forward<In>(in)...);
         }
 
-        void destroy() final override
+        virtual ~CallableWrapper() final override
         {
             if constexpr (IsBlockClosure<CallableType>) {
                 if constexpr (Detail::HaveObjcArc)
                     m_callable = nullptr;
                 else
                     _Block_release(m_callable);
-            } else {
-                // This code is a bit too clever for gcc. Pinky promise we're only deleting heap objects.
-                AK_IGNORE_DIAGNOSTIC("-Wfree-nonheap-object", delete this);
             }
         }
 
@@ -298,12 +294,10 @@ private:
             break;
         case FunctionKind::Outline:
             VERIFY(wrapper);
-            // This code is a bit too clever for gcc. Pinky promise we're only deleting heap objects.
-            AK_IGNORE_DIAGNOSTIC("-Wfree-nonheap-object", wrapper->destroy());
+            delete wrapper;
             break;
         case FunctionKind::Block:
             VERIFY(wrapper);
-            wrapper->destroy();
             wrapper->~CallableWrapperBase();
             break;
         case FunctionKind::NullPointer:
