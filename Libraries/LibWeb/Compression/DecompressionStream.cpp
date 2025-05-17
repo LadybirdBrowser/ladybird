@@ -149,9 +149,13 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_flush_and_enqueue()
     auto& realm = this->realm();
 
     // 1. Let buffer be the result of decompressing an empty input with ds's format and context, with the finish flag.
-    auto maybe_buffer = m_decompressor.visit([&](auto const& decompressor) -> ErrorOr<ByteBuffer> {
-        return TRY(decompressor->read_until_eof());
-    });
+    auto maybe_buffer = [&]() -> ErrorOr<ByteBuffer> {
+        auto decompressed = TRY(ByteBuffer::create_uninitialized(4096));
+        auto size = TRY(m_decompressor.visit([&](auto const& decompressor) -> ErrorOr<size_t> {
+            return TRY(decompressor->read_some(decompressed.bytes())).size();
+        }));
+        return decompressed.slice(0, size);
+    }();
     if (maybe_buffer.is_error())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress flush: {}", maybe_buffer.error())) };
 
