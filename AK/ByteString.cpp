@@ -137,10 +137,9 @@ Vector<StringView> ByteString::split_view(char const separator, SplitBehavior sp
     return split_view([separator](char ch) { return ch == separator; }, split_behavior);
 }
 
-ByteBuffer ByteString::to_byte_buffer() const
+ErrorOr<ByteBuffer> ByteString::to_byte_buffer() const
 {
-    // FIXME: Handle OOM failure.
-    return ByteBuffer::copy(bytes()).release_value_but_fixme_should_propagate_errors();
+    return ByteBuffer::copy(bytes());
 }
 
 bool ByteString::starts_with(StringView str, CaseSensitivity case_sensitivity) const

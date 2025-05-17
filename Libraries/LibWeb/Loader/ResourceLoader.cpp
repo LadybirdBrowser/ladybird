@@ -271,7 +271,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         }
 
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(m_heap, [success_callback, response_headers = move(response_headers), fixme_implement_timing_info = move(fixme_implement_timing_info)] {
-            success_callback->function()(ByteString::empty().to_byte_buffer(), fixme_implement_timing_info, response_headers, {}, {});
+            success_callback->function()(MUST(ByteString::empty().to_byte_buffer()), fixme_implement_timing_info, response_headers, {}, {});
         }));
         return;
     }
