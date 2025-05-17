@@ -112,6 +112,29 @@ struct SECPxxxr1Signature {
         return SECPxxxr1Signature { r_big_int, s_big_int, scalar_size };
     }
 
+    static ErrorOr<SECPxxxr1Signature> from_raw(Span<int const> curve_oid, ReadonlyBytes signature)
+    {
+        size_t scalar_size;
+        if (curve_oid == ASN1::secp256r1_oid) {
+            scalar_size = ceil_div(256, 8);
+        } else if (curve_oid == ASN1::secp384r1_oid) {
+            scalar_size = ceil_div(384, 8);
+        } else if (curve_oid == ASN1::secp521r1_oid) {
+            scalar_size = ceil_div(521, 8);
+        } else {
+            return Error::from_string_literal("Unknown SECPxxxr1 curve");
+        }
+
+        if (signature.size() != scalar_size * 2)
+            return Error::from_string_literal("Invalid SECPxxxr1 signature");
+
+        return SECPxxxr1Signature {
+            UnsignedBigInteger::import_data(signature.slice(0, scalar_size)),
+            UnsignedBigInteger::import_data(signature.slice(scalar_size, scalar_size)),
+            scalar_size,
+        };
+    }
+
     ErrorOr<ByteBuffer> r_bytes() const
     {
         return SECPxxxr1Point::scalar_to_bytes(r, size);
