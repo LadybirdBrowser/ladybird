@@ -617,6 +617,10 @@
     "none",
     "uppercase"
   ],
+  "text-wrap-mode": [
+    "wrap",
+    "nowrap"
+  ],
   "touch-action": [
     "auto",
     "manipulation",

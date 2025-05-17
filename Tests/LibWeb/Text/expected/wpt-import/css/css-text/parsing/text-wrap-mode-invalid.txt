@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	e.style['text-wrap-mode'] = "auto" should not set the property value
+Pass	e.style['text-wrap-mode'] = "normal" should not set the property value
+Pass	e.style['text-wrap-mode'] = "none" should not set the property value
+Pass	e.style['text-wrap-mode'] = "balance" should not set the property value
+Pass	e.style['text-wrap-mode'] = "pretty" should not set the property value
+Pass	e.style['text-wrap-mode'] = "stable" should not set the property value
+Pass	e.style['text-wrap-mode'] = "wrap stable" should not set the property value
+Pass	e.style['text-wrap-mode'] = "nowrap stable" should not set the property value
+Pass	e.style['text-wrap-mode'] = "wrap auto" should not set the property value
+Pass	e.style['text-wrap-mode'] = "balance balance" should not set the property value
+Pass	e.style['text-wrap-mode'] = "pretty pretty" should not set the property value
+Pass	e.style['text-wrap-mode'] = "stable stable" should not set the property value
+Pass	e.style['text-wrap-mode'] = "wrap nowrap" should not set the property value
+Pass	e.style['text-wrap-mode'] = "pretty balance" should not set the property value
+Pass	e.style['text-wrap-mode'] = "balance stable" should not set the property value
+Pass	e.style['text-wrap-mode'] = "stable pretty" should not set the property value
+Pass	e.style['text-wrap-mode'] = "delicious wrap" should not set the property value
+Pass	e.style['text-wrap-mode'] = "5px" should not set the property value

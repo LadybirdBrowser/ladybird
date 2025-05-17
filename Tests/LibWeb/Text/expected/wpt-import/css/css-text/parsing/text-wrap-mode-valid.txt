@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['text-wrap-mode'] = "wrap" should set the property value
+Pass	e.style['text-wrap-mode'] = "nowrap" should set the property value
+Pass	e.style['text-wrap-mode'] = "initial" should set the property value
+Pass	e.style['text-wrap-mode'] = "inherit" should set the property value
+Pass	e.style['text-wrap-mode'] = "unset" should set the property value
+Pass	e.style['text-wrap-mode'] = "revert" should set the property value
+Pass	e.style['text-wrap-mode'] = "revert-layer" should set the property value

@@ -433,7 +433,7 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
                 // FIXME: text-spacing-trim
                 append_property("text-transform"sv);
                 // FIXME: text-wrap
-                // FIXME: text-wrap-mode
+                append_property("text-wrap-mode"sv);
                 // FIXME: text-wrap-style
                 append_property("white-space"sv);
                 append_property("white-space-collapse"sv);
