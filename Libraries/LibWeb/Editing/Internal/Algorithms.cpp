@@ -659,9 +659,8 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
 
     // 7. If the relevant CSS property for command is not null, unset that property of element.
     auto command_definition = find_command_definition(command);
-    // FIXME: remove command_definition.has_value() as soon as all commands are implemented.
-    if (command_definition.has_value() && command_definition.value().relevant_css_property.has_value()) {
-        auto property_to_remove = command_definition.value().relevant_css_property.value();
+    if (command_definition->relevant_css_property.has_value()) {
+        auto property_to_remove = command_definition->relevant_css_property.value();
         if (auto inline_style = element->inline_style())
             MUST(inline_style->remove_property(string_from_property_id(property_to_remove)));
     }
@@ -1254,11 +1253,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
     }
 
     // 8. Return the resolved value for node of the relevant CSS property for command.
-    auto optional_command_definition = find_command_definition(command);
-    // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
-    if (!optional_command_definition.has_value())
-        return {};
-    auto const& command_definition = optional_command_definition.release_value();
+    auto const& command_definition = find_command_definition(command).release_value();
     VERIFY(command_definition.relevant_css_property.has_value());
 
     auto optional_value = resolved_value(*node, command_definition.relevant_css_property.value());
@@ -1581,9 +1576,9 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     //     value would be valid).
     if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value)) {
         auto const& command_definition = find_command_definition(command);
-        if (command_definition.has_value() && command_definition.value().relevant_css_property.has_value()) {
+        if (command_definition->relevant_css_property.has_value()) {
             auto inline_style = new_parent->style_for_bindings();
-            MUST(inline_style->set_property(command_definition.value().relevant_css_property.value(), new_value.value()));
+            MUST(inline_style->set_property(command_definition->relevant_css_property.value(), new_value.value()));
         }
     }
 
@@ -3300,13 +3295,8 @@ Vector<RecordedOverride> record_current_states_and_values(DOM::Document const& d
     //    (command, true) to overrides, and otherwise add (command, false) to overrides.
     for (auto const& command : { CommandNames::bold, CommandNames::italic, CommandNames::strikethrough,
              CommandNames::subscript, CommandNames::superscript, CommandNames::underline }) {
-        auto command_definition = find_command_definition(command);
-        // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
-        if (!command_definition.has_value())
-            continue;
-
         effective_value = effective_command_value(node, command);
-        auto& inline_activated_values = command_definition.value().inline_activated_values;
+        auto& inline_activated_values = find_command_definition(command)->inline_activated_values;
         overrides.empend(command, effective_value.has_value() && inline_activated_values.contains_slow(*effective_value));
     }
 
@@ -3732,9 +3722,8 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
         // 1. If command has inline command activated values, set the state override to true if new value is among them
         //    and false if it's not.
         auto command_definition = find_command_definition(command);
-        // FIXME: remove .has_value() once all commands are implemented.
-        if (command_definition.has_value() && !command_definition.value().inline_activated_values.is_empty()) {
-            auto new_override = new_value.has_value() && command_definition.value().inline_activated_values.contains_slow(*new_value);
+        if (!command_definition->inline_activated_values.is_empty()) {
+            auto new_override = new_value.has_value() && command_definition->inline_activated_values.contains_slow(*new_value);
             document.set_command_state_override(command, new_override);
         }
 
@@ -3913,11 +3902,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         return "underline"_string;
 
     // 8. Let property be the relevant CSS property for command.
-    auto command_definition = find_command_definition(command);
-    // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
-    if (!command_definition.has_value())
-        return {};
-    auto property = command_definition.value().relevant_css_property;
+    auto property = find_command_definition(command)->relevant_css_property;
 
     // 9. If property is null, return null.
     if (!property.has_value())
@@ -4760,9 +4745,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::No
 void take_the_action_for_command(DOM::Document& document, FlyString const& command, String const& value)
 {
     auto const& command_definition = find_command_definition(command);
-    // FIXME: replace with VERIFY(command_definition.has_value()) as soon as all command definitions are in place.
-    if (command_definition.has_value())
-        command_definition->action(document, value);
+    command_definition->action(document, value);
 }
 
 bool value_contains_keyword(CSS::CSSStyleValue const& value, CSS::Keyword keyword)
