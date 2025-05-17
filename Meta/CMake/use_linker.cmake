@@ -18,6 +18,12 @@ if (NOT APPLE AND NOT ANDROID AND NOT WIN32 AND NOT LAGOM_USE_LINKER)
     endif()
 endif()
 
+if(WIN32 AND NOT LAGOM_USE_LINKER)
+    # We do not need to check for its presence.
+    # We know it is there with the installation of clang-cl which we require.
+    set(LAGOM_USE_LINKER "lld" CACHE STRING "" FORCE)
+endif()
+
 if (LAGOM_USE_LINKER)
     # FIXME: Move to only setting CMAKE_LINKER_TYPE once we drop support for CMake < 3.29
     if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.29)
