@@ -1220,6 +1220,65 @@ using OrderedHashMapForTrie = OrderedHashMap<K, V, KTraits>;
 
 void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives)
 {
+    // Assume we have N alternatives A0..AN, each with M basic blocks bb0..bbM, each with I instructions 0..I (denoted Ai.bbj[k])
+    // We can create the alternation is two ways:
+    // - Lay them out sequentially, such that A0 is tried, then A1, then A2, etc.
+    // - Generate a prefix tree for A*.bb*[*], and walk the tree at runtime.
+    // For the first case, assuming we have two A0.bb0[0..2] and A1.bb0[0..2]:
+    //   out.bb0:
+    //     ForkStay out.bb1
+    //     A0.bb0[*]
+    //     Jump out.bb2
+    //   out.bb1:
+    //     A1.bb0[*]
+    //   out.bb2:
+    //     <end>
+    // For the second case, assuming the following alternatives:
+    //   A0.bb0:
+    //     Compare 'a'
+    //     Compare 'b'
+    //     Compare 'd'
+    //  A1.bb0:
+    //     Compare 'a'
+    //     Compare 'c'
+    //     Compare 'd'
+    // We can first generate a prefix tree (trie here), with each node denoted by [insn, insn*]:
+    //  (root)
+    //  |- [A0.bb0[0], A1.bb0[0]]
+    //  |   |- [A0.bb0[1]]
+    //  |   |   |- [A0.bb0[2]]
+    //  |   |- [A1.bb0[1]]
+    //  |   |   |- [A1.bb0[2]]
+    // i.e. the first instruction of A0 and A1 are the same, so we can merge them into one node;
+    // everything following that is different (A1.bb0[2] is not considered equivalent to A0.bb0[2] as they are jumped-to by different instructions,
+    // in this case their previous instruction)
+    // Then, each trie node N { insn, children } can be represented as:
+    //   out for N:
+    //     N.insn[*]
+    //     ForkJump out for N.children[0]
+    //     ForkJump out for N.children[1]
+    //     ...
+    // or if there's a single child, we can directly jump to it:
+    //   out for N: // if N.children.size() == 1
+    //     N.insn[*]
+    //     Jump out for N.children[0]
+    // For our example, this would yield:
+    //   out for root:
+    //     Jump out for [A0.bb0[0], A1.bb0[0]]
+    //   out for [A0.bb0[0], A1.bb0[0]]:
+    //     Compare 'a'
+    //     ForkJump out for A0.bb0[1]
+    //     ForkJump out for A1.bb0[1]
+    //   out for A0.bb0[1]:
+    //     Compare 'b'
+    //     Jump out for A0.bb0[2]
+    //   out for A1.bb0[1]:
+    //     Compare 'c'
+    //     Jump out for A1.bb0[2]
+    //   out for A0.bb0[2]:
+    //     Compare 'd'
+    //   out for A1.bb0[2]:
+    //     Compare 'd'
     if (alternatives.size() == 0)
         return;
 
