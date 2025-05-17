@@ -3142,6 +3142,17 @@
       "white-space-collapse"
     ]
   },
+  "white-space-trim": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none",
+      "discard-before",
+      "discard-after",
+      "discard-inner"
+    ]
+  },
   "width": {
     "animation-type": "by-computed-value",
     "inherited": false,

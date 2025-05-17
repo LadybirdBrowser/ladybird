@@ -708,6 +708,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::WhiteSpaceTrim:
+        if (auto parsed_value = parse_white_space_trim_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     default:
         break;
     }
@@ -4759,6 +4763,60 @@ RefPtr<CSSStyleValue const> Parser::parse_contain_value(TokenStream<ComponentVal
     transaction.commit();
 
     return StyleValueList::create(move(containments), StyleValueList::Separator::Space);
+}
+
+// https://www.w3.org/TR/css-text-4/#white-space-trim
+RefPtr<CSSStyleValue const> Parser::parse_white_space_trim_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | discard-before || discard-after || discard-inner
+
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
+
+    auto transaction = tokens.begin_transaction();
+
+    RefPtr<CSSStyleValue const> discard_before;
+    RefPtr<CSSStyleValue const> discard_after;
+    RefPtr<CSSStyleValue const> discard_inner;
+
+    while (auto parsed_value = parse_css_value_for_property(PropertyID::WhiteSpaceTrim, tokens)) {
+        switch (parsed_value->as_keyword().keyword()) {
+        case Keyword::DiscardBefore:
+            if (discard_before)
+                return {};
+            discard_before = parsed_value;
+            break;
+        case Keyword::DiscardAfter:
+            if (discard_after)
+                return {};
+            discard_after = parsed_value;
+            break;
+        case Keyword::DiscardInner:
+            if (discard_inner)
+                return {};
+            discard_inner = parsed_value;
+            break;
+        default:
+            return {};
+        }
+
+        if (!tokens.has_next_token())
+            break;
+    }
+
+    StyleValueVector parsed_values;
+
+    // NOTE: The values are appended here rather than in the loop above to canonicalize their order.
+    if (discard_before)
+        parsed_values.append(discard_before.release_nonnull());
+    if (discard_after)
+        parsed_values.append(discard_after.release_nonnull());
+    if (discard_inner)
+        parsed_values.append(discard_inner.release_nonnull());
+
+    transaction.commit();
+
+    return StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
 }
 
 }
