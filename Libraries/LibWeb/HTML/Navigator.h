@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/MimeTypeArray.h>
 #include <LibWeb/HTML/NavigatorBeacon.h>
 #include <LibWeb/HTML/NavigatorConcurrentHardware.h>
@@ -55,6 +56,7 @@ public:
     [[nodiscard]] GC::Ref<Clipboard::Clipboard> clipboard();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
+    [[nodiscard]] GC::Ref<Geolocation::Geolocation> geolocation();
 
     Optional<FlyString> do_not_track() const;
 
@@ -94,6 +96,9 @@ private:
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
+
+    // https://w3c.github.io/geolocation/#navigator_interface
+    GC::Ptr<Geolocation::Geolocation> m_geolocation;
 };
 
 }

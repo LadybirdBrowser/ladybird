@@ -1,0 +1,9 @@
+// https://w3c.github.io/geolocation/#position_error_interface
+[Exposed=Window]
+interface GeolocationPositionError {
+    const unsigned short PERMISSION_DENIED = 1;
+    const unsigned short POSITION_UNAVAILABLE = 2;
+    const unsigned short TIMEOUT = 3;
+    readonly attribute unsigned short code;
+    readonly attribute DOMString message;
+};
