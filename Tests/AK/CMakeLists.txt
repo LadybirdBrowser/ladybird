@@ -54,7 +54,6 @@ set(AK_TEST_SOURCES
     TestOptional.cpp
     TestOptionParser.cpp
     TestOwnPtr.cpp
-    TestPrint.cpp
     TestQueue.cpp
     TestQuickSort.cpp
     TestRedBlackTree.cpp
