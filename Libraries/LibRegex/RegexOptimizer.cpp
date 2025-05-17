@@ -6,9 +6,11 @@
 
 #include <AK/Debug.h>
 #include <AK/Function.h>
+#include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <AK/RedBlackTree.h>
 #include <AK/Stack.h>
+#include <AK/TemporaryChange.h>
 #include <AK/Trie.h>
 #include <AK/Vector.h>
 #include <LibRegex/Regex.h>
@@ -44,20 +46,20 @@ void Regex<Parser>::run_optimization_passes()
 }
 
 struct StaticallyInterpretedCompares {
-    RedBlackTree<u32, u32> lhs_ranges;
-    RedBlackTree<u32, u32> lhs_negated_ranges;
-    HashTable<CharClass> lhs_char_classes;
-    HashTable<CharClass> lhs_negated_char_classes;
+    RedBlackTree<u32, u32> ranges;
+    RedBlackTree<u32, u32> negated_ranges;
+    HashTable<CharClass> char_classes;
+    HashTable<CharClass> negated_char_classes;
 
     bool has_any_unicode_property = false;
-    HashTable<Unicode::GeneralCategory> lhs_unicode_general_categories;
-    HashTable<Unicode::Property> lhs_unicode_properties;
-    HashTable<Unicode::Script> lhs_unicode_scripts;
-    HashTable<Unicode::Script> lhs_unicode_script_extensions;
-    HashTable<Unicode::GeneralCategory> lhs_negated_unicode_general_categories;
-    HashTable<Unicode::Property> lhs_negated_unicode_properties;
-    HashTable<Unicode::Script> lhs_negated_unicode_scripts;
-    HashTable<Unicode::Script> lhs_negated_unicode_script_extensions;
+    HashTable<Unicode::GeneralCategory> unicode_general_categories;
+    HashTable<Unicode::Property> unicode_properties;
+    HashTable<Unicode::Script> unicode_scripts;
+    HashTable<Unicode::Script> unicode_script_extensions;
+    HashTable<Unicode::GeneralCategory> negated_unicode_general_categories;
+    HashTable<Unicode::Property> negated_unicode_properties;
+    HashTable<Unicode::Script> negated_unicode_scripts;
+    HashTable<Unicode::Script> negated_unicode_script_extensions;
 };
 
 static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, StaticallyInterpretedCompares& compares)
@@ -68,19 +70,19 @@ static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, Stati
 
     auto current_lhs_inversion_state = [&]() -> bool { return temporary_inverse ^ inverse; };
 
-    auto& lhs_ranges = compares.lhs_ranges;
-    auto& lhs_negated_ranges = compares.lhs_negated_ranges;
-    auto& lhs_char_classes = compares.lhs_char_classes;
-    auto& lhs_negated_char_classes = compares.lhs_negated_char_classes;
+    auto& lhs_ranges = compares.ranges;
+    auto& lhs_negated_ranges = compares.negated_ranges;
+    auto& lhs_char_classes = compares.char_classes;
+    auto& lhs_negated_char_classes = compares.negated_char_classes;
     auto& has_any_unicode_property = compares.has_any_unicode_property;
-    auto& lhs_unicode_general_categories = compares.lhs_unicode_general_categories;
-    auto& lhs_unicode_properties = compares.lhs_unicode_properties;
-    auto& lhs_unicode_scripts = compares.lhs_unicode_scripts;
-    auto& lhs_unicode_script_extensions = compares.lhs_unicode_script_extensions;
-    auto& lhs_negated_unicode_general_categories = compares.lhs_negated_unicode_general_categories;
-    auto& lhs_negated_unicode_properties = compares.lhs_negated_unicode_properties;
-    auto& lhs_negated_unicode_scripts = compares.lhs_negated_unicode_scripts;
-    auto& lhs_negated_unicode_script_extensions = compares.lhs_negated_unicode_script_extensions;
+    auto& lhs_unicode_general_categories = compares.unicode_general_categories;
+    auto& lhs_unicode_properties = compares.unicode_properties;
+    auto& lhs_unicode_scripts = compares.unicode_scripts;
+    auto& lhs_unicode_script_extensions = compares.unicode_script_extensions;
+    auto& lhs_negated_unicode_general_categories = compares.negated_unicode_general_categories;
+    auto& lhs_negated_unicode_properties = compares.negated_unicode_properties;
+    auto& lhs_negated_unicode_scripts = compares.negated_unicode_scripts;
+    auto& lhs_negated_unicode_script_extensions = compares.negated_unicode_script_extensions;
 
     for (auto const& pair : lhs) {
         if (reset_temporary_inverse) {
@@ -220,10 +222,10 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
                 return; // Faster to just run the bytecode.
 
             // FIXME: We should be able to handle these cases (jump ahead while...)
-            if (!compares.lhs_char_classes.is_empty() || !compares.lhs_negated_char_classes.is_empty() || !compares.lhs_negated_ranges.is_empty())
+            if (!compares.char_classes.is_empty() || !compares.negated_char_classes.is_empty() || !compares.negated_ranges.is_empty())
                 return;
 
-            for (auto it = compares.lhs_ranges.begin(); it != compares.lhs_ranges.end(); ++it)
+            for (auto it = compares.ranges.begin(); it != compares.ranges.end(); ++it)
                 parser_result.optimization_data.starting_ranges.append({ it.key(), *it });
             return;
         }
@@ -332,19 +334,19 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
     auto current_lhs_inversion_state = [&]() -> bool { return temporary_inverse ^ inverse; };
 
     StaticallyInterpretedCompares compares;
-    auto& lhs_ranges = compares.lhs_ranges;
-    auto& lhs_negated_ranges = compares.lhs_negated_ranges;
-    auto& lhs_char_classes = compares.lhs_char_classes;
-    auto& lhs_negated_char_classes = compares.lhs_negated_char_classes;
+    auto& lhs_ranges = compares.ranges;
+    auto& lhs_negated_ranges = compares.negated_ranges;
+    auto& lhs_char_classes = compares.char_classes;
+    auto& lhs_negated_char_classes = compares.negated_char_classes;
     auto& has_any_unicode_property = compares.has_any_unicode_property;
-    auto& lhs_unicode_general_categories = compares.lhs_unicode_general_categories;
-    auto& lhs_unicode_properties = compares.lhs_unicode_properties;
-    auto& lhs_unicode_scripts = compares.lhs_unicode_scripts;
-    auto& lhs_unicode_script_extensions = compares.lhs_unicode_script_extensions;
-    auto& lhs_negated_unicode_general_categories = compares.lhs_negated_unicode_general_categories;
-    auto& lhs_negated_unicode_properties = compares.lhs_negated_unicode_properties;
-    auto& lhs_negated_unicode_scripts = compares.lhs_negated_unicode_scripts;
-    auto& lhs_negated_unicode_script_extensions = compares.lhs_negated_unicode_script_extensions;
+    auto& lhs_unicode_general_categories = compares.unicode_general_categories;
+    auto& lhs_unicode_properties = compares.unicode_properties;
+    auto& lhs_unicode_scripts = compares.unicode_scripts;
+    auto& lhs_unicode_script_extensions = compares.unicode_script_extensions;
+    auto& lhs_negated_unicode_general_categories = compares.negated_unicode_general_categories;
+    auto& lhs_negated_unicode_properties = compares.negated_unicode_properties;
+    auto& lhs_negated_unicode_scripts = compares.negated_unicode_scripts;
+    auto& lhs_negated_unicode_script_extensions = compares.negated_unicode_script_extensions;
 
     auto any_unicode_property_matches = [&](u32 code_point) {
         if (any_of(lhs_negated_unicode_general_categories, [code_point](auto category) { return Unicode::code_point_has_general_category(code_point, category); }))
@@ -611,6 +613,35 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
     return current_lhs_inversion_state();
 }
 
+static bool has_overlap(StaticallyInterpretedCompares const& lhs, StaticallyInterpretedCompares const& rhs)
+{
+    if (lhs.has_any_unicode_property || rhs.has_any_unicode_property || !lhs.negated_ranges.is_empty() || !rhs.negated_ranges.is_empty() || !lhs.negated_char_classes.is_empty() || !rhs.negated_char_classes.is_empty())
+        return true;
+
+    for (auto it_lhs = lhs.ranges.begin(); it_lhs != lhs.ranges.end(); ++it_lhs) {
+        auto lhs_start = it_lhs.key();
+        auto lhs_end = *it_lhs;
+
+        for (auto it_rhs = rhs.ranges.begin(); it_rhs != rhs.ranges.end(); ++it_rhs) {
+            auto rhs_start = it_rhs.key();
+            auto rhs_end = *it_rhs;
+
+            // Check if ranges overlap
+            if (lhs_start <= rhs_end && rhs_start <= lhs_end) {
+                return true;
+            }
+        }
+    }
+
+    for (auto& lhs_class : lhs.char_classes) {
+        for (auto& rhs_class : rhs.char_classes) {
+            if (lhs_class == rhs_class)
+                return true;
+        }
+    }
+
+    return false;
+}
 enum class AtomicRewritePreconditionResult {
     SatisfiedWithProperHeader,
     SatisfiedWithEmptyHeader,
@@ -1378,7 +1409,11 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
         size_t alternative_index;
         size_t instruction_position;
     };
-    using Tree = Trie<DisjointSpans<ByteCodeValueType const>, Vector<QualifiedIP>, Traits<DisjointSpans<ByteCodeValueType const>>, void, OrderedHashMapForTrie>;
+    struct NodeMetadataEntry {
+        QualifiedIP ip;
+        NonnullOwnPtr<StaticallyInterpretedCompares> first_compare_from_here;
+    };
+    using Tree = Trie<DisjointSpans<ByteCodeValueType const>, Vector<NodeMetadataEntry>, Traits<DisjointSpans<ByteCodeValueType const>>, void, OrderedHashMapForTrie>;
     Tree trie { {} }; // Root node is empty, key{ instruction_bytes, dependent_instruction_bytes... } -> IP
 
     size_t common_hits = 0;
@@ -1404,13 +1439,39 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
             active_node = static_cast<decltype(active_node)>(MUST(active_node->ensure_child(DisjointSpans<ByteCodeValueType const> { move(node_key_bytes) })));
 
+            auto next_compare = [&alternative, &state](StaticallyInterpretedCompares& compares) {
+                TemporaryChange state_change { state.instruction_position, state.instruction_position };
+
+                auto* opcode = &alternative.get_opcode(state);
+                auto opcode_id = opcode->opcode_id();
+                while (opcode_id == OpCodeId::Checkpoint || opcode_id == OpCodeId::SaveLeftCaptureGroup
+                    || opcode_id == OpCodeId::SaveRightCaptureGroup || opcode_id == OpCodeId::SaveRightNamedCaptureGroup
+                    || opcode_id == OpCodeId::Save) {
+                    state.instruction_position += opcode->size();
+                    opcode = &alternative.get_opcode(state);
+                    opcode_id = opcode->opcode_id();
+                }
+
+                // We found something functional, if it's a compare, we need to care.
+                if (opcode_id != OpCodeId::Compare)
+                    return;
+
+                auto flat_compares = static_cast<OpCode_Compare const&>(*opcode).flat_compares();
+                interpret_compares(flat_compares, compares);
+            };
+
+            auto node_metadata = NodeMetadataEntry { { i, state.instruction_position }, make<StaticallyInterpretedCompares>() };
             if (active_node->has_metadata()) {
-                active_node->metadata_value().append({ i, state.instruction_position });
+                active_node->metadata_value().append(move(node_metadata));
                 common_hits += 1;
             } else {
-                active_node->set_metadata(Vector<QualifiedIP> { QualifiedIP { i, state.instruction_position } });
+                Vector<NodeMetadataEntry> metadata;
+                metadata.append(move(node_metadata));
+                active_node->set_metadata(move(metadata));
                 total_bytecode_entries_in_tree += opcode.size();
             }
+            next_compare(*active_node->metadata_value().last().first_compare_from_here);
+
             state.instruction_position += opcode.size();
         }
     }
@@ -1422,14 +1483,14 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
             if (node.has_metadata()) {
                 name = ByteString::formatted(
                     "{}@{} ({} node{})",
-                    node.metadata_value().first().instruction_position,
-                    node.metadata_value().first().alternative_index,
+                    node.metadata_value().first().ip.instruction_position,
+                    node.metadata_value().first().ip.alternative_index,
                     node.metadata_value().size(),
                     node.metadata_value().size() == 1 ? "" : "s");
 
                 auto state = MatchState::only_for_enumeration();
-                state.instruction_position = node.metadata_value().first().instruction_position;
-                auto& opcode = alternatives[node.metadata_value().first().alternative_index].get_opcode(state);
+                state.instruction_position = node.metadata_value().first().ip.instruction_position;
+                auto& opcode = alternatives[node.metadata_value().first().ip.alternative_index].get_opcode(state);
                 insn = ByteString::formatted("{} {}", opcode.to_byte_string(), opcode.arguments_string());
             }
             dbgln("{:->{}}| {} -- {}", "", indent * 2, name, insn);
@@ -1444,6 +1505,45 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
     auto tree_cost = (total_nodes - common_hits) * 2;
     auto chain_cost = total_bytecode_entries_in_tree + alternatives.size() * 2;
     dbgln_if(REGEX_DEBUG, "Total nodes: {}, common hits: {} (tree cost = {}, chain cost = {})", total_nodes, common_hits, tree_cost, chain_cost);
+
+    // Make sure we're not breaking the order requirements (a should be tried before b in a|b)
+    Queue<Tree::DetailTrie*> nodes_to_visit;
+    nodes_to_visit.enqueue(&trie);
+    while (!nodes_to_visit.is_empty()) {
+        auto& node = *nodes_to_visit.dequeue();
+        auto& children = node.children();
+        for (auto& entry : children)
+            nodes_to_visit.enqueue(entry.value.ptr());
+        // If the children are not sorted right, we've got a problem.
+        if (children.size() <= 1)
+            continue;
+
+        size_t max_index = 0;
+        NodeMetadataEntry const* child_with_max_index = nullptr;
+        for (auto& entry : children) {
+            auto& child = *entry.value;
+            if (child.has_metadata()) {
+                for (auto& child_entry : child.metadata_value()) {
+                    if (max_index > child_entry.ip.alternative_index) {
+                        // We have a problem, an alternative later in the list is being tried before an earlier one.
+                        // we can't use this trie...unless the first compare in this child is not the same as the one in the entry with max-index
+                        // then there's no overlap and the order doesn't matter anyhow.
+                        if (!has_overlap(*child_with_max_index->first_compare_from_here, *child_entry.first_compare_from_here)) {
+                            // We can use this trie after all.
+                            continue;
+                        }
+                        tree_cost = NumericLimits<size_t>::max();
+                        goto exit_useless_loop;
+                    }
+                    max_index = child_entry.ip.alternative_index;
+                    child_with_max_index = &child_entry;
+                }
+            }
+        }
+        continue;
+    exit_useless_loop:
+        break;
+    }
 
     if (common_hits == 0 || tree_cost > chain_cost) {
         // It's better to lay these out as a normal sequence of instructions.
@@ -1509,7 +1609,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
             if (!node->has_metadata())
                 return false;
             for (auto& node_ip : node->metadata_value()) {
-                if (node_ip.alternative_index == ip.alternative_index && node_ip.instruction_position == ip.instruction_position)
+                if (node_ip.ip.alternative_index == ip.alternative_index && node_ip.ip.instruction_position == ip.instruction_position)
                     return true;
             }
             return false;
@@ -1537,7 +1637,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
             if (!node->has_metadata())
                 return;
 
-            patch_locations.append({ node->metadata_value().first(), target_ip });
+            patch_locations.append({ node->metadata_value().first().ip, target_ip });
         };
 
         Vector<Tree*> nodes_to_visit;
@@ -1568,8 +1668,8 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 target.append(insn_bytes);
 
                 if (has_any_backwards_jump) {
-                    for (auto& ip : node->metadata_value())
-                        ip_mapping_for_alternative(ip.alternative_index).insert(ip.instruction_position, state.instruction_position);
+                    for (auto& entry : node->metadata_value())
+                        ip_mapping_for_alternative(entry.ip.alternative_index).insert(entry.ip.instruction_position, state.instruction_position);
                 }
 
                 auto& opcode = target.get_opcode(state);
@@ -1614,7 +1714,8 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
                     auto only_one = node->metadata_value().size() == 1;
                     auto patch_size = opcode.size() - 1;
-                    for (auto [alternative_index, instruction_position] : node->metadata_value()) {
+                    for (auto& entry : node->metadata_value()) {
+                        auto& [alternative_index, instruction_position] = entry.ip;
                         if (!only_one) {
                             target.append(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
                             patch_location = target.size();
