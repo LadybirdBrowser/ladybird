@@ -1268,6 +1268,15 @@ bool Generator::fuse_compare_and_jump(ScopedOperand const& condition, Label true
     JS_ENUMERATE_COMPARISON_OPS(HANDLE_COMPARISON_OP);
 #undef HANDLE_COMPARISON_OP
 
+    if (last_instruction.type() == Instruction::Type::Not) {
+        auto& not_ = static_cast<Op::Not const&>(last_instruction);
+        VERIFY(not_.dst() == condition);
+        m_current_basic_block->rewind();
+        // NOTE: Inverted true and false targets to handle the negation.
+        emit<Op::JumpIf>(not_.src(), false_target, true_target);
+        return true;
+    }
+
     return false;
 }
 
