@@ -159,11 +159,11 @@ void Selector::collect_ancestor_hashes()
                         return;
                     break;
                 case SimpleSelector::Type::TagName:
-                    if (append_unique_hash(simple_selector.qualified_name().name.name.hash()))
+                    if (append_unique_hash(simple_selector.qualified_name().name.lowercase_name.hash()))
                         return;
                     break;
                 case SimpleSelector::Type::Attribute:
-                    if (append_unique_hash(simple_selector.attribute().qualified_name.name.name.hash()))
+                    if (append_unique_hash(simple_selector.attribute().qualified_name.name.lowercase_name.hash()))
                         return;
                     break;
                 default:

@@ -3212,13 +3212,13 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element c
 
 static void for_each_element_hash(DOM::Element const& element, auto callback)
 {
-    callback(element.local_name().hash());
+    callback(element.local_name().ascii_case_insensitive_hash());
     if (element.id().has_value())
         callback(element.id().value().hash());
     for (auto const& class_ : element.class_names())
         callback(class_.hash());
     element.for_each_attribute([&](auto& attribute) {
-        callback(attribute.local_name().hash());
+        callback(attribute.lowercase_name().hash());
     });
 }
 
