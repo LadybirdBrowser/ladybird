@@ -313,6 +313,8 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     auto url_string = document->url_string();
     if (type.is_image()) {
         auto img_element = TRY(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
+        // For the "image-document" remove the referrer header. Basically, it's not sub-resource loading - it's navigation.
+        TRY(img_element->set_attribute(HTML::AttributeNames::referrerpolicy, AK::String::from_utf8(ReferrerPolicy::to_string(ReferrerPolicy::ReferrerPolicy::NoReferrer)).value()));
         TRY(img_element->set_attribute(HTML::AttributeNames::src, url_string));
         TRY(document->body()->append_child(img_element));
         TRY(insert_title(document, MUST(String::from_byte_string(LexicalPath::basename(url_string.to_byte_string())))));
