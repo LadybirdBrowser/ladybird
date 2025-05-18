@@ -16,12 +16,12 @@
 
 namespace WebWorker {
 
-class DedicatedWorkerHost : public RefCounted<DedicatedWorkerHost> {
+class WorkerHost : public RefCounted<WorkerHost> {
 public:
-    explicit DedicatedWorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name);
-    ~DedicatedWorkerHost();
+    explicit WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name);
+    ~WorkerHost();
 
-    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataHolder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&);
+    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataHolder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::Bindings::RequestCredentials, bool is_shared);
 
 private:
     GC::Root<Web::HTML::WorkerDebugConsoleClient> m_console;

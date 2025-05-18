@@ -1,7 +1,7 @@
 set(WEBWORKER_SOURCES
     ConnectionFromClient.cpp
-    DedicatedWorkerHost.cpp
     PageHost.cpp
+    WorkerHost.cpp
 )
 
 # FIXME: Add Android service
