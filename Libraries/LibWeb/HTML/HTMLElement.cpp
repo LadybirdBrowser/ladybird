@@ -999,7 +999,7 @@ TokenizedFeature::NoOpener HTMLElement::get_an_elements_noopener(URL::URL const&
 
     // 2. If element's link types do not include the opener keyword and
     //    target is an ASCII case-insensitive match for "_blank", then return true.
-    if (!link_types.contains_slow("opener"sv) && Infra::is_ascii_case_insensitive_match(target, "_blank"sv))
+    if (!link_types.contains_slow("opener"sv) && target.equals_ignoring_ascii_case("_blank"sv))
         return TokenizedFeature::NoOpener::Yes;
 
     // 3. If url's blob URL entry is not null:

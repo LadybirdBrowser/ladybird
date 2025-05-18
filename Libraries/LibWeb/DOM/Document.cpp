@@ -2201,44 +2201,44 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
 
     // 2. If interface is an ASCII case-insensitive match for any of the strings in the first column in the following table,
     //      then set constructor to the interface in the second column on the same row as the matching string:
-    if (Infra::is_ascii_case_insensitive_match(interface, "beforeunloadevent"sv)) {
+    if (interface.equals_ignoring_ascii_case("beforeunloadevent"sv)) {
         event = HTML::BeforeUnloadEvent::create(realm, FlyString {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "compositionevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("compositionevent"sv)) {
         event = UIEvents::CompositionEvent::create(realm, String {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "customevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("customevent"sv)) {
         event = CustomEvent::create(realm, FlyString {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "devicemotionevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("devicemotionevent"sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create DeviceMotionEvent
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "deviceorientationevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("deviceorientationevent"sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create DeviceOrientationEvent
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "dragevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("dragevent"sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create DragEvent
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "event"sv)
-        || Infra::is_ascii_case_insensitive_match(interface, "events"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("event"sv)
+        || interface.equals_ignoring_ascii_case("events"sv)) {
         event = Event::create(realm, FlyString {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "focusevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("focusevent"sv)) {
         event = UIEvents::FocusEvent::create(realm, FlyString {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "hashchangeevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("hashchangeevent"sv)) {
         event = HTML::HashChangeEvent::create(realm, FlyString {}, {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "htmlevents"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("htmlevents"sv)) {
         event = Event::create(realm, FlyString {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "keyboardevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("keyboardevent"sv)) {
         event = UIEvents::KeyboardEvent::create(realm, String {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "messageevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("messageevent"sv)) {
         event = HTML::MessageEvent::create(realm, String {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "mouseevent"sv)
-        || Infra::is_ascii_case_insensitive_match(interface, "mouseevents"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("mouseevent"sv)
+        || interface.equals_ignoring_ascii_case("mouseevents"sv)) {
         event = UIEvents::MouseEvent::create(realm, FlyString {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "storageevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("storageevent"sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create StorageEvent
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "svgevents"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("svgevents"sv)) {
         event = Event::create(realm, FlyString {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "textevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("textevent"sv)) {
         event = UIEvents::TextEvent::create(realm, FlyString {});
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "touchevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("touchevent"sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create TouchEvent
-    } else if (Infra::is_ascii_case_insensitive_match(interface, "uievent"sv)
-        || Infra::is_ascii_case_insensitive_match(interface, "uievents"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("uievent"sv)
+        || interface.equals_ignoring_ascii_case("uievents"sv)) {
         event = UIEvents::UIEvent::create(realm, FlyString {});
     }
 
@@ -2620,7 +2620,7 @@ Document::IndicatedPart Document::determine_the_indicated_part() const
         return potential_indicated_element;
 
     // 9. If decodedFragment is an ASCII case-insensitive match for the string top, then return the top of the document.
-    if (Infra::is_ascii_case_insensitive_match(decoded_fragment, "top"sv))
+    if (decoded_fragment.equals_ignoring_ascii_case("top"sv))
         return Document::TopOfTheDocument {};
 
     // 10. Return null.

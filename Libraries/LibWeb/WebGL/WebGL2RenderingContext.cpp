@@ -168,12 +168,12 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
     // been enabled.
     auto supported_extensions = get_supported_extensions();
     auto supported_extension_iterator = supported_extensions->find_if([&name](String const& supported_extension) {
-        return Infra::is_ascii_case_insensitive_match(supported_extension, name);
+        return supported_extension.equals_ignoring_ascii_case(name);
     });
     if (supported_extension_iterator == supported_extensions->end())
         return nullptr;
 
-    if (Infra::is_ascii_case_insensitive_match(name, "WEBGL_compressed_texture_s3tc"sv)) {
+    if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc"sv)) {
         if (!m_webgl_compressed_texture_s3tc_extension) {
             m_webgl_compressed_texture_s3tc_extension = MUST(Extensions::WebGLCompressedTextureS3tc::create(realm(), this));
         }
@@ -182,7 +182,7 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
         return m_webgl_compressed_texture_s3tc_extension;
     }
 
-    if (Infra::is_ascii_case_insensitive_match(name, "EXT_color_buffer_float"sv)) {
+    if (name.equals_ignoring_ascii_case("EXT_color_buffer_float"sv)) {
         if (!m_ext_color_buffer_float_extension) {
             m_ext_color_buffer_float_extension = MUST(Extensions::EXTColorBufferFloat::create(realm(), *this));
         }

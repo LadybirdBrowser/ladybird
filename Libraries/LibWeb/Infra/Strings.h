@@ -13,7 +13,6 @@
 
 namespace Web::Infra {
 
-bool is_ascii_case_insensitive_match(StringView a, StringView b);
 String normalize_newlines(String const&);
 ErrorOr<String> strip_and_collapse_whitespace(StringView string);
 bool is_code_unit_prefix(StringView potential_prefix, StringView input);

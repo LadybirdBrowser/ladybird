@@ -105,7 +105,7 @@ Optional<MediaFeatureID> media_feature_id_from_string(StringView string)
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify(name));
         member_generator.append(R"~~~(
-    if (Infra::is_ascii_case_insensitive_match(string, "@name@"sv))
+    if (string.equals_ignoring_ascii_case("@name@"sv))
         return MediaFeatureID::@name:titlecase@;
 )~~~");
     });

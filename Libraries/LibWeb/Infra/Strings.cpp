@@ -19,14 +19,6 @@
 
 namespace Web::Infra {
 
-// https://infra.spec.whatwg.org/#ascii-case-insensitive
-bool is_ascii_case_insensitive_match(StringView a, StringView b)
-{
-    // A string A is an ASCII case-insensitive match for a string B,
-    // if the ASCII lowercase of A is the ASCII lowercase of B.
-    return AK::StringUtils::equals_ignoring_ascii_case(a, b);
-}
-
 // https://infra.spec.whatwg.org/#normalize-newlines
 String normalize_newlines(String const& string)
 {

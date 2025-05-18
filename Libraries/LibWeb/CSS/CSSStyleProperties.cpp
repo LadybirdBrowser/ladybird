@@ -224,7 +224,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_n
     }
 
     // 4. If priority is not the empty string and is not an ASCII case-insensitive match for the string "important", then return.
-    if (!priority.is_empty() && !Infra::is_ascii_case_insensitive_match(priority, "important"sv))
+    if (!priority.is_empty() && !priority.equals_ignoring_ascii_case("important"sv))
         return {};
 
     // 5. Let component value list be the result of parsing value for property property.

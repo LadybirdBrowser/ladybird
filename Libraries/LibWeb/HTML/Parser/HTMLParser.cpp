@@ -5071,7 +5071,7 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
     input = input.trim(Infra::ASCII_WHITESPACE);
 
     // 3. If input is an ASCII case-insensitive match for "transparent", then return failure.
-    if (Infra::is_ascii_case_insensitive_match(input, "transparent"sv))
+    if (input.equals_ignoring_ascii_case("transparent"sv))
         return {};
 
     // 4. If input is an ASCII case-insensitive match for one of the named colors, then return the CSS color corresponding to that keyword. [CSSCOLOR]
