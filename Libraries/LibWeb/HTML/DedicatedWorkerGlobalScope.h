@@ -28,9 +28,6 @@ public:
     WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const&);
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer);
 
-    void set_name(String name) { m_name = move(name); }
-    String name() const { return m_name; }
-
     void close();
 
 #undef __ENUMERATE
@@ -46,8 +43,6 @@ private:
     DedicatedWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
 
     virtual void initialize_web_interfaces_impl() override;
-
-    String m_name;
 };
 
 }
