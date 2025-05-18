@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-value
-enum class EmbedderPolicyValue {
+enum class EmbedderPolicyValue : u8 {
     UnsafeNone,
     RequireCorp,
     Credentialless,
@@ -30,13 +30,13 @@ struct EmbedderPolicy {
     // A value, which is an embedder policy value, initially "unsafe-none".
     EmbedderPolicyValue value { EmbedderPolicyValue::UnsafeNone };
 
-    // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-reporting-endpoint
-    // A reporting endpoint string, initially the empty string.
-    String reporting_endpoint;
-
     // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-report-only-value
     // A report only value, which is an embedder policy value, initially "unsafe-none".
     EmbedderPolicyValue report_only_value { EmbedderPolicyValue::UnsafeNone };
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-reporting-endpoint
+    // A reporting endpoint string, initially the empty string.
+    String reporting_endpoint;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-report-only-reporting-endpoint
     // A report only reporting endpoint string, initially the empty string.
