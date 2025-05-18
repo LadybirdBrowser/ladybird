@@ -311,7 +311,8 @@ TEST_CASE(no_precision_no_trailing_number)
 
 TEST_CASE(precision_with_trailing_zeros)
 {
-    EXPECT_EQ(ByteString::formatted("{:0.3}", 1.12), "1.120");
+    EXPECT_EQ(ByteString::formatted("{:0.3f}", 1.12), "1.120");
+    EXPECT_EQ(ByteString::formatted("{:0.3}", 1.12), "1.12");
     EXPECT_EQ(ByteString::formatted("{:0.1}", 1.12), "1.1");
 }
 

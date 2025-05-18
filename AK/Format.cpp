@@ -511,6 +511,8 @@ ErrorOr<void> FormatBuilder::put_f64_with_precision(
     TRY(format_builder.put_u64(static_cast<u64>(value), base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
     value -= static_cast<i64>(value);
 
+    bool did_emit_decimals = false;
+
     if (precision > 0) {
         // FIXME: This is a terrible approximation but doing it properly would be a lot of work. If someone is up for that, a good
         // place to start would be the following video from CppCon 2019:
@@ -535,12 +537,29 @@ ErrorOr<void> FormatBuilder::put_f64_with_precision(
                 TRY(string_builder.try_append('.'));
 
             TRY(string_builder.try_append('0' + (static_cast<u32>(value) % 10)));
+            did_emit_decimals = true;
         }
     }
 
     // Round up if the following decimal is 5 or higher
     if (static_cast<u64>(value * 10.0) % 10 >= 5)
         TRY(round_up_digits(string_builder));
+
+    if (did_emit_decimals && display_mode == RealNumberDisplayMode::Default) {
+        while (!string_builder.is_empty()) {
+            // Strip trailing zero decimals.
+            if (string_builder.string_view().ends_with('0')) {
+                string_builder.trim(1);
+                continue;
+            }
+            // Strip trailing decimal point.
+            if (string_builder.string_view().ends_with('.')) {
+                string_builder.trim(1);
+                break;
+            }
+            break;
+        }
+    }
 
     return put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
 }
