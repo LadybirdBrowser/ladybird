@@ -1147,6 +1147,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
             .margin_box_rect_in_root_coordinate_space = margin_box_rect_in_ancestor_coordinate_space(box_state, root()),
         }));
         side_data.current_boxes.append(*side_data.all_boxes.last());
+        m_last_inserted_float = *side_data.all_boxes.last();
 
         if (side == FloatSide::Left) {
             side_data.current_width = offset_from_edge + box_state.content_width() + box_state.margin_box_right();
