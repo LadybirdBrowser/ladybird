@@ -443,7 +443,7 @@ Optional<PropertyID> property_id_from_string(StringView string)
     if (is_a_custom_property_name_string(string))
         return PropertyID::Custom;
 
-    if (Infra::is_ascii_case_insensitive_match(string, "all"sv))
+    if (string.equals_ignoring_ascii_case("all"sv))
         return PropertyID::All;
 )~~~");
 
@@ -458,7 +458,7 @@ Optional<PropertyID> property_id_from_string(StringView string)
             member_generator.set("name:titlecase", title_casify(name));
         }
         member_generator.append(R"~~~(
-    if (Infra::is_ascii_case_insensitive_match(string, "@name@"sv))
+    if (string.equals_ignoring_ascii_case("@name@"sv))
         return PropertyID::@name:titlecase@;
 )~~~");
     });

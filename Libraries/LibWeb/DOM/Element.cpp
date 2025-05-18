@@ -1971,8 +1971,8 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // 2. Use the first matching item from this list:
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
     // - If position is an ASCII case-insensitive match for the string "afterend"
-    if (Infra::is_ascii_case_insensitive_match(position, "beforebegin"sv)
-        || Infra::is_ascii_case_insensitive_match(position, "afterend"sv)) {
+    if (position.equals_ignoring_ascii_case("beforebegin"sv)
+        || position.equals_ignoring_ascii_case("afterend"sv)) {
         // 1. Set context to this's parent.
         context = this->parent();
 
@@ -1982,8 +1982,8 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
     // - If position is an ASCII case-insensitive match for the string "beforeend"
-    else if (Infra::is_ascii_case_insensitive_match(position, "afterbegin"sv)
-        || Infra::is_ascii_case_insensitive_match(position, "beforeend"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterbegin"sv)
+        || position.equals_ignoring_ascii_case("beforeend"sv)) {
         // Set context to this.
         context = this;
     }
@@ -2010,25 +2010,25 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // 5. Use the first matching item from this list:
 
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
-    if (Infra::is_ascii_case_insensitive_match(position, "beforebegin"sv)) {
+    if (position.equals_ignoring_ascii_case("beforebegin"sv)) {
         // Insert fragment into this's parent before this.
         parent()->insert_before(fragment, this);
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
-    else if (Infra::is_ascii_case_insensitive_match(position, "afterbegin"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterbegin"sv)) {
         // Insert fragment into this before its first child.
         insert_before(fragment, first_child());
     }
 
     // - If position is an ASCII case-insensitive match for the string "beforeend"
-    else if (Infra::is_ascii_case_insensitive_match(position, "beforeend"sv)) {
+    else if (position.equals_ignoring_ascii_case("beforeend"sv)) {
         // Append fragment to this.
         TRY(append_child(fragment));
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterend"
-    else if (Infra::is_ascii_case_insensitive_match(position, "afterend"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterend"sv)) {
         // Insert fragment into this's parent before this's next sibling.
         parent()->insert_before(fragment, next_sibling());
     }
@@ -2039,7 +2039,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC::Ref<Node> node)
 {
     // To insert adjacent, given an element element, string where, and a node node, run the steps associated with the first ASCII case-insensitive match for where:
-    if (Infra::is_ascii_case_insensitive_match(where, "beforebegin"sv)) {
+    if (where.equals_ignoring_ascii_case("beforebegin"sv)) {
         // -> "beforebegin"
         // If element’s parent is null, return null.
         if (!parent())
@@ -2049,19 +2049,19 @@ WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC
         return GC::Ptr<Node> { TRY(parent()->pre_insert(move(node), this)) };
     }
 
-    if (Infra::is_ascii_case_insensitive_match(where, "afterbegin"sv)) {
+    if (where.equals_ignoring_ascii_case("afterbegin"sv)) {
         // -> "afterbegin"
         // Return the result of pre-inserting node into element before element’s first child.
         return GC::Ptr<Node> { TRY(pre_insert(move(node), first_child())) };
     }
 
-    if (Infra::is_ascii_case_insensitive_match(where, "beforeend"sv)) {
+    if (where.equals_ignoring_ascii_case("beforeend"sv)) {
         // -> "beforeend"
         // Return the result of pre-inserting node into element before null.
         return GC::Ptr<Node> { TRY(pre_insert(move(node), nullptr)) };
     }
 
-    if (Infra::is_ascii_case_insensitive_match(where, "afterend"sv)) {
+    if (where.equals_ignoring_ascii_case("afterend"sv)) {
         // -> "afterend"
         // If element’s parent is null, return null.
         if (!parent())

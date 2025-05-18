@@ -2559,7 +2559,7 @@ Optional<double> HTMLInputElement::allowed_value_step() const
     auto step_string = *maybe_step_string;
 
     // 3. Otherwise, if the attribute's value is an ASCII case-insensitive match for the string "any", then there is no allowed value step.
-    if (Infra::is_ascii_case_insensitive_match(step_string, "any"_string))
+    if (step_string.equals_ignoring_ascii_case("any"sv))
         return {};
 
     // 4. Otherwise, if the rules for parsing floating-point number values, when they are applied to the attribute's value, return an error,

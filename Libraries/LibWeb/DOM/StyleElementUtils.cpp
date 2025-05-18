@@ -47,7 +47,7 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
 
     // 4. If element's type attribute is present and its value is neither the empty string nor an ASCII case-insensitive match for "text/css", then return.
     auto type_attribute = style_element.attribute(HTML::AttributeNames::type);
-    if (type_attribute.has_value() && !type_attribute->is_empty() && !Infra::is_ascii_case_insensitive_match(type_attribute->bytes_as_string_view(), "text/css"sv))
+    if (type_attribute.has_value() && !type_attribute->is_empty() && !type_attribute->bytes_as_string_view().equals_ignoring_ascii_case("text/css"sv))
         return;
 
     // FIXME: 5. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon the style element, "style", and the style element's child text content, then return. [CSP]

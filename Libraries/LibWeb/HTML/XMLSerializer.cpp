@@ -892,7 +892,7 @@ static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::Process
         if (processing_instruction.target().contains(':'))
             return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target contains a colon"_string);
 
-        if (Infra::is_ascii_case_insensitive_match(processing_instruction.target(), "xml"sv))
+        if (processing_instruction.target().equals_ignoring_ascii_case("xml"sv))
             return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target is equal to 'xml'"_string);
 
         // 2. If the require well-formed flag is set (its value is true), and node's data contains characters that are not matched by the XML Char production or contains

@@ -66,7 +66,7 @@ static bool language_range_matches_tag(StringView language_range, StringView lan
     //    is the wildcard '*'.
     auto subtags_match = [](StringView language_range_subtag, StringView language_subtag) {
         return language_range_subtag == "*"sv
-            || Infra::is_ascii_case_insensitive_match(language_range_subtag, language_subtag);
+            || language_range_subtag.equals_ignoring_ascii_case(language_subtag);
     };
 
     // 2. Begin with the first subtag in each list. If the first subtag in the range does not match the first
@@ -271,7 +271,7 @@ static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::At
         for (auto i = 0u; i < element.attributes()->length(); ++i) {
             auto const* attr = element.attributes()->item(i);
             bool matches = case_insensitive
-                ? Infra::is_ascii_case_insensitive_match(attr->local_name(), attribute_name)
+                ? attr->local_name().equals_ignoring_ascii_case(attribute_name)
                 : attr->local_name() == attribute_name;
             if (matches) {
                 if (process_attribute(*attr) == IterationDecision::Break)
@@ -301,7 +301,7 @@ static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute co
     switch (attribute_selector.match_type) {
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
         return case_insensitive_match
-            ? Infra::is_ascii_case_insensitive_match(attribute.value(), attribute_selector.value)
+            ? attribute.value().equals_ignoring_ascii_case(attribute_selector.value)
             : attribute.value() == attribute_selector.value;
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsWord: {
         if (attribute_selector.value.is_empty()) {
@@ -314,7 +314,7 @@ static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute co
         for (size_t i = 0; i < size; ++i) {
             auto const value = view.at(i);
             if (case_insensitive_match
-                    ? Infra::is_ascii_case_insensitive_match(value, attribute_selector.value)
+                    ? value.equals_ignoring_ascii_case(attribute_selector.value)
                     : value == attribute_selector.value) {
                 return true;
             }
@@ -346,7 +346,7 @@ static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute co
 
         if (attribute_length == element_attribute_length) {
             return case_insensitive_match
-                ? Infra::is_ascii_case_insensitive_match(element_attr_value, attribute_selector.value)
+                ? element_attr_value.equals_ignoring_ascii_case(attribute_selector.value)
                 : element_attr_value == attribute_selector.value;
         }
 
@@ -1040,7 +1040,7 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::
             if (element.document().document_type() == DOM::Document::Type::HTML && element.namespace_uri() == Namespace::HTML) {
                 if (qualified_name.name.lowercase_name != element.local_name())
                     return false;
-            } else if (!Infra::is_ascii_case_insensitive_match(qualified_name.name.name, element.local_name())) {
+            } else if (!qualified_name.name.name.equals_ignoring_ascii_case(element.local_name())) {
                 return false;
             }
         }

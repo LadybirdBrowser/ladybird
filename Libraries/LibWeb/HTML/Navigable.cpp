@@ -372,13 +372,13 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
     auto sandboxing_flag_set = active_document()->active_sandboxing_flag_set();
 
     // 4. If name is the empty string or an ASCII case-insensitive match for "_self", then set chosen to currentNavigable.
-    if (name.is_empty() || Infra::is_ascii_case_insensitive_match(name, "_self"sv)) {
+    if (name.is_empty() || name.equals_ignoring_ascii_case("_self"sv)) {
         chosen = this;
     }
 
     // 5. Otherwise, if name is an ASCII case-insensitive match for "_parent",
     //    set chosen to currentNavigable's parent, if any, and currentNavigable otherwise.
-    else if (Infra::is_ascii_case_insensitive_match(name, "_parent"sv)) {
+    else if (name.equals_ignoring_ascii_case("_parent"sv)) {
         if (auto parent = this->parent())
             chosen = parent;
         else
@@ -387,13 +387,13 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
 
     // 6. Otherwise, if name is an ASCII case-insensitive match for "_top",
     //    set chosen to currentNavigable's traversable navigable.
-    else if (Infra::is_ascii_case_insensitive_match(name, "_top"sv)) {
+    else if (name.equals_ignoring_ascii_case("_top"sv)) {
         chosen = traversable_navigable();
     }
 
     // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank" and noopener is false, then set chosen
     //    to the result of finding a navigable by target name given name and currentNavigable.
-    else if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv) && no_opener == TokenizedFeature::NoOpener::No) {
+    else if (!name.equals_ignoring_ascii_case("_blank"sv) && no_opener == TokenizedFeature::NoOpener::No) {
         chosen = find_a_navigable_by_target_name(name);
     }
 
@@ -446,7 +446,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             String target_name;
 
             // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
-            if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv))
+            if (!name.equals_ignoring_ascii_case("_blank"sv))
                 target_name = MUST(String::from_utf8(name));
 
             auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<Navigable> {

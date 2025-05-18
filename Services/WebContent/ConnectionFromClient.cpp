@@ -778,7 +778,7 @@ void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, Web::UniqueNo
     bool should_remove_attribute = true;
 
     for (auto const& attribute : replacement_attributes) {
-        if (should_remove_attribute && Web::Infra::is_ascii_case_insensitive_match(name, attribute.name))
+        if (should_remove_attribute && name.equals_ignoring_ascii_case(attribute.name))
             should_remove_attribute = false;
 
         // NOTE: We ignore invalid attributes for now, but we may want to send feedback to the user that this failed.

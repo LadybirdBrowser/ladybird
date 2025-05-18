@@ -432,8 +432,8 @@ String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> element) c
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#form-submission-attributes:attr-fs-method-2
 static HTMLFormElement::MethodAttributeState method_attribute_to_method_state(StringView method)
 {
-#define __ENUMERATE_FORM_METHOD_ATTRIBUTE(keyword, state)             \
-    if (Infra::is_ascii_case_insensitive_match(#keyword##sv, method)) \
+#define __ENUMERATE_FORM_METHOD_ATTRIBUTE(keyword, state) \
+    if (#keyword##sv.equals_ignoring_ascii_case(method))  \
         return HTMLFormElement::MethodAttributeState::state;
     ENUMERATE_FORM_METHOD_ATTRIBUTES
 #undef __ENUMERATE_FORM_METHOD_ATTRIBUTE
@@ -467,8 +467,8 @@ HTMLFormElement::MethodAttributeState HTMLFormElement::method_state_from_form_el
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#form-submission-attributes:attr-fs-enctype-2
 static HTMLFormElement::EncodingTypeAttributeState encoding_type_attribute_to_encoding_type_state(StringView encoding_type)
 {
-#define __ENUMERATE_FORM_METHOD_ENCODING_TYPE(keyword, state)               \
-    if (Infra::is_ascii_case_insensitive_match(keyword##sv, encoding_type)) \
+#define __ENUMERATE_FORM_METHOD_ENCODING_TYPE(keyword, state)  \
+    if (keyword##sv.equals_ignoring_ascii_case(encoding_type)) \
         return HTMLFormElement::EncodingTypeAttributeState::state;
     ENUMERATE_FORM_METHOD_ENCODING_TYPES
 #undef __ENUMERATE_FORM_METHOD_ENCODING_TYPE
