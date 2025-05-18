@@ -18,9 +18,8 @@ HashTable<GC::RawRef<SharedWorkerGlobalScope>>& all_shared_worker_global_scopes(
     return set;
 }
 
-SharedWorkerGlobalScope::SharedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page, String name)
+SharedWorkerGlobalScope::SharedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
     : WorkerGlobalScope(realm, page)
-    , m_name(move(name))
 {
     all_shared_worker_global_scopes().set(*this);
 }

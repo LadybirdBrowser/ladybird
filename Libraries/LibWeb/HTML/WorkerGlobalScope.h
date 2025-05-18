@@ -83,6 +83,12 @@ public:
     URL::URL const& url() const { return m_url.value(); }
     void set_url(URL::URL const& url) { m_url = url; }
 
+    String const& name() const { return m_name; }
+    void set_name(String name) { m_name = move(name); }
+
+    Bindings::WorkerType type() const { return m_type; }
+    void set_type(Bindings::WorkerType type) { m_type = type; }
+
     // Spec note: While the WorkerLocation object is created after the WorkerGlobalScope object,
     //            this is not problematic as it cannot be observed from script.
     void set_location(GC::Ref<WorkerLocation> loc) { m_location = move(loc); }
@@ -121,14 +127,13 @@ private:
 
     GC::Ref<Web::Page> m_page;
 
-    // FIXME: Add all these internal slots
-
     // https://html.spec.whatwg.org/multipage/workers.html#concept-WorkerGlobalScope-owner-set
-    // A WorkerGlobalScope object has an associated owner set (a set of Document and WorkerGlobalScope objects). It is initially empty and populated when the worker is created or obtained.
+    // FIXME: A WorkerGlobalScope object has an associated owner set (a set of Document and WorkerGlobalScope objects). It is initially empty and populated when the worker is created or obtained.
     //     Note: It is a set, instead of a single owner, to accommodate SharedWorkerGlobalScope objects.
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-type
     // A WorkerGlobalScope object has an associated type ("classic" or "module"). It is set during creation.
+    Bindings::WorkerType m_type { Bindings::WorkerType::Classic };
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-url
     // A WorkerGlobalScope object has an associated url (null or a URL). It is initially null.
@@ -140,6 +145,7 @@ private:
     //        For DedicatedWorkerGlobalScope instances, it is simply a developer-supplied name, useful mostly for debugging purposes.
     //        For SharedWorkerGlobalScope instances, it allows obtaining a reference to a common shared worker via the SharedWorker() constructor.
     //        For ServiceWorkerGlobalScope objects, it doesn't make sense (and as such isn't exposed through the JavaScript API at all).
+    String m_name;
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-policy-container
     // A WorkerGlobalScope object has an associated policy container (a policy container). It is initially a new policy container.
@@ -147,10 +153,10 @@ private:
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-embedder-policy
     // A WorkerGlobalScope object has an associated embedder policy (an embedder policy).
-    EmbedderPolicy m_embedder_policy;
+    // FIXME: Should be removed, https://github.com/whatwg/html/issues/11316
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-module-map
-    // A WorkerGlobalScope object has an associated module map. It is a module map, initially empty.
+    // FIXME: A WorkerGlobalScope object has an associated module map. It is a module map, initially empty.
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-cross-origin-isolated-capability
     bool m_cross_origin_isolated_capability { false };

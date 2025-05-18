@@ -25,8 +25,6 @@ class SharedWorkerGlobalScope
 public:
     virtual ~SharedWorkerGlobalScope() override;
 
-    String const& name() const { return m_name; }
-
     void close();
 
 #define __ENUMERATE(attribute_name, event_name)       \
@@ -36,12 +34,10 @@ public:
 #undef __ENUMERATE
 
 private:
-    SharedWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>, String name);
+    SharedWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
 
     virtual void initialize_web_interfaces_impl() override;
     virtual void finalize() override;
-
-    String m_name;
 };
 
 HashTable<GC::RawRef<SharedWorkerGlobalScope>>& all_shared_worker_global_scopes();
