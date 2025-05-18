@@ -1,0 +1,276 @@
+Harness status: OK
+
+Found 270 tests
+
+144 Pass
+126 Fail
+Pass	cos(0) should be specified-value-equivalent to calc(1)
+Pass	cos(0) should be computed-value-equivalent to 1
+Pass	cos(0) should be used-value-equivalent to 1
+Pass	calc(cos(0)) should be specified-value-equivalent to calc(1)
+Pass	calc(cos(0)) should be computed-value-equivalent to 1
+Pass	calc(cos(0)) should be used-value-equivalent to 1
+Pass	sin(0) should be specified-value-equivalent to calc(0)
+Pass	sin(0) should be computed-value-equivalent to 0
+Pass	sin(0) should be used-value-equivalent to 0
+Pass	calc(sin(0)) should be specified-value-equivalent to calc(0)
+Pass	calc(sin(0)) should be computed-value-equivalent to 0
+Pass	calc(sin(0)) should be used-value-equivalent to 0
+Pass	tan(0) should be specified-value-equivalent to calc(0)
+Pass	tan(0) should be computed-value-equivalent to 0
+Pass	tan(0) should be used-value-equivalent to 0
+Pass	calc(tan(0)) should be specified-value-equivalent to calc(0)
+Pass	calc(tan(0)) should be computed-value-equivalent to 0
+Pass	calc(tan(0)) should be used-value-equivalent to 0
+Pass	calc(sin(0) + 0.5) should be specified-value-equivalent to calc(0.5)
+Pass	calc(sin(0) + 0.5) should be computed-value-equivalent to 0.5
+Pass	calc(sin(0) + 0.5) should be used-value-equivalent to 0.5
+Pass	calc(calc(sin(0) + 0.5)) should be specified-value-equivalent to calc(0.5)
+Pass	calc(calc(sin(0) + 0.5)) should be computed-value-equivalent to 0.5
+Pass	calc(calc(sin(0) + 0.5)) should be used-value-equivalent to 0.5
+Pass	calc(sin(0) + cos(0) + tan(0)) should be specified-value-equivalent to calc(1)
+Pass	calc(sin(0) + cos(0) + tan(0)) should be computed-value-equivalent to 1
+Pass	calc(sin(0) + cos(0) + tan(0)) should be used-value-equivalent to 1
+Pass	calc(calc(sin(0) + cos(0) + tan(0))) should be specified-value-equivalent to calc(1)
+Pass	calc(calc(sin(0) + cos(0) + tan(0))) should be computed-value-equivalent to 1
+Pass	calc(calc(sin(0) + cos(0) + tan(0))) should be used-value-equivalent to 1
+Pass	calc(cos(0) + 0.5) should be specified-value-equivalent to calc(1.5)
+Pass	calc(cos(0) + 0.5) should be computed-value-equivalent to 1.5
+Pass	calc(cos(0) + 0.5) should be used-value-equivalent to 1.5
+Pass	calc(calc(cos(0) + 0.5)) should be specified-value-equivalent to calc(1.5)
+Pass	calc(calc(cos(0) + 0.5)) should be computed-value-equivalent to 1.5
+Pass	calc(calc(cos(0) + 0.5)) should be used-value-equivalent to 1.5
+Pass	calc(tan(0) + 0.5) should be specified-value-equivalent to calc(0.5)
+Pass	calc(tan(0) + 0.5) should be computed-value-equivalent to 0.5
+Pass	calc(tan(0) + 0.5) should be used-value-equivalent to 0.5
+Pass	calc(calc(tan(0) + 0.5)) should be specified-value-equivalent to calc(0.5)
+Pass	calc(calc(tan(0) + 0.5)) should be computed-value-equivalent to 0.5
+Pass	calc(calc(tan(0) + 0.5)) should be used-value-equivalent to 0.5
+Pass	cos(0deg) should be specified-value-equivalent to calc(1)
+Pass	cos(0deg) should be computed-value-equivalent to 1
+Pass	cos(0deg) should be used-value-equivalent to 1
+Pass	calc(cos(0deg)) should be specified-value-equivalent to calc(1)
+Pass	calc(cos(0deg)) should be computed-value-equivalent to 1
+Pass	calc(cos(0deg)) should be used-value-equivalent to 1
+Pass	sin(0deg) should be specified-value-equivalent to calc(0)
+Pass	sin(0deg) should be computed-value-equivalent to 0
+Pass	sin(0deg) should be used-value-equivalent to 0
+Pass	calc(sin(0deg)) should be specified-value-equivalent to calc(0)
+Pass	calc(sin(0deg)) should be computed-value-equivalent to 0
+Pass	calc(sin(0deg)) should be used-value-equivalent to 0
+Pass	tan(0deg) should be specified-value-equivalent to calc(0)
+Pass	tan(0deg) should be computed-value-equivalent to 0
+Pass	tan(0deg) should be used-value-equivalent to 0
+Pass	calc(tan(0deg)) should be specified-value-equivalent to calc(0)
+Pass	calc(tan(0deg)) should be computed-value-equivalent to 0
+Pass	calc(tan(0deg)) should be used-value-equivalent to 0
+Fail	sin(30deg) should be specified-value-equivalent to calc(0.5)
+Fail	sin(30deg) should be computed-value-equivalent to 0.5
+Fail	sin(30deg) should be used-value-equivalent to 0.5
+Fail	calc(sin(30deg)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(sin(30deg)) should be computed-value-equivalent to 0.5
+Fail	calc(sin(30deg)) should be used-value-equivalent to 0.5
+Fail	sin(0.523599) should be specified-value-equivalent to calc(0.5)
+Fail	sin(0.523599) should be computed-value-equivalent to 0.5
+Fail	sin(0.523599) should be used-value-equivalent to 0.5
+Fail	calc(sin(0.523599)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(sin(0.523599)) should be computed-value-equivalent to 0.5
+Fail	calc(sin(0.523599)) should be used-value-equivalent to 0.5
+Fail	sin(0.523599rad) should be specified-value-equivalent to calc(0.5)
+Fail	sin(0.523599rad) should be computed-value-equivalent to 0.5
+Fail	sin(0.523599rad) should be used-value-equivalent to 0.5
+Fail	calc(sin(0.523599rad)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(sin(0.523599rad)) should be computed-value-equivalent to 0.5
+Fail	calc(sin(0.523599rad)) should be used-value-equivalent to 0.5
+Fail	sin(33.333333grad) should be specified-value-equivalent to calc(0.5)
+Fail	sin(33.333333grad) should be computed-value-equivalent to 0.5
+Fail	sin(33.333333grad) should be used-value-equivalent to 0.5
+Fail	calc(sin(33.333333grad)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(sin(33.333333grad)) should be computed-value-equivalent to 0.5
+Fail	calc(sin(33.333333grad)) should be used-value-equivalent to 0.5
+Fail	sin(0.08333333turn) should be specified-value-equivalent to calc(0.5)
+Fail	sin(0.08333333turn) should be computed-value-equivalent to 0.5
+Fail	sin(0.08333333turn) should be used-value-equivalent to 0.5
+Fail	calc(sin(0.08333333turn)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(sin(0.08333333turn)) should be computed-value-equivalent to 0.5
+Fail	calc(sin(0.08333333turn)) should be used-value-equivalent to 0.5
+Fail	cos(60deg) should be specified-value-equivalent to calc(0.5)
+Fail	cos(60deg) should be computed-value-equivalent to 0.5
+Fail	cos(60deg) should be used-value-equivalent to 0.5
+Fail	calc(cos(60deg)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(cos(60deg)) should be computed-value-equivalent to 0.5
+Fail	calc(cos(60deg)) should be used-value-equivalent to 0.5
+Fail	cos(66.66666666grad) should be specified-value-equivalent to calc(0.5)
+Fail	cos(66.66666666grad) should be computed-value-equivalent to 0.5
+Fail	cos(66.66666666grad) should be used-value-equivalent to 0.5
+Fail	calc(cos(66.66666666grad)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(cos(66.66666666grad)) should be computed-value-equivalent to 0.5
+Fail	calc(cos(66.66666666grad)) should be used-value-equivalent to 0.5
+Fail	cos(1.047197551) should be specified-value-equivalent to calc(0.5)
+Fail	cos(1.047197551) should be computed-value-equivalent to 0.5
+Fail	cos(1.047197551) should be used-value-equivalent to 0.5
+Fail	calc(cos(1.047197551)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(cos(1.047197551)) should be computed-value-equivalent to 0.5
+Fail	calc(cos(1.047197551)) should be used-value-equivalent to 0.5
+Fail	cos(1.047197551rad) should be specified-value-equivalent to calc(0.5)
+Fail	cos(1.047197551rad) should be computed-value-equivalent to 0.5
+Fail	cos(1.047197551rad) should be used-value-equivalent to 0.5
+Fail	calc(cos(1.047197551rad)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(cos(1.047197551rad)) should be computed-value-equivalent to 0.5
+Fail	calc(cos(1.047197551rad)) should be used-value-equivalent to 0.5
+Fail	cos(0.16666666666turn) should be specified-value-equivalent to calc(0.5)
+Fail	cos(0.16666666666turn) should be computed-value-equivalent to 0.5
+Fail	cos(0.16666666666turn) should be used-value-equivalent to 0.5
+Fail	calc(cos(0.16666666666turn)) should be specified-value-equivalent to calc(0.5)
+Fail	calc(cos(0.16666666666turn)) should be computed-value-equivalent to 0.5
+Fail	calc(cos(0.16666666666turn)) should be used-value-equivalent to 0.5
+Fail	tan(45deg) should be specified-value-equivalent to calc(1)
+Fail	tan(45deg) should be computed-value-equivalent to 1
+Fail	tan(45deg) should be used-value-equivalent to 1
+Fail	calc(tan(45deg)) should be specified-value-equivalent to calc(1)
+Fail	calc(tan(45deg)) should be computed-value-equivalent to 1
+Fail	calc(tan(45deg)) should be used-value-equivalent to 1
+Fail	tan(50grad) should be specified-value-equivalent to calc(1)
+Fail	tan(50grad) should be computed-value-equivalent to 1
+Fail	tan(50grad) should be used-value-equivalent to 1
+Fail	calc(tan(50grad)) should be specified-value-equivalent to calc(1)
+Fail	calc(tan(50grad)) should be computed-value-equivalent to 1
+Fail	calc(tan(50grad)) should be used-value-equivalent to 1
+Fail	tan(0.78539816) should be specified-value-equivalent to calc(1)
+Fail	tan(0.78539816) should be computed-value-equivalent to 1
+Fail	tan(0.78539816) should be used-value-equivalent to 1
+Fail	calc(tan(0.78539816)) should be specified-value-equivalent to calc(1)
+Fail	calc(tan(0.78539816)) should be computed-value-equivalent to 1
+Fail	calc(tan(0.78539816)) should be used-value-equivalent to 1
+Fail	tan(0.78539816rad) should be specified-value-equivalent to calc(1)
+Fail	tan(0.78539816rad) should be computed-value-equivalent to 1
+Fail	tan(0.78539816rad) should be used-value-equivalent to 1
+Fail	calc(tan(0.78539816rad)) should be specified-value-equivalent to calc(1)
+Fail	calc(tan(0.78539816rad)) should be computed-value-equivalent to 1
+Fail	calc(tan(0.78539816rad)) should be used-value-equivalent to 1
+Fail	tan(0.125turn) should be specified-value-equivalent to calc(1)
+Fail	tan(0.125turn) should be computed-value-equivalent to 1
+Fail	tan(0.125turn) should be used-value-equivalent to 1
+Fail	calc(tan(0.125turn)) should be specified-value-equivalent to calc(1)
+Fail	calc(tan(0.125turn)) should be computed-value-equivalent to 1
+Fail	calc(tan(0.125turn)) should be used-value-equivalent to 1
+Pass	sin(180deg) should be specified-value-equivalent to calc(0)
+Pass	sin(180deg) should be computed-value-equivalent to 0
+Pass	sin(180deg) should be used-value-equivalent to 0
+Pass	calc(sin(180deg)) should be specified-value-equivalent to calc(0)
+Pass	calc(sin(180deg)) should be computed-value-equivalent to 0
+Pass	calc(sin(180deg)) should be used-value-equivalent to 0
+Pass	cos(180deg) should be specified-value-equivalent to calc(-1)
+Pass	cos(180deg) should be computed-value-equivalent to -1
+Pass	cos(180deg) should be used-value-equivalent to -1
+Pass	calc(cos(180deg)) should be specified-value-equivalent to calc(-1)
+Pass	calc(cos(180deg)) should be computed-value-equivalent to -1
+Pass	calc(cos(180deg)) should be used-value-equivalent to -1
+Pass	tan(180deg) should be specified-value-equivalent to calc(0)
+Pass	tan(180deg) should be computed-value-equivalent to 0
+Pass	tan(180deg) should be used-value-equivalent to 0
+Pass	calc(tan(180deg)) should be specified-value-equivalent to calc(0)
+Pass	calc(tan(180deg)) should be computed-value-equivalent to 0
+Pass	calc(tan(180deg)) should be used-value-equivalent to 0
+Pass	sin(270deg) should be specified-value-equivalent to calc(-1)
+Pass	sin(270deg) should be computed-value-equivalent to -1
+Pass	sin(270deg) should be used-value-equivalent to -1
+Pass	calc(sin(270deg)) should be specified-value-equivalent to calc(-1)
+Pass	calc(sin(270deg)) should be computed-value-equivalent to -1
+Pass	calc(sin(270deg)) should be used-value-equivalent to -1
+Pass	cos(270deg) should be specified-value-equivalent to calc(0)
+Pass	cos(270deg) should be computed-value-equivalent to 0
+Pass	cos(270deg) should be used-value-equivalent to 0
+Pass	calc(cos(270deg)) should be specified-value-equivalent to calc(0)
+Pass	calc(cos(270deg)) should be computed-value-equivalent to 0
+Pass	calc(cos(270deg)) should be used-value-equivalent to 0
+Pass	sin(-180deg) should be specified-value-equivalent to calc(0)
+Pass	sin(-180deg) should be computed-value-equivalent to 0
+Pass	sin(-180deg) should be used-value-equivalent to 0
+Pass	calc(sin(-180deg)) should be specified-value-equivalent to calc(0)
+Pass	calc(sin(-180deg)) should be computed-value-equivalent to 0
+Pass	calc(sin(-180deg)) should be used-value-equivalent to 0
+Pass	cos(-180deg) should be specified-value-equivalent to calc(-1)
+Pass	cos(-180deg) should be computed-value-equivalent to -1
+Pass	cos(-180deg) should be used-value-equivalent to -1
+Pass	calc(cos(-180deg)) should be specified-value-equivalent to calc(-1)
+Pass	calc(cos(-180deg)) should be computed-value-equivalent to -1
+Pass	calc(cos(-180deg)) should be used-value-equivalent to -1
+Pass	tan(-180deg) should be specified-value-equivalent to calc(0)
+Pass	tan(-180deg) should be computed-value-equivalent to 0
+Pass	tan(-180deg) should be used-value-equivalent to 0
+Pass	calc(tan(-180deg)) should be specified-value-equivalent to calc(0)
+Pass	calc(tan(-180deg)) should be computed-value-equivalent to 0
+Pass	calc(tan(-180deg)) should be used-value-equivalent to 0
+Pass	sin(-270deg) should be specified-value-equivalent to calc(1)
+Pass	sin(-270deg) should be computed-value-equivalent to 1
+Pass	sin(-270deg) should be used-value-equivalent to 1
+Pass	calc(sin(-270deg)) should be specified-value-equivalent to calc(1)
+Pass	calc(sin(-270deg)) should be computed-value-equivalent to 1
+Pass	calc(sin(-270deg)) should be used-value-equivalent to 1
+Pass	cos(-270deg) should be specified-value-equivalent to calc(0)
+Pass	cos(-270deg) should be computed-value-equivalent to 0
+Pass	cos(-270deg) should be used-value-equivalent to 0
+Pass	calc(cos(-270deg)) should be specified-value-equivalent to calc(0)
+Pass	calc(cos(-270deg)) should be computed-value-equivalent to 0
+Pass	calc(cos(-270deg)) should be used-value-equivalent to 0
+Pass	calc(sin(30deg) + cos(60deg) + tan(45deg)) should be specified-value-equivalent to calc(2)
+Pass	calc(sin(30deg) + cos(60deg) + tan(45deg)) should be computed-value-equivalent to 2
+Pass	calc(sin(30deg) + cos(60deg) + tan(45deg)) should be used-value-equivalent to 2
+Pass	calc(calc(sin(30deg) + cos(60deg) + tan(45deg))) should be specified-value-equivalent to calc(2)
+Pass	calc(calc(sin(30deg) + cos(60deg) + tan(45deg))) should be computed-value-equivalent to 2
+Pass	calc(calc(sin(30deg) + cos(60deg) + tan(45deg))) should be used-value-equivalent to 2
+Pass	calc(sin(infinity)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(sin(infinity)) should be computed-value-equivalent to 0
+Fail	calc(sin(infinity)) should be used-value-equivalent to 0
+Pass	calc(calc(sin(infinity))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(sin(infinity))) should be computed-value-equivalent to 0
+Fail	calc(calc(sin(infinity))) should be used-value-equivalent to 0
+Pass	calc(cos(infinity)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(cos(infinity)) should be computed-value-equivalent to 0
+Fail	calc(cos(infinity)) should be used-value-equivalent to 0
+Pass	calc(calc(cos(infinity))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(cos(infinity))) should be computed-value-equivalent to 0
+Fail	calc(calc(cos(infinity))) should be used-value-equivalent to 0
+Pass	calc(tan(infinity)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(tan(infinity)) should be computed-value-equivalent to 0
+Fail	calc(tan(infinity)) should be used-value-equivalent to 0
+Pass	calc(calc(tan(infinity))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(tan(infinity))) should be computed-value-equivalent to 0
+Fail	calc(calc(tan(infinity))) should be used-value-equivalent to 0
+Pass	calc(sin(-infinity)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(sin(-infinity)) should be computed-value-equivalent to 0
+Fail	calc(sin(-infinity)) should be used-value-equivalent to 0
+Pass	calc(calc(sin(-infinity))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(sin(-infinity))) should be computed-value-equivalent to 0
+Fail	calc(calc(sin(-infinity))) should be used-value-equivalent to 0
+Pass	calc(cos(-infinity)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(cos(-infinity)) should be computed-value-equivalent to 0
+Fail	calc(cos(-infinity)) should be used-value-equivalent to 0
+Pass	calc(calc(cos(-infinity))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(cos(-infinity))) should be computed-value-equivalent to 0
+Fail	calc(calc(cos(-infinity))) should be used-value-equivalent to 0
+Pass	calc(tan(-infinity)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(tan(-infinity)) should be computed-value-equivalent to 0
+Fail	calc(tan(-infinity)) should be used-value-equivalent to 0
+Pass	calc(calc(tan(-infinity))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(tan(-infinity))) should be computed-value-equivalent to 0
+Fail	calc(calc(tan(-infinity))) should be used-value-equivalent to 0
+Pass	calc(sin(NaN)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(sin(NaN)) should be computed-value-equivalent to 0
+Fail	calc(sin(NaN)) should be used-value-equivalent to 0
+Pass	calc(calc(sin(NaN))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(sin(NaN))) should be computed-value-equivalent to 0
+Fail	calc(calc(sin(NaN))) should be used-value-equivalent to 0
+Pass	calc(cos(NaN)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(cos(NaN)) should be computed-value-equivalent to 0
+Fail	calc(cos(NaN)) should be used-value-equivalent to 0
+Pass	calc(calc(cos(NaN))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(cos(NaN))) should be computed-value-equivalent to 0
+Fail	calc(calc(cos(NaN))) should be used-value-equivalent to 0
+Pass	calc(tan(NaN)) should be specified-value-equivalent to calc(NaN)
+Fail	calc(tan(NaN)) should be computed-value-equivalent to 0
+Fail	calc(tan(NaN)) should be used-value-equivalent to 0
+Pass	calc(calc(tan(NaN))) should be specified-value-equivalent to calc(NaN)
+Fail	calc(calc(tan(NaN))) should be computed-value-equivalent to 0
+Fail	calc(calc(tan(NaN))) should be used-value-equivalent to 0
