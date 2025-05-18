@@ -441,7 +441,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             if (!g_default_certificate_path.is_empty())
                 set_option(CURLOPT_CAINFO, g_default_certificate_path.characters());
 
-            set_option(CURLOPT_ACCEPT_ENCODING, "gzip, deflate, br");
+            set_option(CURLOPT_ACCEPT_ENCODING, ""); // empty string lets curl define the accepted encodings
             set_option(CURLOPT_URL, url.to_string().to_byte_string().characters());
             set_option(CURLOPT_PORT, url.port_or_default());
             set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
