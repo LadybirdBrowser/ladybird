@@ -6,49 +6,49 @@
 
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibWeb/Fetch/Enums.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
+#include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
+#include <LibWeb/HTML/SharedWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerDebugConsoleClient.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <WebWorker/DedicatedWorkerHost.h>
+#include <WebWorker/WorkerHost.h>
 
 namespace WebWorker {
 
-DedicatedWorkerHost::DedicatedWorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name)
+WorkerHost::WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name)
     : m_url(move(url))
     , m_type(type)
     , m_name(move(name))
 {
 }
 
-DedicatedWorkerHost::~DedicatedWorkerHost() = default;
+WorkerHost::~WorkerHost() = default;
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-// FIXME: Extract out into a helper for both shared and dedicated workers
-void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHolder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot)
+void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHolder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared)
 {
-    bool const is_shared = false;
-
     // 3. Let unsafeWorkerCreationTime be the unsafe shared current time.
     auto unsafe_worker_creation_time = Web::HighResolutionTime::unsafe_shared_current_time();
 
     // 7. Let realm execution context be the result of creating a new JavaScript realm given agent and the following customizations:
     auto realm_execution_context = Web::Bindings::create_a_new_javascript_realm(
         Web::Bindings::main_thread_vm(),
-        [page](JS::Realm& realm) -> JS::Object* {
+        [page, is_shared](JS::Realm& realm) -> JS::Object* {
             //      7a. For the global object, if is shared is true, create a new SharedWorkerGlobalScope object.
             //      7b. Otherwise, create a new DedicatedWorkerGlobalScope object.
-            // FIXME: Proper support for both SharedWorkerGlobalScope and DedicatedWorkerGlobalScope
             if (is_shared)
-                TODO();
+                return Web::Bindings::main_thread_vm().heap().allocate<Web::HTML::SharedWorkerGlobalScope>(realm, page);
             return Web::Bindings::main_thread_vm().heap().allocate<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
         },
         nullptr);
@@ -67,10 +67,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
     console_object.console().set_client(*m_console);
 
     // 10. Set worker global scope's name to the value of options's name member.
-    if (is_shared)
-        TODO();
-    else
-        static_cast<Web::HTML::DedicatedWorkerGlobalScope&>(*worker_global_scope).set_name(m_name);
+    worker_global_scope->set_name(m_name);
 
     // 11. Append owner to worker global scope's owner set.
     // FIXME: support for 'owner' set on WorkerGlobalScope
@@ -80,11 +77,18 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
 
     // 12. If is shared is true, then:
     if (is_shared) {
-        // FIXME: Shared worker support
+        auto& shared_global_scope = static_cast<Web::HTML::SharedWorkerGlobalScope&>(*worker_global_scope);
         // 1. Set worker global scope's constructor origin to outside settings's origin.
+        shared_global_scope.set_constructor_origin(outside_settings->origin());
+
         // 2. Set worker global scope's constructor url to url.
+        shared_global_scope.set_constructor_url(m_url);
+
         // 3. Set worker global scope's type to the value of options's type member.
+        shared_global_scope.set_type(m_type);
+
         // 4. Set worker global scope's credentials to the value of options's credentials member.
+        shared_global_scope.set_credentials(Web::Fetch::from_bindings_enum(credentials));
     }
 
     // 13. Let destination be "sharedworker" if is shared is true, and "worker" otherwise.
@@ -92,7 +96,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
                                  : Web::Fetch::Infrastructure::Request::Destination::Worker;
 
     // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel and processCustomFetchResponse:
-    auto perform_fetch_function = [inside_settings, worker_global_scope](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
+    auto perform_fetch_function = [inside_settings, worker_global_scope, is_shared](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inside_settings->realm();
         auto& vm = realm.vm();
 
@@ -112,7 +116,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         auto process_custom_fetch_response_function = GC::create_function(vm.heap(), move(process_custom_fetch_response));
 
         // 3. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
-        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings](auto response, auto body_bytes) {
+        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings, is_shared](auto response, auto body_bytes) {
             auto& vm = inside_settings->vm();
 
             // 1. Set worker global scope's url to response's url.
@@ -127,6 +131,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
                 response = Web::Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"_string);
             }
 
+            // FIXME: Use worker global scope's policy container's embedder policy
             // FIXME: 4. If worker global scope's embedder policy's value is compatible with cross-origin isolation and is shared is true,
             //    then set agent's agent cluster's cross-origin isolation mode to "logical" or "concrete".
             //    The one chosen is implementation-defined.
@@ -150,7 +155,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
     };
     auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inside_settings->heap(), move(perform_fetch_function));
 
-    auto on_complete_function = [inside_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url](GC::Ptr<Web::HTML::Script> script) mutable {
+    auto on_complete_function = [inside_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url, is_shared](GC::Ptr<Web::HTML::Script> script) mutable {
         auto& realm = inside_settings->realm();
         // 1. If script is null or if script's error to rethrow is non-null, then:
         if (!script || !script->error_to_rethrow().is_null()) {
@@ -206,10 +211,25 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
             inside_port->start();
         }
 
-        // FIXME: 13. If is shared is true, then queue a global task on DOM manipulation task source given worker
+        // 13. If is shared is true, then queue a global task on DOM manipulation task source given worker
         //     global scope to fire an event named connect at worker global scope, using MessageEvent,
         //     with the data attribute initialized to the empty string, the ports attribute initialized
         //     to a new frozen array containing inside port, and the source attribute initialized to inside port.
+        if (is_shared) {
+            Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, *worker_global_scope, GC::create_function(realm.heap(), [worker_global_scope, inside_port] {
+                auto& realm = worker_global_scope->realm();
+                auto& vm = realm.vm();
+                Web::HTML::TemporaryExecutionContext const context(realm);
+
+                Web::HTML::MessageEventInit event_init {};
+                event_init.data = GC::Ref { vm.empty_string() };
+                event_init.ports = { inside_port };
+                event_init.source = inside_port;
+
+                auto message_event = Web::HTML::MessageEvent::create(realm, Web::HTML::EventNames::connect, event_init);
+                worker_global_scope->dispatch_event(message_event);
+            }));
+        }
 
         // FIXME: 14. Enable the client message queue of the ServiceWorkerContainer object whose associated service
         //     worker client is worker global scope's relevant settings object.

@@ -93,7 +93,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(String const& script_url, Wo
 void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> port, WorkerOptions const& options)
 {
     // 1. Let is shared be true if worker is a SharedWorker object, and false otherwise.
-    // FIXME: SharedWorker support
+    Bindings::AgentType agent_type = worker.has<GC::Ref<SharedWorker>>() ? Bindings::AgentType::SharedWorker : Bindings::AgentType::DedicatedWorker;
 
     // 2. Let owner be the relevant owner to add given outside settings.
     // FIXME: Support WorkerGlobalScope options
@@ -111,7 +111,7 @@ void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::U
     //    and is shared. Run the rest of these steps in that agent.
 
     // Note: This spawns a new process to act as the 'agent' for the worker.
-    auto agent = outside_settings.realm().create<WorkerAgentParent>(url, options, port, outside_settings);
+    auto agent = outside_settings.realm().create<WorkerAgentParent>(url, options, port, outside_settings, agent_type);
     worker.visit([&](auto worker) { worker->set_agent(agent); });
 }
 
