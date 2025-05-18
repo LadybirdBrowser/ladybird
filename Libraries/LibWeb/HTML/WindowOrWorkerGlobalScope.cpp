@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
@@ -201,6 +202,26 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                 };
 
                 (void)Web::Platform::ImageCodecPlugin::the().decode_image(image_data, move(on_successful_decode), move(on_failed_decode));
+            }));
+        },
+        [&](GC::Root<ImageData>& image_data) -> void {
+            // 1. Let buffer be image's data attribute value's [[ViewedArrayBuffer]] internal slot.
+            auto const buffer = image_data->data()->viewed_array_buffer();
+
+            // 2. If IsDetachedBuffer(buffer) is true, then return a promise rejected with an "InvalidStateError" DOMException.
+            if (buffer->is_detached()) {
+                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_string));
+            }
+
+            // 3. Set imageBitmap's bitmap data to image's image data, cropped to the source rectangle with formatting.
+            image_bitmap->set_bitmap(image_data->bitmap());
+
+            // 4. Run this step in parallel:
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [=]() {
+                // 1. Resolve p with imageBitmap.
+                auto& realm = relevant_realm(p->promise());
+                TemporaryExecutionContext context { relevant_realm(*image_bitmap), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::resolve_promise(realm, *p, image_bitmap);
             }));
         },
         [&](auto&) {
