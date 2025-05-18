@@ -458,6 +458,15 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             goto start;
         }
 
+        handle_JumpIfNot: {
+            auto& instruction = *reinterpret_cast<Op::JumpIfNot const*>(&bytecode[program_counter]);
+            if (!get(instruction.condition()).to_boolean())
+                program_counter = instruction.true_target().address();
+            else
+                program_counter = instruction.false_target().address();
+            goto start;
+        }
+
 #define HANDLE_COMPARISON_OP(op_TitleCase, op_snake_case, numeric_operator)                                             \
     handle_Jump##op_TitleCase:                                                                                          \
     {                                                                                                                   \
@@ -3621,6 +3630,13 @@ ByteString JumpFalse::to_byte_string_impl(Bytecode::Executable const& executable
     return ByteString::formatted("JumpFalse {}, {}",
         format_operand("condition"sv, m_condition, executable),
         m_target);
+}
+
+ByteString JumpIfNot::to_byte_string_impl(Bytecode::Executable const&) const
+{
+    return ByteString::formatted("JumpIfNot false:{}, true:{}",
+        m_false_target,
+        m_true_target);
 }
 
 ByteString JumpNullish::to_byte_string_impl(Bytecode::Executable const& executable) const

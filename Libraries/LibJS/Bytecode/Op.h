@@ -1717,6 +1717,39 @@ private:
     Label m_target;
 };
 
+class JumpIfNot final : public Instruction {
+public:
+    constexpr static bool IsTerminator = true;
+
+    explicit JumpIfNot(Operand condition, Label true_target, Label false_target)
+        : Instruction(Type::JumpIfNot)
+        , m_condition(condition)
+        , m_true_target(true_target)
+        , m_false_target(false_target)
+    {
+    }
+
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_labels_impl(Function<void(Label&)> visitor)
+    {
+        visitor(m_true_target);
+        visitor(m_false_target);
+    }
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_condition);
+    }
+
+    Operand condition() const { return m_condition; }
+    auto& true_target() const { return m_true_target; }
+    auto& false_target() const { return m_false_target; }
+
+private:
+    Operand m_condition;
+    Label m_true_target;
+    Label m_false_target;
+};
+
 #define JS_ENUMERATE_COMPARISON_OPS(X)            \
     X(LessThan, less_than, <)                     \
     X(LessThanEquals, less_than_equals, <=)       \
