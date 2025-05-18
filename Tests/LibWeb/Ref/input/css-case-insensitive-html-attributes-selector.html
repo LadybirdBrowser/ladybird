@@ -7,6 +7,10 @@
     div[test=two] { /* 'test' is NOT a case-insensitive html attribute */
         background: green;
     }
+    [aB] div {
+        background: blue;
+    }
 </style>
 <div type="ONE">I have a red background</div>
-<div type="TWO">I don't have a green background</div>
+<div test="TWO">I don't have a green background</div>
+<div ab><div>I have a blue background</div></div>
