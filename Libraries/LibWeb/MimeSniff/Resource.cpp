@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023-2024, Kemal Zebari <kemalzebra@gmail.com>.
+ * Copyright (c) 2025, Ben Eidson <b.e.eidson@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -315,6 +316,79 @@ bool matches_webm_signature(ReadonlyBytes sequence)
     return false;
 }
 
+// https://mimesniff.spec.whatwg.org/#match-an-mp3-header
+bool match_mp3_header(ReadonlyBytes sequence, size_t s)
+{
+    // To match an mp3 header, using a byte sequence sequence of length length at offset s execute these steps:
+    size_t length = sequence.size();
+
+    // 1. If length is less than 4, return false.
+    if (length - s < 4)
+        return false;
+
+    // 2. If sequence[s] is not equal to 0xff and sequence[s + 1] & 0xe0 is not equal to 0xe0, return false.
+    // NOTE: spec is wrong here, should be or.
+    if (sequence[s] != 0xff || (sequence[s + 1] & 0xe0) != 0xe0)
+        return false;
+
+    // 3. Let layer be the result of sequence[s + 1] & 0x06 >> 1.
+    u8 layer = (sequence[s + 1] & 0x06) >> 1;
+
+    // 4. If layer is 0, return false.
+    if (layer == 0)
+        return false;
+
+    // 5. Let bit-rate be sequence[s + 2] & 0xf0 >> 4.
+    u8 bit_rate = (sequence[s + 2] & 0xf0) >> 4;
+
+    // 6. If bit-rate is 15, return false.
+    if (bit_rate == 15)
+        return false;
+
+    // 7. Let sample-rate be sequence[s + 2] & 0x0c >> 2.
+    u8 sample_rate = (sequence[s + 2] & 0x0c) >> 2;
+
+    // 8. If sample-rate is 3, return false.
+    if (sample_rate == 3)
+        return false;
+
+    // FIXME: 9. Let freq be the value given by sample-rate in the table sample-rate.
+
+    // FIXME: 10. Let final-layer be the result of 4 - (sequence[s + 1]).
+
+    // FIXME: 11. If final-layer & 0x06 >> 1 is not 3, return false.
+
+    // 12. Return true.
+    return true;
+}
+
+// https://mimesniff.spec.whatwg.org/#matches-the-signature-for-mp3-without-id3
+// FIXME: Instead of implementing full spec, only matches single-frame mp3 header due to the issues stated at (https://github.com/whatwg/mimesniff/issues/70)
+bool matches_mp3_no_id3_signature(ReadonlyBytes sequence)
+{
+    // 1. Let sequence be the byte sequence to be matched, where sequence[s] is byte s in sequence and sequence[0] is the first byte in sequence.
+
+    // FIXME: 2. Let length be the number of bytes in sequence.
+
+    // FIXME: 3. Initialize s to 0.
+
+    // 4. If the result of the operation match mp3 header is false, return false.
+    bool result = match_mp3_header(sequence, 0);
+    if (!result)
+        return false;
+
+    // FIXME: 5. Parse an mp3 frame on sequence at offset s
+
+    // FIXME: 6. Let skipped-bytes the return value of the execution of mp3 framesize computation
+
+    // FIXME: 7. If skipped-bytes is less than 4, or skipped-bytes is greater than s - length, return false.
+
+    // FIXME: 8. Increment s by skipped-bytes.
+
+    // FIXME: 9. If the result of the operation match mp3 header operation is false, return false, else, return true.
+    return true;
+}
+
 // https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
 Optional<MimeType> match_an_audio_or_video_type_pattern(ReadonlyBytes input)
 {
@@ -361,7 +435,9 @@ Optional<MimeType> match_an_audio_or_video_type_pattern(ReadonlyBytes input)
     if (matches_webm_signature(input))
         return MimeType::create("video"_string, "webm"_string);
 
-    // FIXME: 4. If input matches the signature for MP3 without ID3, return "audio/mpeg".
+    // 4. If input matches the signature for MP3 without ID3, return "audio/mpeg".
+    if (matches_mp3_no_id3_signature(input))
+        return MimeType::create("audio"_string, "mpeg"_string);
 
     // 5. Return undefined.
     return OptionalNone {};
