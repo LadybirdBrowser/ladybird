@@ -10,6 +10,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -31,14 +32,6 @@ struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData
 };
 
 HTML::Script* active_script();
-
-enum class AgentType : u8 {
-    SimilarOriginWindow,
-    DedicatedWorker,
-    SharedWorker,
-    ServiceWorker,
-    Worklet,
-};
 
 void initialize_main_thread_vm(AgentType);
 JS::VM& main_thread_vm();

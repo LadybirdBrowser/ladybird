@@ -20,7 +20,7 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
