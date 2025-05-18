@@ -129,6 +129,14 @@ CSSPixels LineBuilder::y_for_float_to_be_inserted_here(Box const& box)
     // Then, look for the next Y position where we can fit the new float.
     auto box_in_root_rect = m_context.parent().content_box_rect_in_ancestor_coordinate_space(box_state, m_context.parent().root());
 
+    // New floats will always be placed vertically at or below the lowest float.
+    // This applies to all floats, so the last inserted float will always be the lowest.
+    auto last_float = m_context.parent().last_inserted_float();
+    if (last_float.has_value()) {
+        auto float_box_top = last_float->margin_box_rect_in_root_coordinate_space.top() - box_in_root_rect.y();
+        candidate_block_offset = max(candidate_block_offset, float_box_top);
+    }
+
     HashMap<CSSPixels, AvailableSize> available_space_cache;
     for (;;) {
         Optional<CSSPixels> highest_intersection_bottom;

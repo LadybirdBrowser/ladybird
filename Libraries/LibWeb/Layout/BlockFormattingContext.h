@@ -74,6 +74,25 @@ public:
 
     void reset_margin_state() { m_margin_state.reset(); }
 
+    struct FloatingBox {
+        GC::Ref<Box const> box;
+
+        LayoutState::UsedValues& used_values;
+
+        // Offset from left/right edge to the left content edge of `box`.
+        CSSPixels offset_from_edge { 0 };
+
+        // Top margin edge of `box`.
+        CSSPixels top_margin_edge { 0 };
+
+        // Bottom margin edge of `box`.
+        CSSPixels bottom_margin_edge { 0 };
+
+        CSSPixelRect margin_box_rect_in_root_coordinate_space;
+    };
+
+    Optional<FloatingBox&> last_inserted_float() { return m_last_inserted_float; }
+
 private:
     CSSPixels compute_auto_height_for_block_level_element(Box const&, AvailableSpace const&);
 
@@ -97,23 +116,6 @@ private:
     enum class FloatSide {
         Left,
         Right,
-    };
-
-    struct FloatingBox {
-        GC::Ref<Box const> box;
-
-        LayoutState::UsedValues& used_values;
-
-        // Offset from left/right edge to the left content edge of `box`.
-        CSSPixels offset_from_edge { 0 };
-
-        // Top margin edge of `box`.
-        CSSPixels top_margin_edge { 0 };
-
-        // Bottom margin edge of `box`.
-        CSSPixels bottom_margin_edge { 0 };
-
-        CSSPixelRect margin_box_rect_in_root_coordinate_space;
     };
 
     struct FloatSideData {
@@ -189,6 +191,7 @@ private:
 
     FloatSideData m_left_floats;
     FloatSideData m_right_floats;
+    Optional<FloatingBox&> m_last_inserted_float;
 
     bool m_was_notified_after_parent_dimensioned_my_root_box { false };
 };
