@@ -19,7 +19,7 @@ String Number::to_string() const
         return "-infinity"_string;
     if (isnan(m_value))
         return "NaN"_string;
-    return String::number(m_value);
+    return MUST(String::formatted("{:.5}", m_value));
 }
 
 }
