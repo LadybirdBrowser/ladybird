@@ -309,9 +309,9 @@ class URL;
 class URLStyleValue;
 class VisualViewport;
 
-enum class Keyword;
+enum class Keyword : u16;
 enum class MediaFeatureID : u8;
-enum class PropertyID;
+enum class PropertyID : u16;
 
 struct BackgroundLayerData;
 struct CSSStyleSheetInit;

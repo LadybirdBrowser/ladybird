@@ -50,6 +50,7 @@ ErrorOr<void> generate_header_file(JsonArray& keyword_data, Core::File& file)
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
+    generator.set("keyword_underlying_type", underlying_type_for_enum(keyword_data.size()));
     generator.append(R"~~~(
 #pragma once
 
@@ -58,7 +59,7 @@ ErrorOr<void> generate_header_file(JsonArray& keyword_data, Core::File& file)
 
 namespace Web::CSS {
 
-enum class Keyword {
+enum class Keyword : @keyword_underlying_type@ {
     Invalid,
 )~~~");
 
