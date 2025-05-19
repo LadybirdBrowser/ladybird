@@ -126,6 +126,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, Core::File& file)
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
+    generator.set("property_id_underlying_type", underlying_type_for_enum(properties.size()));
     generator.append(R"~~~(
 #pragma once
 
@@ -137,7 +138,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, Core::File& file)
 
 namespace Web::CSS {
 
-enum class PropertyID {
+enum class PropertyID : @property_id_underlying_type@ {
     Invalid,
     Custom,
     All,
