@@ -273,7 +273,7 @@ void BytecodeInterpreter::binary_numeric_operation(Configuration& configuration,
     } else {
         result = call_result;
     }
-    dbgln_if(WASM_TRACE_DEBUG, "{} {} {} = {}", lhs.value(), Operator::name(), rhs.value(), result);
+    dbgln_if(WASM_TRACE_DEBUG, "{} {} {} = {}", lhs, Operator::name(), rhs, result);
     lhs_entry = Value(result);
 }
 
@@ -293,7 +293,7 @@ void BytecodeInterpreter::unary_operation(Configuration& configuration, Args&&..
     } else {
         result = call_result;
     }
-    dbgln_if(WASM_TRACE_DEBUG, "map({}) {} = {}", Operator::name(), *value, result);
+    dbgln_if(WASM_TRACE_DEBUG, "map({}) {} = {}", Operator::name(), value, result);
     entry = Value(result);
 }
 
