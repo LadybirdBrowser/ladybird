@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 26 tests
+
+18 Pass
+8 Fail
+Pass	Should be known: '(prefers-contrast)'
+Pass	Should be known: '(prefers-contrast: no-preference)'
+Pass	Should be known: '(prefers-contrast: more)'
+Pass	Should be known: '(prefers-contrast: less)'
+Pass	Should be known: '(prefers-contrast: custom)'
+Fail	Should be parseable: '(prefers-contrast: increase)'
+Pass	Should be unknown: '(prefers-contrast: increase)'
+Fail	Should be parseable: '(prefers-contrast: none)'
+Pass	Should be unknown: '(prefers-contrast: none)'
+Fail	Should be parseable: '(prefers-contrast: forced high)'
+Pass	Should be unknown: '(prefers-contrast: forced high)'
+Fail	Should be parseable: '(prefers-contrast: forced low)'
+Pass	Should be unknown: '(prefers-contrast: forced low)'
+Fail	Should be parseable: '(prefers-contrast > increase)'
+Pass	Should be unknown: '(prefers-contrast > increase)'
+Pass	Should be parseable: '(prefers-increased-contrast)'
+Pass	Should be unknown: '(prefers-increased-contrast)'
+Pass	Should be parseable: '(prefers-decreased-contrast)'
+Pass	Should be unknown: '(prefers-decreased-contrast)'
+Fail	Should be parseable: '(prefers-contrast: high)'
+Pass	Should be unknown: '(prefers-contrast: high)'
+Fail	Should be parseable: '(prefers-contrast: low)'
+Pass	Should be unknown: '(prefers-contrast: low)'
+Fail	Should be parseable: '(prefers-contrast: forced)'
+Pass	Should be unknown: '(prefers-contrast: forced)'
+Pass	Check boolean context evaluation.

@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Test: It is invalid to mix "and" and "or" and "not" at the same level of a media query.</title>
+		<link rel="author" title="Romain Menke" href="https://github.com/romainmenke">
+		<link rel="help" href="https://www.w3.org/TR/mediaqueries-4/#media-conditions">
+		<link rel="match" href="../reference/ref-filled-green-100px-square.xht">
+		<meta name="assert" content="Test passes if invalid combinations with 'not' do not apply.">
+		<style>
+			div {
+				background-color: red;
+				height: 25px;
+				width: 100px;
+			}
+
+			@media ((color) and (color)) {
+				/* Only green when the browser supports the general syntax */
+				div {
+					background-color: green;
+				}
+			}
+
+			@media (not (monochrome) and (color)) {
+				.test1 { background: red; }
+			}
+			@media (not (monochrome) or (color)) {
+				.test2 { background: red; }
+			}
+			@media ((color) and not (monochrome)) {
+				.test3 { background: red; }
+			}
+			@media ((color) or not (monochrome)) {
+				.test4 { background: red; }
+			}
+	</style>
+	</head>
+	<body>
+		<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+		<div class="test1"></div>
+		<div class="test2"></div>
+		<div class="test3"></div>
+		<div class="test4"></div>
+	</body>
+</html>

@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+20 Pass
+8 Fail
+Pass	Should be known: '(overflow-inline)'
+Pass	Should be known: '(overflow-inline: none)'
+Pass	Should be known: '(overflow-inline: scroll)'
+Pass	Should be parseable: 'overflow-inline'
+Fail	Should be unknown: 'overflow-inline'
+Fail	Should be parseable: '(overflow-inline: ?)'
+Pass	Should be unknown: '(overflow-inline: ?)'
+Fail	Should be parseable: '(overflow-inline: 10px)'
+Pass	Should be unknown: '(overflow-inline: 10px)'
+Fail	Should be parseable: '(overflow-inline: 0)'
+Pass	Should be unknown: '(overflow-inline: 0)'
+Pass	Should be known: '(overflow-block)'
+Pass	Should be known: '(overflow-block: none)'
+Pass	Should be known: '(overflow-block: scroll)'
+Pass	Should be known: '(overflow-block: paged)'
+Pass	Should be parseable: 'overflow-block'
+Fail	Should be unknown: 'overflow-block'
+Fail	Should be parseable: '(overflow-block: ?)'
+Pass	Should be unknown: '(overflow-block: ?)'
+Fail	Should be parseable: '(overflow-block: 10px)'
+Pass	Should be unknown: '(overflow-block: 10px)'
+Fail	Should be parseable: '(overflow-block: 0)'
+Pass	Should be unknown: '(overflow-block: 0)'
+Pass	Check that overflow-inline: scroll always matches non printing documents
+Pass	Check that overflow-block: scroll always matches non printing documents
+Pass	Check that overflow-inline: none doesn't match non printing documents
+Pass	Check that overflow-block: none doesn't match non printing documents
+Pass	Check that overflow-block: paged doesn't match non printing documents

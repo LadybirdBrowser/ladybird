@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Test: syntax error handling in Media Queries</title>
+		<link rel="author" title="Florian Rivoal" href="http://florian.rivoal.net/">
+		<link rel="help" href="https://drafts.csswg.org/mediaqueries4/#error-handling">
+		<link rel="match" href="../reference/ref-filled-green-100px-square.xht">
+		<meta name="assert" content="'or' is an invalid media type">
+		<meta name="flags" content="invalid">
+		<style>
+			div {
+				width: 100px;
+				height: 100px;
+			}
+			@media all {
+				div { background-color: green; }
+			}
+			@media not or {
+				div { background-color: red; }
+			}
+			@media or {
+				div { background-color: red; }
+			}
+	</style>
+	</head>
+	<body>
+		<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+		<div></div>
+	</body>
+</html>
+

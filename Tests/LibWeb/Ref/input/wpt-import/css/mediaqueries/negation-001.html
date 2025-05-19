@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Test: support for negated conditions in Media Queries</title>
+		<link rel="author" title="Romain Menke" href="https://github.com/romainmenke">
+		<link rel="help" href="https://www.w3.org/TR/mediaqueries-4/#media-conditions">
+		<link rel="match" href="../reference/ref-filled-green-100px-square.xht">
+		<meta name="assert" content="Test passes if negated conditions are correctly evaluated.">
+		<style>
+			div {
+				background-color: red;
+				height: 20px;
+				width: 100px;
+			}
+			@media not print {
+				.test1 { background: green; }
+			}
+			@media not (monochrome) {
+				.test2 { background: green; }
+			}
+			@media (not (monochrome)) {
+				.test3 { background: green; }
+			}
+			@media not (not (color)) {
+				.test4 { background: green; }
+			}
+			.test5 { background: green; }
+			@media not ((unknown) or (monochrome)) {
+				.test5 { background: red; }
+			}
+	</style>
+	</head>
+	<body>
+		<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+		<div class="test1"></div>
+		<div class="test2"></div>
+		<div class="test3"></div>
+		<div class="test4"></div>
+		<div class="test5"></div>
+	</body>
+</html>

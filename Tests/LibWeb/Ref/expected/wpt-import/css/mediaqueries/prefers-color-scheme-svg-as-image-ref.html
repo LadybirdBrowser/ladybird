@@ -1,0 +1,19 @@
+<!doctype html>
+<head>
+  <title>prefers-color-scheme inside an SVG image</title>
+  <link rel="help" href="https://www.w3.org/TR/mediaqueries-5/#descdef-media-prefers-color-scheme">
+</head>
+<style>
+  div {
+    background-color: blue;
+    height: 32px;
+    width: 32px;
+  }
+  @media (prefers-color-scheme: dark) {
+    div {
+      background-color: purple;
+    }
+  }
+</style>
+<p>There should be a purple square below when the preferred color-scheme is dark, and blue otherwise.</p>
+<div></div>

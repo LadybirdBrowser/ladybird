@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#forced-colors" />
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+<script>
+query_should_be_known("(forced-colors)");
+query_should_be_known("(forced-colors: none)");
+query_should_be_known("(forced-colors: active)");
+
+query_should_be_unknown("(forced-colors: 0)");
+query_should_be_unknown("(forced-colors: no-preference)");
+query_should_be_unknown("(forced-colors: 10px)");
+query_should_be_unknown("(forced-colors: active 0)");
+query_should_be_unknown("(forced-colors: none active)");
+query_should_be_unknown("(forced-colors: active/none)");
+
+test(() => {
+  let booleanContext = window.matchMedia("(forced-colors)");
+  let none = window.matchMedia("(forced-colors: none)");
+  assert_equals(booleanContext.matches, !none.matches);
+}, "Check that none evaluates to false in the boolean context");
+</script>

@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+10 Pass
+6 Fail
+Pass	Should be known: '(forced-colors)'
+Pass	Should be known: '(forced-colors: none)'
+Pass	Should be known: '(forced-colors: active)'
+Fail	Should be parseable: '(forced-colors: 0)'
+Pass	Should be unknown: '(forced-colors: 0)'
+Fail	Should be parseable: '(forced-colors: no-preference)'
+Pass	Should be unknown: '(forced-colors: no-preference)'
+Fail	Should be parseable: '(forced-colors: 10px)'
+Pass	Should be unknown: '(forced-colors: 10px)'
+Fail	Should be parseable: '(forced-colors: active 0)'
+Pass	Should be unknown: '(forced-colors: active 0)'
+Fail	Should be parseable: '(forced-colors: none active)'
+Pass	Should be unknown: '(forced-colors: none active)'
+Fail	Should be parseable: '(forced-colors: active/none)'
+Pass	Should be unknown: '(forced-colors: active/none)'
+Pass	Check that none evaluates to false in the boolean context

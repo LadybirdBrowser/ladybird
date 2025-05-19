@@ -1,0 +1,31 @@
+<!doctype html>
+<title>Test: deprecated media types</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-4/#media-types">
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-4/#ref-for-media-type%E2%91%A0%E2%91%A6">
+<link rel="match" href="../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="deprecated media types must not match">
+<style>
+div {
+    width: 100px;
+    height: 100px;
+    background-color: green;
+}
+
+@media
+    tty,
+    tv,
+    projection,
+    handheld,
+    braille,
+    embossed,
+    aural,
+    speech
+{
+    div { background-color: red; }
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+
+<div></div>
