@@ -342,22 +342,6 @@ add_serenity_subdirectory(Libraries/LibFileSystem)
 # This is used by the BindingsGenerator so needs to always be built.
 add_serenity_subdirectory(Libraries/LibIDL)
 
-# Manually install AK headers
-if (ENABLE_INSTALL_HEADERS)
-    install(
-        DIRECTORY "${SERENITY_PROJECT_ROOT}/AK"
-        COMPONENT Lagom_Development
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.h"
-    )
-    install(FILES
-        ${Lagom_BINARY_DIR}/AK/Debug.h
-        ${Lagom_BINARY_DIR}/AK/Backtrace.h
-        COMPONENT Lagom_Development
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/AK"
-    )
-endif()
-
 # Code Generators and other host tools
 if (BUILD_LAGOM_TOOLS)
     add_subdirectory(Tools)

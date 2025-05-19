@@ -80,3 +80,19 @@ elseif (APPLE)
     endif()
     target_link_options(AK ${ASSERTION_HANDLER_VISIBILITY} LINKER:-U,_ak_assertion_handler)
 endif()
+
+# Manually install AK headers
+if (ENABLE_INSTALL_HEADERS)
+    install(
+        DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        COMPONENT Lagom_Development
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/Debug.h
+        ${CMAKE_CURRENT_BINARY_DIR}/Backtrace.h
+        COMPONENT Lagom_Development
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/AK"
+    )
+endif()
