@@ -413,45 +413,10 @@ endif()
 # Lagom Utilities
 add_serenity_subdirectory(Utilities)
 
+# Tests
 include(CTest)
 if (BUILD_TESTING)
-    # LibTest tests from Tests/
-    set(TEST_DIRECTORIES
-        AK
-        LibCrypto
-        LibCompress
-        LibCore
-        LibDiff
-        LibDNS
-        LibGC
-        LibJS
-        LibRegex
-        LibTest
-        LibTextCodec
-        LibThreading
-        LibTLS
-        LibUnicode
-        LibURL
-        LibWasm
-        LibXML
-    )
-
-    if (ENABLE_GUI_TARGETS)
-        list(APPEND TEST_DIRECTORIES
-            LibGfx
-            LibMedia
-            LibWeb
-            LibWebView
-        )
-    endif()
-
-    if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-        list(APPEND TEST_DIRECTORIES ClangPlugins)
-    endif()
-
-    foreach (dir IN LISTS TEST_DIRECTORIES)
-        add_serenity_subdirectory("Tests/${dir}")
-    endforeach()
+    add_serenity_subdirectory(Tests)
 endif()
 
 install(TARGETS js COMPONENT js)
