@@ -446,21 +446,7 @@ int CSSStyleValue::to_font_weight() const
 int CSSStyleValue::to_font_slope() const
 {
     // FIXME: Implement oblique <angle>
-    if (is_keyword()) {
-        switch (as_keyword().keyword()) {
-        case Keyword::Italic: {
-            static int italic_slope = Gfx::name_to_slope("Italic"sv);
-            return italic_slope;
-        }
-        case Keyword::Oblique:
-            static int oblique_slope = Gfx::name_to_slope("Oblique"sv);
-            return oblique_slope;
-        case Keyword::Normal:
-        default:
-            static int normal_slope = Gfx::name_to_slope("Normal"sv);
-            return normal_slope;
-        }
-    } else if (is_font_style()) {
+    if (is_font_style()) {
         switch (as_font_style().font_style()) {
         case FontStyle::Italic:
             static int italic_slope = Gfx::name_to_slope("Italic"sv);
