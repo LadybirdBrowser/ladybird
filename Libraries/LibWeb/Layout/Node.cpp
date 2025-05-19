@@ -733,8 +733,11 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         if (value.is_calculated())
             return max(CSSPixels { 0 },
                 value.as_calculated().resolve_length({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) })->to_px(*this));
-        if (value.is_length())
-            return value.as_length().length().to_px(*this);
+        if (value.is_length()) {
+            // FIXME: Currently, interpolation can set property values outside of their valid range.
+            //        We should instead clamp property values to the valid range when interpolating.
+            return max(CSSPixels { 0 }, value.as_length().length().to_px(*this));
+        }
         if (value.is_keyword()) {
             // https://www.w3.org/TR/css-backgrounds-3/#valdef-line-width-thin
             switch (value.to_keyword()) {
