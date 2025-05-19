@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
@@ -189,21 +190,14 @@ public:
     ~MediaQuery() = default;
 
     // https://www.w3.org/TR/mediaqueries-4/#media-types
-    enum class MediaType {
+    enum class KnownMediaType : u8 {
         All,
         Print,
         Screen,
-        Unknown,
-
-        // Deprecated, must never match:
-        TTY,
-        TV,
-        Projection,
-        Handheld,
-        Braille,
-        Embossed,
-        Aural,
-        Speech,
+    };
+    struct MediaType {
+        FlyString name;
+        Optional<KnownMediaType> known_type;
     };
 
     static NonnullRefPtr<MediaQuery> create_not_all();
@@ -218,7 +212,7 @@ private:
 
     // https://www.w3.org/TR/mediaqueries-4/#mq-not
     bool m_negated { false };
-    MediaType m_media_type { MediaType::All };
+    MediaType m_media_type { .name = "all"_fly_string, .known_type = KnownMediaType::All };
     OwnPtr<BooleanExpression> m_media_condition { nullptr };
 
     // Cached value, updated by evaluate()
@@ -227,8 +221,8 @@ private:
 
 String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const&);
 
-MediaQuery::MediaType media_type_from_string(StringView);
-StringView to_string(MediaQuery::MediaType);
+Optional<MediaQuery::KnownMediaType> media_type_from_string(StringView);
+StringView to_string(MediaQuery::KnownMediaType);
 
 }
 

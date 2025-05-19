@@ -17,7 +17,10 @@ NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
 {
     auto media_query = new MediaQuery;
     media_query->m_negated = true;
-    media_query->m_media_type = MediaType::All;
+    media_query->m_media_type = {
+        .name = "all"_fly_string,
+        .known_type = KnownMediaType::All,
+    };
 
     return adopt_ref(*media_query);
 }
@@ -265,8 +268,12 @@ String MediaQuery::to_string() const
     if (m_negated)
         builder.append("not "sv);
 
-    if (m_negated || m_media_type != MediaType::All || !m_media_condition) {
-        builder.append(CSS::to_string(m_media_type));
+    if (m_negated || m_media_type.known_type != KnownMediaType::All || !m_media_condition) {
+        if (m_media_type.known_type.has_value()) {
+            builder.append(CSS::to_string(m_media_type.known_type.value()));
+        } else {
+            builder.append(serialize_an_identifier(m_media_type.name.to_ascii_lowercase()));
+        }
         if (m_media_condition)
             builder.append(" and "sv);
     }
@@ -280,28 +287,18 @@ String MediaQuery::to_string() const
 
 bool MediaQuery::evaluate(HTML::Window const& window)
 {
-    auto matches_media = [](MediaType media) -> MatchResult {
-        switch (media) {
-        case MediaType::All:
+    auto matches_media = [](MediaType const& media) -> MatchResult {
+        if (!media.known_type.has_value())
+            return MatchResult::False;
+        switch (media.known_type.value()) {
+        case KnownMediaType::All:
             return MatchResult::True;
-        case MediaType::Print:
+        case KnownMediaType::Print:
             // FIXME: Enable for printing, when we have printing!
             return MatchResult::False;
-        case MediaType::Screen:
+        case KnownMediaType::Screen:
             // FIXME: Disable for printing, when we have printing!
             return MatchResult::True;
-        case MediaType::Unknown:
-            return MatchResult::False;
-        // Deprecated, must never match:
-        case MediaType::TTY:
-        case MediaType::TV:
-        case MediaType::Projection:
-        case MediaType::Handheld:
-        case MediaType::Braille:
-        case MediaType::Embossed:
-        case MediaType::Aural:
-        case MediaType::Speech:
-            return MatchResult::False;
         }
         VERIFY_NOT_REACHED();
     };
@@ -330,60 +327,26 @@ String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const& med
     return MUST(String::join(", "sv, media_queries));
 }
 
-MediaQuery::MediaType media_type_from_string(StringView name)
+Optional<MediaQuery::KnownMediaType> media_type_from_string(StringView name)
 {
     if (name.equals_ignoring_ascii_case("all"sv))
-        return MediaQuery::MediaType::All;
-    if (name.equals_ignoring_ascii_case("aural"sv))
-        return MediaQuery::MediaType::Aural;
-    if (name.equals_ignoring_ascii_case("braille"sv))
-        return MediaQuery::MediaType::Braille;
-    if (name.equals_ignoring_ascii_case("embossed"sv))
-        return MediaQuery::MediaType::Embossed;
-    if (name.equals_ignoring_ascii_case("handheld"sv))
-        return MediaQuery::MediaType::Handheld;
+        return MediaQuery::KnownMediaType::All;
     if (name.equals_ignoring_ascii_case("print"sv))
-        return MediaQuery::MediaType::Print;
-    if (name.equals_ignoring_ascii_case("projection"sv))
-        return MediaQuery::MediaType::Projection;
+        return MediaQuery::KnownMediaType::Print;
     if (name.equals_ignoring_ascii_case("screen"sv))
-        return MediaQuery::MediaType::Screen;
-    if (name.equals_ignoring_ascii_case("speech"sv))
-        return MediaQuery::MediaType::Speech;
-    if (name.equals_ignoring_ascii_case("tty"sv))
-        return MediaQuery::MediaType::TTY;
-    if (name.equals_ignoring_ascii_case("tv"sv))
-        return MediaQuery::MediaType::TV;
-    return MediaQuery::MediaType::Unknown;
+        return MediaQuery::KnownMediaType::Screen;
+    return {};
 }
 
-StringView to_string(MediaQuery::MediaType media_type)
+StringView to_string(MediaQuery::KnownMediaType media_type)
 {
     switch (media_type) {
-    case MediaQuery::MediaType::All:
+    case MediaQuery::KnownMediaType::All:
         return "all"sv;
-    case MediaQuery::MediaType::Aural:
-        return "aural"sv;
-    case MediaQuery::MediaType::Braille:
-        return "braille"sv;
-    case MediaQuery::MediaType::Embossed:
-        return "embossed"sv;
-    case MediaQuery::MediaType::Handheld:
-        return "handheld"sv;
-    case MediaQuery::MediaType::Print:
+    case MediaQuery::KnownMediaType::Print:
         return "print"sv;
-    case MediaQuery::MediaType::Projection:
-        return "projection"sv;
-    case MediaQuery::MediaType::Screen:
+    case MediaQuery::KnownMediaType::Screen:
         return "screen"sv;
-    case MediaQuery::MediaType::Speech:
-        return "speech"sv;
-    case MediaQuery::MediaType::TTY:
-        return "tty"sv;
-    case MediaQuery::MediaType::TV:
-        return "tv"sv;
-    case MediaQuery::MediaType::Unknown:
-        return "unknown"sv;
     }
     VERIFY_NOT_REACHED();
 }

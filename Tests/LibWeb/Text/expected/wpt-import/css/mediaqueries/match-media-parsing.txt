@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 34 tests
 
-32 Pass
-2 Fail
+34 Pass
 Pass	Test parsing '' with matchMedia
 Pass	Test parsing ' ' with matchMedia
 Pass	Test parsing 'all' with matchMedia
@@ -19,12 +18,12 @@ Pass	Test parsing ' ( color   ' with matchMedia
 Pass	Test parsing 'color)' with matchMedia
 Pass	Test parsing '  color)' with matchMedia
 Pass	Test parsing '  color ), ( color' with matchMedia
-Fail	Test parsing ' foo ' with matchMedia
+Pass	Test parsing ' foo ' with matchMedia
 Pass	Test parsing ',' with matchMedia
 Pass	Test parsing ' , ' with matchMedia
 Pass	Test parsing ',,' with matchMedia
 Pass	Test parsing '  ,  ,  ' with matchMedia
-Fail	Test parsing ' foo,' with matchMedia
+Pass	Test parsing ' foo,' with matchMedia
 Pass	Test parsing '(min-resolution: 1x)' with matchMedia
 Pass	Test parsing '(min-resolution: calc(1x))' with matchMedia
 Pass	Test parsing '(resolution: 2x)' with matchMedia
