@@ -38,17 +38,32 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "ENABLE_QT": "OFF"
+        "ENABLE_QT": "OFF",
+        "ENABLE_GUI_TARGETS": "OFF"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
-            "intelliSenseMode": "windows-clang-x64"
+          "intelliSenseMode": "windows-clang-x64"
         }
       },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "windows_ci",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "ON"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "windows_dev",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "OFF"
       }
     },
     {
@@ -62,10 +77,10 @@
         "rhs": "Windows"
       }
     },
+
     {
+      "hidden": true,
       "name": "windows_ninja",
-      "displayName": "Default with ClangCL and Ninja",
-      "description": "Windows build using Ninja generator (experimental)",
       "inherits": [
         "default_base",
         "windows"
@@ -77,15 +92,44 @@
       }
     },
     {
+      "hidden": false,
+      "name": "windows_ci_ninja",
+      "displayName": "Windows Continuous Integration (ClangCL and Ninja)",
+      "description": "Windows continuous integration build using Ninja (experimental)",
+      "inherits": [
+        "windows_ninja",
+        "windows_ci"
+      ]
+    },
+    {
+      "hidden": false,
+      "name": "windows_dev_ninja",
+      "displayName": "Window Development (ClangCL and Ninja)",
+      "description": "Windows development build using Ninja (experimental)",
+      "inherits": [
+        "windows_ninja",
+        "windows_dev"
+      ]
+    },
+    {
+      "hidden": true,
       "name": "windows_msbuild",
-      "displayName": "Default with ClangCL and MSBuild",
-      "description": "Default build using Visual Studio generator (experimental)",
       "inherits": [
         "default_base",
         "windows"
       ],
       "generator": "Visual Studio 17 2022",
       "toolset": "ClangCL"
+    },
+    {
+      "hidden": false,
+      "name": "windows_dev_msbuild",
+      "displayName": "Window Development (ClangCL and MSBuild)",
+      "description": "Windows development build using MSBuild (experimental)",
+      "inherits": [
+        "windows_msbuild",
+        "windows_dev"
+      ]
     },
     {
       "name": "Distribution",
@@ -219,7 +263,7 @@
       "displayName": "Build",
       "description": "Build the project in debug",
       "targets": [
-          "all"
+        "all"
       ]
     },
     {
