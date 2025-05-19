@@ -424,7 +424,7 @@ if (ENABLE_GUI_TARGETS)
 endif()
 
 lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
-lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
+lagom_utility(test262-runner SOURCES ../../Utilities/test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(CheckCSourceCompiles)
