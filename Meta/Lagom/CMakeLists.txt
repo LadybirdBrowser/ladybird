@@ -414,37 +414,7 @@ if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
 endif()
 
 # Lagom Utilities
-lagom_utility(abench SOURCES ../../Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
-
-lagom_utility(dns SOURCES ../../Utilities/dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
-
-if (ENABLE_GUI_TARGETS)
-    lagom_utility(animation SOURCES ../../Utilities/animation.cpp LIBS LibGfx LibMain)
-    lagom_utility(image SOURCES ../../Utilities/image.cpp LIBS LibGfx LibMain)
-endif()
-
-lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
-lagom_utility(test262-runner SOURCES ../../Utilities/test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    include(CheckCSourceCompiles)
-    # Check for musl's declaration of __assert_fail
-    check_c_source_compiles(
-        "
-        #include <assert.h>
-        __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function) {}
-        int main() {}
-        "
-        ASSERT_FAIL_HAS_INT
-    )
-endif()
-
-if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
-    target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
-endif()
-
-lagom_utility(wasm SOURCES ../../Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain)
-lagom_utility(xml SOURCES ../../Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
+add_serenity_subdirectory(Utilities)
 
 include(CTest)
 if (BUILD_TESTING)
