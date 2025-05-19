@@ -310,7 +310,7 @@ class URLStyleValue;
 class VisualViewport;
 
 enum class Keyword;
-enum class MediaFeatureID;
+enum class MediaFeatureID : u8;
 enum class PropertyID;
 
 struct BackgroundLayerData;
