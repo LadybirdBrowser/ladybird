@@ -64,7 +64,8 @@
       "fullscreen",
       "standalone",
       "minimal-ui",
-      "browser"
+      "browser",
+      "picture-in-picture"
     ]
   },
   "dynamic-range": {

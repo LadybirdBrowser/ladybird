@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 17 tests
 
-11 Pass
-6 Fail
+12 Pass
+5 Fail
 Pass	Should be known: '(display-mode)'
 Pass	Should be known: '(display-mode: standalone)'
 Pass	Should be known: '(display-mode: browser)'
 Pass	Should be known: '(display-mode: minimal-ui)'
 Pass	Should be known: '(display-mode: fullscreen)'
-Fail	Should be known: '(display-mode: picture-in-picture)'
+Pass	Should be known: '(display-mode: picture-in-picture)'
 Fail	Should be parseable: '(display-mode: 0)'
 Pass	Should be unknown: '(display-mode: 0)'
 Fail	Should be parseable: '(display-mode: none)'
