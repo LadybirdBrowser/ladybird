@@ -1,3 +1,8 @@
+# FIXME: Increase support for building targets on Windows
+if (WIN32 AND ENABLE_WINDOWS_CI)
+    return()
+endif()
+
 lagom_utility(abench SOURCES abench.cpp LIBS LibMain LibFileSystem LibMedia)
 lagom_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 

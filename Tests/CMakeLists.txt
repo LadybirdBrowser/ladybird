@@ -1,4 +1,10 @@
 add_subdirectory(AK)
+
+# FIXME: Increase support for building targets on Windows
+if (WIN32 AND ENABLE_WINDOWS_CI)
+    return()
+endif()
+
 add_subdirectory(LibCrypto)
 add_subdirectory(LibCompress)
 add_subdirectory(LibCore)

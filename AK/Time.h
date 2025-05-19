@@ -13,9 +13,10 @@
 #include <AK/Platform.h>
 #include <AK/Types.h>
 #ifdef AK_OS_WINDOWS
+// https://learn.microsoft.com/en-us/windows/win32/api/winsock/ns-winsock-timeval
 struct timeval {
-    long tv_sec;
-    long tv_usec;
+    long tv_sec { 0 };
+    long tv_usec { 0 };
 };
 #else
 #    include <sys/time.h>
