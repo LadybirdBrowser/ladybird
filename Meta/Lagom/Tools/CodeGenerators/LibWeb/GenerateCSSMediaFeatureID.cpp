@@ -42,6 +42,9 @@ ErrorOr<void> generate_header_file(JsonObject& media_feature_data, Core::File& f
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
+
+    generator.set("media_feature_id_underlying_type", underlying_type_for_enum(media_feature_data.size()));
+
     generator.append(R"~~~(#pragma once
 
 #include <AK/StringView.h>
@@ -58,7 +61,7 @@ enum class MediaFeatureValueType {
     Resolution,
 };
 
-enum class MediaFeatureID {)~~~");
+enum class MediaFeatureID : @media_feature_id_underlying_type@ {)~~~");
 
     media_feature_data.for_each_member([&](auto& name, auto&) {
         auto member_generator = generator.fork();

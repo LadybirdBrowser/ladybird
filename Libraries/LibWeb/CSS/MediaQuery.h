@@ -96,7 +96,7 @@ private:
 // https://www.w3.org/TR/mediaqueries-4/#mq-features
 class MediaFeature final : public BooleanExpression {
 public:
-    enum class Comparison {
+    enum class Comparison : u8 {
         Equal,
         LessThan,
         LessThanOrEqual,
@@ -151,7 +151,7 @@ public:
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
 private:
-    enum class Type {
+    enum class Type : u8 {
         IsTrue,
         ExactValue,
         MinValue,
