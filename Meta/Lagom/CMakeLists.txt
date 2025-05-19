@@ -431,6 +431,7 @@ if (BUILD_TESTING)
         LibTest
         LibTextCodec
         LibThreading
+        LibTLS
         LibUnicode
         LibURL
         LibXML
@@ -452,10 +453,6 @@ if (BUILD_TESTING)
     foreach (dir IN LISTS TEST_DIRECTORIES)
         add_serenity_subdirectory("Tests/${dir}")
     endforeach()
-
-    # LibTLS needs a special working directory to find cacert.pem
-    lagom_test(../../Tests/LibTLS/TestTLSHandshake.cpp LibTLS LIBS LibTLS LibCrypto)
-    lagom_test(../../Tests/LibTLS/TestTLSCertificateParser.cpp LibTLS LIBS LibTLS LibCrypto)
 
     # JavaScriptTestRunner + LibTest tests
     # test-js

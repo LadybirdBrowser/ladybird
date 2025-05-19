@@ -4,5 +4,5 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    serenity_test("${source}" LibTLS LIBS LibTLS LibCrypto)
+    lagom_test("${source}" LibTLS LIBS LibTLS LibCrypto WORKING_DIRECTORY ${Lagom_BINARY_DIR})
 endforeach()
