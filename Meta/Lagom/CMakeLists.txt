@@ -440,6 +440,7 @@ if (BUILD_TESTING)
         LibDiff
         LibDNS
         LibGC
+        LibJS
         LibRegex
         LibTest
         LibTextCodec
@@ -466,22 +467,6 @@ if (BUILD_TESTING)
     foreach (dir IN LISTS TEST_DIRECTORIES)
         add_serenity_subdirectory("Tests/${dir}")
     endforeach()
-
-    # JavaScriptTestRunner + LibTest tests
-    # test-js
-    add_executable(test-js
-        ../../Tests/LibJS/test-js.cpp
-        ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-    target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS LibGC)
-    add_test(
-        NAME JS
-        COMMAND test-js --show-progress=false
-    )
-    set_tests_properties(JS PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
-
-    # Extra tests from Tests/LibJS
-    lagom_test(../../Tests/LibJS/test-invalid-unicode-js.cpp LIBS LibJS)
-    lagom_test(../../Tests/LibJS/test-value-js.cpp LIBS LibJS)
 
     # test-wasm
     add_executable(test-wasm
