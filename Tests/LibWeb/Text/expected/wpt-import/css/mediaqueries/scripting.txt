@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+9 Pass
+3 Fail
+Pass	Should be known: '(scripting)'
+Pass	Should be known: '(scripting: enabled)'
+Pass	Should be known: '(scripting: initial-only)'
+Pass	Should be known: '(scripting: none)'
+Fail	Should be parseable: '(scripting: 0)'
+Pass	Should be unknown: '(scripting: 0)'
+Fail	Should be parseable: '(scripting: 10px)'
+Pass	Should be unknown: '(scripting: 10px)'
+Fail	Should be parseable: '(scripting: invalid)'
+Pass	Should be unknown: '(scripting: invalid)'
+Pass	Check that scripting currently matches 'enabled'
+Pass	Check that scripting currently evaluates to true in the boolean context

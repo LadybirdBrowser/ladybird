@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#prefers-reduced-data" />
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+<script>
+query_should_be_known("(prefers-reduced-data)");
+query_should_be_known("(prefers-reduced-data: no-preference)");
+query_should_be_known("(prefers-reduced-data: reduce)");
+
+query_should_be_unknown("(prefers-reduced-data: 0)");
+query_should_be_unknown("(prefers-reduced-data: none)");
+query_should_be_unknown("(prefers-reduced-data: 10px)");
+query_should_be_unknown("(prefers-reduced-data: no-preference reduce)");
+query_should_be_unknown("(prefers-reduced-data: reduced)");
+query_should_be_unknown("(prefers-reduced-data: no-preference/reduce)");
+
+test(() => {
+  // https://drafts.csswg.org/mediaqueries-5/#boolean-context
+  let booleanContext = window.matchMedia("(prefers-reduced-data)");
+  let noPreference = window.matchMedia("(prefers-reduced-data: no-preference)");
+  assert_equals(booleanContext.matches, !noPreference.matches);
+}, "Check that no-preference evaluates to false in the boolean context");
+
+test(() => {
+  let invalid = window.matchMedia("(prefers-reduced-data: 10px)");
+  assert_equals(invalid.matches, false);
+}, "Check that invalid evaluates to false");
+</script>

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Serialization of <mf-name> : <mf-value> with custom property feature name and ident value

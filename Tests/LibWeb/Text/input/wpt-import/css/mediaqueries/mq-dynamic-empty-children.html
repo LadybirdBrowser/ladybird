@@ -1,0 +1,40 @@
+<!doctype html>
+<title>Dynamic evaluation of media queries works fine in presence of empty media rule</title>
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1669600">
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-4/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe width=500 height=300 frameborder=0></iframe>
+<script>
+let iframe = document.querySelector("iframe");
+promise_test(async function (t) {
+  await new Promise(resolve => {
+    window.addEventListener("load", resolve);
+  });
+  let frameLoaded = new Promise(resolve => {
+    iframe.addEventListener("load", resolve);
+  });
+  iframe.srcdoc = `
+    <style>
+      :root { background-color: red; }
+      /* This one should never apply */
+      @media (min-width: 1500px) {}
+      /* This one should change and start matching */
+      @media (max-width: 400px) {
+        :root { background-color: lime; }
+      }
+    </style>
+  `;
+  await frameLoaded;
+
+  function getColor() {
+    return iframe.contentWindow.getComputedStyle(iframe.contentDocument.documentElement).backgroundColor;
+  }
+
+  assert_equals(getColor(), "rgb(255, 0, 0)", "Should start red");
+  iframe.width = 400;
+  assert_equals(getColor(), "rgb(0, 255, 0)", "Should turn green");
+});
+</script>

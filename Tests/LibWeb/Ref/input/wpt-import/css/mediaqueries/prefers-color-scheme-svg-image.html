@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS prefers-color-scheme affects SVG images</title>
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#prefers-color-scheme">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7213">
+<link rel="match" href="../../../../expected/wpt-import/css/mediaqueries/prefers-color-scheme-svg-image-ref.html">
+<style>
+  .background {
+    width: 32px;
+    height: 32px;
+    background-image: url(resources/prefers-color-scheme.svg);
+  }
+</style>
+<div style="color-scheme: light">
+  <img src="resources/prefers-color-scheme.svg">
+  <div class="background"></div>
+</div>
+<div style="color-scheme: dark">
+  <img src="resources/prefers-color-scheme.svg">
+  <div class="background"></div>
+</div>

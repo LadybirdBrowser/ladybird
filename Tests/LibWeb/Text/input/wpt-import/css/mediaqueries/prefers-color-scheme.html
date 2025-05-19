@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#prefers-color-scheme" />
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+<script>
+query_should_be_known("(prefers-color-scheme)");
+query_should_be_known("(prefers-color-scheme: light)");
+query_should_be_known("(prefers-color-scheme: dark)");
+
+query_should_be_unknown("(prefers-color-scheme: 0)");
+query_should_be_unknown("(prefers-color-scheme: none)");
+query_should_be_unknown("(prefers-color-scheme: 10px)");
+query_should_be_unknown("(prefers-color-scheme: dark 0)");
+query_should_be_unknown("(prefers-color-scheme: dark light)");
+query_should_be_unknown("(prefers-color-scheme: light/dark)");
+query_should_be_unknown("(prefers-color-scheme: no-preference)");
+
+test(() => {
+  let booleanContext = window.matchMedia("(prefers-color-scheme)");
+  assert_true(booleanContext.matches);
+}, "Check that prefer-color-scheme evaluates to true in the boolean context");
+</script>

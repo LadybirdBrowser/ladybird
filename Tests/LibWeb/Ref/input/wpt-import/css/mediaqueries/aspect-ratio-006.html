@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Media Queries Test: min-aspect-ratio - 0.7 ('aspect-ratio' property with prefix 'min')</title>
+<link rel="author" title="Joel Olsson" href="mailto:joel_1st@hotmail.com">
+<link rel="help" title="aspect-ratio" href="https://drafts.csswg.org/mediaqueries-4/#aspect-ratio">
+<link rel="match" href="../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="The 'aspect-ratio' property with prefix 'min' set '0.7' means that the minimum of ratio is '0.7',
+only and only if the value of the 'width' to the value of the 'height' is greater than value of 'min-aspect-ratio', the style sheet will be applied.
+The test runner will run this test in a 800/600 viewport (https://github.com/web-platform-tests/wpt/pull/12695)">
+<style>
+  div {
+    background-color: red;
+    height: 100px;
+    width: 100px;
+  }
+  @media screen and (min-aspect-ratio: 0.2) {
+    div {
+      background-color: green;
+    }
+  }
+</style>
+<body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div></div>
+</body>
