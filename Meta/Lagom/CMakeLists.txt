@@ -352,42 +352,8 @@ if (LAGOM_TOOLS_ONLY)
 endif()
 
 # Lagom Libraries
-set(lagom_standard_libraries
-    Compress
-    Crypto
-    Diff
-    DNS
-    GC
-    HTTP
-    IPC
-    JS
-    Line
-    Regex
-    Requests
-    RIFF
-    Syntax
-    Test
-    TextCodec
-    Threading
-    TLS
-    Unicode
-    URL
-    Wasm
-    WebSocket
-    XML
-)
-
-if (ENABLE_GUI_TARGETS)
-    list(APPEND lagom_standard_libraries
-        DevTools
-        Gfx
-        ImageDecoderClient
-        Media
-        WebView
-        Web
-    )
-endif()
-
+# FIXME: Move these calls to the relevant client library CMakeLists
+# Note that the Services themselves are only built if ENABLE_GUI_TARGETS, from top level.
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
@@ -397,9 +363,7 @@ compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Ser
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIClient.ipc Services/WebContent/WebUIClientEndpoint.h)
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIServer.ipc Services/WebContent/WebUIServerEndpoint.h)
 
-foreach(lib IN LISTS lagom_standard_libraries)
-    add_serenity_subdirectory("Libraries/Lib${lib}")
-endforeach()
+add_serenity_subdirectory(Libraries)
 
 if (ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
