@@ -432,6 +432,7 @@ if (BUILD_TESTING)
         LibTLS
         LibUnicode
         LibURL
+        LibWasm
         LibXML
     )
 
@@ -451,20 +452,6 @@ if (BUILD_TESTING)
     foreach (dir IN LISTS TEST_DIRECTORIES)
         add_serenity_subdirectory("Tests/${dir}")
     endforeach()
-
-    # test-wasm
-    add_executable(test-wasm
-        ../../Tests/LibWasm/test-wasm.cpp
-        ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-    target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto LibGC)
-    set(wasm_test_root "${SERENITY_PROJECT_ROOT}")
-    if (INCLUDE_WASM_SPEC_TESTS)
-       set(wasm_test_root "${CMAKE_CURRENT_BINARY_DIR}")
-    endif()
-    add_test(
-        NAME Wasm
-        COMMAND test-wasm --show-progress=false "${wasm_test_root}/Libraries/LibWasm/Tests"
-    )
 endif()
 
 install(TARGETS js COMPONENT js)
