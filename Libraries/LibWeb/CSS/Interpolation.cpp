@@ -38,9 +38,13 @@ static T interpolate_raw(T from, T to, float delta)
 {
     if constexpr (AK::Detail::IsSame<T, double>) {
         return from + (to - from) * static_cast<double>(delta);
-    } else {
-        return static_cast<AK::Detail::RemoveCVReference<T>>(from + (to - from) * delta);
+    } else if constexpr (AK::Detail::IsIntegral<T>) {
+        auto from_float = static_cast<float>(from);
+        auto to_float = static_cast<float>(to);
+        auto unclamped_result = from_float + (to_float - from_float) * delta;
+        return static_cast<AK::Detail::RemoveCVReference<T>>(clamp(unclamped_result, NumericLimits<T>::min(), NumericLimits<T>::max()));
     }
+    return static_cast<AK::Detail::RemoveCVReference<T>>(from + (to - from) * delta);
 }
 
 static NonnullRefPtr<CSSStyleValue const> with_keyword_values_resolved(DOM::Element& element, PropertyID property_id, CSSStyleValue const& value)
