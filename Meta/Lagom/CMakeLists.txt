@@ -28,6 +28,12 @@ cmake_policy(SET CMP0058 NEW)
 # take effect in `check_linker_flag` checks.
 cmake_policy(SET CMP0056 NEW)
 
+# Ensure that when single-value arguments are passed to `cmake_parse_arguments()`
+# with no or empty string arguments, they are still defined.
+if (POLICY CMP0174)
+    cmake_policy(SET CMP0174 NEW)
+endif()
+
 get_filename_component(
     SERENITY_PROJECT_ROOT "${PROJECT_SOURCE_DIR}/../.."
     ABSOLUTE CACHE
@@ -239,12 +245,15 @@ function(lagom_lib target_name fs_name)
 endfunction()
 
 function(lagom_test source)
-    cmake_parse_arguments(LAGOM_TEST "" "NAME;WORKING_DIRECTORY" "LIBS" ${ARGN})
-    if (NOT DEFINED LAGOM_TEST_NAME)
+    cmake_parse_arguments(PARSE_ARGV 1 LAGOM_TEST "" "CUSTOM_MAIN;NAME;WORKING_DIRECTORY" "LIBS")
+    if (NOT LAGOM_TEST_NAME)
         get_filename_component(LAGOM_TEST_NAME ${source} NAME_WE)
     endif()
+    if (NOT LAGOM_TEST_CUSTOM_MAIN)
+        set(LAGOM_TEST_CUSTOM_MAIN "$<TARGET_OBJECTS:LibTestMain>")
+    endif()
     add_executable(${LAGOM_TEST_NAME} ${source})
-    target_link_libraries(${LAGOM_TEST_NAME} PRIVATE AK LibCore LibFileSystem LibTest LibTestMain ${LAGOM_TEST_LIBS})
+    target_link_libraries(${LAGOM_TEST_NAME} PRIVATE AK LibCore LibFileSystem LibTest ${LAGOM_TEST_CUSTOM_MAIN} ${LAGOM_TEST_LIBS})
     add_test(
         NAME ${LAGOM_TEST_NAME}
         COMMAND ${LAGOM_TEST_NAME}
@@ -260,9 +269,13 @@ function(lagom_utility name)
 endfunction()
 
 function(serenity_test test_src sub_dir)
-    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "MAIN_ALREADY_DEFINED" "CUSTOM_MAIN;NAME" "LIBS")
-    # FIXME: Pass MAIN_ALREADY_DEFINED and CUSTOM_MAIN to support tests that use them.
-    lagom_test(${test_src} LIBS ${SERENITY_TEST_LIBS} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} NAME ${SERENITY_TEST_NAME})
+    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "" "CUSTOM_MAIN;NAME" "LIBS")
+    lagom_test(${test_src}
+        LIBS ${SERENITY_TEST_LIBS}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        NAME ${SERENITY_TEST_NAME}
+        CUSTOM_MAIN ${SERENITY_TEST_CUSTOM_MAIN}
+    )
 endfunction()
 
 function(serenity_bin name)
