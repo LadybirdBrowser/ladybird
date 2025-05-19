@@ -112,13 +112,11 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
 
     // `<media-type>`
     if (auto media_type = parse_media_type(tokens); media_type.has_value()) {
-        // https://drafts.csswg.org/mediaqueries-4/#error-handling
-        // An unknown <media-type> must be treated as not matching.
-        if (media_type.value() == MediaQuery::MediaType::Unknown)
-            return invalid_media_query();
-        media_query->m_media_type = media_type.value();
+        media_query->m_media_type = media_type.release_value();
         tokens.discard_whitespace();
     } else {
+        // https://drafts.csswg.org/mediaqueries-4/#error-handling
+        // A media query that does not match the grammar in the previous section must be replaced by not all during parsing.
         return invalid_media_query();
     }
 
@@ -415,10 +413,19 @@ Optional<MediaQuery::MediaType> Parser::parse_media_type(TokenStream<ComponentVa
     if (!token.is(Token::Type::Ident))
         return {};
 
+    // https://drafts.csswg.org/mediaqueries-3/#error-handling
+    // "However, an exception is made for media types ‘layer’, ‘not’, ‘and’, ‘only’, and ‘or’. Even though they do match
+    // the IDENT production, they must not be treated as unknown media types, but rather trigger the malformed query clause."
+    if (token.is_ident("layer"sv) || token.is_ident("not"sv) || token.is_ident("and"sv) || token.is_ident("only"sv) || token.is_ident("or"sv))
+        return {};
+
     transaction.commit();
 
-    auto ident = token.token().ident();
-    return media_type_from_string(ident);
+    auto const& ident = token.token().ident();
+    return MediaQuery::MediaType {
+        .name = ident,
+        .known_type = media_type_from_string(ident),
+    };
 }
 
 // `<mf-value>`, https://www.w3.org/TR/mediaqueries-4/#typedef-mf-value
