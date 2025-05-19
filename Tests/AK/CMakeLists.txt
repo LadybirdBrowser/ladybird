@@ -20,6 +20,7 @@ set(AK_TEST_SOURCES
     TestDisjointChunks.cpp
     TestDistinctNumeric.cpp
     TestDoublyLinkedList.cpp
+    TestDuration.cpp
     TestEndian.cpp
     TestEnumBits.cpp
     TestEnumerate.cpp
@@ -44,7 +45,6 @@ set(AK_TEST_SOURCES
     TestIntrusiveRedBlackTree.cpp
     TestJSON.cpp
     TestLEB128.cpp
-    TestLexicalPath.cpp
     TestMemory.cpp
     TestMemoryStream.cpp
     TestNeverDestroyed.cpp
@@ -70,7 +70,6 @@ set(AK_TEST_SOURCES
     TestStringFloatingPointConversions.cpp
     TestStringUtils.cpp
     TestStringView.cpp
-    TestDuration.cpp
     TestTrie.cpp
     TestTuple.cpp
     TestTypeTraits.cpp
@@ -83,9 +82,20 @@ set(AK_TEST_SOURCES
     TestWeakPtr.cpp
 )
 
+# FIXME: LexicalPathWindows has some parenting and path parts sizing inconsistencies with LexicalPath, so it deserves
+#  it's own platform-specific tests to avoid if-def soup in the Unix-based tests.
+if(NOT WIN32)
+    list(APPEND AK_TEST_SOURCES TestLexicalPath.cpp)
+endif()
+
 foreach(source IN LISTS AK_TEST_SOURCES)
     serenity_test("${source}" AK)
 endforeach()
+
+if (WIN32)
+    # FIXME: Windows on ARM
+    target_link_libraries(TestUFixedBigInt PRIVATE clang_rt.builtins-x86_64.lib)
+endif()
 
 if (CXX_COMPILER_SUPPORTS_BLOCKS)
     serenity_test(TestFunction.mm AK NAME TestFunction)

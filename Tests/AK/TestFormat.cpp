@@ -9,8 +9,10 @@
 #include <AK/ByteString.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
-#include <math.h>
-#include <unistd.h>
+
+#ifdef AK_OS_WINDOWS
+#    include <stdio.h>
+#endif
 
 TEST_CASE(is_integral_works_properly)
 {
@@ -232,8 +234,12 @@ TEST_CASE(file_descriptor)
 {
     char filename[] = "/tmp/test-file-descriptor-XXXXXX";
 
+#ifdef AK_OS_WINDOWS
+    FILE* file = tmpfile();
+#else
     int fd = mkstemp(filename);
     FILE* file = fdopen(fd, "w+");
+#endif
 
     outln(file, "{}", "Hello, World!");
     out(file, "foo");
