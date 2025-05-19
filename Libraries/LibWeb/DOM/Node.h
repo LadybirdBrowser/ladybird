@@ -93,6 +93,7 @@ enum class StyleInvalidationReason {
 #define ENUMERATE_SET_NEEDS_LAYOUT_REASONS(X)         \
     X(CharacterDataReplaceData)                       \
     X(FinalizeACrossDocumentNavigation)               \
+    X(HTMLCanvasElementWidthOrHeightChange)           \
     X(HTMLImageElementReactToChangesInTheEnvironment) \
     X(HTMLImageElementUpdateTheImageData)             \
     X(HTMLVideoElementSetVideoTrack)                  \
