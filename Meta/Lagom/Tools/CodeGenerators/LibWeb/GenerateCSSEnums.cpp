@@ -61,18 +61,7 @@ enum class Keyword;
         auto enum_generator = generator.fork();
         enum_generator.set("name:titlecase", title_casify(name));
         enum_generator.set("name:snakecase", snake_casify(name));
-
-        // Find the smallest possible type to use.
-        auto member_max_value = members.size() - 1;
-        if (NumericLimits<u8>::max() >= member_max_value) {
-            enum_generator.set("enum_type", "u8"_string);
-        } else if (NumericLimits<u16>::max() >= member_max_value) {
-            enum_generator.set("enum_type", "u16"_string);
-        } else if (NumericLimits<u32>::max() >= member_max_value) {
-            enum_generator.set("enum_type", "u32"_string);
-        } else {
-            enum_generator.set("enum_type", "u64"_string);
-        }
+        enum_generator.set("enum_type", underlying_type_for_enum(members.size()));
 
         enum_generator.appendln("enum class @name:titlecase@ : @enum_type@ {");
 
