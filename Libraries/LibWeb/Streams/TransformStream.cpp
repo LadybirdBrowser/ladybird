@@ -4,15 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibIPC/File.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TransformStreamPrototype.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
+#include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamDefaultController.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
 #include <LibWeb/Streams/Transformer.h>
 #include <LibWeb/Streams/WritableStream.h>
+#include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -74,6 +77,28 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
     }
 
     return stream;
+}
+
+TransformStream::TransformStream(JS::Realm& realm)
+    : Bindings::PlatformObject(realm)
+{
+}
+
+TransformStream::~TransformStream() = default;
+
+void TransformStream::initialize(JS::Realm& realm)
+{
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(TransformStream);
+    Base::initialize(realm);
+}
+
+void TransformStream::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_backpressure_change_promise);
+    visitor.visit(m_controller);
+    visitor.visit(m_readable);
+    visitor.visit(m_writable);
 }
 
 // https://streams.spec.whatwg.org/#transformstream-enqueue
@@ -161,26 +186,83 @@ void TransformStream::set_up(GC::Ref<TransformAlgorithm> transform_algorithm, GC
     set_up_transform_stream_default_controller(*this, controller, transform_algorithm_wrapper, flush_algorithm_wrapper, cancel_algorithm_wrapper);
 }
 
-TransformStream::TransformStream(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+// https://streams.spec.whatwg.org/#ref-for-transfer-steps②
+WebIDL::ExceptionOr<void> TransformStream::transfer_steps(HTML::TransferDataHolder& data_holder)
 {
+    auto& realm = this->realm();
+    auto& vm = realm.vm();
+
+    auto serialize_stream = [&](auto stream) {
+        auto result = MUST(HTML::structured_serialize_with_transfer(vm, stream, { { GC::Root { stream } } }));
+
+        data_holder.data.extend(move(result.transfer_data_holders.first().data));
+        data_holder.fds.extend(move(result.transfer_data_holders.first().fds));
+    };
+
+    // 1. Let readable be value.[[readable]].
+    auto readable = this->readable();
+
+    // 2. Let writable be value.[[writable]].
+    auto writable = this->writable();
+
+    // 3. If ! IsReadableStreamLocked(readable) is true, throw a "DataCloneError" DOMException.
+    if (is_readable_stream_locked(readable))
+        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked ReadableStream"_string);
+
+    // 4. If ! IsWritableStreamLocked(writable) is true, throw a "DataCloneError" DOMException.
+    if (is_writable_stream_locked(writable))
+        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_string);
+
+    // 5. Set dataHolder.[[readable]] to ! StructuredSerializeWithTransfer(readable, « readable »).
+    serialize_stream(readable);
+
+    // 6. Set dataHolder.[[writable]] to ! StructuredSerializeWithTransfer(writable, « writable »).
+    serialize_stream(writable);
+
+    return {};
 }
 
-TransformStream::~TransformStream() = default;
-
-void TransformStream::initialize(JS::Realm& realm)
+template<typename StreamType>
+static WebIDL::ExceptionOr<GC::Ref<StreamType>> deserialize_stream(JS::Realm& realm, HTML::TransferDataHolder& data_holder)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TransformStream);
-    Base::initialize(realm);
+    auto transfer_type = data_holder.data.take_first();
+
+    if constexpr (IsSame<StreamType, ReadableStream>)
+        VERIFY(transfer_type == to_underlying(HTML::TransferType::ReadableStream));
+    else if constexpr (IsSame<StreamType, WritableStream>)
+        VERIFY(transfer_type == to_underlying(HTML::TransferType::WritableStream));
+    else
+        static_assert(DependentFalse<StreamType>);
+
+    auto stream = realm.create<StreamType>(realm);
+    TRY(stream->transfer_receiving_steps(data_holder));
+
+    return stream;
 }
 
-void TransformStream::visit_edges(Cell::Visitor& visitor)
+// https://streams.spec.whatwg.org/#ref-for-transfer-receiving-steps②
+WebIDL::ExceptionOr<void> TransformStream::transfer_receiving_steps(HTML::TransferDataHolder& data_holder)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_backpressure_change_promise);
-    visitor.visit(m_controller);
-    visitor.visit(m_readable);
-    visitor.visit(m_writable);
+    auto& realm = this->realm();
+
+    // 1. Let readableRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[readable]], the current Realm).
+    auto readable = TRY(deserialize_stream<ReadableStream>(realm, data_holder));
+
+    // 2. Let writableRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[writable]], the current Realm).
+    auto writable = TRY(deserialize_stream<WritableStream>(realm, data_holder));
+
+    // 3. Set value.[[readable]] to readableRecord.[[Deserialized]].
+    set_readable(readable);
+
+    // 4. Set value.[[writable]] to writableRecord.[[Deserialized]].
+    set_writable(writable);
+
+    // 5. Set value.[[backpressure]], value.[[backpressureChangePromise]], and value.[[controller]] to undefined.
+    set_backpressure({});
+    set_backpressure_change_promise({});
+    set_controller({});
+
+    return {};
 }
 
 }
