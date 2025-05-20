@@ -104,7 +104,7 @@
     {
       "hidden": false,
       "name": "windows_dev_ninja",
-      "displayName": "Window Development (ClangCL and Ninja)",
+      "displayName": "Windows Development (ClangCL and Ninja)",
       "description": "Windows development build using Ninja (experimental)",
       "inherits": [
         "windows_ninja",
@@ -124,7 +124,7 @@
     {
       "hidden": false,
       "name": "windows_dev_msbuild",
-      "displayName": "Window Development (ClangCL and MSBuild)",
+      "displayName": "Windows Development (ClangCL and MSBuild)",
       "description": "Windows development build using MSBuild (experimental)",
       "inherits": [
         "windows_msbuild",
@@ -222,7 +222,26 @@
   ],
   "buildPresets": [
     {
+      "hidden": true,
+      "name": "unix",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "windows",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
       "name": "default",
+      "inherits": "unix",
       "configurePreset": "default",
       "displayName": "Build",
       "description": "Build the project",
@@ -231,8 +250,9 @@
       ]
     },
     {
-      "name": "windows_msbuild",
-      "configurePreset": "windows_msbuild",
+      "name": "windows_dev_msbuild",
+      "inherits": "windows",
+      "configurePreset": "windows_dev_msbuild",
       "displayName": "Build",
       "description": "Build the project",
       "targets": [
@@ -240,8 +260,19 @@
       ]
     },
     {
-      "name": "windows_ninja",
-      "configurePreset": "windows_ninja",
+      "name": "windows_dev_ninja",
+      "inherits": "windows",
+      "configurePreset": "windows_dev_ninja",
+      "displayName": "Build",
+      "description": "Build the project",
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "name": "windows_ci_ninja",
+      "inherits": "windows",
+      "configurePreset": "windows_ci_ninja",
       "displayName": "Build",
       "description": "Build the project",
       "targets": [
@@ -250,6 +281,7 @@
     },
     {
       "name": "Distribution",
+      "inherits": "unix",
       "configurePreset": "Distribution",
       "displayName": "Build",
       "description": "Build the project for distribution",
@@ -259,6 +291,7 @@
     },
     {
       "name": "Debug",
+      "inherits": "unix",
       "configurePreset": "Debug",
       "displayName": "Build",
       "description": "Build the project in debug",
@@ -268,6 +301,7 @@
     },
     {
       "name": "Sanitizer",
+      "inherits": "unix",
       "configurePreset": "Sanitizer",
       "displayName": "Build with Sanitizers",
       "description": "Build the project with Sanitizers",
@@ -278,8 +312,8 @@
   ],
   "testPresets": [
     {
-      "name": "default",
-      "configurePreset": "default",
+      "hidden": true,
+      "name": "default_base",
       "output": {
         "outputOnFailure": true
       },
@@ -289,6 +323,26 @@
       },
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${fileDir}"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "default_windows",
+      "inherits": "default_base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "inherits": "default_base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     },
     {
@@ -309,6 +363,21 @@
       "name": "Distribution",
       "inherits": "default",
       "configurePreset": "Distribution"
+    },
+    {
+      "name": "windows_dev_ninja",
+      "inherits": "default_windows",
+      "configurePreset": "windows_dev_ninja"
+    },
+    {
+      "name": "windows_ci_ninja",
+      "inherits": "default_windows",
+      "configurePreset": "windows_ci_ninja"
+    },
+    {
+      "name": "windows_dev_msbuild",
+      "inherits": "default_windows",
+      "configurePreset": "windows_dev_msbuild"
     }
   ]
 }
