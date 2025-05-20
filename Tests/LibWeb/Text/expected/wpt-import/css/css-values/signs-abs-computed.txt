@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 233 tests
 
-174 Pass
-59 Fail
+181 Pass
+52 Fail
 Pass	abs(1) should be used-value-equivalent to 1
 Pass	sign(1) should be used-value-equivalent to 1
 Pass	abs(-1) should be used-value-equivalent to 1
@@ -26,7 +26,7 @@ Pass	abs(-10px) should be used-value-equivalent to 10px
 Pass	abs(-10%) should be used-value-equivalent to 10px
 Pass	calc((1em + 1px) * (sign(1em - 10px - 10%) + 1)) should be used-value-equivalent to 21px
 Pass	calc(calc(sign(-0))) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(calc(sign(-0)))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(calc(sign(-0)))), 1) should be used-value-equivalent to -1
 Pass	calc(calc(sign(0))) should be used-value-equivalent to 0
 Pass	clamp(-1, calc( 1 / sign(calc(sign(0)))), 1) should be used-value-equivalent to 1
 Pass	abs(infinity) should be used-value-equivalent to calc(infinity)
@@ -146,9 +146,9 @@ Pass	clamp(-1, calc( 1 / sign(sign(0s))), 1) should be used-value-equivalent to 
 Pass	calc(sign(0ms)) should be used-value-equivalent to 0
 Pass	clamp(-1, calc( 1 / sign(sign(0ms))), 1) should be used-value-equivalent to 1
 Pass	calc(sign(-0s)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0s))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0s))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0ms)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0ms))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0ms))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(0deg)) should be used-value-equivalent to 0
 Pass	clamp(-1, calc( 1 / sign(sign(0deg))), 1) should be used-value-equivalent to 1
 Pass	calc(sign(0grad)) should be used-value-equivalent to 0
@@ -158,13 +158,13 @@ Pass	clamp(-1, calc( 1 / sign(sign(0rad))), 1) should be used-value-equivalent t
 Pass	calc(sign(0turn)) should be used-value-equivalent to 0
 Pass	clamp(-1, calc( 1 / sign(sign(0turn))), 1) should be used-value-equivalent to 1
 Pass	calc(sign(-0deg)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0deg))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0deg))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0grad)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0grad))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0grad))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0rad)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0rad))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0rad))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0turn)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0turn))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0turn))), 1) should be used-value-equivalent to -1
 Pass	abs(1px) should be used-value-equivalent to 1px
 Pass	abs(1cm) should be used-value-equivalent to 1cm
 Pass	abs(1mm) should be used-value-equivalent to 1mm

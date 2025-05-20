@@ -1400,7 +1400,7 @@ Optional<CalculatedStyleValue::CalculationResult> SignCalculationNode::run_opera
         sign = 1;
     } else {
         FloatExtractor<double> const extractor { .d = child_value->value() };
-        sign = extractor.sign ? -0 : 0;
+        sign = extractor.sign ? -0.0 : 0.0;
     }
 
     return CalculatedStyleValue::CalculationResult { sign, CSSNumericType {}.made_consistent_with(child_value->type().value()) };
