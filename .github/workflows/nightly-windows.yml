@@ -1,0 +1,72 @@
+name: Nightly Windows
+
+on:
+  # Automatically run at the end of every day.
+  schedule:
+    - cron: '0 0 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # runner.workspace = /home/runner/work/ladybird
+  # github.workspace = /home/runner/work/ladybird/ladybird
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
+
+jobs:
+  CI:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name != 'pull_request' }}
+
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+
+      - name: Set Up Environment
+        uses: ./.github/actions/setup
+        with:
+          os: 'Windows'
+          arch: 'x86_64'
+          toolchain: 'ClangCL'
+
+      - name: Restore Caches
+        uses: ./.github/actions/cache-restore
+        id: 'cache-restore'
+        with:
+          os: Windows
+          arch: x86_64
+          toolchain: ClangCL
+          cache_key_extra: windows_ci_ninja
+          download_cache_path: ${{ github.workspace }}/Build/caches
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+
+      - name: Create Build Environment
+        working-directory: ${{ github.workspace }}
+        run: |
+          cmake --preset windows_ci_ninja
+
+      - name: Build
+        working-directory: ${{ github.workspace }}
+        run: |
+          cmake --build --preset windows_ci_ninja
+
+      - name: Save Caches
+        uses: ./.github/actions/cache-save
+        with:
+          arch: x86_64
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
+
+      - name: Test
+        working-directory: ${{ github.workspace }}
+        run: ctest --preset windows_ci_ninja --timeout 1800
+        env:
+          TESTS_ONLY: 1

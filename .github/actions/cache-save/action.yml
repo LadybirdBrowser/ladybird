@@ -42,6 +42,7 @@ runs:
 
     - name: 'Cache Stats'
       shell: bash
+      if: ${{ inputs.ccache_path != '' }}
       run: |
         CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
 
