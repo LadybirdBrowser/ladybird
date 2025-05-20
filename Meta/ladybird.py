@@ -115,6 +115,12 @@ def main(platform):
 
     subparsers.add_parser('clean', help='Cleans the build environment', parents=[preset_parser, compiler_parser])
 
+    rebuild_parser = subparsers.add_parser('rebuild',
+                                           help='Cleans the build environment and compiles the target binaries',
+                                           parents=[preset_parser, compiler_parser, target_parser])
+    rebuild_parser.add_argument('args', nargs=argparse.REMAINDER,
+                                help='Additional arguments passed through to the build system')
+
     args = parser.parse_args()
     kwargs = vars(args)
     command = kwargs.pop('command', None)
@@ -166,6 +172,10 @@ def main(platform):
         _build_vcpkg()
     elif command == 'clean':
         _clean_main(**kwargs)
+    elif command == 'rebuild':
+        _clean_main(**kwargs)
+        build_dir = _configure_main(platform, **kwargs)
+        _build_main(build_dir, **kwargs)
 
 
 def _configure_main(platform, **kwargs):
