@@ -96,6 +96,17 @@ def main(platform):
     run_parser.add_argument('args', nargs=argparse.REMAINDER,
                             help='Additional arguments passed through to the application')
 
+    debug_parser = subparsers.add_parser('debug',
+                                         help='Launches the application on the build host in a gdb or lldb session',
+                                         parents=[preset_parser, target_parser])
+
+    debug_parser.add_argument('--debugger', required=False,
+                              default='gdb' if platform.host_system == HostSystem.Linux else 'lldb')
+    debug_parser.add_argument('-cmd', action='append',
+                              required=False,
+                              default=[],
+                              help='Additional commands passed through to the debugger')
+
     subparsers.add_parser('install', help='Installs the target binary',
                           parents=[preset_parser, compiler_parser, target_parser])
 
@@ -136,6 +147,10 @@ def main(platform):
         build_dir = _configure_main(platform, **kwargs)
         _build_main(build_dir, **kwargs)
         _run_main(platform.host_system, build_dir, **kwargs)
+    elif command == 'debug':
+        build_dir = _configure_main(platform, **kwargs)
+        _build_main(build_dir, **kwargs)
+        _debug_main(platform.host_system, build_dir, **kwargs)
     elif command == 'install':
         build_dir = _configure_main(platform, **kwargs)
         _build_main(build_dir, **kwargs)
@@ -372,6 +387,34 @@ def _run_main(host_system, build_dir, **kwargs):
         subprocess.check_call(run_args)
     except subprocess.CalledProcessError as e:
         _print_process_stderr(e, f'Unable to run ladybird target "{app_target}"')
+        sys.exit(1)
+
+
+def _debug_main(host_system, build_dir, **kwargs):
+    app_target = kwargs.get('target')
+    debugger = kwargs.get('debugger')
+    debugger_commands = kwargs.get('cmd', [])
+    debuggers = ['gdb', 'lldb']
+    if debugger not in debuggers or not shutil.which(debugger):
+        print('Please install gdb or lldb!', file=sys.stderr)
+        sys.exit(1)
+    gdb_args = [
+        debugger,
+    ]
+    for cmd in debugger_commands:
+        gdb_args.extend([
+            '-ex' if debugger == 'gdb' else '-o',
+            cmd,
+        ])
+    if app_target == 'Ladybird' and host_system == HostSystem.macOS:
+        gdb_args.append(str(build_dir.joinpath('bin', 'Ladybird.app')))
+    else:
+        gdb_args.append(str(build_dir.joinpath('bin', app_target)))
+    try:
+        # FIXME: For Windows, set the working directory so DLLs are found
+        subprocess.check_call(gdb_args)
+    except subprocess.CalledProcessError as e:
+        _print_process_stderr(e, f'Unable to run ladybird target "{app_target}" with "{debugger}" debugger')
         sys.exit(1)
 
 
