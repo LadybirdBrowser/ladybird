@@ -131,12 +131,21 @@ The accepted `test_type` values are "Text", "Layout", "Ref", and "Screenshot".
 This will create a new test HTML file in `Tests/LibWeb/<test_type>/input` with along with a corresponding expectations
 file in the appropriate directory in `Tests/LibWeb/<test_type>/expected`.
 
-If you make a new Text or Layout test, after you update/replace the generated boilerplate in your
-`your-new-test-name.html` test file with your actual test, running
-`./Meta/ladybird.sh run headless-browser --run-tests "./Tests/LibWeb" --rebaseline -f Text/input/foobar.html`
-will regenerate the corresponding expectations file to match the actual output from your updated test.
+After you update/replace the generated boilerplate in your `your-new-test-name.html` test file with your actual test,
+you will need to regenerate the corresponding expectations file to match the actual output from your updated test.
 
-If you add a new Ref or Screenshot test, you'll need to supply the equivalently rendering HTML manually.
+For Text or Layout tests, you can "rebaseline" the tests to regenerate the expectation file:
+
+```bash
+./Meta/ladybird.sh run headless-browser --run-tests "./Tests/LibWeb" --rebaseline -f Text/input/your-new-test-name.html
+```
+
+For Ref and Screenshot tests, you will need to supply the equivalently rendering HTML manually. Though for Screenshot
+tests, you can generate the reference screenshot itself by running headless-browser in test mode:
+
+```bash
+./Meta/ladybird.sh run headless-browser --layout-test-mode Tests/LibWeb/Screenshot/input/your-new-test-name.html --screenshot-path Tests/LibWeb/Screenshot/images/your-new-test-name.png
+```
 
 ### Text tests
 
