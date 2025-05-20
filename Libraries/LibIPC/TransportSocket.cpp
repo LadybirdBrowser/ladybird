@@ -8,10 +8,20 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
-#include <LibIPC/File.h>
 #include <LibIPC/TransportSocket.h>
 
 namespace IPC {
+
+AutoCloseFileDescriptor::AutoCloseFileDescriptor(int fd)
+    : m_fd(fd)
+{
+}
+
+AutoCloseFileDescriptor::~AutoCloseFileDescriptor()
+{
+    if (m_fd != -1)
+        (void)Core::System::close(m_fd);
+}
 
 void SendQueue::enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds)
 {
