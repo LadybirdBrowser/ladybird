@@ -11,6 +11,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ReadableStreamPrototype.h>
+#include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/Streams/QueuingStrategy.h>
@@ -58,7 +59,9 @@ struct ReadableStreamPair {
 };
 
 // https://streams.spec.whatwg.org/#readablestream
-class ReadableStream final : public Bindings::PlatformObject {
+class ReadableStream final
+    : public Bindings::PlatformObject
+    , public Bindings::Transferable {
     WEB_PLATFORM_OBJECT(ReadableStream, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(ReadableStream);
 
@@ -113,6 +116,11 @@ public:
 
     GC::Ptr<WebIDL::ArrayBufferView> current_byob_request_view();
 
+    // ^Transferable
+    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) override;
+    virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::ReadableStream; }
+
 private:
     explicit ReadableStream(JS::Realm&);
 
@@ -122,10 +130,6 @@ private:
     // https://streams.spec.whatwg.org/#readablestream-controller
     // A ReadableStreamDefaultController or ReadableByteStreamController created with the ability to control the state and queue of this stream
     Optional<ReadableStreamController> m_controller;
-
-    // https://streams.spec.whatwg.org/#readablestream-detached
-    // A boolean flag set to true when the stream is transferred
-    bool m_detached { false };
 
     // https://streams.spec.whatwg.org/#readablestream-disturbed
     // A boolean flag set to true when the stream has been read from or canceled

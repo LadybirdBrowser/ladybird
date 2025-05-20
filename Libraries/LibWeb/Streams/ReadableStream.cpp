@@ -11,6 +11,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStreamPrototype.h>
 #include <LibWeb/DOM/AbortSignal.h>
+#include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -88,6 +90,22 @@ ReadableStream::ReadableStream(JS::Realm& realm)
 }
 
 ReadableStream::~ReadableStream() = default;
+
+void ReadableStream::initialize(JS::Realm& realm)
+{
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStream);
+    Base::initialize(realm);
+}
+
+void ReadableStream::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    if (m_controller.has_value())
+        m_controller->visit([&](auto& controller) { visitor.visit(controller); });
+    visitor.visit(m_stored_error);
+    if (m_reader.has_value())
+        m_reader->visit([&](auto& reader) { visitor.visit(reader); });
+}
 
 // https://streams.spec.whatwg.org/#rs-locked
 bool ReadableStream::locked() const
@@ -216,22 +234,6 @@ void ReadableStream::error(JS::Value error)
         [&](GC::Ref<ReadableStreamDefaultController> controller) {
             readable_stream_default_controller_error(controller, error);
         });
-}
-
-void ReadableStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStream);
-    Base::initialize(realm);
-}
-
-void ReadableStream::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    if (m_controller.has_value())
-        m_controller->visit([&](auto& controller) { visitor.visit(controller); });
-    visitor.visit(m_stored_error);
-    if (m_reader.has_value())
-        m_reader->visit([&](auto& reader) { visitor.visit(reader); });
 }
 
 // https://streams.spec.whatwg.org/#readablestream-locked
@@ -451,6 +453,64 @@ GC::Ref<ReadableStream> ReadableStream::piped_through(GC::Ref<TransformStream> t
 
     // 6. Return transform.[[readable]].
     return transform->readable();
+}
+
+// https://streams.spec.whatwg.org/#ref-for-transfer-steps
+WebIDL::ExceptionOr<void> ReadableStream::transfer_steps(HTML::TransferDataHolder& data_holder)
+{
+    auto& realm = this->realm();
+    auto& vm = realm.vm();
+
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    // 1. If ! IsReadableStreamLocked(value) is true, throw a "DataCloneError" DOMException.
+    if (is_readable_stream_locked(*this))
+        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked ReadableStream"_string);
+
+    // 2. Let port1 be a new MessagePort in the current Realm.
+    auto port1 = HTML::MessagePort::create(realm);
+
+    // 3. Let port2 be a new MessagePort in the current Realm.
+    auto port2 = HTML::MessagePort::create(realm, HTML::TransferType::ReadableStream);
+
+    // 4. Entangle port1 and port2.
+    port1->entangle_with(port2);
+
+    // 5. Let writable be a new WritableStream in the current Realm.
+    auto writable = realm.create<WritableStream>(realm);
+
+    // 6. Perform ! SetUpCrossRealmTransformWritable(writable, port1).
+    set_up_cross_realm_transform_writable(realm, writable, port1);
+
+    // 7. Let promise be ! ReadableStreamPipeTo(value, writable, false, false, false).
+    auto promise = readable_stream_pipe_to(*this, writable, false, false, false);
+
+    // 8. Set promise.[[PromiseIsHandled]] to true.
+    WebIDL::mark_promise_as_handled(promise);
+
+    // 9. Set dataHolder.[[port]] to ! StructuredSerializeWithTransfer(port2, « port2 »).
+    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2, { { GC::Root { port2 } } }));
+    data_holder = move(result.transfer_data_holders.first());
+
+    return {};
+}
+
+// https://streams.spec.whatwg.org/#ref-for-transfer-receiving-steps
+WebIDL::ExceptionOr<void> ReadableStream::transfer_receiving_steps(HTML::TransferDataHolder& data_holder)
+{
+    auto& realm = this->realm();
+
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    // 1. Let deserializedRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[port]], the current Realm).
+    // 2. Let port be deserializedRecord.[[Deserialized]].
+    auto port = HTML::MessagePort::create(realm);
+    TRY(port->transfer_receiving_steps(data_holder));
+
+    // 3. Perform ! SetUpCrossRealmTransformReadable(value, port).
+    set_up_cross_realm_transform_readable(realm, *this, port);
+
+    return {};
 }
 
 }
