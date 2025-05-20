@@ -73,7 +73,9 @@ public:
 
     void set_up_read_hook(Function<void()>);
     bool is_open() const;
+
     void close();
+    void close_after_sending_all_pending_messages();
 
     void wait_until_readable();
 
@@ -95,7 +97,15 @@ public:
     ErrorOr<IPC::File> clone_for_transfer();
 
 private:
+    enum class TransferState {
+        Continue,
+        SocketClosed,
+    };
+    [[nodiscard]] TransferState transfer_data(ReadonlyBytes& bytes, Vector<int>& fds);
+
     static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes& bytes, Vector<int>& unowned_fds);
+
+    void stop_send_thread();
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
     mutable Threading::RWLock m_socket_rw_lock;
