@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	sending one chunk through a transferred stream should work
+Pass	sending ten chunks through a transferred stream should work
+Pass	sending ten chunks one at a time should work
+Pass	sending ten chunks on demand should work
+Pass	transferring a stream should relieve backpressure
+Pass	transferring a stream should add one chunk to the queue size
+Pass	the extra queue from transferring is counted in chunks
+Pass	cancel should be propagated to the original
+Pass	cancel should abort a pending read()
+Pass	stream cancel should not wait for underlying source cancel
+Pass	serialization should not happen until the value is read
+Pass	transferring a non-serializable chunk should error both sides
+Pass	errors should be passed through
+Pass	race between cancel() and error() should leave sides in different states
+Pass	race between cancel() and close() should be benign
+Pass	race between cancel() and enqueue() should be benign

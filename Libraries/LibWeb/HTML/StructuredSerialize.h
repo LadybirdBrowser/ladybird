@@ -49,6 +49,7 @@ enum class TransferType : u8 {
     MessagePort = 1,
     ArrayBuffer = 2,
     ResizableArrayBuffer = 3,
+    ReadableStream = 4,
 };
 
 WebIDL::ExceptionOr<SerializationRecord> structured_serialize(JS::VM& vm, JS::Value);
