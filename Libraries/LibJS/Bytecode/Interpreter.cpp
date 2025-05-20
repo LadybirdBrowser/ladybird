@@ -1022,23 +1022,28 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
     CacheablePropertyMetadata cacheable_metadata;
     auto value = TRY(base_obj->internal_get(executable.get_identifier(property), this_value, &cacheable_metadata));
 
-    auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
-        for (size_t i = cache.entries.size() - 1; i >= 1; --i) {
-            cache.entries[i] = cache.entries[i - 1];
+    // If internal_get() caused object's shape change, we can no longer be sure
+    // that collected metadata is valid, e.g. if getter in prototype chain added
+    // property with the same name into the object itself.
+    if (&shape == &base_obj->shape()) {
+        auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
+            for (size_t i = cache.entries.size() - 1; i >= 1; --i) {
+                cache.entries[i] = cache.entries[i - 1];
+            }
+            cache.entries[0] = {};
+            return cache.entries[0];
+        };
+        if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
+            auto& entry = get_cache_slot();
+            entry.shape = shape;
+            entry.property_offset = cacheable_metadata.property_offset.value();
+        } else if (cacheable_metadata.type == CacheablePropertyMetadata::Type::InPrototypeChain) {
+            auto& entry = get_cache_slot();
+            entry.shape = &base_obj->shape();
+            entry.property_offset = cacheable_metadata.property_offset.value();
+            entry.prototype = *cacheable_metadata.prototype;
+            entry.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
         }
-        cache.entries[0] = {};
-        return cache.entries[0];
-    };
-    if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
-        auto& entry = get_cache_slot();
-        entry.shape = shape;
-        entry.property_offset = cacheable_metadata.property_offset.value();
-    } else if (cacheable_metadata.type == CacheablePropertyMetadata::Type::InPrototypeChain) {
-        auto& entry = get_cache_slot();
-        entry.shape = &base_obj->shape();
-        entry.property_offset = cacheable_metadata.property_offset.value();
-        entry.prototype = *cacheable_metadata.prototype;
-        entry.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
     }
 
     return value;
@@ -1227,6 +1232,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         break;
     }
     case Op::PropertyKind::KeyValue: {
+        auto& shape = object->shape();
         if (caches) {
             for (auto& cache : caches->entries) {
                 if (cache.prototype) {
@@ -1262,7 +1268,10 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         CacheablePropertyMetadata cacheable_metadata;
         bool succeeded = TRY(object->internal_set(name, value, this_value, &cacheable_metadata));
 
-        if (succeeded && caches) {
+        // If internal_set() caused object's shape change, we can no longer be sure
+        // that collected metadata is valid, e.g. if setter in prototype chain added
+        // property with the same name into the object itself.
+        if (succeeded && caches && &shape == &object->shape()) {
             auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
                 for (size_t i = caches->entries.size() - 1; i >= 1; --i) {
                     caches->entries[i] = caches->entries[i - 1];
