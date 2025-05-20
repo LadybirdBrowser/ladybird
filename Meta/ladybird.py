@@ -121,6 +121,17 @@ def main(platform):
     rebuild_parser.add_argument('args', nargs=argparse.REMAINDER,
                                 help='Additional arguments passed through to the build system')
 
+    addr2line_parser = subparsers.add_parser('addr2line',
+                                             help='Resolves the addresses in the target binary to a file:line',
+                                             parents=[preset_parser, compiler_parser, target_parser])
+    addr2line_parser.add_argument(
+        '--program',
+        required=False,
+        default='llvm-symbolizer' if platform.host_system == HostSystem.Windows else 'addr2line'
+        if platform.host_system == HostSystem.Linux else 'atos'
+    )
+    addr2line_parser.add_argument('addresses', nargs=argparse.REMAINDER)
+
     args = parser.parse_args()
     kwargs = vars(args)
     command = kwargs.pop('command', None)
@@ -176,6 +187,10 @@ def main(platform):
         _clean_main(**kwargs)
         build_dir = _configure_main(platform, **kwargs)
         _build_main(build_dir, **kwargs)
+    elif command == 'addr2line':
+        build_dir = _configure_main(platform, **kwargs)
+        _build_main(build_dir, **kwargs)
+        _addr2line_main(build_dir, **kwargs)
 
 
 def _configure_main(platform, **kwargs):
@@ -444,6 +459,37 @@ def _clean_main(**kwargs):
 
     user_vars_cmake_module = lb_source_dir.joinpath('Meta', 'CMake', 'vcpkg', 'user-variables.cmake')
     user_vars_cmake_module.unlink(missing_ok=True)
+
+
+def _addr2line_main(build_dir, **kwargs):
+    addr2line_target = kwargs.get('target')
+    addr2line_program = kwargs.get('program')
+    addr2line_addresses = kwargs.get('addresses', [])
+    if not shutil.which(addr2line_program):
+        print(f'Please install {addr2line_program}!', file=sys.stderr)
+        sys.exit(1)
+
+    binary_file_path = None
+    for root, _, files in os.walk(build_dir):
+        if addr2line_target in files:
+            candidate = Path(root) / addr2line_target
+            if os.access(candidate, os.X_OK):
+                binary_file_path = str(candidate)
+    if not binary_file_path:
+        print(f'Unable to find binary target "{addr2line_target}" in build directory "{build_dir}"', file=sys.stderr)
+        sys.exit(1)
+    addr2line_args = [
+        addr2line_program,
+        '-o' if addr2line_program == 'atos' else '-e',
+        binary_file_path,
+    ]
+    addr2line_args.extend(addr2line_addresses)
+    try:
+        subprocess.check_call(addr2line_args)
+    except subprocess.CalledProcessError as e:
+        _print_process_stderr(e, f'Unable to find lines with "{addr2line_program}" for binary target '
+                                 f'{addr2line_target}"')
+        sys.exit(1)
 
 
 def _print_process_stderr(e, msg):
