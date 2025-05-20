@@ -1005,6 +1005,10 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
                     return used_values_for_grid_template_rows;
                 }
             }
+        } else if (property_id == PropertyID::ZIndex) {
+            if (auto z_index = layout_node.computed_values().z_index(); z_index.has_value()) {
+                return NumberStyleValue::create(z_index.value());
+            }
         }
 
         if (!property_is_shorthand(property_id))
