@@ -332,14 +332,24 @@ Optional<int> ComputedProperties::z_index() const
     auto const& value = property(PropertyID::ZIndex);
     if (value.has_auto())
         return {};
-    if (value.is_integer()) {
-        // Clamp z-index to the range of a signed 32-bit integer for consistency with other engines.
-        auto integer = value.as_integer().integer();
-        if (integer >= NumericLimits<int>::max())
+
+    // Clamp z-index to the range of a signed 32-bit integer for consistency with other engines.
+    auto clamp = [](auto number) -> int {
+        if (number >= NumericLimits<int>::max())
             return NumericLimits<int>::max();
-        if (integer <= NumericLimits<int>::min())
+        if (number <= NumericLimits<int>::min())
             return NumericLimits<int>::min();
-        return static_cast<int>(integer);
+        return static_cast<int>(number);
+    };
+
+    if (value.is_integer()) {
+        return clamp(value.as_integer().integer());
+    }
+    if (value.is_calculated()) {
+        auto maybe_double = value.as_calculated().resolve_number({});
+        if (maybe_double.has_value()) {
+            return clamp(maybe_double.value());
+        }
     }
     return {};
 }
