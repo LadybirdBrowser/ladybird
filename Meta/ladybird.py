@@ -113,6 +113,8 @@ def main(platform):
     subparsers.add_parser('vcpkg', help='Ensure that dependencies are available',
                           parents=[preset_parser, compiler_parser])
 
+    subparsers.add_parser('clean', help='Cleans the build environment', parents=[preset_parser, compiler_parser])
+
     args = parser.parse_args()
     kwargs = vars(args)
     command = kwargs.pop('command', None)
@@ -162,6 +164,8 @@ def main(platform):
     elif command == 'vcpkg':
         _configure_build_env(**kwargs)
         _build_vcpkg()
+    elif command == 'clean':
+        _clean_main(**kwargs)
 
 
 def _configure_main(platform, **kwargs):
@@ -422,6 +426,14 @@ def _debug_main(host_system, build_dir, **kwargs):
     except subprocess.CalledProcessError as e:
         _print_process_stderr(e, f'Unable to run ladybird target "{app_target}" with "{debugger}" debugger')
         sys.exit(1)
+
+
+def _clean_main(**kwargs):
+    lb_source_dir, build_preset_dir, _ = _configure_build_env(**kwargs)
+    shutil.rmtree(str(build_preset_dir), ignore_errors=True)
+
+    user_vars_cmake_module = lb_source_dir.joinpath('Meta', 'CMake', 'vcpkg', 'user-variables.cmake')
+    user_vars_cmake_module.unlink(missing_ok=True)
 
 
 def _print_process_stderr(e, msg):
