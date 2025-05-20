@@ -146,11 +146,15 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
 
 void MessagePort::disentangle()
 {
-    if (m_remote_port)
+    if (m_remote_port) {
         m_remote_port->m_remote_port = nullptr;
-    m_remote_port = nullptr;
+        m_remote_port = nullptr;
+    }
 
-    m_transport.clear();
+    if (m_transport) {
+        m_transport->close_after_sending_all_pending_messages();
+        m_transport.clear();
+    }
 
     m_worker_event_target = nullptr;
 }
