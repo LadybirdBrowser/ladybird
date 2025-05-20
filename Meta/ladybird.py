@@ -86,6 +86,11 @@ def main(platform):
     build_parser.add_argument('args', nargs=argparse.REMAINDER,
                               help='Additional arguments passed through to the build system')
 
+    test_parser = subparsers.add_parser(
+        'test', help='Runs the unit tests on the build host', parents=[preset_parser, compiler_parser])
+    test_parser.add_argument('--pattern', required=False,
+                             help='Limits the tests that are ran to those that match the regex pattern')
+
     args = parser.parse_args()
     kwargs = vars(args)
     command = kwargs.pop('command', None)
@@ -104,6 +109,10 @@ def main(platform):
     if command == 'build':
         build_dir = _configure_main(platform, **kwargs)
         _build_main(build_dir, **kwargs)
+    elif command == 'test':
+        build_dir = _configure_main(platform,  **kwargs)
+        _build_main(build_dir)
+        _test_main(build_dir, **kwargs)
 
 
 def _configure_main(platform, **kwargs):
@@ -286,6 +295,34 @@ def _build_main(build_dir, **kwargs):
         msg = 'Unable to build ladybird '
         if build_target:
             msg += f'target "{build_target}"'
+        else:
+            msg += 'project'
+        _print_process_stderr(e, msg)
+        sys.exit(1)
+
+
+def _test_main(build_dir, **kwargs):
+    build_preset = kwargs.get('preset')
+    test_args = [
+        'ctest',
+        '--preset',
+        build_preset,
+        '--output-on-failure',
+        '--test-dir',
+        str(build_dir),
+    ]
+    test_name_pattern = kwargs.get('pattern', None)
+    if test_name_pattern:
+        test_args.extend([
+            '-R',
+            test_name_pattern,
+        ])
+    try:
+        subprocess.check_call(test_args)
+    except subprocess.CalledProcessError as e:
+        msg = 'Unable to test ladybird '
+        if test_name_pattern:
+            msg += f'name pattern "{test_name_pattern}"'
         else:
             msg += 'project'
         _print_process_stderr(e, msg)
