@@ -26,13 +26,10 @@
 #include <UI/Headless/HeadlessWebView.h>
 #include <UI/Headless/Test.h>
 
-static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, Ladybird::HeadlessWebView& view, URL::URL const& url, int screenshot_timeout)
+static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, Ladybird::HeadlessWebView& view, URL::URL const& url, int screenshot_timeout, ByteString const& screenshot_path)
 {
-    // FIXME: Allow passing the output path as an argument.
-    static constexpr auto output_file_path = "output.png"sv;
-
-    if (FileSystem::exists(output_file_path))
-        TRY(FileSystem::remove(output_file_path, FileSystem::RecursionMode::Disallowed));
+    if (FileSystem::exists(screenshot_path))
+        TRY(FileSystem::remove(screenshot_path, FileSystem::RecursionMode::Disallowed));
 
     outln("Taking screenshot after {} seconds", screenshot_timeout);
 
@@ -42,9 +39,9 @@ static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Cor
             auto promise = view.take_screenshot();
 
             if (auto screenshot = MUST(promise->await())) {
-                outln("Saving screenshot to {}", output_file_path);
+                outln("Saving screenshot to {}", screenshot_path);
 
-                auto output_file = MUST(Core::File::open(output_file_path, Core::File::OpenMode::Write));
+                auto output_file = MUST(Core::File::open(screenshot_path, Core::File::OpenMode::Write));
                 auto image_buffer = MUST(Gfx::PNGWriter::encode(*screenshot));
                 MUST(output_file->write_until_depleted(image_buffer.bytes()));
             } else {
@@ -96,7 +93,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     RefPtr<Core::Timer> timer;
     if (!WebView::Application::browser_options().webdriver_content_ipc_path.has_value())
-        timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), view, url, app->screenshot_timeout));
+        timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), view, url, app->screenshot_timeout, app->screenshot_path));
 
     return app->execute();
 }
