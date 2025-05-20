@@ -120,12 +120,16 @@ with the expected results from the test.
 
 ## Writing tests
 
-Running `Tests/LibWeb/add_libweb_test.py your-new-test-name test_type` will create a new test HTML file in
-`Tests/LibWeb/test_type(/input)` (`/input` is appended for Text and Layout tests) with the correct boilerplate
-code for a `test_type` test - along with a corresponding expectations file in the appropriate directory, e.g.,
-`Tests/LibWeb/Text/expected/your-new-test-name.txt`, for a Text test, or
-`Tests/LibWeb/Ref/reference/your-new-test-name.txt` for a Ref test. The accepted `test_types` are "Text",
-"Ref", "Screenshot", and "Layout".
+Running the following python script to create new test files with correct boilerplate:
+
+```python
+./Tests/LibWeb/add_libweb_test.py your-new-test-name test_type
+```
+
+The accepted `test_type` values are "Text", "Layout", "Ref", and "Screenshot".
+
+This will create a new test HTML file in `Tests/LibWeb/<test_type>/input` with along with a corresponding expectations
+file in the appropriate directory in `Tests/LibWeb/<test_type>/expected`.
 
 If you make a new Text or Layout test, after you update/replace the generated boilerplate in your
 `your-new-test-name.html` test file with your actual test, running
