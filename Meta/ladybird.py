@@ -96,6 +96,9 @@ def main(platform):
     run_parser.add_argument('args', nargs=argparse.REMAINDER,
                             help='Additional arguments passed through to the application')
 
+    subparsers.add_parser('install', help='Installs the target binary',
+                          parents=[preset_parser, compiler_parser, target_parser])
+
     args = parser.parse_args()
     kwargs = vars(args)
     command = kwargs.pop('command', None)
@@ -133,6 +136,11 @@ def main(platform):
         build_dir = _configure_main(platform, **kwargs)
         _build_main(build_dir, **kwargs)
         _run_main(platform.host_system, build_dir, **kwargs)
+    elif command == 'install':
+        build_dir = _configure_main(platform, **kwargs)
+        _build_main(build_dir, **kwargs)
+        kwargs['target'] = 'install'
+        _build_main(build_dir, **kwargs)
 
 
 def _configure_main(platform, **kwargs):
