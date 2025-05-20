@@ -51,6 +51,7 @@ enum class TransferType : u8 {
     ResizableArrayBuffer = 3,
     ReadableStream = 4,
     WritableStream = 5,
+    TransformStream = 6,
 };
 
 WebIDL::ExceptionOr<SerializationRecord> structured_serialize(JS::VM& vm, JS::Value);

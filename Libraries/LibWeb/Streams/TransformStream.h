@@ -8,6 +8,7 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/Streams/QueuingStrategy.h>
@@ -15,7 +16,9 @@
 
 namespace Web::Streams {
 
-class TransformStream final : public Bindings::PlatformObject {
+class TransformStream final
+    : public Bindings::PlatformObject
+    , public Bindings::Transferable {
     WEB_PLATFORM_OBJECT(TransformStream, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(TransformStream);
 
@@ -44,6 +47,11 @@ public:
     void set_up(GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
     void enqueue(JS::Value chunk);
 
+    // ^Transferable
+    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) override;
+    virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::TransformStream; }
+
 private:
     explicit TransformStream(JS::Realm& realm);
 
@@ -62,10 +70,6 @@ private:
     // https://streams.spec.whatwg.org/#transformstream-controller
     // A TransformStreamDefaultController created with the ability to control [[readable]] and [[writable]]
     GC::Ptr<TransformStreamDefaultController> m_controller;
-
-    // https://streams.spec.whatwg.org/#transformstream-detached
-    // A boolean flag set to true when the stream is transferred
-    bool m_detached { false };
 
     // https://streams.spec.whatwg.org/#transformstream-readable
     // The ReadableStream instance controlled by this object
