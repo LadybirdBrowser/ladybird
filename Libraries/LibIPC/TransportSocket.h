@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
+#include <LibIPC/File.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/MutexProtected.h>
 #include <LibThreading/RWLock.h>
@@ -19,16 +20,8 @@ namespace IPC {
 
 class AutoCloseFileDescriptor : public RefCounted<AutoCloseFileDescriptor> {
 public:
-    AutoCloseFileDescriptor(int fd)
-        : m_fd(fd)
-    {
-    }
-
-    ~AutoCloseFileDescriptor()
-    {
-        if (m_fd != -1)
-            (void)Core::System::close(m_fd);
-    }
+    AutoCloseFileDescriptor(int fd);
+    ~AutoCloseFileDescriptor();
 
     int value() const { return m_fd; }
 
