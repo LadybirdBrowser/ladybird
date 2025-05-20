@@ -32,6 +32,7 @@ Application::~Application()
 void Application::create_platform_arguments(Core::ArgsParser& args_parser)
 {
     args_parser.add_option(screenshot_timeout, "Take a screenshot after [n] seconds (default: 1)", "screenshot", 's', "n");
+    args_parser.add_option(screenshot_path, "Path the save the screenshot (default: 'output.png')", "screenshot-path", 'p', "path");
     args_parser.add_option(dump_layout_tree, "Dump layout tree and exit", "dump-layout-tree", 'd');
     args_parser.add_option(dump_text, "Dump text and exit", "dump-text", 'T');
     args_parser.add_option(test_concurrency, "Maximum number of tests to run at once", "test-concurrency", 'j', "jobs");

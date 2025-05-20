@@ -49,6 +49,7 @@ public:
     static constexpr u8 VERBOSITY_LEVEL_LOG_SKIPPED_TESTS = 3;
 
     int screenshot_timeout { 1 };
+    ByteString screenshot_path { "output.png"sv };
     ByteString resources_folder;
     bool dump_failed_ref_tests { false };
     bool dump_layout_tree { false };
