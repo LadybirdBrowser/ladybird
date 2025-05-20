@@ -91,6 +91,11 @@ def main(platform):
     test_parser.add_argument('--pattern', required=False,
                              help='Limits the tests that are ran to those that match the regex pattern')
 
+    run_parser = subparsers.add_parser('run', help='Runs the application on the build host',
+                                       parents=[preset_parser, compiler_parser, target_parser])
+    run_parser.add_argument('args', nargs=argparse.REMAINDER,
+                            help='Additional arguments passed through to the application')
+
     args = parser.parse_args()
     kwargs = vars(args)
     command = kwargs.pop('command', None)
@@ -113,6 +118,21 @@ def main(platform):
         build_dir = _configure_main(platform,  **kwargs)
         _build_main(build_dir)
         _test_main(build_dir, **kwargs)
+    elif command == 'run':
+        if kwargs.get('preset') == 'Sanitizer':
+            # FIXME: Find some way to centralize these b/w CMakePresets.json, CI files, Documentation and here.
+            os.environ['ASAN_OPTIONS'] = os.environ.get(
+                'ASAN_OPTIONS',
+                'strict_string_checks=1:check_initialization_order=1:strict_init_order=1:'
+                'detect_stack_use_after_return=1:allocator_may_return_null=1'
+            )
+            os.environ['UBSAN_OPTIONS'] = os.environ.get(
+                'UBSAN_OPTIONS',
+                'print_stacktrace=1:print_summary=1:halt_on_error=1'
+            )
+        build_dir = _configure_main(platform, **kwargs)
+        _build_main(build_dir, **kwargs)
+        _run_main(platform.host_system, build_dir, **kwargs)
 
 
 def _configure_main(platform, **kwargs):
@@ -326,6 +346,24 @@ def _test_main(build_dir, **kwargs):
         else:
             msg += 'project'
         _print_process_stderr(e, msg)
+        sys.exit(1)
+
+
+def _run_main(host_system, build_dir, **kwargs):
+    run_args = []
+    app_target = kwargs.get('target')
+    if host_system == HostSystem.macOS and app_target in ('headless-browser', 'ImageDecoder', 'Ladybird',
+                                                          'RequestServer', 'WebContent', 'WebDriver', 'WebWorker'):
+        run_args.append(str(build_dir.joinpath('bin', 'Ladybird.app', 'Contents', 'MacOS', app_target)))
+    else:
+        run_args.append(str(build_dir.joinpath('bin', app_target)))
+    app_args = kwargs.get('args', [])
+    run_args.extend(app_args)
+    try:
+        # FIXME: For Windows, set the working directory so DLLs are found
+        subprocess.check_call(run_args)
+    except subprocess.CalledProcessError as e:
+        _print_process_stderr(e, f'Unable to run ladybird target "{app_target}"')
         sys.exit(1)
 
 
