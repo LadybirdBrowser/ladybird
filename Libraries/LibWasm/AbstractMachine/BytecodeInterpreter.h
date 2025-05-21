@@ -47,6 +47,11 @@ struct BytecodeInterpreter : public Interpreter {
         BytecodeInterpreter& m_interpreter;
     };
 
+    enum class CallAddressSource {
+        DirectCall,
+        IndirectCall,
+    };
+
 protected:
     void interpret_instruction(Configuration&, InstructionPointer&, Instruction const&);
     void branch_to_label(Configuration&, LabelIndex);
@@ -71,7 +76,7 @@ protected:
     template<typename M, template<typename> typename SetSign, typename VectorType = Native128ByteVectorOf<M, SetSign>>
     VectorType pop_vector(Configuration&);
     void store_to_memory(Configuration&, Instruction::MemoryArgument const&, ReadonlyBytes data, u32 base);
-    void call_address(Configuration&, FunctionAddress);
+    void call_address(Configuration&, FunctionAddress, CallAddressSource = CallAddressSource::DirectCall);
 
     template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS = PopTypeLHS, typename... Args>
     void binary_numeric_operation(Configuration&, Args&&...);
