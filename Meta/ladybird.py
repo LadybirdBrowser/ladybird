@@ -288,9 +288,8 @@ def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, lis
             f"-DCMAKE_CXX_COMPILER={cxx}",
         ]
     )
-    ensure_ladybird_source_dir()
-    lb_source_dir = Path(os.environ.get("LADYBIRD_SOURCE_DIR"))
 
+    lb_source_dir = ensure_ladybird_source_dir()
     build_root_dir = lb_source_dir / "Build"
 
     known_presets = {
