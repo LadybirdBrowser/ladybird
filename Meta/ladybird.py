@@ -48,7 +48,9 @@ class Platform:
             self.host_architecture = HostArchitecture.Unsupported
 
 
-def main(platform):
+def main():
+    platform = Platform()
+
     if platform.host_system == HostSystem.Unsupported:
         print(f"Unsupported host system {platform.system}", file=sys.stderr)
         sys.exit(1)
@@ -211,7 +213,7 @@ def main(platform):
         addr2line_main(build_dir, args.target, args.program, args.addresses)
 
 
-def configure_main(platform, preset: str, cc: str, cxx: str):
+def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     cmake_args = []
 
     host_system = platform.host_system
@@ -225,7 +227,6 @@ def configure_main(platform, preset: str, cc: str, cxx: str):
     build_vcpkg()
     validate_cmake_version()
 
-    cmake_args.extend(build_env_cmake_args)
     config_args = [
         "cmake",
         "--preset",
@@ -235,6 +236,7 @@ def configure_main(platform, preset: str, cc: str, cxx: str):
         "-B",
         build_preset_dir,
     ]
+    config_args.extend(build_env_cmake_args)
     config_args.extend(cmake_args)
 
     # FIXME: Improve error reporting for vcpkg install failures
@@ -248,7 +250,7 @@ def configure_main(platform, preset: str, cc: str, cxx: str):
     return build_preset_dir
 
 
-def configure_skia_jemalloc():
+def configure_skia_jemalloc() -> list[str]:
     page_size = resource.getpagesize()
     gn = shutil.which("gn") or None
 
@@ -278,7 +280,7 @@ def configure_skia_jemalloc():
     return cmake_args
 
 
-def configure_build_env(preset: str, cc: str, cxx: str):
+def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, list[str]]:
     cmake_args = []
     cmake_args.extend(
         [
@@ -300,11 +302,12 @@ def configure_build_env(preset: str, cc: str, cxx: str):
         "Sanitizer": build_root_dir / "sanitizers",
         "Distribution": build_root_dir / "distribution",
     }
-    if preset not in known_presets:
+
+    build_preset_dir = known_presets.get(preset, None)
+    if not build_preset_dir:
         print(f'Unknown build preset "{preset}"', file=sys.stderr)
         sys.exit(1)
 
-    build_preset_dir = known_presets.get(preset)
     vcpkg_root = str(build_root_dir / "vcpkg")
     os.environ["VCPKG_ROOT"] = vcpkg_root
     os.environ["PATH"] += os.pathsep + str(lb_source_dir.joinpath("Toolchain", "Local", "cmake", "bin"))
@@ -350,7 +353,7 @@ def validate_cmake_version():
         sys.exit(1)
 
 
-def ensure_ladybird_source_dir():
+def ensure_ladybird_source_dir() -> Path:
     ladybird_source_dir = os.environ.get("LADYBIRD_SOURCE_DIR", None)
     ladybird_source_dir = Path(ladybird_source_dir) if ladybird_source_dir else None
 
@@ -374,7 +377,7 @@ def ensure_ladybird_source_dir():
     return ladybird_source_dir
 
 
-def build_main(build_dir, target: str | None = None, args: list[str] = []):
+def build_main(build_dir: Path, target: str | None = None, args: list[str] = []):
     build_args = [
         "cmake",
         "--build",
@@ -406,7 +409,7 @@ def build_main(build_dir, target: str | None = None, args: list[str] = []):
         sys.exit(1)
 
 
-def test_main(build_dir, preset: str, pattern: str | None):
+def test_main(build_dir: Path, preset: str, pattern: str | None):
     test_args = [
         "ctest",
         "--preset",
@@ -436,7 +439,7 @@ def test_main(build_dir, preset: str, pattern: str | None):
         sys.exit(1)
 
 
-def run_main(host_system, build_dir, target: str, args: list[str]):
+def run_main(host_system: HostSystem, build_dir: Path, target: str, args: list[str]):
     run_args = []
 
     if host_system == HostSystem.macOS and target in (
@@ -462,14 +465,13 @@ def run_main(host_system, build_dir, target: str, args: list[str]):
         sys.exit(1)
 
 
-def debug_main(host_system, build_dir, target: str, debugger: str, debugger_commands: list[str]):
+def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: str, debugger_commands: list[str]):
     debuggers = ["gdb", "lldb"]
     if debugger not in debuggers or not shutil.which(debugger):
         print("Please install gdb or lldb!", file=sys.stderr)
         sys.exit(1)
-    gdb_args = [
-        debugger,
-    ]
+
+    gdb_args = [debugger]
     for cmd in debugger_commands:
         gdb_args.extend(
             [
@@ -529,10 +531,10 @@ def addr2line_main(build_dir, target: str, program: str, addresses: list[str]):
         sys.exit(1)
 
 
-def print_process_stderr(e, msg):
+def print_process_stderr(e: subprocess.CalledProcessError, msg: str):
     err_details = f": {e.stderr}" if e.stderr else ""
     print(f"{msg}{err_details}", file=sys.stderr)
 
 
 if __name__ == "__main__":
-    main(Platform())
+    main()
