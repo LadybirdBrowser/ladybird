@@ -89,6 +89,14 @@ protected:
         return !m_trap.has<Empty>();
     }
 
+    template<typename... Rest>
+    ALWAYS_INLINE bool trap_if_not(bool value, StringView reason, CheckedFormatString<StringView, Rest...> format, Rest const&... args)
+    {
+        if (!value)
+            m_trap = Trap { ByteString::formatted(move(format), reason, args...) };
+        return !m_trap.has<Empty>();
+    }
+
     Variant<Trap, Empty> m_trap;
     StackInfo const& m_stack_info;
 };

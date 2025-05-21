@@ -22,9 +22,9 @@ using namespace AK::SIMD;
 
 namespace Wasm {
 
-#define TRAP_IF_NOT(x)                                                                         \
+#define TRAP_IF_NOT(x, ...)                                                                    \
     do {                                                                                       \
-        if (trap_if_not(x, #x##sv)) {                                                          \
+        if (trap_if_not(x, #x##sv __VA_OPT__(, ) __VA_ARGS__)) {                               \
             dbgln_if(WASM_TRACE_DEBUG, "Trapped because {} failed, at line {}", #x, __LINE__); \
             return;                                                                            \
         }                                                                                      \
@@ -225,7 +225,7 @@ VectorType BytecodeInterpreter::pop_vector(Configuration& configuration)
 
 void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address)
 {
-    TRAP_IF_NOT(m_stack_info.size_free() >= Constants::minimum_stack_space_to_keep_free);
+    TRAP_IF_NOT(m_stack_info.size_free() >= Constants::minimum_stack_space_to_keep_free, "{}: {}", Constants::stack_exhaustion_message);
 
     auto instance = configuration.store().get(address);
     FunctionType const* type { nullptr };
