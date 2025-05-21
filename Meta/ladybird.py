@@ -281,13 +281,10 @@ def configure_skia_jemalloc() -> list[str]:
 
 
 def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, list[str]]:
-    cmake_args = []
-    cmake_args.extend(
-        [
-            f"-DCMAKE_C_COMPILER={cc}",
-            f"-DCMAKE_CXX_COMPILER={cxx}",
-        ]
-    )
+    cmake_args = [
+        f"-DCMAKE_C_COMPILER={cc}",
+        f"-DCMAKE_CXX_COMPILER={cxx}",
+    ]
 
     ladybird_source_dir = ensure_ladybird_source_dir()
     build_root_dir = ladybird_source_dir / "Build"
@@ -328,13 +325,7 @@ def validate_cmake_version():
     cmake_install_message = "Please install CMake version 3.25 or newer."
 
     try:
-        cmake_version_output = subprocess.check_output(
-            [
-                "cmake",
-                "--version",
-            ],
-            text=True,
-        ).strip()
+        cmake_version_output = subprocess.check_output(["cmake", "--version"], text=True).strip()
 
         version_match = re.search(r"version\s+(\d+)\.(\d+)\.(\d+)?", cmake_version_output)
         if version_match:
@@ -358,16 +349,9 @@ def ensure_ladybird_source_dir() -> Path:
 
     if not ladybird_source_dir or not ladybird_source_dir.is_dir():
         try:
-            top_dir = subprocess.check_output(
-                [
-                    "git",
-                    "rev-parse",
-                    "--show-toplevel",
-                ],
-                text=True,
-            ).strip()
-
+            top_dir = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
             ladybird_source_dir = Path(top_dir)
+
             os.environ["LADYBIRD_SOURCE_DIR"] = str(ladybird_source_dir)
         except subprocess.CalledProcessError as e:
             print_process_stderr(e, "Unable to determine LADYBIRD_SOURCE_DIR:")
@@ -385,12 +369,7 @@ def build_main(build_dir: Path, target: str | None = None, args: list[str] = [])
         os.environ.get("MAKEJOBS", str(multiprocessing.cpu_count())),
     ]
     if target:
-        build_args.extend(
-            [
-                "--target",
-                target,
-            ]
-        )
+        build_args.extend(["--target", target])
 
     if args:
         build_args.append("--")
@@ -414,12 +393,7 @@ def test_main(build_dir: Path, preset: str, pattern: str | None):
     ]
 
     if pattern:
-        test_args.extend(
-            [
-                "-R",
-                pattern,
-            ]
-        )
+        test_args.extend(["-R", pattern])
 
     try:
         subprocess.check_call(test_args)
@@ -462,12 +436,7 @@ def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: 
 
     gdb_args = [debugger]
     for cmd in debugger_commands:
-        gdb_args.extend(
-            [
-                "-ex" if debugger == "gdb" else "-o",
-                cmd,
-            ]
-        )
+        gdb_args.extend(["-ex" if debugger == "gdb" else "-o", cmd])
 
     if target == "Ladybird" and host_system == HostSystem.macOS:
         gdb_args.append(str(build_dir.joinpath("bin", "Ladybird.app")))
