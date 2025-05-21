@@ -79,7 +79,7 @@ void BytecodeInterpreter::load_and_push(Configuration& configuration, Instructio
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + sizeof(ReadType) > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
         return;
     }
     dbgln_if(WASM_TRACE_DEBUG, "load({} : {}) -> stack", instance_address, sizeof(ReadType));
@@ -104,7 +104,7 @@ void BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + M * N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
         return;
     }
     dbgln_if(WASM_TRACE_DEBUG, "vec-load({} : {}) -> stack", instance_address, M * N / 8);
@@ -169,7 +169,7 @@ void BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, In
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + M / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
         return;
     }
     dbgln_if(WASM_TRACE_DEBUG, "vec-splat({} : {}) -> stack", instance_address, M / 8);
@@ -360,7 +360,7 @@ void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruct
     addition += data.size();
     if (addition.has_overflow() || addition.value() > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: Memory access out of bounds (expected 0 <= {} and {} <= {})", instance_address, instance_address + data.size(), memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected 0 <= {} and {} <= {})", instance_address, instance_address + data.size(), memory->size());
         return;
     }
     dbgln_if(WASM_TRACE_DEBUG, "temporary({}b) -> store({})", data.size(), instance_address);
