@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Ben Eidson <b.e.eidson@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -51,8 +52,15 @@ WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(AudioNodeOpti
 // https://webaudio.github.io/web-audio-api/#dom-audionode-connect
 WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
 {
+    AudioNodeConnection output_connection { destination_node, output, input };
+    AudioNodeConnection input_connection { *this, output, input };
+
     // There can only be one connection between a given output of one specific node and a given input of another specific node.
     // Multiple connections with the same termini are ignored.
+    for (auto const& existing_connection : m_output_connections) {
+        if (existing_connection == output_connection)
+            return destination_node;
+    }
 
     // If the destination parameter is an AudioNode that has been created using another AudioContext, an InvalidAccessError MUST be thrown.
     if (m_context != destination_node->m_context) {
@@ -70,14 +78,26 @@ WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> de
     if (input >= destination_node->number_of_inputs()) {
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Input index '{}' exceeds number of inputs", input)));
     }
+    // Connect node's output to destination_node input.
+    m_output_connections.append(output_connection);
+    // Connect destination_node input to node's output.
+    destination_node->m_input_connections.append(input_connection);
 
-    dbgln("FIXME: Implement Audio::connect(AudioNode)");
     return destination_node;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-connect-destinationparam-output
 WebIDL::ExceptionOr<void> AudioNode::connect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output)
 {
+    AudioParamConnection param_connection { destination_param, output };
+
+    // There can only be one connection between a given output of one specific node and a specific AudioParam. Multiple connections
+    //  with the same termini are ignored.
+    for (auto const& existing_connection : m_param_connections) {
+        if (existing_connection == param_connection)
+            return {};
+    }
+
     // If destinationParam belongs to an AudioNode that belongs to a BaseAudioContext that is different from the BaseAudioContext
     // that has created the AudioNode on which this method was called, an InvalidAccessError MUST be thrown.
     if (m_context != destination_param->context()) {
@@ -90,7 +110,9 @@ WebIDL::ExceptionOr<void> AudioNode::connect(GC::Ref<AudioParam> destination_par
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Output index {} exceeds number of outputs", output)));
     }
 
-    dbgln("FIXME: Implement AudioNode::connect(AudioParam)");
+    // Connect node's output to destination_param.
+    m_param_connections.append(param_connection);
+
     return {};
 }
 
@@ -224,6 +246,14 @@ void AudioNode::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);
+    for (auto& conn : m_param_connections)
+        visitor.visit(conn.destination_param);
+
+    for (auto& conn : m_input_connections)
+        visitor.visit(conn.destination_node);
+
+    for (auto& conn : m_output_connections)
+        visitor.visit(conn.destination_node);
 }
 
 }
