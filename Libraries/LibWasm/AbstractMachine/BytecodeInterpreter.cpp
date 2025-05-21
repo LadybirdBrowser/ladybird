@@ -662,8 +662,11 @@ ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& con
         if (count == 0)
             return;
 
-        for (u32 i = 0; i < count; ++i)
+        for (u32 i = 0; i < count; ++i) {
             store_to_memory(configuration, Instruction::MemoryArgument { 0, 0 }, { &value, sizeof(value) }, destination_offset + i);
+            if (did_trap())
+                return;
+        }
 
         return;
     }
