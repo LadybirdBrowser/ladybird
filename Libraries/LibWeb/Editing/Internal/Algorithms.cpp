@@ -3910,9 +3910,11 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
 
     // 10. If element has a style attribute set, and that attribute has the effect of setting property, return the value
     //     that it sets property to.
-    auto style_value = property_in_style_attribute(element, property.value());
-    if (style_value.has_value())
-        return style_value.value()->to_string(CSS::SerializationMode::Normal);
+    if (auto inline_style = element->inline_style()) {
+        auto value = inline_style->get_property_value(string_from_property_id(property.value()));
+        if (!value.is_empty())
+            return value;
+    }
 
     // 11. If element is a font element that has an attribute whose effect is to create a presentational hint for
     //     property, return the value that the hint sets property to. (For a size of 7, this will be the non-CSS value
