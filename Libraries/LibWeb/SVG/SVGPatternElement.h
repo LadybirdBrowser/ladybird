@@ -14,6 +14,7 @@
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>
+#include <LibWeb/SVG/SVGViewport.h>
 
 namespace Web::SVG {
 
@@ -24,7 +25,8 @@ using PatternUnits = GradientUnits;
 
 class SVGPatternElement
     : public SVGElement
-    , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
+    , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
+    , public SVGViewport {
     WEB_PLATFORM_OBJECT(SVGPatternElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGPatternElement);
 
@@ -43,6 +45,11 @@ public:
 
     PatternUnits pattern_units() const;
     PatternUnits pattern_content_units() const;
+
+    virtual Optional<ViewBox> view_box() const override { return m_view_box; }
+    virtual Optional<PreserveAspectRatio> preserve_aspect_ratio() const override { return m_preserve_aspect_ratio; }
+
+    GC::Ref<SVGAnimatedRect> view_box_for_bindings() { return *m_view_box_for_bindings; }
 
 protected:
     SVGPatternElement(DOM::Document&, DOM::QualifiedName);
@@ -63,5 +70,8 @@ private:
     // - Rendering child elements
 
     mutable RefPtr<Painting::SVGPatternPaintStyle> m_paint_style;
+    Optional<ViewBox> m_view_box;
+    Optional<PreserveAspectRatio> m_preserve_aspect_ratio;
+    GC::Ptr<SVGAnimatedRect> m_view_box_for_bindings;
 };
 }

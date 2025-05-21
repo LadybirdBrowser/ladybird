@@ -341,6 +341,7 @@ SVGMaskElement
 SVGMatrix
 SVGMetadataElement
 SVGPathElement
+SVGPatternElement
 SVGPoint
 SVGPolygonElement
 SVGPolylineElement
