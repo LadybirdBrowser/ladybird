@@ -244,18 +244,22 @@ def configure_main(platform, preset: str, cc: str, cxx: str):
     except subprocess.CalledProcessError as e:
         print_process_stderr(e, "Unable to configure ladybird project")
         sys.exit(1)
+
     return build_preset_dir
 
 
 def configure_skia_jemalloc():
     page_size = resource.getpagesize()
     gn = shutil.which("gn") or None
+
     # https://github.com/LadybirdBrowser/ladybird/issues/261
     if page_size != 4096 and gn is None:
         print("GN not found! Please build GN from source and put it in $PATH", file=sys.stderr)
         sys.exit(1)
-    pkg_config = shutil.which("pkg-config") or None
+
     cmake_args = []
+    pkg_config = shutil.which("pkg-config") or None
+
     if pkg_config:
         cmake_args.append(f"-DPKG_CONFIG_EXECUTABLE={pkg_config}")
 
@@ -305,6 +309,7 @@ def configure_build_env(preset: str, cc: str, cxx: str):
     os.environ["VCPKG_ROOT"] = vcpkg_root
     os.environ["PATH"] += os.pathsep + str(lb_source_dir.joinpath("Toolchain", "Local", "cmake", "bin"))
     os.environ["PATH"] += os.pathsep + str(vcpkg_root)
+
     return lb_source_dir, build_preset_dir, cmake_args
 
 
@@ -365,6 +370,7 @@ def ensure_ladybird_source_dir():
         except subprocess.CalledProcessError as e:
             print_process_stderr(e, "Unable to determine LADYBIRD_SOURCE_DIR:")
             sys.exit(1)
+
     return ladybird_source_dir
 
 
@@ -417,6 +423,7 @@ def test_main(build_dir, preset: str, pattern: str | None):
                 pattern,
             ]
         )
+
     try:
         subprocess.check_call(test_args)
     except subprocess.CalledProcessError as e:
@@ -470,10 +477,12 @@ def debug_main(host_system, build_dir, target: str, debugger: str, debugger_comm
                 cmd,
             ]
         )
+
     if target == "Ladybird" and host_system == HostSystem.macOS:
         gdb_args.append(str(build_dir.joinpath("bin", "Ladybird.app")))
     else:
         gdb_args.append(str(build_dir.joinpath("bin", target)))
+
     try:
         # FIXME: For Windows, set the working directory so DLLs are found
         subprocess.check_call(gdb_args)
@@ -501,15 +510,18 @@ def addr2line_main(build_dir, target: str, program: str, addresses: list[str]):
             candidate = Path(root) / target
             if os.access(candidate, os.X_OK):
                 binary_file_path = str(candidate)
+
     if not binary_file_path:
         print(f'Unable to find binary target "{target}" in build directory "{build_dir}"', file=sys.stderr)
         sys.exit(1)
+
     addr2line_args = [
         program,
         "-o" if program == "atos" else "-e",
         binary_file_path,
     ]
     addr2line_args.extend(addresses)
+
     try:
         subprocess.check_call(addr2line_args)
     except subprocess.CalledProcessError as e:
