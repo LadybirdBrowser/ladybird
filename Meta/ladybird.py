@@ -169,12 +169,12 @@ def main(platform):
         sys.exit(1)
 
     if command == "build":
-        build_dir = _configure_main(platform, **kwargs)
-        _build_main(build_dir, **kwargs)
+        build_dir = configure_main(platform, **kwargs)
+        build_main(build_dir, **kwargs)
     elif command == "test":
-        build_dir = _configure_main(platform, **kwargs)
-        _build_main(build_dir)
-        _test_main(build_dir, **kwargs)
+        build_dir = configure_main(platform, **kwargs)
+        build_main(build_dir)
+        test_main(build_dir, **kwargs)
     elif command == "run":
         if kwargs.get("preset") == "Sanitizer":
             # FIXME: Find some way to centralize these b/w CMakePresets.json, CI files, Documentation and here.
@@ -186,46 +186,46 @@ def main(platform):
             os.environ["UBSAN_OPTIONS"] = os.environ.get(
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
-        build_dir = _configure_main(platform, **kwargs)
-        _build_main(build_dir, **kwargs)
-        _run_main(platform.host_system, build_dir, **kwargs)
+        build_dir = configure_main(platform, **kwargs)
+        build_main(build_dir, **kwargs)
+        run_main(platform.host_system, build_dir, **kwargs)
     elif command == "debug":
-        build_dir = _configure_main(platform, **kwargs)
-        _build_main(build_dir, **kwargs)
-        _debug_main(platform.host_system, build_dir, **kwargs)
+        build_dir = configure_main(platform, **kwargs)
+        build_main(build_dir, **kwargs)
+        debug_main(platform.host_system, build_dir, **kwargs)
     elif command == "install":
-        build_dir = _configure_main(platform, **kwargs)
-        _build_main(build_dir, **kwargs)
+        build_dir = configure_main(platform, **kwargs)
+        build_main(build_dir, **kwargs)
         kwargs["target"] = "install"
-        _build_main(build_dir, **kwargs)
+        build_main(build_dir, **kwargs)
     elif command == "vcpkg":
-        _configure_build_env(**kwargs)
-        _build_vcpkg()
+        configure_build_env(**kwargs)
+        build_vcpkg()
     elif command == "clean":
-        _clean_main(**kwargs)
+        clean_main(**kwargs)
     elif command == "rebuild":
-        _clean_main(**kwargs)
-        build_dir = _configure_main(platform, **kwargs)
-        _build_main(build_dir, **kwargs)
+        clean_main(**kwargs)
+        build_dir = configure_main(platform, **kwargs)
+        build_main(build_dir, **kwargs)
     elif command == "addr2line":
-        build_dir = _configure_main(platform, **kwargs)
-        _build_main(build_dir, **kwargs)
-        _addr2line_main(build_dir, **kwargs)
+        build_dir = configure_main(platform, **kwargs)
+        build_main(build_dir, **kwargs)
+        addr2line_main(build_dir, **kwargs)
 
 
-def _configure_main(platform, **kwargs):
+def configure_main(platform, **kwargs):
     cmake_args = []
 
     host_system = platform.host_system
     if host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
-        cmake_args.extend(_configure_skia_jemalloc())
+        cmake_args.extend(configure_skia_jemalloc())
 
-    lb_source_dir, build_preset_dir, build_env_cmake_args = _configure_build_env(**kwargs)
+    lb_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(**kwargs)
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
 
-    _build_vcpkg()
-    _validate_cmake_version()
+    build_vcpkg()
+    validate_cmake_version()
 
     cmake_args.extend(build_env_cmake_args)
     config_args = [
@@ -244,12 +244,12 @@ def _configure_main(platform, **kwargs):
     try:
         subprocess.check_call(config_args)
     except subprocess.CalledProcessError as e:
-        _print_process_stderr(e, "Unable to configure ladybird project")
+        print_process_stderr(e, "Unable to configure ladybird project")
         sys.exit(1)
     return build_preset_dir
 
 
-def _configure_skia_jemalloc():
+def configure_skia_jemalloc():
     import resource
 
     page_size = resource.getpagesize()
@@ -278,7 +278,7 @@ def _configure_skia_jemalloc():
     return cmake_args
 
 
-def _configure_build_env(**kwargs):
+def configure_build_env(**kwargs):
     preset = kwargs.get("preset")
     cc = kwargs.get("cc")
     cxx = kwargs.get("cxx")
@@ -289,7 +289,7 @@ def _configure_build_env(**kwargs):
             f"-DCMAKE_CXX_COMPILER={cxx}",
         ]
     )
-    _ensure_ladybird_source_dir()
+    ensure_ladybird_source_dir()
     lb_source_dir = Path(os.environ.get("LADYBIRD_SOURCE_DIR"))
 
     build_root_dir = lb_source_dir / "Build"
@@ -315,7 +315,7 @@ def _configure_build_env(**kwargs):
     return lb_source_dir, build_preset_dir, cmake_args
 
 
-def _build_vcpkg():
+def build_vcpkg():
     sys.path.append(str(Path(__file__).parent.joinpath("..", "Toolchain")))
     # FIXME: Rename main() in BuildVcpkg.py to build_vcpkg() and call that from the scripts __main__
     from BuildVcpkg import main as build_vcpkg
@@ -323,7 +323,7 @@ def _build_vcpkg():
     build_vcpkg()
 
 
-def _validate_cmake_version():
+def validate_cmake_version():
     # FIXME: This 3.25+ CMake version check may not be needed anymore due to vcpkg downloading a newer version
     cmake_pls_install_msg = "Please install CMake version 3.25 or newer."
 
@@ -348,11 +348,11 @@ def _validate_cmake_version():
             print(f"Unable to determine CMake version. {cmake_pls_install_msg}", file=sys.stderr)
             sys.exit(1)
     except subprocess.CalledProcessError as e:
-        _print_process_stderr(e, f"CMake not found. {cmake_pls_install_msg}\n")
+        print_process_stderr(e, f"CMake not found. {cmake_pls_install_msg}\n")
         sys.exit(1)
 
 
-def _ensure_ladybird_source_dir():
+def ensure_ladybird_source_dir():
     ladybird_source_dir = os.environ.get("LADYBIRD_SOURCE_DIR", None)
     ladybird_source_dir = Path(ladybird_source_dir) if ladybird_source_dir else None
 
@@ -370,12 +370,12 @@ def _ensure_ladybird_source_dir():
             ladybird_source_dir = Path(top_dir)
             os.environ["LADYBIRD_SOURCE_DIR"] = str(ladybird_source_dir)
         except subprocess.CalledProcessError as e:
-            _print_process_stderr(e, "Unable to determine LADYBIRD_SOURCE_DIR:")
+            print_process_stderr(e, "Unable to determine LADYBIRD_SOURCE_DIR:")
             sys.exit(1)
     return ladybird_source_dir
 
 
-def _build_main(build_dir, **kwargs):
+def build_main(build_dir, **kwargs):
     build_args = [
         "cmake",
         "--build",
@@ -403,11 +403,11 @@ def _build_main(build_dir, **kwargs):
             msg += f'target "{build_target}"'
         else:
             msg += "project"
-        _print_process_stderr(e, msg)
+        print_process_stderr(e, msg)
         sys.exit(1)
 
 
-def _test_main(build_dir, **kwargs):
+def test_main(build_dir, **kwargs):
     build_preset = kwargs.get("preset")
     test_args = [
         "ctest",
@@ -433,11 +433,11 @@ def _test_main(build_dir, **kwargs):
             msg += f'name pattern "{test_name_pattern}"'
         else:
             msg += "project"
-        _print_process_stderr(e, msg)
+        print_process_stderr(e, msg)
         sys.exit(1)
 
 
-def _run_main(host_system, build_dir, **kwargs):
+def run_main(host_system, build_dir, **kwargs):
     run_args = []
     app_target = kwargs.get("target")
     if host_system == HostSystem.macOS and app_target in (
@@ -458,11 +458,11 @@ def _run_main(host_system, build_dir, **kwargs):
         # FIXME: For Windows, set the working directory so DLLs are found
         subprocess.check_call(run_args)
     except subprocess.CalledProcessError as e:
-        _print_process_stderr(e, f'Unable to run ladybird target "{app_target}"')
+        print_process_stderr(e, f'Unable to run ladybird target "{app_target}"')
         sys.exit(1)
 
 
-def _debug_main(host_system, build_dir, **kwargs):
+def debug_main(host_system, build_dir, **kwargs):
     app_target = kwargs.get("target")
     debugger = kwargs.get("debugger")
     debugger_commands = kwargs.get("cmd", [])
@@ -488,19 +488,19 @@ def _debug_main(host_system, build_dir, **kwargs):
         # FIXME: For Windows, set the working directory so DLLs are found
         subprocess.check_call(gdb_args)
     except subprocess.CalledProcessError as e:
-        _print_process_stderr(e, f'Unable to run ladybird target "{app_target}" with "{debugger}" debugger')
+        print_process_stderr(e, f'Unable to run ladybird target "{app_target}" with "{debugger}" debugger')
         sys.exit(1)
 
 
-def _clean_main(**kwargs):
-    lb_source_dir, build_preset_dir, _ = _configure_build_env(**kwargs)
+def clean_main(**kwargs):
+    lb_source_dir, build_preset_dir, _ = configure_build_env(**kwargs)
     shutil.rmtree(str(build_preset_dir), ignore_errors=True)
 
     user_vars_cmake_module = lb_source_dir.joinpath("Meta", "CMake", "vcpkg", "user-variables.cmake")
     user_vars_cmake_module.unlink(missing_ok=True)
 
 
-def _addr2line_main(build_dir, **kwargs):
+def addr2line_main(build_dir, **kwargs):
     addr2line_target = kwargs.get("target")
     addr2line_program = kwargs.get("program")
     addr2line_addresses = kwargs.get("addresses", [])
@@ -526,13 +526,13 @@ def _addr2line_main(build_dir, **kwargs):
     try:
         subprocess.check_call(addr2line_args)
     except subprocess.CalledProcessError as e:
-        _print_process_stderr(
+        print_process_stderr(
             e, f'Unable to find lines with "{addr2line_program}" for binary target ' f'{addr2line_target}"'
         )
         sys.exit(1)
 
 
-def _print_process_stderr(e, msg):
+def print_process_stderr(e, msg):
     err_details = f": {e.stderr}" if e.stderr else ""
     print(f"{msg}{err_details}", file=sys.stderr)
 
