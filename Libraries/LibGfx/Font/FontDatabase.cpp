@@ -13,6 +13,10 @@
 #    include <FindDirectory.h>
 #endif
 
+#ifdef USE_FONTCONFIG
+#    include <LibGfx/Font/GlobalFontConfig.h>
+#endif
+
 namespace Gfx {
 
 // Key function for SystemFontProvider to emit the vtable here
@@ -51,7 +55,16 @@ void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_na
 
 ErrorOr<Vector<String>> FontDatabase::font_directories()
 {
-#if defined(AK_OS_HAIKU)
+#if defined(USE_FONTCONFIG)
+    Vector<String> paths;
+    FcConfig* config = Gfx::GlobalFontConfig::the().get();
+    FcStrList* dirs = FcConfigGetFontDirs(config);
+    while (FcChar8* dir = FcStrListNext(dirs)) {
+        char const* dir_cstring = reinterpret_cast<char const*>(dir);
+        paths.append(TRY(String::from_utf8(StringView { dir_cstring, strlen(dir_cstring) })));
+    }
+    return paths;
+#elif defined(AK_OS_HAIKU)
     Vector<String> paths_vector;
     char** paths;
     size_t paths_count;

@@ -16,7 +16,7 @@
 #include <LibWebView/Plugins/FontPlugin.h>
 
 #ifdef USE_FONTCONFIG
-#    include <fontconfig/fontconfig.h>
+#    include <LibGfx/Font/GlobalFontConfig.h>
 #endif
 
 namespace WebView {
@@ -24,13 +24,6 @@ namespace WebView {
 FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_provider)
     : m_is_layout_test_mode(is_layout_test_mode)
 {
-#ifdef USE_FONTCONFIG
-    {
-        auto fontconfig_initialized = FcInit();
-        VERIFY(fontconfig_initialized);
-    }
-#endif
-
     if (!font_provider)
         font_provider = &static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
     if (is<Gfx::PathFontProvider>(*font_provider)) {
@@ -114,7 +107,7 @@ static Optional<String> query_fontconfig_for_generic_family(Web::Platform::Gener
         VERIFY_NOT_REACHED();
     }
 
-    auto* config = FcConfigGetCurrent();
+    auto* config = Gfx::GlobalFontConfig::the().get();
     VERIFY(config);
 
     FcPattern* pattern = FcNameParse(reinterpret_cast<FcChar8 const*>(pattern_string));
