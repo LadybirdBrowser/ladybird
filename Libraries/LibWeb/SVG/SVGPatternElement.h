@@ -12,8 +12,8 @@
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGElement.h>
-#include <LibWeb/SVG/SVGURIReference.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
+#include <LibWeb/SVG/SVGURIReference.h>
 
 namespace Web::SVG {
 
