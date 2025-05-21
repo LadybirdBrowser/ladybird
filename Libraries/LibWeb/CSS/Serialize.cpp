@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
+#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
@@ -239,6 +240,15 @@ String serialize_a_css_declaration(StringView property, StringView value, Import
 
     // 7. Return s.
     return MUST(builder.to_string());
+}
+
+// https://drafts.csswg.org/css-syntax/#serialization
+String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue> component_values, InsertWhitespace insert_whitespace)
+{
+    // FIXME: There are special rules here where we should insert a comment between certain tokens. Do that!
+    if (insert_whitespace == InsertWhitespace::Yes)
+        return MUST(String::join(' ', component_values));
+    return MUST(String::join(""sv, component_values));
 }
 
 }
