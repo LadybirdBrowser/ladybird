@@ -36,7 +36,7 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
     if (is<Gfx::PathFontProvider>(*font_provider)) {
         auto& path_font_provider = static_cast<Gfx::PathFontProvider&>(*font_provider);
         // Load anything we can find in the system's font directories
-        for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
+        for (auto const& path : Gfx::FontDatabase::font_directories().release_value_but_fixme_should_propagate_errors())
             path_font_provider.load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
     }
 
