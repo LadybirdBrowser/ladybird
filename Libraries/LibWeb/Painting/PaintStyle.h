@@ -19,12 +19,12 @@ struct ColorStop {
 
 class SVGPatternPaintStyle final : public AtomicRefCounted<SVGPatternPaintStyle> {
 public:
-    enum class PatternUnits : u8  {
+    enum class PatternUnits : u8 {
         UserSpaceOnUse,
         ObjectBoundingBox
     };
 
-    enum class PatternContentUnits   {
+    enum class PatternContentUnits {
         UserSpaceOnUse,
         ObjectBoundingBox
     };

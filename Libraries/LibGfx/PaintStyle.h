@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
