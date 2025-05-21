@@ -72,6 +72,10 @@ if (HAS_VULKAN)
     list(APPEND SOURCES VulkanContext.cpp)
 endif()
 
+if (HAS_FONTCONFIG)
+    list(APPEND SOURCES Font/GlobalFontConfig.cpp)
+endif()
+
 serenity_lib(LibGfx gfx)
 
 target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL)
