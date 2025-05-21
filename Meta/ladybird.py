@@ -155,10 +155,8 @@ def main(platform):
     addr2line_parser.add_argument("addresses", nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
-    kwargs = vars(args)
-    command = kwargs.pop("command", None)
 
-    if not command:
+    if not args.command:
         parser.print_help()
         sys.exit(1)
 
@@ -169,15 +167,15 @@ def main(platform):
         print("ladybird.py must be run from a Visual Studio enabled environment", file=sys.stderr)
         sys.exit(1)
 
-    if command == "build":
-        build_dir = configure_main(platform, **kwargs)
-        build_main(build_dir, **kwargs)
-    elif command == "test":
-        build_dir = configure_main(platform, **kwargs)
+    if args.command == "build":
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_main(build_dir, args.target, args.args)
+    elif args.command == "test":
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir)
-        test_main(build_dir, **kwargs)
-    elif command == "run":
-        if kwargs.get("preset") == "Sanitizer":
+        test_main(build_dir, args.preset, args.pattern)
+    elif args.command == "run":
+        if args.preset == "Sanitizer":
             # FIXME: Find some way to centralize these b/w CMakePresets.json, CI files, Documentation and here.
             os.environ["ASAN_OPTIONS"] = os.environ.get(
                 "ASAN_OPTIONS",
@@ -187,41 +185,40 @@ def main(platform):
             os.environ["UBSAN_OPTIONS"] = os.environ.get(
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
-        build_dir = configure_main(platform, **kwargs)
-        build_main(build_dir, **kwargs)
-        run_main(platform.host_system, build_dir, **kwargs)
-    elif command == "debug":
-        build_dir = configure_main(platform, **kwargs)
-        build_main(build_dir, **kwargs)
-        debug_main(platform.host_system, build_dir, **kwargs)
-    elif command == "install":
-        build_dir = configure_main(platform, **kwargs)
-        build_main(build_dir, **kwargs)
-        kwargs["target"] = "install"
-        build_main(build_dir, **kwargs)
-    elif command == "vcpkg":
-        configure_build_env(**kwargs)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_main(build_dir, args.target, args.args)
+        run_main(platform.host_system, build_dir, args.target, args.args)
+    elif args.command == "debug":
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_main(build_dir, args.target, args.args)
+        debug_main(platform.host_system, build_dir, args.target, args.debugger, args.cmd)
+    elif args.command == "install":
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_main(build_dir, args.target, args.args)
+        build_main(build_dir, "install", args.args)
+    elif args.command == "vcpkg":
+        configure_build_env(args.preset, args.cc, args.cxx)
         build_vcpkg()
-    elif command == "clean":
-        clean_main(**kwargs)
-    elif command == "rebuild":
-        clean_main(**kwargs)
-        build_dir = configure_main(platform, **kwargs)
-        build_main(build_dir, **kwargs)
-    elif command == "addr2line":
-        build_dir = configure_main(platform, **kwargs)
-        build_main(build_dir, **kwargs)
-        addr2line_main(build_dir, **kwargs)
+    elif args.command == "clean":
+        clean_main(args.preset, args.cc, args.cxx)
+    elif args.command == "rebuild":
+        clean_main(args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_main(build_dir, args.target, args.args)
+    elif args.command == "addr2line":
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_main(build_dir, args.target, args.args)
+        addr2line_main(build_dir, args.target, args.program, args.addresses)
 
 
-def configure_main(platform, **kwargs):
+def configure_main(platform, preset: str, cc: str, cxx: str):
     cmake_args = []
 
     host_system = platform.host_system
     if host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
         cmake_args.extend(configure_skia_jemalloc())
 
-    lb_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(**kwargs)
+    lb_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(preset, cc, cxx)
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
 
@@ -232,7 +229,7 @@ def configure_main(platform, **kwargs):
     config_args = [
         "cmake",
         "--preset",
-        kwargs.get("preset"),
+        preset,
         "-S",
         lb_source_dir,
         "-B",
@@ -277,10 +274,7 @@ def configure_skia_jemalloc():
     return cmake_args
 
 
-def configure_build_env(**kwargs):
-    preset = kwargs.get("preset")
-    cc = kwargs.get("cc")
-    cxx = kwargs.get("cxx")
+def configure_build_env(preset: str, cc: str, cxx: str):
     cmake_args = []
     cmake_args.extend(
         [
@@ -374,7 +368,7 @@ def ensure_ladybird_source_dir():
     return ladybird_source_dir
 
 
-def build_main(build_dir, **kwargs):
+def build_main(build_dir, target: str | None = None, args: list[str] = []):
     build_args = [
         "cmake",
         "--build",
@@ -382,64 +376,63 @@ def build_main(build_dir, **kwargs):
         "--parallel",
         os.environ.get("MAKEJOBS", str(multiprocessing.cpu_count())),
     ]
-    build_target = kwargs.get("target", "")
-    if build_target:
+    if target:
         build_args.extend(
             [
                 "--target",
-                build_target,
+                target,
             ]
         )
-    build_system_args = kwargs.get("args", [])
-    if build_system_args:
+
+    if args:
         build_args.append("--")
-        build_args.extend(build_system_args)
+        build_args.extend(args)
+
     try:
         subprocess.check_call(build_args)
     except subprocess.CalledProcessError as e:
         msg = "Unable to build ladybird "
-        if build_target:
-            msg += f'target "{build_target}"'
+        if target:
+            msg += f'target "{target}"'
         else:
             msg += "project"
         print_process_stderr(e, msg)
         sys.exit(1)
 
 
-def test_main(build_dir, **kwargs):
-    build_preset = kwargs.get("preset")
+def test_main(build_dir, preset: str, pattern: str | None):
     test_args = [
         "ctest",
         "--preset",
-        build_preset,
+        preset,
         "--output-on-failure",
         "--test-dir",
         str(build_dir),
     ]
-    test_name_pattern = kwargs.get("pattern", None)
-    if test_name_pattern:
+
+    if pattern:
         test_args.extend(
             [
                 "-R",
-                test_name_pattern,
+                pattern,
             ]
         )
     try:
         subprocess.check_call(test_args)
     except subprocess.CalledProcessError as e:
         msg = "Unable to test ladybird "
-        if test_name_pattern:
-            msg += f'name pattern "{test_name_pattern}"'
+        if pattern:
+            msg += f'name pattern "{pattern}"'
         else:
             msg += "project"
         print_process_stderr(e, msg)
         sys.exit(1)
 
 
-def run_main(host_system, build_dir, **kwargs):
+def run_main(host_system, build_dir, target: str, args: list[str]):
     run_args = []
-    app_target = kwargs.get("target")
-    if host_system == HostSystem.macOS and app_target in (
+
+    if host_system == HostSystem.macOS and target in (
         "headless-browser",
         "ImageDecoder",
         "Ladybird",
@@ -448,23 +441,21 @@ def run_main(host_system, build_dir, **kwargs):
         "WebDriver",
         "WebWorker",
     ):
-        run_args.append(str(build_dir.joinpath("bin", "Ladybird.app", "Contents", "MacOS", app_target)))
+        run_args.append(str(build_dir.joinpath("bin", "Ladybird.app", "Contents", "MacOS", target)))
     else:
-        run_args.append(str(build_dir.joinpath("bin", app_target)))
-    app_args = kwargs.get("args", [])
-    run_args.extend(app_args)
+        run_args.append(str(build_dir.joinpath("bin", target)))
+
+    run_args.extend(args)
+
     try:
         # FIXME: For Windows, set the working directory so DLLs are found
         subprocess.check_call(run_args)
     except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f'Unable to run ladybird target "{app_target}"')
+        print_process_stderr(e, f'Unable to run ladybird target "{target}"')
         sys.exit(1)
 
 
-def debug_main(host_system, build_dir, **kwargs):
-    app_target = kwargs.get("target")
-    debugger = kwargs.get("debugger")
-    debugger_commands = kwargs.get("cmd", [])
+def debug_main(host_system, build_dir, target: str, debugger: str, debugger_commands: list[str]):
     debuggers = ["gdb", "lldb"]
     if debugger not in debuggers or not shutil.which(debugger):
         print("Please install gdb or lldb!", file=sys.stderr)
@@ -479,55 +470,50 @@ def debug_main(host_system, build_dir, **kwargs):
                 cmd,
             ]
         )
-    if app_target == "Ladybird" and host_system == HostSystem.macOS:
+    if target == "Ladybird" and host_system == HostSystem.macOS:
         gdb_args.append(str(build_dir.joinpath("bin", "Ladybird.app")))
     else:
-        gdb_args.append(str(build_dir.joinpath("bin", app_target)))
+        gdb_args.append(str(build_dir.joinpath("bin", target)))
     try:
         # FIXME: For Windows, set the working directory so DLLs are found
         subprocess.check_call(gdb_args)
     except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f'Unable to run ladybird target "{app_target}" with "{debugger}" debugger')
+        print_process_stderr(e, f'Unable to run ladybird target "{target}" with "{debugger}" debugger')
         sys.exit(1)
 
 
-def clean_main(**kwargs):
-    lb_source_dir, build_preset_dir, _ = configure_build_env(**kwargs)
+def clean_main(preset: str, cc: str, cxx: str):
+    lb_source_dir, build_preset_dir, _ = configure_build_env(preset, cc, cxx)
     shutil.rmtree(str(build_preset_dir), ignore_errors=True)
 
     user_vars_cmake_module = lb_source_dir.joinpath("Meta", "CMake", "vcpkg", "user-variables.cmake")
     user_vars_cmake_module.unlink(missing_ok=True)
 
 
-def addr2line_main(build_dir, **kwargs):
-    addr2line_target = kwargs.get("target")
-    addr2line_program = kwargs.get("program")
-    addr2line_addresses = kwargs.get("addresses", [])
-    if not shutil.which(addr2line_program):
-        print(f"Please install {addr2line_program}!", file=sys.stderr)
+def addr2line_main(build_dir, target: str, program: str, addresses: list[str]):
+    if not shutil.which(program):
+        print(f"Please install {program}!", file=sys.stderr)
         sys.exit(1)
 
     binary_file_path = None
     for root, _, files in os.walk(build_dir):
-        if addr2line_target in files:
-            candidate = Path(root) / addr2line_target
+        if target in files:
+            candidate = Path(root) / target
             if os.access(candidate, os.X_OK):
                 binary_file_path = str(candidate)
     if not binary_file_path:
-        print(f'Unable to find binary target "{addr2line_target}" in build directory "{build_dir}"', file=sys.stderr)
+        print(f'Unable to find binary target "{target}" in build directory "{build_dir}"', file=sys.stderr)
         sys.exit(1)
     addr2line_args = [
-        addr2line_program,
-        "-o" if addr2line_program == "atos" else "-e",
+        program,
+        "-o" if program == "atos" else "-e",
         binary_file_path,
     ]
-    addr2line_args.extend(addr2line_addresses)
+    addr2line_args.extend(addresses)
     try:
         subprocess.check_call(addr2line_args)
     except subprocess.CalledProcessError as e:
-        print_process_stderr(
-            e, f'Unable to find lines with "{addr2line_program}" for binary target ' f'{addr2line_target}"'
-        )
+        print_process_stderr(e, f'Unable to find lines with "{program}" for binary target "{target}"')
         sys.exit(1)
 
 
