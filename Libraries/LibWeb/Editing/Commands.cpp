@@ -1355,8 +1355,8 @@ bool command_insert_linebreak_action(DOM::Document& document, String const&)
     if (is<DOM::Text>(*start_node) && active_range.start_offset() == start_node->length())
         MUST(selection.collapse(start_node->parent(), start_node->index() + 1));
 
-    // AD-HOC: If the active range's start node is a Text node and its resolved value for "white-space" is one of "pre",
-    //         "pre-line" or "pre-wrap":
+    // AD-HOC: If the active range's start node is a Text node and its resolved value for "white-space-collapse" is one of
+    //         "preserve" or "preserve-breaks":
     //         * Insert a newline (\n) character at the active range's start offset;
     //         * Collapse the selection with active range's start node as the first argument and one plus active range's
     //           start offset as the second argument
@@ -1364,9 +1364,8 @@ bool command_insert_linebreak_action(DOM::Document& document, String const&)
     //           active range's start node.
     //         * Return true.
     if (auto* text_node = as_if<DOM::Text>(*start_node); text_node) {
-        auto resolved_white_space = resolved_keyword(*start_node, CSS::PropertyID::WhiteSpace);
-        if (resolved_white_space.has_value()
-            && first_is_one_of(resolved_white_space.value(), CSS::Keyword::Pre, CSS::Keyword::PreLine, CSS::Keyword::PreWrap)) {
+        auto resolved_white_space_collapse = resolved_keyword(*start_node, CSS::PropertyID::WhiteSpaceCollapse);
+        if (resolved_white_space_collapse.has_value() && first_is_one_of(resolved_white_space_collapse.value(), CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks)) {
             MUST(text_node->insert_data(active_range.start_offset(), "\n"_string));
             MUST(selection.collapse(start_node, active_range.start_offset() + 1));
             if (selection.range()->start_offset() == start_node->length())

@@ -100,7 +100,6 @@ public:
     static CSS::PreferredColorScheme color_scheme() { return CSS::PreferredColorScheme::Auto; }
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CursorData cursor() { return { CSS::Cursor::Auto }; }
-    static CSS::WhiteSpace white_space() { return CSS::WhiteSpace::Normal; }
     static CSS::WhiteSpaceCollapse white_space_collapse() { return CSS::WhiteSpaceCollapse::Collapse; }
     static CSS::WordBreak word_break() { return CSS::WordBreak::Normal; }
     static CSS::LengthOrCalculated word_spacing() { return CSS::Length::make_px(0); }
@@ -431,7 +430,6 @@ public:
     CSS::TextOverflow text_overflow() const { return m_noninherited.text_overflow; }
     Vector<ShadowData> const& text_shadow() const { return m_inherited.text_shadow; }
     CSS::Positioning position() const { return m_noninherited.position; }
-    CSS::WhiteSpace white_space() const { return m_inherited.white_space; }
     CSS::WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
     WhiteSpaceTrimData white_space_trim() const { return m_noninherited.white_space_trim; }
     CSS::LengthOrCalculated word_spacing() const { return m_inherited.word_spacing; }
@@ -627,7 +625,6 @@ protected:
         CSS::TextTransform text_transform { InitialValues::text_transform() };
         CSS::LengthPercentage text_indent { InitialValues::text_indent() };
         CSS::TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
-        CSS::WhiteSpace white_space { InitialValues::white_space() };
         CSS::WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
         CSS::WordBreak word_break { InitialValues::word_break() };
         CSS::LengthOrCalculated word_spacing { InitialValues::word_spacing() };
@@ -833,7 +830,6 @@ public:
     void set_text_overflow(CSS::TextOverflow value) { m_noninherited.text_overflow = value; }
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
-    void set_white_space(CSS::WhiteSpace value) { m_inherited.white_space = value; }
     void set_white_space_collapse(CSS::WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
     void set_white_space_trim(WhiteSpaceTrimData value) { m_noninherited.white_space_trim = value; }
     void set_word_spacing(CSS::LengthOrCalculated value) { m_inherited.word_spacing = move(value); }

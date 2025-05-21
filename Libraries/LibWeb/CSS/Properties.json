@@ -3127,11 +3127,15 @@
     ]
   },
   "white-space": {
-    "animation-type": "discrete",
-    "inherited": true,
+    "inherited": false,
     "initial": "normal",
     "valid-types": [
       "white-space"
+    ],
+    "longhands": [
+      "white-space-collapse",
+      "text-wrap-mode",
+      "white-space-trim"
     ]
   },
   "white-space-collapse": {

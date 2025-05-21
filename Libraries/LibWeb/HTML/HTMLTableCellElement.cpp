@@ -94,7 +94,7 @@ void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedPrope
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(*parsed_value));
             return;
         } else if (name == HTML::AttributeNames::nowrap) {
-            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::WhiteSpace, CSS::CSSKeywordValue::create(CSS::Keyword::Nowrap));
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextWrapMode, CSS::CSSKeywordValue::create(CSS::Keyword::Nowrap));
             return;
         }
     });

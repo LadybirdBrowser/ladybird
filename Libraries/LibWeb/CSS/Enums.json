@@ -675,7 +675,6 @@
   ],
   "white-space": [
     "normal",
-    "nowrap",
     "pre",
     "pre-line",
     "pre-wrap"
