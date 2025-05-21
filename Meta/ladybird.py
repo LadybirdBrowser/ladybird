@@ -186,7 +186,7 @@ def main(platform):
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.target, args.args)
+        build_main(build_dir, args.target)
         run_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "debug":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
