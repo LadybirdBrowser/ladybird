@@ -73,7 +73,6 @@ public:
     [[nodiscard]] GC::Ref<Shape> create_cacheable_dictionary_transition();
     [[nodiscard]] GC::Ref<Shape> create_uncacheable_dictionary_transition();
     [[nodiscard]] GC::Ref<Shape> clone_for_prototype();
-    [[nodiscard]] static GC::Ref<Shape> create_for_prototype(GC::Ref<Realm>, GC::Ptr<Object> prototype);
 
     void add_property_without_transition(PropertyKey const&, PropertyAttributes);
 

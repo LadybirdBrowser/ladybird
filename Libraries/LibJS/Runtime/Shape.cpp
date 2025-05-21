@@ -315,16 +315,6 @@ void Shape::remove_property_without_transition(PropertyKey const& property_key, 
     }
 }
 
-GC::Ref<Shape> Shape::create_for_prototype(GC::Ref<Realm> realm, GC::Ptr<Object> prototype)
-{
-    auto new_shape = realm->heap().allocate<Shape>(realm);
-    s_all_prototype_shapes.set(new_shape);
-    new_shape->m_is_prototype_shape = true;
-    new_shape->m_prototype = prototype;
-    new_shape->m_prototype_chain_validity = realm->heap().allocate<PrototypeChainValidity>();
-    return new_shape;
-}
-
 GC::Ref<Shape> Shape::clone_for_prototype()
 {
     VERIFY(!m_is_prototype_shape);
