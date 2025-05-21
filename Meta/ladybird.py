@@ -220,7 +220,7 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     if host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
         cmake_args.extend(configure_skia_jemalloc())
 
-    lb_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(preset, cc, cxx)
+    ladybird_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(preset, cc, cxx)
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
 
@@ -232,7 +232,7 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         "--preset",
         preset,
         "-S",
-        lb_source_dir,
+        ladybird_source_dir,
         "-B",
         build_preset_dir,
     ]
@@ -289,8 +289,8 @@ def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, lis
         ]
     )
 
-    lb_source_dir = ensure_ladybird_source_dir()
-    build_root_dir = lb_source_dir / "Build"
+    ladybird_source_dir = ensure_ladybird_source_dir()
+    build_root_dir = ladybird_source_dir / "Build"
 
     known_presets = {
         "default": build_root_dir / "release",
@@ -309,10 +309,10 @@ def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, lis
 
     vcpkg_root = str(build_root_dir / "vcpkg")
     os.environ["VCPKG_ROOT"] = vcpkg_root
-    os.environ["PATH"] += os.pathsep + str(lb_source_dir.joinpath("Toolchain", "Local", "cmake", "bin"))
+    os.environ["PATH"] += os.pathsep + str(ladybird_source_dir.joinpath("Toolchain", "Local", "cmake", "bin"))
     os.environ["PATH"] += os.pathsep + str(vcpkg_root)
 
-    return lb_source_dir, build_preset_dir, cmake_args
+    return ladybird_source_dir, build_preset_dir, cmake_args
 
 
 def build_vcpkg():
@@ -325,7 +325,7 @@ def build_vcpkg():
 
 def validate_cmake_version():
     # FIXME: This 3.25+ CMake version check may not be needed anymore due to vcpkg downloading a newer version
-    cmake_pls_install_msg = "Please install CMake version 3.25 or newer."
+    cmake_install_message = "Please install CMake version 3.25 or newer."
 
     try:
         cmake_version_output = subprocess.check_output(
@@ -342,13 +342,13 @@ def validate_cmake_version():
             minor = int(version_match.group(2))
             patch = int(version_match.group(3))
             if major < 3 or (major == 3 and minor < 25):
-                print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_pls_install_msg}", file=sys.stderr)
+                print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_install_message}", file=sys.stderr)
                 sys.exit(1)
         else:
-            print(f"Unable to determine CMake version. {cmake_pls_install_msg}", file=sys.stderr)
+            print(f"Unable to determine CMake version. {cmake_install_message}", file=sys.stderr)
             sys.exit(1)
     except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f"CMake not found. {cmake_pls_install_msg}\n")
+        print_process_stderr(e, f"CMake not found. {cmake_install_message}\n")
         sys.exit(1)
 
 
@@ -399,12 +399,7 @@ def build_main(build_dir: Path, target: str | None = None, args: list[str] = [])
     try:
         subprocess.check_call(build_args)
     except subprocess.CalledProcessError as e:
-        msg = "Unable to build ladybird "
-        if target:
-            msg += f'target "{target}"'
-        else:
-            msg += "project"
-        print_process_stderr(e, msg)
+        print_process_stderr(e, f"Unable to build Ladybird {f"target {target}" if target else "project"}")
         sys.exit(1)
 
 
@@ -429,12 +424,7 @@ def test_main(build_dir: Path, preset: str, pattern: str | None):
     try:
         subprocess.check_call(test_args)
     except subprocess.CalledProcessError as e:
-        msg = "Unable to test ladybird "
-        if pattern:
-            msg += f'name pattern "{pattern}"'
-        else:
-            msg += "project"
-        print_process_stderr(e, msg)
+        print_process_stderr(e, f"Unable to test Ladybird {f"pattern {pattern}" if pattern else "project"}")
         sys.exit(1)
 
 
@@ -493,10 +483,10 @@ def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: 
 
 
 def clean_main(preset: str, cc: str, cxx: str):
-    lb_source_dir, build_preset_dir, _ = configure_build_env(preset, cc, cxx)
+    ladybird_source_dir, build_preset_dir, _ = configure_build_env(preset, cc, cxx)
     shutil.rmtree(str(build_preset_dir), ignore_errors=True)
 
-    user_vars_cmake_module = lb_source_dir.joinpath("Meta", "CMake", "vcpkg", "user-variables.cmake")
+    user_vars_cmake_module = ladybird_source_dir.joinpath("Meta", "CMake", "vcpkg", "user-variables.cmake")
     user_vars_cmake_module.unlink(missing_ok=True)
 
 
@@ -530,9 +520,9 @@ def addr2line_main(build_dir, target: str, program: str, addresses: list[str]):
         sys.exit(1)
 
 
-def print_process_stderr(e: subprocess.CalledProcessError, msg: str):
-    err_details = f": {e.stderr}" if e.stderr else ""
-    print(f"{msg}{err_details}", file=sys.stderr)
+def print_process_stderr(exception: subprocess.CalledProcessError, message: str):
+    details = f": {exception.stderr}" if exception.stderr else ""
+    print(f"{message}{details}", file=sys.stderr)
 
 
 if __name__ == "__main__":
