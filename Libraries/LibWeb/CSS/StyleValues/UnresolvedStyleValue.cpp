@@ -7,8 +7,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "UnresolvedStyleValue.h"
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 namespace Web::CSS {
 
@@ -17,7 +18,7 @@ String UnresolvedStyleValue::to_string(SerializationMode) const
     if (m_original_source_text.has_value())
         return *m_original_source_text;
 
-    return MUST(String::join(' ', m_values));
+    return serialize_a_series_of_component_values(m_values, InsertWhitespace::Yes);
 }
 
 bool UnresolvedStyleValue::equals(CSSStyleValue const& other) const

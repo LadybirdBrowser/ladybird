@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -45,5 +45,12 @@ void serialize_a_comma_separated_list(StringBuilder& builder, Vector<T> const& i
 }
 
 String serialize_a_css_declaration(StringView property, StringView value, Important = Important::No);
+
+enum class InsertWhitespace : u8 {
+    No,
+    Yes,
+};
+// FIXME: Remove InsertWhitespace param once style value parsing stops discarding whitespace tokens.
+String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue>, InsertWhitespace = InsertWhitespace::No);
 
 }
