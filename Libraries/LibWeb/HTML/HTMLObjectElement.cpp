@@ -297,7 +297,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
                 auto& realm = this->realm();
                 auto& global = document().realm().global_object();
 
-                if (response->is_network_error()) {
+                if (response->is_network_error() || !Fetch::Infrastructure::is_ok_status(response->status())) {
                     resource_did_fail();
                     return;
                 }
