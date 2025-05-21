@@ -824,12 +824,6 @@ Optional<LengthOrCalculated> ComputedProperties::word_spacing() const
     return {};
 }
 
-WhiteSpace ComputedProperties::white_space() const
-{
-    auto const& value = property(PropertyID::WhiteSpace);
-    return keyword_to_white_space(value.to_keyword()).release_value();
-}
-
 WhiteSpaceCollapse ComputedProperties::white_space_collapse() const
 {
     auto const& value = property(PropertyID::WhiteSpaceCollapse);

@@ -1,0 +1,51 @@
+Harness status: OK
+
+Found 45 tests
+
+40 Pass
+5 Fail
+Pass	e.style['white-space'] = "collapse" should set the property value
+Pass	Property white-space value 'collapse'
+Pass	e.style['white-space'] = "wrap" should set the property value
+Pass	Property white-space value 'wrap'
+Pass	e.style['white-space'] = "collapse wrap" should set the property value
+Pass	Property white-space value 'collapse wrap'
+Pass	e.style['white-space'] = "wrap collapse" should set the property value
+Pass	Property white-space value 'wrap collapse'
+Pass	e.style['white-space'] = "preserve nowrap" should set the property value
+Pass	Property white-space value 'preserve nowrap'
+Pass	e.style['white-space'] = "nowrap preserve" should set the property value
+Pass	Property white-space value 'nowrap preserve'
+Pass	e.style['white-space'] = "nowrap" should set the property value
+Pass	Property white-space value 'nowrap'
+Pass	e.style['white-space'] = "collapse nowrap" should set the property value
+Pass	Property white-space value 'collapse nowrap'
+Pass	e.style['white-space'] = "nowrap collapse" should set the property value
+Pass	Property white-space value 'nowrap collapse'
+Pass	e.style['white-space'] = "preserve" should set the property value
+Pass	Property white-space value 'preserve'
+Pass	e.style['white-space'] = "preserve wrap" should set the property value
+Pass	Property white-space value 'preserve wrap'
+Pass	e.style['white-space'] = "wrap preserve" should set the property value
+Pass	Property white-space value 'wrap preserve'
+Pass	e.style['white-space'] = "break-spaces" should set the property value
+Pass	Property white-space value 'break-spaces'
+Pass	e.style['white-space'] = "break-spaces wrap" should set the property value
+Pass	Property white-space value 'break-spaces wrap'
+Pass	e.style['white-space'] = "wrap break-spaces" should set the property value
+Pass	Property white-space value 'wrap break-spaces'
+Pass	e.style['white-space'] = "preserve-breaks" should set the property value
+Pass	Property white-space value 'preserve-breaks'
+Pass	e.style['white-space'] = "preserve-breaks wrap" should set the property value
+Pass	Property white-space value 'preserve-breaks wrap'
+Pass	e.style['white-space'] = "wrap preserve-breaks" should set the property value
+Pass	Property white-space value 'wrap preserve-breaks'
+Pass	e.style['white-space'] = "preserve-breaks nowrap" should set the property value
+Pass	Property white-space value 'preserve-breaks nowrap'
+Pass	e.style['white-space'] = "nowrap preserve-breaks" should set the property value
+Pass	Property white-space value 'nowrap preserve-breaks'
+Fail	e.style['white-space'] = "balance" should not set the property value
+Fail	e.style['white-space'] = "collapse balance" should not set the property value
+Fail	e.style['white-space'] = "balance collapse" should not set the property value
+Fail	e.style['white-space'] = "preserve balance" should not set the property value
+Fail	e.style['white-space'] = "balance preserve" should not set the property value

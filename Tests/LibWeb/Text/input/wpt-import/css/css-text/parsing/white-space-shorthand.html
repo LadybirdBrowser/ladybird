@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>CSS Text Module Test: parsing white-space as a shorthand</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#propdef-white-space">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+function test_valid_and_computed_value(property, specified, serialized) {
+  test_valid_value(property, specified, serialized);
+  test_computed_value(property, specified, serialized);
+}
+
+test_valid_and_computed_value("white-space", "collapse", "normal");
+test_valid_and_computed_value("white-space", "wrap", "normal");
+test_valid_and_computed_value("white-space", "collapse wrap", "normal");
+test_valid_and_computed_value("white-space", "wrap collapse", "normal");
+
+test_valid_and_computed_value("white-space", "preserve nowrap", "pre");
+test_valid_and_computed_value("white-space", "nowrap preserve", "pre");
+
+test_valid_and_computed_value("white-space", "nowrap", "nowrap");
+test_valid_and_computed_value("white-space", "collapse nowrap", "nowrap");
+test_valid_and_computed_value("white-space", "nowrap collapse", "nowrap");
+
+test_valid_and_computed_value("white-space", "preserve", "pre-wrap");
+test_valid_and_computed_value("white-space", "preserve wrap", "pre-wrap");
+test_valid_and_computed_value("white-space", "wrap preserve", "pre-wrap");
+
+test_valid_and_computed_value("white-space", "break-spaces", "break-spaces");
+test_valid_and_computed_value("white-space", "break-spaces wrap", "break-spaces");
+test_valid_and_computed_value("white-space", "wrap break-spaces", "break-spaces");
+
+test_valid_and_computed_value("white-space", "preserve-breaks", "pre-line");
+test_valid_and_computed_value("white-space", "preserve-breaks wrap", "pre-line");
+test_valid_and_computed_value("white-space", "wrap preserve-breaks", "pre-line");
+
+// Combinations of existing values that are not pre-defined.
+test_valid_and_computed_value("white-space", "preserve-breaks nowrap", "preserve-breaks nowrap");
+test_valid_and_computed_value("white-space", "nowrap preserve-breaks", "preserve-breaks nowrap");
+
+// Values not available through the shorthand.
+test_invalid_value("white-space", "balance");
+test_invalid_value("white-space", "collapse balance");
+test_invalid_value("white-space", "balance collapse");
+test_invalid_value("white-space", "preserve balance");
+test_invalid_value("white-space", "balance preserve");
+</script>

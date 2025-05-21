@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 200 tests
+Found 199 tests
 
-190 Pass
+189 Pass
 10 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -59,7 +59,6 @@ Pass	text-justify
 Pass	text-shadow
 Pass	text-transform
 Pass	visibility
-Pass	white-space
 Pass	word-break
 Pass	word-spacing
 Pass	word-wrap

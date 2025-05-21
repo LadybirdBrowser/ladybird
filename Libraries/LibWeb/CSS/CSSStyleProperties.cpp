@@ -553,6 +553,42 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID pro
             auto left = get_property_internal(PropertyID::PaddingLeft);
             return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
         }
+        case PropertyID::WhiteSpace: {
+            auto white_space_collapse_property = get_property_internal(PropertyID::WhiteSpaceCollapse);
+            auto text_wrap_mode_property = get_property_internal(PropertyID::TextWrapMode);
+            auto white_space_trim_property = get_property_internal(PropertyID::WhiteSpaceTrim);
+
+            if (!white_space_collapse_property.has_value() || !text_wrap_mode_property.has_value() || !white_space_trim_property.has_value())
+                break;
+
+            RefPtr<CSSStyleValue const> value;
+
+            if (white_space_trim_property->value->is_keyword() && white_space_trim_property->value->as_keyword().keyword() == Keyword::None) {
+                auto white_space_collapse_keyword = white_space_collapse_property->value->as_keyword().keyword();
+                auto text_wrap_mode_keyword = text_wrap_mode_property->value->as_keyword().keyword();
+
+                if (white_space_collapse_keyword == Keyword::Collapse && text_wrap_mode_keyword == Keyword::Wrap)
+                    value = CSSKeywordValue::create(Keyword::Normal);
+
+                if (white_space_collapse_keyword == Keyword::Preserve && text_wrap_mode_keyword == Keyword::Nowrap)
+                    value = CSSKeywordValue::create(Keyword::Pre);
+
+                if (white_space_collapse_keyword == Keyword::Preserve && text_wrap_mode_keyword == Keyword::Wrap)
+                    value = CSSKeywordValue::create(Keyword::PreWrap);
+
+                if (white_space_collapse_keyword == Keyword::PreserveBreaks && text_wrap_mode_keyword == Keyword::Wrap)
+                    value = CSSKeywordValue::create(Keyword::PreLine);
+            }
+
+            if (!value)
+                break;
+
+            return StyleProperty {
+                .important = white_space_collapse_property->important,
+                .property_id = property_id,
+                .value = value.release_nonnull(),
+            };
+        }
         default:
             break;
         }
