@@ -26,7 +26,6 @@ public:
     static ByteString user_data_directory();
     static Vector<ByteString> system_data_directories();
     static ErrorOr<ByteString> runtime_directory();
-    static ErrorOr<Vector<String>> font_directories();
 };
 
 }
