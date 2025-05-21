@@ -100,7 +100,6 @@ public:
     ContentVisibility content_visibility() const;
     Vector<CursorData> cursor() const;
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
-    WhiteSpace white_space() const;
     WhiteSpaceCollapse white_space_collapse() const;
     WhiteSpaceTrimData white_space_trim() const;
     WordBreak word_break() const;

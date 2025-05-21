@@ -379,15 +379,15 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
         //    "white-space" is neither "pre" nor "pre-wrap" and start offset is not zero and the
         //    (start offset − 1)st code unit of start node's data is a space (0x0020) or
         //    non-breaking space (0x00A0), subtract one from start offset.
+        // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
         if (is<DOM::Text>(*start_node) && start_offset != 0) {
-            auto parent_white_space = resolved_keyword(*start_node->parent(), CSS::PropertyID::WhiteSpace);
+            auto parent_white_space_collapse = resolved_keyword(*start_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
 
             // FIXME: Find a way to get code points directly from the UTF-8 string
             auto start_node_data = *start_node->text_content();
             auto utf16_code_units = MUST(AK::utf8_to_utf16(start_node_data));
             auto offset_minus_one_code_point = Utf16View { utf16_code_units }.code_point_at(start_offset - 1);
-            if (parent_white_space != CSS::Keyword::Pre && parent_white_space != CSS::Keyword::PreWrap
-                && (offset_minus_one_code_point == 0x20 || offset_minus_one_code_point == 0xA0)) {
+            if (parent_white_space_collapse != CSS::Keyword::Preserve && (offset_minus_one_code_point == 0x20 || offset_minus_one_code_point == 0xA0)) {
                 --start_offset;
                 continue;
             }
@@ -432,15 +432,15 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
         //    "white-space" is neither "pre" nor "pre-wrap" and end offset is not end node's length
         //    and the end offsetth code unit of end node's data is a space (0x0020) or non-breaking
         //    space (0x00A0):
+        // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
         if (is<DOM::Text>(*end_node) && end_offset != end_node->length()) {
-            auto parent_white_space = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpace);
+            auto parent_white_space_collapse = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
 
             // FIXME: Find a way to get code points directly from the UTF-8 string
             auto end_node_data = *end_node->text_content();
             auto utf16_code_units = MUST(AK::utf8_to_utf16(end_node_data));
             auto offset_code_point = Utf16View { utf16_code_units }.code_point_at(end_offset);
-            if (parent_white_space != CSS::Keyword::Pre && parent_white_space != CSS::Keyword::PreWrap
-                && (offset_code_point == 0x20 || offset_code_point == 0xA0)) {
+            if (parent_white_space_collapse != CSS::Keyword::Preserve && (offset_code_point == 0x20 || offset_code_point == 0xA0)) {
                 // 1. If fix collapsed space is true, and collapse spaces is true, and the end offsetth
                 //    code unit of end node's data is a space (0x0020): call deleteData(end offset, 1)
                 //    on end node, then continue this loop from the beginning.
@@ -497,10 +497,10 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             //    "white-space" is neither "pre" nor "pre-wrap" and end offset is end node's length and
             //    the last code unit of end node's data is a space (0x0020) and end node precedes a line
             //    break:
+            // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
             if (is<DOM::Text>(*end_node) && end_offset == end_node->length() && precedes_a_line_break(end_node)) {
-                auto parent_white_space = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpace);
-                if (parent_white_space != CSS::Keyword::Pre && parent_white_space != CSS::Keyword::PreWrap
-                    && end_node->text_content().value().ends_with_bytes(" "sv)) {
+                auto parent_white_space_collapse = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
+                if (parent_white_space_collapse != CSS::Keyword::Preserve && end_node->text_content().value().ends_with_bytes(" "sv)) {
                     // 1. Subtract one from end offset.
                     --end_offset;
 
@@ -2597,32 +2597,34 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
     if (character_data.data().is_empty())
         return true;
 
-    // NOTE: All constraints below require a parent Element with a resolved value for "white-space"
+    // NOTE: All constraints below require a parent Element with a resolved value for "white-space-collapse"
     GC::Ptr<DOM::Node> parent = node->parent();
     if (!is<DOM::Element>(parent.ptr()))
         return false;
-    auto resolved_white_space = resolved_keyword(*parent, CSS::PropertyID::WhiteSpace);
-    if (!resolved_white_space.has_value())
+    auto resolved_white_space_collapse = resolved_keyword(*parent, CSS::PropertyID::WhiteSpaceCollapse);
+    if (!resolved_white_space_collapse.has_value())
         return false;
-    auto white_space = resolved_white_space.value();
+    auto white_space_collapse = resolved_white_space_collapse.value();
 
     // or a Text node whose data consists only of one or more tabs (0x0009), line feeds (0x000A),
     // carriage returns (0x000D), and/or spaces (0x0020), and whose parent is an Element whose
     // resolved value for "white-space" is "normal" or "nowrap";
+    // AD-HOC: We use the equivalent "white-space-collapse" longhand property instead of "white-space" shorthand
     auto is_tab_lf_cr_or_space = [](u32 codepoint) {
         return codepoint == '\t' || codepoint == '\n' || codepoint == '\r' || codepoint == ' ';
     };
     auto code_points = character_data.data().code_points();
-    if (all_of(code_points, is_tab_lf_cr_or_space) && (white_space == CSS::Keyword::Normal || white_space == CSS::Keyword::Nowrap))
+    if (all_of(code_points, is_tab_lf_cr_or_space) && (white_space_collapse == CSS::Keyword::Collapse))
         return true;
 
     // or a Text node whose data consists only of one or more tabs (0x0009), carriage returns
     // (0x000D), and/or spaces (0x0020), and whose parent is an Element whose resolved value for
     // "white-space" is "pre-line".
+    // AD-HOC: We use the equivalent "white-space-collapse" longhand property instead of "white-space" shorthand
     auto is_tab_cr_or_space = [](u32 codepoint) {
         return codepoint == '\t' || codepoint == '\r' || codepoint == ' ';
     };
-    if (all_of(code_points, is_tab_cr_or_space) && white_space == CSS::Keyword::PreLine)
+    if (all_of(code_points, is_tab_cr_or_space) && white_space_collapse == CSS::Keyword::PreserveBreaks)
         return true;
 
     return false;
@@ -3910,6 +3912,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
 
     // 10. If element has a style attribute set, and that attribute has the effect of setting property, return the value
     //     that it sets property to.
+    // FIXME: Use property_in_style_attribute once it supports shorthands.
     if (auto inline_style = element->inline_style()) {
         auto value = inline_style->get_property_value(string_from_property_id(property.value()));
         if (!value.is_empty())
@@ -4704,6 +4707,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC
     if (!inline_style)
         return {};
 
+    // FIXME: This doesn't support shorthand properties.
     auto style_property = inline_style->property(property_id);
     if (!style_property.has_value())
         return {};
