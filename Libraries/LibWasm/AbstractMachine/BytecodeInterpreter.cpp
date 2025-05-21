@@ -223,13 +223,16 @@ VectorType BytecodeInterpreter::pop_vector(Configuration& configuration)
     return bit_cast<VectorType>(configuration.value_stack().take_last().to<u128>());
 }
 
-void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address)
+void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address, CallAddressSource source)
 {
     TRAP_IF_NOT(m_stack_info.size_free() >= Constants::minimum_stack_space_to_keep_free, "{}: {}", Constants::stack_exhaustion_message);
 
     auto instance = configuration.store().get(address);
     FunctionType const* type { nullptr };
     instance->visit([&](auto const& function) { type = &function.type(); });
+    if (source == CallAddressSource::IndirectCall) {
+        TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
+    }
     Vector<Value> args;
     args.ensure_capacity(type->parameters().size());
     auto span = configuration.value_stack().span().slice_from_end(type->parameters().size());
@@ -538,8 +541,15 @@ ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& con
         auto element = table_instance->elements()[index];
         TRAP_IF_NOT(element.ref().has<Reference::Func>());
         auto address = element.ref().get<Reference::Func>().address;
+        auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
+        auto const& type_expected = configuration.frame().module().types()[args.type.value()];
+        TRAP_IF_NOT(type_actual.parameters().size() == type_expected.parameters().size());
+        TRAP_IF_NOT(type_actual.results().size() == type_expected.results().size());
+        TRAP_IF_NOT(type_actual.parameters() == type_expected.parameters());
+        TRAP_IF_NOT(type_actual.results() == type_expected.results());
+
         dbgln_if(WASM_TRACE_DEBUG, "call_indirect({} -> {})", index, address.value());
-        call_address(configuration, address);
+        call_address(configuration, address, CallAddressSource::IndirectCall);
         return;
     }
     case Instructions::i32_load.value():
