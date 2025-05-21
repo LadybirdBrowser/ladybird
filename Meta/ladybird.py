@@ -318,7 +318,7 @@ def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, lis
 def build_vcpkg():
     sys.path.append(str(Path(__file__).parent.joinpath("..", "Toolchain")))
     # FIXME: Rename main() in BuildVcpkg.py to build_vcpkg() and call that from the scripts __main__
-    from BuildVcpkg import main as build_vcpkg
+    from BuildVcpkg import main as build_vcpkg  # pyright: ignore
 
     build_vcpkg()
 
