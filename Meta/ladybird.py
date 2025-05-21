@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import re
-import sys
-import shutil
 import multiprocessing
-from pathlib import Path
+import os
+import platform
+import re
+import resource
+import shutil
 import subprocess
+import sys
+
 from enum import IntEnum
+from pathlib import Path
 
 
 class HostArchitecture(IntEnum):
@@ -26,8 +29,6 @@ class HostSystem(IntEnum):
 
 class Platform:
     def __init__(self):
-        import platform
-
         self.system = platform.system()
         if self.system == "Windows":
             self.host_system = HostSystem.Windows
@@ -250,8 +251,6 @@ def configure_main(platform, **kwargs):
 
 
 def configure_skia_jemalloc():
-    import resource
-
     page_size = resource.getpagesize()
     gn = shutil.which("gn") or None
     # https://github.com/LadybirdBrowser/ladybird/issues/261
