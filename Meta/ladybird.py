@@ -265,7 +265,7 @@ def configure_skia_jemalloc() -> list[str]:
     if pkg_config:
         cmake_args.append(f"-DPKG_CONFIG_EXECUTABLE={pkg_config}")
 
-    user_vars_cmake_module = Path("Meta/CMake/vcpkg/user-variables.cmake")
+    user_vars_cmake_module = Path("Meta", "CMake", "vcpkg", "user-variables.cmake")
     user_vars_cmake_module.parent.mkdir(parents=True, exist_ok=True)
 
     with open(user_vars_cmake_module, "w") as f:
