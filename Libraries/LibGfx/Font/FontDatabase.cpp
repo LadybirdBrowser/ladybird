@@ -64,6 +64,7 @@ ErrorOr<Vector<String>> FontDatabase::font_directories()
         paths.append(TRY(String::from_utf8(StringView { dir_cstring, strlen(dir_cstring) })));
     }
     return paths;
+
 #elif defined(AK_OS_HAIKU)
     Vector<String> paths_vector;
     char** paths;
@@ -76,34 +77,48 @@ ErrorOr<Vector<String>> FontDatabase::font_directories()
         }
     }
     return paths_vector;
+
 #else
-    auto paths = Vector { {
 #    if defined(AK_OS_SERENITY)
+    return Vector<String> { {
         "/res/fonts"_string,
+    } };
+
 #    elif defined(AK_OS_MACOS)
+    return Vector<String> { {
         "/System/Library/Fonts"_string,
         "/Library/Fonts"_string,
         TRY(String::formatted("{}/Library/Fonts"sv, Core::StandardPaths::home_directory())),
+    } };
+
 #    elif defined(AK_OS_ANDROID)
+    return Vector<String> { {
         // FIXME: We should be using the ASystemFontIterator NDK API here.
         // There is no guarantee that this will continue to exist on future versions of Android.
         "/system/fonts"_string,
+    } };
+
 #    elif defined(AK_OS_WINDOWS)
+    return Vector<String> { {
         TRY(String::formatted(R"({}\Fonts)"sv, getenv("WINDIR"))),
         TRY(String::formatted(R"({}\Microsoft\Windows\Fonts)"sv, getenv("LOCALAPPDATA"))),
-#    else
-        TRY(String::formatted("{}/fonts", Core::StandardPaths::user_data_directory())),
-        TRY(String::formatted("{}/X11/fonts", Core::StandardPaths::user_data_directory())),
-#    endif
     } };
-#    if !(defined(AK_OS_SERENITY) || defined(AK_OS_MACOS) || defined(AK_OS_WINDOWS))
+
+#    else
+    Vector<String> paths;
+
+    auto user_data_directory = Core::StandardPaths::user_data_directory();
+    paths.append(TRY(String::formatted("{}/fonts", user_data_directory)));
+    paths.append(TRY(String::formatted("{}/X11/fonts", user_data_directory)));
+
     auto data_directories = Core::StandardPaths::system_data_directories();
     for (auto& data_directory : data_directories) {
         paths.append(TRY(String::formatted("{}/fonts", data_directory)));
         paths.append(TRY(String::formatted("{}/X11/fonts", data_directory)));
     }
-#    endif
+
     return paths;
+#    endif
 #endif
 }
 
