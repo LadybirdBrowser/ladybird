@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 144 tests
 
-58 Pass
-86 Fail
+50 Pass
+94 Fail
 Fail	CSS Transitions: property <border-color> from [rgb(20, 30, 40) rgb(40, 50, 60)] to [rgb(10, 20, 30) rgb(40, 50, 60) rgb(30, 40, 50) rgb(50, 60, 70)] at (-0.3) should be [rgb(23, 33, 43) rgb(40, 50, 60) rgb(17, 27, 37) rgb(37, 47, 57)]
 Fail	CSS Transitions: property <border-color> from [rgb(20, 30, 40) rgb(40, 50, 60)] to [rgb(10, 20, 30) rgb(40, 50, 60) rgb(30, 40, 50) rgb(50, 60, 70)] at (0) should be [rgb(20, 30, 40) rgb(40, 50, 60)]
 Fail	CSS Transitions: property <border-color> from [rgb(20, 30, 40) rgb(40, 50, 60)] to [rgb(10, 20, 30) rgb(40, 50, 60) rgb(30, 40, 50) rgb(50, 60, 70)] at (0.3) should be [rgb(17, 27, 37) rgb(40, 50, 60) rgb(23, 33, 43) rgb(43, 53, 63)]
@@ -52,14 +52,14 @@ Fail	Web Animations: property <border-top-color> from neutral to [orange] at (0.
 Fail	Web Animations: property <border-top-color> from neutral to [orange] at (0.6) should be [rgb(153, 99, 56)]
 Pass	Web Animations: property <border-top-color> from neutral to [orange] at (1) should be [rgb(255, 165, 0)]
 Fail	Web Animations: property <border-top-color> from neutral to [orange] at (1.5) should be [rgb(255, 248, 0)]
-Pass	CSS Transitions: property <border-top-color> from [initial] to [orange] at (-0.3) should be [rgb(0, 0, 0)]
-Pass	CSS Transitions: property <border-top-color> from [initial] to [orange] at (0) should be [rgb(0, 0, 0)]
+Fail	CSS Transitions: property <border-top-color> from [initial] to [orange] at (-0.3) should be [rgb(0, 0, 0)]
+Fail	CSS Transitions: property <border-top-color> from [initial] to [orange] at (0) should be [rgb(0, 0, 0)]
 Fail	CSS Transitions: property <border-top-color> from [initial] to [orange] at (0.3) should be [rgb(77, 50, 0)]
 Fail	CSS Transitions: property <border-top-color> from [initial] to [orange] at (0.6) should be [rgb(153, 99, 0)]
 Pass	CSS Transitions: property <border-top-color> from [initial] to [orange] at (1) should be [rgb(255, 165, 0)]
 Fail	CSS Transitions: property <border-top-color> from [initial] to [orange] at (1.5) should be [rgb(255, 248, 0)]
-Pass	CSS Transitions with transition: all: property <border-top-color> from [initial] to [orange] at (-0.3) should be [rgb(0, 0, 0)]
-Pass	CSS Transitions with transition: all: property <border-top-color> from [initial] to [orange] at (0) should be [rgb(0, 0, 0)]
+Fail	CSS Transitions with transition: all: property <border-top-color> from [initial] to [orange] at (-0.3) should be [rgb(0, 0, 0)]
+Fail	CSS Transitions with transition: all: property <border-top-color> from [initial] to [orange] at (0) should be [rgb(0, 0, 0)]
 Fail	CSS Transitions with transition: all: property <border-top-color> from [initial] to [orange] at (0.3) should be [rgb(77, 50, 0)]
 Fail	CSS Transitions with transition: all: property <border-top-color> from [initial] to [orange] at (0.6) should be [rgb(153, 99, 0)]
 Pass	CSS Transitions with transition: all: property <border-top-color> from [initial] to [orange] at (1) should be [rgb(255, 165, 0)]
@@ -100,14 +100,14 @@ Fail	Web Animations: property <border-top-color> from [inherit] to [orange] at (
 Fail	Web Animations: property <border-top-color> from [inherit] to [orange] at (0.6) should be [rgb(255, 201, 102)]
 Pass	Web Animations: property <border-top-color> from [inherit] to [orange] at (1) should be [rgb(255, 165, 0)]
 Fail	Web Animations: property <border-top-color> from [inherit] to [orange] at (1.5) should be [rgb(255, 120, 0)]
-Pass	CSS Transitions: property <border-top-color> from [unset] to [orange] at (-0.3) should be [rgb(0, 0, 0)]
-Pass	CSS Transitions: property <border-top-color> from [unset] to [orange] at (0) should be [rgb(0, 0, 0)]
+Fail	CSS Transitions: property <border-top-color> from [unset] to [orange] at (-0.3) should be [rgb(0, 0, 0)]
+Fail	CSS Transitions: property <border-top-color> from [unset] to [orange] at (0) should be [rgb(0, 0, 0)]
 Fail	CSS Transitions: property <border-top-color> from [unset] to [orange] at (0.3) should be [rgb(77, 50, 0)]
 Fail	CSS Transitions: property <border-top-color> from [unset] to [orange] at (0.6) should be [rgb(153, 99, 0)]
 Pass	CSS Transitions: property <border-top-color> from [unset] to [orange] at (1) should be [rgb(255, 165, 0)]
 Fail	CSS Transitions: property <border-top-color> from [unset] to [orange] at (1.5) should be [rgb(255, 248, 0)]
-Pass	CSS Transitions with transition: all: property <border-top-color> from [unset] to [orange] at (-0.3) should be [rgb(0, 0, 0)]
-Pass	CSS Transitions with transition: all: property <border-top-color> from [unset] to [orange] at (0) should be [rgb(0, 0, 0)]
+Fail	CSS Transitions with transition: all: property <border-top-color> from [unset] to [orange] at (-0.3) should be [rgb(0, 0, 0)]
+Fail	CSS Transitions with transition: all: property <border-top-color> from [unset] to [orange] at (0) should be [rgb(0, 0, 0)]
 Fail	CSS Transitions with transition: all: property <border-top-color> from [unset] to [orange] at (0.3) should be [rgb(77, 50, 0)]
 Fail	CSS Transitions with transition: all: property <border-top-color> from [unset] to [orange] at (0.6) should be [rgb(153, 99, 0)]
 Pass	CSS Transitions with transition: all: property <border-top-color> from [unset] to [orange] at (1) should be [rgb(255, 165, 0)]

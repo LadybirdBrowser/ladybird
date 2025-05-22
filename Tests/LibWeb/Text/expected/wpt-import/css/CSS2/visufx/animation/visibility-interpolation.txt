@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 134 tests
 
-128 Pass
-6 Fail
+134 Pass
 Pass	CSS Transitions: property <visibility> from [visible] to [visible] at (-1) should be [visible]
 Pass	CSS Transitions: property <visibility> from [visible] to [visible] at (0) should be [visible]
 Pass	CSS Transitions: property <visibility> from [visible] to [visible] at (0.5) should be [visible]
@@ -110,16 +109,16 @@ Pass	CSS Transitions with transition-property:all and transition-behavor:allow-d
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <visibility> from [collapse] to [hidden] at (0.6) should be [hidden]
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <visibility> from [collapse] to [hidden] at (1) should be [hidden]
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <visibility> from [collapse] to [hidden] at (1.5) should be [hidden]
-Fail	CSS Transitions: property <visibility> from [collapse] to [hidden] at (-0.3) should be [hidden]
-Fail	CSS Transitions: property <visibility> from [collapse] to [hidden] at (0) should be [hidden]
-Fail	CSS Transitions: property <visibility> from [collapse] to [hidden] at (0.3) should be [hidden]
+Pass	CSS Transitions: property <visibility> from [collapse] to [hidden] at (-0.3) should be [hidden]
+Pass	CSS Transitions: property <visibility> from [collapse] to [hidden] at (0) should be [hidden]
+Pass	CSS Transitions: property <visibility> from [collapse] to [hidden] at (0.3) should be [hidden]
 Pass	CSS Transitions: property <visibility> from [collapse] to [hidden] at (0.5) should be [hidden]
 Pass	CSS Transitions: property <visibility> from [collapse] to [hidden] at (0.6) should be [hidden]
 Pass	CSS Transitions: property <visibility> from [collapse] to [hidden] at (1) should be [hidden]
 Pass	CSS Transitions: property <visibility> from [collapse] to [hidden] at (1.5) should be [hidden]
-Fail	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (-0.3) should be [hidden]
-Fail	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (0) should be [hidden]
-Fail	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (0.3) should be [hidden]
+Pass	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (-0.3) should be [hidden]
+Pass	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (0) should be [hidden]
+Pass	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (0.3) should be [hidden]
 Pass	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (0.5) should be [hidden]
 Pass	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (0.6) should be [hidden]
 Pass	CSS Transitions with transition: all: property <visibility> from [collapse] to [hidden] at (1) should be [hidden]

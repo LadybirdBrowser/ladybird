@@ -9,6 +9,7 @@
 
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/Time.h>
@@ -37,7 +38,7 @@ public:
     double reversing_shortening_factor() const { return m_reversing_shortening_factor; }
 
     double timing_function_output_at_time(double t) const;
-    NonnullRefPtr<CSSStyleValue const> value_at_time(double t) const;
+    NonnullRefPtr<CSSStyleValue const> value_at_time(double t, AllowDiscrete allow_discrete) const;
 
     // This is designed to be created from AnimationEffect::Phase.
     enum class Phase : u8 {
