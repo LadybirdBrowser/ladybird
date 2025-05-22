@@ -394,7 +394,7 @@ def build_main(build_dir: Path, target: str | None = None, args: list[str] = [])
     try:
         subprocess.check_call(build_args)
     except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f"Unable to build Ladybird {f"target {target}" if target else "project"}")
+        print_process_stderr(e, f"Unable to build Ladybird {f'target {target}' if target else 'project'}")
         sys.exit(1)
 
 
@@ -414,7 +414,7 @@ def test_main(build_dir: Path, preset: str, pattern: str | None):
     try:
         subprocess.check_call(test_args)
     except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f"Unable to test Ladybird {f"pattern {pattern}" if pattern else "project"}")
+        print_process_stderr(e, f"Unable to test Ladybird {f'pattern {pattern}' if pattern else 'project'}")
         sys.exit(1)
 
 
