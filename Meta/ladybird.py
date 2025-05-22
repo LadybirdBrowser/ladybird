@@ -214,17 +214,18 @@ def main():
 
 
 def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
+    ladybird_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(preset, cc, cxx)
+    build_vcpkg()
+
+    if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
+        return build_preset_dir
+
     cmake_args = []
 
     host_system = platform.host_system
     if host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
         cmake_args.extend(configure_skia_jemalloc())
 
-    ladybird_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(preset, cc, cxx)
-    if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
-        return build_preset_dir
-
-    build_vcpkg()
     validate_cmake_version()
 
     config_args = [
