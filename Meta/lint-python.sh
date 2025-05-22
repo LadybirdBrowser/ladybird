@@ -5,6 +5,15 @@ set -e
 script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 cd "${script_path}/.." || exit 1
 
+check_argument="--check"
+
+if [ "$#" -gt "0" ]; then
+    if  [ "--overwrite-inplace" = "$1" ] ; then
+        check_argument=""
+        shift
+    fi
+fi
+
 if [ "$#" -eq "0" ]; then
     files=()
     while IFS= read -r file; do
@@ -22,12 +31,12 @@ else
 fi
 
 if (( ${#files[@]} )); then
-    if ! command -v flake8 >/dev/null 2>&1 ; then
-        echo "flake8 is not available, but python files need linting! Either skip this script, or install flake8."
+    if ! command -v black >/dev/null 2>&1 ; then
+        echo "black is not available, but python files need linting! Either skip this script, or install black."
         exit 1
     fi
 
-    flake8 "${files[@]}" --max-line-length=120
+    black ${check_argument} "${files[@]}"
 else
     echo "No py files to check."
 fi
