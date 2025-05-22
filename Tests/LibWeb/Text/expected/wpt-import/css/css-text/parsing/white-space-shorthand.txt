@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 45 tests
 
-40 Pass
-5 Fail
+45 Pass
 Pass	e.style['white-space'] = "collapse" should set the property value
 Pass	Property white-space value 'collapse'
 Pass	e.style['white-space'] = "wrap" should set the property value
@@ -44,8 +43,8 @@ Pass	e.style['white-space'] = "preserve-breaks nowrap" should set the property v
 Pass	Property white-space value 'preserve-breaks nowrap'
 Pass	e.style['white-space'] = "nowrap preserve-breaks" should set the property value
 Pass	Property white-space value 'nowrap preserve-breaks'
-Fail	e.style['white-space'] = "balance" should not set the property value
-Fail	e.style['white-space'] = "collapse balance" should not set the property value
-Fail	e.style['white-space'] = "balance collapse" should not set the property value
-Fail	e.style['white-space'] = "preserve balance" should not set the property value
-Fail	e.style['white-space'] = "balance preserve" should not set the property value
+Pass	e.style['white-space'] = "balance" should not set the property value
+Pass	e.style['white-space'] = "collapse balance" should not set the property value
+Pass	e.style['white-space'] = "balance collapse" should not set the property value
+Pass	e.style['white-space'] = "preserve balance" should not set the property value
+Pass	e.style['white-space'] = "balance preserve" should not set the property value

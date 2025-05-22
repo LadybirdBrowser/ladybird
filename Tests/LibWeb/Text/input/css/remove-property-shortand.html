@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<script src="../include.js"></script>
+<div id="a"></div>
+<script>
+    test(() => {
+        a.style.border = '1px solid red';
+        a.style.removeProperty('border');
+        if (a.style.getPropertyValue('border') != "") {
+            println("FAIL!: The border property should be removed");
+            return;
+        }
+
+        a.style.border = '1px solid red';
+        a.style.border = '';
+        if (a.style.getPropertyValue('border') != "") {
+            println("FAIL!: The border property should be removed when set to an empty string");
+            return;
+        }
+
+        println("PASS")
+    });
+</script>
+
+</html>
