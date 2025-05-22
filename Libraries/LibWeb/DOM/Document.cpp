@@ -5440,7 +5440,7 @@ void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> ele
 
     if (element->id().has_value())
         insert_in_tree_order(m_potentially_named_elements, element);
-    else
+    else if (!element->name().has_value())
         (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
 
     auto new_id = element->id();
