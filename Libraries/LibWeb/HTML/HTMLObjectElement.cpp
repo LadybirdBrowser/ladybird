@@ -238,10 +238,10 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
         return;
 
     // This task being queued or actively running must delay the load event of the element's node document.
-    m_document_load_event_delayer_for_object_representation_task.emplace(document());
+    m_document_load_event_delayer_for_object_representation_task.empend(document());
 
     queue_an_element_task(HTML::Task::Source::DOMManipulation, [this]() {
-        ScopeGuard guard { [&]() { m_document_load_event_delayer_for_object_representation_task.clear(); } };
+        ScopeGuard guard { [&]() { m_document_load_event_delayer_for_object_representation_task.take_last(); } };
 
         auto& realm = this->realm();
         auto& vm = realm.vm();
@@ -327,7 +327,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
 
             //    Fetching the resource must delay the load event of the element's node document until the task that is
             //    queued by the networking task source once the resource has been fetched (defined next) has been run.
-            m_document_load_event_delayer_for_resource_load.emplace(document());
+            m_document_load_event_delayer_for_resource_load.empend(document());
 
             // 6. If the resource is not yet available (e.g. because the resource was not available in the cache, so that
             //    loading the resource required making a request over the network), then jump to the step below labeled
@@ -345,7 +345,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element:concept-event-fire-2
 void HTMLObjectElement::resource_did_fail()
 {
-    ScopeGuard guard { [&]() { m_document_load_event_delayer_for_resource_load.clear(); } };
+    ScopeGuard guard { [&]() { m_document_load_event_delayer_for_resource_load.take_last(); } };
 
     // 3.7. If the load failed (e.g. there was an HTTP 404 error, there was a DNS error), fire an event named error at
     //      the element, then jump to the step below labeled fallback.
@@ -356,7 +356,7 @@ void HTMLObjectElement::resource_did_fail()
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#object-type-detection
 void HTMLObjectElement::resource_did_load(Fetch::Infrastructure::Response const& response, ReadonlyBytes data)
 {
-    ScopeGuard guard { [&]() { m_document_load_event_delayer_for_resource_load.clear(); } };
+    ScopeGuard guard { [&]() { m_document_load_event_delayer_for_resource_load.take_last(); } };
 
     // 3.8. Determine the resource type, as follows:
 
