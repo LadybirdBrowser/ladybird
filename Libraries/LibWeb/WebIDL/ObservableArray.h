@@ -43,7 +43,7 @@ public:
         }
     }
 
-    explicit ObservableArray(Object& prototype);
+    explicit ObservableArray(JS::Realm&, Object& prototype);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 

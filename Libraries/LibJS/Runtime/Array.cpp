@@ -35,7 +35,7 @@ ThrowCompletionOr<GC::Ref<Array>> Array::create(Realm& realm, u64 length, Object
     // 3. Let A be MakeBasicObject(« [[Prototype]], [[Extensible]] »).
     // 4. Set A.[[Prototype]] to proto.
     // 5. Set A.[[DefineOwnProperty]] as specified in 10.4.2.1.
-    auto array = realm.create<Array>(*prototype);
+    auto array = realm.create<Array>(realm, *prototype);
 
     // 6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
     MUST(array->internal_define_own_property(vm.names.length, { .value = Value(length), .writable = true, .enumerable = false, .configurable = false }));
@@ -63,10 +63,17 @@ GC::Ref<Array> Array::create_from(Realm& realm, ReadonlySpan<Value> elements)
     return array;
 }
 
-Array::Array(Object& prototype)
+Array::Array(Realm& realm, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
+    , m_realm(realm)
 {
     m_has_magical_length_property = true;
+}
+
+void Array::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_realm);
 }
 
 // 10.4.2.4 ArraySetLength ( A, Desc ), https://tc39.es/ecma262/#sec-arraysetlength
@@ -274,6 +281,72 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Array::internal_get_own_property
         return PropertyDescriptor { .value = Value(indexed_properties().array_like_size()), .writable = m_length_writable, .enumerable = false, .configurable = false };
 
     return Object::internal_get_own_property(property_key);
+}
+
+ThrowCompletionOr<bool> Array::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
+{
+    auto& vm = this->vm();
+
+    auto default_prototype_chain_intact = [&] {
+        auto const& intrinsics = m_realm->intrinsics();
+        auto* array_prototype = shape().prototype();
+        if (!array_prototype)
+            return false;
+        if (!array_prototype->indexed_properties().is_empty())
+            return false;
+        auto& array_prototype_shape = shape().prototype()->shape();
+        if (intrinsics.default_array_prototype_shape().ptr() != &array_prototype_shape)
+            return false;
+
+        auto* object_prototype = array_prototype_shape.prototype();
+        if (!object_prototype)
+            return false;
+        if (!object_prototype->indexed_properties().is_empty())
+            return false;
+        auto& object_prototype_shape = array_prototype_shape.prototype()->shape();
+        if (intrinsics.default_object_prototype_shape().ptr() != &object_prototype_shape)
+            return false;
+        if (object_prototype_shape.prototype())
+            return false;
+
+        return true;
+    };
+
+    VERIFY(receiver.is_object());
+    auto& receiver_object = receiver.as_object();
+
+    // Fast path for arrays with intact prototype chain
+    if (&receiver_object == this && !m_is_proxy_target && default_prototype_chain_intact()) {
+        if (property_key.is_number()) {
+            auto index = property_key.as_number();
+            auto property_descriptor = TRY(internal_get_own_property(property_key));
+            if (!property_descriptor.has_value()) {
+                if (!TRY(is_extensible()))
+                    return false;
+                PropertyAttributes attributes;
+                attributes.set_writable(true);
+                attributes.set_enumerable(true);
+                attributes.set_configurable(true);
+                indexed_properties().put(index, value, attributes);
+                return true;
+            }
+            if (property_descriptor->is_data_descriptor()) {
+                if (property_descriptor->writable.has_value() && !*property_descriptor->writable)
+                    return false;
+                auto attributes = property_descriptor->attributes();
+                indexed_properties().put(index, value, attributes);
+                return true;
+            }
+        } else if (property_key == vm.names.length) {
+            auto property_descriptor = TRY(internal_get_own_property(property_key));
+            if (property_descriptor->writable.has_value() && !*property_descriptor->writable)
+                return false;
+            property_descriptor->value = value;
+            return TRY(set_length(*property_descriptor));
+        }
+    }
+
+    return Object::internal_set(property_key, value, receiver, cacheable_metadata, phase);
 }
 
 // 10.4.2.1 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-array-exotic-objects-defineownproperty-p-desc

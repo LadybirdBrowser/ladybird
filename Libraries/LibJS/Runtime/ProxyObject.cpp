@@ -46,6 +46,10 @@ ProxyObject::ProxyObject(Object& target, Object& handler, Object& prototype)
     , m_target(target)
     , m_handler(handler)
 {
+    if (target.is_array_exotic_object()) {
+        auto& array = static_cast<Array&>(target);
+        array.set_is_proxy_target(true);
+    }
 }
 
 static Value property_key_to_value(VM& vm, PropertyKey const& property_key)

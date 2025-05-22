@@ -50,6 +50,9 @@ public:
     [[nodiscard]] u32 mapped_arguments_object_well_known_symbol_iterator_offset() const { return m_mapped_arguments_object_well_known_symbol_iterator_offset; }
     [[nodiscard]] u32 mapped_arguments_object_callee_offset() const { return m_mapped_arguments_object_callee_offset; }
 
+    [[nodiscard]] GC::Ref<Shape> default_array_prototype_shape() const { return *m_default_array_prototype_shape; }
+    [[nodiscard]] GC::Ref<Shape> default_object_prototype_shape() const { return *m_default_object_prototype_shape; }
+
     [[nodiscard]] GC::Ref<Accessor> throw_type_error_accessor() { return *m_throw_type_error_accessor; }
 
     // Not included in JS_ENUMERATE_NATIVE_OBJECTS due to missing distinct prototype
@@ -178,6 +181,9 @@ private:
     u32 m_mapped_arguments_object_length_offset { 0 };
     u32 m_mapped_arguments_object_well_known_symbol_iterator_offset { 0 };
     u32 m_mapped_arguments_object_callee_offset { 0 };
+
+    GC::Ptr<Shape> m_default_array_prototype_shape;
+    GC::Ptr<Shape> m_default_object_prototype_shape;
 
     GC::Ptr<Accessor> m_throw_type_error_accessor;
 

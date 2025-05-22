@@ -14,11 +14,11 @@ GC_DEFINE_ALLOCATOR(ObservableArray);
 GC::Ref<ObservableArray> ObservableArray::create(JS::Realm& realm)
 {
     auto prototype = realm.intrinsics().array_prototype();
-    return realm.create<ObservableArray>(prototype);
+    return realm.create<ObservableArray>(realm, prototype);
 }
 
-ObservableArray::ObservableArray(Object& prototype)
-    : JS::Array(prototype)
+ObservableArray::ObservableArray(JS::Realm& realm, Object& prototype)
+    : JS::Array(realm, prototype)
 {
 }
 

@@ -316,6 +316,13 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_json_parse_function = &json_object()->get_without_side_effects(vm.names.parse).as_function();
     m_json_stringify_function = &json_object()->get_without_side_effects(vm.names.stringify).as_function();
     m_object_prototype_to_string_function = &object_prototype()->get_without_side_effects(vm.names.toString).as_function();
+
+    array_prototype()->convert_to_prototype_if_needed();
+    m_default_array_prototype_shape = array_prototype()->shape();
+    m_default_object_prototype_shape = object_prototype()->shape();
+
+    VERIFY(array_prototype()->indexed_properties().is_empty());
+    VERIFY(object_prototype()->indexed_properties().is_empty());
 }
 
 template<typename T>
@@ -416,6 +423,8 @@ void Intrinsics::visit_edges(Visitor& visitor)
     visitor.visit(m_native_function_shape);
     visitor.visit(m_unmapped_arguments_object_shape);
     visitor.visit(m_mapped_arguments_object_shape);
+    visitor.visit(m_default_array_prototype_shape);
+    visitor.visit(m_default_object_prototype_shape);
     visitor.visit(m_proxy_constructor);
     visitor.visit(m_async_from_sync_iterator_prototype);
     visitor.visit(m_async_generator_prototype);
