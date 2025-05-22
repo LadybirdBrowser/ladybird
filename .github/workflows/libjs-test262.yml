@@ -50,14 +50,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build unzip gcc-13 g++-13 jq wget curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync
+
           test -e /opt/wabt-1.0.35 || (
             cd /tmp
-            wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
+            curl -f -L -o wabt-1.0.35-ubuntu-20.04.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
             sudo tar xf wabt-1.0.35-ubuntu-20.04.tar.gz -C /opt
             rm wabt-1.0.35-ubuntu-20.04.tar.gz
           )
+
           # FIXME: Just use the setup action
           ./Toolchain/BuildVcpkg.py --ci
 
@@ -71,9 +73,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r libjs-test262/requirements.txt
-
-      - name: Check versions
-        run: set +e; g++ --version; g++-13 --version; python --version; python3 --version; ninja --version
 
       - name: Restore Caches
         uses: ./.github/actions/cache-restore
@@ -94,11 +93,11 @@ jobs:
           export HOME=${{ github.workspace }}/home
           mkdir -p $HOME
           env PATH="/opt/wabt-1.0.35/bin:$PATH" \
-            CC=gcc-13 \
-            CXX=g++-13 \
+            CC=clang-20 \
+            CXX=clang++-20 \
             cmake --preset CI -B libjs-test262/Build \
-              -DCMAKE_C_COMPILER=gcc-13 \
-              -DCMAKE_CXX_COMPILER=g++-13 \
+              -DCMAKE_C_COMPILER=clang-20 \
+              -DCMAKE_CXX_COMPILER=clang++-20 \
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
               -DINCLUDE_WASM_SPEC_TESTS=ON \
               -DENABLE_GUI_TARGETS=OFF

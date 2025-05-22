@@ -1,13 +1,13 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x37 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x19 children: not-inline
-      BlockContainer <span.text> at (11,11) content-size 66.671875x17 children: inline
-        frag 0 from TextNode start: 0, length: 7, rect: [11,11 66.671875x17] baseline: 13.296875
+  BlockContainer <html> at (1,1) content-size 798x38 [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x20 children: not-inline
+      BlockContainer <span.text> at (11,11) content-size 66.671875x18 children: inline
+        frag 0 from TextNode start: 0, length: 7, rect: [11,11 66.671875x18] baseline: 13.796875
             "Trimmed"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x39]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x21]
-      PaintableWithLines (BlockContainer<SPAN>.text) [10,10 68.671875x19]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x22]
+      PaintableWithLines (BlockContainer<SPAN>.text) [10,10 68.671875x20]
         TextPaintable (TextNode<#text>)

@@ -72,4 +72,27 @@ endif()
 if (WIN32)
     # FIXME: Windows on ARM
     target_link_libraries(AK PRIVATE clang_rt.builtins-x86_64.lib)
+    target_link_libraries(AK PRIVATE Bcrypt.lib)
+elseif (APPLE)
+    set(ASSERTION_HANDLER_VISIBILITY PRIVATE)
+    if (NOT BUILD_SHARED_LIBS)
+        set(ASSERTION_HANDLER_VISIBILITY INTERFACE)
+    endif()
+    target_link_options(AK ${ASSERTION_HANDLER_VISIBILITY} LINKER:-U,_ak_assertion_handler)
+endif()
+
+# Manually install AK headers
+if (ENABLE_INSTALL_HEADERS)
+    install(
+        DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        COMPONENT Lagom_Development
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/Debug.h
+        ${CMAKE_CURRENT_BINARY_DIR}/Backtrace.h
+        COMPONENT Lagom_Development
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/AK"
+    )
 endif()

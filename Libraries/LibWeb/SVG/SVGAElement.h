@@ -43,6 +43,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<SVG::SVGAElement>() const { return is_svg_a_element(); }
+
 }

@@ -35,13 +35,16 @@ void compiletime_fail(Args...);
 using std::construct_at;
 using std::forward;
 using std::move;
+
 }
 
 namespace AK::Detail {
+
 template<typename T>
 struct _RawPtr {
     using Type = T*;
 };
+
 }
 
 namespace AK {

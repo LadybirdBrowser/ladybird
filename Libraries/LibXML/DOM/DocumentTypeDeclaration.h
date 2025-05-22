@@ -135,4 +135,5 @@ struct NotationDeclaration {
 };
 
 using MarkupDeclaration = Variant<ElementDeclaration, AttributeListDeclaration, EntityDeclaration, NotationDeclaration>;
+
 }

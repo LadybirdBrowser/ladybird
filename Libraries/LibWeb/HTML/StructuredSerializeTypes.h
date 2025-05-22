@@ -4,9 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Forward.h>
-
 #pragma once
+
+#include <AK/HashMap.h>
+#include <AK/Vector.h>
+#include <LibGC/Forward.h>
+#include <LibJS/Forward.h>
 
 namespace Web::HTML {
 

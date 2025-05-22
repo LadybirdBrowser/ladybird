@@ -138,6 +138,10 @@
     "upper-latin",
     "upper-roman"
   ],
+  "cross-origin-modifier-value": [
+    "anonymous",
+    "use-credentials"
+  ],
   "cursor": [
     "auto",
     "default",
@@ -246,6 +250,13 @@
     "swap",
     "fallback",
     "optional"
+  ],
+  "font-style": [
+    "normal",
+    "italic",
+    "left",
+    "right",
+    "oblique"
   ],
   "font-variant-alternates": [
     "normal",
@@ -470,6 +481,18 @@
     "scroll",
     "visible"
   ],
+  "page-size": [
+    "a5",
+    "a4",
+    "a3",
+    "b5",
+    "b4",
+    "jis-b5",
+    "jis-b4",
+    "letter",
+    "legal",
+    "ledger"
+  ],
   "pointer-events": [
     "auto",
     "all",
@@ -495,6 +518,16 @@
     "top",
     "bottom"
   ],
+  "referrer-policy-modifier-value": [
+    "no-referrer",
+    "no-referrer-when-downgrade",
+    "same-origin",
+    "origin",
+    "strict-origin",
+    "origin-when-cross-origin",
+    "strict-origin-when-cross-origin",
+    "unsafe-url"
+  ],
   "repeat": [
     "no-repeat",
     "repeat",
@@ -506,19 +539,6 @@
     "nearest",
     "to-zero",
     "up"
-  ],
-  "table-layout": [
-    "auto",
-    "fixed"
-  ],
-  "text-anchor": [
-    "start",
-    "middle",
-    "end"
-  ],
-  "text-overflow": [
-    "clip",
-    "ellipsis"
   ],
   "scrollbar-gutter": [
     "auto",
@@ -540,6 +560,10 @@
     "round",
     "bevel"
   ],
+  "table-layout": [
+    "auto",
+    "fixed"
+  ],
   "text-align": [
     "center",
     "justify",
@@ -551,6 +575,11 @@
     "-libweb-center",
     "-libweb-left",
     "-libweb-right"
+  ],
+  "text-anchor": [
+    "start",
+    "middle",
+    "end"
   ],
   "text-decoration-line": [
     "none",
@@ -575,6 +604,10 @@
     "inter-character",
     "distribute=inter-character"
   ],
+  "text-overflow": [
+    "clip",
+    "ellipsis"
+  ],
   "text-transform": [
     "capitalize",
     "full-size-kana",
@@ -583,6 +616,17 @@
     "math-auto",
     "none",
     "uppercase"
+  ],
+  "touch-action": [
+    "auto",
+    "manipulation",
+    "none",
+    "pan-down",
+    "pan-left",
+    "pan-right",
+    "pan-up",
+    "pan-x",
+    "pan-y"
   ],
   "transform-box": [
     "content-box",

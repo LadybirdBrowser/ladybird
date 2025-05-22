@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
+#include <LibWeb/HTML/SharedWorker.h>
 #include <LibWeb/HTML/Worker.h>
 
 namespace Web::HTML {
@@ -82,17 +83,17 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(String const& script_url, Wo
 
     // 9. Run this step in parallel:
     //    1. Run a worker given worker, worker URL, outside settings, outside port, and options.
-    worker->run_a_worker(url.value(), outside_settings, *outside_port, options);
+    run_a_worker(worker, url.value(), outside_settings, *outside_port, options);
 
     // 10. Return worker
     return worker;
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void Worker::run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> port, WorkerOptions const& options)
+void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> port, WorkerOptions const& options)
 {
     // 1. Let is shared be true if worker is a SharedWorker object, and false otherwise.
-    // FIXME: SharedWorker support
+    Bindings::AgentType agent_type = worker.has<GC::Ref<SharedWorker>>() ? Bindings::AgentType::SharedWorker : Bindings::AgentType::DedicatedWorker;
 
     // 2. Let owner be the relevant owner to add given outside settings.
     // FIXME: Support WorkerGlobalScope options
@@ -107,10 +108,11 @@ void Worker::run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_sett
     // 5. Let unsafeWorkerCreationTime be the unsafe shared current time.
 
     // 6. Let agent be the result of obtaining a dedicated/shared worker agent given outside settings
-    // and is shared. Run the rest of these steps in that agent.
+    //    and is shared. Run the rest of these steps in that agent.
 
     // Note: This spawns a new process to act as the 'agent' for the worker.
-    m_agent = outside_settings.realm().create<WorkerAgentParent>(url, options, port, outside_settings);
+    auto agent = outside_settings.realm().create<WorkerAgentParent>(url, options, port, outside_settings, agent_type);
+    worker.visit([&](auto worker) { worker->set_agent(agent); });
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-terminate

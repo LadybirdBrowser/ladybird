@@ -22,6 +22,7 @@ namespace AK {
 class StringView {
 public:
     ALWAYS_INLINE constexpr StringView() = default;
+
     ALWAYS_INLINE constexpr StringView(char const* characters, size_t length)
         : m_characters(characters)
         , m_length(length)
@@ -29,22 +30,18 @@ public:
         if (!is_constant_evaluated())
             VERIFY(!Checked<uintptr_t>::addition_would_overflow(reinterpret_cast<uintptr_t>(characters), length));
     }
+
     ALWAYS_INLINE StringView(unsigned char const* characters, size_t length)
         : m_characters(reinterpret_cast<char const*>(characters))
         , m_length(length)
     {
         VERIFY(!Checked<uintptr_t>::addition_would_overflow(reinterpret_cast<uintptr_t>(characters), length));
     }
+
     ALWAYS_INLINE StringView(ReadonlyBytes bytes)
         : m_characters(reinterpret_cast<char const*>(bytes.data()))
         , m_length(bytes.size())
     {
-    }
-
-    // Note: This is here for Jakt.
-    ALWAYS_INLINE static StringView from_string_literal(StringView string)
-    {
-        return string;
     }
 
     StringView(ByteBuffer const&);
@@ -60,10 +57,7 @@ public:
     template<OneOf<String, FlyString, ByteString, ByteBuffer> StringType>
     StringView& operator=(StringType&&) = delete;
 
-    [[nodiscard]] constexpr bool is_null() const
-    {
-        return m_characters == nullptr;
-    }
+    [[nodiscard]] constexpr bool is_null() const { return m_characters == nullptr; }
     [[nodiscard]] constexpr bool is_empty() const { return m_length == 0; }
 
     [[nodiscard]] constexpr char const* characters_without_null_termination() const { return m_characters; }
@@ -109,10 +103,7 @@ public:
     [[nodiscard]] String to_ascii_uppercase_string() const;
     [[nodiscard]] String to_ascii_titlecase_string() const;
 
-    [[nodiscard]] Optional<size_t> find(char needle, size_t start = 0) const
-    {
-        return StringUtils::find(*this, needle, start);
-    }
+    [[nodiscard]] Optional<size_t> find(char needle, size_t start = 0) const { return StringUtils::find(*this, needle, start); }
     [[nodiscard]] Optional<size_t> find(StringView needle, size_t start = 0) const { return StringUtils::find(*this, needle, start); }
     [[nodiscard]] Optional<size_t> find_last(char needle) const { return StringUtils::find_last(*this, needle); }
     [[nodiscard]] Optional<size_t> find_last(StringView needle) const { return StringUtils::find_last(*this, needle); }
@@ -314,11 +305,8 @@ public:
     }
 
     constexpr bool operator<(StringView other) const { return compare(other) < 0; }
-
     constexpr bool operator<=(StringView other) const { return compare(other) <= 0; }
-
     constexpr bool operator>(StringView other) const { return compare(other) > 0; }
-
     constexpr bool operator>=(StringView other) const { return compare(other) >= 0; }
 
     [[nodiscard]] ByteString to_byte_string() const;
@@ -329,6 +317,7 @@ public:
     }
 
     [[nodiscard]] ByteString replace(StringView needle, StringView replacement, ReplaceMode) const;
+
     [[nodiscard]] size_t count(StringView needle) const
     {
         return StringUtils::count(*this, needle);

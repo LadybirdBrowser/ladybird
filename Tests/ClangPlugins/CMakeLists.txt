@@ -11,7 +11,6 @@ list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
     -Wno-literal-range
     -Wno-unknown-warning-option
     -Wno-unqualified-std-cast-call
-    -fgnuc-version=4.2.1 # NOTE: Clang default as of 10.0.0
 )
 
 # Ensure we always check for invalid function field types regardless of the value of ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS
@@ -19,7 +18,6 @@ list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
 # list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS -fplugin-arg-libjs_gc_scanner-detect-invalid-function-members)
 
 get_property(CLANG_PLUGINS_INCLUDE_DIRECTORIES TARGET AK PROPERTY INCLUDE_DIRECTORIES)
-list(APPEND CLANG_PLUGINS_INCLUDE_DIRECTORIES ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 
 configure_lit_site_cfg(
     ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in

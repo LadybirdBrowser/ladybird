@@ -38,12 +38,14 @@ public:
 private:
     HTMLAnchorElement(DOM::Document&, DOM::QualifiedName);
 
+    bool has_download_preference() const;
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    // ^DOM::EventTarget
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(Web::DOM::Event const&) override;
-    virtual bool has_download_preference() const;
 
     // ^DOM::Element
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
@@ -78,6 +80,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLAnchorElement>() const { return is_html_anchor_element(); }
+
 }

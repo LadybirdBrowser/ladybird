@@ -18,9 +18,11 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
+#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
@@ -38,6 +40,49 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 
 namespace Web::CSS::Parser {
+
+// A helper that ensures only the last instance of each descriptor is included, while also handling shorthands.
+class DescriptorList {
+public:
+    DescriptorList(AtRuleID at_rule)
+        : m_at_rule(at_rule)
+    {
+    }
+
+    void append(Descriptor&& descriptor)
+    {
+        if (is_shorthand(m_at_rule, descriptor.descriptor_id)) {
+            for_each_expanded_longhand(m_at_rule, descriptor.descriptor_id, descriptor.value, [this](auto longhand_id, auto longhand_value) {
+                append_internal(Descriptor { longhand_id, longhand_value.release_nonnull() });
+            });
+            return;
+        }
+
+        append_internal(move(descriptor));
+    }
+
+    Vector<Descriptor> release_descriptors()
+    {
+        return move(m_descriptors);
+    }
+
+private:
+    void append_internal(Descriptor&& descriptor)
+    {
+        if (m_seen_descriptor_ids.contains(descriptor.descriptor_id)) {
+            m_descriptors.remove_first_matching([&descriptor](Descriptor const& existing) {
+                return existing.descriptor_id == descriptor.descriptor_id;
+            });
+        } else {
+            m_seen_descriptor_ids.set(descriptor.descriptor_id);
+        }
+        m_descriptors.append(move(descriptor));
+    }
+
+    AtRuleID m_at_rule;
+    Vector<Descriptor> m_descriptors;
+    HashTable<DescriptorID> m_seen_descriptor_ids;
+};
 
 GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 {
@@ -58,17 +103,23 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
             if (at_rule.name.equals_ignoring_ascii_case("layer"sv))
                 return convert_to_layer_rule(at_rule, nested);
 
+            if (is_margin_rule_name(at_rule.name))
+                return convert_to_margin_rule(at_rule);
+
             if (at_rule.name.equals_ignoring_ascii_case("media"sv))
                 return convert_to_media_rule(at_rule, nested);
 
             if (at_rule.name.equals_ignoring_ascii_case("namespace"sv))
                 return convert_to_namespace_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
-                return convert_to_supports_rule(at_rule, nested);
+            if (at_rule.name.equals_ignoring_ascii_case("page"sv))
+                return convert_to_page_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("property"sv))
                 return convert_to_property_rule(at_rule);
+
+            if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
+                return convert_to_supports_rule(at_rule, nested);
 
             // FIXME: More at rules!
             dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", at_rule.name);
@@ -578,22 +629,62 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-fonts/#font-face-rule
-    Vector<Descriptor> descriptors;
-    HashTable<DescriptorID> seen_descriptor_ids;
+    DescriptorList descriptors { AtRuleID::FontFace };
     rule.for_each_as_declaration_list([&](auto& declaration) {
         if (auto descriptor = convert_to_descriptor(AtRuleID::FontFace, declaration); descriptor.has_value()) {
-            if (seen_descriptor_ids.contains(descriptor->descriptor_id)) {
-                descriptors.remove_first_matching([&descriptor](Descriptor const& existing) {
-                    return existing.descriptor_id == descriptor->descriptor_id;
-                });
-            } else {
-                seen_descriptor_ids.set(descriptor->descriptor_id);
-            }
             descriptors.append(descriptor.release_value());
         }
     });
 
-    return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), move(descriptors)));
+    return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), descriptors.release_descriptors()));
+}
+
+GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
+{
+    // https://drafts.csswg.org/css-page-3/#syntax-page-selector
+    // @page = @page <page-selector-list>? { <declaration-rule-list> }
+    TokenStream tokens { page_rule.prelude };
+    auto page_selectors = parse_a_page_selector_list(tokens);
+    if (page_selectors.is_error())
+        return nullptr;
+
+    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
+    DescriptorList descriptors { AtRuleID::Page };
+    page_rule.for_each_as_declaration_rule_list(
+        [&](auto& at_rule) {
+            if (auto converted_rule = convert_to_rule(at_rule, Nested::No)) {
+                if (is<CSSMarginRule>(*converted_rule)) {
+                    child_rules.append(*converted_rule);
+                } else {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested {} is not allowed inside @page rule; discarding.", converted_rule->class_name());
+                }
+            }
+        },
+        [&](auto& declaration) {
+            if (auto descriptor = convert_to_descriptor(AtRuleID::Page, declaration); descriptor.has_value()) {
+                descriptors.append(descriptor.release_value());
+            }
+        });
+
+    auto rule_list = CSSRuleList::create(realm(), child_rules);
+    return CSSPageRule::create(realm(), page_selectors.release_value(), CSSPageDescriptors::create(realm(), descriptors.release_descriptors()), rule_list);
+}
+
+GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
+{
+    // https://drafts.csswg.org/css-page-3/#syntax-page-selector
+    // There are lots of these, but they're all in the format:
+    // @foo = @foo { <declaration-list> };
+
+    // FIXME: The declaration list should be a CSSMarginDescriptors, but that has no spec definition:
+    //        https://github.com/w3c/csswg-drafts/issues/10106
+    //        So, we just parse a CSSStyleProperties instead for now.
+    PropertiesAndCustomProperties properties;
+    rule.for_each_as_declaration_list([&](auto const& declaration) {
+        extract_property(declaration, properties);
+    });
+    auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
+    return CSSMarginRule::create(realm(), rule.name, style);
 }
 
 }

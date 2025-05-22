@@ -29,6 +29,7 @@ class ComputedProperties final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(ComputedProperties);
 
 public:
+    static constexpr double normal_line_height_scale = 1.15;
     static constexpr size_t number_of_properties = to_underlying(last_property_id) + 1;
 
     virtual ~ComputedProperties() override;
@@ -165,6 +166,7 @@ public:
     WritingMode writing_mode() const;
     UserSelect user_select() const;
     Isolation isolation() const;
+    TouchActionData touch_action() const;
     Containment contain() const;
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;

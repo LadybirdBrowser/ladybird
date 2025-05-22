@@ -8,6 +8,8 @@
 #include <LibWeb/Bindings/IDBIndexPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/IndexedDB/IDBCursor.h>
+#include <LibWeb/IndexedDB/IDBCursorWithValue.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 
 namespace Web::IndexedDB {
@@ -61,8 +63,8 @@ WebIDL::ExceptionOr<void> IDBIndex::set_name(String const& value)
         return WebIDL::InvalidStateError::create(realm, "Transaction is not an upgrade transaction"_string);
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
-    if (transaction->state() != IDBTransaction::TransactionState::Active)
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active"_string);
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while updating index name"_string);
 
     // FIXME: 6. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
 
@@ -99,6 +101,238 @@ JS::Value IDBIndex::key_path() const
                 return JS::PrimitiveString::create(realm().vm(), entry);
             });
         });
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbindex-opencursor
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_cursor(JS::Value query, Bindings::IDBCursorDirection direction)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    [[maybe_unused]] auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while opening cursor"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query));
+
+    // 6. Let cursor be a new cursor with its source handle set to this, undefined position, direction set to direction, got value flag set to false, undefined key and value, range set to range, and key only flag set to false.
+    auto cursor = IDBCursor::create(realm, GC::Ref(*this), {}, direction, IDBCursor::GotValue::No, {}, {}, range, IDBCursor::KeyOnly::No);
+
+    // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
+        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, cursor));
+    });
+
+    // 8. Let request be the result of running asynchronously execute a request with this and operation.
+    auto request = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+
+    // 9. Set cursor’s request to request.
+    cursor->set_request(request);
+
+    // 10. Return request.
+    return request;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbindex-get
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get(JS::Value query)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query and true. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query, true));
+
+    // 6. Let operation be an algorithm to run retrieve a referenced value from an index with the current Realm record, index, and range.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, index, range] -> WebIDL::ExceptionOr<JS::Value> {
+        return retrieve_a_referenced_value_from_an_index(realm, index, range);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for get with uuid {}", result->uuid());
+    return result;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbindex-getkey
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_key(JS::Value query)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting key"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query and true. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query, true));
+
+    // 6. Let operation be an algorithm to run retrieve a value from an index with index and range.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, index, range] -> WebIDL::ExceptionOr<JS::Value> {
+        return retrieve_a_value_from_an_index(realm, index, range);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for get key with uuid {}", result->uuid());
+    return result;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbindex-getall
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all(Optional<JS::Value> query, Optional<WebIDL::UnsignedLong> count)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query));
+
+    // 6. Let operation be an algorithm to run retrieve multiple referenced values from an index with the current Realm record, index, range, and count if given.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, index, range, count] -> WebIDL::ExceptionOr<JS::Value> {
+        return retrieve_multiple_referenced_values_from_an_index(realm, index, range, count);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for get all with uuid {}", result->uuid());
+    return result;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbindex-getallkeys
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all_keys(Optional<JS::Value> query, Optional<WebIDL::UnsignedLong> count)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all keys"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query));
+
+    // 6. Let operation be an algorithm to run retrieve multiple values from an index with index, range, and count if given.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, index, range, count] -> WebIDL::ExceptionOr<JS::Value> {
+        return retrieve_multiple_values_from_an_index(realm, index, range, count);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for get all keys with uuid {}", result->uuid());
+    return result;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbindex-count
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::count(JS::Value query)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while counting"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query));
+
+    // 6. Let operation be an algorithm to run count the records in a range with index and range.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [index, range] -> WebIDL::ExceptionOr<JS::Value> {
+        return count_the_records_in_a_range(index, range);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for count with uuid {}", result->uuid());
+    return result;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbindex-openkeycursor
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(JS::Value query, Bindings::IDBCursorDirection direction)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    [[maybe_unused]] auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while opening key cursor"_string);
+
+    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, query));
+
+    // 6. Let cursor be a new cursor with its source handle set to this, undefined position, direction set to direction, got value flag set to false, undefined key and value, range set to range, and key only flag set to true.
+    auto cursor = IDBCursor::create(realm, GC::Ref(*this), {}, direction, IDBCursor::GotValue::No, {}, {}, range, IDBCursor::KeyOnly::Yes);
+
+    // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
+        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, cursor));
+    });
+
+    // 8. Let request be the result of running asynchronously execute a request with this and operation.
+    auto request = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+    dbgln_if(IDB_DEBUG, "Executing request for open key cursor with uuid {}", request->uuid());
+
+    // 9. Set cursor’s request to request.
+    cursor->set_request(request);
+
+    // 10. Return request.
+    return request;
 }
 
 }

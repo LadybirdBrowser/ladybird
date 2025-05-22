@@ -48,12 +48,15 @@ public:
     AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
 
     GC::Ref<Database> database() const { return m_database; }
+    ReadonlySpan<Record> records() const { return m_records; }
 
     void remove_records_in_range(GC::Ref<IDBKeyRange> range);
     bool has_record_with_key(GC::Ref<Key> key);
     void store_a_record(Record const& record);
     u64 count_records_in_range(GC::Ref<IDBKeyRange> range);
     Optional<Record&> first_in_range(GC::Ref<IDBKeyRange> range);
+    void clear_records();
+    GC::ConservativeVector<Record> first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
 
 protected:
     virtual void visit_edges(Visitor&) override;

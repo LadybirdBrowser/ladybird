@@ -26,6 +26,7 @@ CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, GC::Ref<CSSFontFaceDescriptor
     : CSSRule(realm, Type::FontFace)
     , m_style(style)
 {
+    m_style->set_parent_rule(*this);
 }
 
 void CSSFontFaceRule::initialize(JS::Realm& realm)
@@ -63,7 +64,7 @@ String CSSFontFaceRule::serialized() const
     builder.append("font-family: "sv);
 
     // 3. The result of performing serialize a string on the rule’s font family name.
-    builder.append(descriptors.descriptor(DescriptorID::FontFamily)->to_string(CSSStyleValue::SerializationMode::Normal));
+    builder.append(descriptors.descriptor(DescriptorID::FontFamily)->to_string(SerializationMode::Normal));
 
     // 4. The string ";", i.e., SEMICOLON (U+003B).
     builder.append(';');
@@ -74,7 +75,7 @@ String CSSFontFaceRule::serialized() const
         builder.append(" src: "sv);
 
         // 2. The result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
-        builder.append(sources->to_string(CSSStyleValue::SerializationMode::Normal));
+        builder.append(sources->to_string(SerializationMode::Normal));
 
         // 3. The string ";", i.e., SEMICOLON (U+003B).
         builder.append(';');
@@ -83,7 +84,7 @@ String CSSFontFaceRule::serialized() const
     // 6. If rule’s associated unicode-range descriptor is present, a single SPACE (U+0020), followed by the string "unicode-range:", followed by a single SPACE (U+0020), followed by the result of performing serialize a <'unicode-range'>, followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto unicode_range = descriptors.descriptor(DescriptorID::UnicodeRange)) {
         builder.append(" unicode-range: "sv);
-        builder.append(unicode_range->to_string(CSSStyleValue::SerializationMode::Normal));
+        builder.append(unicode_range->to_string(SerializationMode::Normal));
         builder.append(';');
     }
 
@@ -98,7 +99,7 @@ String CSSFontFaceRule::serialized() const
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto font_feature_settings = descriptors.descriptor(DescriptorID::FontFeatureSettings)) {
         builder.append(" font-feature-settings: "sv);
-        builder.append(font_feature_settings->to_string(CSSStyleValue::SerializationMode::Normal));
+        builder.append(font_feature_settings->to_string(SerializationMode::Normal));
         builder.append(";"sv);
     }
 
@@ -109,7 +110,7 @@ String CSSFontFaceRule::serialized() const
     // NOTE: font-stretch is now an alias for font-width, so we use that instead.
     if (auto font_width = descriptors.descriptor(DescriptorID::FontWidth)) {
         builder.append(" font-stretch: "sv);
-        builder.append(font_width->to_string(CSSStyleValue::SerializationMode::Normal));
+        builder.append(font_width->to_string(SerializationMode::Normal));
         builder.append(";"sv);
     }
 
@@ -119,7 +120,7 @@ String CSSFontFaceRule::serialized() const
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto font_weight = descriptors.descriptor(DescriptorID::FontWeight)) {
         builder.append(" font-weight: "sv);
-        builder.append(font_weight->to_string(CSSStyleValue::SerializationMode::Normal));
+        builder.append(font_weight->to_string(SerializationMode::Normal));
         builder.append(";"sv);
     }
 
@@ -129,7 +130,7 @@ String CSSFontFaceRule::serialized() const
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto font_style = descriptors.descriptor(DescriptorID::FontStyle)) {
         builder.append(" font-style: "sv);
-        builder.append(font_style->to_string(CSSStyleValue::SerializationMode::Normal));
+        builder.append(font_style->to_string(SerializationMode::Normal));
         builder.append(";"sv);
     }
 

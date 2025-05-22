@@ -34,7 +34,7 @@ Optional<CSSPixels> Box::natural_width() const
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
     // ratio.
-    if (m_has_size_containment)
+    if (has_size_containment())
         return 0;
     return m_natural_width;
 }
@@ -43,7 +43,7 @@ Optional<CSSPixels> Box::natural_height() const
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
     // ratio.
-    if (m_has_size_containment)
+    if (has_size_containment())
         return 0;
     return m_natural_height;
 }
@@ -52,7 +52,7 @@ Optional<CSSPixelFraction> Box::natural_aspect_ratio() const
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
     // ratio.
-    if (m_has_size_containment)
+    if (has_size_containment())
         return {};
     return m_natural_aspect_ratio;
 }

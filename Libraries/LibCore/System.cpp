@@ -26,12 +26,6 @@
 #include <termios.h>
 #include <unistd.h>
 
-#ifdef AK_OS_SERENITY
-#    include <serenity.h>
-#    include <sys/ptrace.h>
-#    include <sys/sysmacros.h>
-#endif
-
 #if defined(AK_OS_LINUX) && !defined(MFD_CLOEXEC)
 #    include <linux/memfd.h>
 #    include <sys/syscall.h>
@@ -64,12 +58,6 @@ extern "C" {
 #    include <image.h>
 #endif
 
-#define HANDLE_SYSCALL_RETURN_VALUE(syscall_name, rc, success_value) \
-    if ((rc) < 0) {                                                  \
-        return Error::from_syscall(syscall_name##sv, rc);            \
-    }                                                                \
-    return success_value;
-
 namespace Core::System {
 
 #if !defined(AK_OS_MACOS) && !defined(AK_OS_IOS) && !defined(AK_OS_HAIKU)
@@ -77,7 +65,7 @@ ErrorOr<int> accept4(int sockfd, sockaddr* address, socklen_t* address_length, i
 {
     auto fd = ::accept4(sockfd, address, address_length, flags);
     if (fd < 0)
-        return Error::from_syscall("accept4"sv, -errno);
+        return Error::from_syscall("accept4"sv, errno);
     return fd;
 }
 #endif
@@ -85,7 +73,7 @@ ErrorOr<int> accept4(int sockfd, sockaddr* address, socklen_t* address_length, i
 ErrorOr<void> sigaction(int signal, struct sigaction const* action, struct sigaction* old_action)
 {
     if (::sigaction(signal, action, old_action) < 0)
-        return Error::from_syscall("sigaction"sv, -errno);
+        return Error::from_syscall("sigaction"sv, errno);
     return {};
 }
 
@@ -99,7 +87,7 @@ ErrorOr<sighandler_t> signal(int signal, sighandler_t handler)
 {
     auto old_handler = ::signal(signal, handler);
     if (old_handler == SIG_ERR)
-        return Error::from_syscall("signal"sv, -errno);
+        return Error::from_syscall("signal"sv, errno);
     return old_handler;
 }
 
@@ -107,24 +95,21 @@ ErrorOr<struct stat> fstat(int fd)
 {
     struct stat st = {};
     if (::fstat(fd, &st) < 0)
-        return Error::from_syscall("fstat"sv, -errno);
+        return Error::from_syscall("fstat"sv, errno);
     return st;
 }
 
 ErrorOr<struct stat> fstatat(int fd, StringView path, int flags)
 {
     if (!path.characters_without_null_termination())
-        return Error::from_syscall("fstatat"sv, -EFAULT);
+        return Error::from_syscall("fstatat"sv, EFAULT);
 
     struct stat st = {};
-#ifdef AK_OS_SERENITY
-    Syscall::SC_stat_params params { { path.characters_without_null_termination(), path.length() }, &st, fd, !(flags & AT_SYMLINK_NOFOLLOW) };
-    int rc = syscall(SC_stat, &params);
-#else
     ByteString path_string = path;
-    int rc = ::fstatat(fd, path_string.characters(), &st, flags);
-#endif
-    HANDLE_SYSCALL_RETURN_VALUE("fstatat", rc, st);
+
+    if (::fstatat(fd, path_string.characters(), &st, flags) < 0)
+        return Error::from_syscall("fstat"sv, errno);
+    return st;
 }
 
 ErrorOr<int> fcntl(int fd, int command, ...)
@@ -135,41 +120,31 @@ ErrorOr<int> fcntl(int fd, int command, ...)
     int rc = ::fcntl(fd, command, extra_arg);
     va_end(ap);
     if (rc < 0)
-        return Error::from_syscall("fcntl"sv, -errno);
+        return Error::from_syscall("fcntl"sv, errno);
     return rc;
 }
 
 ErrorOr<void*> mmap(void* address, size_t size, int protection, int flags, int fd, off_t offset, [[maybe_unused]] size_t alignment, [[maybe_unused]] StringView name)
 {
-#ifdef AK_OS_SERENITY
-    Syscall::SC_mmap_params params { address, size, alignment, protection, flags, fd, offset, { name.characters_without_null_termination(), name.length() } };
-    ptrdiff_t rc = syscall(SC_mmap, &params);
-    if (rc < 0 && rc > -EMAXERRNO)
-        return Error::from_syscall("mmap"sv, rc);
-    return reinterpret_cast<void*>(rc);
-#else
     // NOTE: Regular POSIX mmap() doesn't support custom alignment requests.
     VERIFY(!alignment);
     auto* ptr = ::mmap(address, size, protection, flags, fd, offset);
     if (ptr == MAP_FAILED)
-        return Error::from_syscall("mmap"sv, -errno);
+        return Error::from_syscall("mmap"sv, errno);
     return ptr;
-#endif
 }
 
 ErrorOr<void> munmap(void* address, size_t size)
 {
     if (::munmap(address, size) < 0)
-        return Error::from_syscall("munmap"sv, -errno);
+        return Error::from_syscall("munmap"sv, errno);
     return {};
 }
 
 ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int options)
 {
     int fd = -1;
-#if defined(AK_OS_SERENITY)
-    fd = ::anon_create(round_up_to_power_of_two(size, PAGE_SIZE), options);
-#elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
+#if defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
     // FIXME: Support more options on Linux.
     auto linux_options = ((options & O_CLOEXEC) > 0) ? MFD_CLOEXEC : 0;
     fd = memfd_create("", linux_options);
@@ -230,76 +205,61 @@ ErrorOr<int> open(StringView path, int options, mode_t mode)
 ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode)
 {
     if (!path.characters_without_null_termination())
-        return Error::from_syscall("open"sv, -EFAULT);
-#ifdef AK_OS_SERENITY
-    Syscall::SC_open_params params { fd, { path.characters_without_null_termination(), path.length() }, options, mode };
-    int rc = syscall(SC_open, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("open", rc, rc);
-#else
+        return Error::from_syscall("open"sv, EFAULT);
+
     // NOTE: We have to ensure that the path is null-terminated.
     ByteString path_string = path;
     int rc = ::openat(fd, path_string.characters(), options, mode);
     if (rc < 0)
-        return Error::from_syscall("open"sv, -errno);
+        return Error::from_syscall("open"sv, errno);
     return rc;
-#endif
 }
 
 ErrorOr<void> close(int fd)
 {
     if (::close(fd) < 0)
-        return Error::from_syscall("close"sv, -errno);
+        return Error::from_syscall("close"sv, errno);
     return {};
 }
 
 ErrorOr<void> ftruncate(int fd, off_t length)
 {
     if (::ftruncate(fd, length) < 0)
-        return Error::from_syscall("ftruncate"sv, -errno);
+        return Error::from_syscall("ftruncate"sv, errno);
     return {};
 }
 
 ErrorOr<struct stat> stat(StringView path)
 {
     if (!path.characters_without_null_termination())
-        return Error::from_syscall("stat"sv, -EFAULT);
+        return Error::from_syscall("stat"sv, EFAULT);
 
     struct stat st = {};
-#ifdef AK_OS_SERENITY
-    Syscall::SC_stat_params params { { path.characters_without_null_termination(), path.length() }, &st, AT_FDCWD, true };
-    int rc = syscall(SC_stat, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("stat", rc, st);
-#else
+
     ByteString path_string = path;
     if (::stat(path_string.characters(), &st) < 0)
-        return Error::from_syscall("stat"sv, -errno);
+        return Error::from_syscall("stat"sv, errno);
     return st;
-#endif
 }
 
 ErrorOr<struct stat> lstat(StringView path)
 {
     if (!path.characters_without_null_termination())
-        return Error::from_syscall("lstat"sv, -EFAULT);
+        return Error::from_syscall("lstat"sv, EFAULT);
 
     struct stat st = {};
-#ifdef AK_OS_SERENITY
-    Syscall::SC_stat_params params { { path.characters_without_null_termination(), path.length() }, &st, AT_FDCWD, false };
-    int rc = syscall(SC_stat, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("lstat", rc, st);
-#else
+
     ByteString path_string = path;
     if (::lstat(path_string.characters(), &st) < 0)
-        return Error::from_syscall("lstat"sv, -errno);
+        return Error::from_syscall("lstat"sv, errno);
     return st;
-#endif
 }
 
 ErrorOr<ssize_t> read(int fd, Bytes buffer)
 {
     ssize_t rc = ::read(fd, buffer.data(), buffer.size());
     if (rc < 0)
-        return Error::from_syscall("read"sv, -errno);
+        return Error::from_syscall("read"sv, errno);
     return rc;
 }
 
@@ -307,14 +267,14 @@ ErrorOr<ssize_t> write(int fd, ReadonlyBytes buffer)
 {
     ssize_t rc = ::write(fd, buffer.data(), buffer.size());
     if (rc < 0)
-        return Error::from_syscall("write"sv, -errno);
+        return Error::from_syscall("write"sv, errno);
     return rc;
 }
 
 ErrorOr<void> kill(pid_t pid, int signal)
 {
     if (::kill(pid, signal) < 0)
-        return Error::from_syscall("kill"sv, -errno);
+        return Error::from_syscall("kill"sv, errno);
     return {};
 }
 
@@ -322,7 +282,7 @@ ErrorOr<int> dup(int source_fd)
 {
     int fd = ::dup(source_fd);
     if (fd < 0)
-        return Error::from_syscall("dup"sv, -errno);
+        return Error::from_syscall("dup"sv, errno);
     return fd;
 }
 
@@ -330,7 +290,7 @@ ErrorOr<int> dup2(int source_fd, int destination_fd)
 {
     int fd = ::dup2(source_fd, destination_fd);
     if (fd < 0)
-        return Error::from_syscall("dup2"sv, -errno);
+        return Error::from_syscall("dup2"sv, errno);
     return fd;
 }
 
@@ -338,7 +298,7 @@ ErrorOr<ByteString> getcwd()
 {
     auto* cwd = ::getcwd(nullptr, 0);
     if (!cwd)
-        return Error::from_syscall("getcwd"sv, -errno);
+        return Error::from_syscall("getcwd"sv, errno);
 
     ByteString string_cwd(cwd);
     free(cwd);
@@ -356,7 +316,7 @@ ErrorOr<void> ioctl(int fd, unsigned request, ...)
 #endif
     va_end(ap);
     if (::ioctl(fd, request, arg) < 0)
-        return Error::from_syscall("ioctl"sv, -errno);
+        return Error::from_syscall("ioctl"sv, errno);
     return {};
 }
 
@@ -364,75 +324,58 @@ ErrorOr<struct termios> tcgetattr(int fd)
 {
     struct termios ios = {};
     if (::tcgetattr(fd, &ios) < 0)
-        return Error::from_syscall("tcgetattr"sv, -errno);
+        return Error::from_syscall("tcgetattr"sv, errno);
     return ios;
 }
 
 ErrorOr<void> tcsetattr(int fd, int optional_actions, struct termios const& ios)
 {
     if (::tcsetattr(fd, optional_actions, &ios) < 0)
-        return Error::from_syscall("tcsetattr"sv, -errno);
+        return Error::from_syscall("tcsetattr"sv, errno);
     return {};
 }
 
 ErrorOr<void> chmod(StringView pathname, mode_t mode)
 {
     if (!pathname.characters_without_null_termination())
-        return Error::from_syscall("chmod"sv, -EFAULT);
+        return Error::from_syscall("chmod"sv, EFAULT);
 
-#ifdef AK_OS_SERENITY
-    Syscall::SC_chmod_params params {
-        AT_FDCWD,
-        { pathname.characters_without_null_termination(), pathname.length() },
-        mode,
-        true
-    };
-    int rc = syscall(SC_chmod, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("chmod", rc, {});
-#else
     ByteString path = pathname;
     if (::chmod(path.characters(), mode) < 0)
-        return Error::from_syscall("chmod"sv, -errno);
+        return Error::from_syscall("chmod"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<void> fchmod(int fd, mode_t mode)
 {
     if (::fchmod(fd, mode) < 0)
-        return Error::from_syscall("fchmod"sv, -errno);
+        return Error::from_syscall("fchmod"sv, errno);
     return {};
 }
 
 ErrorOr<void> fchown(int fd, uid_t uid, gid_t gid)
 {
     if (::fchown(fd, uid, gid) < 0)
-        return Error::from_syscall("fchown"sv, -errno);
+        return Error::from_syscall("fchown"sv, errno);
     return {};
 }
 
 ErrorOr<void> chown(StringView pathname, uid_t uid, gid_t gid)
 {
     if (!pathname.characters_without_null_termination())
-        return Error::from_syscall("chown"sv, -EFAULT);
+        return Error::from_syscall("chown"sv, EFAULT);
 
-#ifdef AK_OS_SERENITY
-    Syscall::SC_chown_params params = { { pathname.characters_without_null_termination(), pathname.length() }, uid, gid, AT_FDCWD, true };
-    int rc = syscall(SC_chown, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("chown", rc, {});
-#else
     ByteString path = pathname;
     if (::lchown(path.characters(), uid, gid) < 0)
-        return Error::from_syscall("lchown"sv, -errno);
+        return Error::from_syscall("lchown"sv, errno);
     return {};
-#endif
 }
 
 static ALWAYS_INLINE ErrorOr<pid_t> posix_spawn_wrapper(StringView path, posix_spawn_file_actions_t const* file_actions, posix_spawnattr_t const* attr, char* const arguments[], char* const envp[], StringView function_name, decltype(::posix_spawn) spawn_function)
 {
     pid_t child_pid;
     if ((errno = spawn_function(&child_pid, path.to_byte_string().characters(), file_actions, attr, arguments, envp)))
-        return Error::from_syscall(function_name, -errno);
+        return Error::from_syscall(function_name, errno);
     return child_pid;
 }
 
@@ -450,7 +393,7 @@ ErrorOr<off_t> lseek(int fd, off_t offset, int whence)
 {
     off_t rc = ::lseek(fd, offset, whence);
     if (rc < 0)
-        return Error::from_syscall("lseek"sv, -errno);
+        return Error::from_syscall("lseek"sv, errno);
     return rc;
 }
 
@@ -459,7 +402,7 @@ ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options)
     int wstatus;
     pid_t pid = ::waitpid(waitee, &wstatus, options);
     if (pid < 0)
-        return Error::from_syscall("waitpid"sv, -errno);
+        return Error::from_syscall("waitpid"sv, errno);
     return WaitPidResult { pid, wstatus };
 }
 
@@ -467,97 +410,65 @@ ErrorOr<bool> isatty(int fd)
 {
     int rc = ::isatty(fd);
     if (rc < 0)
-        return Error::from_syscall("isatty"sv, -errno);
+        return Error::from_syscall("isatty"sv, errno);
     return rc == 1;
 }
 
 ErrorOr<void> link(StringView old_path, StringView new_path)
 {
-#ifdef AK_OS_SERENITY
-    Syscall::SC_link_params params {
-        .old_path = { old_path.characters_without_null_termination(), old_path.length() },
-        .new_path = { new_path.characters_without_null_termination(), new_path.length() },
-    };
-    int rc = syscall(SC_link, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("link", rc, {});
-#else
     ByteString old_path_string = old_path;
     ByteString new_path_string = new_path;
     if (::link(old_path_string.characters(), new_path_string.characters()) < 0)
-        return Error::from_syscall("link"sv, -errno);
+        return Error::from_syscall("link"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<void> symlink(StringView target, StringView link_path)
 {
-#ifdef AK_OS_SERENITY
-    Syscall::SC_symlink_params params {
-        .target = { target.characters_without_null_termination(), target.length() },
-        .linkpath = { link_path.characters_without_null_termination(), link_path.length() },
-        .dirfd = AT_FDCWD,
-    };
-    int rc = syscall(SC_symlink, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("symlink", rc, {});
-#else
     ByteString target_string = target;
     ByteString link_path_string = link_path;
     if (::symlink(target_string.characters(), link_path_string.characters()) < 0)
-        return Error::from_syscall("symlink"sv, -errno);
+        return Error::from_syscall("symlink"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<void> mkdir(StringView path, mode_t mode)
 {
     if (path.is_null())
         return Error::from_errno(EFAULT);
-#ifdef AK_OS_SERENITY
-    int rc = syscall(SC_mkdir, AT_FDCWD, path.characters_without_null_termination(), path.length(), mode);
-    HANDLE_SYSCALL_RETURN_VALUE("mkdir", rc, {});
-#else
     ByteString path_string = path;
     if (::mkdir(path_string.characters(), mode) < 0)
-        return Error::from_syscall("mkdir"sv, -errno);
+        return Error::from_syscall("mkdir"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<void> chdir(StringView path)
 {
     if (path.is_null())
         return Error::from_errno(EFAULT);
-#ifdef AK_OS_SERENITY
-    int rc = syscall(SC_chdir, path.characters_without_null_termination(), path.length());
-    HANDLE_SYSCALL_RETURN_VALUE("chdir", rc, {});
-#else
+
     ByteString path_string = path;
     if (::chdir(path_string.characters()) < 0)
-        return Error::from_syscall("chdir"sv, -errno);
+        return Error::from_syscall("chdir"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<void> rmdir(StringView path)
 {
     if (path.is_null())
         return Error::from_errno(EFAULT);
-#ifdef AK_OS_SERENITY
-    int rc = syscall(SC_rmdir, path.characters_without_null_termination(), path.length());
-    HANDLE_SYSCALL_RETURN_VALUE("rmdir", rc, {});
-#else
+
     ByteString path_string = path;
     if (::rmdir(path_string.characters()) < 0)
-        return Error::from_syscall("rmdir"sv, -errno);
+        return Error::from_syscall("rmdir"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<int> mkstemp(Span<char> pattern)
 {
     int fd = ::mkstemp(pattern.data());
     if (fd < 0)
-        return Error::from_syscall("mkstemp"sv, -errno);
+        return Error::from_syscall("mkstemp"sv, errno);
     return fd;
 }
 
@@ -576,22 +487,11 @@ ErrorOr<void> rename(StringView old_path, StringView new_path)
     if (old_path.is_null() || new_path.is_null())
         return Error::from_errno(EFAULT);
 
-#ifdef AK_OS_SERENITY
-    Syscall::SC_rename_params params {
-        .olddirfd = AT_FDCWD,
-        .old_path = { old_path.characters_without_null_termination(), old_path.length() },
-        .newdirfd = AT_FDCWD,
-        .new_path = { new_path.characters_without_null_termination(), new_path.length() },
-    };
-    int rc = syscall(SC_rename, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("rename", rc, {});
-#else
     ByteString old_path_string = old_path;
     ByteString new_path_string = new_path;
     if (::rename(old_path_string.characters(), new_path_string.characters()) < 0)
-        return Error::from_syscall("rename"sv, -errno);
+        return Error::from_syscall("rename"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<void> unlink(StringView path)
@@ -599,15 +499,10 @@ ErrorOr<void> unlink(StringView path)
     if (path.is_null())
         return Error::from_errno(EFAULT);
 
-#ifdef AK_OS_SERENITY
-    int rc = syscall(SC_unlink, AT_FDCWD, path.characters_without_null_termination(), path.length(), 0);
-    HANDLE_SYSCALL_RETURN_VALUE("unlink", rc, {});
-#else
     ByteString path_string = path;
     if (::unlink(path_string.characters()) < 0)
-        return Error::from_syscall("unlink"sv, -errno);
+        return Error::from_syscall("unlink"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2], int flag)
@@ -615,61 +510,21 @@ ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2],
     if (path.is_null())
         return Error::from_errno(EFAULT);
 
-#ifdef AK_OS_SERENITY
-    // POSIX allows AT_SYMLINK_NOFOLLOW flag or no flags.
-    if (flag & ~AT_SYMLINK_NOFOLLOW)
-        return Error::from_errno(EINVAL);
-
-    // Return early without error since both changes are to be omitted.
-    if (times && times[0].tv_nsec == UTIME_OMIT && times[1].tv_nsec == UTIME_OMIT)
-        return {};
-
-    // According to POSIX, when times is a nullptr, it's equivalent to setting
-    // both last access time and last modification time to the current time.
-    // Setting the times argument to nullptr if it matches this case prevents
-    // the need to copy it in the kernel.
-    if (times && times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW)
-        times = nullptr;
-
-    if (times) {
-        for (int i = 0; i < 2; ++i) {
-            if ((times[i].tv_nsec != UTIME_NOW && times[i].tv_nsec != UTIME_OMIT)
-                && (times[i].tv_nsec < 0 || times[i].tv_nsec >= 1'000'000'000L)) {
-                return Error::from_errno(EINVAL);
-            }
-        }
-    }
-
-    Syscall::SC_utimensat_params params {
-        .dirfd = fd,
-        .path = { path.characters_without_null_termination(), path.length() },
-        .times = times,
-        .flag = flag,
-    };
-    int rc = syscall(SC_utimensat, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("utimensat", rc, {});
-#else
     auto builder = TRY(StringBuilder::create());
     TRY(builder.try_append(path));
     TRY(builder.try_append('\0'));
 
     // Note the explicit null terminators above.
     if (::utimensat(fd, builder.string_view().characters_without_null_termination(), times, flag) < 0)
-        return Error::from_syscall("utimensat"sv, -errno);
+        return Error::from_syscall("utimensat"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<struct utsname> uname()
 {
     struct utsname uts;
-#ifdef AK_OS_SERENITY
-    int rc = syscall(SC_uname, &uts);
-    HANDLE_SYSCALL_RETURN_VALUE("uname", rc, uts);
-#else
     if (::uname(&uts) < 0)
-        return Error::from_syscall("uname"sv, -errno);
-#endif
+        return Error::from_syscall("uname"sv, errno);
     return uts;
 }
 
@@ -677,21 +532,21 @@ ErrorOr<int> socket(int domain, int type, int protocol)
 {
     auto fd = ::socket(domain, type, protocol);
     if (fd < 0)
-        return Error::from_syscall("socket"sv, -errno);
+        return Error::from_syscall("socket"sv, errno);
     return fd;
 }
 
 ErrorOr<void> bind(int sockfd, struct sockaddr const* address, socklen_t address_length)
 {
     if (::bind(sockfd, address, address_length) < 0)
-        return Error::from_syscall("bind"sv, -errno);
+        return Error::from_syscall("bind"sv, errno);
     return {};
 }
 
 ErrorOr<void> listen(int sockfd, int backlog)
 {
     if (::listen(sockfd, backlog) < 0)
-        return Error::from_syscall("listen"sv, -errno);
+        return Error::from_syscall("listen"sv, errno);
     return {};
 }
 
@@ -699,14 +554,14 @@ ErrorOr<int> accept(int sockfd, struct sockaddr* address, socklen_t* address_len
 {
     auto fd = ::accept(sockfd, address, address_length);
     if (fd < 0)
-        return Error::from_syscall("accept"sv, -errno);
+        return Error::from_syscall("accept"sv, errno);
     return fd;
 }
 
 ErrorOr<void> connect(int sockfd, struct sockaddr const* address, socklen_t address_length)
 {
     if (::connect(sockfd, address, address_length) < 0)
-        return Error::from_syscall("connect"sv, -errno);
+        return Error::from_syscall("connect"sv, errno);
     return {};
 }
 
@@ -714,7 +569,7 @@ ErrorOr<ssize_t> send(int sockfd, void const* buffer, size_t buffer_length, int 
 {
     auto sent = ::send(sockfd, buffer, buffer_length, flags);
     if (sent < 0)
-        return Error::from_syscall("send"sv, -errno);
+        return Error::from_syscall("send"sv, errno);
     return sent;
 }
 
@@ -722,7 +577,7 @@ ErrorOr<ssize_t> sendmsg(int sockfd, const struct msghdr* message, int flags)
 {
     auto sent = ::sendmsg(sockfd, message, flags);
     if (sent < 0)
-        return Error::from_syscall("sendmsg"sv, -errno);
+        return Error::from_syscall("sendmsg"sv, errno);
     return sent;
 }
 
@@ -730,7 +585,7 @@ ErrorOr<ssize_t> sendto(int sockfd, void const* source, size_t source_length, in
 {
     auto sent = ::sendto(sockfd, source, source_length, flags, destination, destination_length);
     if (sent < 0)
-        return Error::from_syscall("sendto"sv, -errno);
+        return Error::from_syscall("sendto"sv, errno);
     return sent;
 }
 
@@ -738,7 +593,7 @@ ErrorOr<ssize_t> recv(int sockfd, void* buffer, size_t length, int flags)
 {
     auto received = ::recv(sockfd, buffer, length, flags);
     if (received < 0)
-        return Error::from_syscall("recv"sv, -errno);
+        return Error::from_syscall("recv"sv, errno);
     return received;
 }
 
@@ -746,7 +601,7 @@ ErrorOr<ssize_t> recvmsg(int sockfd, struct msghdr* message, int flags)
 {
     auto received = ::recvmsg(sockfd, message, flags);
     if (received < 0)
-        return Error::from_syscall("recvmsg"sv, -errno);
+        return Error::from_syscall("recvmsg"sv, errno);
     return received;
 }
 
@@ -754,7 +609,7 @@ ErrorOr<ssize_t> recvfrom(int sockfd, void* buffer, size_t buffer_length, int fl
 {
     auto received = ::recvfrom(sockfd, buffer, buffer_length, flags, address, address_length);
     if (received < 0)
-        return Error::from_syscall("recvfrom"sv, -errno);
+        return Error::from_syscall("recvfrom"sv, errno);
     return received;
 }
 
@@ -765,7 +620,7 @@ ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servnam
     int const rc = ::getaddrinfo(nodename, servname, &hints, &results);
     if (rc != 0) {
         if (rc == EAI_SYSTEM) {
-            return Error::from_syscall("getaddrinfo"sv, -errno);
+            return Error::from_syscall("getaddrinfo"sv, errno);
         }
 
         auto const* error_string = gai_strerror(rc);
@@ -783,35 +638,35 @@ ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servnam
 ErrorOr<void> getsockopt(int sockfd, int level, int option, void* value, socklen_t* value_size)
 {
     if (::getsockopt(sockfd, level, option, value, value_size) < 0)
-        return Error::from_syscall("getsockopt"sv, -errno);
+        return Error::from_syscall("getsockopt"sv, errno);
     return {};
 }
 
 ErrorOr<void> setsockopt(int sockfd, int level, int option, void const* value, socklen_t value_size)
 {
     if (::setsockopt(sockfd, level, option, value, value_size) < 0)
-        return Error::from_syscall("setsockopt"sv, -errno);
+        return Error::from_syscall("setsockopt"sv, errno);
     return {};
 }
 
 ErrorOr<void> getsockname(int sockfd, struct sockaddr* address, socklen_t* address_length)
 {
     if (::getsockname(sockfd, address, address_length) < 0)
-        return Error::from_syscall("getsockname"sv, -errno);
+        return Error::from_syscall("getsockname"sv, errno);
     return {};
 }
 
 ErrorOr<void> getpeername(int sockfd, struct sockaddr* address, socklen_t* address_length)
 {
     if (::getpeername(sockfd, address, address_length) < 0)
-        return Error::from_syscall("getpeername"sv, -errno);
+        return Error::from_syscall("getpeername"sv, errno);
     return {};
 }
 
 ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2])
 {
     if (::socketpair(domain, type, protocol, sv) < 0)
-        return Error::from_syscall("socketpair"sv, -errno);
+        return Error::from_syscall("socketpair"sv, errno);
     return {};
 }
 
@@ -821,10 +676,10 @@ ErrorOr<Array<int, 2>> pipe2(int flags)
 
 #if defined(__unix__)
     if (::pipe2(fds.data(), flags) < 0)
-        return Error::from_syscall("pipe2"sv, -errno);
+        return Error::from_syscall("pipe2"sv, errno);
 #else
     if (::pipe(fds.data()) < 0)
-        return Error::from_syscall("pipe2"sv, -errno);
+        return Error::from_syscall("pipe2"sv, errno);
 
     // Ensure we don't leak the fds if any of the system calls below fail.
     AK::ArmedScopeGuard close_fds { [&]() {
@@ -850,39 +705,20 @@ ErrorOr<Array<int, 2>> pipe2(int flags)
 ErrorOr<void> access(StringView pathname, int mode, int flags)
 {
     if (pathname.is_null())
-        return Error::from_syscall("access"sv, -EFAULT);
+        return Error::from_syscall("access"sv, EFAULT);
 
-#ifdef AK_OS_SERENITY
-    Syscall::SC_faccessat_params params {
-        .dirfd = AT_FDCWD,
-        .pathname = { pathname.characters_without_null_termination(), pathname.length() },
-        .mode = mode,
-        .flags = flags,
-    };
-    int rc = ::syscall(Syscall::SC_faccessat, &params);
-    HANDLE_SYSCALL_RETURN_VALUE("access", rc, {});
-#else
     ByteString path_string = pathname;
     (void)flags;
+
     if (::access(path_string.characters(), mode) < 0)
-        return Error::from_syscall("access"sv, -errno);
+        return Error::from_syscall("access"sv, errno);
     return {};
-#endif
 }
 
 ErrorOr<ByteString> readlink(StringView pathname)
 {
     // FIXME: Try again with a larger buffer.
-#ifdef AK_OS_SERENITY
-    char data[PATH_MAX];
-    Syscall::SC_readlink_params small_params {
-        .path = { pathname.characters_without_null_termination(), pathname.length() },
-        .buffer = { data, sizeof(data) },
-        .dirfd = AT_FDCWD,
-    };
-    int rc = syscall(SC_readlink, &small_params);
-    HANDLE_SYSCALL_RETURN_VALUE("readlink", rc, ByteString(data, rc));
-#elif defined(AK_OS_GNU_HURD)
+#if defined(AK_OS_GNU_HURD)
     // PATH_MAX is not defined, nor is there an upper limit on path lengths.
     // Let's do this the right way.
     int fd = TRY(open(pathname, O_READ | O_NOLINK));
@@ -895,7 +731,7 @@ ErrorOr<ByteString> readlink(StringView pathname)
     ByteString path_string = pathname;
     int rc = ::readlink(path_string.characters(), data, sizeof(data));
     if (rc == -1)
-        return Error::from_syscall("readlink"sv, -errno);
+        return Error::from_syscall("readlink"sv, errno);
 
     return ByteString(data, rc);
 #endif
@@ -905,7 +741,7 @@ ErrorOr<int> poll(Span<struct pollfd> poll_fds, int timeout)
 {
     auto const rc = ::poll(poll_fds.data(), poll_fds.size(), timeout);
     if (rc < 0)
-        return Error::from_syscall("poll"sv, -errno);
+        return Error::from_syscall("poll"sv, errno);
     return { rc };
 }
 
@@ -922,22 +758,22 @@ u64 physical_memory_bytes()
 ErrorOr<ByteString> current_executable_path()
 {
     char path[4096] = {};
-#if defined(AK_OS_LINUX) || defined(AK_OS_ANDROID) || defined(AK_OS_SERENITY)
+#if defined(AK_OS_LINUX) || defined(AK_OS_ANDROID)
     auto ret = ::readlink("/proc/self/exe", path, sizeof(path) - 1);
     // Ignore error if it wasn't a symlink
     if (ret == -1 && errno != EINVAL)
-        return Error::from_syscall("readlink"sv, -errno);
+        return Error::from_syscall("readlink"sv, errno);
 #elif defined(AK_OS_GNU_HURD)
     // We could read /proc/self/exe, but why rely on procfs being mounted
     // if we can do the same thing procfs does and ask the proc server directly?
     process_t proc = getproc();
     if (!MACH_PORT_VALID(proc))
-        return Error::from_syscall("getproc"sv, -errno);
+        return Error::from_syscall("getproc"sv, errno);
     kern_return_t err = proc_get_exe(proc, getpid(), path);
     mach_port_deallocate(mach_task_self(), proc);
     if (err) {
         __hurd_fail(static_cast<error_t>(err));
-        return Error::from_syscall("proc_get_exe"sv, -errno);
+        return Error::from_syscall("proc_get_exe"sv, errno);
     }
 #elif defined(AK_OS_DRAGONFLY)
     return TRY(readlink("/proc/curproc/file"sv));
@@ -947,12 +783,12 @@ ErrorOr<ByteString> current_executable_path()
     int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
     size_t len = sizeof(path);
     if (sysctl(mib, 4, path, &len, nullptr, 0) < 0)
-        return Error::from_syscall("sysctl"sv, -errno);
+        return Error::from_syscall("sysctl"sv, errno);
 #elif defined(AK_OS_NETBSD)
     int mib[4] = { CTL_KERN, KERN_PROC_ARGS, -1, KERN_PROC_PATHNAME };
     size_t len = sizeof(path);
     if (sysctl(mib, 4, path, &len, nullptr, 0) < 0)
-        return Error::from_syscall("sysctl"sv, -errno);
+        return Error::from_syscall("sysctl"sv, errno);
 #elif defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     u32 size = sizeof(path);
     auto ret = _NSGetExecutablePath(path, &size);
@@ -983,7 +819,7 @@ ErrorOr<rlimit> get_resource_limits(int resource)
     rlimit limits;
 
     if (::getrlimit(resource, &limits) != 0)
-        return Error::from_syscall("getrlimit"sv, -errno);
+        return Error::from_syscall("getrlimit"sv, errno);
 
     return limits;
 }
@@ -994,7 +830,7 @@ ErrorOr<void> set_resource_limits(int resource, rlim_t limit)
     limits.rlim_cur = min(limit, limits.rlim_max);
 
     if (::setrlimit(resource, &limits) != 0)
-        return Error::from_syscall("setrlimit"sv, -errno);
+        return Error::from_syscall("setrlimit"sv, errno);
 
     return {};
 }
@@ -1013,7 +849,7 @@ bool is_socket(int fd)
 ErrorOr<void> sleep_ms(u32 milliseconds)
 {
     if (usleep(1000 * milliseconds) != 0)
-        return Error::from_syscall("usleep"sv, -errno);
+        return Error::from_syscall("usleep"sv, errno);
     return {};
 }
 

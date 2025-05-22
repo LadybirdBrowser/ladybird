@@ -46,8 +46,6 @@ struct DrawGlyphRun {
     Color color;
     Gfx::Orientation orientation { Gfx::Orientation::Horizontal };
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
-
     void translate_by(Gfx::IntPoint const& offset);
 };
 
@@ -411,6 +409,7 @@ struct PaintScrollBar {
 
     void translate_by(Gfx::IntPoint const& offset)
     {
+        gutter_rect.translate_by(offset);
         thumb_rect.translate_by(offset);
     }
 };
@@ -487,4 +486,5 @@ using Command = Variant<
     ApplyFilters,
     ApplyTransform,
     ApplyMaskBitmap>;
+
 }

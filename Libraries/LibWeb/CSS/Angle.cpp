@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Angle.h"
 #include <AK/Math.h>
+#include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
@@ -27,8 +27,10 @@ Angle Angle::percentage_of(Percentage const& percentage) const
     return Angle { percentage.as_fraction() * m_value, m_type };
 }
 
-String Angle::to_string() const
+String Angle::to_string(SerializationMode serialization_mode) const
 {
+    if (serialization_mode == SerializationMode::ResolvedValue)
+        return MUST(String::formatted("{}deg", to_degrees()));
     return MUST(String::formatted("{}{}", raw_value(), unit_name()));
 }
 

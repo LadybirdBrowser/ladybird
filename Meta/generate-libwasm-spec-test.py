@@ -149,9 +149,7 @@ def parse_args(raw_args: list[dict[str, str]]) -> list[WasmValue]:
 def parse_action(action: dict[str, Any]) -> Action:
     match action["type"]:
         case "invoke":
-            return Invoke(
-                action["field"], parse_args(action["args"]), action.get("module")
-            )
+            return Invoke(action["field"], parse_args(action["args"]), action.get("module"))
         case "get":
             return Get(action["field"], action.get("module"))
         case _:
@@ -165,9 +163,7 @@ def parse(raw: dict[str, Any]) -> WastDescription:
         cmd: Command
         match raw_cmd["type"]:
             case "module":
-                cmd = ModuleCommand(
-                    line, Path(raw_cmd["filename"]), raw_cmd.get("name")
-                )
+                cmd = ModuleCommand(line, Path(raw_cmd["filename"]), raw_cmd.get("name"))
             case "action":
                 cmd = ActionCommand(line, parse_action(raw_cmd["action"]))
             case "register":
@@ -176,9 +172,7 @@ def parse(raw: dict[str, Any]) -> WastDescription:
                 cmd = AssertReturn(
                     line,
                     parse_action(raw_cmd["action"]),
-                    parse_value(raw_cmd["expected"][0])
-                    if len(raw_cmd["expected"]) == 1
-                    else None,
+                    parse_value(raw_cmd["expected"][0]) if len(raw_cmd["expected"]) == 1 else None,
                 )
             case "assert_trap" | "assert_exhaustion":
                 cmd = AssertTrap(line, raw_cmd["text"], parse_action(raw_cmd["action"]))
@@ -260,10 +254,7 @@ def gen_value_arg(value: WasmValue) -> str:
         case "f32":
             return str(int(value.value)) + f" /* {float_to_str(int(value.value))} */"
         case "f64":
-            return (
-                str(int(value.value))
-                + f"n /* {float_to_str(int(value.value), double=True)} */"
-            )
+            return str(int(value.value)) + f"n /* {float_to_str(int(value.value), double=True)} */"
         case "externref" | "funcref" | "v128":
             return value.value
         case _:
@@ -336,9 +327,7 @@ expect(() => parseWebAssemblyModule(content, globalImportObject)).toThrow(Error,
 
 
 def gen_pretty_expect(expr: str, got: str, expect: str):
-    print(
-        f"if (!{expr}) {{ expect().fail(`Failed with ${{{got}}}, expected {expect}`); }}"
-    )
+    print(f"if (!{expr}) {{ expect().fail(`Failed with ${{{got}}}, expected {expect}`); }}")
 
 
 def gen_invoke(
@@ -354,11 +343,7 @@ def gen_invoke(
     module = "module"
     if invoke.module is not None:
         module = f'namedModules["{invoke.module}"]'
-    utf8 = (
-        str(invoke.field.encode("utf8"))[2:-1]
-        .replace("\\'", "'")
-        .replace("`", "${'`'}")
-    )
+    utf8 = str(invoke.field.encode("utf8"))[2:-1].replace("\\'", "'").replace("`", "${'`'}")
     print(
         f"""_test(`execution of {ctx.current_module_name}: {utf8} (line {line})`, () => {{
 let _field = {module}.getExport(decodeURIComponent(escape(`{utf8}`)));
@@ -428,9 +413,7 @@ def gen_command(command: Command, ctx: Context):
             if isinstance(command.action, Invoke):
                 gen_invoke(command.line, command.action, None, ctx)
             else:
-                raise GenerateException(
-                    f"Not implemented: top-level {type(command.action)}"
-                )
+                raise GenerateException(f"Not implemented: top-level {type(command.action)}")
         case AssertInvalid():
             gen_invalid(command, ctx)
         case Register():
@@ -444,9 +427,7 @@ def gen_command(command: Command, ctx: Context):
         case AssertTrap():
             if not isinstance(command.action, Invoke):
                 raise GenerateException(f"Not implemented: {type(command.action)}")
-            gen_invoke(
-                command.line, command.action, None, ctx, fail_msg=command.messsage
-            )
+            gen_invoke(command.line, command.action, None, ctx, fail_msg=command.messsage)
 
 
 def generate(description: WastDescription):

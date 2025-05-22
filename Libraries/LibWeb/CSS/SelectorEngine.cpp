@@ -53,6 +53,67 @@ static inline GC::Ptr<DOM::Node const> traverse_up(GC::Ptr<DOM::Node const> node
     return node->parent();
 }
 
+// https://www.rfc-editor.org/rfc/rfc4647.html#section-3.3.2
+// NB: Language tags only use ASCII characters, so we can get away with using StringView.
+static bool language_range_matches_tag(StringView language_range, StringView language_tag)
+{
+    // 1. Split both the extended language range and the language tag being compared into a list of subtags by
+    //    dividing on the hyphen (%x2D) character.
+    auto range_subtags = language_range.split_view('-', SplitBehavior::KeepEmpty);
+    auto tag_subtags = language_tag.split_view('-', SplitBehavior::KeepEmpty);
+
+    //    Two subtags match if either they are the same when compared case-insensitively or the language range's subtag
+    //    is the wildcard '*'.
+    auto subtags_match = [](StringView language_range_subtag, StringView language_subtag) {
+        return language_range_subtag == "*"sv
+            || language_range_subtag.equals_ignoring_ascii_case(language_subtag);
+    };
+
+    // 2. Begin with the first subtag in each list. If the first subtag in the range does not match the first
+    //    subtag in the tag, the overall match fails. Otherwise, move to the next subtag in both the range and the
+    //    tag.
+    auto tag_subtag = tag_subtags.begin();
+    auto range_subtag = range_subtags.begin();
+    if (!subtags_match(*range_subtag, *tag_subtag))
+        return false;
+    ++tag_subtag;
+    ++range_subtag;
+
+    // 3. While there are more subtags left in the language range's list:
+    while (!range_subtag.is_end()) {
+        // A. If the subtag currently being examined in the range is the wildcard ('*'), move to the next subtag in
+        //    the range and continue with the loop.
+        if (*range_subtag == "*"sv) {
+            ++range_subtag;
+            continue;
+        }
+
+        // B. Else, if there are no more subtags in the language tag's list, the match fails.
+        if (tag_subtag.is_end())
+            return false;
+
+        // C. Else, if the current subtag in the range's list matches the current subtag in the language tag's
+        //    list, move to the next subtag in both lists and continue with the loop.
+        if (subtags_match(*range_subtag, *tag_subtag)) {
+            ++range_subtag;
+            ++tag_subtag;
+            continue;
+        }
+
+        // D. Else, if the language tag's subtag is a "singleton" (a single letter or digit, which includes the
+        //    private-use subtag 'x') the match fails.
+        if (tag_subtag->length() == 1 && is_ascii_alphanumeric((*tag_subtag)[0])) {
+            return false;
+        }
+
+        // E. Else, move to the next subtag in the language tag's list and continue with the loop.
+        ++tag_subtag;
+    }
+
+    // 4. When the language range's list has no more subtags, the match succeeds.
+    return true;
+}
+
 // https://drafts.csswg.org/selectors-4/#the-lang-pseudo
 static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector<FlyString> const& languages)
 {
@@ -62,21 +123,17 @@ static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector
 
     auto element_language = maybe_element_language.release_value();
 
-    // FIXME: This is ad-hoc. Implement a proper language range matching algorithm as recommended by BCP47.
-    for (auto const& language : languages) {
-        if (language.is_empty())
-            continue;
-        if (language == "*"sv)
+    // The element’s content language matches a language range if its content language, as represented in BCP 47
+    // syntax, matches the given language range in an extended filtering operation per [RFC4647] Matching of Language
+    // Tags (section 3.3.2). Both the content language and the language range must be canonicalized and converted to
+    // extlang form as per section 4.5 of [RFC5646] prior to the extended filtering operation. The matching is
+    // performed case-insensitively within the ASCII range.
+
+    // FIXME: Canonicalize both as extlang.
+
+    for (auto const& language_range : languages) {
+        if (language_range_matches_tag(language_range, element_language))
             return true;
-        auto element_language_length = element_language.bytes_as_string_view().length();
-        auto language_length = language.bytes_as_string_view().length();
-        if (element_language_length == language_length) {
-            if (Infra::is_ascii_case_insensitive_match(element_language, language))
-                return true;
-        } else if (element_language_length > language_length) {
-            if (element_language.starts_with_bytes(language, CaseSensitivity::CaseInsensitive) && element_language.bytes_as_string_view()[language_length] == '-')
-                return true;
-        }
     }
     return false;
 }
@@ -190,51 +247,126 @@ static inline bool matches_indeterminate_pseudo_class(DOM::Element const& elemen
     return false;
 }
 
-static inline Web::DOM::Attr const* get_optionally_namespaced_attribute(CSS::Selector::SimpleSelector::Attribute const& attribute, GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule, DOM::Element const& element)
+static inline void for_each_matching_attribute(CSS::Selector::SimpleSelector::Attribute const& attribute_selector, GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule, DOM::Element const& element, Function<IterationDecision(DOM::Attr const&)> const& process_attribute)
 {
-    auto const& qualified_name = attribute.qualified_name;
+    auto const& qualified_name = attribute_selector.qualified_name;
     auto const& attribute_name = qualified_name.name.name;
-    auto const& namespace_type = qualified_name.namespace_type;
 
-    if (element.namespace_uri() == Namespace::HTML) {
-        if (namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named) {
-            return nullptr;
-        }
-        return element.attributes()->get_attribute(attribute_name);
-    }
-
-    switch (namespace_type) {
+    switch (qualified_name.namespace_type) {
     // "In keeping with the Namespaces in the XML recommendation, default namespaces do not apply to attributes,
     //  therefore attribute selectors without a namespace component apply only to attributes that have no namespace (equivalent to "|attr")"
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default:
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
-        return element.attributes()->get_attribute(attribute_name);
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any:
-        return element.attributes()->get_attribute_namespace_agnostic(attribute_name);
+        if (auto const* attribute = element.attributes()->get_attribute(attribute_name))
+            (void)process_attribute(*attribute);
+        return;
+    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any: {
+        // When comparing the name part of a CSS attribute selector to the names of attributes on HTML elements in HTML
+        // documents, the name part of the CSS attribute selector must first be converted to ASCII lowercase. The same
+        // selector when compared to other attributes must be compared according to its original case. In both cases, the
+        // comparison is case-sensitive.
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+        bool const case_insensitive = element.document().is_html_document() && element.namespace_uri() == Namespace::HTML;
+
+        for (auto i = 0u; i < element.attributes()->length(); ++i) {
+            auto const* attr = element.attributes()->item(i);
+            bool matches = case_insensitive
+                ? attr->local_name().equals_ignoring_ascii_case(attribute_name)
+                : attr->local_name() == attribute_name;
+            if (matches) {
+                if (process_attribute(*attr) == IterationDecision::Break)
+                    break;
+            }
+        }
+        return;
+    }
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named:
         if (!style_sheet_for_rule)
-            return nullptr;
+            return;
         auto const& selector_namespace = style_sheet_for_rule->namespace_uri(qualified_name.namespace_);
         if (!selector_namespace.has_value())
-            return nullptr;
-        return element.attributes()->get_attribute_ns(selector_namespace, attribute_name);
+            return;
+
+        if (auto const* attribute = element.attributes()->get_attribute_ns(selector_namespace, attribute_name))
+            (void)process_attribute(*attribute);
+        return;
     }
     VERIFY_NOT_REACHED();
+}
+
+static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute const& attribute_selector, DOM::Attr const& attribute, CaseSensitivity case_sensitivity)
+{
+    auto const case_insensitive_match = case_sensitivity == CaseSensitivity::CaseInsensitive;
+
+    switch (attribute_selector.match_type) {
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
+        return case_insensitive_match
+            ? attribute.value().equals_ignoring_ascii_case(attribute_selector.value)
+            : attribute.value() == attribute_selector.value;
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsWord: {
+        if (attribute_selector.value.is_empty()) {
+            // This selector is always false is match value is empty.
+            return false;
+        }
+        auto const& attribute_value = attribute.value();
+        auto const view = attribute_value.bytes_as_string_view().split_view(' ');
+        auto const size = view.size();
+        for (size_t i = 0; i < size; ++i) {
+            auto const value = view.at(i);
+            if (case_insensitive_match
+                    ? value.equals_ignoring_ascii_case(attribute_selector.value)
+                    : value == attribute_selector.value) {
+                return true;
+            }
+        }
+        return false;
+    }
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsString:
+        return !attribute_selector.value.is_empty()
+            && attribute.value().contains(attribute_selector.value, case_sensitivity);
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment: {
+        // https://www.w3.org/TR/CSS2/selector.html#attribute-selectors
+        // [att|=val]
+        // Represents an element with the att attribute, its value either being exactly "val" or beginning with "val" immediately followed by "-" (U+002D).
+
+        auto const& element_attr_value = attribute.value();
+        if (element_attr_value.is_empty()) {
+            // If the attribute value on element is empty, the selector is true
+            // if the match value is also empty and false otherwise.
+            return attribute_selector.value.is_empty();
+        }
+        if (attribute_selector.value.is_empty()) {
+            return false;
+        }
+
+        auto element_attribute_length = element_attr_value.bytes_as_string_view().length();
+        auto attribute_length = attribute_selector.value.bytes_as_string_view().length();
+        if (element_attribute_length < attribute_length)
+            return false;
+
+        if (attribute_length == element_attribute_length) {
+            return case_insensitive_match
+                ? element_attr_value.equals_ignoring_ascii_case(attribute_selector.value)
+                : element_attr_value == attribute_selector.value;
+        }
+
+        return element_attr_value.starts_with_bytes(attribute_selector.value, case_insensitive_match ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive) && element_attr_value.bytes_as_string_view()[attribute_length] == '-';
+    }
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
+        return !attribute_selector.value.is_empty()
+            && attribute.value().bytes_as_string_view().starts_with(attribute_selector.value, case_sensitivity);
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
+        return !attribute_selector.value.is_empty()
+            && attribute.value().bytes_as_string_view().ends_with(attribute_selector.value, case_sensitivity);
+    case CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute:
+        return true;
+    }
+    return false;
 }
 
 static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute const& attribute, [[maybe_unused]] GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule, DOM::Element const& element)
 {
     auto const& attribute_name = attribute.qualified_name.name.name;
-
-    auto const* attr = get_optionally_namespaced_attribute(attribute, style_sheet_for_rule, element);
-
-    if (attribute.match_type == CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute) {
-        // Early way out in case of an attribute existence selector.
-        return attr != nullptr;
-    }
-
-    if (!attr)
-        return false;
 
     auto case_sensitivity = [&](CSS::Selector::SimpleSelector::Attribute::CaseType case_type) {
         switch (case_type) {
@@ -246,6 +378,7 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
             // See: https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
             if (element.document().is_html_document()
                 && element.namespace_uri() == Namespace::HTML
+                && attribute.qualified_name.namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default
                 && attribute_name.is_one_of(
                     HTML::AttributeNames::accept, HTML::AttributeNames::accept_charset, HTML::AttributeNames::align,
                     HTML::AttributeNames::alink, HTML::AttributeNames::axis, HTML::AttributeNames::bgcolor, HTML::AttributeNames::charset,
@@ -266,73 +399,17 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
         }
         VERIFY_NOT_REACHED();
     }(attribute.case_type);
-    auto case_insensitive_match = case_sensitivity == CaseSensitivity::CaseInsensitive;
 
-    switch (attribute.match_type) {
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
-        return case_insensitive_match
-            ? Infra::is_ascii_case_insensitive_match(attr->value(), attribute.value)
-            : attr->value() == attribute.value;
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsWord: {
-        if (attribute.value.is_empty()) {
-            // This selector is always false is match value is empty.
-            return false;
+    bool found_matching_attribute = false;
+    for_each_matching_attribute(attribute, style_sheet_for_rule, element, [&attribute, case_sensitivity, &found_matching_attribute](DOM::Attr const& attr) {
+        if (matches_single_attribute(attribute, attr, case_sensitivity)) {
+            found_matching_attribute = true;
+            return IterationDecision::Break;
         }
-        auto const& attribute_value = attr->value();
-        auto const view = attribute_value.bytes_as_string_view().split_view(' ');
-        auto const size = view.size();
-        for (size_t i = 0; i < size; ++i) {
-            auto const value = view.at(i);
-            if (case_insensitive_match
-                    ? Infra::is_ascii_case_insensitive_match(value, attribute.value)
-                    : value == attribute.value) {
-                return true;
-            }
-        }
-        return false;
-    }
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsString:
-        return !attribute.value.is_empty()
-            && attr->value().contains(attribute.value, case_sensitivity);
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment: {
-        // https://www.w3.org/TR/CSS2/selector.html#attribute-selectors
-        // [att|=val]
-        // Represents an element with the att attribute, its value either being exactly "val" or beginning with "val" immediately followed by "-" (U+002D).
+        return IterationDecision::Continue;
+    });
 
-        auto const& element_attr_value = attr->value();
-        if (element_attr_value.is_empty()) {
-            // If the attribute value on element is empty, the selector is true
-            // if the match value is also empty and false otherwise.
-            return attribute.value.is_empty();
-        }
-        if (attribute.value.is_empty()) {
-            return false;
-        }
-
-        auto element_attribute_length = element_attr_value.bytes_as_string_view().length();
-        auto attribute_length = attribute.value.bytes_as_string_view().length();
-        if (element_attribute_length < attribute_length)
-            return false;
-
-        if (attribute_length == element_attribute_length) {
-            return case_insensitive_match
-                ? Infra::is_ascii_case_insensitive_match(element_attr_value, attribute.value)
-                : element_attr_value == attribute.value;
-        }
-
-        return element_attr_value.starts_with_bytes(attribute.value, case_insensitive_match ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive) && element_attr_value.bytes_as_string_view()[attribute_length] == '-';
-    }
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
-        return !attribute.value.is_empty()
-            && attr->value().bytes_as_string_view().starts_with(attribute.value, case_sensitivity);
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
-        return !attribute.value.is_empty()
-            && attr->value().bytes_as_string_view().ends_with(attribute.value, case_sensitivity);
-    default:
-        break;
-    }
-
-    return false;
+    return found_matching_attribute;
 }
 
 static inline DOM::Element const* previous_sibling_with_same_tag_name(DOM::Element const& element)
@@ -480,15 +557,18 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     }
     case CSS::PseudoClass::FirstChild:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_first_or_last_child_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
         }
         return !element.previous_element_sibling();
     case CSS::PseudoClass::LastChild:
         if (context.collect_per_element_selector_involvement_metadata) {
-            const_cast<DOM::Element&>(element).set_affected_by_first_or_last_child_pseudo_class(true);
+            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
         }
         return !element.next_element_sibling();
     case CSS::PseudoClass::OnlyChild:
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+        }
         return !(element.previous_element_sibling() || element.next_element_sibling());
     case CSS::PseudoClass::Empty: {
         if (!element.has_children())
@@ -514,10 +594,19 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Scope:
         return scope ? &element == scope : is<HTML::HTMLHtmlElement>(element);
     case CSS::PseudoClass::FirstOfType:
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+        }
         return !previous_sibling_with_same_tag_name(element);
     case CSS::PseudoClass::LastOfType:
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+        }
         return !next_sibling_with_same_tag_name(element);
     case CSS::PseudoClass::OnlyOfType:
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_sibling_position_or_count_pseudo_class(true);
+        }
         return !previous_sibling_with_same_tag_name(element) && !next_sibling_with_same_tag_name(element);
     case CSS::PseudoClass::Lang:
         return matches_lang_pseudo_class(element, pseudo_class.languages);
@@ -723,13 +812,15 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Dir: {
         // "Values other than ltr and rtl are not invalid, but do not match anything."
         // - https://www.w3.org/TR/selectors-4/#the-dir-pseudo
-        if (!first_is_one_of(pseudo_class.keyword, CSS::Keyword::Ltr, CSS::Keyword::Rtl))
+        if (!pseudo_class.ident.has_value())
+            return false;
+        if (!first_is_one_of(pseudo_class.ident->keyword, CSS::Keyword::Ltr, CSS::Keyword::Rtl))
             return false;
         switch (element.directionality()) {
         case DOM::Element::Directionality::Ltr:
-            return pseudo_class.keyword == CSS::Keyword::Ltr;
+            return pseudo_class.ident->keyword == CSS::Keyword::Ltr;
         case DOM::Element::Directionality::Rtl:
-            return pseudo_class.keyword == CSS::Keyword::Rtl;
+            return pseudo_class.ident->keyword == CSS::Keyword::Rtl;
         }
         VERIFY_NOT_REACHED();
     }
@@ -949,7 +1040,7 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::
             if (element.document().document_type() == DOM::Document::Type::HTML && element.namespace_uri() == Namespace::HTML) {
                 if (qualified_name.name.lowercase_name != element.local_name())
                     return false;
-            } else if (!Infra::is_ascii_case_insensitive_match(qualified_name.name.name, element.local_name())) {
+            } else if (!qualified_name.name.name.equals_ignoring_ascii_case(element.local_name())) {
                 return false;
             }
         }

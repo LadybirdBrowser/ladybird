@@ -22,6 +22,7 @@
 #include <LibJS/Bytecode/Operand.h>
 #include <LibJS/Bytecode/ScopedOperand.h>
 #include <LibJS/Forward.h>
+#include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/ClassFieldDefinition.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
@@ -159,6 +160,13 @@ private:
     u32 m_tail_size { 0 };
 };
 
+enum class DeclarationKind {
+    None,
+    Var,
+    Let,
+    Const,
+};
+
 class Statement : public ASTNode {
 public:
     explicit Statement(SourceRange source_range)
@@ -185,7 +193,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
+    Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
     FlyString const& label() const { return m_label; }
     FlyString& label() { return m_label; }
@@ -213,7 +221,7 @@ class IterationStatement : public Statement {
 public:
     using Statement::Statement;
 
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
+    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const = 0;
 
 private:
     virtual bool is_iteration_statement() const final { return true; }
@@ -333,11 +341,11 @@ public:
 
     ThrowCompletionOr<void> for_each_function_hoistable_with_annexB_extension(ThrowCompletionOrVoidCallback<FunctionDeclaration&>&& callback) const;
 
-    Vector<FlyString> const& local_variables_names() const { return m_local_variables_names; }
-    size_t add_local_variable(FlyString name)
+    auto const& local_variables_names() const { return m_local_variables_names; }
+    size_t add_local_variable(FlyString name, LocalVariable::DeclarationKind declaration_kind)
     {
         auto index = m_local_variables_names.size();
-        m_local_variables_names.append(move(name));
+        m_local_variables_names.append({ move(name), declaration_kind });
         return index;
     }
 
@@ -356,7 +364,7 @@ private:
 
     Vector<NonnullRefPtr<FunctionDeclaration const>> m_functions_hoistable_with_annexB_extension;
 
-    Vector<FlyString> m_local_variables_names;
+    Vector<LocalVariable> m_local_variables_names;
 };
 
 // ImportEntry Record, https://tc39.es/ecma262/#table-importentry-record-fields
@@ -702,6 +710,9 @@ public:
     bool is_global() const { return m_is_global; }
     void set_is_global() { m_is_global = true; }
 
+    [[nodiscard]] DeclarationKind declaration_kind() const { return m_declaration_kind; }
+    void set_declaration_kind(DeclarationKind kind) { m_declaration_kind = kind; }
+
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
@@ -712,6 +723,7 @@ private:
 
     Optional<Local> m_local_index;
     bool m_is_global { false };
+    DeclarationKind m_declaration_kind { DeclarationKind::None };
 };
 
 struct FunctionParameter {
@@ -774,7 +786,7 @@ public:
     auto const& body_ptr() const { return m_body; }
     auto const& parameters() const { return m_parameters; }
     i32 function_length() const { return m_function_length; }
-    Vector<FlyString> const& local_variables_names() const { return m_local_variables_names; }
+    Vector<LocalVariable> const& local_variables_names() const { return m_local_variables_names; }
     bool is_strict_mode() const { return m_is_strict_mode; }
     bool might_need_arguments_object() const { return m_parsing_insights.might_need_arguments_object; }
     bool contains_direct_call_to_eval() const { return m_parsing_insights.contains_direct_call_to_eval; }
@@ -792,7 +804,7 @@ public:
     virtual ~FunctionNode();
 
 protected:
-    FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<FlyString> local_variables_names);
+    FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<LocalVariable> local_variables_names);
     void dump(int indent, ByteString const& class_name) const;
 
     RefPtr<Identifier const> m_name { nullptr };
@@ -807,7 +819,7 @@ private:
     bool m_is_arrow_function : 1 { false };
     FunctionParsingInsights m_parsing_insights;
 
-    Vector<FlyString> m_local_variables_names;
+    Vector<LocalVariable> m_local_variables_names;
 
     mutable RefPtr<SharedFunctionInstanceData> m_shared_data;
 };
@@ -818,7 +830,7 @@ class FunctionDeclaration final
 public:
     static bool must_have_name() { return true; }
 
-    FunctionDeclaration(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<FlyString> local_variables_names)
+    FunctionDeclaration(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<LocalVariable> local_variables_names)
         : Declaration(move(source_range))
         , FunctionNode(move(name), move(source_text), move(body), move(parameters), function_length, kind, is_strict_mode, insights, false, move(local_variables_names))
     {
@@ -848,7 +860,7 @@ class FunctionExpression final
 public:
     static bool must_have_name() { return false; }
 
-    FunctionExpression(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<FlyString> local_variables_names, bool is_arrow_function = false)
+    FunctionExpression(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights insights, Vector<LocalVariable> local_variables_names, bool is_arrow_function = false)
         : Expression(move(source_range))
         , FunctionNode(move(name), move(source_text), move(body), move(parameters), function_length, kind, is_strict_mode, insights, is_arrow_function, move(local_variables_names))
     {
@@ -857,7 +869,7 @@ public:
     virtual void dump(int indent) const override;
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode_with_lhs_name(Bytecode::Generator&, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
+    Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode_with_lhs_name(Bytecode::Generator&, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
     bool has_name() const override { return !name().is_empty(); }
 
@@ -1501,7 +1513,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode_with_lhs_name(Bytecode::Generator&, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
+    Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode_with_lhs_name(Bytecode::Generator&, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
     bool has_name() const { return m_name; }
 
@@ -1762,12 +1774,6 @@ private:
     UpdateOp m_op;
     NonnullRefPtr<Expression const> m_argument;
     bool m_prefixed;
-};
-
-enum class DeclarationKind {
-    Var,
-    Let,
-    Const,
 };
 
 class VariableDeclarator final : public ASTNode {
@@ -2202,7 +2208,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-    virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
+    Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
     void add_case(NonnullRefPtr<SwitchCase const> switch_case) { m_cases.append(move(switch_case)); }
 

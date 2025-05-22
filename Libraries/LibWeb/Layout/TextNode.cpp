@@ -339,9 +339,6 @@ void TextNode::compute_text_for_rendering()
         VERIFY_NOT_REACHED();
     }(computed_values().white_space());
 
-    if (dom_node().is_editable() && !dom_node().is_uninteresting_whitespace_node())
-        collapse = false;
-
     auto parent_element = dom_node().parent_element();
     auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
     auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+@page {}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let page = document.styleSheets[0].cssRules[0];
+        const testCases = [
+            "none",
+            "crop",
+            "cross",
+            "crop cross",
+            "cross crop",
+            // Invalid
+            "none crop",
+            "crop crop",
+            "cross cross",
+            "cross crop cross",
+            "orange",
+            "auto"
+        ];
+
+        for (let testCase of testCases) {
+            page.style.removeProperty("marks");
+            page.style.marks = testCase;
+            let parsed = page.style.marks;
+            if (parsed.length)
+                println(`"marks: ${testCase}": parsed as "${parsed}"`);
+            else
+                println(`"marks: ${testCase}": INVALID`);
+        }
+    });
+</script>

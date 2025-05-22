@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-page-3/#page-size-prop">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+@page {
+    size: 640px 480px;
+}
+@page {
+    size: 8.5in 11in;
+}
+@page {
+    size: 3in 10in;
+}
+@page {
+    size: auto;
+}
+@page {
+    size: A5;
+}
+@page {
+    size: A4;
+}
+@page {
+    size: A3;
+}
+@page {
+    size: B5;
+}
+@page {
+    size: B4;
+}
+@page {
+    size: jis-B5;
+}
+@page {
+    size: jis-B4;
+}
+@page {
+    size: landscape;
+}
+@page {
+    size: letter portrait;
+}
+@page {
+    size: legal landscape;
+}
+</style>
+
+<script>
+"use strict";
+
+const expectedSizes = [
+    "640px 480px",
+    "8.5in 11in",
+    "3in 10in",
+    "auto",
+    "a5",
+    "a4",
+    "a3",
+    "b5",
+    "b4",
+    "jis-b5",
+    "jis-b4",
+    "landscape",
+    "letter",
+    "legal landscape"
+];
+const sizePrefix = "size: ";
+
+test(() => {
+    assert_equals(document.styleSheets.length, 1);
+    assert_equals(document.styleSheets[0].rules.length, expectedSizes.length);
+}, "Test setup");
+
+for (let i = 0; i < expectedSizes.length; i++) {
+    test(() => {
+        let cssText = document.styleSheets[0].cssRules[i].style.cssText;
+        assert_true(cssText.startsWith(sizePrefix));
+        cssText = cssText.slice(sizePrefix.length);
+        assert_equals(cssText, expectedSizes[i] + ";", "for rule " + i);
+    }, "size: " + expectedSizes[i]);
+}
+</script>

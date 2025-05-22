@@ -28,6 +28,7 @@ public:
         Vector<TextPosition> positions;
     };
     Vector<TextBlock> const& text_blocks();
+    void invalidate_text_blocks_cache() { m_text_blocks.clear(); }
 
     const DOM::Document& dom_node() const { return static_cast<const DOM::Document&>(*Node::dom_node()); }
 

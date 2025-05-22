@@ -34,11 +34,13 @@
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -46,6 +48,7 @@
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
@@ -203,6 +206,12 @@ FontSourceStyleValue const& CSSStyleValue::as_font_source() const
     return static_cast<FontSourceStyleValue const&>(*this);
 }
 
+FontStyleStyleValue const& CSSStyleValue::as_font_style() const
+{
+    VERIFY(is_font_style());
+    return static_cast<FontStyleStyleValue const&>(*this);
+}
+
 FrequencyStyleValue const& CSSStyleValue::as_frequency() const
 {
     VERIFY(is_frequency());
@@ -231,6 +240,12 @@ GridTrackSizeListStyleValue const& CSSStyleValue::as_grid_track_size_list() cons
 {
     VERIFY(is_grid_track_size_list());
     return static_cast<GridTrackSizeListStyleValue const&>(*this);
+}
+
+GuaranteedInvalidStyleValue const& CSSStyleValue::as_guaranteed_invalid() const
+{
+    VERIFY(is_guaranteed_invalid());
+    return static_cast<GuaranteedInvalidStyleValue const&>(*this);
 }
 
 CSSKeywordValue const& CSSStyleValue::as_keyword() const
@@ -279,6 +294,12 @@ OpenTypeTaggedStyleValue const& CSSStyleValue::as_open_type_tagged() const
 {
     VERIFY(is_open_type_tagged());
     return static_cast<OpenTypeTaggedStyleValue const&>(*this);
+}
+
+PendingSubstitutionStyleValue const& CSSStyleValue::as_pending_substitution() const
+{
+    VERIFY(is_pending_substitution());
+    return static_cast<PendingSubstitutionStyleValue const&>(*this);
 }
 
 PercentageStyleValue const& CSSStyleValue::as_percentage() const

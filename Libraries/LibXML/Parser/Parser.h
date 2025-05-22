@@ -222,6 +222,7 @@ private:
 
     Optional<Doctype> m_doctype;
 };
+
 }
 
 template<>

@@ -22,9 +22,9 @@ using namespace AK::SIMD;
 
 namespace Wasm {
 
-#define TRAP_IF_NOT(x)                                                                         \
+#define TRAP_IF_NOT(x, ...)                                                                    \
     do {                                                                                       \
-        if (trap_if_not(x, #x##sv)) {                                                          \
+        if (trap_if_not(x, #x##sv __VA_OPT__(, ) __VA_ARGS__)) {                               \
             dbgln_if(WASM_TRACE_DEBUG, "Trapped because {} failed, at line {}", #x, __LINE__); \
             return;                                                                            \
         }                                                                                      \
@@ -79,7 +79,7 @@ void BytecodeInterpreter::load_and_push(Configuration& configuration, Instructio
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + sizeof(ReadType) > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
         return;
     }
     dbgln_if(WASM_TRACE_DEBUG, "load({} : {}) -> stack", instance_address, sizeof(ReadType));
@@ -104,7 +104,7 @@ void BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + M * N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
         return;
     }
     dbgln_if(WASM_TRACE_DEBUG, "vec-load({} : {}) -> stack", instance_address, M * N / 8);
@@ -169,7 +169,7 @@ void BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, In
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + M / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
         return;
     }
     dbgln_if(WASM_TRACE_DEBUG, "vec-splat({} : {}) -> stack", instance_address, M / 8);
@@ -223,13 +223,16 @@ VectorType BytecodeInterpreter::pop_vector(Configuration& configuration)
     return bit_cast<VectorType>(configuration.value_stack().take_last().to<u128>());
 }
 
-void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address)
+void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address, CallAddressSource source)
 {
-    TRAP_IF_NOT(m_stack_info.size_free() >= Constants::minimum_stack_space_to_keep_free);
+    TRAP_IF_NOT(m_stack_info.size_free() >= Constants::minimum_stack_space_to_keep_free, "{}: {}", Constants::stack_exhaustion_message);
 
     auto instance = configuration.store().get(address);
     FunctionType const* type { nullptr };
     instance->visit([&](auto const& function) { type = &function.type(); });
+    if (source == CallAddressSource::IndirectCall) {
+        TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
+    }
     Vector<Value> args;
     args.ensure_capacity(type->parameters().size());
     auto span = configuration.value_stack().span().slice_from_end(type->parameters().size());
@@ -273,7 +276,7 @@ void BytecodeInterpreter::binary_numeric_operation(Configuration& configuration,
     } else {
         result = call_result;
     }
-    dbgln_if(WASM_TRACE_DEBUG, "{} {} {} = {}", lhs.value(), Operator::name(), rhs.value(), result);
+    dbgln_if(WASM_TRACE_DEBUG, "{} {} {} = {}", lhs, Operator::name(), rhs, result);
     lhs_entry = Value(result);
 }
 
@@ -293,7 +296,7 @@ void BytecodeInterpreter::unary_operation(Configuration& configuration, Args&&..
     } else {
         result = call_result;
     }
-    dbgln_if(WASM_TRACE_DEBUG, "map({}) {} = {}", Operator::name(), *value, result);
+    dbgln_if(WASM_TRACE_DEBUG, "map({}) {} = {}", Operator::name(), value, result);
     entry = Value(result);
 }
 
@@ -357,7 +360,7 @@ void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruct
     addition += data.size();
     if (addition.has_overflow() || addition.value() > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: Memory access out of bounds (expected 0 <= {} and {} <= {})", instance_address, instance_address + data.size(), memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected 0 <= {} and {} <= {})", instance_address, instance_address + data.size(), memory->size());
         return;
     }
     dbgln_if(WASM_TRACE_DEBUG, "temporary({}b) -> store({})", data.size(), instance_address);
@@ -538,8 +541,15 @@ ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& con
         auto element = table_instance->elements()[index];
         TRAP_IF_NOT(element.ref().has<Reference::Func>());
         auto address = element.ref().get<Reference::Func>().address;
+        auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
+        auto const& type_expected = configuration.frame().module().types()[args.type.value()];
+        TRAP_IF_NOT(type_actual.parameters().size() == type_expected.parameters().size());
+        TRAP_IF_NOT(type_actual.results().size() == type_expected.results().size());
+        TRAP_IF_NOT(type_actual.parameters() == type_expected.parameters());
+        TRAP_IF_NOT(type_actual.results() == type_expected.results());
+
         dbgln_if(WASM_TRACE_DEBUG, "call_indirect({} -> {})", index, address.value());
-        call_address(configuration, address);
+        call_address(configuration, address, CallAddressSource::IndirectCall);
         return;
     }
     case Instructions::i32_load.value():
@@ -652,8 +662,11 @@ ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& con
         if (count == 0)
             return;
 
-        for (u32 i = 0; i < count; ++i)
+        for (u32 i = 0; i < count; ++i) {
             store_to_memory(configuration, Instruction::MemoryArgument { 0, 0 }, { &value, sizeof(value) }, destination_offset + i);
+            if (did_trap())
+                return;
+        }
 
         return;
     }
@@ -1669,4 +1682,5 @@ void DebuggerBytecodeInterpreter::interpret_instruction(Configuration& configura
         }
     }
 }
+
 }

@@ -152,6 +152,7 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
 
         case CSSRule::Type::LayerBlock:
         case CSSRule::Type::Media:
+        case CSSRule::Type::Page:
         case CSSRule::Type::Style:
         case CSSRule::Type::Supports:
             static_cast<CSSGroupingRule const&>(*rule).for_each_effective_rule(order, callback);
@@ -161,6 +162,7 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
         case CSSRule::Type::Keyframe:
         case CSSRule::Type::Keyframes:
         case CSSRule::Type::LayerStatement:
+        case CSSRule::Type::Margin:
         case CSSRule::Type::Namespace:
         case CSSRule::Type::NestedDeclarations:
         case CSSRule::Type::Property:
@@ -216,9 +218,11 @@ bool CSSRuleList::evaluate_media_queries(HTML::Window const& window)
         case CSSRule::Type::Keyframe:
         case CSSRule::Type::Keyframes:
         case CSSRule::Type::LayerStatement:
+        case CSSRule::Type::Margin:
         case CSSRule::Type::Namespace:
         case CSSRule::Type::NestedDeclarations:
         case CSSRule::Type::Property:
+        case CSSRule::Type::Page:
             break;
         }
     }

@@ -19,14 +19,6 @@
 
 namespace Web::Infra {
 
-// https://infra.spec.whatwg.org/#ascii-case-insensitive
-bool is_ascii_case_insensitive_match(StringView a, StringView b)
-{
-    // A string A is an ASCII case-insensitive match for a string B,
-    // if the ASCII lowercase of A is the ASCII lowercase of B.
-    return AK::StringUtils::equals_ignoring_ascii_case(a, b);
-}
-
 // https://infra.spec.whatwg.org/#normalize-newlines
 String normalize_newlines(String const& string)
 {
@@ -69,10 +61,12 @@ ErrorOr<String> strip_and_collapse_whitespace(StringView string)
 }
 
 // https://infra.spec.whatwg.org/#code-unit-prefix
-bool is_code_unit_prefix(StringView potential_prefix, StringView input)
+bool is_code_unit_prefix(StringView potential_prefix_utf8, StringView input_utf8)
 {
-    auto potential_prefix_utf16 = utf8_to_utf16(potential_prefix).release_value_but_fixme_should_propagate_errors();
-    auto input_utf16 = utf8_to_utf16(input).release_value_but_fixme_should_propagate_errors();
+    auto potential_prefix_utf16_bytes = MUST(utf8_to_utf16(potential_prefix_utf8));
+    auto input_utf16_bytes = MUST(utf8_to_utf16(input_utf8));
+    Utf16View potential_prefix { potential_prefix_utf16_bytes };
+    Utf16View input { input_utf16_bytes };
 
     // 1. Let i be 0.
     size_t i = 0;
@@ -80,18 +74,18 @@ bool is_code_unit_prefix(StringView potential_prefix, StringView input)
     // 2. While true:
     while (true) {
         // 1. If i is greater than or equal to potentialPrefix’s length, then return true.
-        if (i >= potential_prefix.length())
+        if (i >= potential_prefix.length_in_code_units())
             return true;
 
         // 2. If i is greater than or equal to input’s length, then return false.
-        if (i >= input.length())
+        if (i >= input.length_in_code_units())
             return false;
 
         // 3. Let potentialPrefixCodeUnit be the ith code unit of potentialPrefix.
-        auto potential_prefix_code_unit = Utf16View(potential_prefix_utf16).code_unit_at(i);
+        auto potential_prefix_code_unit = potential_prefix.code_unit_at(i);
 
         // 4. Let inputCodeUnit be the ith code unit of input.
-        auto input_code_unit = Utf16View(input_utf16).code_unit_at(i);
+        auto input_code_unit = input.code_unit_at(i);
 
         // 5. Return false if potentialPrefixCodeUnit is not inputCodeUnit.
         if (potential_prefix_code_unit != input_code_unit)
@@ -114,34 +108,6 @@ ErrorOr<String> convert_to_scalar_value_string(StringView string)
         scalar_value_builder.append_code_point(code_point);
     }
     return scalar_value_builder.to_string();
-}
-
-// https://infra.spec.whatwg.org/#ascii-lowercase
-ErrorOr<String> to_ascii_lowercase(StringView string)
-{
-    // To ASCII lowercase a string, replace all ASCII upper alphas in the string with their
-    // corresponding code point in ASCII lower alpha.
-    StringBuilder string_builder;
-    auto utf8_view = Utf8View { string };
-    for (u32 code_point : utf8_view) {
-        code_point = AK::to_ascii_lowercase(code_point);
-        string_builder.append_code_point(code_point);
-    }
-    return string_builder.to_string();
-}
-
-// https://infra.spec.whatwg.org/#ascii-uppercase
-ErrorOr<String> to_ascii_uppercase(StringView string)
-{
-    // To ASCII uppercase a string, replace all ASCII lower alphas in the string with their
-    // corresponding code point in ASCII upper alpha.
-    StringBuilder string_builder;
-    auto utf8_view = Utf8View { string };
-    for (u32 code_point : utf8_view) {
-        code_point = AK::to_ascii_uppercase(code_point);
-        string_builder.append_code_point(code_point);
-    }
-    return string_builder.to_string();
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-encode
@@ -176,33 +142,15 @@ String isomorphic_decode(ReadonlyBytes input)
 // https://infra.spec.whatwg.org/#code-unit-less-than
 bool code_unit_less_than(StringView a, StringView b)
 {
-    // 1. If b is a code unit prefix of a, then return false.
-    if (is_code_unit_prefix(b, a))
-        return false;
+    // FIXME: Perhaps there is a faster way to do this?
 
-    // 2. If a is a code unit prefix of b, then return true.
-    if (is_code_unit_prefix(a, b))
-        return true;
+    // Fastpath for ASCII-only strings.
+    if (a.is_ascii() && b.is_ascii())
+        return a < b;
 
-    auto code_units_a = MUST(utf8_to_utf16(a));
-    auto code_units_b = MUST(utf8_to_utf16(b));
-
-    auto view_a = Utf16View(code_units_a);
-    auto view_b = Utf16View(code_units_b);
-
-    // 3. Let n be the smallest index such that the nth code unit of a is different from the nth code unit of b.
-    //    (There has to be such an index, since neither string is a prefix of the other.)
-    size_t n = 0;
-    size_t min_length = min(view_a.length_in_code_units(), view_b.length_in_code_units());
-    while (n < min_length && view_a.code_unit_at(n) == view_b.code_unit_at(n))
-        ++n;
-
-    // 4. If the nth code unit of a is less than the nth code unit of b, then return true.
-    if (view_a.code_unit_at(n) < view_b.code_unit_at(n))
-        return true;
-
-    // 5. Return false.
-    return false;
+    auto a_utf16 = MUST(utf8_to_utf16(a));
+    auto b_utf16 = MUST(utf8_to_utf16(b));
+    return Utf16View { a_utf16 }.is_code_unit_less_than(Utf16View { b_utf16 });
 }
 
 }

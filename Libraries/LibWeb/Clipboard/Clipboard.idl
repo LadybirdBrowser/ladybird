@@ -1,12 +1,17 @@
+#import <Clipboard/ClipboardItem.idl>
 #import <DOM/EventTarget.idl>
 
-// FIXME: typedef sequence<ClipboardItem> ClipboardItems;
+typedef sequence<ClipboardItem> ClipboardItems;
 
 // https://w3c.github.io/clipboard-apis/#clipboard
 [SecureContext, Exposed=Window]
 interface Clipboard : EventTarget {
-    [FIXME] Promise<ClipboardItems> read();
-    [FIXME] Promise<DOMString> readText();
-    [FIXME] Promise<undefined> write(ClipboardItems data);
+    Promise<ClipboardItems> read(optional ClipboardUnsanitizedFormats formats = {});
+    Promise<DOMString> readText();
+    Promise<undefined> write(ClipboardItems data);
     Promise<undefined> writeText(DOMString data);
+};
+
+dictionary ClipboardUnsanitizedFormats {
+    sequence<DOMString> unsanitized;
 };

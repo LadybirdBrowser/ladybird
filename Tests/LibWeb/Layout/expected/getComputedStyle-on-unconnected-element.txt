@@ -1,11 +1,11 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x38 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x22 children: inline
-      frag 0 from TextNode start: 0, length: 35, rect: [8,8 362.75x22] baseline: 17
+  BlockContainer <html> at (0,0) content-size 800x39 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x23 children: inline
+      frag 0 from TextNode start: 0, length: 35, rect: [8,8 362.75x23] baseline: 17.5
           "This test passes if we don't crash."
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x38]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x22]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x39]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x23]
       TextPaintable (TextNode<#text>)

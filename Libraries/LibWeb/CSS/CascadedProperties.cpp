@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS {
+
 GC_DEFINE_ALLOCATOR(CascadedProperties);
 
 CascadedProperties::CascadedProperties() = default;

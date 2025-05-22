@@ -9,12 +9,18 @@
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
+#include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSKeyframeRule.h>
+#include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
+#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
+#include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -24,7 +30,6 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoClass.h>
-#include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -421,7 +426,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         };
         Vector<NameAndValue> properties;
         as<DOM::Element>(*layout_node.dom_node()).computed_properties()->for_each_property([&](auto property_id, auto& value) {
-            properties.append({ CSS::string_from_property_id(property_id), value.to_string(CSS::CSSStyleValue::SerializationMode::Normal) });
+            properties.append({ CSS::string_from_property_id(property_id), value.to_string(CSS::SerializationMode::Normal) });
         });
         quick_sort(properties, [](auto& a, auto& b) { return a.name < b.name; });
 
@@ -577,7 +582,7 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                     break;
                 }
                 case CSS::PseudoClassMetadata::ParameterType::Ident:
-                    builder.appendff("(keyword={})", string_from_keyword(pseudo_class.keyword.value()));
+                    builder.appendff("(ident={})", pseudo_class.ident->string_value);
                     break;
                 case CSS::PseudoClassMetadata::ParameterType::LanguageRanges: {
                     builder.append('(');
@@ -590,7 +595,7 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
 
             if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
                 auto const& pseudo_element = simple_selector.pseudo_element();
-                builder.appendff(" pseudo_element={}", CSS::pseudo_element_name(pseudo_element.type()));
+                builder.appendff(" pseudo_element={}", pseudo_element.serialize());
                 auto pseudo_element_metadata = CSS::pseudo_element_metadata(pseudo_element.type());
 
                 switch (pseudo_element_metadata.parameter_type) {
@@ -672,14 +677,19 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
         dump_import_rule(builder, as<CSS::CSSImportRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Keyframe:
+        dump_keyframe_rule(builder, as<CSS::CSSKeyframeRule const>(rule), indent_levels);
+        break;
     case CSS::CSSRule::Type::Keyframes:
-        // TODO: Dump them!
+        dump_keyframes_rule(builder, as<CSS::CSSKeyframesRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::LayerBlock:
         dump_layer_block_rule(builder, as<CSS::CSSLayerBlockRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::LayerStatement:
         dump_layer_statement_rule(builder, as<CSS::CSSLayerStatementRule const>(rule), indent_levels);
+        break;
+    case CSS::CSSRule::Type::Margin:
+        dump_margin_rule(builder, as<CSS::CSSMarginRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Media:
         dump_media_rule(builder, as<CSS::CSSMediaRule const>(rule), indent_levels);
@@ -690,110 +700,49 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
     case CSS::CSSRule::Type::NestedDeclarations:
         dump_nested_declarations(builder, as<CSS::CSSNestedDeclarations const>(rule), indent_levels);
         break;
+    case CSS::CSSRule::Type::Page:
+        dump_page_rule(builder, as<CSS::CSSPageRule const>(rule), indent_levels);
+        break;
+    case CSS::CSSRule::Type::Property:
+        dump_property_rule(builder, as<CSS::CSSPropertyRule const>(rule), indent_levels);
+        break;
     case CSS::CSSRule::Type::Style:
         dump_style_rule(builder, as<CSS::CSSStyleRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Supports:
         dump_supports_rule(builder, as<CSS::CSSSupportsRule const>(rule), indent_levels);
         break;
-    case CSS::CSSRule::Type::Property:
-        dump_property_rule(builder, as<CSS::CSSPropertyRule const>(rule), indent_levels);
-        break;
     }
 }
 
 void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rule, int indent_levels)
 {
-    auto const font_face = rule.font_face();
     indent(builder, indent_levels + 1);
     builder.appendff("VALID: {}\n", rule.is_valid());
-
-    indent(builder, indent_levels + 1);
-    builder.appendff("font-family: {}\n", font_face.font_family());
-
-    if (font_face.weight().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.appendff("weight: {}\n", font_face.weight().value());
-    }
-
-    if (font_face.slope().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.appendff("slope: {}\n", font_face.slope().value());
-    }
-
-    if (font_face.width().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.appendff("width: {}\n", font_face.width().value());
-    }
-
-    indent(builder, indent_levels + 1);
-    builder.append("sources:\n"sv);
-    for (auto const& source : font_face.sources()) {
-        indent(builder, indent_levels + 2);
-        if (source.local_or_url.has<URL::URL>())
-            builder.appendff("url={}, format={}\n", source.local_or_url.get<URL::URL>(), source.format.value_or("???"_string));
-        else
-            builder.appendff("local={}\n", source.local_or_url.get<FlyString>());
-    }
-
-    indent(builder, indent_levels + 1);
-    builder.append("unicode-ranges:\n"sv);
-    for (auto const& unicode_range : font_face.unicode_ranges()) {
-        indent(builder, indent_levels + 2);
-        builder.appendff("{}\n", unicode_range.to_string());
-    }
-
-    if (font_face.ascent_override().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.appendff("ascent-override: {}\n", font_face.ascent_override().value());
-    }
-    if (font_face.descent_override().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.appendff("descent-override: {}\n", font_face.descent_override().value());
-    }
-    if (font_face.line_gap_override().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.appendff("line-gap-override: {}\n", font_face.line_gap_override().value());
-    }
-
-    indent(builder, indent_levels + 1);
-    builder.appendff("display: {}\n", CSS::to_string(font_face.font_display()));
-
-    if (font_face.font_named_instance().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.appendff("named-instance: {}\n", font_face.font_named_instance().value());
-    }
-
-    if (font_face.font_language_override().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.appendff("language-override: {}\n", font_face.font_language_override().value());
-    }
-
-    if (font_face.font_feature_settings().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.append("feature-settings:"sv);
-        auto const& entries = font_face.font_feature_settings().value();
-        for (auto const& [name, value] : entries) {
-            builder.appendff(" {}={}", name, value);
-        }
-        builder.append("\n"sv);
-    }
-
-    if (font_face.font_variation_settings().has_value()) {
-        indent(builder, indent_levels + 1);
-        builder.append("variation-settings:"sv);
-        auto const& entries = font_face.font_variation_settings().value();
-        for (auto const& [name, value] : entries) {
-            builder.appendff(" {}={}", name, value);
-        }
-        builder.append("\n"sv);
-    }
+    dump_descriptors(builder, rule.descriptors(), indent_levels + 1);
 }
 
 void dump_import_rule(StringBuilder& builder, CSS::CSSImportRule const& rule, int indent_levels)
 {
     indent(builder, indent_levels);
     builder.appendff("  Document URL: {}\n", rule.url().to_string());
+}
+
+void dump_keyframe_rule(StringBuilder& builder, CSS::CSSKeyframeRule const& keyframe, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("Key: {}\n"sv, keyframe.key_text());
+    dump_style_properties(builder, keyframe.style(), indent_levels + 1);
+}
+
+void dump_keyframes_rule(StringBuilder& builder, CSS::CSSKeyframesRule const& keyframes, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("Name: {}\n", keyframes.name());
+    indent(builder, indent_levels + 1);
+    builder.appendff("Keyframes ({}):\n", keyframes.length());
+    for (auto& rule : *keyframes.css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 void dump_layer_block_rule(StringBuilder& builder, CSS::CSSLayerBlockRule const& layer_block, int indent_levels)
@@ -822,6 +771,25 @@ void dump_media_rule(StringBuilder& builder, CSS::CSSMediaRule const& media, int
 
     for (auto& rule : media.css_rules())
         dump_rule(builder, rule, indent_levels + 2);
+}
+
+void dump_page_rule(StringBuilder& builder, CSS::CSSPageRule const& page, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("selector: {}\n", page.selector_text());
+    dump_descriptors(builder, page.descriptors(), indent_levels + 1);
+
+    indent(builder, indent_levels + 1);
+    builder.appendff("  Rules ({}):\n", page.css_rules().length());
+    for (auto& rule : page.css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
+}
+
+void dump_margin_rule(StringBuilder& builder, CSS::CSSMarginRule const& margin, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("name: {}\n", margin.name());
+    dump_style_properties(builder, margin.style(), indent_levels + 1);
 }
 
 void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supports, int indent_levels)
@@ -859,16 +827,27 @@ void dump_style_properties(StringBuilder& builder, CSS::CSSStyleProperties const
     builder.appendff("Declarations ({}):\n", declaration.length());
     for (auto& property : declaration.properties()) {
         indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
+        builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string(CSS::SerializationMode::Normal));
         if (property.important == CSS::Important::Yes)
             builder.append(" \033[31;1m!important\033[0m"sv);
         builder.append('\n');
     }
     for (auto& property : declaration.custom_properties()) {
         indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", property.key, property.value.value->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
+        builder.appendff("  {}: '{}'", property.key, property.value.value->to_string(CSS::SerializationMode::Normal));
         if (property.value.important == CSS::Important::Yes)
             builder.append(" \033[31;1m!important\033[0m"sv);
+        builder.append('\n');
+    }
+}
+
+void dump_descriptors(StringBuilder& builder, CSS::CSSDescriptors const& descriptors, int indent_levels)
+{
+    indent(builder, indent_levels);
+    builder.appendff("Declarations ({}):\n", descriptors.length());
+    for (auto const& descriptor : descriptors.descriptors()) {
+        indent(builder, indent_levels);
+        builder.appendff("  {}: '{}'", CSS::to_string(descriptor.descriptor_id), descriptor.value->to_string(CSS::SerializationMode::Normal));
         builder.append('\n');
     }
 }
@@ -972,4 +951,5 @@ void dump_nested_declarations(StringBuilder& builder, CSS::CSSNestedDeclarations
     builder.append("  Nested declarations:\n"sv);
     dump_style_properties(builder, declarations.declaration(), indent_levels + 1);
 }
+
 }

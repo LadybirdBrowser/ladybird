@@ -13,7 +13,7 @@ interface SVGElement : Element {
     [SameObject] readonly attribute SVGAnimatedString className;
 
     readonly attribute SVGSVGElement? ownerSVGElement;
-    [FIXME] readonly attribute SVGElement? viewportElement;
+    readonly attribute SVGElement? viewportElement;
 };
 
 SVGElement includes GlobalEventHandlers;

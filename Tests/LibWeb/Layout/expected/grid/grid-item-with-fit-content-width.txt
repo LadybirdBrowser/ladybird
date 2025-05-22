@@ -1,13 +1,13 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x37 [BFC] children: not-inline
-    Box <body> at (10,10) content-size 780x19 [GFC] children: not-inline
-      BlockContainer <div.inner> at (11,11) content-size 132.828125x17 [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 15, rect: [11,11 132.828125x17] baseline: 13.296875
+  BlockContainer <html> at (1,1) content-size 798x38 [BFC] children: not-inline
+    Box <body> at (10,10) content-size 780x20 [GFC] children: not-inline
+      BlockContainer <div.inner> at (11,11) content-size 132.828125x18 [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 15, rect: [11,11 132.828125x18] baseline: 13.796875
             "Press and Media"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x39]
-    PaintableBox (Box<BODY>) [9,9 782x21]
-      PaintableWithLines (BlockContainer<DIV>.inner) [10,10 134.828125x19]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
+    PaintableBox (Box<BODY>) [9,9 782x22]
+      PaintableWithLines (BlockContainer<DIV>.inner) [10,10 134.828125x20]
         TextPaintable (TextNode<#text>)

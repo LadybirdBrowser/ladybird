@@ -30,7 +30,7 @@ private:
     virtual i32 default_tab_index_value() const override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
-    void process_the_frame_attributes(bool initial_insertion = false);
+    void process_the_frame_attributes(InitialInsertion = InitialInsertion::No);
 };
 
 }

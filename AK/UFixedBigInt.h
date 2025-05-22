@@ -21,6 +21,7 @@
 namespace AK {
 
 namespace Detail {
+
 // As noted near the declaration of StaticStorage, bit_size is more like a hint for a storage size.
 // The effective bit size is `sizeof(StaticStorage<...>) * 8`. It is a programmer's responsibility
 // to ensure that the hinted bit_size is always greater than the actual integer size.
@@ -497,6 +498,7 @@ bool operator==(BuiltInUFixedInt auto const& a, NotBuiltInUFixedInt auto const& 
 int operator<=>(BuiltInUFixedInt auto const& a, NotBuiltInUFixedInt auto const& b) { return -b.operator<=>(a); }
 bool operator==(IntegerWrapper const& a, NotBuiltInUFixedInt auto const& b) { return b.operator==(a); }
 int operator<=>(IntegerWrapper const& a, NotBuiltInUFixedInt auto const& b) { return -b.operator<=>(a); }
+
 }
 
 using Detail::UFixedBigInt;
@@ -645,6 +647,7 @@ struct Formatter<T> : StandardFormatter {
         return {};
     }
 };
+
 }
 
 // these sizes should suffice for most usecases

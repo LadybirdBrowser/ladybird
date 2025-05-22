@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/SetIterator.h>
+#include <LibJS/Runtime/SetIteratorPrototype.h>
 
 namespace JS {
 
@@ -22,6 +23,8 @@ SetIterator::SetIterator(Set& set, Object::PropertyKind iteration_kind, Object& 
     , m_iteration_kind(iteration_kind)
     , m_iterator(static_cast<Set const&>(set).begin())
 {
+    auto& set_iterator_prototype = as<SetIteratorPrototype>(prototype);
+    m_next_method_was_redefined = set_iterator_prototype.next_method_was_redefined();
 }
 
 void SetIterator::visit_edges(Cell::Visitor& visitor)

@@ -243,7 +243,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
             auto copy_initializer = m_initializer;
             auto name = property_key_or_private_name.visit(
                 [&](PropertyKey const& property_key) -> String {
-                    return property_key.is_number() ? property_key.to_string() : property_key.to_string_or_symbol().to_display_string();
+                    return property_key.to_string();
                 },
                 [&](PrivateName const& private_name) -> String {
                     return private_name.description.to_string();
@@ -826,7 +826,7 @@ void BindingPattern::dump(int indent) const
     }
 }
 
-FunctionNode::FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<FlyString> local_variables_names)
+FunctionNode::FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<LocalVariable> local_variables_names)
     : m_name(move(name))
     , m_source_text(move(source_text))
     , m_body(move(body))
@@ -1158,6 +1158,8 @@ void VariableDeclaration::dump(int indent) const
 {
     char const* declaration_kind_string = nullptr;
     switch (m_declaration_kind) {
+    case DeclarationKind::None:
+        VERIFY_NOT_REACHED();
     case DeclarationKind::Let:
         declaration_kind_string = "Let";
         break;

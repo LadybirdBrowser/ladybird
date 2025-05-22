@@ -90,6 +90,7 @@ private:
     double m_value { 0 };
     Type m_type;
 };
+
 }
 
 template<>

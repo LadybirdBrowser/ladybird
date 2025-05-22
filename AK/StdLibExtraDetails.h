@@ -119,9 +119,9 @@ inline constexpr bool IsFunction<Ret(Args...) const volatile> = true;
 template<class Ret, class... Args>
 inline constexpr bool IsFunction<Ret(Args..., ...) const volatile> = true;
 template<class Ret, class... Args>
-inline constexpr bool IsFunction<Ret(Args...)&> = true;
+inline constexpr bool IsFunction<Ret(Args...) &> = true;
 template<class Ret, class... Args>
-inline constexpr bool IsFunction<Ret(Args..., ...)&> = true;
+inline constexpr bool IsFunction<Ret(Args..., ...) &> = true;
 template<class Ret, class... Args>
 inline constexpr bool IsFunction<Ret(Args...) const&> = true;
 template<class Ret, class... Args>
@@ -292,12 +292,6 @@ template<>
 struct __MakeUnsigned<bool> {
     using Type = bool;
 };
-#if ARCH(AARCH64)
-template<>
-struct __MakeUnsigned<wchar_t> {
-    using Type = wchar_t;
-};
-#endif
 
 template<typename T>
 using MakeUnsigned = typename __MakeUnsigned<T>::Type;
@@ -660,6 +654,7 @@ using EquivalentFunctionType = typename EquivalentFunctionTypeImpl<Callable>::Ty
 
 #if !USING_AK_GLOBALLY
 namespace AK {
+
 #endif
 using AK::Detail::AddConst;
 using AK::Detail::AddConstToReferencedType;
@@ -738,5 +733,6 @@ using AK::Detail::TrueType;
 using AK::Detail::UnderlyingType;
 using AK::Detail::Void;
 #if !USING_AK_GLOBALLY
+
 }
 #endif

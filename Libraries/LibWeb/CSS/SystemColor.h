@@ -31,4 +31,5 @@ Color mark_text(PreferredColorScheme);
 Color selected_item(PreferredColorScheme);
 Color selected_item_text(PreferredColorScheme);
 Color visited_text(PreferredColorScheme);
+
 }

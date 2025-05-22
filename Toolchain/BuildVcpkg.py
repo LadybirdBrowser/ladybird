@@ -38,8 +38,9 @@ def main() -> int:
             cwd=vcpkg_checkout
         )
     else:
-        bootstrapped_vcpkg_version = subprocess.check_output(
-            ["git", "-C", vcpkg_checkout, "rev-parse", "HEAD"]).strip().decode()
+        bootstrapped_vcpkg_version = (
+            subprocess.check_output(["git", "-C", vcpkg_checkout, "rev-parse", "HEAD"]).strip().decode()
+        )
 
         if bootstrapped_vcpkg_version == git_rev:
             return 0
@@ -62,8 +63,9 @@ def main() -> int:
     print(f"Building vcpkg@{git_rev}")
 
     bootstrap_script = "bootstrap-vcpkg.bat" if os.name == 'nt' else "bootstrap-vcpkg.sh"
-    subprocess.check_call(
-        args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
+    subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
+    bootstrap_script = "bootstrap-vcpkg.bat" if os.name == "nt" else "bootstrap-vcpkg.sh"
+    subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
 
     return 0
 

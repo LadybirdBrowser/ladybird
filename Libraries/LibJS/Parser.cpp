@@ -292,17 +292,28 @@ public:
             auto const& identifier_group_name = it.key;
             auto& identifier_group = it.value;
 
-            bool scope_has_declaration = false;
-            if (is_top_level() && m_var_names.contains(identifier_group_name))
-                scope_has_declaration = true;
-            else if (m_lexical_names.contains(identifier_group_name) || m_function_names.contains(identifier_group_name))
-                scope_has_declaration = true;
+            if (identifier_group.declaration_kind.has_value()) {
+                for (auto& identifier : identifier_group.identifiers) {
+                    identifier->set_declaration_kind(identifier_group.declaration_kind.value());
+                }
+            }
 
-            if (m_type == ScopeType::Function && !m_is_arrow_function && identifier_group_name == "arguments"sv)
-                scope_has_declaration = true;
+            Optional<LocalVariable::DeclarationKind> local_variable_declaration_kind;
+            if (is_top_level() && m_var_names.contains(identifier_group_name)) {
+                local_variable_declaration_kind = LocalVariable::DeclarationKind::Var;
+            } else if (m_lexical_names.contains(identifier_group_name)) {
+                local_variable_declaration_kind = LocalVariable::DeclarationKind::LetOrConst;
+            } else if (m_function_names.contains(identifier_group_name)) {
+                local_variable_declaration_kind = LocalVariable::DeclarationKind::Function;
+            }
 
-            if (m_type == ScopeType::Catch && m_catch_parameter_names.contains(identifier_group_name))
-                scope_has_declaration = true;
+            if (m_type == ScopeType::Function && !m_is_arrow_function && identifier_group_name == "arguments"sv) {
+                local_variable_declaration_kind = LocalVariable::DeclarationKind::ArgumentsObject;
+            }
+
+            if (m_type == ScopeType::Catch && m_catch_parameter_names.contains(identifier_group_name)) {
+                local_variable_declaration_kind = LocalVariable::DeclarationKind::CatchClauseParameter;
+            }
 
             bool hoistable_function_declaration = false;
             for (auto const& function_declaration : m_functions_to_hoist) {
@@ -323,7 +334,7 @@ public:
 
             if (m_type == ScopeType::ClassDeclaration) {
                 // NOTE: Class declaration doesn't not have own ScopeNode hence can't contain declaration of any variable
-                scope_has_declaration = false;
+                local_variable_declaration_kind.clear();
             }
 
             bool is_function_parameter = false;
@@ -347,7 +358,7 @@ public:
                     for (auto& identifier : identifier_group.identifiers)
                         identifier->set_is_global();
                 }
-            } else if (scope_has_declaration || is_function_parameter) {
+            } else if (local_variable_declaration_kind.has_value() || is_function_parameter) {
                 if (hoistable_function_declaration)
                     continue;
 
@@ -374,7 +385,7 @@ public:
                         for (auto& identifier : identifier_group.identifiers)
                             identifier->set_argument_index(argument_index.value());
                     } else {
-                        auto local_variable_index = local_scope->m_node->add_local_variable(identifier_group_name);
+                        auto local_variable_index = local_scope->m_node->add_local_variable(identifier_group_name, *local_variable_declaration_kind);
                         for (auto& identifier : identifier_group.identifiers)
                             identifier->set_local_variable_index(local_variable_index);
                     }
@@ -1650,7 +1661,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             constructor = create_ast_node<FunctionExpression>(
                 { m_source_code, rule_start.position(), position() }, class_name, "",
                 move(constructor_body), FunctionParameters::create(Vector { FunctionParameter { move(argument_name), nullptr, true } }), 0, FunctionKind::Normal,
-                /* is_strict_mode */ true, parsing_insights, /* local_variables_names */ Vector<FlyString> {});
+                /* is_strict_mode */ true, parsing_insights, /* local_variables_names */ Vector<LocalVariable> {});
         } else {
             FunctionParsingInsights parsing_insights;
             parsing_insights.uses_this_from_environment = true;
@@ -1658,7 +1669,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             constructor = create_ast_node<FunctionExpression>(
                 { m_source_code, rule_start.position(), position() }, class_name, "",
                 move(constructor_body), FunctionParameters::empty(), 0, FunctionKind::Normal,
-                /* is_strict_mode */ true, parsing_insights, /* local_variables_names */ Vector<FlyString> {});
+                /* is_strict_mode */ true, parsing_insights, /* local_variables_names */ Vector<LocalVariable> {});
         }
     }
 

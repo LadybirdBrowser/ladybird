@@ -57,7 +57,7 @@ static Value property_key_to_value(VM& vm, PropertyKey const& property_key)
         return PrimitiveString::create(vm, property_key.as_string());
 
     VERIFY(property_key.is_number());
-    return PrimitiveString::create(vm, ByteString::number(property_key.as_number()));
+    return PrimitiveString::create(vm, String::number(property_key.as_number()));
 }
 
 // 10.5.1 [[GetPrototypeOf]] ( ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-getprototypeof
@@ -535,7 +535,7 @@ ThrowCompletionOr<Value> ProxyObject::internal_get(PropertyKey const& property_k
 }
 
 // 10.5.9 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
-ThrowCompletionOr<bool> ProxyObject::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*)
+ThrowCompletionOr<bool> ProxyObject::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*, PropertyLookupPhase)
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Time.h"
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
 
@@ -26,8 +26,10 @@ Time Time::percentage_of(Percentage const& percentage) const
     return Time { percentage.as_fraction() * m_value, m_type };
 }
 
-String Time::to_string() const
+String Time::to_string(SerializationMode serialization_mode) const
 {
+    if (serialization_mode == SerializationMode::ResolvedValue)
+        return MUST(String::formatted("{}s", to_seconds()));
     return MUST(String::formatted("{}{}", raw_value(), unit_name()));
 }
 

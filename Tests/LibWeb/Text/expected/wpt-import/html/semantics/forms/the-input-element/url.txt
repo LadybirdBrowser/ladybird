@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	url type supported on input element
+Pass	The value must not be set with "LF" (U+000A) or "CR" (U+000D)
+Pass	The value sanitization algorithm is as follows: Strip line breaks from the value
+Pass	The value sanitization algorithm is as follows: Strip leading and trailing whitespace from the value.

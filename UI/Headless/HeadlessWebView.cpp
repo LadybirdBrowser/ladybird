@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -125,6 +125,20 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
 
         m_pending_dialog = Web::Page::PendingDialog::None;
         m_pending_prompt_text.clear();
+    };
+
+    on_insert_clipboard_entry = [this](Web::Clipboard::SystemClipboardRepresentation entry, auto const&) {
+        Web::Clipboard::SystemClipboardItem item;
+        item.system_clipboard_representations.append(move(entry));
+
+        m_clipboard = move(item);
+    };
+
+    on_request_clipboard_entries = [this](auto request_id) {
+        if (m_clipboard.has_value())
+            retrieved_clipboard_entries(request_id, { { *m_clipboard } });
+        else
+            retrieved_clipboard_entries(request_id, {});
     };
 
     m_system_visibility_state = Web::HTML::VisibilityState::Visible;

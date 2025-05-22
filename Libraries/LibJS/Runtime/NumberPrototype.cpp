@@ -104,7 +104,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
     // 7. Let s be the empty String.
     auto sign = ""sv;
 
-    ByteString number_string;
+    String number_string;
     int exponent = 0;
 
     // 8. If x < 0, then
@@ -119,7 +119,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
     // 9. If x = 0, then
     if (number == 0) {
         // a. Let m be the String value consisting of f + 1 occurrences of the code unit 0x0030 (DIGIT ZERO).
-        number_string = ByteString::repeated('0', fraction_digits + 1);
+        number_string = MUST(String::repeated('0', fraction_digits + 1));
 
         // b. Let e be 0.
         exponent = 0;
@@ -147,23 +147,23 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
         number = round(number / pow(10, exponent - fraction_digits));
 
         // c. Let m be the String value consisting of the digits of the decimal representation of n (in order, with no leading zeroes).
-        number_string = number_to_byte_string(number, NumberToStringMode::WithoutExponent);
+        number_string = number_to_string(number, NumberToStringMode::WithoutExponent);
     }
 
     // 11. If f ≠ 0, then
     if (fraction_digits != 0) {
         // a. Let a be the first code unit of m.
-        auto first = number_string.substring_view(0, 1);
+        auto first = number_string.bytes_as_string_view().substring_view(0, 1);
 
         // b. Let b be the other f code units of m.
-        auto second = number_string.substring_view(1);
+        auto second = number_string.bytes_as_string_view().substring_view(1);
 
         // c. Set m to the string-concatenation of a, ".", and b.
-        number_string = ByteString::formatted("{}.{}", first, second);
+        number_string = MUST(String::formatted("{}.{}", first, second));
     }
 
     char exponent_sign = 0;
-    ByteString exponent_string;
+    String exponent_string;
 
     // 12. If e = 0, then
     if (exponent == 0) {
@@ -171,7 +171,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
         exponent_sign = '+';
 
         // b. Let d be "0".
-        exponent_string = "0"sv;
+        exponent_string = "0"_string;
     }
     // 13. Else,
     else {
@@ -192,12 +192,12 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
         }
 
         // c. Let d be the String value consisting of the digits of the decimal representation of e (in order, with no leading zeroes).
-        exponent_string = ByteString::number(exponent);
+        exponent_string = String::number(exponent);
     }
 
     // 14. Set m to the string-concatenation of m, "e", c, and d.
     // 15. Return the string-concatenation of s and m.
-    return PrimitiveString::create(vm, ByteString::formatted("{}{}e{}{}", sign, number_string, exponent_sign, exponent_string));
+    return PrimitiveString::create(vm, MUST(String::formatted("{}{}e{}{}", sign, number_string, exponent_sign, exponent_string)));
 }
 
 // 21.1.3.3 Number.prototype.toFixed ( fractionDigits ), https://tc39.es/ecma262/#sec-number.prototype.tofixed
@@ -307,7 +307,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_precision)
     // 7. Let s be the empty String.
     auto sign = ""sv;
 
-    ByteString number_string;
+    String number_string;
     int exponent = 0;
 
     // 8. If x < 0, then
@@ -322,7 +322,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_precision)
     // 9. If x = 0, then
     if (number == 0) {
         // a. Let m be the String value consisting of p occurrences of the code unit 0x0030 (DIGIT ZERO).
-        number_string = ByteString::repeated('0', precision);
+        number_string = MUST(String::repeated('0', precision));
 
         // b. Let e be 0.
         exponent = 0;
@@ -335,7 +335,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_precision)
         number = round(number / pow(10, exponent - precision + 1));
 
         // b. Let m be the String value consisting of the digits of the decimal representation of n (in order, with no leading zeroes).
-        number_string = number_to_byte_string(number, NumberToStringMode::WithoutExponent);
+        number_string = number_to_string(number, NumberToStringMode::WithoutExponent);
 
         // c. If e < -6 or e ≥ p, then
         if ((exponent < -6) || (exponent >= precision)) {
@@ -345,13 +345,13 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_precision)
             // ii. If p ≠ 1, then
             if (precision != 1) {
                 // 1. Let a be the first code unit of m.
-                auto first = number_string.substring_view(0, 1);
+                auto first = number_string.bytes_as_string_view().substring_view(0, 1);
 
                 // 2. Let b be the other p - 1 code units of m.
-                auto second = number_string.substring_view(1);
+                auto second = number_string.bytes_as_string_view().substring_view(1);
 
                 // 3. Set m to the string-concatenation of a, ".", and b.
-                number_string = ByteString::formatted("{}.{}", first, second);
+                number_string = MUST(String::formatted("{}.{}", first, second));
             }
 
             char exponent_sign = 0;
@@ -374,36 +374,36 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_precision)
             }
 
             // v. Let d be the String value consisting of the digits of the decimal representation of e (in order, with no leading zeroes).
-            auto exponent_string = ByteString::number(exponent);
+            auto exponent_string = String::number(exponent);
 
             // vi. Return the string-concatenation of s, m, the code unit 0x0065 (LATIN SMALL LETTER E), c, and d.
-            return PrimitiveString::create(vm, ByteString::formatted("{}{}e{}{}", sign, number_string, exponent_sign, exponent_string));
+            return PrimitiveString::create(vm, MUST(String::formatted("{}{}e{}{}", sign, number_string, exponent_sign, exponent_string)));
         }
     }
 
     // 11. If e = p - 1, return the string-concatenation of s and m.
     if (exponent == precision - 1)
-        return PrimitiveString::create(vm, ByteString::formatted("{}{}", sign, number_string));
+        return PrimitiveString::create(vm, MUST(String::formatted("{}{}", sign, number_string)));
 
     // 12. If e ≥ 0, then
     if (exponent >= 0) {
         // a. Set m to the string-concatenation of the first e + 1 code units of m, the code unit 0x002E (FULL STOP), and the remaining p - (e + 1) code units of m.
-        number_string = ByteString::formatted(
+        number_string = MUST(String::formatted(
             "{}.{}",
-            number_string.substring_view(0, exponent + 1),
-            number_string.substring_view(exponent + 1));
+            number_string.bytes_as_string_view().substring_view(0, exponent + 1),
+            number_string.bytes_as_string_view().substring_view(exponent + 1)));
     }
     // 13. Else,
     else {
         // a. Set m to the string-concatenation of the code unit 0x0030 (DIGIT ZERO), the code unit 0x002E (FULL STOP), -(e + 1) occurrences of the code unit 0x0030 (DIGIT ZERO), and the String m.
-        number_string = ByteString::formatted(
+        number_string = MUST(String::formatted(
             "0.{}{}",
-            ByteString::repeated('0', -1 * (exponent + 1)),
-            number_string);
+            MUST(String::repeated('0', -1 * (exponent + 1))),
+            number_string));
     }
 
     // 14. Return the string-concatenation of s and m.
-    return PrimitiveString::create(vm, ByteString::formatted("{}{}", sign, number_string));
+    return PrimitiveString::create(vm, MUST(String::formatted("{}{}", sign, number_string)));
 }
 
 // 21.1.3.6 Number.prototype.toString ( [ radix ] ), https://tc39.es/ecma262/#sec-number.prototype.tostring
@@ -486,7 +486,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_string)
             characters.take_last();
     }
 
-    return PrimitiveString::create(vm, ByteString(characters.data(), characters.size()));
+    return PrimitiveString::create(vm, String::from_utf8_without_validation(ReadonlyBytes { characters.data(), characters.size() }));
 }
 
 // 21.1.3.7 Number.prototype.valueOf ( ), https://tc39.es/ecma262/#sec-number.prototype.valueof

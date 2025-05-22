@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 
 namespace Web::CSS::Parser {
@@ -25,8 +26,12 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
         return RuleContext::AtSupports;
     case CSSRule::Type::LayerBlock:
         return RuleContext::AtLayer;
+    case CSSRule::Type::Margin:
+        return RuleContext::Margin;
     case CSSRule::Type::NestedDeclarations:
         return RuleContext::Style;
+    case CSSRule::Type::Page:
+        return RuleContext::AtPage;
     case CSSRule::Type::Property:
         return RuleContext::AtProperty;
         // Other types shouldn't be trying to create a context.
@@ -40,18 +45,22 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
 
 RuleContext rule_context_type_for_at_rule(FlyString const& name)
 {
-    if (name == "media")
+    if (name.equals_ignoring_ascii_case("media"sv))
         return RuleContext::AtMedia;
-    if (name == "font-face")
+    if (name.equals_ignoring_ascii_case("font-face"sv))
         return RuleContext::AtFontFace;
-    if (name == "keyframes")
+    if (name.equals_ignoring_ascii_case("keyframes"sv))
         return RuleContext::AtKeyframes;
-    if (name == "supports")
+    if (name.equals_ignoring_ascii_case("supports"sv))
         return RuleContext::AtSupports;
-    if (name == "layer")
+    if (name.equals_ignoring_ascii_case("layer"sv))
         return RuleContext::AtLayer;
-    if (name == "property")
+    if (name.equals_ignoring_ascii_case("property"sv))
         return RuleContext::AtProperty;
+    if (name.equals_ignoring_ascii_case("page"sv))
+        return RuleContext::AtPage;
+    if (is_margin_rule_name(name))
+        return RuleContext::Margin;
     return RuleContext::Unknown;
 }
 

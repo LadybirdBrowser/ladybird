@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -37,21 +38,31 @@ static T interpolate_raw(T from, T to, float delta)
 {
     if constexpr (AK::Detail::IsSame<T, double>) {
         return from + (to - from) * static_cast<double>(delta);
-    } else {
-        return static_cast<AK::Detail::RemoveCVReference<T>>(from + (to - from) * delta);
+    } else if constexpr (AK::Detail::IsIntegral<T>) {
+        auto from_float = static_cast<float>(from);
+        auto to_float = static_cast<float>(to);
+        auto unclamped_result = from_float + (to_float - from_float) * delta;
+        return static_cast<AK::Detail::RemoveCVReference<T>>(clamp(unclamped_result, NumericLimits<T>::min(), NumericLimits<T>::max()));
     }
+    return static_cast<AK::Detail::RemoveCVReference<T>>(from + (to - from) * delta);
 }
 
 static NonnullRefPtr<CSSStyleValue const> with_keyword_values_resolved(DOM::Element& element, PropertyID property_id, CSSStyleValue const& value)
 {
+    if (value.is_guaranteed_invalid()) {
+        // At the moment, we're only dealing with "real" properties, so this behaves the same as `unset`.
+        // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+        return property_initial_value(property_id);
+    }
+
     if (!value.is_keyword())
         return value;
     switch (value.as_keyword().keyword()) {
-    case CSS::Keyword::Initial:
-    case CSS::Keyword::Unset:
+    case Keyword::Initial:
+    case Keyword::Unset:
         return property_initial_value(property_id);
-    case CSS::Keyword::Inherit:
-        return CSS::StyleComputer::get_inherit_value(property_id, &element);
+    case Keyword::Inherit:
+        return StyleComputer::get_inherit_value(property_id, &element);
     default:
         break;
     }
@@ -161,6 +172,55 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
         if (property_id == PropertyID::BoxShadow)
             return interpolate_box_shadow(element, calculation_context, from, to, delta);
 
+        if (property_id == PropertyID::FontStyle) {
+            auto static oblique_0deg_value = FontStyleStyleValue::create(FontStyle::Oblique, AngleStyleValue::create(Angle::make_degrees(0)));
+            auto from_value = from->as_font_style().font_style() == FontStyle::Normal ? oblique_0deg_value : from;
+            auto to_value = to->as_font_style().font_style() == FontStyle::Normal ? oblique_0deg_value : to;
+            return interpolate_value(element, calculation_context, from_value, to_value, delta);
+        }
+
+        // https://drafts.csswg.org/web-animations-1/#animating-visibility
+        if (property_id == PropertyID::Visibility) {
+            // For the visibility property, visible is interpolated as a discrete step where values of p between 0 and 1 map to visible and other values of p map to the closer endpoint.
+            // If neither value is visible, then discrete animation is used.
+            if (from->equals(to))
+                return from;
+
+            auto from_is_visible = from->to_keyword() == Keyword::Visible;
+            auto to_is_visible = to->to_keyword() == Keyword::Visible;
+
+            if (from_is_visible || to_is_visible) {
+                if (delta <= 0)
+                    return from;
+                if (delta >= 1)
+                    return to;
+                return CSSKeywordValue::create(Keyword::Visible);
+            }
+            return delta >= 0.5f ? to : from;
+        }
+
+        // https://drafts.csswg.org/css-contain/#content-visibility-animation
+        if (property_id == PropertyID::ContentVisibility) {
+            // In general, the content-visibility property’s animation type is discrete.
+            // However, similar to interpolation of visibility, during interpolation between hidden and any other content-visibility value,
+            // p values between 0 and 1 map to the non-hidden value.
+            if (from->equals(to))
+                return from;
+
+            auto from_is_hidden = from->to_keyword() == Keyword::Hidden;
+            auto to_is_hidden = to->to_keyword() == Keyword::Hidden || to->to_keyword() == Keyword::Auto;
+
+            if (from_is_hidden || to_is_hidden) {
+                auto non_hidden_value = from_is_hidden ? to : from;
+                if (delta <= 0)
+                    return from;
+                if (delta >= 1)
+                    return to;
+                return non_hidden_value;
+            }
+            return delta >= 0.5f ? to : from;
+        }
+
         if (property_id == PropertyID::Scale)
             return interpolate_scale(element, calculation_context, from, to, delta);
 
@@ -214,7 +274,7 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
                 } else if (calculated.resolves_to_number()) {
                     values.append(NumberPercentage { calculated });
                 } else {
-                    dbgln("Calculation `{}` inside {} transform-function is not a recognized type", calculated.to_string(CSSStyleValue::SerializationMode::Normal), to_string(transformation.transform_function()));
+                    dbgln("Calculation `{}` inside {} transform-function is not a recognized type", calculated.to_string(SerializationMode::Normal), to_string(transformation.transform_function()));
                     return {};
                 }
                 break;
@@ -688,6 +748,17 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
             return EdgeStyleValue::create(edge, *interpolated_value);
 
         return delta >= 0.5f ? to : from;
+    }
+    case CSSStyleValue::Type::FontStyle: {
+        auto const& from_font_style = from.as_font_style();
+        auto const& to_font_style = to.as_font_style();
+        auto interpolated_font_style = interpolate_value(element, calculation_context, CSSKeywordValue::create(to_keyword(from_font_style.font_style())), CSSKeywordValue::create(to_keyword(to_font_style.font_style())), delta);
+        if (from_font_style.angle() && to_font_style.angle()) {
+            auto interpolated_angle = interpolate_value(element, calculation_context, *from_font_style.angle(), *to_font_style.angle(), delta);
+            return FontStyleStyleValue::create(*keyword_to_font_style(interpolated_font_style->to_keyword()), interpolated_angle);
+        }
+
+        return FontStyleStyleValue::create(*keyword_to_font_style(interpolated_font_style->to_keyword()));
     }
     case CSSStyleValue::Type::Integer: {
         // https://drafts.csswg.org/css-values/#combine-integers

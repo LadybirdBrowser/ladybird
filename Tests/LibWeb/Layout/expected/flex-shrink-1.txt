@@ -5,25 +5,25 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.box> at (10,10) content-size 62.671875x100 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [10,10 18.9375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 3, rect: [10,10 18.9375x18] baseline: 13.796875
               "1 I"
-          frag 1 from TextNode start: 4, length: 6, rect: [10,27 49.359375x17] baseline: 13.296875
+          frag 1 from TextNode start: 4, length: 6, rect: [10,28 49.359375x18] baseline: 13.796875
               "shrink"
-          frag 2 from TextNode start: 11, length: 3, rect: [10,44 24.875x17] baseline: 13.296875
+          frag 2 from TextNode start: 11, length: 3, rect: [10,46 24.875x18] baseline: 13.796875
               "the"
-          frag 3 from TextNode start: 15, length: 4, rect: [10,61 38.765625x17] baseline: 13.296875
+          frag 3 from TextNode start: 15, length: 4, rect: [10,64 38.765625x18] baseline: 13.796875
               "most"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.box> at (74.671875,10) content-size 81.328125x100 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [74.671875,10 78.765625x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 10, rect: [74.671875,10 78.765625x18] baseline: 13.796875
               "2 I shrink"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.box> at (158,10) content-size 100x100 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [158,10 68x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 9, rect: [158,10 68x18] baseline: 13.796875
               "3 I don't"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

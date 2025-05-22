@@ -26,6 +26,7 @@ constexpr static Vector3<T> operator*(Matrix3x3<T> const& m, Vector3<T> const& v
 
 typedef Matrix3x3<float> FloatMatrix3x3;
 typedef Matrix3x3<double> DoubleMatrix3x3;
+
 }
 
 using Gfx::DoubleMatrix3x3;

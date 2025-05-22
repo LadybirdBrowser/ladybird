@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Pass	margin rule without any preceding @page properties
+Fail	margin rule followed by @page properties
+Fail	margin rule preceded by @page properties
+Fail	margin rules with @page properties between

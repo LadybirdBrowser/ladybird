@@ -9,6 +9,10 @@
 #include <AK/Format.h>
 #include <AK/Platform.h>
 
+#ifdef AK_OS_WINDOWS
+#    include <Windows.h>
+#endif
+
 #if defined(AK_OS_ANDROID) && (__ANDROID_API__ >= 33)
 #    include <android/log.h>
 #    define EXECINFO_BACKTRACE
@@ -33,18 +37,17 @@
 #    define ERRORLN warnln
 #endif
 
+extern "C" {
+
 #if defined(AK_HAS_STD_STACKTRACE)
-namespace {
-ALWAYS_INLINE void dump_backtrace()
+void dump_backtrace()
 {
     // We assume the stacktrace implementation demangles symbols, as does microsoft/STL
     PRINT_ERROR(std::to_string(std::stacktrace::current(2)).c_str());
     PRINT_ERROR("\n");
 }
-}
 #elif defined(AK_HAS_BACKTRACE_HEADER)
-namespace {
-ALWAYS_INLINE void dump_backtrace()
+void dump_backtrace()
 {
     // Grab symbols and dso name for up to 256 frames
     void* trace[256] = {};
@@ -89,10 +92,12 @@ ALWAYS_INLINE void dump_backtrace()
     }
     free(syms);
 }
+#else
+void dump_backtrace()
+{
+    PRINT_ERROR("dump_backtrace() is not supported with the current compilation options.\n");
 }
 #endif
-
-extern "C" {
 
 bool ak_colorize_output(void)
 {
@@ -113,8 +118,37 @@ void ak_trap(void)
     __builtin_trap();
 }
 
+#ifndef AK_OS_WINDOWS
+[[gnu::weak]] void ak_assertion_handler(char const* message);
+#endif
+
+using AssertionHandlerFunc = void (*)(char const*);
+static AssertionHandlerFunc get_custom_assertion_handler()
+{
+#ifndef AK_OS_WINDOWS
+    return ak_assertion_handler;
+#else
+    // Windows doesn't support weak symbols as nicely as ELF platforms.
+    // Instead, rely on the fact that we only want this to be overridden from
+    // the main executable, and grab it from there if present.
+    if (HMODULE module = GetModuleHandle(nullptr)) {
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
+        auto handler = reinterpret_cast<AssertionHandlerFunc>(GetProcAddress(module, "ak_assertion_handler"));
+#    pragma clang diagnostic pop
+        FreeLibrary(module);
+        return handler;
+    }
+    return nullptr;
+
+#endif
+}
+
 void ak_verification_failed(char const* message)
 {
+    if (auto assertion_handler = get_custom_assertion_handler()) {
+        assertion_handler(message);
+    }
     if (ak_colorize_output())
         ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
     else
@@ -125,6 +159,9 @@ void ak_verification_failed(char const* message)
 
 void ak_assertion_failed(char const* message)
 {
+    if (auto assertion_handler = get_custom_assertion_handler()) {
+        assertion_handler(message);
+    }
     if (ak_colorize_output())
         ERRORLN("\033[31;1mASSERTION FAILED\033[0m: {}", message);
     else

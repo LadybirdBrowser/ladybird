@@ -28,8 +28,10 @@ public:
         Import = 3,
         Media = 4,
         FontFace = 5,
+        Page = 6,
         Keyframes = 7,
         Keyframe = 8,
+        Margin = 9,
         Namespace = 10,
         Supports = 12,
         // AD-HOC: These are not included in the spec, but we need them internally. So, their numbers are arbitrary.

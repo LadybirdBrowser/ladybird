@@ -1,43 +1,43 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x211 children: not-inline
-      BlockContainer <div> at (8,8) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 38, rect: [8,8 312.4375x17] baseline: 13.296875
+    BlockContainer <body> at (8,8) content-size 784x216 children: not-inline
+      BlockContainer <div> at (8,8) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 38, rect: [8,8 312.4375x18] baseline: 13.796875
             "This is inserted before the container."
         TextNode <#text>
-      BlockContainer <div#container> at (39,56) content-size 722x115 children: not-inline
-        BlockContainer <p> at (39,72) content-size 722x17 children: inline
-          frag 0 from TextNode start: 0, length: 34, rect: [39,72 270.59375x17] baseline: 13.296875
+      BlockContainer <div#container> at (39,57) content-size 722x118 children: not-inline
+        BlockContainer <p> at (39,73) content-size 722x18 children: inline
+          frag 0 from TextNode start: 0, length: 34, rect: [39,73 270.59375x18] baseline: 13.796875
               "This is inserted at the beginning."
           TextNode <#text>
-        BlockContainer <p> at (39,105) content-size 722x17 children: inline
-          frag 0 from TextNode start: 0, length: 29, rect: [39,105 230.59375x17] baseline: 13.296875
+        BlockContainer <p> at (39,107) content-size 722x18 children: inline
+          frag 0 from TextNode start: 0, length: 29, rect: [39,107 230.59375x18] baseline: 13.796875
               "This is the original content."
           TextNode <#text>
-        BlockContainer <p> at (39,138) content-size 722x17 children: inline
-          frag 0 from TextNode start: 0, length: 28, rect: [39,138 225.515625x17] baseline: 13.296875
+        BlockContainer <p> at (39,141) content-size 722x18 children: inline
+          frag 0 from TextNode start: 0, length: 28, rect: [39,141 225.515625x18] baseline: 13.796875
               "This is inserted at the end."
           TextNode <#text>
-      BlockContainer <div> at (8,202) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 37, rect: [8,202 300.09375x17] baseline: 13.296875
+      BlockContainer <div> at (8,206) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 37, rect: [8,206 300.09375x18] baseline: 13.796875
             "This is inserted after the container."
         TextNode <#text>
-      BlockContainer <(anonymous)> at (8,219) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,224) content-size 784x0 children: inline
         TextNode <#text>
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x211]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 784x17]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x216]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x18]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<DIV>#container) [28,45 744x137]
-        PaintableWithLines (BlockContainer<P>) [39,72 722x17]
+      PaintableWithLines (BlockContainer<DIV>#container) [28,46 744x140]
+        PaintableWithLines (BlockContainer<P>) [39,73 722x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<P>) [39,105 722x17]
+        PaintableWithLines (BlockContainer<P>) [39,107 722x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<P>) [39,138 722x17]
+        PaintableWithLines (BlockContainer<P>) [39,141 722x18]
           TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<DIV>) [8,202 784x17]
+      PaintableWithLines (BlockContainer<DIV>) [8,206 784x18]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [8,219 784x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,224 784x0]

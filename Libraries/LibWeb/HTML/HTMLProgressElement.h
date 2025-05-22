@@ -29,7 +29,6 @@ public:
 
     // ^HTMLElement
     virtual void inserted() override;
-    virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override;
 
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
@@ -60,6 +59,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLProgressElement>() const { return is_html_progress_element(); }
+
 }

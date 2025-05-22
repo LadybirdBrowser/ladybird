@@ -32,7 +32,9 @@ class QSinglePointEvent;
 class QTextEdit;
 
 namespace WebView {
+
 class WebContentClient;
+
 }
 
 using WebView::WebContentClient;

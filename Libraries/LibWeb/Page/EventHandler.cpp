@@ -2,6 +2,7 @@
  * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +10,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
@@ -1192,9 +1194,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         //    instead interpret this interaction as some other action, instead of interpreting it as a close request.
     }
 
-    if (auto* element = m_navigable->active_document()->focused_element(); is<HTML::HTMLMediaElement>(element)) {
-        auto& media_element = static_cast<HTML::HTMLMediaElement&>(*element);
-        if (media_element.handle_keydown({}, key, modifiers).release_value_but_fixme_should_propagate_errors())
+    auto* focused_element = m_navigable->active_document()->focused_element();
+    if (auto* media_element = as_if<HTML::HTMLMediaElement>(focused_element)) {
+        if (media_element->handle_keydown({}, key, modifiers).release_value_but_fixme_should_propagate_errors())
             return EventResult::Handled;
     }
 
@@ -1203,14 +1205,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (key == UIEvents::KeyCode::Key_Backspace) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentBackward, m_navigable, code_point));
             target->handle_delete(InputEventsTarget::DeleteDirection::Backward);
-            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::deleteContentBackward, m_navigable, code_point));
             return EventResult::Handled;
         }
 
         if (key == UIEvents::KeyCode::Key_Delete) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentForward, m_navigable, code_point));
             target->handle_delete(InputEventsTarget::DeleteDirection::Forward);
-            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::deleteContentForward, m_navigable, code_point));
             return EventResult::Handled;
         }
 
@@ -1257,13 +1257,20 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return EventResult::Handled;
         }
 
-        if (key == UIEvents::KeyCode::Key_Return) {
-            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
+        if (key == UIEvents::KeyCode::Key_Return && (modifiers == UIEvents::Mod_None || modifiers == UIEvents::Mod_Shift)) {
+            auto input_type = modifiers == UIEvents::Mod_Shift ? UIEvents::InputTypes::insertLineBreak : UIEvents::InputTypes::insertParagraph;
 
-            if (target->handle_return_key() != EventResult::Handled)
+            // If the editing host is contenteditable="plaintext-only", we force a line break.
+            if (focused_element) {
+                if (auto editing_host = Editing::editing_host_of_node(*focused_element); editing_host
+                    && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly)
+                    input_type = UIEvents::InputTypes::insertLineBreak;
+            }
+
+            FIRE(input_event(UIEvents::EventNames::beforeinput, input_type, m_navigable, code_point));
+            if (target->handle_return_key(input_type) != EventResult::Handled)
                 target->handle_insert(String::from_code_point(code_point));
 
-            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
             return EventResult::Handled;
         }
 
@@ -1271,7 +1278,6 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (!should_ignore_keydown_event(code_point, modifiers)) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
             target->handle_insert(String::from_code_point(code_point));
-            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertText, m_navigable, code_point));
             return EventResult::Handled;
         }
     } else if (auto selection = document->get_selection(); selection && !selection->is_collapsed()) {

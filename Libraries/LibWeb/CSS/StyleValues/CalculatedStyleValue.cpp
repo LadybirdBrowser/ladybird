@@ -130,17 +130,17 @@ static NonnullRefPtr<CalculationNode const> simplify_2_children(T const& origina
     return original;
 }
 
-static String serialize_a_calculation_tree(CalculationNode const&, CalculationContext const&, CSSStyleValue::SerializationMode);
+static String serialize_a_calculation_tree(CalculationNode const&, CalculationContext const&, SerializationMode);
 
 // https://drafts.csswg.org/css-values-4/#serialize-a-math-function
-static String serialize_a_math_function(CalculationNode const& fn, CalculationContext const& context, CSSStyleValue::SerializationMode serialization_mode)
+static String serialize_a_math_function(CalculationNode const& fn, CalculationContext const& context, SerializationMode serialization_mode)
 {
     // To serialize a math function fn:
 
     // 1. If the root of the calculation tree fn represents is a numeric value (number, percentage, or dimension), and
     //    the serialization being produced is of a computed value or later, then clamp the value to the range allowed
     //    for its context (if necessary), then serialize the value as normal and return the result.
-    if (fn.type() == CalculationNode::Type::Numeric && serialization_mode == CSSStyleValue::SerializationMode::ResolvedValue) {
+    if (fn.type() == CalculationNode::Type::Numeric && serialization_mode == SerializationMode::ResolvedValue) {
         // FIXME: Clamp the value. Note that we might have an infinite/nan value here.
         return static_cast<NumericCalculationNode const&>(fn).value_to_string();
     }
@@ -311,7 +311,7 @@ static Vector<NonnullRefPtr<CalculationNode const>> sort_a_calculations_children
 }
 
 // https://drafts.csswg.org/css-values-4/#serialize-a-calculation-tree
-static String serialize_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, CSSStyleValue::SerializationMode serialization_mode)
+static String serialize_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, SerializationMode serialization_mode)
 {
     // 1. Let root be the root node of the calculation tree.
     // NOTE: Already the case.
@@ -1384,26 +1384,31 @@ NonnullRefPtr<CalculationNode const> SignCalculationNode::with_simplified_childr
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-sign
-Optional<CalculatedStyleValue::CalculationResult> SignCalculationNode::run_operation_if_possible(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+Optional<CalculatedStyleValue::CalculationResult> SignCalculationNode::run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const
 {
     // The sign(A) function contains one calculation A, and returns -1 if A’s numeric value is negative,
     // +1 if A’s numeric value is positive, 0⁺ if A’s numeric value is 0⁺, and 0⁻ if A’s numeric value is 0⁻.
     // The return type is a <number>, made consistent with the input calculation’s type.
-    auto child_value = try_get_value_with_canonical_unit(m_value, context, resolution_context);
-    if (!child_value.has_value())
+
+    if (m_value->type() != CalculationNode::Type::Numeric)
         return {};
+    auto const& numeric_child = as<NumericCalculationNode>(*m_value);
+    double raw_value = numeric_child.value().visit(
+        [](Number const& number) { return number.value(); },
+        [](Percentage const& percentage) { return percentage.as_fraction(); },
+        [](auto const& dimension) { return dimension.raw_value(); });
 
     double sign = 0;
-    if (child_value->value() < 0) {
+    if (raw_value < 0) {
         sign = -1;
-    } else if (child_value->value() > 0) {
+    } else if (raw_value > 0) {
         sign = 1;
     } else {
-        FloatExtractor<double> const extractor { .d = child_value->value() };
-        sign = extractor.sign ? -0 : 0;
+        FloatExtractor<double> const extractor { .d = raw_value };
+        sign = extractor.sign ? -0.0 : 0.0;
     }
 
-    return CalculatedStyleValue::CalculationResult { sign, CSSNumericType {}.made_consistent_with(child_value->type().value()) };
+    return CalculatedStyleValue::CalculationResult { sign, CSSNumericType {}.made_consistent_with(numeric_child.numeric_type().value_or({})) };
 }
 
 void SignCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -3243,8 +3248,7 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
         return ProductCalculationNode::create(move(children));
     }
 
-    // AD-HOC: Math-function nodes that cannot be fully simplified will reach here.
-    //         Spec bug: https://github.com/w3c/csswg-drafts/issues/11572
+    // 10. Return root.
     return root;
 }
 

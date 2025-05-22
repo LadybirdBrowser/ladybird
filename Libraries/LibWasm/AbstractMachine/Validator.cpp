@@ -79,6 +79,8 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     for (auto& memory : module.memory_section().memories())
         m_context.memories.append(memory.type());
 
+    auto imported_globals = m_context.globals;
+
     m_context.globals.ensure_capacity(m_context.globals.size() + module.global_section().entries().size());
     for (auto& global : module.global_section().entries())
         m_context.globals.append(global.type());
@@ -117,11 +119,23 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     TRY(validate(module.import_section()));
     TRY(validate(module.export_section()));
     TRY(validate(module.start_section()));
-    TRY(validate(module.data_section()));
-    TRY(validate(module.element_section()));
-    TRY(validate(module.global_section()));
-    TRY(validate(module.memory_section()));
-    TRY(validate(module.table_section()));
+    {
+        // Let C′ be the same context as C, except that C′.globals is just the sequence globals(it∗).
+
+        // Under the context C′:
+        //    For each table_i in module.tables, the definition table_i must be val_i with a table type tt_i.
+        //    For each mem_i in module.mems, the definition mem_i must be val_i with a memory type mt_i.
+        //    For each global_i in module.globals, the definition global_i must be val_i with a global type gt_i.
+        //    For each elem_i in module.elems, the segment elem_i must be val_i with reference type rt_i.
+        //    For each data_i in module.datas, the segment data_i must be val_i.
+
+        TemporaryChange omit_internal_globals { m_context.globals, imported_globals };
+        TRY(validate(module.data_section()));
+        TRY(validate(module.element_section()));
+        TRY(validate(module.global_section()));
+        TRY(validate(module.memory_section()));
+        TRY(validate(module.table_section()));
+    }
     TRY(validate(module.code_section()));
 
     module.set_validation_status(Module::ValidationStatus::Valid, {});
@@ -3738,4 +3752,5 @@ ByteString Validator::Errors::find_instruction_name(SourceLocation const& locati
 
     return instruction_name(OpCode { *opcode });
 }
+
 }

@@ -601,7 +601,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                 // 2. If contentTypeRecord is not failure, contentTypeRecord’s parameters["charset"] exists, and parameters["charset"] is not an ASCII case-insensitive match for "UTF-8", then:
                 if (content_type_record.has_value()) {
                     auto charset_parameter_iterator = content_type_record->parameters().find("charset"sv);
-                    if (charset_parameter_iterator != content_type_record->parameters().end() && !Infra::is_ascii_case_insensitive_match(charset_parameter_iterator->value, "UTF-8"sv)) {
+                    if (charset_parameter_iterator != content_type_record->parameters().end() && !charset_parameter_iterator->value.equals_ignoring_ascii_case("UTF-8"sv)) {
                         // 1. Set contentTypeRecord’s parameters["charset"] to "UTF-8".
                         content_type_record->set_parameter("charset"_string, "UTF-8"_string);
 

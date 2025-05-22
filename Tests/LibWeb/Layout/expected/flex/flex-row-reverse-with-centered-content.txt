@@ -3,15 +3,15 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x50 children: not-inline
       Box <div.flex> at (8,8) content-size 784x50 flex-container(row-reverse) [FFC] children: not-inline
         BlockContainer <div> at (425,8) content-size 50x50 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [425,8 6.34375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [425,8 6.34375x18] baseline: 13.796875
               "1"
           TextNode <#text>
         BlockContainer <div> at (375,8) content-size 50x50 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [375,8 8.8125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [375,8 8.8125x18] baseline: 13.796875
               "2"
           TextNode <#text>
         BlockContainer <div> at (325,8) content-size 50x50 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [325,8 9.09375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [325,8 9.09375x18] baseline: 13.796875
               "3"
           TextNode <#text>
 

@@ -342,4 +342,5 @@ private:
     HashMap<size_t, TokenMemoization> m_token_memoizations;
     Program::Type m_program_type;
 };
+
 }

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/6429">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+const alwaysVisible = [
+  {at: -1, expect: 'visible'},
+  {at: 0, expect: 'visible'},
+  {at: 0.1, expect: 'visible'},
+  {at: 0.9, expect: 'visible'},
+  {at: 1, expect: 'visible'},
+  {at: 1.5, expect: 'visible'},
+];
+const alwaysHidden = [
+  {at: -1, expect: 'hidden'},
+  {at: 0, expect: 'hidden'},
+  {at: 0.1, expect: 'hidden'},
+  {at: 0.9, expect: 'hidden'},
+  {at: 1, expect: 'hidden'},
+  {at: 1.5, expect: 'hidden'},
+];
+
+test_interpolation({
+  property: 'content-visibility',
+  behavior: 'allow-discrete',
+  from: 'visible',
+  to: 'hidden',
+}, [
+  {at: -1, expect: 'visible'},
+  {at: 0, expect: 'visible'},
+  {at: 0.1, expect: 'visible'},
+  {at: 0.9, expect: 'visible'},
+  {at: 1, expect: 'hidden'},
+  {at: 1.5, expect: 'hidden'},
+]);
+
+test_interpolation({
+  property: 'content-visibility',
+  behavior: 'allow-discrete',
+  from: 'hidden',
+  to: 'visible',
+}, [
+  {at: -1, expect: 'hidden'},
+  {at: 0, expect: 'hidden'},
+  {at: 0.1, expect: 'visible'},
+  {at: 0.9, expect: 'visible'},
+  {at: 1, expect: 'visible'},
+  {at: 1.5, expect: 'visible'},
+]);
+
+test_no_interpolation({
+  property: 'content-visibility',
+  from: 'auto',
+  to: 'visible'
+});
+
+test_interpolation({
+  property: 'content-visibility',
+  from: 'visible',
+  to: 'visible'
+}, [
+  {at: -1, expect: 'visible'},
+  {at: 0, expect: 'visible'},
+  {at: 0.5, expect: 'visible'},
+  {at: 1, expect: 'visible'},
+  {at: 1.5, expect: 'visible'},
+]);
+
+test_interpolation({
+  property: 'content-visibility',
+  from: 'hidden',
+  to: 'hidden'
+}, [
+  {at: -1, expect: 'hidden'},
+  {at: 0, expect: 'hidden'},
+  {at: 0.5, expect: 'hidden'},
+  {at: 1, expect: 'hidden'},
+  {at: 1.5, expect: 'hidden'},
+]);
+</script>

@@ -444,4 +444,5 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
         }
     }
 }
+
 }

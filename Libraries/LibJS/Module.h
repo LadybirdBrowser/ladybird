@@ -131,6 +131,7 @@ protected:
 
 private:
     GC::Ref<Object> module_namespace_create(Vector<FlyString> unambiguous_names);
+    ThrowCompletionOr<void> evaluate_module_sync(VM&);
 
     // These handles are only safe as long as the VM they live in is valid.
     // But evaluated modules SHOULD be stored in the VM so unless you intentionally

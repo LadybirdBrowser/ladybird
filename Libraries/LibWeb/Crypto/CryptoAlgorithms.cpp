@@ -8150,4 +8150,5 @@ WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(AlgorithmParams const& param
     // 2. Return length.
     return JS::Value(length);
 }
+
 }

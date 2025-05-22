@@ -87,6 +87,9 @@
 
 namespace Web::DOM {
 
+GC_DEFINE_ALLOCATOR(Element::PseudoElement);
+GC_DEFINE_ALLOCATOR(Element::PseudoElementTreeNode);
+
 Element::Element(Document& document, DOM::QualifiedName qualified_name)
     : ParentNode(document, NodeType::ELEMENT_NODE)
     , m_qualified_name(move(qualified_name))
@@ -117,15 +120,22 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_computed_properties);
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
-            visitor.visit(pseudo_element.cascaded_properties);
-            visitor.visit(pseudo_element.computed_properties);
-            visitor.visit(pseudo_element.layout_node);
+            visitor.visit(pseudo_element.value);
         }
     }
     if (m_registered_intersection_observers) {
         for (auto& registered_intersection_observers : *m_registered_intersection_observers)
             visitor.visit(registered_intersection_observers.observer);
     }
+}
+
+void Element::PseudoElement::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+
+    visitor.visit(cascaded_properties);
+    visitor.visit(computed_properties);
+    visitor.visit(layout_node);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattribute
@@ -620,7 +630,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = false;
     m_affected_by_direct_sibling_combinator = false;
     m_affected_by_indirect_sibling_combinator = false;
-    m_affected_by_first_or_last_child_pseudo_class = false;
+    m_affected_by_sibling_position_or_count_pseudo_class = false;
     m_affected_by_nth_child_pseudo_class = false;
     m_sibling_invalidation_distance = 0;
 
@@ -651,7 +661,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     set_computed_properties(move(new_computed_properties));
 
     if (old_display_is_none != new_display_is_none) {
-        play_or_cancel_animations_after_display_property_change();
+        for_each_shadow_including_inclusive_descendant([&](auto& node) {
+            if (!node.is_element())
+                return TraversalDecision::Continue;
+            auto& element = static_cast<Element&>(node);
+            element.play_or_cancel_animations_after_display_property_change();
+            return TraversalDecision::Continue;
+        });
     }
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
@@ -1275,6 +1291,8 @@ void Element::inserted()
         if (m_name.has_value())
             document().element_with_name_was_added({}, *this);
     }
+
+    play_or_cancel_animations_after_display_property_change();
 }
 
 void Element::removed_from(Node* old_parent, Node& old_root)
@@ -1287,6 +1305,8 @@ void Element::removed_from(Node* old_parent, Node& old_root)
         if (m_name.has_value())
             document().element_with_name_was_removed({}, *this);
     }
+
+    play_or_cancel_animations_after_display_property_change();
 }
 
 void Element::moved_from(GC::Ptr<Node> old_parent)
@@ -1327,9 +1347,9 @@ bool Element::affected_by_pseudo_class(CSS::PseudoClass pseudo_class) const
     }
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
-            if (!pseudo_element.computed_properties)
+            if (!pseudo_element.value->computed_properties)
                 continue;
-            if (pseudo_element.computed_properties->has_attempted_match_against_pseudo_class(pseudo_class))
+            if (pseudo_element.value->computed_properties->has_attempted_match_against_pseudo_class(pseudo_class))
                 return true;
         }
     }
@@ -1496,7 +1516,7 @@ bool Element::has_pseudo_elements() const
 {
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
-            if (pseudo_element.layout_node)
+            if (pseudo_element.value->layout_node)
                 return true;
         }
     }
@@ -1507,7 +1527,7 @@ void Element::clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>)
 {
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
-            pseudo_element.layout_node = nullptr;
+            pseudo_element.value->layout_node = nullptr;
         }
     }
 }
@@ -1516,15 +1536,12 @@ void Element::serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilde
 {
     if (!m_pseudo_element_data)
         return;
-    for (size_t i = 0; i < m_pseudo_element_data->size(); ++i) {
-        auto& pseudo_element = (*m_pseudo_element_data)[i].layout_node;
-        if (!pseudo_element)
-            continue;
+    for (auto& pseudo_element : m_pseudo_element_data->keys()) {
         auto object = MUST(children_array.add_object());
-        MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::pseudo_element_name(static_cast<CSS::PseudoElement>(i))))));
+        MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::pseudo_element_name(pseudo_element)))));
         MUST(object.add("type"sv, "pseudo-element"));
         MUST(object.add("parent-id"sv, unique_id().value()));
-        MUST(object.add("pseudo-element"sv, i));
+        MUST(object.add("pseudo-element"sv, to_underlying(pseudo_element)));
         MUST(object.finish());
     }
 }
@@ -1954,8 +1971,8 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // 2. Use the first matching item from this list:
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
     // - If position is an ASCII case-insensitive match for the string "afterend"
-    if (Infra::is_ascii_case_insensitive_match(position, "beforebegin"sv)
-        || Infra::is_ascii_case_insensitive_match(position, "afterend"sv)) {
+    if (position.equals_ignoring_ascii_case("beforebegin"sv)
+        || position.equals_ignoring_ascii_case("afterend"sv)) {
         // 1. Set context to this's parent.
         context = this->parent();
 
@@ -1965,8 +1982,8 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
     // - If position is an ASCII case-insensitive match for the string "beforeend"
-    else if (Infra::is_ascii_case_insensitive_match(position, "afterbegin"sv)
-        || Infra::is_ascii_case_insensitive_match(position, "beforeend"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterbegin"sv)
+        || position.equals_ignoring_ascii_case("beforeend"sv)) {
         // Set context to this.
         context = this;
     }
@@ -1993,25 +2010,25 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // 5. Use the first matching item from this list:
 
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
-    if (Infra::is_ascii_case_insensitive_match(position, "beforebegin"sv)) {
+    if (position.equals_ignoring_ascii_case("beforebegin"sv)) {
         // Insert fragment into this's parent before this.
         parent()->insert_before(fragment, this);
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
-    else if (Infra::is_ascii_case_insensitive_match(position, "afterbegin"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterbegin"sv)) {
         // Insert fragment into this before its first child.
         insert_before(fragment, first_child());
     }
 
     // - If position is an ASCII case-insensitive match for the string "beforeend"
-    else if (Infra::is_ascii_case_insensitive_match(position, "beforeend"sv)) {
+    else if (position.equals_ignoring_ascii_case("beforeend"sv)) {
         // Append fragment to this.
         TRY(append_child(fragment));
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterend"
-    else if (Infra::is_ascii_case_insensitive_match(position, "afterend"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterend"sv)) {
         // Insert fragment into this's parent before this's next sibling.
         parent()->insert_before(fragment, next_sibling());
     }
@@ -2022,7 +2039,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC::Ref<Node> node)
 {
     // To insert adjacent, given an element element, string where, and a node node, run the steps associated with the first ASCII case-insensitive match for where:
-    if (Infra::is_ascii_case_insensitive_match(where, "beforebegin"sv)) {
+    if (where.equals_ignoring_ascii_case("beforebegin"sv)) {
         // -> "beforebegin"
         // If element’s parent is null, return null.
         if (!parent())
@@ -2032,19 +2049,19 @@ WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC
         return GC::Ptr<Node> { TRY(parent()->pre_insert(move(node), this)) };
     }
 
-    if (Infra::is_ascii_case_insensitive_match(where, "afterbegin"sv)) {
+    if (where.equals_ignoring_ascii_case("afterbegin"sv)) {
         // -> "afterbegin"
         // Return the result of pre-inserting node into element before element’s first child.
         return GC::Ptr<Node> { TRY(pre_insert(move(node), first_child())) };
     }
 
-    if (Infra::is_ascii_case_insensitive_match(where, "beforeend"sv)) {
+    if (where.equals_ignoring_ascii_case("beforeend"sv)) {
         // -> "beforeend"
         // Return the result of pre-inserting node into element before null.
         return GC::Ptr<Node> { TRY(pre_insert(move(node), nullptr)) };
     }
 
-    if (Infra::is_ascii_case_insensitive_match(where, "afterend"sv)) {
+    if (where.equals_ignoring_ascii_case("afterend"sv)) {
         // -> "afterend"
         // If element’s parent is null, return null.
         if (!parent())
@@ -2847,9 +2864,8 @@ void Element::set_pseudo_element_computed_properties(CSS::PseudoElement pseudo_e
     if (!m_pseudo_element_data && !style)
         return;
 
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element)) {
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element))
         return;
-    }
 
     ensure_pseudo_element(pseudo_element).computed_properties = style;
 }
@@ -2871,7 +2887,11 @@ Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement
         return {};
     }
 
-    return m_pseudo_element_data->at(to_underlying(type));
+    auto pseudo_element = m_pseudo_element_data->get(type);
+    if (!pseudo_element.has_value())
+        return {};
+
+    return *(pseudo_element.value());
 }
 
 Element::PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
@@ -2881,7 +2901,15 @@ Element::PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) 
 
     VERIFY(CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(type));
 
-    return m_pseudo_element_data->at(to_underlying(type));
+    if (!m_pseudo_element_data->get(type).has_value()) {
+        if (is_pseudo_element_root(type)) {
+            m_pseudo_element_data->set(type, heap().allocate<PseudoElementTreeNode>());
+        } else {
+            m_pseudo_element_data->set(type, heap().allocate<PseudoElement>());
+        }
+    }
+
+    return *(m_pseudo_element_data->get(type).value());
 }
 
 void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element, HashMap<FlyString, CSS::StyleProperty> custom_properties)
@@ -3160,131 +3188,6 @@ bool Element::skips_its_contents()
     return false;
 }
 
-// https://drafts.csswg.org/css-contain-2/#containment-size
-bool Element::has_size_containment() const
-{
-    // However, giving an element size containment has no effect if any of the following are true:
-
-    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
-    if (!layout_node())
-        return false;
-
-    // - if its inner display type is 'table'
-    if (layout_node()->display().is_table_inside())
-        return false;
-
-    // - if its principal box is an internal table box
-    if (layout_node()->display().is_internal_table())
-        return false;
-
-    // - if its principal box is an internal ruby box or a non-atomic inline-level box
-    // FIXME: Implement this.
-
-    if (computed_properties()->contain().size_containment)
-        return true;
-
-    return false;
-}
-// https://drafts.csswg.org/css-contain-2/#containment-inline-size
-bool Element::has_inline_size_containment() const
-{
-    // Giving an element inline-size containment has no effect if any of the following are true:
-
-    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
-    if (!layout_node())
-        return false;
-
-    // - if its inner display type is 'table'
-    if (layout_node()->display().is_table_inside())
-        return false;
-
-    // - if its principal box is an internal table box
-    if (layout_node()->display().is_internal_table())
-        return false;
-
-    // - if its principal box is an internal ruby box or a non-atomic inline-level box
-    // FIXME: Implement this.
-
-    if (computed_properties()->contain().inline_size_containment)
-        return true;
-
-    return false;
-}
-// https://drafts.csswg.org/css-contain-2/#containment-layout
-bool Element::has_layout_containment() const
-{
-    // However, giving an element layout containment has no effect if any of the following are true:
-
-    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
-    if (!layout_node())
-        return false;
-
-    // - if its principal box is an internal table box other than 'table-cell'
-    if (layout_node()->display().is_internal_table() && !layout_node()->display().is_table_cell())
-        return false;
-
-    // - if its principal box is an internal ruby box or a non-atomic inline-level box
-    // FIXME: Implement this.
-
-    if (computed_properties()->contain().layout_containment)
-        return true;
-
-    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
-    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
-    // paint containment for the element.
-    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
-        return true;
-
-    return false;
-}
-// https://drafts.csswg.org/css-contain-2/#containment-style
-bool Element::has_style_containment() const
-{
-    // However, giving an element style containment has no effect if any of the following are true:
-
-    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
-    if (!layout_node())
-        return false;
-
-    if (computed_properties()->contain().style_containment)
-        return true;
-
-    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
-    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
-    // paint containment for the element.
-    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
-        return true;
-
-    return false;
-}
-// https://drafts.csswg.org/css-contain-2/#containment-paint
-bool Element::has_paint_containment() const
-{
-    // However, giving an element paint containment has no effect if any of the following are true:
-
-    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
-    if (!layout_node())
-        return false;
-
-    // - if its principal box is an internal table box other than 'table-cell'
-    if (layout_node()->display().is_internal_table() && !layout_node()->display().is_table_cell())
-        return false;
-
-    // - if its principal box is an internal ruby box or a non-atomic inline-level box
-    // FIXME: Implement this
-
-    if (computed_properties()->contain().paint_containment)
-        return true;
-
-    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
-    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
-    // paint containment for the element.
-    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
-        return true;
-
-    return false;
-}
-
 size_t Element::number_of_owned_list_items() const
 {
     auto number_of_owned_li_elements = 0;
@@ -3298,10 +3201,10 @@ size_t Element::number_of_owned_list_items() const
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#list-owner
-Element const* Element::list_owner() const
+Element* Element::list_owner() const
 {
     // Any element whose computed value of 'display' is 'list-item' has a list owner, which is determined as follows:
-    if (!computed_properties()->display().is_list_item())
+    if (!computed_properties() || !computed_properties()->display().is_list_item())
         return nullptr;
 
     // 1. If the element is not being rendered, return null; the element has no list owner.
@@ -3332,7 +3235,7 @@ Element const* Element::list_owner() const
         }
         return IterationDecision::Continue;
     });
-    return ancestor;
+    return const_cast<Element*>(ancestor.ptr());
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
@@ -4012,6 +3915,37 @@ FlyString const& Element::html_uppercased_qualified_name() const
     if (!m_html_uppercased_qualified_name.has_value())
         m_html_uppercased_qualified_name = make_html_uppercased_qualified_name();
     return m_html_uppercased_qualified_name.value();
+}
+
+void Element::play_or_cancel_animations_after_display_property_change()
+{
+    // OPTIMIZATION: We don't care about animations in disconnected subtrees.
+    if (!is_connected())
+        return;
+
+    // https://www.w3.org/TR/css-animations-1/#animations
+    // Setting the display property to none will terminate any running animation applied to the element and its descendants.
+    // If an element has a display of none, updating display to a value other than none will start all animations applied to
+    // the element by the animation-name property, as well as all animations applied to descendants with display other than none.
+
+    auto has_display_none_inclusive_ancestor = this->has_inclusive_ancestor_with_display_none();
+
+    auto play_or_cancel_depending_on_display = [&](Animations::Animation& animation) {
+        if (has_display_none_inclusive_ancestor) {
+            animation.cancel();
+        } else {
+            HTML::TemporaryExecutionContext context(realm());
+            animation.play().release_value_but_fixme_should_propagate_errors();
+        }
+    };
+
+    if (auto animation = cached_animation_name_animation({}))
+        play_or_cancel_depending_on_display(*animation);
+    for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
+        auto pseudo_element = static_cast<CSS::PseudoElement>(i);
+        if (auto animation = cached_animation_name_animation(pseudo_element))
+            play_or_cancel_depending_on_display(*animation);
+    }
 }
 
 }

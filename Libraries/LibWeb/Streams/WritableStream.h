@@ -10,6 +10,7 @@
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -32,7 +33,9 @@ struct PendingAbortRequest {
 };
 
 // https://streams.spec.whatwg.org/#writablestream
-class WritableStream final : public Bindings::PlatformObject {
+class WritableStream final
+    : public Bindings::PlatformObject
+    , public Bindings::Transferable {
     WEB_PLATFORM_OBJECT(WritableStream, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(WritableStream);
 
@@ -85,6 +88,11 @@ public:
 
     SinglyLinkedList<GC::Ref<WebIDL::Promise>>& write_requests() { return m_write_requests; }
 
+    // ^Transferable
+    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) override;
+    virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::WritableStream; }
+
 private:
     explicit WritableStream(JS::Realm&);
 
@@ -103,10 +111,6 @@ private:
     // https://streams.spec.whatwg.org/#writablestream-controller
     // A WritableStreamDefaultController created with the ability to control the state and queue of this stream
     GC::Ptr<WritableStreamDefaultController> m_controller;
-
-    // https://streams.spec.whatwg.org/#writablestream-detached
-    // A boolean flag set to true when the stream is transferred
-    bool m_detached { false };
 
     // https://streams.spec.whatwg.org/#writablestream-inflightwriterequest
     // A slot set to the promise for the current in-flight write operation while the underlying sink's write algorithm is executing and has not yet fulfilled, used to prevent reentrant calls

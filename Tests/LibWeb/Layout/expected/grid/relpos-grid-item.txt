@@ -1,19 +1,19 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (2,2) content-size 796x62 [BFC] children: not-inline
-    Box <body> at (12,12) content-size 600x42 [GFC] children: not-inline
-      BlockContainer <div.exekiller> at (14,14) content-size 200x17 positioned [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 9, rect: [14,14 65.4375x17] baseline: 13.296875
+  BlockContainer <html> at (2,2) content-size 796x64 [BFC] children: not-inline
+    Box <body> at (12,12) content-size 600x44 [GFC] children: not-inline
+      BlockContainer <div.exekiller> at (14,14) content-size 200x18 positioned [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 9, rect: [14,14 65.4375x18] baseline: 13.796875
             "exekiller"
         TextNode <#text>
-      BlockContainer <div.athena> at (24,25) content-size 200x17 positioned [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 6, rect: [24,25 53.171875x17] baseline: 13.296875
+      BlockContainer <div.athena> at (24,26) content-size 200x18 positioned [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [24,26 53.171875x18] baseline: 13.796875
             "athena"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x66]
-    PaintableBox (Box<BODY>) [10,10 604x46]
-      PaintableWithLines (BlockContainer<DIV>.exekiller) [12,12 204x21]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x68]
+    PaintableBox (Box<BODY>) [10,10 604x48]
+      PaintableWithLines (BlockContainer<DIV>.exekiller) [12,12 204x22]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<DIV>.athena) [22,23 204x21]
+      PaintableWithLines (BlockContainer<DIV>.athena) [22,24 204x22]
         TextPaintable (TextNode<#text>)

@@ -63,7 +63,7 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
 
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode());
 
-    auto needs_to_save_state = computed_values.isolation() == CSS::Isolation::Isolate || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || svg_box.has_css_transform() || svg_box.get_masking_area().has_value();
+    auto needs_to_save_state = computed_values.isolation() == CSS::Isolation::Isolate || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || svg_box.has_css_transform() || masking_area.has_value();
 
     if (needs_to_save_state) {
         context.display_list_recorder().save();
@@ -88,22 +88,27 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
         context.display_list_recorder().apply_transform(transform_origin.scaled(to_device_pixels_scale), matrix_with_scaled_translation(transform_matrix, to_device_pixels_scale));
     }
 
+    bool skip_painting = false;
     if (masking_area.has_value()) {
-        if (masking_area->is_empty())
-            return;
-        auto mask_bitmap = svg_box.calculate_mask(context, *masking_area);
-        if (mask_bitmap) {
-            auto source_paintable_rect = context.enclosing_device_rect(*masking_area).template to_type<int>();
-            auto origin = source_paintable_rect.location();
-            context.display_list_recorder().apply_mask_bitmap(origin, mask_bitmap.release_nonnull(), *svg_box.get_mask_type());
+        if (masking_area->is_empty()) {
+            skip_painting = true;
+        } else {
+            auto mask_bitmap = svg_box.calculate_mask(context, *masking_area);
+            if (mask_bitmap) {
+                auto source_paintable_rect = context.enclosing_device_rect(*masking_area).template to_type<int>();
+                auto origin = source_paintable_rect.location();
+                context.display_list_recorder().apply_mask_bitmap(origin, mask_bitmap.release_nonnull(), *svg_box.get_mask_type());
+            }
         }
     }
 
-    svg_box.before_paint(context, PaintPhase::Foreground);
-    svg_box.paint(context, PaintPhase::Foreground);
-    svg_box.after_paint(context, PaintPhase::Foreground);
+    if (!skip_painting) {
+        svg_box.before_paint(context, PaintPhase::Foreground);
+        svg_box.paint(context, PaintPhase::Foreground);
+        svg_box.after_paint(context, PaintPhase::Foreground);
 
-    paint_descendants(context, svg_box, phase);
+        paint_descendants(context, svg_box, phase);
+    }
 
     if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
         context.display_list_recorder().restore();

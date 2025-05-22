@@ -6,7 +6,7 @@
         "context": ".",
         "dockerfile": "Dockerfile",
         "args": {
-            "VERSION": "${localEnv:VERSION:41}"
+            "VERSION": "${localEnv:VERSION:42}"
         }
     },
 

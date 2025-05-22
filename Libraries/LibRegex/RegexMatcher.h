@@ -32,7 +32,7 @@ struct Block {
 
 static constexpr size_t const c_max_recursion = 5000;
 
-struct RegexResult final {
+struct REGEX_API RegexResult final {
     bool success { false };
     size_t count { 0 };
     Vector<Match> matches;
@@ -44,10 +44,10 @@ struct RegexResult final {
 };
 
 template<class Parser>
-class Regex;
+class REGEX_API Regex;
 
 template<class Parser>
-class Matcher final {
+class REGEX_API Matcher final {
 
 public:
     Matcher(Regex<Parser> const* pattern, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {})
@@ -78,7 +78,7 @@ private:
 };
 
 template<class Parser>
-class Regex final {
+class REGEX_API Regex final {
 public:
     ByteString pattern_value;
     regex::Parser::Result parser_result;
@@ -294,6 +294,7 @@ bool has_match(Vector<RegexStringView> const& views, Regex<Parser>& pattern, Opt
 {
     return pattern.has_match(views, regex_options);
 }
+
 }
 
 using regex::has_match;

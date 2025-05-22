@@ -75,7 +75,8 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
     };
 
     // 4. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 1, "", « »).
-    auto on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 1);
+    if (!m_on_fulfilled)
+        m_on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 1);
 
     // 5. Let rejectedClosure be a new Abstract Closure with parameters (reason) that captures asyncContext and performs the
     //    following steps when called:
@@ -103,11 +104,12 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
     };
 
     // 6. Let onRejected be CreateBuiltinFunction(rejectedClosure, 1, "", « »).
-    auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1);
+    if (!m_on_rejected)
+        m_on_rejected = NativeFunction::create(realm, move(rejected_closure), 1);
 
     // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
     m_current_promise = as<Promise>(promise_object);
-    m_current_promise->perform_then(on_fulfilled, on_rejected, {});
+    m_current_promise->perform_then(m_on_fulfilled, m_on_rejected, {});
 
     // NOTE: None of these are necessary. 8-12 are handled by step d of the above lambdas.
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the
@@ -131,11 +133,8 @@ void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, b
                 return generator_result.throw_completion();
 
             auto result = generator_result.release_value();
-            VERIFY(result.is_object());
-
-            auto promise_value = TRY(result.get(vm, vm.names.value));
-
-            if (TRY(result.get(vm, vm.names.done)).to_boolean()) {
+            auto promise_value = result.value;
+            if (result.done) {
                 // When returning a promise, we need to unwrap it.
                 if (promise_value.is_object() && is<Promise>(promise_value.as_object())) {
                     auto& returned_promise = static_cast<Promise&>(promise_value.as_object());
@@ -179,6 +178,8 @@ void AsyncFunctionDriverWrapper::visit_edges(Cell::Visitor& visitor)
         visitor.visit(m_current_promise);
     if (m_suspended_execution_context)
         m_suspended_execution_context->visit_edges(visitor);
+    visitor.visit(m_on_fulfilled);
+    visitor.visit(m_on_rejected);
 }
 
 }

@@ -268,7 +268,7 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
 void HTMLParser::run(const URL::URL& url, HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
 {
     m_document->set_url(url);
-    m_document->set_source(MUST(String::from_byte_string(m_tokenizer.source())));
+    m_document->set_source(m_tokenizer.source());
     run(stop_at_insertion_point);
     the_end(*m_document, this);
 }
@@ -4698,14 +4698,15 @@ static String escape_string(StringView string, AttributeMode attribute_mode)
         // 2. Replace any occurrences of the U+00A0 NO-BREAK SPACE character by the string "&nbsp;".
         else if (code_point == 0xA0)
             builder.append("&nbsp;"sv);
-        // 3. If the algorithm was invoked in the attribute mode, replace any occurrences of the """ character by the string "&quot;".
+        // 3. Replace any occurrences of the "<" character by the string "&lt;".
+        else if (code_point == '<')
+            builder.append("&lt;"sv);
+        // 4. Replace any occurrences of the ">" character by the string "&gt;".
+        else if (code_point == '>')
+            builder.append("&gt;"sv);
+        // 5. If the algorithm was invoked in the attribute mode, then replace any occurrences of the """ character by the string "&quot;".
         else if (code_point == '"' && attribute_mode == AttributeMode::Yes)
             builder.append("&quot;"sv);
-        // 4. If the algorithm was not invoked in the attribute mode, replace any occurrences of the "<" character by the string "&lt;", and any occurrences of the ">" character by the string "&gt;".
-        else if (code_point == '<' && attribute_mode == AttributeMode::No)
-            builder.append("&lt;"sv);
-        else if (code_point == '>' && attribute_mode == AttributeMode::No)
-            builder.append("&gt;"sv);
         else
             builder.append_code_point(code_point);
     }
@@ -5071,7 +5072,7 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
     input = input.trim(Infra::ASCII_WHITESPACE);
 
     // 3. If input is an ASCII case-insensitive match for "transparent", then return failure.
-    if (Infra::is_ascii_case_insensitive_match(input, "transparent"sv))
+    if (input.equals_ignoring_ascii_case("transparent"sv))
         return {};
 
     // 4. If input is an ASCII case-insensitive match for one of the named colors, then return the CSS color corresponding to that keyword. [CSSCOLOR]

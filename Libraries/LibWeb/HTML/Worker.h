@@ -42,6 +42,8 @@ public:
 
     GC::Ptr<MessagePort> outside_message_port() { return m_outside_port; }
 
+    void set_agent(WorkerAgentParent& agent) { m_agent = agent; }
+
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
     void set_##attribute_name(WebIDL::CallbackType*); \
@@ -66,8 +68,8 @@ private:
     GC::Ptr<MessagePort> m_outside_port;
 
     GC::Ptr<WorkerAgentParent> m_agent;
-
-    void run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> outside_port, WorkerOptions const& options);
 };
+
+void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> outside_port, WorkerOptions const& options);
 
 }

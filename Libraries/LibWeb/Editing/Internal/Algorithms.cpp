@@ -646,7 +646,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         auto new_style_value = CSS::StyleValueList::create(move(new_values), value_list.separator());
         MUST(inline_style->set_property(
             string_from_property_id(CSS::PropertyID::TextDecoration),
-            new_style_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal),
+            new_style_value->to_string(CSS::SerializationMode::Normal),
             {}));
     };
     if (command == CommandNames::strikethrough)
@@ -659,9 +659,8 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
 
     // 7. If the relevant CSS property for command is not null, unset that property of element.
     auto command_definition = find_command_definition(command);
-    // FIXME: remove command_definition.has_value() as soon as all commands are implemented.
-    if (command_definition.has_value() && command_definition.value().relevant_css_property.has_value()) {
-        auto property_to_remove = command_definition.value().relevant_css_property.value();
+    if (command_definition->relevant_css_property.has_value()) {
+        auto property_to_remove = command_definition->relevant_css_property.value();
         if (auto inline_style = element->inline_style())
             MUST(inline_style->remove_property(string_from_property_id(property_to_remove)));
     }
@@ -1184,7 +1183,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         auto resolved_value = resolved_background_color();
         if (!resolved_value.has_value())
             return {};
-        return resolved_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::ResolvedValue);
+        return resolved_value.value()->to_string(CSS::SerializationMode::ResolvedValue);
     }
 
     // 5. If command is "subscript" or "superscript":
@@ -1254,17 +1253,13 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
     }
 
     // 8. Return the resolved value for node of the relevant CSS property for command.
-    auto optional_command_definition = find_command_definition(command);
-    // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
-    if (!optional_command_definition.has_value())
-        return {};
-    auto const& command_definition = optional_command_definition.release_value();
+    auto const& command_definition = find_command_definition(command).release_value();
     VERIFY(command_definition.relevant_css_property.has_value());
 
     auto optional_value = resolved_value(*node, command_definition.relevant_css_property.value());
     if (!optional_value.has_value())
         return {};
-    return optional_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::ResolvedValue);
+    return optional_value.value()->to_string(CSS::SerializationMode::ResolvedValue);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#first-equivalent-point
@@ -1581,9 +1576,9 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     //     value would be valid).
     if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value)) {
         auto const& command_definition = find_command_definition(command);
-        if (command_definition.has_value() && command_definition.value().relevant_css_property.has_value()) {
+        if (command_definition->relevant_css_property.has_value()) {
             auto inline_style = new_parent->style_for_bindings();
-            MUST(inline_style->set_property(command_definition.value().relevant_css_property.value(), new_value.value()));
+            MUST(inline_style->set_property(command_definition->relevant_css_property.value(), new_value.value()));
         }
     }
 
@@ -2741,7 +2736,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
                     && element->inline_style()->length() == 1) {
                     auto text_align = element->inline_style()->property(CSS::PropertyID::TextAlign);
                     if (text_align.has_value()) {
-                        auto align_value = text_align.value().value->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+                        auto align_value = text_align.value().value->to_string(CSS::SerializationMode::Normal);
                         if (align_value.equals_ignoring_ascii_case(alignment_keyword))
                             ++number_of_matching_attributes;
                     }
@@ -3300,13 +3295,8 @@ Vector<RecordedOverride> record_current_states_and_values(DOM::Document const& d
     //    (command, true) to overrides, and otherwise add (command, false) to overrides.
     for (auto const& command : { CommandNames::bold, CommandNames::italic, CommandNames::strikethrough,
              CommandNames::subscript, CommandNames::superscript, CommandNames::underline }) {
-        auto command_definition = find_command_definition(command);
-        // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
-        if (!command_definition.has_value())
-            continue;
-
         effective_value = effective_command_value(node, command);
-        auto& inline_activated_values = command_definition.value().inline_activated_values;
+        auto& inline_activated_values = find_command_definition(command)->inline_activated_values;
         overrides.empend(command, effective_value.has_value() && inline_activated_values.contains_slow(*effective_value));
     }
 
@@ -3333,9 +3323,10 @@ Vector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::Ref<DOM::Node>> 
     // 2. For each node in node list, for each command in the list "subscript", "bold", "fontName",
     //    "fontSize", "foreColor", "hiliteColor", "italic", "strikethrough", and "underline" in that
     //    order:
+    // AD-HOC: We include "preserveWhitespace" as well.
     Array const commands = { CommandNames::subscript, CommandNames::bold, CommandNames::fontName,
         CommandNames::fontSize, CommandNames::foreColor, CommandNames::hiliteColor, CommandNames::italic,
-        CommandNames::strikethrough, CommandNames::underline };
+        CommandNames::strikethrough, CommandNames::underline, CommandNames::preserveWhitespace };
     for (auto node : node_list) {
         for (auto command : commands) {
             // 1. Let ancestor equal node.
@@ -3731,9 +3722,8 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
         // 1. If command has inline command activated values, set the state override to true if new value is among them
         //    and false if it's not.
         auto command_definition = find_command_definition(command);
-        // FIXME: remove .has_value() once all commands are implemented.
-        if (command_definition.has_value() && !command_definition.value().inline_activated_values.is_empty()) {
-            auto new_override = new_value.has_value() && command_definition.value().inline_activated_values.contains_slow(*new_value);
+        if (!command_definition->inline_activated_values.is_empty()) {
+            auto new_override = new_value.has_value() && command_definition->inline_activated_values.contains_slow(*new_value);
             document.set_command_state_override(command, new_override);
         }
 
@@ -3912,11 +3902,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         return "underline"_string;
 
     // 8. Let property be the relevant CSS property for command.
-    auto command_definition = find_command_definition(command);
-    // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
-    if (!command_definition.has_value())
-        return {};
-    auto property = command_definition.value().relevant_css_property;
+    auto property = find_command_definition(command)->relevant_css_property;
 
     // 9. If property is null, return null.
     if (!property.has_value())
@@ -3926,7 +3912,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     //     that it sets property to.
     auto style_value = property_in_style_attribute(element, property.value());
     if (style_value.has_value())
-        return style_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+        return style_value.value()->to_string(CSS::SerializationMode::Normal);
 
     // 11. If element is a font element that has an attribute whose effect is to create a presentational hint for
     //     property, return the value that the hint sets property to. (For a size of 7, this will be the non-CSS value
@@ -3937,7 +3923,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         font_element.apply_presentational_hints(cascaded_properties);
         auto property_value = cascaded_properties->property(property.value());
         if (property_value)
-            return property_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+            return property_value->to_string(CSS::SerializationMode::Normal);
     }
 
     // 12. If element is in the following list, and property is equal to the CSS property name listed for it, return the
@@ -4759,9 +4745,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::No
 void take_the_action_for_command(DOM::Document& document, FlyString const& command, String const& value)
 {
     auto const& command_definition = find_command_definition(command);
-    // FIXME: replace with VERIFY(command_definition.has_value()) as soon as all command definitions are in place.
-    if (command_definition.has_value())
-        command_definition->action(document, value);
+    command_definition->action(document, value);
 }
 
 bool value_contains_keyword(CSS::CSSStyleValue const& value, CSS::Keyword keyword)

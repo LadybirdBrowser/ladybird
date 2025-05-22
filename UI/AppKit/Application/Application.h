@@ -14,7 +14,9 @@
 #import <Cocoa/Cocoa.h>
 
 namespace Ladybird {
+
 class WebViewBridge;
+
 }
 
 @interface Application : NSApplication

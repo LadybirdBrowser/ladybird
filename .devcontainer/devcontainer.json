@@ -6,7 +6,7 @@
         "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainers-contrib/features/pre-commit:2": {},
         "./features/ladybird": {
-            "llvm_version": 19
+            "llvm_version": 20
         },
         "./features/vcpkg-cache": {
             "release_triplet": true,

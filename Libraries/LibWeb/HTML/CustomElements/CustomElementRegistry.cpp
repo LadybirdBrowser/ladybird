@@ -89,11 +89,11 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
         auto next = TRY(JS::iterator_step(vm, iterator));
 
         // 2. If next is false, then return an IDL sequence value of type sequence<T> of length i, where the value of the element at index j is Sj.
-        if (!next)
+        if (!next.has<JS::IterationResult>())
             return sequence_of_strings;
 
         // 3. Let nextItem be ? IteratorValue(next).
-        auto next_item = TRY(JS::iterator_value(vm, *next));
+        auto next_item = TRY(next.get<JS::IterationResult>().value);
 
         // 4. Initialize Si to the result of converting nextItem to an IDL value of type T.
 

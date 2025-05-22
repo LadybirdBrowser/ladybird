@@ -37,6 +37,7 @@ private:
 }
 
 namespace AK {
+
 template<>
 class Optional<JS::Bytecode::IdentifierTableIndex> : public OptionalBase<JS::Bytecode::IdentifierTableIndex> {
     template<typename U>

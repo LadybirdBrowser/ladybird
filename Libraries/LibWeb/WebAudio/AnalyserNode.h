@@ -81,4 +81,5 @@ private:
     // https://webaudio.github.io/web-audio-api/#conversion-to-db
     Vector<f32> conversion_to_dB(Vector<f32> const& X_hat) const;
 };
+
 }

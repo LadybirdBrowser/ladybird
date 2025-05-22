@@ -63,6 +63,7 @@ public:
 
     bool will_validate();
     bool check_validity();
+    bool report_validity();
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-select-element
@@ -97,7 +98,6 @@ public:
     virtual void activation_behavior(DOM::Event const&) override;
 
     virtual void form_associated_element_was_inserted() override;
-    virtual void form_associated_element_was_removed(DOM::Node*) override;
 
     void did_select_item(Optional<u32> const& id);
 

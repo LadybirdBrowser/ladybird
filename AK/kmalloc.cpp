@@ -63,7 +63,9 @@ void operator delete[](void* ptr, size_t) noexcept
 // This is usually provided by libstdc++ in most cases, and the kernel has its own definition in
 // Kernel/Heap/kmalloc.cpp. If neither of those apply, the following should suffice to not fail during linking.
 namespace AK_REPLACED_STD_NAMESPACE {
+
 nothrow_t const nothrow;
+
 }
 
 #endif

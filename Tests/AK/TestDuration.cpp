@@ -7,11 +7,10 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/Time.h>
-#include <sys/time.h>
 
 using AK::Duration;
 
-#if defined(__TIMESIZE) && __TIMESIZE < 64
+#if (defined(__TIMESIZE) && __TIMESIZE < 64) || defined(AK_OS_WINDOWS) // NOTE: See AK/Time.h, on Windows we hardcode to long's for timeval
 #    define TIME_T_IS_32BIT
 #endif
 

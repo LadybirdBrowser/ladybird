@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Frequency.h"
+#include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
@@ -26,9 +26,11 @@ Frequency Frequency::percentage_of(Percentage const& percentage) const
     return Frequency { percentage.as_fraction() * m_value, m_type };
 }
 
-String Frequency::to_string() const
+String Frequency::to_string(SerializationMode serialization_mode) const
 {
-    return MUST(String::formatted("{}hz", to_hertz()));
+    if (serialization_mode == SerializationMode::ResolvedValue)
+        return MUST(String::formatted("{}hz", to_hertz()));
+    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
 }
 
 double Frequency::to_hertz() const

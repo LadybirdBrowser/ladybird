@@ -1,23 +1,23 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x455 [BFC] children: not-inline
-    Box <body.hero> at (10,10) content-size 500x437 flex-container(column) [FFC] children: not-inline
-      BlockContainer <div.upper> at (10,11) content-size 500x435 flex-item [BFC] children: inline
-        frag 0 from TextNode start: 0, length: 11, rect: [10,11 453.984375x87] baseline: 67.484375
+  BlockContainer <html> at (1,1) content-size 798x480 [BFC] children: not-inline
+    Box <body.hero> at (10,10) content-size 500x462 flex-container(column) [FFC] children: not-inline
+      BlockContainer <div.upper> at (10,11) content-size 500x460 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [10,11 453.984375x92] baseline: 69.984375
             "This entire"
-        frag 1 from TextNode start: 12, length: 11, rect: [10,98 455x87] baseline: 67.484375
+        frag 1 from TextNode start: 12, length: 11, rect: [10,103 455x92] baseline: 69.984375
             "text should"
-        frag 2 from TextNode start: 24, length: 5, rect: [10,185 230.78125x87] baseline: 67.484375
+        frag 2 from TextNode start: 24, length: 5, rect: [10,195 230.78125x92] baseline: 69.984375
             "be on"
-        frag 3 from TextNode start: 30, length: 6, rect: [10,272 272.109375x87] baseline: 67.484375
+        frag 3 from TextNode start: 30, length: 6, rect: [10,287 272.109375x92] baseline: 69.984375
             "orange"
-        frag 4 from TextNode start: 37, length: 11, rect: [10,359 468.75x87] baseline: 67.484375
+        frag 4 from TextNode start: 37, length: 11, rect: [10,379 468.75x92] baseline: 69.984375
             "background."
         TextNode <#text>
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x457]
-    PaintableBox (Box<BODY>.hero) [9,9 502x439] overflow: [9,10 502x437]
-      PaintableWithLines (BlockContainer<DIV>.upper) [9,10 502x437]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x482]
+    PaintableBox (Box<BODY>.hero) [9,9 502x464] overflow: [9,10 502x462]
+      PaintableWithLines (BlockContainer<DIV>.upper) [9,10 502x462]
         TextPaintable (TextNode<#text>)

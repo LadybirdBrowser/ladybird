@@ -62,6 +62,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLFieldSetElement>() const { return is_html_fieldset_element(); }
+
 }

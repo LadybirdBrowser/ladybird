@@ -12,7 +12,7 @@
 
 namespace JS {
 
-ThrowCompletionOr<Value> regexp_exec(VM&, Object& regexp_object, Utf16String string);
+ThrowCompletionOr<Value> regexp_exec(VM&, Object& regexp_object, GC::Ref<PrimitiveString> string);
 size_t advance_string_index(Utf16View const& string, size_t index, bool unicode);
 
 class RegExpPrototype final : public PrototypeObject<RegExpPrototype, RegExpObject> {

@@ -51,7 +51,7 @@ void HTMLFrameElement::inserted()
     // 3. Create a new child navigable for insertedNode.
     MUST(create_new_child_navigable(GC::create_function(realm().heap(), [this] {
         // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
-        process_the_frame_attributes(true);
+        process_the_frame_attributes(InitialInsertion::Yes);
         set_content_navigable_has_session_history_entry_and_ready_for_navigation();
     })));
 }
@@ -91,7 +91,7 @@ void HTMLFrameElement::adjust_computed_style(CSS::ComputedProperties& style)
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#process-the-frame-attributes
-void HTMLFrameElement::process_the_frame_attributes(bool initial_insertion)
+void HTMLFrameElement::process_the_frame_attributes(InitialInsertion initial_insertion)
 {
     // 1. Let url be the result of running the shared attribute processing steps for iframe and frame elements given
     //    element and initialInsertion.
@@ -102,7 +102,7 @@ void HTMLFrameElement::process_the_frame_attributes(bool initial_insertion)
         return;
 
     // 3. If url matches about:blank and initialInsertion is true, then:
-    if (url_matches_about_blank(*url) && initial_insertion) {
+    if (url_matches_about_blank(*url) && initial_insertion == InitialInsertion::Yes) {
         // 1. Fire an event named load at element.
         dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
 
@@ -110,8 +110,8 @@ void HTMLFrameElement::process_the_frame_attributes(bool initial_insertion)
         return;
     }
 
-    // 3. Navigate an iframe or frame given element, url, and the empty string.
-    navigate_an_iframe_or_frame(*url, ReferrerPolicy::ReferrerPolicy::EmptyString);
+    // 3. Navigate an iframe or frame given element, url, the empty string, and initialInsertion.
+    navigate_an_iframe_or_frame(*url, ReferrerPolicy::ReferrerPolicy::EmptyString, {}, initial_insertion);
 }
 
 }

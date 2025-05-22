@@ -70,7 +70,7 @@ static u16 pow_2_less_than_or_equal(u16 x)
 
 ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_resource(Core::Resource const& resource, unsigned index)
 {
-    return try_load_from_externally_owned_memory(resource.data(), index);
+    return try_load_from_bytes(resource.data(), index);
 }
 
 using Uint8 = u8;
@@ -102,7 +102,7 @@ struct [[gnu::packed]] TableRecord {
 };
 static_assert(AssertSize<TableRecord, 16>());
 
-ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes buffer, unsigned int index)
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, unsigned int index)
 {
     FixedMemoryStream stream(buffer);
     auto header = TRY(stream.read_value<Header>());

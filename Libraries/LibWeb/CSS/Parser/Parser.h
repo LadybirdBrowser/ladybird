@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/Descriptor.h>
 #include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/MediaQuery.h>
+#include <LibWeb/CSS/PageSelector.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Parser/Dimension.h>
@@ -41,6 +42,7 @@ namespace Web::CSS::Parser {
 class PropertyDependencyNode;
 
 namespace CalcParsing {
+
 struct Operator {
     char delim;
 };
@@ -61,6 +63,7 @@ struct InvertNode {
 struct NegateNode {
     Node child;
 };
+
 }
 
 enum class ParsingMode {
@@ -71,13 +74,10 @@ enum class ParsingMode {
 struct ParsingParams {
     explicit ParsingParams(ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
-    explicit ParsingParams(JS::Realm&, ::URL::URL, ParsingMode = ParsingMode::Normal);
-    explicit ParsingParams(DOM::Document const&, ::URL::URL, ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(DOM::Document const&, ParsingMode = ParsingMode::Normal);
 
     GC::Ptr<JS::Realm> realm;
     GC::Ptr<DOM::Document const> document;
-    ::URL::URL url;
     ParsingMode mode { ParsingMode::Normal };
 
     Vector<RuleContext> rule_context;
@@ -117,6 +117,8 @@ public:
     Optional<SelectorList> parse_as_relative_selector(SelectorParsingMode = SelectorParsingMode::Standard);
 
     Optional<Selector::PseudoElementSelector> parse_as_pseudo_element_selector();
+
+    Optional<PageSelectorList> parse_as_page_selector_list();
 
     Vector<NonnullRefPtr<MediaQuery>> parse_as_media_query_list();
     RefPtr<MediaQuery> parse_as_media_query();
@@ -190,6 +192,9 @@ private:
     ParseErrorOr<SelectorList> parse_a_selector_list(TokenStream<T>&, SelectorType, SelectorParsingMode = SelectorParsingMode::Standard);
 
     template<typename T>
+    ParseErrorOr<PageSelectorList> parse_a_page_selector_list(TokenStream<T>&);
+
+    template<typename T>
     Vector<NonnullRefPtr<MediaQuery>> parse_a_media_query_list(TokenStream<T>&);
     template<typename T>
     RefPtr<Supports> parse_a_supports(TokenStream<T>&);
@@ -244,10 +249,12 @@ private:
     GC::Ptr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
     GC::Ptr<CSSImportRule> convert_to_import_rule(AtRule const&);
     GC::Ptr<CSSRule> convert_to_layer_rule(AtRule const&, Nested);
+    GC::Ptr<CSSMarginRule> convert_to_margin_rule(AtRule const&);
     GC::Ptr<CSSMediaRule> convert_to_media_rule(AtRule const&, Nested);
     GC::Ptr<CSSNamespaceRule> convert_to_namespace_rule(AtRule const&);
-    GC::Ptr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
+    GC::Ptr<CSSPageRule> convert_to_page_rule(AtRule const& rule);
     GC::Ptr<CSSPropertyRule> convert_to_property_rule(AtRule const& rule);
+    GC::Ptr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
 
     GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);
@@ -348,6 +355,7 @@ private:
     };
     RefPtr<PositionStyleValue const> parse_position_value(TokenStream<ComponentValue>&, PositionParsingMode = PositionParsingMode::Normal);
     RefPtr<CSSStyleValue const> parse_filter_value_list_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_contain_value(TokenStream<ComponentValue>&);
     RefPtr<StringStyleValue const> parse_opentype_tag_value(TokenStream<ComponentValue>&);
     RefPtr<FontSourceStyleValue const> parse_font_source_value(TokenStream<ComponentValue>&);
 
@@ -394,6 +402,7 @@ private:
     RefPtr<CSSStyleValue const> parse_font_family_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_language_override_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_feature_settings_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_font_style_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_variation_settings_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_variant(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_font_variant_alternates_value(TokenStream<ComponentValue>&);
@@ -435,6 +444,7 @@ private:
     RefPtr<CSSStyleValue const> parse_grid_template_areas_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_area_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_grid_shorthand_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_touch_action_value(TokenStream<ComponentValue>&);
 
     RefPtr<CSSStyleValue const> parse_list_of_time_values(PropertyID, TokenStream<ComponentValue>&);
 
@@ -479,11 +489,9 @@ private:
     JS::Realm& realm() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
-    Optional<::URL::URL> complete_url(StringView) const;
 
     GC::Ptr<DOM::Document const> m_document;
     GC::Ptr<JS::Realm> m_realm;
-    Optional<::URL::URL> m_url;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
 
     Vector<Token> m_tokens;
@@ -521,6 +529,7 @@ RefPtr<CSS::CSSStyleValue const> parse_css_value(CSS::Parser::ParsingParams cons
 RefPtr<CSS::CSSStyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorID, StringView);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView);
+Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, StringView);
 CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, StringView);
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, StringView);

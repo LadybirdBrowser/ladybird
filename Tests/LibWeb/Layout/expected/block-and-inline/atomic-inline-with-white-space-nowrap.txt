@@ -1,8 +1,8 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 37.15625x17 children: not-inline
-      BlockContainer <div> at (8,8) content-size 37.15625x17 children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 37.15625x18 children: not-inline
+      BlockContainer <div> at (8,8) content-size 37.15625x18 children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x18] baseline: 13.796875
             "foo"
         frag 1 from ImageBox start: 0, length: 0, rect: [35.15625,11 10x10] baseline: 10
         TextNode <#text>
@@ -10,8 +10,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 37.15625x17]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 37.15625x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 37.15625x18]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 37.15625x18]
         TextPaintable (TextNode<#text>)
         ImagePaintable (ImageBox<IMG>) [35.15625,11 10x10]

@@ -56,12 +56,17 @@ constexpr FloatVector2 BT_709_RED = { 0.64f, 0.33f };
 constexpr FloatVector2 BT_709_GREEN = { 0.30f, 0.60f };
 constexpr FloatVector2 BT_709_BLUE = { 0.15f, 0.06f };
 
+constexpr FloatVector2 BT_601_RED = { 0.630f, 0.340f };
+constexpr FloatVector2 BT_601_GREEN = { 0.310f, 0.595f };
+constexpr FloatVector2 BT_601_BLUE = { 0.155f, 0.070f };
+
 constexpr FloatVector2 BT_2020_RED = { 0.708f, 0.292f };
 constexpr FloatVector2 BT_2020_GREEN = { 0.170f, 0.797f };
 constexpr FloatVector2 BT_2020_BLUE = { 0.131f, 0.046f };
 
 constexpr FloatMatrix3x3 bt_2020_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_2020_RED, BT_2020_GREEN, BT_2020_BLUE, ILLUMINANT_D65);
 constexpr FloatMatrix3x3 bt_709_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_709_RED, BT_709_GREEN, BT_709_BLUE, ILLUMINANT_D65);
+constexpr FloatMatrix3x3 bt_601_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_601_RED, BT_601_GREEN, BT_601_BLUE, ILLUMINANT_D65);
 
 DecoderErrorOr<FloatMatrix3x3> get_conversion_matrix(ColorPrimaries input_primaries, ColorPrimaries output_primaries)
 {
@@ -69,6 +74,9 @@ DecoderErrorOr<FloatMatrix3x3> get_conversion_matrix(ColorPrimaries input_primar
     switch (input_primaries) {
     case ColorPrimaries::BT709:
         input_conversion_matrix = bt_709_rgb_to_xyz;
+        break;
+    case ColorPrimaries::BT601:
+        input_conversion_matrix = bt_601_rgb_to_xyz;
         break;
     case ColorPrimaries::BT2020:
         input_conversion_matrix = bt_2020_rgb_to_xyz;
@@ -81,6 +89,9 @@ DecoderErrorOr<FloatMatrix3x3> get_conversion_matrix(ColorPrimaries input_primar
     switch (output_primaries) {
     case ColorPrimaries::BT709:
         output_conversion_matrix = bt_709_rgb_to_xyz.inverse();
+        break;
+    case ColorPrimaries::BT601:
+        output_conversion_matrix = bt_601_rgb_to_xyz.inverse();
         break;
     case ColorPrimaries::BT2020:
         output_conversion_matrix = bt_2020_rgb_to_xyz.inverse();

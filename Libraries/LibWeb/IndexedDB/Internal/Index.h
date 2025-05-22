@@ -28,7 +28,7 @@ class Index : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Index);
 
 public:
-    [[nodiscard]] static GC::Ref<Index> create(JS::Realm&, GC::Ref<ObjectStore>, String, KeyPath const&, bool, bool);
+    [[nodiscard]] static GC::Ref<Index> create(JS::Realm&, GC::Ref<ObjectStore>, String const&, KeyPath const&, bool, bool);
     virtual ~Index();
 
     void set_name(String name);
@@ -40,12 +40,20 @@ public:
     [[nodiscard]] KeyPath const& key_path() const { return m_key_path; }
 
     [[nodiscard]] bool has_record_with_key(GC::Ref<Key> key);
+    void clear_records();
+    Optional<IndexRecord&> first_in_range(GC::Ref<IDBKeyRange> range);
+    GC::ConservativeVector<IndexRecord> first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
+    u64 count_records_in_range(GC::Ref<IDBKeyRange> range);
+    void store_a_record(IndexRecord const& record);
+    void remove_records_with_value_in_range(GC::Ref<IDBKeyRange> range);
+
+    HTML::SerializationRecord referenced_value(IndexRecord const& index_record) const;
 
 protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    Index(GC::Ref<ObjectStore>, String, KeyPath const&, bool, bool);
+    Index(GC::Ref<ObjectStore>, String const&, KeyPath const&, bool, bool);
 
     // An index [...] has a referenced object store.
     GC::Ref<ObjectStore> m_object_store;

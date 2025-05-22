@@ -17,7 +17,7 @@ TEST_CASE(malformed_woff)
 
     for (auto test_input : test_inputs) {
         auto file = MUST(Core::MappedFile::map(test_input));
-        auto font_or_error = WOFF::try_load_from_externally_owned_memory(file->bytes());
+        auto font_or_error = WOFF::try_load_from_bytes(file->bytes());
         EXPECT(font_or_error.is_error());
     }
 }

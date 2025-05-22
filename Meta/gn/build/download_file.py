@@ -20,7 +20,7 @@ import urllib.request
 def compute_sha256(path):
     sha256 = hashlib.sha256()
 
-    with open(path, 'rb') as file:
+    with open(path, "rb") as file:
         while True:
             data = file.read(256 << 10)
             if not data:
@@ -32,26 +32,19 @@ def compute_sha256(path):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        epilog=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('url', help='input url')
-    parser.add_argument('-o', '--output', required=True,
-                        help='output file')
-    parser.add_argument('-v', '--version', required=True,
-                        help='version of file to detect mismatches and redownload')
-    parser.add_argument('-f', '--version-file', required=True,
-                        help='filesystem location to cache version')
-    parser.add_argument('-c', "--cache-path", required=False,
-                        help='path for cached files to clear on version mismatch')
-    parser.add_argument('-s', "--sha256", required=False,
-                        help='expected SHA-256 hash of the downloaded file')
+    parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("url", help="input url")
+    parser.add_argument("-o", "--output", required=True, help="output file")
+    parser.add_argument("-v", "--version", required=True, help="version of file to detect mismatches and redownload")
+    parser.add_argument("-f", "--version-file", required=True, help="filesystem location to cache version")
+    parser.add_argument("-c", "--cache-path", required=False, help="path for cached files to clear on version mismatch")
+    parser.add_argument("-s", "--sha256", required=False, help="expected SHA-256 hash of the downloaded file")
     args = parser.parse_args()
 
-    version_from_file = ''
+    version_from_file = ""
     version_file = pathlib.Path(args.version_file)
     if version_file.exists():
-        with version_file.open('r') as f:
+        with version_file.open("r") as f:
             version_from_file = f.readline().strip()
 
     if version_from_file == args.version:
@@ -83,9 +76,9 @@ def main():
             print(f"Actual:   {actual_sha256}")
             return 1
 
-    with open(version_file, 'w') as f:
+    with open(version_file, "w") as f:
         f.write(args.version)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

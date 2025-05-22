@@ -1,26 +1,26 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x17 children: inline
-      frag 0 from TextNode start: 0, length: 4, rect: [8,8 35.15625x17] baseline: 13.296875
+    BlockContainer <body> at (8,8) content-size 784x18 children: inline
+      frag 0 from TextNode start: 0, length: 4, rect: [8,8 35.15625x18] baseline: 13.796875
           "foo "
-      frag 1 from TextNode start: 0, length: 1, rect: [70.796875,8 8x17] baseline: 13.296875
+      frag 1 from TextNode start: 0, length: 1, rect: [70.796875,8 8x18] baseline: 13.796875
           " "
       TextNode <#text>
       InlineNode <b>
-        frag 0 from TextNode start: 0, length: 3, rect: [43.15625,33 27.640625x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 3, rect: [43.15625,33 27.640625x18] baseline: 13.796875
             "bar"
         TextNode <#text>
       TextNode <#text>
       InlineNode <b>
         InlineNode <i>
-          frag 0 from TextNode start: 0, length: 3, rect: [53.796875,58 27.203125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 3, rect: [53.796875,58 27.203125x18] baseline: 13.796875
               "baz"
           TextNode <#text>
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
       TextPaintable (TextNode<#text>)
       PaintableWithLines (InlineNode<B>)
         TextPaintable (TextNode<#text>)

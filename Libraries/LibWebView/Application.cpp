@@ -252,6 +252,9 @@ void Application::launch_spare_web_content_process()
     // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
     if (browser_options().debug_helper_process == ProcessType::WebContent)
         return;
+    // Disable spare processes when profiling WebContent. This reduces callgrind logging we are not interested in.
+    if (browser_options().profile_helper_process == ProcessType::WebContent)
+        return;
 
     if (m_has_queued_task_to_launch_spare_web_content_process)
         return;

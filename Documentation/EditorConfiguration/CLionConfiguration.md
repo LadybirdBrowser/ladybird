@@ -9,7 +9,7 @@ Then select the `Debug` profile and uncheck the `Enable profile` checkbox.
 
 If the build complains that there is no `Default` Toolchain, go to the `Settings -> Build, Execution and Deployment -> Toolchains`
 tab and copy the currently defaulted host toolchain and rename it to `Default`. Make sure that the compiler chosen has a version of
-at least gcc-13 or clang-17.
+supported by the [build system](../BuildInstructionsLadybird.md#build-prerequisites).
 
 ## Excluding Build Artifacts
 
@@ -49,9 +49,9 @@ This error typically arises when CLion is not configured to use the correct buil
 
 **Solution**: Ensure that CLion's build directory is set to the correct build directory for the selected profile.
 Navigate to `Settings -> Build, Execution, Deployment -> CMake` and in your selected profile, set the `Build directory` according to the profile:
-- Default -> "`Build/ladybird`"
-- Debug -> "`Build/ladybird-debug`"
-- Sanitizer -> "`Build/ladybird-sanitizers`"
+- Default -> "`Build/release`"
+- Debug -> "`Build/debug`"
+- Sanitizer -> "`Build/sanitizers`"
 
 
 ## Notes for WSL Users

@@ -383,6 +383,8 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
         }
     }
 
+    attribute_tokens.discard_whitespace();
+
     if (attribute_tokens.has_next_token()) {
         dbgln_if(CSS_PARSER_DEBUG, "Was not expecting anything else inside attribute selector.");
         return ParseError::SyntaxError;
@@ -695,24 +697,24 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         case PseudoClassMetadata::ParameterType::Ident: {
             auto function_token_stream = TokenStream(pseudo_function.value);
             function_token_stream.discard_whitespace();
-            auto const& maybe_keyword_token = function_token_stream.consume_a_token();
+            auto const& maybe_ident_token = function_token_stream.consume_a_token();
             function_token_stream.discard_whitespace();
-            if (!maybe_keyword_token.is(Token::Type::Ident) || function_token_stream.has_next_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: not an ident", pseudo_function.name);
+            if (!maybe_ident_token.is(Token::Type::Ident) || function_token_stream.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter: not an ident", pseudo_function.name);
                 return ParseError::SyntaxError;
             }
 
-            auto maybe_keyword = keyword_from_string(maybe_keyword_token.token().ident());
-            if (!maybe_keyword.has_value()) {
-                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: unrecognized keyword", pseudo_function.name);
-                return ParseError::SyntaxError;
-            }
+            auto& ident = maybe_ident_token.token().ident();
 
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoClass,
                 .value = Selector::SimpleSelector::PseudoClassSelector {
                     .type = pseudo_class,
-                    .keyword = maybe_keyword.value() }
+                    .ident = Selector::SimpleSelector::PseudoClassSelector::Ident {
+                        .keyword = keyword_from_string(ident).value_or(Keyword::Invalid),
+                        .string_value = ident,
+                    },
+                }
             };
         }
         case PseudoClassMetadata::ParameterType::LanguageRanges: {
@@ -829,7 +831,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
             tokens.reconsume_current_input_token();
             return Optional<Selector::SimpleSelector> {};
         default:
-            dbgln_if(CSS_PARSER_DEBUG, "!!! Invalid simple selector!");
+            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized delimiter in selector: '{}'", first_value.token().to_string());
             return ParseError::SyntaxError;
         }
     }
@@ -851,7 +853,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
     if (first_value.is(Token::Type::Colon))
         return TRY(parse_pseudo_simple_selector(tokens));
 
-    dbgln_if(CSS_PARSER_DEBUG, "!!! Invalid simple selector!");
+    dbgln_if(CSS_PARSER_DEBUG, "Invalid simple selector: {}", first_value.to_debug_string());
     return ParseError::SyntaxError;
 }
 
@@ -1144,5 +1146,77 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
 
     return syntax_error();
 }
+
+Optional<PageSelectorList> Parser::parse_as_page_selector_list()
+{
+    auto selector_list = parse_a_page_selector_list(m_token_stream);
+    if (!selector_list.is_error())
+        return selector_list.release_value();
+    return {};
+}
+
+template<typename T>
+Parser::ParseErrorOr<PageSelectorList> Parser::parse_a_page_selector_list(TokenStream<T>& tokens)
+{
+    // https://drafts.csswg.org/css-page-3/#syntax-page-selector
+    // <page-selector-list> = <page-selector>#
+    // <page-selector> = [ <ident-token>? <pseudo-page>* ]!
+    // <pseudo-page> = : [ left | right | first | blank ]
+
+    PageSelectorList selector_list;
+
+    tokens.discard_whitespace();
+
+    while (tokens.has_next_token()) {
+        // First optional ident
+        Optional<FlyString> maybe_ident;
+        if (tokens.next_token().is(Token::Type::Ident))
+            maybe_ident = static_cast<Token>(tokens.consume_a_token()).ident();
+
+        // Then an optional series of pseudo-classes
+        Vector<PagePseudoClass> pseudo_classes;
+        while (tokens.next_token().is(Token::Type::Colon)) {
+            tokens.discard_a_token(); // :
+            if (!tokens.next_token().is(Token::Type::Ident)) {
+                dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: pseudo-class is not an ident: `{}`", tokens.next_token().to_debug_string());
+                return ParseError::SyntaxError;
+            }
+            auto pseudo_class_name = static_cast<Token>(tokens.consume_a_token()).ident();
+            if (auto pseudo_class = page_pseudo_class_from_string(pseudo_class_name); pseudo_class.has_value()) {
+                pseudo_classes.append(*pseudo_class);
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: unrecognized pseudo-class `:{}`", pseudo_class_name);
+                return ParseError::SyntaxError;
+            }
+        }
+
+        if (!maybe_ident.has_value() && pseudo_classes.is_empty()) {
+            // Nothing parsed
+            dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: is empty");
+            return ParseError::SyntaxError;
+        }
+
+        selector_list.empend(move(maybe_ident), move(pseudo_classes));
+
+        tokens.discard_whitespace();
+
+        if (tokens.next_token().is(Token::Type::Comma)) {
+            tokens.discard_a_token(); // ,
+            tokens.discard_whitespace();
+            if (!tokens.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: trailing comma");
+                return ParseError::SyntaxError;
+            }
+
+        } else if (tokens.has_next_token()) {
+            dbgln_if(CSS_PARSER_DEBUG, "Invalid @page selector: trailing token `{}`", tokens.next_token().to_debug_string());
+            return ParseError::SyntaxError;
+        }
+    }
+
+    return selector_list;
+}
+template Parser::ParseErrorOr<PageSelectorList> Parser::parse_a_page_selector_list(TokenStream<ComponentValue>&);
+template Parser::ParseErrorOr<PageSelectorList> Parser::parse_a_page_selector_list(TokenStream<Token>&);
 
 }

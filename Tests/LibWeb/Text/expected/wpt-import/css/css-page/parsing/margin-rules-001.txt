@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 33 tests
+
+33 Pass
+Pass	margin-rules-001
+Pass	@top-left-corner{ } should be an invalid rule
+Pass	@top-left{ } should be an invalid rule
+Pass	@top-center{ } should be an invalid rule
+Pass	@top-right{ } should be an invalid rule
+Pass	@top-right-corner{ } should be an invalid rule
+Pass	@bottom-left-corner{ } should be an invalid rule
+Pass	@bottom-left{ } should be an invalid rule
+Pass	@bottom-center{ } should be an invalid rule
+Pass	@bottom-right{ } should be an invalid rule
+Pass	@bottom-right-corner{ } should be an invalid rule
+Pass	@left-top{ } should be an invalid rule
+Pass	@left-middle{ } should be an invalid rule
+Pass	@left-bottom{ } should be an invalid rule
+Pass	@right-top{ } should be an invalid rule
+Pass	@right-middle{ } should be an invalid rule
+Pass	@right-bottom{ } should be an invalid rule
+Pass	@page { @top-left-corner { } } should be a valid rule
+Pass	@page { @top-left { } } should be a valid rule
+Pass	@page { @top-center { } } should be a valid rule
+Pass	@page { @top-right { } } should be a valid rule
+Pass	@page { @top-right-corner { } } should be a valid rule
+Pass	@page { @bottom-left-corner { } } should be a valid rule
+Pass	@page { @bottom-left { } } should be a valid rule
+Pass	@page { @bottom-center { } } should be a valid rule
+Pass	@page { @bottom-right { } } should be a valid rule
+Pass	@page { @bottom-right-corner { } } should be a valid rule
+Pass	@page { @left-top { } } should be a valid rule
+Pass	@page { @left-middle { } } should be a valid rule
+Pass	@page { @left-bottom { } } should be a valid rule
+Pass	@page { @right-top { } } should be a valid rule
+Pass	@page { @right-middle { } } should be a valid rule
+Pass	@page { @right-bottom { } } should be a valid rule

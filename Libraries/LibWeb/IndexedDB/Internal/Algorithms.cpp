@@ -5,6 +5,7 @@
  */
 
 #include <AK/Math.h>
+#include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -30,6 +31,8 @@
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/ConnectionQueueHandler.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
+#include <LibWeb/IndexedDB/Internal/Index.h>
+#include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
@@ -107,12 +110,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         auto open_connections = db->associated_connections_except(connection);
 
         // 2. For each entry of openConnections that does not have its close pending flag set to true,
-        //    queue a task to fire a version change event named versionchange at entry with db’s version and version.
+        //    queue a database task to fire a version change event named versionchange at entry with db’s version and version.
         IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_to_fire = open_connections.size();
         IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_fired = 0;
         for (auto const& entry : open_connections) {
             if (!entry->close_pending()) {
-                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, version, &events_fired]() {
+                queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version, &events_fired]() {
                     fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), version);
                     events_fired++;
                 }));
@@ -132,10 +135,10 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         }));
 
         // 4. If any of the connections in openConnections are still not closed,
-        //    queue a task to fire a version change event named blocked at request with db’s version and version.
+        //    queue a database task to fire a version change event named blocked at request with db’s version and version.
         for (auto const& entry : open_connections) {
             if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
+                queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
                     fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), version);
                 }));
             }
@@ -384,8 +387,8 @@ GC::Ref<IDBTransaction> upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase
     // 9. Set request’s processed flag to true.
     request->set_processed(true);
 
-    // 10. Queue a task to run these steps:
-    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {
+    // 10. Queue a database task to run these steps:
+    queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {
         // 1. Set request’s result to connection.
         request->set_result(connection);
 
@@ -466,12 +469,12 @@ WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::Storage
     auto open_connections = db->associated_connections();
 
     // 6. For each entry of openConnections that does not have its close pending flag set to true,
-    //    queue a task to fire a version change event named versionchange at entry with db’s version and null.
+    //    queue a database task to fire a version change event named versionchange at entry with db’s version and null.
     IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_to_fire = open_connections.size();
     IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_fired = 0;
     for (auto const& entry : open_connections) {
         if (!entry->close_pending()) {
-            HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, &events_fired]() {
+            queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, &events_fired]() {
                 fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), {});
                 events_fired++;
             }));
@@ -490,10 +493,10 @@ WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::Storage
         return events_fired == events_to_fire;
     }));
 
-    // 8. If any of the connections in openConnections are still not closed, queue a task to fire a version change event named blocked at request with db’s version and null.
+    // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a version change event named blocked at request with db’s version and null.
     for (auto const& entry : open_connections) {
         if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-            HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
+            queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
                 fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), {});
             }));
         }
@@ -559,8 +562,8 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
         // set request’s processed flag to true
         request->set_processed(true);
 
-        // and queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction->realm().vm().heap(), [request]() {
+        // and queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [request]() {
             // 1. Set request’s done flag to true.
             request->set_done(true);
 
@@ -575,8 +578,8 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
         }));
     }
 
-    // 6. Queue a task to run these steps:
-    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction->realm().vm().heap(), [transaction]() {
+    // 6. Queue a database task to run these steps:
+    queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [transaction]() {
         // 1. If transaction is an upgrade transaction, then set transaction’s connection's associated database's upgrade transaction to null.
         if (transaction->is_upgrade_transaction())
             transaction->connection()->associated_database()->set_upgrade_transaction(nullptr);
@@ -769,8 +772,8 @@ void commit_a_transaction(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
         // FIXME: 3. Attempt to write any outstanding changes made by transaction to the database, considering transaction’s durability hint.
         // FIXME: 4. If an error occurs while writing the changes to the database, then run abort a transaction with transaction and an appropriate type for the error, for example "QuotaExceededError" or "UnknownError" DOMException, and terminate these steps.
 
-        // 5. Queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction->realm().vm().heap(), [transaction]() {
+        // 5. Queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(transaction->realm().vm().heap(), [transaction]() {
             // 1. If transaction is an upgrade transaction, then set transaction’s connection's associated database's upgrade transaction to null.
             if (transaction->is_upgrade_transaction())
                 transaction->connection()->associated_database()->set_upgrade_transaction(nullptr);
@@ -921,7 +924,7 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         // If Type(value) is String, and identifier is "length"
         if (value.is_string() && identifier == "length") {
             // Let value be a Number equal to the number of elements in value.
-            value = JS::Value(value.as_string().utf16_string_view().length_in_code_units());
+            value = JS::Value(value.as_string().length_in_utf16_code_units());
         }
 
         // If value is an Array and identifier is "length"
@@ -958,7 +961,7 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         else {
             // 1. If Type(value) is not Object, return failure.
             if (!value.is_object())
-                return Error::from_string_literal("Value is not an object");
+                return Error::from_string_literal("Value is not an object during key path evaluation");
 
             auto identifier_property = String::from_utf8_without_validation(identifier.bytes());
 
@@ -967,14 +970,14 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
 
             // 3. If hop is false, return failure.
             if (!hop)
-                return Error::from_string_literal("Property does not exist");
+                return Error::from_string_literal("Failed to find property on object during key path evaluation");
 
             // 4. Let value be ! Get(value, identifier).
             value = MUST(value.as_object().get(identifier_property));
 
             // 5. If value is undefined, return failure.
             if (value.is_undefined())
-                return Error::from_string_literal("Value is undefined");
+                return Error::from_string_literal("undefined value on object during key path evaluation");
         }
 
         return {};
@@ -1181,8 +1184,8 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
         // 5. Set request’s processed flag to true.
         request->set_processed(true);
 
-        // 6. Queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
+        // 6. Queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, result, transaction]() mutable {
             // 1. Remove request from transaction’s request list.
             transaction->request_list().remove_first_matching([&request](auto& entry) { return entry.ptr() == request.ptr(); });
 
@@ -1227,7 +1230,7 @@ ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore> store)
 
     // 3. If key is greater than 2^53 (9007199254740992), then return failure.
     if (key > static_cast<u64>(MAX_KEY_GENERATOR_VALUE))
-        return Error::from_string_literal("Key is greater than 2^53");
+        return Error::from_string_literal("Key is greater than 2^53 while trying to generate a key");
 
     // 4. Increase generator’s current number by 1.
     generator.increment(1);
@@ -1310,14 +1313,18 @@ void inject_a_key_into_a_value_using_a_key_path(JS::Realm& realm, JS::Value valu
 }
 
 // https://w3c.github.io/IndexedDB/#delete-records-from-an-object-store
-void delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
+JS::Value delete_records_from_an_object_store(GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
 {
     // 1. Remove all records, if any, from store’s list of records with key in range.
     store->remove_records_in_range(range);
 
-    // FIXME: 2. For each index which references store, remove every record from index’s list of records whose value is in range, if any such records exist.
+    // 2. For each index which references store, remove every record from index’s list of records whose value is in range, if any such records exist.
+    for (auto const& [name, index] : store->index_set()) {
+        index->remove_records_with_value_in_range(range);
+    }
 
     // 3. Return undefined.
+    return JS::js_undefined();
 }
 
 // https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
@@ -1355,7 +1362,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
     // 3. If a record already exists in store with its key equal to key, then remove the record from store using delete records from an object store.
     if (has_record) {
-        auto key_range = IDBKeyRange::create(realm, key, key, false, false);
+        auto key_range = IDBKeyRange::create(realm, key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
         delete_records_from_an_object_store(store, key_range);
     }
 
@@ -1408,13 +1415,29 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
             }
         }
 
-        // FIXME: 5. If index’s multiEntry flag is false, or if index key is not an array key
+        // 5. If index’s multiEntry flag is false, or if index key is not an array key
         //    then store a record in index containing index key as its key and key as its value.
         //    The record is stored in index’s list of records such that the list is sorted primarily on the records keys,
         //    and secondarily on the records values, in ascending order.
+        if (!index_multi_entry || !index_key_is_array) {
+            IndexRecord index_record = {
+                .key = *index_key,
+                .value = *key,
+            };
+            index->store_a_record(index_record);
+        }
 
-        // // FIXME: 6. If index’s multiEntry flag is true and index key is an array key,
+        // 6. If index’s multiEntry flag is true and index key is an array key,
         //    then for each subkey of the subkeys of index key store a record in index containing subkey as its key and key as its value.
+        if (index_multi_entry && index_key_is_array) {
+            for (auto const& subkey : index_key->subkeys()) {
+                IndexRecord index_record = {
+                    .key = *subkey,
+                    .value = *key,
+                };
+                index->store_a_record(index_record);
+            }
+        }
     }
 
     // 6. Return key.
@@ -1434,7 +1457,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Rea
         if (null_disallowed)
             return WebIDL::DataError::create(realm, "Value is undefined or null"_string);
 
-        return IDBKeyRange::create(realm, {}, {}, false, false);
+        return IDBKeyRange::create(realm, {}, {}, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
     }
 
     // 3. Let key be the result of converting a value to a key with value. Rethrow any exceptions.
@@ -1445,14 +1468,20 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Rea
         return WebIDL::DataError::create(realm, "Value is invalid"_string);
 
     // 5. Return a key range containing only key.
-    return IDBKeyRange::create(realm, key, key, false, false);
+    return IDBKeyRange::create(realm, key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
 }
 
 // https://w3c.github.io/IndexedDB/#count-the-records-in-a-range
-JS::Value count_the_records_in_a_range(GC::Ref<ObjectStore> source, GC::Ref<IDBKeyRange> range)
+JS::Value count_the_records_in_a_range(RecordSource source, GC::Ref<IDBKeyRange> range)
 {
     // 1. Let count be the number of records, if any, in source’s list of records with key in range.
-    auto count = source->count_records_in_range(range);
+    auto count = source.visit(
+        [range](GC::Ref<ObjectStore> object_store) {
+            return object_store->count_records_in_range(range);
+        },
+        [range](GC::Ref<Index> index) {
+            return index->count_records_in_range(range);
+        });
 
     // 2. Return count.
     return JS::Value(count);
@@ -1473,6 +1502,553 @@ WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm& 
 
     // 4. Return ! StructuredDeserialize(serialized, targetRealm).
     return MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+}
+
+// https://w3c.github.io/IndexedDB/#iterate-a-cursor
+GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor, GC::Ptr<Key> key, GC::Ptr<Key> primary_key, u64 count)
+{
+    // 1. Let source be cursor’s source.
+    auto source = cursor->internal_source();
+
+    // 2. Let direction be cursor’s direction.
+    auto direction = cursor->direction();
+
+    // 3. Assert: if primaryKey is given, source is an index and direction is "next" or "prev".
+    auto direction_is_next_or_prev = direction == Bindings::IDBCursorDirection::Next || direction == Bindings::IDBCursorDirection::Prev;
+    if (primary_key)
+        VERIFY(source.has<GC::Ref<Index>>() && direction_is_next_or_prev);
+
+    // 4. Let records be the list of records in source.
+    Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> records = source.visit(
+        [](GC::Ref<ObjectStore> object_store) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
+            return object_store->records();
+        },
+        [](GC::Ref<Index> index) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
+            return index->records();
+        });
+
+    // 5. Let range be cursor’s range.
+    auto range = cursor->range();
+
+    // 6. Let position be cursor’s position.
+    auto position = cursor->position();
+
+    // 7. Let object store position be cursor’s object store position.
+    auto object_store_position = cursor->object_store_position();
+
+    // 8. If count is not given, let count be 1.
+    // NOTE: This is handled by the default parameter
+
+    auto next_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+        // * If key is defined:
+        if (key) {
+            // * The record’s key is greater than or equal to key.
+            auto is_greater_than_or_equal = record.visit(
+                [](Empty) { VERIFY_NOT_REACHED(); },
+                [key](auto const& inner_record) {
+                    return Key::greater_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
+                });
+
+            if (!is_greater_than_or_equal)
+                return false;
+        }
+
+        // * If primaryKey is defined:
+        if (primary_key) {
+            auto const& inner_record = record.get<IndexRecord>();
+
+            // * The record’s key is equal to key and the record’s value is greater than or equal to primaryKey
+            if (!(Key::equals(inner_record.key, *key) && (Key::greater_than(inner_record.value, *primary_key) || Key::equals(inner_record.value, *primary_key))))
+                return false;
+
+            // * The record’s key is greater than key.
+            if (!Key::greater_than(inner_record.key, *key))
+                return false;
+        }
+
+        // * If position is defined and source is an object store:
+        if (position && source.has<GC::Ref<ObjectStore>>()) {
+            auto const& inner_record = record.get<Record>();
+
+            // * The record’s key is greater than position.
+            if (!Key::greater_than(inner_record.key, *position))
+                return false;
+        }
+
+        // * If position is defined and source is an index:
+        if (position && source.has<GC::Ref<Index>>()) {
+            auto const& inner_record = record.get<IndexRecord>();
+
+            // * The record’s key is equal to position and the record’s value is greater than object store position
+            if (!(Key::equals(inner_record.key, *position) && (Key::greater_than(inner_record.value, *object_store_position))))
+                return false;
+
+            // * The record’s key is greater than position.
+            if (!Key::greater_than(inner_record.key, *position))
+                return false;
+        }
+
+        // * The record’s key is in range.
+        auto is_in_range = record.visit(
+            [](Empty) { VERIFY_NOT_REACHED(); },
+            [range](auto const& inner_record) {
+                return range->is_in_range(inner_record.key);
+            });
+
+        return is_in_range;
+    };
+
+    auto next_unique_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+        // * If key is defined:
+        if (key) {
+            // * The record’s key is greater than or equal to key.
+            auto is_greater_than_or_equal = record.visit(
+                [](Empty) { VERIFY_NOT_REACHED(); },
+                [key](auto const& inner_record) {
+                    return Key::greater_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
+                });
+
+            if (!is_greater_than_or_equal)
+                return false;
+        }
+
+        // * If position is defined:
+        if (position) {
+            // * The record’s key is greater than position.
+            auto is_greater_than_position = record.visit(
+                [](Empty) { VERIFY_NOT_REACHED(); },
+                [position](auto const& inner_record) {
+                    return Key::greater_than(inner_record.key, *position) || Key::equals(inner_record.key, *position);
+                });
+
+            if (!is_greater_than_position)
+                return false;
+        }
+
+        // * The record’s key is in range.
+        auto is_in_range = record.visit(
+            [](Empty) { VERIFY_NOT_REACHED(); },
+            [range](auto const& inner_record) {
+                return range->is_in_range(inner_record.key);
+            });
+
+        return is_in_range;
+    };
+
+    auto prev_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+        // * If key is defined:
+        if (key) {
+            // * The record’s key is less than or equal to key.
+            auto is_less_than_or_equal = record.visit(
+                [](Empty) { VERIFY_NOT_REACHED(); },
+                [key](auto const& inner_record) {
+                    return Key::less_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
+                });
+
+            if (!is_less_than_or_equal)
+                return false;
+        }
+
+        // * If primaryKey is defined:
+        if (primary_key) {
+            auto const& inner_record = record.get<IndexRecord>();
+
+            // * The record’s key is equal to key and the record’s value is less than or equal to primaryKey
+            if (!(Key::equals(inner_record.key, *key) && (Key::less_than(inner_record.value, *primary_key) || Key::equals(inner_record.value, *primary_key))))
+                return false;
+
+            // * The record’s key is less than key.
+            if (!Key::less_than(inner_record.key, *key))
+                return false;
+        }
+
+        // * If position is defined and source is an object store:
+        if (position && source.has<GC::Ref<ObjectStore>>()) {
+            auto const& inner_record = record.get<Record>();
+
+            // * The record’s key is less than position.
+            if (!Key::less_than(inner_record.key, *position))
+                return false;
+        }
+
+        // * If position is defined and source is an index:
+        if (position && source.has<GC::Ref<Index>>()) {
+            auto const& inner_record = record.get<IndexRecord>();
+
+            // * The record’s key is equal to position and the record’s value is less than object store position
+            if (!(Key::equals(inner_record.key, *position) && Key::less_than(inner_record.value, *object_store_position)))
+                return false;
+
+            // * The record’s key is less than position.
+            if (!Key::less_than(inner_record.key, *position))
+                return false;
+        }
+
+        // * The record’s key is in range.
+        auto is_in_range = record.visit(
+            [](Empty) { VERIFY_NOT_REACHED(); },
+            [range](auto const& inner_record) {
+                return range->is_in_range(inner_record.key);
+            });
+
+        return is_in_range;
+    };
+
+    auto prev_unique_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+        // * If key is defined:
+        if (key) {
+            // * The record’s key is less than or equal to key.
+            auto is_less_than_or_equal = record.visit(
+                [](Empty) { VERIFY_NOT_REACHED(); },
+                [key](auto const& inner_record) {
+                    return Key::less_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
+                });
+
+            if (!is_less_than_or_equal)
+                return false;
+        }
+
+        //* If position is defined:
+        if (position) {
+            // * The record’s key is less than position.
+            auto is_less_than_position = record.visit(
+                [](Empty) { VERIFY_NOT_REACHED(); },
+                [position](auto const& inner_record) {
+                    return Key::less_than(inner_record.key, *position) || Key::equals(inner_record.key, *position);
+                });
+
+            if (!is_less_than_position)
+                return false;
+        }
+
+        // * The record’s key is in range.
+        auto is_in_range = record.visit(
+            [](Empty) { VERIFY_NOT_REACHED(); },
+            [range](auto const& inner_record) {
+                return range->is_in_range(inner_record.key);
+            });
+
+        return is_in_range;
+    };
+
+    // 9. While count is greater than 0:
+    Variant<Empty, Record, IndexRecord> found_record;
+    while (count > 0) {
+        // 1. Switch on direction:
+        switch (direction) {
+        case Bindings::IDBCursorDirection::Next: {
+            // Let found record be the first record in records which satisfy all of the following requirements:
+            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+                auto value = content.first_matching(next_requirements);
+                if (value.has_value())
+                    return *value;
+
+                return Empty {};
+            });
+            break;
+        }
+        case Bindings::IDBCursorDirection::Nextunique: {
+            // Let found record be the first record in records which satisfy all of the following requirements:
+            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+                auto value = content.first_matching(next_unique_requirements);
+                if (value.has_value())
+                    return *value;
+
+                return Empty {};
+            });
+            break;
+        }
+        case Bindings::IDBCursorDirection::Prev: {
+            // Let found record be the last record in records which satisfy all of the following requirements:
+            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+                auto value = content.last_matching(prev_requirements);
+                if (value.has_value())
+                    return *value;
+
+                return Empty {};
+            });
+            break;
+        }
+
+        case Bindings::IDBCursorDirection::Prevunique: {
+            // Let temp record be the last record in records which satisfy all of the following requirements:
+            auto temp_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+                auto value = content.last_matching(prev_unique_requirements);
+                if (value.has_value())
+                    return *value;
+
+                return Empty {};
+            });
+
+            // If temp record is defined, let found record be the first record in records whose key is equal to temp record’s key.
+            if (!temp_record.has<Empty>()) {
+                auto temp_record_key = temp_record.visit(
+                    [](Empty) -> GC::Ref<Key> { VERIFY_NOT_REACHED(); },
+                    [](auto const& record) { return record.key; });
+
+                found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+                    auto value = content.first_matching([&](auto const& content_record) {
+                        return Key::equals(content_record.key, temp_record_key);
+                    });
+                    if (value.has_value())
+                        return *value;
+
+                    return Empty {};
+                });
+            }
+
+            break;
+        }
+        }
+
+        // 2. If found record is not defined, then:
+        if (found_record.has<Empty>()) {
+            // 1. Set cursor’s key to undefined.
+            cursor->set_key(nullptr);
+
+            // 2. If source is an index, set cursor’s object store position to undefined.
+            if (source.has<GC::Ref<Index>>())
+                cursor->set_object_store_position(nullptr);
+
+            // 3. If cursor’s key only flag is false, set cursor’s value to undefined.
+            if (!cursor->key_only())
+                cursor->set_value(JS::js_undefined());
+
+            // 4. Return null.
+            return nullptr;
+        }
+
+        // 3. Let position be found record’s key.
+        position = found_record.visit(
+            [](Empty) -> GC::Ref<Key> { VERIFY_NOT_REACHED(); },
+            [](auto val) { return val.key; });
+
+        // 4. If source is an index, let object store position be found record’s value.
+        if (source.has<GC::Ref<Index>>())
+            object_store_position = found_record.get<IndexRecord>().value;
+
+        // 5. Decrease count by 1.
+        count--;
+    }
+
+    // 10. Set cursor’s position to position.
+    cursor->set_position(position);
+
+    // 11. If source is an index, set cursor’s object store position to object store position.
+    if (source.has<GC::Ref<Index>>())
+        cursor->set_object_store_position(object_store_position);
+
+    // 12. Set cursor’s key to found record’s key.
+    cursor->set_key(found_record.visit(
+        [](Empty) -> GC::Ref<Key> { VERIFY_NOT_REACHED(); },
+        [](auto val) { return val.key; }));
+
+    // 13. If cursor’s key only flag is false, then:
+    if (!cursor->key_only()) {
+
+        // 1. Let serialized be found record’s value if source is an object store, or found record’s referenced value otherwise.
+        auto serialized = source.visit(
+            [&](GC::Ref<ObjectStore>) {
+                return found_record.get<Record>().value;
+            },
+            [&](GC::Ref<Index> index) {
+                return index->referenced_value(found_record.get<IndexRecord>());
+            });
+
+        // 2. Set cursor’s value to ! StructuredDeserialize(serialized, targetRealm)
+        cursor->set_value(MUST(HTML::structured_deserialize(realm.vm(), serialized, realm)));
+    }
+
+    // 14. Set cursor’s got value flag to true.
+    cursor->set_got_value(true);
+
+    // 15. Return cursor.
+    return cursor;
+}
+
+// https://w3c.github.io/IndexedDB/#clear-an-object-store
+JS::Value clear_an_object_store(GC::Ref<ObjectStore> store)
+{
+    // 1. Remove all records from store.
+    store->clear_records();
+
+    // 2. In all indexes which reference store, remove all records.
+    for (auto const& [name, index] : store->index_set()) {
+        index->clear_records();
+    }
+
+    // 3. Return undefined.
+    return JS::js_undefined();
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-a-key-from-an-object-store
+JS::Value retrieve_a_key_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Let record be the first record in store’s list of records whose key is in range, if any.
+    auto record = store->first_in_range(range);
+
+    // 2. If record was not found, return undefined.
+    if (!record.has_value())
+        return JS::js_undefined();
+
+    // 3. Return the result of converting a key to a value with record’s key.
+    return convert_a_key_to_a_value(realm, record.value().key);
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-values-from-an-object-store
+GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records be a list containing the first count records in store’s list of records whose key is in range.
+    auto records = store->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    auto list = MUST(JS::Array::create(realm, records.size()));
+
+    // 4. For each record of records:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        // 1. Let serialized be record’s value. If an error occurs while reading the value from the underlying storage, return a newly created "NotReadableError" DOMException.
+        auto serialized = record.value;
+
+        // 2. Let entry be ! StructuredDeserialize(serialized, targetRealm).
+        auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+
+        // 3. Append entry to list.
+        MUST(list->create_data_property_or_throw(i, entry));
+    }
+
+    // 5. Return list converted to a sequence<any>.
+    return list;
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-keys-from-an-object-store
+GC::Ref<JS::Array> retrieve_multiple_keys_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records be a list containing the first count records in store’s list of records whose key is in range.
+    auto records = store->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    auto list = MUST(JS::Array::create(realm, records.size()));
+
+    // 4. For each record of records:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        // 1. Let entry be the result of converting a key to a value with record’s key.
+        auto entry = convert_a_key_to_a_value(realm, record.key);
+
+        // 2. Append entry to list.
+        MUST(list->create_data_property_or_throw(i, entry));
+    }
+
+    // 5. Return list converted to a sequence<any>.
+    return list;
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-a-referenced-value-from-an-index
+JS::Value retrieve_a_referenced_value_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Let record be the first record in index’s list of records whose key is in range, if any.
+    auto record = index->first_in_range(range);
+
+    // 2. If record was not found, return undefined.
+    if (!record.has_value())
+        return JS::js_undefined();
+
+    // 3. Let serialized be record’s referenced value.
+    auto serialized = index->referenced_value(*record);
+
+    // 4. Return ! StructuredDeserialize(serialized, targetRealm).
+    return MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-a-value-from-an-index
+JS::Value retrieve_a_value_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range)
+{
+    // 1. Let record be the first record in index’s list of records whose key is in range, if any.
+    auto record = index->first_in_range(range);
+
+    // 2. If record was not found, return undefined.
+    if (!record.has_value())
+        return JS::js_undefined();
+
+    // 3. Return the result of converting a key to a value with record’s value.
+    return convert_a_key_to_a_value(realm, record->value);
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-referenced-values-from-an-index
+GC::Ref<JS::Array> retrieve_multiple_referenced_values_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records be a list containing the first count records in index’s list of records whose key is in range.
+    auto records = index->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    auto list = MUST(JS::Array::create(realm, records.size()));
+
+    // 4. For each record of records:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        // 1. Let serialized be record’s referenced value.
+        auto serialized = index->referenced_value(record);
+
+        // 2. Let entry be ! StructuredDeserialize(serialized, targetRealm).
+        auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+
+        // 3. Append entry to list.
+        MUST(list->create_data_property_or_throw(i, entry));
+    }
+
+    // 5. Return list converted to a sequence<any>.
+    return list;
+}
+
+// https://w3c.github.io/IndexedDB/#retrieve-multiple-values-from-an-index
+GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm& realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records be a list containing the first count records in index’s list of records whose key is in range.
+    auto records = index->first_n_in_range(range, count);
+
+    // 3. Let list be an empty list.
+    auto list = MUST(JS::Array::create(realm, records.size()));
+
+    // 4. For each record of records:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        // 1. Let entry be the result of converting a key to a value with record’s value.
+        auto entry = convert_a_key_to_a_value(realm, record.value);
+
+        // 2. Append entry to list.
+        MUST(list->create_data_property_or_throw(i, entry));
+    }
+
+    // 7. Return list converted to a sequence<any>.
+    return list;
+}
+
+// https://w3c.github.io/IndexedDB/#queue-a-database-task
+void queue_a_database_task(GC::Ref<GC::Function<void()>> steps)
+{
+    // To queue a database task, perform queue a task on the database access task source.
+    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, steps);
 }
 
 }

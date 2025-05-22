@@ -346,12 +346,12 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
             auto next = TRY(JS::iterator_step(vm, iter));
 
             // 3. If next is false abort this loop.
-            if (!next)
+            if (!next.has<JS::IterationResult>())
                 break;
 
             // 4. Let nextItem be IteratorValue(next).
             // 5. Check the completion record of nextItem.
-            auto next_item = TRY(JS::iterator_value(vm, *next));
+            auto next_item = TRY(next.get<JS::IterationResult>().value);
 
             // 6. If Type(nextItem) is not Undefined, Null or Object, then throw a TypeError and abort these steps.
             if (!next_item.is_nullish() && !next_item.is_object())
@@ -813,7 +813,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
             TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
             auto easing_value = keyframe.easing.get<NonnullRefPtr<CSS::CSSStyleValue const>>();
-            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal)), ShouldThrowExceptions::Yes));
+            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value->to_string(CSS::SerializationMode::Normal)), ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
                 TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), ShouldThrowExceptions::Yes));
@@ -826,7 +826,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             }
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
-                auto value_string = JS::PrimitiveString::create(vm, value->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
+                auto value_string = JS::PrimitiveString::create(vm, value->to_string(CSS::SerializationMode::Normal));
                 TRY(object->set(JS::PropertyKey { CSS::camel_case_string_from_property_id(id), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
             }
 
@@ -863,9 +863,10 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<GC::Root<JS::Ob
         for (auto [property_id, property_value] : keyframe.parsed_properties()) {
             if (property_value->is_unresolved() && target)
                 property_value = CSS::Parser::Parser::resolve_unresolved_style_value(CSS::Parser::ParsingParams { target->document() }, *target, pseudo_element_type(), property_id, property_value->as_unresolved());
-            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, CSS::StyleComputer::AllowUnresolved::Yes, [&](CSS::PropertyID shorthand_id, CSS::CSSStyleValue const& shorthand_value) {
-                m_target_properties.set(shorthand_id);
-                resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSS::CSSStyleValue const> { shorthand_value });
+
+            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, [&](CSS::PropertyID longhand_id, CSS::CSSStyleValue const& longhand_value) {
+                m_target_properties.set(longhand_id);
+                resolved_keyframe.properties.set(longhand_id, NonnullRefPtr<CSS::CSSStyleValue const> { longhand_value });
             });
         }
 

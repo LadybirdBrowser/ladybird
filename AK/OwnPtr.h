@@ -207,6 +207,7 @@ struct Formatter<OwnPtr<T>> : Formatter<T*> {
         return Formatter<T*>::format(builder, value.ptr());
     }
 };
+
 }
 
 #if USING_AK_GLOBALLY

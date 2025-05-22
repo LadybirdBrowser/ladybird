@@ -43,7 +43,7 @@ BoundFunction::BoundFunction(Realm& realm, FunctionObject& bound_target_function
 }
 
 // 10.4.1.1 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-bound-function-exotic-objects-call-thisargument-argumentslist
-ThrowCompletionOr<Value> BoundFunction::internal_call(ExecutionContext& outer_context, [[maybe_unused]] Value this_argument)
+ThrowCompletionOr<Value> BoundFunction::internal_call(ExecutionContext& callee_context, [[maybe_unused]] Value this_argument)
 {
     // 1. Let target be F.[[BoundTargetFunction]].
     auto& target = *m_bound_target_function;
@@ -55,24 +55,17 @@ ThrowCompletionOr<Value> BoundFunction::internal_call(ExecutionContext& outer_co
     auto& bound_args = m_bound_arguments;
 
     // 4. Let args be the list-concatenation of boundArgs and argumentsList.
+    auto* argument_values = callee_context.arguments.data();
 
-    ExecutionContext* callee_context = nullptr;
-    size_t registers_and_constants_and_locals_count = 0;
-    size_t argument_count = bound_args.size() + outer_context.arguments.size();
-    TRY(target.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, argument_count);
-
-    auto* argument_values = callee_context->arguments.data();
+    for (ssize_t i = static_cast<ssize_t>(callee_context.arguments.size()) - 1; i >= static_cast<ssize_t>(bound_args.size()); --i)
+        argument_values[i] = argument_values[i - bound_args.size()];
     for (size_t i = 0; i < bound_args.size(); ++i)
         argument_values[i] = bound_args[i];
 
-    for (size_t i = 0; i < outer_context.arguments.size(); ++i)
-        argument_values[bound_args.size() + i] = outer_context.arguments[i];
-
-    callee_context->passed_argument_count = bound_args.size() + outer_context.arguments.size();
+    callee_context.passed_argument_count += bound_args.size();
 
     // 5. Return ? Call(target, boundThis, args).
-    return target.internal_call(*callee_context, bound_this);
+    return target.internal_call(callee_context, bound_this);
 }
 
 // 10.4.1.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget
@@ -110,6 +103,13 @@ void BoundFunction::visit_edges(Visitor& visitor)
     visitor.visit(m_bound_target_function);
     visitor.visit(m_bound_this);
     visitor.visit(m_bound_arguments);
+}
+
+ThrowCompletionOr<void> BoundFunction::get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count)
+{
+    TRY(m_bound_target_function->get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
+    argument_count += m_bound_arguments.size();
+    return {};
 }
 
 }

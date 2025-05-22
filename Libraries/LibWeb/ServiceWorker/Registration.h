@@ -84,6 +84,7 @@ struct RegistrationKey {
 }
 
 namespace AK {
+
 template<>
 struct Traits<Web::ServiceWorker::RegistrationKey> : public DefaultTraits<Web::ServiceWorker::RegistrationKey> {
     static unsigned hash(Web::ServiceWorker::RegistrationKey const& key)

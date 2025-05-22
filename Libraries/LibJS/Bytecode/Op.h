@@ -27,7 +27,9 @@
 #include <LibJS/Runtime/ValueTraits.h>
 
 namespace JS {
+
 class FunctionExpression;
+
 }
 
 namespace JS::Bytecode::Op {
@@ -833,6 +835,32 @@ private:
     mutable EnvironmentCoordinate m_cache;
 };
 
+class GetInitializedBinding final : public Instruction {
+public:
+    explicit GetInitializedBinding(Operand dst, IdentifierTableIndex identifier)
+        : Instruction(Type::GetInitializedBinding)
+        , m_dst(dst)
+        , m_identifier(identifier)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+
+    Operand dst() const { return m_dst; }
+    IdentifierTableIndex identifier() const { return m_identifier; }
+
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+    }
+
+private:
+    Operand m_dst;
+    IdentifierTableIndex m_identifier;
+    mutable EnvironmentCoordinate m_cache;
+};
+
 class GetGlobal final : public Instruction {
 public:
     GetGlobal(Operand dst, IdentifierTableIndex identifier, u32 cache_index)
@@ -857,6 +885,34 @@ public:
 
 private:
     Operand m_dst;
+    IdentifierTableIndex m_identifier;
+    u32 m_cache_index { 0 };
+};
+
+class SetGlobal final : public Instruction {
+public:
+    SetGlobal(IdentifierTableIndex identifier, Operand src, u32 cache_index)
+        : Instruction(Type::SetGlobal)
+        , m_src(src)
+        , m_identifier(identifier)
+        , m_cache_index(cache_index)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+
+    Operand src() const { return m_src; }
+    IdentifierTableIndex identifier() const { return m_identifier; }
+    u32 cache_index() const { return m_cache_index; }
+
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_src);
+    }
+
+private:
+    Operand m_src;
     IdentifierTableIndex m_identifier;
     u32 m_cache_index { 0 };
 };

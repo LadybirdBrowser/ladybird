@@ -151,6 +151,7 @@ private:
 }
 
 namespace AK {
+
 template<>
 struct Formatter<Web::Bindings::NavigationScrollBehavior> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::Bindings::NavigationScrollBehavior const& value)
@@ -166,4 +167,5 @@ struct Formatter<Web::Bindings::NavigationFocusReset> : Formatter<StringView> {
         return Formatter<StringView>::format(builder, Web::Bindings::idl_enum_to_string(value));
     }
 };
+
 }

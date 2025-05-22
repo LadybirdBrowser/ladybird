@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
+#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLDataListElement.h>
@@ -245,6 +246,36 @@ bool FormAssociatedElement::check_validity_steps()
         // 2. Return false.
         return false;
     }
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#report-validity-steps
+bool FormAssociatedElement::report_validity_steps()
+{
+    // 1. If element is a candidate for constraint validation and does not satisfy its constraints, then:
+    if (is_candidate_for_constraint_validation() && !satisfies_its_constraints()) {
+        auto& element = form_associated_element_to_html_element();
+        // 1. Let report be the result of firing an event named invalid at element, with the cancelable attribute initialized to true.
+        auto report = element.dispatch_event(DOM::Event::create(element.realm(), EventNames::invalid, { .cancelable = true }));
+
+        // 2. If report is true, then report the problems with the constraints of this element to the user. When reporting the problem with the constraints to the user,
+        //    the user agent may run the focusing steps for element, and may change the scrolling position of the document, or perform some other action that brings
+        //    element to the user's attention. User agents may report more than one constraint violation, if element suffers from multiple problems at once.
+        // FIXME: Does this align with other browsers?
+        if (report && element.check_visibility({})) {
+            run_focusing_steps(&element);
+            DOM::ScrollIntoViewOptions scroll_options;
+            scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
+            scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
+            scroll_options.behavior = Bindings::ScrollBehavior::Instant;
+            (void)element.scroll_into_view(scroll_options);
+        }
+
+        // 3. Return false.
+        return false;
+    }
+
+    // 2. Return true.
     return true;
 }
 
@@ -789,7 +820,7 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
     MUST(set_range_text(String {}, selection_start, selection_end, Bindings::SelectionMode::End));
 }
 
-EventResult FormAssociatedTextControlElement::handle_return_key()
+EventResult FormAssociatedTextControlElement::handle_return_key(FlyString const&)
 {
     auto* input_element = as_if<HTMLInputElement>(form_associated_element_to_html_element());
     if (!input_element)

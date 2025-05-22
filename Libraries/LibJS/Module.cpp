@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
@@ -38,6 +39,33 @@ void Module::visit_edges(Cell::Visitor& visitor)
         m_host_defined->visit_host_defined_self(visitor);
 }
 
+// 16.2.1.5.1 EvaluateModuleSync ( module ), https://tc39.es/ecma262/#sec-EvaluateModuleSync
+ThrowCompletionOr<void> Module::evaluate_module_sync(VM& vm)
+{
+    // 1. Assert: module is not a Cyclic Module Record.
+    // 2. Let promise be module.Evaluate().
+    auto promise = TRY(evaluate(vm));
+
+    // 3. Assert: promise.[[PromiseState]] is either FULFILLED or REJECTED.
+    VERIFY(first_is_one_of(promise->state(), Promise::State::Fulfilled, Promise::State::Rejected));
+
+    // 4. If promise.[[PromiseState]] is REJECTED, then
+    if (promise->state() == Promise::State::Rejected) {
+        // a. If promise.[[PromiseIsHandled]] is false, perform HostPromiseRejectionTracker(promise, "handle").
+        if (!promise->is_handled())
+            vm.host_promise_rejection_tracker(promise, Promise::RejectionOperation::Handle);
+
+        // b. Set promise.[[PromiseIsHandled]] to true.
+        promise->set_is_handled();
+
+        // c. Return ThrowCompletion(promise.[[PromiseResult]]).
+        return throw_completion(promise->result());
+    }
+
+    // 5. Return UNUSED.
+    return {};
+}
+
 // 16.2.1.5.1.1 InnerModuleLinking ( module, stack, index ), https://tc39.es/ecma262/#sec-InnerModuleLinking
 ThrowCompletionOr<u32> Module::inner_module_linking(VM& vm, Vector<Module*>&, u32 index)
 {
@@ -52,19 +80,10 @@ ThrowCompletionOr<u32> Module::inner_module_linking(VM& vm, Vector<Module*>&, u3
 ThrowCompletionOr<u32> Module::inner_module_evaluation(VM& vm, Vector<Module*>&, u32 index)
 {
     // 1. If module is not a Cyclic Module Record, then
-    // a. Let promise be module.Evaluate().
-    auto promise = TRY(evaluate(vm));
+    // a. Perform ? EvaluateModuleSync(module).
+    TRY(evaluate_module_sync(vm));
 
-    // b. Assert: promise.[[PromiseState]] is not pending.
-    VERIFY(promise->state() != Promise::State::Pending);
-
-    // c. If promise.[[PromiseState]] is rejected, then
-    if (promise->state() == Promise::State::Rejected) {
-        // i. Return ThrowCompletion(promise.[[PromiseResult]]).
-        return throw_completion(promise->result());
-    }
-
-    // d. Return index.
+    // b. Return index.
     return index;
 }
 

@@ -150,16 +150,14 @@ void Navigable::NavigateParams::visit_edges(Cell::Visitor& visitor)
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
 bool Navigable::is_script_closable()
 {
-    // A navigable is script-closable if its active browsing context is an auxiliary browsing context that was created
-    // by a script (as opposed to by an action of the user), or if it is a top-level traversable whose session history
-    // entries's size is 1.
-    if (auto browsing_context = active_browsing_context(); browsing_context && browsing_context->is_auxiliary())
-        return true;
+    // A navigable is script-closable if it is a top-level traversable, and any of the following are true:
+    // - its is created by web content is true; or
+    // - its session history entries's size is 1.
+    if (!is_top_level_traversable())
+        return false;
 
-    if (is_top_level_traversable())
-        return get_session_history_entries().size() == 1;
-
-    return false;
+    return as<TraversableNavigable>(this)->is_created_by_web_content()
+        || get_session_history_entries().size() == 1;
 }
 
 void Navigable::set_delaying_load_events(bool value)
@@ -364,34 +362,23 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
 Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
 {
-    // NOTE: Implementation for step 7 here.
-    GC::Ptr<Navigable> navigable_by_target_name = nullptr;
-    auto find_and_assign_navigable_by_target_name = [&](StringView name) {
-        auto maybe_navigable = find_a_navigable_by_target_name(name);
-        if (maybe_navigable) {
-            navigable_by_target_name = maybe_navigable;
-            return true;
-        }
-        return false;
-    };
-
     // 1. Let chosen be null.
     GC::Ptr<Navigable> chosen = nullptr;
 
     // 2. Let windowType be "existing or none".
     auto window_type = WindowType::ExistingOrNone;
 
-    // 3. Let sandboxingFlagSet be current's active document's active sandboxing flag set.
+    // 3. Let sandboxingFlagSet be currentNavigable's active document's active sandboxing flag set.
     auto sandboxing_flag_set = active_document()->active_sandboxing_flag_set();
 
     // 4. If name is the empty string or an ASCII case-insensitive match for "_self", then set chosen to currentNavigable.
-    if (name.is_empty() || Infra::is_ascii_case_insensitive_match(name, "_self"sv)) {
+    if (name.is_empty() || name.equals_ignoring_ascii_case("_self"sv)) {
         chosen = this;
     }
 
     // 5. Otherwise, if name is an ASCII case-insensitive match for "_parent",
     //    set chosen to currentNavigable's parent, if any, and currentNavigable otherwise.
-    else if (Infra::is_ascii_case_insensitive_match(name, "_parent"sv)) {
+    else if (name.equals_ignoring_ascii_case("_parent"sv)) {
         if (auto parent = this->parent())
             chosen = parent;
         else
@@ -400,20 +387,20 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
 
     // 6. Otherwise, if name is an ASCII case-insensitive match for "_top",
     //    set chosen to currentNavigable's traversable navigable.
-    else if (Infra::is_ascii_case_insensitive_match(name, "_top"sv)) {
+    else if (name.equals_ignoring_ascii_case("_top"sv)) {
         chosen = traversable_navigable();
     }
 
-    // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank", and there exists a navigable that is
-    //    the result of finding a navigable by target name given name and currentNavigable, set chosen to that navigable.
-    else if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv) && find_and_assign_navigable_by_target_name(name)) {
-        chosen = navigable_by_target_name;
+    // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank" and noopener is false, then set chosen
+    //    to the result of finding a navigable by target name given name and currentNavigable.
+    else if (!name.equals_ignoring_ascii_case("_blank"sv) && no_opener == TokenizedFeature::NoOpener::No) {
+        chosen = find_a_navigable_by_target_name(name);
     }
 
-    // 8. Otherwise, a new top-level traversable is being requested, and what happens depends on the
-    // user agent's configuration and abilities — it is determined by the rules given for the first
-    // applicable option from the following list:
-    else {
+    // 8. If chosen is null, then a new top-level traversable is being requested, and what happens depends on the user
+    //    agent's configuration and abilities — it is determined by the rules given for the first applicable option
+    //    from the following list:
+    if (!chosen) {
         // --> If currentNavigable's active window does not have transient activation and the user agent has been configured to
         //     not show popups (i.e., the user agent has a "popup blocker" enabled)
         if (active_window() && !active_window()->has_transient_activation() && traversable_navigable()->page().should_block_pop_ups()) {
@@ -455,14 +442,11 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             // NOTE: In the presence of an opener policy,
             //       nested documents that are cross-origin with their top-level browsing context's active document always set noopener to true.
 
-            // 5. Let chosen be null.
-            chosen = nullptr;
-
-            // 6. Let targetName be the empty string.
+            // 5. Let targetName be the empty string.
             String target_name;
 
-            // 7. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
-            if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv))
+            // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
+            if (!name.equals_ignoring_ascii_case("_blank"sv))
                 target_name = MUST(String::from_utf8(name));
 
             auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<Navigable> {
@@ -475,12 +459,12 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             };
             auto create_new_traversable = GC::create_function(heap(), move(create_new_traversable_closure));
 
-            // 8. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.
+            // 7. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.
             if (no_opener == TokenizedFeature::NoOpener::Yes) {
                 chosen = create_new_traversable->function()(nullptr);
             }
 
-            // 9. Otherwise:
+            // 8. Otherwise:
             else {
                 // 1. Set chosen to the result of creating a new top-level traversable given currentNavigable's active browsing context, targetName, and currentNavigable.
                 // FIXME: "and currentNavigable", which is the openerNavigableForWebDriver parameter.
@@ -492,10 +476,13 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
                     chosen->active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context());
             }
 
-            // 10. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
+            // 9. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
             //     then all the flags that are set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
             if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts))
                 chosen->active_browsing_context()->set_popup_sandboxing_flag_set(chosen->active_browsing_context()->popup_sandboxing_flag_set() | sandboxing_flag_set);
+
+            // 10. Set chosen's is created by web content to true.
+            as<TraversableNavigable>(*chosen).set_is_created_by_web_content(true);
         }
 
         // --> If the user agent has been configured such that in this instance it will choose currentNavigable
@@ -1455,7 +1442,8 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 // an optional entry list or null formDataEntryList (default null),
 // an optional referrer policy referrerPolicy (default the empty string),
 // an optional user navigation involvement userInvolvement (default "none"),
-// and an optional Element sourceElement (default null):
+// an optional Element sourceElement (default null),
+// and an optional boolean initialInsertion (default false):
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 void Navigable::begin_navigation(NavigateParams params)
@@ -1474,6 +1462,7 @@ void Navigable::begin_navigation(NavigateParams params)
     auto referrer_policy = params.referrer_policy;
     auto user_involvement = params.user_involvement;
     auto source_element = params.source_element;
+    auto initial_insertion = params.initial_insertion;
     auto& active_document = *this->active_document();
     auto& vm = this->vm();
 
@@ -1577,10 +1566,10 @@ void Navigable::begin_navigation(NavigateParams params)
 
     // 19. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
-        // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, and cspNavigationType.
+        // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, and initialInsertion.
         VERIFY(active_window());
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, navigation_id] {
-            navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, navigation_id);
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
+            navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id);
         }));
 
         // 2. Return.
@@ -1923,7 +1912,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, String navigation_id)
+void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion initial_insertion, String navigation_id)
 {
     auto& vm = this->vm();
 
@@ -1949,8 +1938,15 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     // 6. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, url, initiatorOrigin, and userInvolvement.
     auto new_document = evaluate_javascript_url(url, initiator_origin, user_involvement, navigation_id);
 
-    // 7. If newDocument is null, then return.
+    // 7. If newDocument is null:
     if (!new_document) {
+        // 1. If initialInsertion is true and targetNavigable's active document's is initial about:blank is true,
+        //    then run the iframe load event steps given targetNavigable's container.
+        if (initial_insertion == InitialInsertion::Yes && active_document()->is_initial_about_blank()) {
+            run_iframe_load_event_steps(as<HTMLIFrameElement>(*container()));
+        }
+
+        // 2. Return.
         // NOTE: In this case, some JavaScript code was executed, but no new Document was created, so we will not perform a navigation.
         return;
     }

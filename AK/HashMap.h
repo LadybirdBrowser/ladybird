@@ -57,12 +57,12 @@ public:
     void clear() { m_table.clear(); }
     void clear_with_capacity() { m_table.clear_with_capacity(); }
 
-    HashSetResult set(K const& key, V const& value) { return m_table.set({ key, value }); }
-    HashSetResult set(K const& key, V&& value) { return m_table.set({ key, move(value) }); }
-    HashSetResult set(K&& key, V&& value) { return m_table.set({ move(key), move(value) }); }
-    ErrorOr<HashSetResult> try_set(K const& key, V const& value) { return m_table.try_set({ key, value }); }
-    ErrorOr<HashSetResult> try_set(K const& key, V&& value) { return m_table.try_set({ key, move(value) }); }
-    ErrorOr<HashSetResult> try_set(K&& key, V&& value) { return m_table.try_set({ move(key), move(value) }); }
+    HashSetResult set(K const& key, V const& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace) { return m_table.set({ key, value }, existing_entry_behavior); }
+    HashSetResult set(K const& key, V&& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace) { return m_table.set({ key, move(value) }, existing_entry_behavior); }
+    HashSetResult set(K&& key, V&& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace) { return m_table.set({ move(key), move(value) }, existing_entry_behavior); }
+    ErrorOr<HashSetResult> try_set(K const& key, V const& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace) { return m_table.try_set({ key, value }, existing_entry_behavior); }
+    ErrorOr<HashSetResult> try_set(K const& key, V&& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace) { return m_table.try_set({ key, move(value) }, existing_entry_behavior); }
+    ErrorOr<HashSetResult> try_set(K&& key, V&& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace) { return m_table.try_set({ move(key), move(value) }, existing_entry_behavior); }
 
     bool remove(K const& key)
     {

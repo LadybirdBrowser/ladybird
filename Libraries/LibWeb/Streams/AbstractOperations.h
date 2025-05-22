@@ -21,6 +21,13 @@ namespace Web::Streams {
 WebIDL::ExceptionOr<double> extract_high_water_mark(QueuingStrategy const&, double default_hwm);
 GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, QueuingStrategy const&);
 
+// 8.2. Transferable streams, https://streams.spec.whatwg.org/#transferrable-streams
+void cross_realm_transform_send_error(JS::Realm&, HTML::MessagePort&, JS::Value error);
+WebIDL::ExceptionOr<void> pack_and_post_message(JS::Realm&, HTML::MessagePort&, StringView type, JS::Value value);
+WebIDL::ExceptionOr<void> pack_and_post_message_handling_error(JS::Realm&, HTML::MessagePort&, StringView type, JS::Value value);
+void set_up_cross_realm_transform_readable(JS::Realm&, ReadableStream&, HTML::MessagePort&);
+void set_up_cross_realm_transform_writable(JS::Realm&, WritableStream&, HTML::MessagePort&);
+
 // 8.3. Miscellaneous, https://streams.spec.whatwg.org/#misc-abstract-ops
 bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer);
 bool is_non_negative_number(JS::Value);

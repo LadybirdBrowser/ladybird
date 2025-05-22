@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-enum class Important {
+enum class Important : u8 {
     No,
     Yes,
 };

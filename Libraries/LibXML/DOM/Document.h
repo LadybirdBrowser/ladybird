@@ -50,4 +50,5 @@ private:
     Version m_version;
     Optional<Doctype> m_explicit_doctype;
 };
+
 }

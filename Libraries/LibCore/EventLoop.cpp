@@ -17,6 +17,7 @@
 namespace Core {
 
 namespace {
+
 OwnPtr<Vector<EventLoop&>>& event_loop_stack_uninitialized()
 {
     thread_local OwnPtr<Vector<EventLoop&>> s_event_loop_stack = nullptr;
@@ -29,6 +30,7 @@ Vector<EventLoop&>& event_loop_stack()
         the_stack = make<Vector<EventLoop&>>();
     return *the_stack;
 }
+
 }
 
 EventLoop::EventLoop()

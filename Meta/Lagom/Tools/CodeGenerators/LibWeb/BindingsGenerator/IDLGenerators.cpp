@@ -66,6 +66,7 @@ static bool is_platform_object(Type const& type)
         "FormData"sv,
         "HTMLCollection"sv,
         "IDBCursor"sv,
+        "IDBCursorWithValue"sv,
         "IDBIndex"sv,
         "IDBKeyRange"sv,
         "IDBObjectStore"sv,
@@ -320,7 +321,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 
 static ByteString make_input_acceptable_cpp(ByteString const& input)
 {
-    if (input.is_one_of("class", "template", "for", "default", "char", "namespace", "delete", "inline", "register", "switch", "mutable")) {
+    if (input.is_one_of("class", "template", "for", "default", "char", "namespace", "delete", "inline", "register", "switch", "mutable", "continue")) {
         StringBuilder builder;
         builder.append(input);
         builder.append('_');
@@ -1766,10 +1767,10 @@ void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& ge
     sequence_generator.append(R"~~~(
     for (;;) {
         auto next@recursion_depth@ = TRY(JS::iterator_step(vm, @iterable_cpp_name@_iterator@recursion_depth@));
-        if (!next@recursion_depth@)
+        if (!next@recursion_depth@.has<JS::IterationResult>())
             break;
 
-        auto next_item@recursion_depth@ = TRY(JS::iterator_value(vm, *next@recursion_depth@));
+        auto next_item@recursion_depth@ = TRY(next@recursion_depth@.get<JS::IterationResult>().value);
 )~~~");
 
     // FIXME: Sequences types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
@@ -4824,6 +4825,13 @@ void @namespace_class@::initialize(JS::Realm& realm)
 )~~~");
     }
 
+    if (interface.extended_attributes.contains("WithInitializer"sv)) {
+        generator.append(R"~~~(
+
+    @name@::initialize(*this, realm);
+)~~~");
+    }
+
     generator.append(R"~~~(
 }
 )~~~");
@@ -5667,4 +5675,5 @@ namespace Web::Bindings {
 } // namespace Web::Bindings
     )~~~");
 }
+
 }

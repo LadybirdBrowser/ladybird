@@ -126,11 +126,13 @@ consteval auto count_fmt_params(char const (&fmt)[N])
     }
     return result;
 }
+
 }
 
 #endif
 
 namespace AK::Format::Detail {
+
 template<typename... Args>
 struct CheckedFormatString {
     template<size_t N>
@@ -206,6 +208,7 @@ private:
 
     StringView m_string;
 };
+
 }
 
 namespace AK {

@@ -2,16 +2,16 @@
 
 [Exposed=(Window,Worker)]
 interface IDBCursor {
-    readonly attribute (IDBObjectStore or IDBIndex) source;
+    [ImplementedAs=source_handle] readonly attribute (IDBObjectStore or IDBIndex) source;
     readonly attribute IDBCursorDirection direction;
     readonly attribute any key;
-    [FIXME] readonly attribute any primaryKey;
+    readonly attribute any primaryKey;
     [SameObject] readonly attribute IDBRequest request;
-    [FIXME] undefined advance([EnforceRange] unsigned long count);
-    [FIXME] undefined continue(optional any key);
-    [FIXME] undefined continuePrimaryKey(any key, any primaryKey);
-    [FIXME, NewObject] IDBRequest update(any value);
-    [FIXME, NewObject] IDBRequest delete();
+    undefined advance([EnforceRange] unsigned long count);
+    undefined continue(optional any key);
+    undefined continuePrimaryKey(any key, any primaryKey);
+    [NewObject] IDBRequest update(any value);
+    [NewObject] IDBRequest delete();
 };
 
 enum IDBCursorDirection {

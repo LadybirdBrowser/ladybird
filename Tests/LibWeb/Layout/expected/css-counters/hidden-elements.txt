@@ -1,67 +1,67 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,16) content-size 784x149 children: not-inline
-      BlockContainer <p> at (8,16) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [26.125,16 14.265625x17] baseline: 13.296875
+    BlockContainer <body> at (8,16) content-size 784x154 children: not-inline
+      BlockContainer <p> at (8,16) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [26.125,16 14.265625x18] baseline: 13.796875
             "A"
         InlineNode <(anonymous)>
-          frag 0 from TextNode start: 0, length: 3, rect: [8,16 18.125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 3, rect: [8,16 18.125x18] baseline: 13.796875
               "1: "
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <p> at (8,49) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [28.59375,49 9.34375x17] baseline: 13.296875
+      BlockContainer <p> at (8,50) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [28.59375,50 9.34375x18] baseline: 13.796875
             "B"
         InlineNode <(anonymous)>
-          frag 0 from TextNode start: 0, length: 3, rect: [8,49 20.59375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 3, rect: [8,50 20.59375x18] baseline: 13.796875
               "2: "
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <p> at (8,82) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [28.875,82 10.3125x17] baseline: 13.296875
+      BlockContainer <p> at (8,84) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [28.875,84 10.3125x18] baseline: 13.796875
             "C"
         InlineNode <(anonymous)>
-          frag 0 from TextNode start: 0, length: 3, rect: [8,82 20.875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 3, rect: [8,84 20.875x18] baseline: 13.796875
               "3: "
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <p> at (8,115) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [27.53125,115 11.140625x17] baseline: 13.296875
+      BlockContainer <p> at (8,118) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [27.53125,118 11.140625x18] baseline: 13.796875
             "D"
         InlineNode <(anonymous)>
-          frag 0 from TextNode start: 0, length: 3, rect: [8,115 19.53125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 3, rect: [8,118 19.53125x18] baseline: 13.796875
               "4: "
           TextNode <#text>
         TextNode <#text>
-      BlockContainer <p> at (8,148) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [28.234375,148 11.859375x17] baseline: 13.296875
+      BlockContainer <p> at (8,152) content-size 784x18 children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [28.234375,152 11.859375x18] baseline: 13.796875
             "E"
         InlineNode <(anonymous)>
-          frag 0 from TextNode start: 0, length: 3, rect: [8,148 20.234375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 3, rect: [8,152 20.234375x18] baseline: 13.796875
               "5: "
           TextNode <#text>
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,16 784x149]
-      PaintableWithLines (BlockContainer<P>) [8,16 784x17]
+    PaintableWithLines (BlockContainer<BODY>) [8,16 784x154]
+      PaintableWithLines (BlockContainer<P>) [8,16 784x18]
         PaintableWithLines (InlineNode(anonymous))
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<P>) [8,49 784x17]
+      PaintableWithLines (BlockContainer<P>) [8,50 784x18]
         PaintableWithLines (InlineNode(anonymous))
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<P>) [8,82 784x17]
+      PaintableWithLines (BlockContainer<P>) [8,84 784x18]
         PaintableWithLines (InlineNode(anonymous))
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<P>) [8,115 784x17]
+      PaintableWithLines (BlockContainer<P>) [8,118 784x18]
         PaintableWithLines (InlineNode(anonymous))
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<P>) [8,148 784x17]
+      PaintableWithLines (BlockContainer<P>) [8,152 784x18]
         PaintableWithLines (InlineNode(anonymous))
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)

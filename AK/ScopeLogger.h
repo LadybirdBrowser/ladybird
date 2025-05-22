@@ -12,6 +12,7 @@
 #include <AK/StringBuilder.h>
 
 namespace AK {
+
 template<bool = true>
 class ScopeLogger {
 public:

@@ -8,6 +8,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/Bitmap.h>
 #include <AK/Debug.h>
 #include <AK/Error.h>
 #include <AK/Find.h>
@@ -16,11 +17,9 @@
 #include <AK/Math.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
-#include <AK/TemporaryChange.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
-#include <LibGfx/Font/FontWeight.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
@@ -38,6 +37,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -59,6 +59,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
@@ -74,18 +75,18 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/FontPlugin.h>
-#include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -102,10 +103,12 @@ struct FontFaceKey {
 namespace AK {
 
 namespace Detail {
+
 template<>
 inline constexpr bool IsHashCompatible<Web::CSS::FontFaceKey, Web::CSS::OwnFontFaceKey> = true;
 template<>
 inline constexpr bool IsHashCompatible<Web::CSS::OwnFontFaceKey, Web::CSS::FontFaceKey> = true;
+
 }
 
 template<>
@@ -184,54 +187,27 @@ StyleComputer::StyleComputer(DOM::Document& document)
 
 StyleComputer::~StyleComputer() = default;
 
-FontLoader::FontLoader(StyleComputer& style_computer, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<::URL::URL> urls, Function<void(FontLoader const&)> on_load, Function<void()> on_fail)
+FontLoader::FontLoader(StyleComputer& style_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
     : m_style_computer(style_computer)
+    , m_parent_style_sheet(parent_style_sheet)
     , m_family_name(move(family_name))
     , m_unicode_ranges(move(unicode_ranges))
     , m_urls(move(urls))
     , m_on_load(move(on_load))
-    , m_on_fail(move(on_fail))
 {
 }
 
 FontLoader::~FontLoader() = default;
 
-void FontLoader::resource_did_load()
+bool FontLoader::is_loading() const
 {
-    resource_did_load_or_fail();
-    if (m_on_load)
-        m_on_load(*this);
-}
-
-void FontLoader::resource_did_fail()
-{
-    resource_did_load_or_fail();
-    if (m_on_fail) {
-        m_on_fail();
-    }
-}
-
-void FontLoader::resource_did_load_or_fail()
-{
-    // NOTE: Even if the resource "failed" to load, we still want to try to parse it as a font.
-    //       This is necessary for https://wpt.live/ to work correctly, as it just drops the connection
-    //       after sending a resource, which looks like an error, but is actually recoverable.
-    // FIXME: It would be nice to solve this in the network layer instead.
-    //        It would also be nice to move font loading to using fetch primitives.
-    auto result = try_load_font();
-    if (result.is_error()) {
-        dbgln("Failed to parse font: {}", result.error());
-        start_loading_next_url();
-        return;
-    }
-    m_vector_font = result.release_value();
-    m_style_computer.did_load_font(m_family_name);
+    return m_fetch_controller && !m_vector_font;
 }
 
 RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size)
 {
     if (!m_vector_font) {
-        if (!resource())
+        if (!m_fetch_controller)
             start_loading_next_url();
         return nullptr;
     }
@@ -240,46 +216,88 @@ RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size)
 
 void FontLoader::start_loading_next_url()
 {
-    if (resource() && resource()->is_pending())
+    // FIXME: Load local() fonts somehow.
+    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
         return;
     if (m_urls.is_empty())
         return;
-    auto& style_computer_realm = m_style_computer.document().realm();
-    auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(style_computer_realm));
 
-    LoadRequest request;
-    request.set_url(m_urls.take_first());
-    request.set_page(page);
+    // https://drafts.csswg.org/css-fonts-4/#fetch-a-font
+    // To fetch a font given a selected <url> url for @font-face rule, fetch url, with stylesheet being rule’s parent
+    // CSS style sheet, destination "font", CORS mode "cors", and processResponse being the following steps given
+    // response res and null, failure or a byte stream stream:
+    auto style_sheet_or_document = m_parent_style_sheet ? StyleSheetOrDocument { *m_parent_style_sheet } : StyleSheetOrDocument { m_style_computer.document() };
+    auto maybe_fetch_controller = fetch_a_style_resource(m_urls.take_first(), style_sheet_or_document, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
+        [weak_loader = make_weak_ptr()](auto response, auto stream) {
+            // NB: If the FontLoader died before this fetch completed, nobody wants the data.
+            if (weak_loader.is_null())
+                return;
+            auto& loader = *weak_loader;
 
-    // HACK: We're crudely computing the referer value and shoving it into the
-    //       request until fetch infrastructure is used here.
-    auto referrer_url = ReferrerPolicy::strip_url_for_use_as_referrer(m_style_computer.document().url());
-    if (referrer_url.has_value() && !request.headers().contains("Referer"))
-        request.set_header("Referer", referrer_url->serialize().to_byte_string());
+            // 1. If stream is null, return.
+            // 2. Load a font from stream according to its type.
 
-    set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
+            // NB: We need to fetch the next source if this one fails to fetch OR decode. So, first try to decode it.
+            RefPtr<Gfx::Typeface const> typeface;
+            if (auto* bytes = stream.template get_pointer<ByteBuffer>()) {
+                if (auto maybe_typeface = loader.try_load_font(response, *bytes); !maybe_typeface.is_error())
+                    typeface = maybe_typeface.release_value();
+            }
+
+            if (!typeface) {
+                // NB: If we have other sources available, try the next one.
+                if (loader.m_urls.is_empty()) {
+                    loader.font_did_load_or_fail(nullptr);
+                } else {
+                    loader.m_fetch_controller = nullptr;
+                    loader.start_loading_next_url();
+                }
+            } else {
+                loader.font_did_load_or_fail(move(typeface));
+            }
+        });
+
+    if (maybe_fetch_controller.is_error()) {
+        font_did_load_or_fail(nullptr);
+    } else {
+        m_fetch_controller = maybe_fetch_controller.release_value();
+    }
 }
 
-ErrorOr<NonnullRefPtr<Gfx::Typeface const>> FontLoader::try_load_font()
+void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
+{
+    if (typeface) {
+        m_vector_font = typeface.release_nonnull();
+        m_style_computer.did_load_font(m_family_name);
+        if (m_on_load)
+            m_on_load(m_vector_font);
+    } else {
+        if (m_on_load)
+            m_on_load(nullptr);
+    }
+    m_fetch_controller = nullptr;
+}
+
+ErrorOr<NonnullRefPtr<Gfx::Typeface const>> FontLoader::try_load_font(Fetch::Infrastructure::Response const& response, ByteBuffer const& bytes)
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
-    auto mime_type = MimeSniff::MimeType::parse(resource()->mime_type());
+    auto mime_type = response.header_list()->extract_mime_type();
     if (!mime_type.has_value() || !mime_type->is_font()) {
-        mime_type = MimeSniff::Resource::sniff(resource()->encoded_data(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Font });
+        mime_type = MimeSniff::Resource::sniff(bytes, MimeSniff::SniffingConfiguration { .sniffing_context = MimeSniff::SniffingContext::Font });
     }
     if (mime_type.has_value()) {
         if (mime_type->essence() == "font/ttf"sv || mime_type->essence() == "application/x-font-ttf"sv || mime_type->essence() == "font/otf"sv) {
-            if (auto result = Gfx::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+            if (auto result = Gfx::Typeface::try_load_from_temporary_memory(bytes); !result.is_error()) {
                 return result;
             }
         }
         if (mime_type->essence() == "font/woff"sv || mime_type->essence() == "application/font-woff"sv) {
-            if (auto result = WOFF::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+            if (auto result = WOFF::try_load_from_bytes(bytes); !result.is_error()) {
                 return result;
             }
         }
         if (mime_type->essence() == "font/woff2"sv || mime_type->essence() == "application/font-woff2"sv) {
-            if (auto result = WOFF2::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+            if (auto result = WOFF2::try_load_from_bytes(bytes); !result.is_error()) {
                 return result;
             }
         }
@@ -592,8 +610,23 @@ static void sort_matching_rules(Vector<MatchingRule const*>& matching_rules)
     });
 }
 
-void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, CSSStyleValue const& value, AllowUnresolved allow_unresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property)
+void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, CSSStyleValue const& value, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property)
 {
+    if (property_is_shorthand(property_id) && (value.is_unresolved() || value.is_pending_substitution())) {
+        // If a shorthand property contains an arbitrary substitution function in its value, the longhand properties
+        // it’s associated with must instead be filled in with a special, unobservable-to-authors pending-substitution
+        // value that indicates the shorthand contains an arbitrary substitution function, and thus the longhand’s
+        // value can’t be determined until after substituted.
+        // https://drafts.csswg.org/css-values-5/#pending-substitution-value
+        // Ensure we keep the longhand around until it can be resolved.
+        set_longhand_property(property_id, value);
+        auto pending_substitution_value = PendingSubstitutionStyleValue::create();
+        for (auto longhand_id : longhands_for_shorthand(property_id)) {
+            for_each_property_expanding_shorthands(longhand_id, pending_substitution_value, set_longhand_property);
+        }
+        return;
+    }
+
     auto map_logical_property_to_real_property = [](PropertyID property_id) -> Optional<PropertyID> {
         // FIXME: Honor writing-mode, direction and text-orientation.
         switch (property_id) {
@@ -679,7 +712,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     };
 
     if (auto real_property_id = map_logical_property_to_real_property(property_id); real_property_id.has_value()) {
-        for_each_property_expanding_shorthands(real_property_id.value(), value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_id.value(), value, set_longhand_property);
         return;
     }
 
@@ -687,12 +720,12 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         if (value.is_value_list() && value.as_value_list().size() == 2) {
             auto const& start = value.as_value_list().values()[0];
             auto const& end = value.as_value_list().values()[1];
-            for_each_property_expanding_shorthands(real_property_ids->start, start, allow_unresolved, set_longhand_property);
-            for_each_property_expanding_shorthands(real_property_ids->end, end, allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(real_property_ids->start, start, set_longhand_property);
+            for_each_property_expanding_shorthands(real_property_ids->end, end, set_longhand_property);
             return;
         }
-        for_each_property_expanding_shorthands(real_property_ids->start, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(real_property_ids->end, value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_ids->start, value, set_longhand_property);
+        for_each_property_expanding_shorthands(real_property_ids->end, value, set_longhand_property);
         return;
     }
 
@@ -701,7 +734,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         auto& properties = shorthand_value.sub_properties();
         auto& values = shorthand_value.values();
         for (size_t i = 0; i < properties.size(); ++i)
-            for_each_property_expanding_shorthands(properties[i], values[i], allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(properties[i], values[i], set_longhand_property);
         return;
     }
 
@@ -730,10 +763,10 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     };
 
     if (property_id == CSS::PropertyID::Border) {
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderTop, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderRight, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderBottom, value, allow_unresolved, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderLeft, value, allow_unresolved, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderTop, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderRight, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderBottom, value, set_longhand_property);
+        for_each_property_expanding_shorthands(CSS::PropertyID::BorderLeft, value, set_longhand_property);
         // FIXME: Also reset border-image, in line with the spec: https://www.w3.org/TR/css-backgrounds-3/#border-shorthands
         return;
     }
@@ -949,14 +982,14 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 
     if (property_is_shorthand(property_id)) {
-        // ShorthandStyleValue was handled already.
-        // That means if we got here, that `value` must be a CSS-wide keyword, which we should apply to our longhand properties.
+        // ShorthandStyleValue was handled already, as were unresolved shorthands.
+        // That means the only values we should see are the CSS-wide keywords, or the guaranteed-invalid value.
+        // Both should be applied to our longhand properties.
         // We don't directly call `set_longhand_property()` because the longhands might have longhands of their own.
         // (eg `grid` -> `grid-template` -> `grid-template-areas` & `grid-template-rows` & `grid-template-columns`)
-        // Forget this requirement if we're ignoring unresolved values and the value is unresolved.
-        VERIFY(value.is_css_wide_keyword() || (allow_unresolved == AllowUnresolved::Yes && value.is_unresolved()));
+        VERIFY(value.is_css_wide_keyword() || value.is_guaranteed_invalid());
         for (auto longhand : longhands_for_shorthand(property_id))
-            for_each_property_expanding_shorthands(longhand, value, allow_unresolved, set_longhand_property);
+            for_each_property_expanding_shorthands(longhand, value, set_longhand_property);
         return;
     }
 
@@ -972,7 +1005,7 @@ void StyleComputer::set_property_expanding_shorthands(
     Important important,
     Optional<FlyString> layer_name)
 {
-    for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+    for_each_property_expanding_shorthands(property_id, value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
         if (longhand_value.is_revert()) {
             cascaded_properties.revert_property(longhand_id, important, cascade_origin);
         } else if (longhand_value.is_revert_layer()) {
@@ -1010,10 +1043,7 @@ void StyleComputer::set_all_properties(
         NonnullRefPtr<CSSStyleValue const> property_value = value;
         if (property_value->is_unresolved())
             property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, pseudo_element, property_id, property_value->as_unresolved());
-        if (!property_value->is_unresolved())
-            set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
-
-        set_property_expanding_shorthands(cascaded_properties, property_id, value, declaration, cascade_origin, important, layer_name);
+        set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
     }
 }
 
@@ -1026,44 +1056,72 @@ void StyleComputer::cascade_declarations(
     Important important,
     Optional<FlyString> layer_name) const
 {
-    for (auto const& match : matching_rules) {
-        for (auto const& property : match->declaration().properties()) {
+    auto seen_properties = MUST(Bitmap::create(to_underlying(last_property_id) + 1, false));
+    auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
+        seen_properties.fill(false);
+        for (auto const& property : declaration.properties()) {
             if (important != property.important)
                 continue;
 
             if (pseudo_element.has_value() && !pseudo_element_supports_property(*pseudo_element, property.property_id))
                 continue;
 
-            if (property.property_id == CSS::PropertyID::All) {
-                set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, &match->declaration(), cascade_origin, important, layer_name);
+            auto property_value = property.value;
+
+            if (property_value->is_unresolved())
+                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property.property_id, property_value->as_unresolved());
+
+            if (property_value->is_guaranteed_invalid()) {
+                // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+                // When substitution results in a property’s value containing the guaranteed-invalid value, this makes the
+                // declaration invalid at computed-value time. When this happens, the computed value is one of the
+                // following depending on the property’s type:
+
+                // -> The property is a non-registered custom property
+                // -> The property is a registered custom property with universal syntax
+                // FIXME: Process custom properties here?
+                if (false) {
+                    // The computed value is the guaranteed-invalid value.
+                }
+                // -> Otherwise
+                else {
+                    // Either the property’s inherited value or its initial value depending on whether the property is
+                    // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
+                    property_value = CSSKeywordValue::create(Keyword::Unset);
+                }
+            }
+
+            if (property.property_id == PropertyID::All) {
+                set_all_properties(cascaded_properties, element, pseudo_element, property_value, m_document, &declaration, cascade_origin, important, layer_name);
                 continue;
             }
 
-            auto property_value = property.value;
-            if (property.value->is_unresolved())
-                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
-            if (!property_value->is_unresolved())
-                set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, &match->declaration(), cascade_origin, important, layer_name);
+            // NOTE: This is a duplicate of set_property_expanding_shorthands() with some extra checks.
+            for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+                // If we're a PSV that's already been seen, that should mean that our shorthand already got
+                // resolved and gave us a value, so we don't want to overwrite it with a PSV.
+                if (seen_properties.get(to_underlying(longhand_id)) && property_value->is_pending_substitution())
+                    return;
+                seen_properties.set(to_underlying(longhand_id), true);
+
+                if (longhand_value.is_revert()) {
+                    cascaded_properties.revert_property(longhand_id, important, cascade_origin);
+                } else if (longhand_value.is_revert_layer()) {
+                    cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
+                } else {
+                    cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration);
+                }
+            });
         }
+    };
+
+    for (auto const& match : matching_rules) {
+        cascade_style_declaration(match->declaration());
     }
 
     if (cascade_origin == CascadeOrigin::Author && !pseudo_element.has_value()) {
         if (auto const inline_style = element.inline_style()) {
-            for (auto const& property : inline_style->properties()) {
-                if (important != property.important)
-                    continue;
-
-                if (property.property_id == CSS::PropertyID::All) {
-                    set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, inline_style, cascade_origin, important, layer_name);
-                    continue;
-                }
-
-                auto property_value = property.value;
-                if (property.value->is_unresolved())
-                    property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
-                if (!property_value->is_unresolved())
-                    set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, inline_style, cascade_origin, important, layer_name);
-            }
+            cascade_style_declaration(*inline_style);
         }
     }
 }
@@ -1148,35 +1206,52 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         dbgln("Animation {} contains {} properties to interpolate, progress = {}%", animation->id(), valid_properties, progress_in_keyframe * 100);
     }
 
-    for (auto const& it : keyframe_values.properties) {
-        auto resolve_property = [&](auto& property) {
-            return property.visit(
+    // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
+    auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element](auto const& keyframe_values) {
+        HashMap<PropertyID, RefPtr<CSSStyleValue const>> result;
+        for (auto const& [property_id, value] : keyframe_values.properties) {
+            auto style_value = value.visit(
                 [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSSStyleValue const> {
                     if (refresh == AnimationRefresh::Yes)
                         return {};
-                    return computed_properties.property(it.key);
+                    if (property_is_shorthand(property_id))
+                        return {};
+                    return computed_properties.property(property_id);
                 },
                 [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
-                    if (value->is_revert() || value->is_revert_layer())
-                        return computed_properties.property(it.key);
-                    if (value->is_unresolved())
-                        return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, it.key, value->as_unresolved());
                     return value;
                 });
-        };
 
-        auto resolved_start_property = resolve_property(it.value);
+            if (!style_value) {
+                result.set(property_id, nullptr);
+                continue;
+            }
 
-        auto const& end_property = keyframe_end_values.properties.get(it.key);
-        if (!end_property.has_value()) {
+            if (style_value->is_revert() || style_value->is_revert_layer())
+                style_value = computed_properties.property(property_id);
+            if (style_value->is_unresolved())
+                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property_id, style_value->as_unresolved());
+
+            for_each_property_expanding_shorthands(property_id, *style_value, [&result](PropertyID id, CSSStyleValue const& longhand_value) {
+                result.set(id, { longhand_value });
+            });
+        }
+        return result;
+    };
+    HashMap<PropertyID, RefPtr<CSSStyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
+    HashMap<PropertyID, RefPtr<CSSStyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
+
+    for (auto const& it : computed_start_values) {
+        auto resolved_start_property = it.value;
+        RefPtr resolved_end_property = computed_end_values.get(it.key).value_or(nullptr);
+
+        if (!resolved_end_property) {
             if (resolved_start_property) {
                 computed_properties.set_animated_property(it.key, *resolved_start_property);
-                dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string(CSSStyleValue::SerializationMode::Normal));
+                dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string(SerializationMode::Normal));
             }
             continue;
         }
-
-        auto resolved_end_property = resolve_property(end_property.value());
 
         if (resolved_end_property && !resolved_start_property)
             resolved_start_property = property_initial_value(it.key);
@@ -1192,11 +1267,11 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         }
 
         if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe)) {
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(CSSStyleValue::SerializationMode::Normal), end->to_string(CSSStyleValue::SerializationMode::Normal), next_value->to_string(CSSStyleValue::SerializationMode::Normal));
+            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal), next_value->to_string(SerializationMode::Normal));
             computed_properties.set_animated_property(it.key, *next_value);
         } else {
             // If interpolate_property() fails, the element should not be rendered
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(CSSStyleValue::SerializationMode::Normal), end->to_string(CSSStyleValue::SerializationMode::Normal));
+            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal));
             computed_properties.set_animated_property(PropertyID::Visibility, CSSKeywordValue::create(Keyword::Hidden));
         }
     }
@@ -1481,7 +1556,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         //    there is a matching transition-property value,
         //    and the end value of the running transition is not equal to the value of the property in the after-change style, then:
         if (has_running_transition && matching_transition_properties.has_value() && !existing_transition->transition_end_value()->equals(after_change_value)) {
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(CSSStyleValue::SerializationMode::Normal), after_change_value.to_string(CSSStyleValue::SerializationMode::Normal));
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(SerializationMode::Normal), after_change_value.to_string(SerializationMode::Normal));
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
@@ -1690,8 +1765,6 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::Propert
 
 void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::PseudoElement> pseudo_element) const
 {
-    // FIXME: If we don't know the correct initial value for a property, we fall back to `initial`.
-
     auto& value_slot = style.m_property_values[to_underlying(property_id)];
     if (!value_slot) {
         if (is_inherited_property(property_id)) {
@@ -2613,7 +2686,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
             return OptionalNone {};
         if (animation_name->is_string())
             return animation_name->as_string().string_value().to_string();
-        return animation_name->to_string(CSSStyleValue::SerializationMode::Normal);
+        return animation_name->to_string(SerializationMode::Normal);
     }();
 
     if (animation_name.has_value()) {
@@ -2873,7 +2946,7 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                 auto const& keyframe_style = *keyframe.style();
                 for (auto const& it : keyframe_style.properties()) {
                     // Unresolved properties will be resolved in collect_animation_into()
-                    for_each_property_expanding_shorthands(it.property_id, it.value, AllowUnresolved::Yes, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
+                    for_each_property_expanding_shorthands(it.property_id, it.value, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
                         animated_properties.set(shorthand_id);
                         resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSSStyleValue const> { shorthand_value });
                     });
@@ -2952,10 +3025,12 @@ void StyleComputer::build_qualified_layer_names_cache()
             case CSSRule::Type::FontFace:
             case CSSRule::Type::Keyframes:
             case CSSRule::Type::Keyframe:
+            case CSSRule::Type::Margin:
             case CSSRule::Type::Namespace:
             case CSSRule::Type::NestedDeclarations:
-            case CSSRule::Type::Supports:
+            case CSSRule::Type::Page:
             case CSSRule::Type::Property:
+            case CSSRule::Type::Supports:
                 break;
             }
         });
@@ -3017,11 +3092,11 @@ void StyleComputer::did_load_font(FlyString const&)
     document().invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
 }
 
-Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_face, Function<void(FontLoader const&)> on_load, Function<void()> on_fail)
+Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_face, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
 {
     if (font_face.sources().is_empty()) {
-        if (on_fail)
-            on_fail();
+        if (on_load)
+            on_load({});
         return {};
     }
 
@@ -3031,29 +3106,29 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
         .slope = font_face.slope().value_or(0),
     };
 
-    Vector<::URL::URL> urls;
+    // FIXME: Pass the sources directly, so the font loader can make use of the format information, or load local fonts.
+    Vector<URL> urls;
     for (auto const& source : font_face.sources()) {
-        // FIXME: These should be loaded relative to the stylesheet URL instead of the document URL.
-        if (source.local_or_url.has<::URL::URL>())
-            urls.append(*m_document->encoding_parse_url(source.local_or_url.get<::URL::URL>().to_string()));
+        if (source.local_or_url.has<URL>())
+            urls.append(source.local_or_url.get<URL>());
         // FIXME: Handle local()
     }
 
     if (urls.is_empty()) {
-        if (on_fail)
-            on_fail();
+        if (on_load)
+            on_load({});
         return {};
     }
 
-    auto loader = make<FontLoader>(const_cast<StyleComputer&>(*this), font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load), move(on_fail));
+    auto loader = make<FontLoader>(*this, font_face.parent_style_sheet(), font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
     auto& loader_ref = *loader;
-    auto maybe_font_loaders_list = const_cast<StyleComputer&>(*this).m_loaded_fonts.get(key);
+    auto maybe_font_loaders_list = m_loaded_fonts.get(key);
     if (maybe_font_loaders_list.has_value()) {
         maybe_font_loaders_list->append(move(loader));
     } else {
         FontLoaderList loaders;
         loaders.append(move(loader));
-        const_cast<StyleComputer&>(*this).m_loaded_fonts.set(OwnFontFaceKey(key), move(loaders));
+        m_loaded_fonts.set(OwnFontFaceKey(key), move(loaders));
     }
     // Actual object owned by font loader list inside m_loaded_fonts, this isn't use-after-move/free
     return loader_ref;
@@ -3137,13 +3212,13 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element c
 
 static void for_each_element_hash(DOM::Element const& element, auto callback)
 {
-    callback(element.local_name().hash());
+    callback(element.local_name().ascii_case_insensitive_hash());
     if (element.id().has_value())
         callback(element.id().value().hash());
     for (auto const& class_ : element.class_names())
         callback(class_.hash());
     element.for_each_attribute([&](auto& attribute) {
-        callback(attribute.local_name().hash());
+        callback(attribute.lowercase_name().hash());
     });
 }
 

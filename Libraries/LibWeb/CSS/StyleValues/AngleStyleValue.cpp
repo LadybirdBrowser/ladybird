@@ -21,9 +21,7 @@ AngleStyleValue::~AngleStyleValue() = default;
 
 String AngleStyleValue::to_string(SerializationMode serialization_mode) const
 {
-    if (serialization_mode == SerializationMode::ResolvedValue)
-        return MUST(String::formatted("{}deg", m_angle.to_degrees()));
-    return m_angle.to_string();
+    return m_angle.to_string(serialization_mode);
 }
 
 bool AngleStyleValue::equals(CSSStyleValue const& other) const

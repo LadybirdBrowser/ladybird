@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
+#include <LibIPC/File.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/MutexProtected.h>
 #include <LibThreading/RWLock.h>
@@ -19,16 +20,8 @@ namespace IPC {
 
 class AutoCloseFileDescriptor : public RefCounted<AutoCloseFileDescriptor> {
 public:
-    AutoCloseFileDescriptor(int fd)
-        : m_fd(fd)
-    {
-    }
-
-    ~AutoCloseFileDescriptor()
-    {
-        if (m_fd != -1)
-            (void)Core::System::close(m_fd);
-    }
+    AutoCloseFileDescriptor(int fd);
+    ~AutoCloseFileDescriptor();
 
     int value() const { return m_fd; }
 
@@ -80,7 +73,9 @@ public:
 
     void set_up_read_hook(Function<void()>);
     bool is_open() const;
+
     void close();
+    void close_after_sending_all_pending_messages();
 
     void wait_until_readable();
 
@@ -102,7 +97,15 @@ public:
     ErrorOr<IPC::File> clone_for_transfer();
 
 private:
+    enum class TransferState {
+        Continue,
+        SocketClosed,
+    };
+    [[nodiscard]] TransferState transfer_data(ReadonlyBytes& bytes, Vector<int>& fds);
+
     static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes& bytes, Vector<int>& unowned_fds);
+
+    void stop_send_thread();
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
     mutable Threading::RWLock m_socket_rw_lock;

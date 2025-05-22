@@ -1546,10 +1546,14 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
 
         // 7. Wrap node list, with sibling criteria returning false and new parent instructions returning the result of
         //    calling createElement(tag) on the context object. Set container to the result.
-        wrap(
+        // AD-HOC: wrap() does not always return something, but the rest of this algorithm expects it to be a valid
+        //         node. Therefore, we only change the container if we successfully wrapped the node list.
+        auto new_container = wrap(
             node_list,
             [](auto) { return false; },
             [&] { return MUST(DOM::create_element(document, tag, Namespace::HTML)); });
+        if (new_container)
+            container = new_container;
     }
 
     // 12. If container's local name is "address", "listing", or "pre":
@@ -2652,6 +2656,15 @@ static Array const commands {
         .action = command_outdent_action,
         .preserves_overrides = true,
         .mapped_value = "formatOutdent"_fly_string,
+    },
+    // AD-HOC: This is a Ladybird-specific formatting command that is not part of the spec. It has no action and as
+    //         such, it's not supported in userland (yet). The relevant CSS property `white-space` is used to indicate
+    //         that if this style value is found during editing commands, it is recorded and restored where necessary.
+    //         This is used to keep things like <div style="white-space: pre">..</div> intact when a selection is
+    //         deleted, for example.
+    CommandDefinition {
+        .command = CommandNames::preserveWhitespace,
+        .relevant_css_property = CSS::PropertyID::WhiteSpace,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
     CommandDefinition {

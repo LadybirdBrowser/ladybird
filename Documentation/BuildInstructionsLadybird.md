@@ -2,7 +2,10 @@
 
 ## Build Prerequisites
 
-Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
+Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler are required.
+
+We currently use gcc-14 and clang-20 in our CI pipeline. If these versions are not available on your system, see
+[`Meta/find_compiler.sh`](../Meta/find_compiler.sh) for the minimum compatible version.
 
 CMake 3.25 or newer must be available in $PATH.
 
@@ -40,7 +43,7 @@ sudo apt update -y && sudo apt install cmake -y
 
 #### C++23-capable compiler:
 
-- Recommendation: Install `clang-17` or newer from [LLVM's apt repository](https://apt.llvm.org/):
+- Recommendation: Install clang from [LLVM's apt repository](https://apt.llvm.org/):
 
 ```bash
 # Add LLVM GPG signing key
@@ -49,17 +52,17 @@ sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm
 # Optional: Verify the GPG key manually
 
 # Use the key to authorize an entry for apt.llvm.org in apt sources list
-echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-19 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
 # Update apt package list and install clang and associated packages
-sudo apt update -y && sudo apt install clang-19 clangd-19 clang-format-19 clang-tidy-19 lld-19 -y
+sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
 ```
 
-- Alternative: Install gcc-13 or newer from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
+- Alternative: Install gcc from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
 
 ```bash
 sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-sudo apt update && sudo apt install g++-13 libstdc++-13-dev
+sudo apt update && sudo apt install g++-14 libstdc++-14-dev
 ```
 
 #### Audio support:
@@ -83,21 +86,30 @@ sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl l
 ```
 
 ### Fedora or derivatives:
+
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl liberation-sans-fonts libglvnd-devel nasm ninja-build perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl liberation-sans-fonts libglvnd-devel nasm ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
+
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
 ### Void Linux:
+
 ```
 sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Transaction aborted due to unresolved dependencies."
 sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
 ```
+
+### NixOS or with Nix:
+
+A Nix development shell is maintained [here](https://github.com/nix-community/nix-environments/tree/master/envs/ladybird),
+in the [nix-environments](https://github.com/nix-community/nix-environments/) repository. If you encounter any problems
+building with Nix, please create an issue there.
 
 ### macOS:
 
@@ -110,7 +122,7 @@ brew install autoconf autoconf-archive automake ccache cmake nasm ninja pkg-conf
 
 If you wish to use clang from homebrew instead:
 ```
-brew install llvm@19
+brew install llvm@20
 ```
 
 If you also plan to use the Qt UI on macOS:
@@ -148,19 +160,6 @@ To install Chocolatey, see `https://chocolatey.org/install`.
 Then Install pkg-config using chocolatey.
 ```
 choco install pkgconfiglite -y
-```
-
-### OpenIndiana:
-
-Note that OpenIndiana's latest GCC port (GCC 11) is too old to build Ladybird, so you need Clang, which is available in the repository.
-
-```
-pfexec pkg install clang-17 cmake libglvnd ninja qt6
-```
-
-### Haiku:
-```
-pkgman install cmake cmd:python3 ninja openal_devel qt6_base_devel qt6_multimedia_devel qt6_tools_devel
 ```
 
 ### Android:
@@ -268,9 +267,9 @@ CMake build directory.
 The install rules in UI/cmake/InstallRules.cmake define which binaries and libraries will be
 installed into the configured CMAKE_PREFIX_PATH or path passed to ``cmake --install``.
 
-Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide
-a suitable C++ compiler (g++ >= 13, clang >= 14, Apple Clang >= 14.3) via the CMAKE_CXX_COMPILER and
-CMAKE_C_COMPILER cmake options.
+Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide a suitable C++
+compiler (see [Build Prerequisites](BuildInstructionsLadybird.md#build-prerequisites)) via the CMAKE_C_COMPILER and
+CMAKE_CXX_COMPILER cmake options.
 
 ```
 cmake --preset default -B MyBuildDir
@@ -348,20 +347,3 @@ Now you can open the Instruments app and point it to the Ladybird app bundle.
 
 Building the project with Xcode is not supported. The Xcode project generated by CMake does not properly execute custom
 targets, and does not handle all target names in the project.
-
-### Building on OpenIndiana
-
-OpenIndiana needs some extra environment variables set to make sure it finds all the executables
-and directories it needs for the build to work. The cmake files are in a non-standard path that
-contains the Qt version (replace 6.2 with the Qt version you have installed) and you need to tell
-it to use clang and clang++, or it will use gcc and g++ from GCC 10 which is currently the default
-to build packages on OpenIndiana.
-
-When running Ladybird, make sure that XDG_RUNTIME_DIR is set, or it will immediately crash as it
-doesn't find a writable directory for its sockets.
-
-```
-CMAKE_PREFIX_PATH=/usr/lib/qt/6.2/lib/amd64/cmake cmake -GNinja -B Build/release -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
-cmake --build Build/release
-XDG_RUNTIME_DIR=/var/tmp ninja -C Build/release run
-```

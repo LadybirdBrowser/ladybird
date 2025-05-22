@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	Test setup
+Pass	size: 640px 480px
+Pass	size: 8.5in 11in
+Pass	size: 3in 10in
+Pass	size: auto
+Pass	size: a5
+Pass	size: a4
+Pass	size: a3
+Pass	size: b5
+Pass	size: b4
+Pass	size: jis-b5
+Pass	size: jis-b4
+Pass	size: landscape
+Pass	size: letter
+Pass	size: legal landscape

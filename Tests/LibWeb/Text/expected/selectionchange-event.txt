@@ -1,4 +1,4 @@
 Events:
+selectionchange anchorNode=<#text > anchorOffset=0 type=Caret focusNode=<#text > focusOffset=0 isCollapsed=true
 selectionchange anchorNode=<#text > anchorOffset=1 type=Caret focusNode=<#text > focusOffset=1 isCollapsed=true
 selectionchange anchorNode=<#text > anchorOffset=1 type=Caret focusNode=<#text > focusOffset=1 isCollapsed=true
-selectionchange anchorNode=<#text > anchorOffset=2 type=Caret focusNode=<#text > focusOffset=2 isCollapsed=true

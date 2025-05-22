@@ -13,11 +13,16 @@
 #include <AK/StringView.h>
 #include <LibURL/URL.h>
 
+#include <QByteArray>
 #include <QString>
 #include <QUrl>
 
 AK::ByteString ak_byte_string_from_qstring(QString const&);
+AK::ByteString ak_byte_string_from_qbytearray(QByteArray const&);
+
 String ak_string_from_qstring(QString const&);
 QString qstring_from_ak_string(StringView);
+QByteArray qbytearray_from_ak_string(StringView);
+
 Optional<URL::URL> ak_url_from_qstring(QString const&);
 URL::URL ak_url_from_qurl(QUrl const&);

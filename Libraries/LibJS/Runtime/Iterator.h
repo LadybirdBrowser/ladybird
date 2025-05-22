@@ -71,7 +71,17 @@ class BuiltinIterator {
 public:
     virtual ~BuiltinIterator() = default;
     virtual ThrowCompletionOr<void> next(VM&, bool& done, Value& value) = 0;
+
+protected:
+    bool m_next_method_was_redefined { false };
 };
+
+struct IterationResult {
+    ThrowCompletionOr<Value> done;
+    ThrowCompletionOr<Value> value;
+};
+struct IterationDone { };
+using IterationResultOrDone = Variant<IterationResult, IterationDone>;
 
 // 7.4.12 IfAbruptCloseIterator ( value, iteratorRecord ), https://tc39.es/ecma262/#sec-ifabruptcloseiterator
 #define TRY_OR_CLOSE_ITERATOR(vm, iterator_record, expression)                                                    \
@@ -98,7 +108,7 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM&, Value, 
 ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM&, IteratorRecord&, Optional<Value> = {});
 ThrowCompletionOr<bool> iterator_complete(VM&, Object& iterator_result);
 ThrowCompletionOr<Value> iterator_value(VM&, Object& iterator_result);
-ThrowCompletionOr<GC::Ptr<Object>> iterator_step(VM&, IteratorRecord&);
+ThrowCompletionOr<IterationResultOrDone> iterator_step(VM&, IteratorRecord&);
 ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
 Completion iterator_close(VM&, IteratorRecord const&, Completion);
 Completion async_iterator_close(VM&, IteratorRecord const&, Completion);

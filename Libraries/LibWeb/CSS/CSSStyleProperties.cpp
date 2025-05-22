@@ -224,7 +224,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_n
     }
 
     // 4. If priority is not the empty string and is not an ASCII case-insensitive match for the string "important", then return.
-    if (!priority.is_empty() && !Infra::is_ascii_case_insensitive_match(priority, "important"sv))
+    if (!priority.is_empty() && !priority.equals_ignoring_ascii_case("important"sv))
         return {};
 
     // 5. Let component value list be the result of parsing value for property property.
@@ -242,7 +242,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_n
     // 8. If property is a shorthand property,
     if (property_is_shorthand(property_id)) {
         // then for each longhand property longhand that property maps to, in canonical order, follow these substeps:
-        StyleComputer::for_each_property_expanding_shorthands(property_id, *component_value_list, StyleComputer::AllowUnresolved::Yes, [this, &updated, priority](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+        StyleComputer::for_each_property_expanding_shorthands(property_id, *component_value_list, [this, &updated, priority](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
             // 1. Let longhand result be the result of set the CSS declaration longhand with the appropriate value(s) from component value list,
             //    with the important flag set if priority is not the empty string, and unset otherwise, and with the list of declarations being the declarations.
             // 2. If longhand result is true, let updated be true.
@@ -392,8 +392,8 @@ String CSSStyleProperties::get_property_value(StringView property_name) const
         auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
         if (maybe_custom_property.has_value()) {
             return maybe_custom_property.value().value->to_string(
-                is_computed() ? CSSStyleValue::SerializationMode::ResolvedValue
-                              : CSSStyleValue::SerializationMode::Normal);
+                is_computed() ? SerializationMode::ResolvedValue
+                              : SerializationMode::Normal);
         }
         return {};
     }
@@ -402,8 +402,8 @@ String CSSStyleProperties::get_property_value(StringView property_name) const
     if (!maybe_property.has_value())
         return {};
     return maybe_property->value->to_string(
-        is_computed() ? CSSStyleValue::SerializationMode::ResolvedValue
-                      : CSSStyleValue::SerializationMode::Normal);
+        is_computed() ? SerializationMode::ResolvedValue
+                      : SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
@@ -1005,6 +1005,10 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
                     return used_values_for_grid_template_rows;
                 }
             }
+        } else if (property_id == PropertyID::ZIndex) {
+            if (auto z_index = layout_node.computed_values().z_index(); z_index.has_value()) {
+                return NumberStyleValue::create(z_index.value());
+            }
         }
 
         if (!property_is_shorthand(property_id))
@@ -1109,7 +1113,7 @@ String CSSStyleProperties::serialized() const
         // NB: There are no shorthands for custom properties.
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = declaration.value.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
+        auto value = declaration.value.value->to_string(Web::CSS::SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
@@ -1137,7 +1141,7 @@ String CSSStyleProperties::serialized() const
         // FIXME: 4. Shorthand loop: For each shorthand in shorthands, follow these substeps: ...
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = declaration.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
+        auto value = declaration.value->to_string(Web::CSS::SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.

@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+5 Pass
+3 Fail
+Pass	single_email doesn't have the multiple attribute
+Pass	value should be sanitized: strip line breaks
+Pass	Email address validity
+Fail	When the multiple attribute is removed, the user agent must run the value sanitization algorithm
+Pass	multiple_email has the multiple attribute
+Fail	run the value sanitization algorithm after setting a new value
+Pass	valid value is a set of valid email addresses separated by a single ','
+Fail	When the multiple attribute is set, the user agent must run the value sanitization algorithm

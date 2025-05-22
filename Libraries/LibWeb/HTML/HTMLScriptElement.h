@@ -147,6 +147,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLScriptElement>() const { return is_html_script_element(); }
+
 }

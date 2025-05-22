@@ -14,8 +14,10 @@
 namespace AK {
 
 namespace Detail {
+
 template<Concepts::AnyString T, Concepts::AnyString U>
 inline constexpr bool IsHashCompatible<T, U> = true;
+
 }
 
 enum class CaseSensitivity {

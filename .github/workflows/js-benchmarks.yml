@@ -36,10 +36,8 @@ jobs:
         if: ${{ matrix.os_name == 'Linux' }}
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang++-19 python3-venv
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+          sudo apt-get update -y
+          sudo apt-get install -y python3-venv
 
       - name: 'Download JS repl artifact'
         id: download-artifact

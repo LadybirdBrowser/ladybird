@@ -90,7 +90,7 @@ static String generate_a_counter_representation(CSSStyleValue const& counter_sty
     }
     // FIXME: Handle `symbols()` function for counter_style.
 
-    dbgln("FIXME: Unsupported counter style '{}'", counter_style.to_string(CSSStyleValue::SerializationMode::Normal));
+    dbgln("FIXME: Unsupported counter style '{}'", counter_style.to_string(SerializationMode::Normal));
     return MUST(String::formatted("{}", value));
 }
 

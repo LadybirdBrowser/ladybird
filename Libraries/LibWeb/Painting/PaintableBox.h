@@ -84,6 +84,7 @@ public:
     CSSPixelRect absolute_rect() const;
     CSSPixelRect absolute_padding_box_rect() const;
     CSSPixelRect absolute_border_box_rect() const;
+    CSSPixelRect overflow_clip_edge_rect() const;
     CSSPixelRect absolute_paint_rect() const;
 
     // These united versions of the above rects take continuation into account.
@@ -274,6 +275,7 @@ protected:
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection) const;
 
     TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
+    CSSPixelPoint adjust_position_for_cumulative_scroll_offset(CSSPixelPoint) const;
 
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }

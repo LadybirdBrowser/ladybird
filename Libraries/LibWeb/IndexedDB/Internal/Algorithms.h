@@ -9,13 +9,16 @@
 #include <AK/Variant.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/DOMStringList.h>
+#include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::IndexedDB {
 
 using KeyPath = Variant<String, Vector<String>>;
+using RecordSource = Variant<GC::Ref<ObjectStore>, GC::Ref<Index>>;
 
 WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm&, StorageAPI::StorageKey, String, Optional<u64>, GC::Ref<IDBRequest>);
 bool fire_a_version_change_event(JS::Realm&, FlyString const&, GC::Ref<DOM::EventTarget>, u64, Optional<u64>);
@@ -39,10 +42,20 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm&, IDBRequestSourc
 ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore>);
 void possibly_update_the_key_generator(GC::Ref<ObjectStore>, GC::Ref<Key>);
 void inject_a_key_into_a_value_using_a_key_path(JS::Realm&, JS::Value, GC::Ref<Key>, KeyPath const&);
-void delete_records_from_an_object_store(GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
+JS::Value delete_records_from_an_object_store(GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
 WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, JS::Value, GC::Ptr<Key>, bool);
 WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Realm&, Optional<JS::Value>, bool = false);
-JS::Value count_the_records_in_a_range(GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
+JS::Value count_the_records_in_a_range(RecordSource, GC::Ref<IDBKeyRange>);
 WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
+GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm&, GC::Ref<IDBCursor>, GC::Ptr<Key> = nullptr, GC::Ptr<Key> = nullptr, u64 = 1);
+JS::Value clear_an_object_store(GC::Ref<ObjectStore>);
+JS::Value retrieve_a_key_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
+GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
+GC::Ref<JS::Array> retrieve_multiple_keys_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
+JS::Value retrieve_a_referenced_value_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>);
+JS::Value retrieve_a_value_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>);
+GC::Ref<JS::Array> retrieve_multiple_referenced_values_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
+GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
+void queue_a_database_task(GC::Ref<GC::Function<void()>>);
 
 }

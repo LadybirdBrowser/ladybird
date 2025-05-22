@@ -2,6 +2,8 @@
 
 set -e
 
+CLANG_FORMAT_VERSION=20
+
 script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 cd "${script_path}/.." || exit 1
 
@@ -26,23 +28,21 @@ else
 fi
 
 if (( ${#files[@]} )); then
-    TOOLCHAIN_DIR=Toolchain/Local/clang/bin
     CLANG_FORMAT=false
-    if command -v clang-format-19 >/dev/null 2>&1 ; then
-        CLANG_FORMAT=clang-format-19
-    elif command -v brew >/dev/null 2>&1 && command -v "$(brew --prefix llvm@19)"/bin/clang-format >/dev/null 2>&1 ; then
-        CLANG_FORMAT="$(brew --prefix llvm@19)"/bin/clang-format
-    elif command -v $TOOLCHAIN_DIR/clang-format >/dev/null 2>&1 && $TOOLCHAIN_DIR/clang-format --version | grep -qF ' 19.' ; then
-        CLANG_FORMAT=$TOOLCHAIN_DIR/clang-format
+
+    if command -v clang-format-${CLANG_FORMAT_VERSION} >/dev/null 2>&1 ; then
+        CLANG_FORMAT=clang-format-${CLANG_FORMAT_VERSION}
+    elif command -v brew >/dev/null 2>&1 && command -v "$(brew --prefix llvm@${CLANG_FORMAT_VERSION})"/bin/clang-format >/dev/null 2>&1 ; then
+        CLANG_FORMAT="$(brew --prefix llvm@${CLANG_FORMAT_VERSION})"/bin/clang-format
     elif command -v clang-format >/dev/null 2>&1 ; then
         CLANG_FORMAT=clang-format
-        if ! "${CLANG_FORMAT}" --version | awk '{ if (substr($NF, 1, index($NF, ".") - 1) != 19) exit 1; }'; then
-            echo "You are using '$("${CLANG_FORMAT}" --version)', which appears to not be clang-format 19."
+        if ! "${CLANG_FORMAT}" --version | awk "{ if (substr(\$NF, 1, index(\$NF, \".\") - 1) != ${CLANG_FORMAT_VERSION}) exit 1; }"; then
+            echo "You are using '$("${CLANG_FORMAT}" --version)', which appears to not be clang-format ${CLANG_FORMAT_VERSION}."
             echo "It is very likely that the resulting changes are not what you wanted."
         fi
     else
-        echo "clang-format-19 is not available, but C or C++ files need linting! Either skip this script, or install clang-format-19."
-        echo "(If you install a package 'clang-format', please make sure it's version 19.)"
+        echo "clang-format-${CLANG_FORMAT_VERSION} is not available, but C or C++ files need linting! Either skip this script, or install clang-format-${CLANG_FORMAT_VERSION}."
+        echo "(If you install a package 'clang-format', please make sure it's version ${CLANG_FORMAT_VERSION}.)"
         exit 1
     fi
 

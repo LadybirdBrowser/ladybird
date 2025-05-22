@@ -10,16 +10,16 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <LibGfx/Font/UnicodeRange.h>
-#include <LibURL/URL.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/URL.h>
 
 namespace Web::CSS {
 
 class ParsedFontFace {
 public:
     struct Source {
-        Variant<FlyString, ::URL::URL> local_or_url;
+        Variant<FlyString, URL> local_or_url;
         // FIXME: Do we need to keep this around, or is it only needed to discard unwanted formats during parsing?
         Optional<FlyString> format;
     };
@@ -27,9 +27,10 @@ public:
     static Vector<Source> sources_from_style_value(CSSStyleValue const&);
     static ParsedFontFace from_descriptors(CSSFontFaceDescriptors const&);
 
-    ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings);
+    ParsedFontFace(GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings);
     ~ParsedFontFace() = default;
 
+    GC::Ptr<CSSStyleSheet> parent_style_sheet() const { return m_parent_style_sheet; }
     Optional<Percentage> ascent_override() const { return m_ascent_override; }
     Optional<Percentage> descent_override() const { return m_descent_override; }
     FontDisplay font_display() const { return m_font_display; }
@@ -46,6 +47,7 @@ public:
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
 
 private:
+    GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
     FlyString m_font_family;
     Optional<FlyString> m_font_named_instance;
     Optional<int> m_weight;

@@ -1,25 +1,25 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x1008 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x105 children: not-inline
-      BlockContainer <div.wrapper> at (8,8) content-size 784x105 children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x110 children: not-inline
+      BlockContainer <div.wrapper> at (8,8) content-size 784x110 children: not-inline
         BlockContainer <div.float> at (592,8) content-size 200x1000 floating [BFC] children: not-inline
-        BlockContainer <div.bfc> at (18,18) content-size 564x85 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 56, rect: [18,18 458.125x17] baseline: 13.296875
+        BlockContainer <div.bfc> at (18,18) content-size 564x90 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 56, rect: [18,18 458.125x18] baseline: 13.796875
               "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-          frag 1 from TextNode start: 57, length: 60, rect: [18,35 511.796875x17] baseline: 13.296875
+          frag 1 from TextNode start: 57, length: 60, rect: [18,36 511.796875x18] baseline: 13.796875
               "Pellentesque vitae neque nunc. Nam fermentum libero a lectus"
-          frag 2 from TextNode start: 118, length: 67, rect: [18,52 537.078125x17] baseline: 13.296875
+          frag 2 from TextNode start: 118, length: 67, rect: [18,54 537.078125x18] baseline: 13.796875
               "vulputate eleifend. Nam sagittis tristique augue, id sodales mauris"
-          frag 3 from TextNode start: 186, length: 65, rect: [18,69 537.34375x17] baseline: 13.296875
+          frag 3 from TextNode start: 186, length: 65, rect: [18,72 537.34375x18] baseline: 13.796875
               "suscipit at. Vivamus eget placerat ex. Suspendisse potenti. Morbi"
-          frag 4 from TextNode start: 252, length: 57, rect: [18,86 455.375x17] baseline: 13.296875
+          frag 4 from TextNode start: 252, length: 57, rect: [18,90 455.375x18] baseline: 13.796875
               "pulvinar ipsum eget nulla dapibus, ac varius mi eleifend."
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1008]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x1008]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x105] overflow: [8,8 784x1000]
-      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 784x105] overflow: [8,8 784x1000]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x110] overflow: [8,8 784x1000]
+      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 784x110] overflow: [8,8 784x1000]
         PaintableWithLines (BlockContainer<DIV>.float) [592,8 200x1000]
-        PaintableWithLines (BlockContainer<DIV>.bfc) [8,8 584x105]
+        PaintableWithLines (BlockContainer<DIV>.bfc) [8,8 584x110]
           TextPaintable (TextNode<#text>)

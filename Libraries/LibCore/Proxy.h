@@ -13,6 +13,7 @@
 #include <LibURL/URL.h>
 
 namespace Core {
+
 // FIXME: Username/password support.
 struct ProxyData {
     enum Type {
@@ -45,6 +46,7 @@ struct ProxyData {
         return proxy_data;
     }
 };
+
 }
 
 namespace IPC {

@@ -84,4 +84,23 @@ Optional<Record&> ObjectStore::first_in_range(GC::Ref<IDBKeyRange> range)
     });
 }
 
+void ObjectStore::clear_records()
+{
+    m_records.clear();
+}
+
+GC::ConservativeVector<Record> ObjectStore::first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    GC::ConservativeVector<Record> records(range->heap());
+    for (auto const& record : m_records) {
+        if (range->is_in_range(record.key))
+            records.append(record);
+
+        if (count.has_value() && records.size() >= *count)
+            break;
+    }
+
+    return records;
+}
+
 }

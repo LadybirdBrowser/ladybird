@@ -113,13 +113,13 @@ static ThrowCompletionOr<ScopedOperand> constant_fold_binary_expression(Generato
     case BinaryOp::Exponentiation:
         return generator.add_constant(TRY(exp(generator.vm(), lhs, rhs)));
     case BinaryOp::GreaterThan:
-        return generator.add_constant(TRY(greater_than(generator.vm(), lhs, rhs)));
+        return generator.add_constant(Value { TRY(greater_than(generator.vm(), lhs, rhs)) });
     case BinaryOp::GreaterThanEquals:
-        return generator.add_constant(TRY(greater_than_equals(generator.vm(), lhs, rhs)));
+        return generator.add_constant(Value { TRY(greater_than_equals(generator.vm(), lhs, rhs)) });
     case BinaryOp::LessThan:
-        return generator.add_constant(TRY(less_than(generator.vm(), lhs, rhs)));
+        return generator.add_constant(Value { TRY(less_than(generator.vm(), lhs, rhs)) });
     case BinaryOp::LessThanEquals:
-        return generator.add_constant(TRY(less_than_equals(generator.vm(), lhs, rhs)));
+        return generator.add_constant(Value { TRY(less_than_equals(generator.vm(), lhs, rhs)) });
     case BinaryOp::LooselyInequals:
         return generator.add_constant(Value(!TRY(is_loosely_equal(generator.vm(), lhs, rhs))));
     case BinaryOp::LooselyEquals:
@@ -482,7 +482,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> Identifier::generate_by
     if (is_global()) {
         generator.emit<Bytecode::Op::GetGlobal>(dst, generator.intern_identifier(m_string), generator.next_global_variable_cache());
     } else {
-        generator.emit<Bytecode::Op::GetBinding>(dst, generator.intern_identifier(m_string));
+        if (declaration_kind() == DeclarationKind::Var) {
+            generator.emit<Bytecode::Op::GetInitializedBinding>(dst, generator.intern_identifier(m_string));
+        } else {
+            generator.emit<Bytecode::Op::GetBinding>(dst, generator.intern_identifier(m_string));
+        }
     }
     return dst;
 }
@@ -626,6 +630,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                 // e. Perform ? PutValue(lref, rval).
                 if (is<Identifier>(*lhs)) {
                     auto& identifier = static_cast<Identifier const&>(*lhs);
+                    if (identifier.is_local()) {
+                        auto is_initialized = generator.is_local_initialized(identifier.local_index());
+                        auto is_lexically_declared = generator.is_local_lexically_declared(identifier.local_index());
+                        if (is_lexically_declared && !is_initialized) {
+                            generator.emit<Bytecode::Op::ThrowIfTDZ>(generator.local(identifier.local_index()));
+                        }
+                    }
                     generator.emit_set_variable(identifier, rval);
                 } else if (is<MemberExpression>(*lhs)) {
                     auto& expression = static_cast<MemberExpression const&>(*lhs);
@@ -860,14 +871,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LabelledStatement::gene
 
     // 5. Return Completion(stmtResult).
     return stmt_result;
-}
-
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IterationStatement::generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
-{
-    return Bytecode::CodeGenerationError {
-        this,
-        "Missing generate_labelled_evaluation()"sv,
-    };
 }
 
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generate_bytecode(Bytecode::Generator& generator, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const

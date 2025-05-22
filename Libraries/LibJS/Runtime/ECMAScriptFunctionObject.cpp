@@ -33,7 +33,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ECMAScriptFunctionObject);
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     Object* prototype = nullptr;
     switch (kind) {
@@ -73,7 +73,7 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm,
         *prototype);
 }
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<FlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     auto shared_data = adopt_ref(*new SharedFunctionInstanceData(
         realm.vm(),
@@ -153,7 +153,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     bool strict,
     bool is_arrow_function,
     FunctionParsingInsights const& parsing_insights,
-    Vector<FlyString> local_variables_names)
+    Vector<LocalVariable> local_variables_names)
     : m_formal_parameters(move(formal_parameters))
     , m_ecmascript_code(move(ecmascript_code))
     , m_name(move(name))
@@ -295,7 +295,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
     HashMap<FlyString, ParameterIsLocal> parameter_bindings;
 
-    auto arguments_object_needs_binding = m_arguments_object_needed && !m_local_variables_names.contains_slow(vm.names.arguments.as_string());
+    auto arguments_object_needs_binding = m_arguments_object_needed && !m_local_variables_names.first_matching([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; }).has_value();
 
     // 22. If argumentsObjectNeeded is true, then
     if (m_arguments_object_needed) {

@@ -422,13 +422,6 @@ public:
     // https://drafts.csswg.org/css-contain-2/#skips-its-contents
     bool skips_its_contents();
 
-    // https://drafts.csswg.org/css-contain-2/#containment-types
-    bool has_size_containment() const;
-    bool has_inline_size_containment() const;
-    bool has_layout_containment() const;
-    bool has_style_containment() const;
-    bool has_paint_containment() const;
-
     bool matches_enabled_pseudo_class() const;
     bool matches_disabled_pseudo_class() const;
     bool matches_checked_pseudo_class() const;
@@ -453,8 +446,8 @@ public:
     bool affected_by_indirect_sibling_combinator() const { return m_affected_by_indirect_sibling_combinator; }
     void set_affected_by_indirect_sibling_combinator(bool value) { m_affected_by_indirect_sibling_combinator = value; }
 
-    bool affected_by_first_or_last_child_pseudo_class() const { return m_affected_by_first_or_last_child_pseudo_class; }
-    void set_affected_by_first_or_last_child_pseudo_class(bool value) { m_affected_by_first_or_last_child_pseudo_class = value; }
+    bool affected_by_sibling_position_or_count_pseudo_class() const { return m_affected_by_sibling_position_or_count_pseudo_class; }
+    void set_affected_by_sibling_position_or_count_pseudo_class(bool value) { m_affected_by_sibling_position_or_count_pseudo_class = value; }
 
     bool affected_by_nth_child_pseudo_class() const { return m_affected_by_nth_child_pseudo_class; }
     void set_affected_by_nth_child_pseudo_class(bool value) { m_affected_by_nth_child_pseudo_class = value; }
@@ -464,11 +457,11 @@ public:
 
     bool style_affected_by_structural_changes() const
     {
-        return affected_by_direct_sibling_combinator() || affected_by_indirect_sibling_combinator() || affected_by_first_or_last_child_pseudo_class() || affected_by_nth_child_pseudo_class();
+        return affected_by_direct_sibling_combinator() || affected_by_indirect_sibling_combinator() || affected_by_sibling_position_or_count_pseudo_class() || affected_by_nth_child_pseudo_class();
     }
 
     size_t number_of_owned_list_items() const;
-    Element const* list_owner() const;
+    Element* list_owner() const;
     size_t ordinal_value() const;
 
     void set_pointer_capture(WebIDL::Long pointer_id);
@@ -499,6 +492,8 @@ protected:
 
     CustomElementState custom_element_state() const { return m_custom_element_state; }
 
+    void play_or_cancel_animations_after_display_property_change();
+
 private:
     FlyString make_html_uppercased_qualified_name() const;
 
@@ -525,15 +520,26 @@ private:
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
 
-    struct PseudoElement {
+    struct PseudoElement : public JS::Cell {
+        GC_CELL(PseudoElement, JS::Cell);
+        GC_DECLARE_ALLOCATOR(PseudoElement);
+
         GC::Ptr<Layout::NodeWithStyle> layout_node;
         GC::Ptr<CSS::CascadedProperties> cascaded_properties;
         GC::Ptr<CSS::ComputedProperties> computed_properties;
         HashMap<FlyString, CSS::StyleProperty> custom_properties;
+
+    private:
+        virtual void visit_edges(JS::Cell::Visitor&) override;
     };
-    // TODO: CSS::Selector::PseudoElement includes a lot of pseudo-elements that exist in shadow trees,
-    //       and so we don't want to include data for them here.
-    using PseudoElementData = Array<PseudoElement, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
+    // https://drafts.csswg.org/css-view-transitions/#pseudo-element-tree
+    struct PseudoElementTreeNode
+        : public PseudoElement
+        , TreeNode<PseudoElementTreeNode> {
+        GC_CELL(PseudoElementTreeNode, PseudoElement);
+        GC_DECLARE_ALLOCATOR(PseudoElementTreeNode);
+    };
+    using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
     Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;
     PseudoElement& ensure_pseudo_element(CSS::PseudoElement) const;
@@ -573,7 +579,7 @@ private:
     bool m_affected_by_has_pseudo_class_in_non_subject_position : 1 { false };
     bool m_affected_by_direct_sibling_combinator : 1 { false };
     bool m_affected_by_indirect_sibling_combinator : 1 { false };
-    bool m_affected_by_first_or_last_child_pseudo_class : 1 { false };
+    bool m_affected_by_sibling_position_or_count_pseudo_class : 1 { false };
     bool m_affected_by_nth_child_pseudo_class : 1 { false };
     bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator : 1 { false };
 
@@ -616,7 +622,10 @@ inline bool Element::has_pseudo_element(CSS::PseudoElement type) const
         return false;
     if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(type))
         return false;
-    return m_pseudo_element_data->at(to_underlying(type)).layout_node;
+    auto pseudo_element = m_pseudo_element_data->get(type);
+    if (!pseudo_element.has_value())
+        return false;
+    return pseudo_element.value()->layout_node;
 }
 
 WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<FlyString> namespace_, FlyString const& qualified_name);

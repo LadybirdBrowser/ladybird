@@ -39,7 +39,7 @@ HashTable<Range*>& Range::live_ranges()
 
 GC::Ref<Range> Range::create(HTML::Window& window)
 {
-    return Range::create(window.associated_document());
+    return create(window.associated_document());
 }
 
 GC::Ref<Range> Range::create(Document& document)
@@ -57,7 +57,7 @@ GC::Ref<Range> Range::create(GC::Ref<Node> start_container, WebIDL::UnsignedLong
 WebIDL::ExceptionOr<GC::Ref<Range>> Range::construct_impl(JS::Realm& realm)
 {
     auto& window = as<HTML::Window>(realm.global_object());
-    return Range::create(window);
+    return create(window);
 }
 
 Range::Range(Document& document)
@@ -68,6 +68,9 @@ Range::Range(Document& document)
 Range::Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset)
     : AbstractRange(start_container, start_offset, end_container, end_offset)
 {
+    VERIFY(start_offset <= start_container->length());
+    VERIFY(end_offset <= end_container->length());
+
     live_ranges().set(this);
 }
 
@@ -167,6 +170,7 @@ RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_bound
     return RelativeBoundaryPointPosition::Before;
 }
 
+// https://dom.spec.whatwg.org/#concept-range-bp-set
 WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset, StartOrEnd start_or_end)
 {
     // To set the start or end of a range to a boundary point (node, offset), run these steps:
@@ -212,13 +216,14 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset
     return {};
 }
 
-// https://dom.spec.whatwg.org/#concept-range-bp-set
+// https://dom.spec.whatwg.org/#dom-range-setstart
 WebIDL::ExceptionOr<void> Range::set_start(GC::Ref<Node> node, WebIDL::UnsignedLong offset)
 {
     // The setStart(node, offset) method steps are to set the start of this to boundary point (node, offset).
     return set_start_or_end(node, offset, StartOrEnd::Start);
 }
 
+// https://dom.spec.whatwg.org/#dom-range-setend
 WebIDL::ExceptionOr<void> Range::set_end(GC::Ref<Node> node, WebIDL::UnsignedLong offset)
 {
     // The setEnd(node, offset) method steps are to set the end of this to boundary point (node, offset).
@@ -1289,26 +1294,6 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
 
     // 5. Return fragment node.
     return fragment_node;
-}
-
-void Range::increase_start_offset(Badge<Node>, WebIDL::UnsignedLong count)
-{
-    m_start_offset += count;
-}
-
-void Range::increase_end_offset(Badge<Node>, WebIDL::UnsignedLong count)
-{
-    m_end_offset += count;
-}
-
-void Range::decrease_start_offset(Badge<Node>, WebIDL::UnsignedLong count)
-{
-    m_start_offset -= count;
-}
-
-void Range::decrease_end_offset(Badge<Node>, WebIDL::UnsignedLong count)
-{
-    m_end_offset -= count;
 }
 
 }

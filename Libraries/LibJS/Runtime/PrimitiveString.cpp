@@ -106,6 +106,11 @@ Utf16View PrimitiveString::utf16_string_view() const
     return m_utf16_string->view();
 }
 
+size_t PrimitiveString::length_in_utf16_code_units() const
+{
+    return utf16_string_view().length_in_code_units();
+}
+
 bool PrimitiveString::operator==(PrimitiveString const& other) const
 {
     if (this == &other)
@@ -123,8 +128,7 @@ ThrowCompletionOr<Optional<Value>> PrimitiveString::get(VM& vm, PropertyKey cons
         return Optional<Value> {};
     if (property_key.is_string()) {
         if (property_key.as_string() == vm.names.length.as_string()) {
-            auto length = utf16_string().length_in_code_units();
-            return Value(static_cast<double>(length));
+            return Value(static_cast<double>(length_in_utf16_code_units()));
         }
     }
     auto index = canonical_numeric_index_string(property_key, CanonicalIndexMode::IgnoreNumericRoundtrip);

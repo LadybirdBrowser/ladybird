@@ -46,8 +46,12 @@
 #include <LibWeb/Geometry/DOMQuad.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
+#include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/Streams/ReadableStream.h>
+#include <LibWeb/Streams/TransformStream.h>
+#include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -1069,6 +1073,8 @@ private:
             return Crypto::CryptoKey::create(realm);
         if (interface_name == "DOMQuad"sv)
             return Geometry::DOMQuad::create(realm);
+        if (interface_name == "ImageData"sv)
+            return ImageData::create(realm);
 
         VERIFY_NOT_REACHED();
     }
@@ -1290,7 +1296,12 @@ static bool is_interface_exposed_on_target_realm(TransferType name, JS::Realm& r
     switch (name) {
     case TransferType::MessagePort:
         return intrinsics.is_exposed("MessagePort"sv);
-        break;
+    case TransferType::ReadableStream:
+        return intrinsics.is_exposed("ReadableStream"sv);
+    case TransferType::WritableStream:
+        return intrinsics.is_exposed("WritableStream"sv);
+    case TransferType::TransformStream:
+        return intrinsics.is_exposed("TransformStream"sv);
     case TransferType::Unknown:
         dbgln("Unknown interface type for transfer: {}", to_underlying(name));
         break;
@@ -1307,6 +1318,21 @@ static WebIDL::ExceptionOr<GC::Ref<Bindings::PlatformObject>> create_transferred
         auto message_port = HTML::MessagePort::create(target_realm);
         TRY(message_port->transfer_receiving_steps(transfer_data_holder));
         return message_port;
+    }
+    case TransferType::ReadableStream: {
+        auto readable_stream = target_realm.create<Streams::ReadableStream>(target_realm);
+        TRY(readable_stream->transfer_receiving_steps(transfer_data_holder));
+        return readable_stream;
+    }
+    case TransferType::WritableStream: {
+        auto writable_stream = target_realm.create<Streams::WritableStream>(target_realm);
+        TRY(writable_stream->transfer_receiving_steps(transfer_data_holder));
+        return writable_stream;
+    }
+    case TransferType::TransformStream: {
+        auto transform_stream = target_realm.create<Streams::TransformStream>(target_realm);
+        TRY(transform_stream->transfer_receiving_steps(transfer_data_holder));
+        return transform_stream;
     }
     case TransferType::ArrayBuffer:
     case TransferType::ResizableArrayBuffer:

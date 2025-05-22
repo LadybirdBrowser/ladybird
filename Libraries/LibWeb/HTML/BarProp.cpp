@@ -44,4 +44,5 @@ void BarProp::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(BarProp);
     Base::initialize(realm);
 }
+
 }

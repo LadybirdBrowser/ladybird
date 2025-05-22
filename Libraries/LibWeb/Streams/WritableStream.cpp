@@ -7,7 +7,11 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WritableStreamPrototype.h>
+#include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/AbstractOperations.h>
+#include <LibWeb/Streams/ReadableStream.h>
+#include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/UnderlyingSink.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
@@ -49,6 +53,34 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::
     TRY(set_up_writable_stream_default_controller_from_underlying_sink(*writable_stream, underlying_sink, underlying_sink_dict, high_water_mark, size_algorithm));
 
     return writable_stream;
+}
+
+WritableStream::WritableStream(JS::Realm& realm)
+    : Bindings::PlatformObject(realm)
+{
+}
+
+void WritableStream::initialize(JS::Realm& realm)
+{
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStream);
+    Base::initialize(realm);
+}
+
+void WritableStream::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_close_request);
+    visitor.visit(m_controller);
+    visitor.visit(m_in_flight_write_request);
+    visitor.visit(m_in_flight_close_request);
+    if (m_pending_abort_request.has_value()) {
+        visitor.visit(m_pending_abort_request->promise);
+        visitor.visit(m_pending_abort_request->reason);
+    }
+    visitor.visit(m_stored_error);
+    visitor.visit(m_writer);
+    for (auto& write_request : m_write_requests)
+        visitor.visit(write_request);
 }
 
 // https://streams.spec.whatwg.org/#ws-locked
@@ -101,32 +133,62 @@ WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStream::get_wr
     return acquire_writable_stream_default_writer(*this);
 }
 
-WritableStream::WritableStream(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+// https://streams.spec.whatwg.org/#ref-for-transfer-steps①
+WebIDL::ExceptionOr<void> WritableStream::transfer_steps(HTML::TransferDataHolder& data_holder)
 {
+    auto& realm = this->realm();
+    auto& vm = realm.vm();
+
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    // 1. If ! IsWritableStreamLocked(value) is true, throw a "DataCloneError" DOMException.
+    if (is_writable_stream_locked(*this))
+        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_string);
+
+    // 2. Let port1 be a new MessagePort in the current Realm.
+    auto port1 = HTML::MessagePort::create(realm);
+
+    // 3. Let port2 be a new MessagePort in the current Realm.
+    auto port2 = HTML::MessagePort::create(realm, HTML::TransferType::WritableStream);
+
+    // 4. Entangle port1 and port2.
+    port1->entangle_with(port2);
+
+    // 5. Let readable be a new ReadableStream in the current Realm.
+    auto readable = realm.create<ReadableStream>(realm);
+
+    // 6. Perform ! SetUpCrossRealmTransformReadable(readable, port1).
+    set_up_cross_realm_transform_readable(realm, readable, port1);
+
+    // 7. Let promise be ! ReadableStreamPipeTo(readable, value, false, false, false).
+    auto promise = readable_stream_pipe_to(readable, *this, false, false, false);
+
+    // 8. Set promise.[[PromiseIsHandled]] to true.
+    WebIDL::mark_promise_as_handled(promise);
+
+    // 9. Set dataHolder.[[port]] to ! StructuredSerializeWithTransfer(port2, « port2 »).
+    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2, { { GC::Root { port2 } } }));
+    data_holder = move(result.transfer_data_holders.first());
+
+    return {};
 }
 
-void WritableStream::initialize(JS::Realm& realm)
+// https://streams.spec.whatwg.org/#ref-for-transfer-receiving-steps①
+WebIDL::ExceptionOr<void> WritableStream::transfer_receiving_steps(HTML::TransferDataHolder& data_holder)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStream);
-    Base::initialize(realm);
-}
+    auto& realm = this->realm();
 
-void WritableStream::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_close_request);
-    visitor.visit(m_controller);
-    visitor.visit(m_in_flight_write_request);
-    visitor.visit(m_in_flight_close_request);
-    if (m_pending_abort_request.has_value()) {
-        visitor.visit(m_pending_abort_request->promise);
-        visitor.visit(m_pending_abort_request->reason);
-    }
-    visitor.visit(m_stored_error);
-    visitor.visit(m_writer);
-    for (auto& write_request : m_write_requests)
-        visitor.visit(write_request);
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    // 1. Let deserializedRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[port]], the current Realm).
+    // 2. Let port be deserializedRecord.[[Deserialized]].
+    auto port = HTML::MessagePort::create(realm);
+    TRY(port->transfer_receiving_steps(data_holder));
+
+    // 3. Perform ! SetUpCrossRealmTransformWritable(value, port).
+    set_up_cross_realm_transform_writable(realm, *this, port);
+
+    return {};
 }
 
 }

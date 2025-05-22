@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-custom-prop-fallback-ref.html" />
+<style>
+    :root {
+        --a: initial;
+    }
+
+    body {
+        background-color: var(--a, crimson);
+    }
+</style>
+<body></body>

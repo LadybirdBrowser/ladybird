@@ -412,7 +412,7 @@ Token Tokenizer::consume_an_ident_like_token()
 
     // If string’s value is an ASCII case-insensitive match for "url", and the next input code
     // point is U+0028 LEFT PARENTHESIS ((), consume it.
-    if (Infra::is_ascii_case_insensitive_match(string, "url"sv) && is_left_paren(peek_code_point())) {
+    if (string.equals_ignoring_ascii_case("url"sv) && is_left_paren(peek_code_point())) {
         (void)next_code_point();
 
         // While the next two input code points are whitespace, consume the next input code point.

@@ -268,6 +268,7 @@ JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
 namespace Intl {
+
 #define __JS_ENUMERATE(ClassName, snake_name, ConstructorName, PrototypeName) \
     class ClassName;                                                          \
     class ConstructorName;                                                    \
@@ -284,9 +285,11 @@ class Segments;
 class SegmentsPrototype;
 
 struct ResolutionOptionDescriptor;
+
 };
 
 namespace Temporal {
+
 #define __JS_ENUMERATE(ClassName, snake_name, ConstructorName, PrototypeName) \
     class ClassName;                                                          \
     class ConstructorName;                                                    \
@@ -309,6 +312,7 @@ struct PartialDuration;
 struct Time;
 struct TimeZone;
 struct TimeZoneOffset;
+
 };
 
 template<typename T>
@@ -316,6 +320,7 @@ requires(!IsLvalueReference<T>)
 class ThrowCompletionOr;
 
 namespace Bytecode {
+
 class BasicBlock;
 enum class Builtin : u8;
 class Executable;
@@ -325,6 +330,7 @@ class Interpreter;
 class Operand;
 class RegexTable;
 class Register;
+
 }
 
 }

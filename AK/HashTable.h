@@ -793,6 +793,7 @@ private:
     size_t m_size { 0 };
     size_t m_capacity { 0 };
 };
+
 }
 
 #if USING_AK_GLOBALLY

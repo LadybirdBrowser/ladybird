@@ -48,4 +48,5 @@ struct Node {
     bool is_element() const { return content.has<Element>(); }
     Element const& as_element() const { return content.get<Element>(); }
 };
+
 }

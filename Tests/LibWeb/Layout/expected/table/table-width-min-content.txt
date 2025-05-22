@@ -1,35 +1,35 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x169 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 55.359375x153 children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 55.359375x153 [BFC] children: not-inline
-        Box <div> at (8,8) content-size 55.359375x153 table-box [TFC] children: inline
-          Box <(anonymous)> at (8,8) content-size 55.359375x153 table-row children: inline
-            BlockContainer <(anonymous)> at (8,8) content-size 55.359375x153 table-cell [BFC] children: inline
-              frag 0 from TextNode start: 1, length: 4, rect: [8,8 28.40625x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x178 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 55.359375x162 children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 55.359375x162 [BFC] children: not-inline
+        Box <div> at (8,8) content-size 55.359375x162 table-box [TFC] children: inline
+          Box <(anonymous)> at (8,8) content-size 55.359375x162 table-row children: inline
+            BlockContainer <(anonymous)> at (8,8) content-size 55.359375x162 table-cell [BFC] children: inline
+              frag 0 from TextNode start: 1, length: 4, rect: [8,8 28.40625x18] baseline: 13.796875
                   "well"
-              frag 1 from TextNode start: 6, length: 5, rect: [8,25 36.84375x17] baseline: 13.296875
+              frag 1 from TextNode start: 6, length: 5, rect: [8,26 36.84375x18] baseline: 13.796875
                   "hello"
-              frag 2 from TextNode start: 12, length: 7, rect: [8,42 55.359375x17] baseline: 13.296875
+              frag 2 from TextNode start: 12, length: 7, rect: [8,44 55.359375x18] baseline: 13.796875
                   "friends"
-              frag 3 from TextNode start: 20, length: 4, rect: [8,59 28.40625x17] baseline: 13.296875
+              frag 3 from TextNode start: 20, length: 4, rect: [8,62 28.40625x18] baseline: 13.796875
                   "well"
-              frag 4 from TextNode start: 25, length: 5, rect: [8,76 36.84375x17] baseline: 13.296875
+              frag 4 from TextNode start: 25, length: 5, rect: [8,80 36.84375x18] baseline: 13.796875
                   "hello"
-              frag 5 from TextNode start: 31, length: 7, rect: [8,93 55.359375x17] baseline: 13.296875
+              frag 5 from TextNode start: 31, length: 7, rect: [8,98 55.359375x18] baseline: 13.796875
                   "friends"
-              frag 6 from TextNode start: 39, length: 4, rect: [8,110 28.40625x17] baseline: 13.296875
+              frag 6 from TextNode start: 39, length: 4, rect: [8,116 28.40625x18] baseline: 13.796875
                   "well"
-              frag 7 from TextNode start: 44, length: 5, rect: [8,127 36.84375x17] baseline: 13.296875
+              frag 7 from TextNode start: 44, length: 5, rect: [8,134 36.84375x18] baseline: 13.796875
                   "hello"
-              frag 8 from TextNode start: 50, length: 7, rect: [8,144 55.359375x17] baseline: 13.296875
+              frag 8 from TextNode start: 50, length: 7, rect: [8,152 55.359375x18] baseline: 13.796875
                   "friends"
               TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x169]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 55.359375x153]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 55.359375x153]
-        PaintableBox (Box<DIV>) [8,8 55.359375x153]
-          PaintableBox (Box(anonymous)) [8,8 55.359375x153]
-            PaintableWithLines (BlockContainer(anonymous)) [8,8 55.359375x153]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x178]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 55.359375x162]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 55.359375x162]
+        PaintableBox (Box<DIV>) [8,8 55.359375x162]
+          PaintableBox (Box(anonymous)) [8,8 55.359375x162]
+            PaintableWithLines (BlockContainer(anonymous)) [8,8 55.359375x162]
               TextPaintable (TextNode<#text>)

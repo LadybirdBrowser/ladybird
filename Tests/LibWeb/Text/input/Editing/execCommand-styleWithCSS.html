@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div contenteditable="true">foobar</div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const divElm = document.querySelector('div');
+        const report = () => println(`Div contents: "${divElm.innerHTML}" bold state: ${document.queryCommandState('bold')}`);
+        report();
+
+        println(`styleWithCSS supported: ${document.queryCommandSupported('styleWithCSS')}`);
+        document.execCommand('styleWithCSS', false, 'true');
+
+        // Make 'fo' bold, with style=".."
+        range.setStart(divElm.childNodes[0], 0);
+        range.setEnd(divElm.childNodes[0], 2);
+        document.execCommand('bold');
+        report();
+
+        document.execCommand('styleWithCSS', false, 'false');
+
+        // Make 'ar' bold, with <b>
+        range.setStart(divElm.childNodes[1], 2);
+        range.setEnd(divElm.childNodes[1], 4);
+        document.execCommand('bold');
+        report();
+    });
+</script>

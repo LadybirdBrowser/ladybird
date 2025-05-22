@@ -8,10 +8,20 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
-#include <LibIPC/File.h>
 #include <LibIPC/TransportSocket.h>
 
 namespace IPC {
+
+AutoCloseFileDescriptor::AutoCloseFileDescriptor(int fd)
+    : m_fd(fd)
+{
+}
+
+AutoCloseFileDescriptor::~AutoCloseFileDescriptor()
+{
+    if (m_fd != -1)
+        (void)Core::System::close(m_fd);
+}
 
 void SendQueue::enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds)
 {
@@ -64,43 +74,15 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
                 break;
 
             auto [bytes, fds] = send_queue->peek(4096);
-            auto fds_count = fds.size();
-            ReadonlyBytes remaining_to_send_bytes = bytes;
+            ReadonlyBytes remaining_bytes_to_send = bytes;
 
-            Threading::RWLockLocker<Threading::LockMode::Read> lock(m_socket_rw_lock);
-            if (!m_socket->is_open())
+            if (transfer_data(remaining_bytes_to_send, fds) == TransferState::SocketClosed)
                 break;
-            auto result = send_message(*m_socket, remaining_to_send_bytes, fds);
-            if (result.is_error()) {
-                if (result.error().is_errno() && result.error().code() == EPIPE) {
-                    // The socket is closed from the other end, we can stop sending.
-                    break;
-                }
-                dbgln("TransportSocket::send_thread: {}", result.error());
-                VERIFY_NOT_REACHED();
-            }
-
-            auto written_bytes_count = bytes.size() - remaining_to_send_bytes.size();
-            auto written_fds_count = fds_count - fds.size();
-            if (written_bytes_count > 0 || written_fds_count > 0) {
-                send_queue->discard(written_bytes_count, written_fds_count);
-            }
-
-            if (!m_socket->is_open())
-                break;
-
-            {
-                Vector<struct pollfd, 1> pollfds;
-                pollfds.append({ .fd = m_socket->fd().value(), .events = POLLOUT, .revents = 0 });
-
-                ErrorOr<int> result { 0 };
-                do {
-                    result = Core::System::poll(pollfds, -1);
-                } while (result.is_error() && result.error().code() == EINTR);
-            }
         }
+
         return 0;
     });
+
     m_send_thread->start();
 
     (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_SNDBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
@@ -109,8 +91,15 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
 
 TransportSocket::~TransportSocket()
 {
+    stop_send_thread();
+}
+
+void TransportSocket::stop_send_thread()
+{
     m_send_queue->stop();
-    (void)m_send_thread->join();
+
+    if (m_send_thread->needs_to_be_joined())
+        (void)m_send_thread->join();
 }
 
 void TransportSocket::set_up_read_hook(Function<void()> hook)
@@ -130,6 +119,21 @@ void TransportSocket::close()
 {
     Threading::RWLockLocker<Threading::LockMode::Write> lock(m_socket_rw_lock);
     m_socket->close();
+}
+
+void TransportSocket::close_after_sending_all_pending_messages()
+{
+    stop_send_thread();
+
+    auto [bytes, fds] = m_send_queue->peek(NumericLimits<size_t>::max());
+    ReadonlyBytes remaining_bytes_to_send = bytes;
+
+    while (!remaining_bytes_to_send.is_empty() || !fds.is_empty()) {
+        if (transfer_data(remaining_bytes_to_send, fds) == TransferState::SocketClosed)
+            break;
+    }
+
+    close();
 }
 
 void TransportSocket::wait_until_readable()
@@ -207,6 +211,47 @@ ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyB
     return {};
 }
 
+TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& bytes, Vector<int>& fds)
+{
+    auto byte_count = bytes.size();
+    auto fd_count = fds.size();
+
+    Threading::RWLockLocker<Threading::LockMode::Read> lock(m_socket_rw_lock);
+
+    if (!m_socket->is_open())
+        return TransferState::SocketClosed;
+
+    if (auto result = send_message(*m_socket, bytes, fds); result.is_error()) {
+        if (result.error().is_errno() && result.error().code() == EPIPE) {
+            // The socket is closed from the other end, we can stop sending.
+            return TransferState::SocketClosed;
+        }
+
+        dbgln("TransportSocket::send_thread: {}", result.error());
+        VERIFY_NOT_REACHED();
+    }
+
+    auto written_byte_count = byte_count - bytes.size();
+    auto written_fd_count = fd_count - fds.size();
+    if (written_byte_count > 0 || written_fd_count > 0)
+        m_send_queue->discard(written_byte_count, written_fd_count);
+
+    if (!m_socket->is_open())
+        return TransferState::SocketClosed;
+
+    {
+        Vector<struct pollfd, 1> pollfds;
+        pollfds.append({ .fd = m_socket->fd().value(), .events = POLLOUT, .revents = 0 });
+
+        ErrorOr<int> result { 0 };
+        do {
+            result = Core::System::poll(pollfds, -1);
+        } while (result.is_error() && result.error().code() == EINTR);
+    }
+
+    return TransferState::Continue;
+}
+
 TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
 {
     Threading::RWLockLocker<Threading::LockMode::Read> lock(m_socket_rw_lock);
@@ -218,11 +263,11 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
         auto maybe_bytes_read = m_socket->receive_message({ buffer, 4096 }, MSG_DONTWAIT, received_fds);
         if (maybe_bytes_read.is_error()) {
             auto error = maybe_bytes_read.release_error();
-            if (error.is_syscall() && error.code() == EAGAIN) {
+
+            if (error.is_errno() && error.code() == EAGAIN) {
                 break;
             }
-
-            if (error.is_syscall() && error.code() == ECONNRESET) {
+            if (error.is_errno() && error.code() == ECONNRESET) {
                 should_shutdown = true;
                 break;
             }

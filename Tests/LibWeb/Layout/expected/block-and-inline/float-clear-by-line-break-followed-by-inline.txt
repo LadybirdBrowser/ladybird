@@ -1,7 +1,7 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x133 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x117 children: inline
-      frag 0 from TextNode start: 1, length: 3, rect: [8,108 27.15625x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x134 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x118 children: inline
+      frag 0 from TextNode start: 1, length: 3, rect: [8,108 27.15625x18] baseline: 13.796875
           "foo"
       BlockContainer <div.a> at (8,8) content-size 100x100 floating [BFC] children: not-inline
       TextNode <#text>
@@ -9,7 +9,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x133]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x117]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x134]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x118]
       PaintableWithLines (BlockContainer<DIV>.a) [8,8 100x100]
       TextPaintable (TextNode<#text>)

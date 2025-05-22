@@ -14,6 +14,7 @@
 
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
+#include <AK/QuickSort.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -44,6 +45,7 @@
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -1084,7 +1086,7 @@ RefPtr<CSSStyleValue const> Parser::parse_rect_value(TokenStream<ComponentValue>
             if (!maybe_length.has_value())
                 return nullptr;
             if (maybe_length.value().is_calculated()) {
-                dbgln("FIXME: Support calculated lengths in rect(): {}", maybe_length.value().calculated()->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
+                dbgln("FIXME: Support calculated lengths in rect(): {}", maybe_length.value().calculated()->to_string(CSS::SerializationMode::Normal));
                 return nullptr;
             }
             params.append(maybe_length.value().value());
@@ -1934,7 +1936,7 @@ RefPtr<CSSStyleValue const> Parser::parse_color_value(TokenStream<ComponentValue
         }
         for (auto i = 1u; i < m_value_context.size() && quirky_color_allowed; i++) {
             quirky_color_allowed = m_value_context[i].visit(
-                [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::UnitlessLength); },
+                [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::HashlessHexColor); },
                 [](FunctionContext const&) { return false; },
                 [](DescriptorContext const&) { return false; });
         }
@@ -2697,29 +2699,105 @@ RefPtr<CSSStyleValue const> Parser::parse_easing_value(TokenStream<ComponentValu
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-values-4/#url-value
 Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
 {
+    // <url> = <url()> | <src()>
+    // <url()> = url( <string> <url-modifier>* ) | <url-token>
+    // <src()> = src( <string> <url-modifier>* )
+    // FIXME: Also parse src() function
     auto transaction = tokens.begin_transaction();
     auto const& component_value = tokens.consume_a_token();
 
+    // <url-token>
     if (component_value.is(Token::Type::Url)) {
         transaction.commit();
         return URL { component_value.token().url().to_string() };
     }
 
+    // <url()> = url( <string> <url-modifier>* )
     if (component_value.is_function("url"sv)) {
         auto const& function_values = component_value.function().value;
-        // FIXME: Handle url-modifiers. https://www.w3.org/TR/css-values-4/#url-modifiers
-        for (size_t i = 0; i < function_values.size(); ++i) {
-            auto const& value = function_values[i];
-            if (value.is(Token::Type::Whitespace))
-                continue;
-            if (value.is(Token::Type::String)) {
-                transaction.commit();
-                return URL { value.token().string().to_string() };
+        TokenStream url_tokens { function_values };
+
+        url_tokens.discard_whitespace();
+        auto url_string = url_tokens.consume_a_token();
+        if (!url_string.is(Token::Type::String))
+            return {};
+        url_tokens.discard_whitespace();
+
+        // NB: Currently <request-url-modifier> is the only kind of <url-modifier>
+        // https://drafts.csswg.org/css-values-5/#request-url-modifiers
+        // <request-url-modifier> = <crossorigin-modifier> | <integrity-modifier> | <referrerpolicy-modifier>
+        Vector<RequestURLModifier> request_url_modifiers;
+        // AD-HOC: This isn't mentioned in the spec, but WPT expects modifiers to be unique (one per type).
+        // Spec issue: https://github.com/w3c/csswg-drafts/issues/12151
+        while (url_tokens.has_next_token()) {
+            auto& modifier_token = url_tokens.consume_a_token();
+            if (modifier_token.is_function("crossorigin"sv)) {
+                // Reject duplicates
+                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::CrossOrigin; }).has_value())
+                    return {};
+                // <crossorigin-modifier> = crossorigin(anonymous | use-credentials)
+                TokenStream modifier_tokens { modifier_token.function().value };
+                modifier_tokens.discard_whitespace();
+                if (!modifier_tokens.next_token().is(Token::Type::Ident))
+                    return {};
+                auto maybe_keyword = keyword_from_string(modifier_tokens.consume_a_token().token().ident());
+                modifier_tokens.discard_whitespace();
+                if (!maybe_keyword.has_value() || modifier_tokens.has_next_token())
+                    return {};
+                if (auto value = keyword_to_cross_origin_modifier_value(*maybe_keyword); value.has_value()) {
+                    request_url_modifiers.append(RequestURLModifier::create_cross_origin(value.release_value()));
+                } else {
+                    return {};
+                }
+            } else if (modifier_token.is_function("integrity"sv)) {
+                // Reject duplicates
+                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::Integrity; }).has_value())
+                    return {};
+                // <integrity-modifier> = integrity(<string>)
+                TokenStream modifier_tokens { modifier_token.function().value };
+                modifier_tokens.discard_whitespace();
+                auto& maybe_string = modifier_tokens.consume_a_token();
+                modifier_tokens.discard_whitespace();
+                if (!maybe_string.is(Token::Type::String) || modifier_tokens.has_next_token())
+                    return {};
+                request_url_modifiers.append(RequestURLModifier::create_integrity(maybe_string.token().string()));
+            } else if (modifier_token.is_function("referrerpolicy"sv)) {
+                // Reject duplicates
+                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::ReferrerPolicy; }).has_value())
+                    return {};
+
+                // <referrerpolicy-modifier> = (no-referrer | no-referrer-when-downgrade | same-origin | origin | strict-origin | origin-when-cross-origin | strict-origin-when-cross-origin | unsafe-url)
+                TokenStream modifier_tokens { modifier_token.function().value };
+                modifier_tokens.discard_whitespace();
+                if (!modifier_tokens.next_token().is(Token::Type::Ident))
+                    return {};
+                auto maybe_keyword = keyword_from_string(modifier_tokens.consume_a_token().token().ident());
+                modifier_tokens.discard_whitespace();
+                if (!maybe_keyword.has_value() || modifier_tokens.has_next_token())
+                    return {};
+                if (auto value = keyword_to_referrer_policy_modifier_value(*maybe_keyword); value.has_value()) {
+                    request_url_modifiers.append(RequestURLModifier::create_referrer_policy(value.release_value()));
+                } else {
+                    return {};
+                }
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "Unrecognized URL modifier: {}", modifier_token.to_debug_string());
+                return {};
             }
-            break;
+            url_tokens.discard_whitespace();
         }
+
+        // AD-HOC: This isn't mentioned in the spec, but WPT expects modifiers to be sorted alphabetically.
+        // Spec issue: https://github.com/w3c/csswg-drafts/issues/12151
+        quick_sort(request_url_modifiers, [](RequestURLModifier const& a, RequestURLModifier const& b) {
+            return to_underlying(a.type()) < to_underlying(b.type());
+        });
+
+        transaction.commit();
+        return URL { url_string.token().string().to_string(), move(request_url_modifiers) };
     }
 
     return {};
@@ -3813,10 +3891,6 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     auto url = parse_url_function(tokens);
     if (!url.has_value())
         return nullptr;
-    // FIXME: Stop completing the URL here
-    auto completed_url = complete_url(url->url());
-    if (!completed_url.has_value())
-        return nullptr;
 
     Optional<FlyString> format;
 
@@ -3859,7 +3933,7 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     // FIXME: [ tech( <font-tech>#)]?
 
     transaction.commit();
-    return FontSourceStyleValue::create(completed_url.release_value(), move(format));
+    return FontSourceStyleValue::create(url.release_value(), move(format));
 }
 
 NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
@@ -3867,8 +3941,6 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(Parsin
     // Unresolved always contains a var() or attr(), unless it is a custom property's value, in which case we shouldn't be trying
     // to produce a different CSSStyleValue from it.
     VERIFY(unresolved.contains_var_or_attr());
-
-    // If the value is invalid, we fall back to `unset`: https://www.w3.org/TR/css-variables-1/#invalid-at-computed-value-time
 
     auto parser = Parser::create(context, ""sv);
     return parser.resolve_unresolved_style_value(element, pseudo_element, property_id, unresolved);
@@ -3932,18 +4004,18 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::E
         }
     };
     if (!expand_variables(element, pseudo_element, string_from_property_id(property_id), dependencies, unresolved_values_without_variables_expanded, values_with_variables_expanded))
-        return CSSKeywordValue::create(Keyword::Unset);
+        return GuaranteedInvalidStyleValue::create();
 
     TokenStream unresolved_values_with_variables_expanded { values_with_variables_expanded };
     Vector<ComponentValue> expanded_values;
     if (!expand_unresolved_values(element, string_from_property_id(property_id), unresolved_values_with_variables_expanded, expanded_values))
-        return CSSKeywordValue::create(Keyword::Unset);
+        return GuaranteedInvalidStyleValue::create();
 
     auto expanded_value_tokens = TokenStream { expanded_values };
     if (auto parsed_value = parse_css_value(property_id, expanded_value_tokens); !parsed_value.is_error())
         return parsed_value.release_value();
 
-    return CSSKeywordValue::create(Keyword::Unset);
+    return GuaranteedInvalidStyleValue::create();
 }
 
 static RefPtr<CSSStyleValue const> get_custom_property(DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element, FlyString const& custom_property_name)
@@ -3979,6 +4051,9 @@ bool Parser::expand_variables(DOM::Element& element, Optional<PseudoElement> pse
     };
 
     while (source.has_next_token()) {
+        // FIXME: We should properly cascade here instead of doing a basic fallback for CSS-wide keywords.
+        if (auto builtin_value = parse_builtin_value(source))
+            continue;
         auto const& value = source.consume_a_token();
         if (value.is_block()) {
             auto const& source_block = value.block();

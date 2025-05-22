@@ -1,23 +1,23 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x17 children: not-inline
-      Box <div.flex> at (8,8) content-size 784x17 flex-container(row) [FFC] children: not-inline
-        Box <div.grid> at (8,8) content-size 67.4375x17 flex-item [GFC] children: not-inline
-          BlockContainer <div.w-fit> at (8,8) content-size 31.25x17 [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 4, rect: [8,8 31.25x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x18 children: not-inline
+      Box <div.flex> at (8,8) content-size 784x18 flex-container(row) [FFC] children: not-inline
+        Box <div.grid> at (8,8) content-size 67.4375x18 flex-item [GFC] children: not-inline
+          BlockContainer <div.w-fit> at (8,8) content-size 31.25x18 [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 4, rect: [8,8 31.25x18] baseline: 13.796875
                 "Col1"
             TextNode <#text>
-          BlockContainer <div.w-fit> at (41.71875,8) content-size 33.71875x17 [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 4, rect: [41.71875,8 33.71875x17] baseline: 13.296875
+          BlockContainer <div.w-fit> at (41.71875,8) content-size 33.71875x18 [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 4, rect: [41.71875,8 33.71875x18] baseline: 13.796875
                 "Col2"
             TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
-      PaintableBox (Box<DIV>.flex) [8,8 784x17]
-        PaintableBox (Box<DIV>.grid) [8,8 67.4375x17]
-          PaintableWithLines (BlockContainer<DIV>.w-fit) [8,8 31.25x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
+      PaintableBox (Box<DIV>.flex) [8,8 784x18]
+        PaintableBox (Box<DIV>.grid) [8,8 67.4375x18]
+          PaintableWithLines (BlockContainer<DIV>.w-fit) [8,8 31.25x18]
             TextPaintable (TextNode<#text>)
-          PaintableWithLines (BlockContainer<DIV>.w-fit) [41.71875,8 33.71875x17]
+          PaintableWithLines (BlockContainer<DIV>.w-fit) [41.71875,8 33.71875x18]
             TextPaintable (TextNode<#text>)

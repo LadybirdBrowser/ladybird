@@ -98,11 +98,8 @@ bool Node::can_contain_boxes_with_position_absolute() const
     //    containing block.
     // 4. The paint containment box establishes an absolute positioning containing block and a fixed positioning
     //    containing block.
-    if (dom_node() && dom_node()->is_element()) {
-        auto element = as<DOM::Element>(dom_node());
-        if (element->has_layout_containment() || element->has_paint_containment())
-            return true;
-    }
+    if (has_layout_containment() || has_paint_containment())
+        return true;
 
     return false;
 }
@@ -244,11 +241,8 @@ bool Node::establishes_stacking_context() const
     // https://drafts.csswg.org/css-contain-2/#containment-types
     // 5. The layout containment box creates a stacking context.
     // 3. The paint containment box creates a stacking context.
-    if (dom_node() && dom_node()->is_element()) {
-        auto element = as<DOM::Element>(dom_node());
-        if (element->has_layout_containment() || element->has_paint_containment())
-            return true;
-    }
+    if (has_layout_containment() || has_paint_containment())
+        return true;
 
     // https://drafts.fxtf.org/compositing/#mix-blend-mode
     // Applying a blendmode other than normal to the element must establish a new stacking context.
@@ -739,8 +733,11 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         if (value.is_calculated())
             return max(CSSPixels { 0 },
                 value.as_calculated().resolve_length({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) })->to_px(*this));
-        if (value.is_length())
-            return value.as_length().length().to_px(*this);
+        if (value.is_length()) {
+            // FIXME: Currently, interpolation can set property values outside of their valid range.
+            //        We should instead clamp property values to the valid range when interpolating.
+            return max(CSSPixels { 0 }, value.as_length().length().to_px(*this));
+        }
         if (value.is_keyword()) {
             // https://www.w3.org/TR/css-backgrounds-3/#valdef-line-width-thin
             switch (value.to_keyword()) {
@@ -933,6 +930,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
             computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().ratio() });
     }
 
+    computed_values.set_touch_action(computed_style.touch_action());
+
     auto const& math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
     if (auto math_shift = keyword_to_math_shift(math_shift_value.to_keyword()); math_shift.has_value())
         computed_values.set_math_shift(math_shift.value());
@@ -957,6 +956,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_isolation(computed_style.isolation());
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
     computed_values.set_view_transition_name(computed_style.view_transition_name());
+    computed_values.set_contain(computed_style.contain());
 
     computed_values.set_caret_color(computed_style.caret_color(*this));
 
@@ -1236,6 +1236,126 @@ CSS::UserSelect Node::user_select_used_value() const
     }
 
     return computed_value;
+}
+
+// https://drafts.csswg.org/css-contain-2/#containment-size
+bool Node::has_size_containment() const
+{
+    // However, giving an element size containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    // Note: This is the principal box
+
+    // - if its inner display type is 'table'
+    if (display().is_table_inside())
+        return false;
+
+    // - if its principal box is an internal table box
+    if (display().is_internal_table())
+        return false;
+
+    // - if its principal box is an internal ruby box or a non-atomic inline-level box
+    // FIXME: Implement this.
+
+    if (computed_values().contain().size_containment)
+        return true;
+
+    return false;
+}
+// https://drafts.csswg.org/css-contain-2/#containment-inline-size
+bool Node::has_inline_size_containment() const
+{
+    // Giving an element inline-size containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    // Note: This is the principal box
+
+    // - if its inner display type is 'table'
+    if (display().is_table_inside())
+        return false;
+
+    // - if its principal box is an internal table box
+    if (display().is_internal_table())
+        return false;
+
+    // - if its principal box is an internal ruby box or a non-atomic inline-level box
+    // FIXME: Implement this.
+
+    if (computed_values().contain().inline_size_containment)
+        return true;
+
+    return false;
+}
+// https://drafts.csswg.org/css-contain-2/#containment-layout
+bool Node::has_layout_containment() const
+{
+    // However, giving an element layout containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    // Note: This is the principal box
+
+    // - if its principal box is an internal table box other than 'table-cell'
+    if (display().is_internal_table() && !display().is_table_cell())
+        return false;
+
+    // - if its principal box is an internal ruby box or a non-atomic inline-level box
+    // FIXME: Implement this.
+
+    if (computed_values().contain().layout_containment)
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
+    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
+    // paint containment for the element.
+    if (computed_values().content_visibility() == CSS::ContentVisibility::Auto)
+        return true;
+
+    return false;
+}
+// https://drafts.csswg.org/css-contain-2/#containment-style
+bool Node::has_style_containment() const
+{
+    // However, giving an element style containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    // Note: This is the principal box
+
+    if (computed_values().contain().style_containment)
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
+    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
+    // paint containment for the element.
+    if (computed_values().content_visibility() == CSS::ContentVisibility::Auto)
+        return true;
+
+    return false;
+}
+// https://drafts.csswg.org/css-contain-2/#containment-paint
+bool Node::has_paint_containment() const
+{
+    // However, giving an element paint containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    // Note: This is the principal box
+
+    // - if its principal box is an internal table box other than 'table-cell'
+    if (display().is_internal_table() && !display().is_table_cell())
+        return false;
+
+    // - if its principal box is an internal ruby box or a non-atomic inline-level box
+    // FIXME: Implement this
+
+    if (computed_values().contain().paint_containment)
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
+    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
+    // paint containment for the element.
+    if (computed_values().content_visibility() == CSS::ContentVisibility::Auto)
+        return true;
+
+    return false;
 }
 
 bool NodeWithStyleAndBoxModelMetrics::should_create_inline_continuation() const

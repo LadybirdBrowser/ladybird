@@ -4,7 +4,7 @@ When contributing to Ladybird, make sure that the changes you wish to make are i
 
 **For your first couple of PRs, start with something small to get familiar with the project and its development processes. Please do not start by adding a large component.**
 
-Read [the Ladybird documentation](https://github.com/LadybirdBrowser/ladybird/blob/master/CONTRIBUTING.md), including the documents in the **Development** section of the `Documentation/README.md` file.
+Read [the Ladybird documentation](https://github.com/LadybirdBrowser/ladybird/tree/master/Documentation), including the documents in the **Development** section of the `Documentation/README.md` file.
 
 Everyone is welcome to work on the project, and while we have lots of fun, it's a serious kind of fun. :^)
 
@@ -35,6 +35,7 @@ Pull requests are approved and merged by a group of maintainers. The current gro
 - [Jelle Raaijmakers (@GMTA)](https://github.com/gmta)
 - [Luke Wilde (@Lubrsi)](https://github.com/Lubrsi)
 - [Sam Atkins (@AtkinsSJ)](https://github.com/AtkinsSJ)
+- [Shannon Booth (@shannonbooth)](https://github.com/shannonbooth)
 - [Tim Flynn (@trflynn89)](https://github.com/trflynn89)
 - [Tim Ledbetter (@tcl3)](https://github.com/tcl3)
 
@@ -66,7 +67,7 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 **Do:**
 
 * Write in idiomatic project-style C++23, using the `AK` containers in all code.
-* Conform to the project coding style found in [CodingStyle.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/CodingStyle.md). Use `clang-format` (version 19) to automatically format C++ files. See [AdvancedBuildInstructions.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/AdvancedBuildInstructions.md#clang-format-updates) for instructions on how to get an up-to-date version if your OS distribution does not ship clang-format-19.
+* Conform to the project coding style found in [CodingStyle.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/CodingStyle.md). Use `clang-format` to automatically format C++ files.
 * Choose expressive variable, function and class names. Make it as obvious as possible what the code is doing.
 * Split your changes into separate, atomic commits (i.e. A commit per feature or fix, where the build, tests and the system are all functioning).
 * Make sure your commits are rebased on the master branch.

@@ -34,4 +34,5 @@ enum class RequireWellFormed {
 };
 
 WebIDL::ExceptionOr<String> serialize_node_to_xml_string(GC::Ref<DOM::Node const> root, RequireWellFormed require_well_formed);
+
 }

@@ -168,16 +168,8 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
         return String::from_utf16(*this);
 
     StringBuilder builder;
-
-    for (size_t i = 0; i < length_in_code_units(); ++i) {
-        auto code_point = code_point_at(i);
-        TRY(builder.try_append_code_point(code_point));
-
-        if (code_point >= first_supplementary_plane_code_point)
-            ++i;
-    }
-
-    return builder.to_string_without_validation();
+    builder.append(*this);
+    return builder.to_string();
 }
 
 size_t Utf16View::length_in_code_points() const
@@ -306,6 +298,22 @@ bool Utf16View::starts_with(Utf16View const& needle) const
     }
 
     return true;
+}
+
+// https://infra.spec.whatwg.org/#code-unit-less-than
+bool Utf16View::is_code_unit_less_than(Utf16View const& other) const
+{
+    auto a = m_code_units;
+    auto b = other.m_code_units;
+
+    auto common_length = min(a.size(), b.size());
+
+    for (size_t position = 0; position < common_length; ++position) {
+        if (a[position] != b[position])
+            return a[position] < b[position];
+    }
+
+    return a.size() < b.size();
 }
 
 bool Utf16View::validate() const

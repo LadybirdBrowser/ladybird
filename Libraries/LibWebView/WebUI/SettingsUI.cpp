@@ -120,10 +120,14 @@ void SettingsUI::load_available_engines()
 
 void SettingsUI::set_search_engine(JsonValue const& search_engine)
 {
-    if (search_engine.is_null())
+    if (search_engine.is_null()) {
         WebView::Application::settings().set_search_engine({});
-    else if (search_engine.is_string())
+        WebView::Application::settings().set_autocomplete_engine({});
+    } else if (search_engine.is_string()) {
         WebView::Application::settings().set_search_engine(search_engine.as_string());
+    }
+
+    load_current_settings();
 }
 
 void SettingsUI::add_custom_search_engine(JsonValue const& search_engine)
@@ -272,4 +276,5 @@ void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
     Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
     load_current_settings();
 }
+
 }

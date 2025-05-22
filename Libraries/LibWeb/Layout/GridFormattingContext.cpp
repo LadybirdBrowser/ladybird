@@ -2657,11 +2657,14 @@ StaticPositionRect GridFormattingContext::calculate_static_position_rect(Box con
     static_position.rect = { { 0, 0 }, { box_state.content_width(), box_state.content_height() } };
     return static_position;
 }
+
 }
 
 namespace AK {
+
 template<>
 struct Traits<Web::Layout::GridPosition> : public DefaultTraits<Web::Layout::GridPosition> {
     static unsigned hash(Web::Layout::GridPosition const& key) { return pair_int_hash(key.row, key.column); }
 };
+
 }

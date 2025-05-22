@@ -21,7 +21,9 @@ struct ReadableStreamReadResult {
 };
 
 namespace Detail {
+
 class ReadableStreamPipeTo;
+
 }
 
 class ReadRequest : public JS::Cell {

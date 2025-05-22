@@ -33,7 +33,7 @@ Directory::~Directory()
 ErrorOr<void> Directory::chown(uid_t uid, gid_t gid)
 {
     if (m_directory_fd == -1)
-        return Error::from_syscall("fchown"sv, -EBADF);
+        return Error::from_syscall("fchown"sv, EBADF);
     TRY(Core::System::fchown(m_directory_fd, uid, gid));
     return {};
 }

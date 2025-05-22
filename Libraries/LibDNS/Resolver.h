@@ -22,6 +22,7 @@
 #include <LibThreading/RWLockProtected.h>
 
 namespace DNS {
+
 class Resolver;
 
 class LookupResult : public AtomicRefCounted<LookupResult>

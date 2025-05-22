@@ -35,4 +35,5 @@ private:
 
 template<>
 inline bool Node::fast_is<ListItemBox>() const { return is_list_item_box(); }
+
 }

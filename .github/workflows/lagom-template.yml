@@ -71,11 +71,11 @@ jobs:
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_SWIFT=ON"
           elif ${{ inputs.os_name == 'Linux' }} ; then
             if ${{ inputs.toolchain == 'Clang' }} ; then
-              echo "host_cc=clang-19" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=clang++-19" >> "$GITHUB_OUTPUT"
+              echo "host_cc=clang-20" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=clang++-20" >> "$GITHUB_OUTPUT"
             elif ${{ inputs.toolchain == 'GNU' }} ; then
-              echo "host_cc=gcc-13" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=g++-13" >> "$GITHUB_OUTPUT"
+              echo "host_cc=gcc-14" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=g++-14" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
             echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
@@ -143,8 +143,6 @@ jobs:
             -DINSTALL_LAGOM_TOOLS=ON \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
-            -DCMAKE_C_COMPILER=gcc-13 \
-            -DCMAKE_CXX_COMPILER=g++-13 \
             -Dpackage=LagomTools
 
           ninja -C ${{ github.workspace }}/Build/tools-build install

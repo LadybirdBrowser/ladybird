@@ -39,4 +39,5 @@ private:
     double m_elapsed_time {};
     String m_pseudo_element {};
 };
+
 }

@@ -155,7 +155,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
             return;
     }
 
-    // 4. Let target be the result of running element's get the commandfor associated element.
+    // 4. Let target be the result of running element's get the commandfor-associated element.
     //    AD-HOC: Target needs to be an HTML Element in the following steps.
     GC::Ptr<HTMLElement> target = as_if<HTMLElement>(m_command_for_element.ptr());
     if (!target) {
@@ -186,7 +186,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 
         // 4. If isPopover is false and command is not in the Custom state:
         auto command_is_in_custom_state = command.starts_with_bytes("--"sv);
-        if (!is_popover && !command.starts_with_bytes("--"sv)) {
+        if (!is_popover && !command_is_in_custom_state) {
             // 1. Assert: target's namespace is the HTML namespace.
             VERIFY(target->namespace_uri() == Namespace::HTML);
 
@@ -220,12 +220,10 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         if (command_is_in_custom_state)
             return;
 
-        // AD-HOC: The parameters provided in the spec do not match the function signatures in the following steps.
-        //         The inconsistent parameters were therefore selected ad hoc.
-
         // 9. If command is in the Hide Popover state:
         if (command == "hide-popover") {
-            // 1. If the result of running check popover validity given target, true, false, and null is true, then run the hide popover algorithm given target, true, true, and false.
+            // 1. If the result of running check popover validity given target, true, false, and null is true,
+            //    then run the hide popover algorithm given target, true, true, and false.
             if (MUST(target->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
                 MUST(target->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No));
             }
@@ -233,12 +231,14 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 
         // 10. Otherwise, if command is in the Toggle Popover state:
         else if (command == "toggle-popover") {
-            // 1. If the result of running check popover validity given target, false, false, and null is true, then run the show popover algorithm given target, true, true, and false.
+            // 1. If the result of running check popover validity given target, false, false, and null is true,
+            //    then run the show popover algorithm given target, false, and this.
             if (MUST(target->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
                 MUST(target->show_popover(ThrowExceptions::No, this));
             }
 
-            // 2. Otheriwse, if the result of running check popover validity given target, true, false, and null is true, then run the hide popover algorithm given target, true, true, and false.
+            // 2. Otheriwse, if the result of running check popover validity given target, true, false, and null is true,
+            //    then run the hide popover algorithm given target, true, true, and false.
             else if (MUST(target->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
                 MUST(target->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No));
             }
@@ -246,7 +246,8 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 
         // 11. Otherwise, if command is in the Show Popover state:
         else if (command == "show-popover") {
-            // 1. If the result of running check popover validity given target, false, false, and null is true, then run the show popover algorithm given target, true, true, and false.
+            // 1. If the result of running check popover validity given target, false, false, and null is true,
+            //    then run the show popover algorithm given target, false, and this.
             if (MUST(target->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
                 MUST(target->show_popover(ThrowExceptions::No, this));
             }

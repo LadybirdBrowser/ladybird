@@ -1,0 +1,39 @@
+<!doctype html>
+<title>Empty URLs behaviour</title>
+<link rel=help href=https://drafts.csswg.org/css-values/#url-empty>
+<link rel=help href=https://github.com/w3c/csswg-drafts/issues/2211#issuecomment-365677844>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<style>
+#inline-unquoted {
+    background-image: url();
+    cursor: url(), pointer;
+}
+
+#inline-quoted {
+    background-image: url("");
+    cursor: url(""), pointer;
+}
+</style>
+<link rel=stylesheet href=support/empty-urls.css>
+<div id="inline-unquoted"></div>
+<div id="inline-quoted"></div>
+<div id="external-unquoted"></div>
+<div id="external-quoted"></div>
+<script>
+const ids = [
+  "inline-unquoted",
+  "inline-quoted",
+  "external-unquoted",
+  "external-quoted"
+];
+
+for (let id of ids) {
+    test(function() {
+        const el = document.getElementById(id);
+        const style = window.getComputedStyle(el);
+        assert_equals(style["background-image"], 'url("")');
+        assert_equals(style["cursor"], 'url(""), pointer');
+    }, "empty URL: " + id);
+}
+</script>

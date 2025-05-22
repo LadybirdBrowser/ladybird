@@ -6,7 +6,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           BlockContainer <div.aspectratio> at (8,8) content-size 192x192 children: not-inline
             BlockContainer <div.box> at (8,8) content-size 192x192 children: not-inline
         BlockContainer <(anonymous)> at (200,8) content-size 36.84375x192 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [200,8 36.84375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 5, rect: [200,8 36.84375x18] baseline: 13.796875
               "hello"
           TextNode <#text>
 

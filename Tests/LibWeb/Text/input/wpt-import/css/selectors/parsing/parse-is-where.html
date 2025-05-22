@@ -1,0 +1,50 @@
+<!doctype html>
+<title>CSS Selectors: :is() and :where() parsing</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#matches">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#zero-matches">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  function assert_valid(valid, pattern, expected_pattern, description) {
+    for (let pseudo of ["is", "where"]) {
+      let selector = pattern.replace("{}", ":" + pseudo);
+      let expected_selector = selector;
+      if (expected_pattern != null)
+        expected_selector = expected_pattern.replace("{}", ":" + pseudo);
+      if (valid) {
+        test_valid_selector(selector, expected_selector);
+      } else {
+        test_valid_forgiving_selector(selector);
+      }
+    }
+  }
+
+  assert_valid(true, "{}(div )", "{}(div)", "Trailing whitespace");
+  assert_valid(true, "{}(div + bar, div ~ .baz)", null, "Multiple selectors with combinators");
+
+  assert_valid(true, "{}(:is(div))", null, "Nested :is");
+  assert_valid(true, "{}(:where(div))", null, "Nested :where");
+
+  assert_valid(true, ":host({}(div))", null, "Nested inside :host, without combinators");
+  assert_valid(true, ":host({}(div ))", ":host({}(div))", "Nested inside :host, with trailing whitespace");
+  // See https://github.com/w3c/csswg-drafts/issues/5093
+  assert_valid(false, ":host({}(div .foo))", null, "Nested inside :host, with combinators");
+
+  assert_valid(true, "{}(:hover, :active)", null, "Pseudo-classes inside");
+  assert_valid(true, "{}(div):hover", null, "Pseudo-classes after");
+  assert_valid(true, "{}(div)::before", null, "Pseudo-elements after");
+  assert_valid(false, "{}(::before)", null, "Pseudo-elements inside");
+
+  assert_valid(true, "{}(div) + bar", null, "Combinators after");
+  assert_valid(true, "::part(foo){}(:hover)", null, "After part with simple pseudo-class");
+  assert_valid(false, "::part(foo){}([attr='value'])", null, "After part with invalid selector after");
+
+  assert_valid(true, ":not({}(div))", null, "Nested inside :not, without combinators");
+  assert_valid(true, ":not({}(div .foo))", null, "Nested inside :not, with combinators");
+  // This should be invalid even with the forgiving behavior because
+  // `<any-value>` doesn't allow bad tokens:
+  // https://drafts.csswg.org/css-syntax-3/#typedef-declaration-value
+  test_invalid_selector(`:is(# C4єанйтж╕/┘ГЁжЮХєа▓┐ЁЭБМєаСеЁЭЖА%=[ямм0)`);
+</script>

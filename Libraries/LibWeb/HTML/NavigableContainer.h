@@ -51,10 +51,10 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#shared-attribute-processing-steps-for-iframe-and-frame-elements
-    Optional<URL::URL> shared_attribute_processing_steps_for_iframe_and_frame(bool initial_insertion);
+    Optional<URL::URL> shared_attribute_processing_steps_for_iframe_and_frame(InitialInsertion initial_insertion);
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#navigate-an-iframe-or-frame
-    void navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<String> srcdoc_string = {});
+    void navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<String> srcdoc_string = {}, InitialInsertion = InitialInsertion::No);
 
     WebIDL::ExceptionOr<void> create_new_child_navigable(GC::Ptr<GC::Function<void()>> after_session_history_update = {});
 
@@ -78,6 +78,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::NavigableContainer>() const { return is_navigable_container(); }
+
 }

@@ -17,7 +17,7 @@ namespace Web::CSS {
 
 struct Inset {
     Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
-    String to_string(CSSStyleValue::SerializationMode) const;
+    String to_string(SerializationMode) const;
 
     bool operator==(Inset const&) const = default;
 
@@ -26,7 +26,7 @@ struct Inset {
 
 struct Xywh {
     Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
-    String to_string(CSSStyleValue::SerializationMode) const;
+    String to_string(SerializationMode) const;
 
     bool operator==(Xywh const&) const = default;
 
@@ -38,7 +38,7 @@ struct Xywh {
 
 struct Rect {
     Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
-    String to_string(CSSStyleValue::SerializationMode) const;
+    String to_string(SerializationMode) const;
 
     bool operator==(Rect const&) const = default;
 
@@ -54,7 +54,7 @@ using ShapeRadius = Variant<LengthPercentage, FitSide>;
 
 struct Circle {
     Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
-    String to_string(CSSStyleValue::SerializationMode) const;
+    String to_string(SerializationMode) const;
 
     bool operator==(Circle const&) const = default;
 
@@ -64,7 +64,7 @@ struct Circle {
 
 struct Ellipse {
     Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
-    String to_string(CSSStyleValue::SerializationMode) const;
+    String to_string(SerializationMode) const;
 
     bool operator==(Ellipse const&) const = default;
 
@@ -81,7 +81,7 @@ struct Polygon {
     };
 
     Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
-    String to_string(CSSStyleValue::SerializationMode) const;
+    String to_string(SerializationMode) const;
 
     bool operator==(Polygon const&) const = default;
 

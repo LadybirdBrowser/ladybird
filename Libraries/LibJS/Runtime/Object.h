@@ -145,7 +145,7 @@ public:
         PrototypeChain,
     };
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const;
-    virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata* = nullptr);
+    virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&);
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const;
 
@@ -155,7 +155,7 @@ public:
     //       might not hold when property access behaves differently.
     bool may_interfere_with_indexed_property_access() const { return m_may_interfere_with_indexed_property_access; }
 
-    ThrowCompletionOr<bool> ordinary_set_with_own_descriptor(PropertyKey const&, Value, Value, Optional<PropertyDescriptor>, CacheablePropertyMetadata* = nullptr);
+    ThrowCompletionOr<bool> ordinary_set_with_own_descriptor(PropertyKey const&, Value, Value, Optional<PropertyDescriptor>, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
 
     // 10.4.7 Immutable Prototype Exotic Objects, https://tc39.es/ecma262/#sec-immutable-prototype-exotic-objects
 
@@ -212,7 +212,12 @@ public:
     virtual bool is_array_iterator() const { return false; }
     virtual bool is_raw_json_object() const { return false; }
 
-    virtual BuiltinIterator* as_builtin_iterator() { return nullptr; }
+    virtual BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined() { return nullptr; }
+
+    virtual bool is_array_iterator_prototype() const { return false; }
+    virtual bool is_map_iterator_prototype() const { return false; }
+    virtual bool is_set_iterator_prototype() const { return false; }
+    virtual bool is_string_iterator_prototype() const { return false; }
 
     // B.3.7 The [[IsHTMLDDA]] Internal Slot, https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
     virtual bool is_htmldda() const { return false; }

@@ -28,4 +28,5 @@ ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
 
 GlobalEventHandlers::~GlobalEventHandlers() = default;
+
 }

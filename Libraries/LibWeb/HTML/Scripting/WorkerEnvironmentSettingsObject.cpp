@@ -6,10 +6,10 @@
  */
 
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <WebWorker/DedicatedWorkerHost.h>
 
 namespace Web::HTML {
 
@@ -36,7 +36,7 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.
     // 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to outside settings's top-level origin.
-    if (is<WebWorker::DedicatedWorkerHost>(worker)) {
+    if (is<DedicatedWorkerGlobalScope>(worker)) {
         settings_object->top_level_origin = outside_settings.top_level_origin;
     }
     // FIXME: 7. Otherwise, set settings object's top-level origin to an implementation-defined value.

@@ -6,10 +6,8 @@ const searchDialog = document.querySelector("#search-dialog");
 const searchEngine = document.querySelector("#search-engine");
 const searchList = document.querySelector("#search-list");
 const searchSettings = document.querySelector("#search-settings");
-const searchToggle = document.querySelector("#search-toggle");
 
 const autocompleteEngine = document.querySelector("#autocomplete-engine");
-const autocompleteToggle = document.querySelector("#autocomplete-toggle");
 
 let SEARCH_ENGINE = {};
 let AUTOCOMPLETE_ENGINE = {};
@@ -25,22 +23,11 @@ function loadEngineSettings(settings) {
     SEARCH_ENGINE = settings.searchEngine || {};
     AUTOCOMPLETE_ENGINE = settings.autocompleteEngine || {};
 
-    const renderEngineSettings = (type, setting) => {
-        const [name, toggle, engine] = engineForType(type);
-
-        if (setting.name) {
-            toggle.checked = true;
-            engine.value = setting.name;
-        } else {
-            toggle.checked = false;
-        }
-
-        renderEngine(type);
-    };
+    autocompleteEngine.disabled = !SEARCH_ENGINE.name;
 
     loadCustomSearchEngines();
-    renderEngineSettings(Engine.search, SEARCH_ENGINE);
-    renderEngineSettings(Engine.autocomplete, AUTOCOMPLETE_ENGINE);
+    renderEngine(Engine.search, SEARCH_ENGINE);
+    renderEngine(Engine.autocomplete, AUTOCOMPLETE_ENGINE);
 
     if (searchDialog.open) {
         showSearchEngineSettings();
@@ -49,16 +36,16 @@ function loadEngineSettings(settings) {
 
 function engineForType(engine) {
     if (engine === Engine.search) {
-        return ["Search", searchToggle, searchEngine];
+        return ["Search", searchEngine];
     }
     if (engine === Engine.autocomplete) {
-        return ["Autocomplete", autocompleteToggle, autocompleteEngine];
+        return ["Autocomplete", autocompleteEngine];
     }
     throw Error(`Unrecognized engine type ${engine}`);
 }
 
 function loadEngines(type, engines) {
-    const [name, toggle, engine] = engineForType(type);
+    const [name, engine] = engineForType(type);
 
     for (const engineName of engines) {
         const option = document.createElement("option");
@@ -74,41 +61,29 @@ function loadEngines(type, engines) {
     }
 }
 
-function renderEngine(type) {
-    const [name, toggle, engine] = engineForType(type);
+function renderEngine(type, setting) {
+    const [name, engine] = engineForType(type);
 
-    if (toggle.checked) {
-        engine.closest(".card-group").classList.remove("hidden");
+    if (setting.name) {
+        engine.value = setting.name;
     } else {
-        engine.closest(".card-group").classList.add("hidden");
-    }
-
-    if (toggle.checked && engine.selectedIndex !== 0) {
-        engine.item(0).disabled = true;
-    } else if (!toggle.checked) {
-        engine.item(0).disabled = false;
         engine.selectedIndex = 0;
     }
 }
 
 function saveEngine(type) {
-    const [name, toggle, engine] = engineForType(type);
+    const [name, engine] = engineForType(type);
 
-    if (toggle.checked && engine.selectedIndex !== 0) {
+    if (engine.selectedIndex !== 0) {
         ladybird.sendMessage(`set${name}Engine`, engine.value);
-    } else if (!toggle.checked) {
+    } else {
         ladybird.sendMessage(`set${name}Engine`, null);
     }
-
-    renderEngine(type);
 }
 
 function setSaveEngineListeners(type) {
-    const [name, toggle, engine] = engineForType(type);
+    const [name, engine] = engineForType(type);
 
-    toggle.addEventListener("change", () => {
-        saveEngine(type);
-    });
     engine.addEventListener("change", () => {
         saveEngine(type);
     });

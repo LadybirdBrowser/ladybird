@@ -306,6 +306,28 @@ public:
     {
         return { data(), size() };
     }
+
+    template<typename TUnaryPredicate>
+    Optional<T&> last_matching(TUnaryPredicate const& predicate)
+    {
+        for (ssize_t i = size() - 1; i >= 0; --i) {
+            if (predicate(at(i))) {
+                return at(i);
+            }
+        }
+        return {};
+    }
+
+    template<typename TUnaryPredicate>
+    Optional<T&> first_matching(TUnaryPredicate const& predicate)
+    {
+        for (size_t i = 0; i < size(); ++i) {
+            if (predicate(at(i))) {
+                return at(i);
+            }
+        }
+        return {};
+    }
 };
 
 template<typename T>

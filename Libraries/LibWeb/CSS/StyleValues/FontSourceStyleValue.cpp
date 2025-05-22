@@ -34,11 +34,11 @@ String FontSourceStyleValue::to_string(SerializationMode) const
             builder.append(')');
             return builder.to_string_without_validation();
         },
-        [this](::URL::URL const& url) {
+        [this](URL const& url) {
             // <url> [ format(<font-format>)]? [ tech( <font-tech>#)]?
             // FIXME: tech()
             StringBuilder builder;
-            serialize_a_url(builder, url.to_string());
+            builder.append(url.to_string());
 
             if (m_format.has_value()) {
                 builder.append(" format("sv);
@@ -59,8 +59,8 @@ bool FontSourceStyleValue::properties_equal(FontSourceStyleValue const& other) c
             }
             return false;
         },
-        [&other](::URL::URL const& url) {
-            if (auto* other_url = other.m_source.get_pointer<::URL::URL>()) {
+        [&other](URL const& url) {
+            if (auto* other_url = other.m_source.get_pointer<URL>()) {
                 return url == *other_url;
             }
             return false;

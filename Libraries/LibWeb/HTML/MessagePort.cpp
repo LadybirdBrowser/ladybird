@@ -37,13 +37,14 @@ static HashTable<GC::RawPtr<MessagePort>>& all_message_ports()
     return ports;
 }
 
-GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm)
+GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm, HTML::TransferType primary_interface)
 {
-    return realm.create<MessagePort>(realm);
+    return realm.create<MessagePort>(realm, primary_interface);
 }
 
-MessagePort::MessagePort(JS::Realm& realm)
+MessagePort::MessagePort(JS::Realm& realm, HTML::TransferType primary_interface)
     : DOM::EventTarget(realm)
+    , m_primary_interface(primary_interface)
 {
     all_message_ports().set(this);
 }
@@ -146,11 +147,15 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
 
 void MessagePort::disentangle()
 {
-    if (m_remote_port)
+    if (m_remote_port) {
         m_remote_port->m_remote_port = nullptr;
-    m_remote_port = nullptr;
+        m_remote_port = nullptr;
+    }
 
-    m_transport.clear();
+    if (m_transport) {
+        m_transport->close_after_sending_all_pending_messages();
+        m_transport.clear();
+    }
 
     m_worker_event_target = nullptr;
 }

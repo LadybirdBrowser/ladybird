@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (1,1) content-size 798x18 [BFC] children: not-inline
     BlockContainer <body> at (10,10) content-size 780x0 children: not-inline
-      Box <nav> at (11,11) content-size 310.453125x19 positioned flex-container(row) [FFC] children: not-inline
-        BlockContainer <div.item> at (12,12) content-size 308.453125x17 flex-item [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 36, rect: [12,12 308.453125x17] baseline: 13.296875
+      Box <nav> at (11,11) content-size 310.453125x20 positioned flex-container(row) [FFC] children: not-inline
+        BlockContainer <div.item> at (12,12) content-size 308.453125x18 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 36, rect: [12,12 308.453125x18] baseline: 13.796875
               "This should have a green background."
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x2]
-      PaintableBox (Box<NAV>) [10,10 312.453125x21]
-        PaintableWithLines (BlockContainer<DIV>.item) [11,11 310.453125x19]
+      PaintableBox (Box<NAV>) [10,10 312.453125x22]
+        PaintableWithLines (BlockContainer<DIV>.item) [11,11 310.453125x20]
           TextPaintable (TextNode<#text>)

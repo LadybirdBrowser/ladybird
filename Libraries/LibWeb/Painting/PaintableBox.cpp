@@ -246,6 +246,13 @@ CSSPixelRect PaintableBox::absolute_border_box_rect() const
     return rect;
 }
 
+// https://drafts.csswg.org/css-overflow-4/#overflow-clip-edge
+CSSPixelRect PaintableBox::overflow_clip_edge_rect() const
+{
+    // FIXME: Apply overflow-clip-margin-* properties
+    return absolute_padding_box_rect();
+}
+
 CSSPixelRect PaintableBox::absolute_paint_rect() const
 {
     if (!m_absolute_paint_rect.has_value())
@@ -623,18 +630,24 @@ void PaintableBox::reset_scroll_offset(PaintContext& context, PaintPhase) const
 
 void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
 {
+    if (!enclosing_clip_frame())
+        return;
+
     if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
-    apply_clip(context);
+    apply_clip(context, enclosing_clip_frame());
 }
 
 void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
 {
+    if (!enclosing_clip_frame())
+        return;
+
     if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
-    restore_clip(context);
+    restore_clip(context, enclosing_clip_frame());
 }
 
 void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
@@ -847,32 +860,8 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     PaintableBox::paint(context, phase);
 
-    if (fragments().is_empty())
-        return;
-
-    bool should_clip_overflow = computed_values().overflow_x() != CSS::Overflow::Visible && computed_values().overflow_y() != CSS::Overflow::Visible;
-
-    auto clip_box = absolute_padding_box_rect();
-    if (get_clip_rect().has_value()) {
-        clip_box.intersect(get_clip_rect().value());
-        should_clip_overflow = true;
-    }
-    if (should_clip_overflow) {
-        context.display_list_recorder().save();
-        // FIXME: Handle overflow-x and overflow-y being different values.
-        context.display_list_recorder().add_clip_rect(context.rounded_device_rect(clip_box).to_type<int>());
-
-        auto border_radii = normalized_border_radii_data(ShrinkRadiiForBorders::Yes);
-        CornerRadii corner_radii {
-            .top_left = border_radii.top_left.as_corner(context),
-            .top_right = border_radii.top_right.as_corner(context),
-            .bottom_right = border_radii.bottom_right.as_corner(context),
-            .bottom_left = border_radii.bottom_left.as_corner(context)
-        };
-        if (corner_radii.has_any_radius()) {
-            context.display_list_recorder().add_rounded_rect_clip(corner_radii, context.rounded_device_rect(clip_box).to_type<int>(), CornerClip::Outside);
-        }
-
+    if (own_clip_frame()) {
+        apply_clip(context, own_clip_frame());
         if (own_scroll_frame_id().has_value()) {
             context.display_list_recorder().push_scroll_frame_id(own_scroll_frame_id().value());
         }
@@ -900,17 +889,18 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
             paint_text_fragment(context, static_cast<TextPaintable const&>(fragment.paintable()), fragment, phase);
     }
 
-    if (should_clip_overflow) {
-        context.display_list_recorder().restore();
-
+    if (own_clip_frame()) {
         if (own_scroll_frame_id().has_value()) {
             context.display_list_recorder().pop_scroll_frame_id();
         }
+        restore_clip(context, own_clip_frame());
     }
 }
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
+    position = adjust_position_for_cumulative_scroll_offset(position);
+
     auto handle_scrollbar = [&](auto direction) {
         auto scrollbar_data = compute_scrollbar_data(direction, AdjustThumbRectForScrollOffset::Yes);
         if (!scrollbar_data.has_value())
@@ -956,6 +946,8 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mouseup(Badge<EventHandl
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
+    position = adjust_position_for_cumulative_scroll_offset(position);
+
     if (m_last_mouse_tracking_position.has_value()) {
         scroll_to_mouse_postion(position);
         return Paintable::DispatchEventOfSameName::No;
@@ -986,9 +978,7 @@ bool PaintableBox::scrollbar_contains_mouse_position(ScrollDirection direction, 
     if (!scrollbar_data.has_value())
         return false;
 
-    if (direction == ScrollDirection::Horizontal)
-        return position.y() >= scrollbar_data->thumb_rect.top();
-    return position.x() >= scrollbar_data->thumb_rect.left();
+    return scrollbar_data->gutter_rect.contains(position);
 }
 
 void PaintableBox::scroll_to_mouse_postion(CSSPixelPoint position)
@@ -1062,14 +1052,19 @@ TraversalDecision PaintableBox::hit_test_scrollbars(CSSPixelPoint position, Func
     return TraversalDecision::Continue;
 }
 
+CSSPixelPoint PaintableBox::adjust_position_for_cumulative_scroll_offset(CSSPixelPoint position) const
+{
+    return position.translated(-cumulative_offset_of_enclosing_scroll_frame());
+}
+
 TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
         return TraversalDecision::Continue;
 
-    auto position_adjusted_by_scroll_offset = position.translated(-cumulative_offset_of_enclosing_scroll_frame());
+    auto position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position);
 
-    if (!is_visible())
+    if (computed_values().visibility() != CSS::Visibility::Visible)
         return TraversalDecision::Continue;
 
     if (hit_test_scrollbars(position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
@@ -1143,7 +1138,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
         return TraversalDecision::Continue;
 
-    auto position_adjusted_by_scroll_offset = position.translated(-cumulative_offset_of_enclosing_scroll_frame());
+    auto position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position);
 
     // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty
     if (m_fragments.is_empty()

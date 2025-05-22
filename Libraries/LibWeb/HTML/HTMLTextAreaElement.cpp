@@ -154,11 +154,6 @@ void HTMLTextAreaElement::form_associated_element_was_inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLTextAreaElement::form_associated_element_was_removed(DOM::Node*)
-{
-    set_shadow_root(nullptr);
-}
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-defaultvalue
 String HTMLTextAreaElement::default_value() const
 {
@@ -253,8 +248,7 @@ bool HTMLTextAreaElement::check_validity()
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
 bool HTMLTextAreaElement::report_validity()
 {
-    dbgln("(STUBBED) HTMLTextAreaElement::report_validity(). Called on: {}", debug_description());
-    return true;
+    return report_validity_steps();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-maxlength
@@ -477,6 +471,7 @@ void HTMLTextAreaElement::did_edit_text_node()
 void HTMLTextAreaElement::queue_firing_input_event()
 {
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
+        // FIXME: If a string was added to this textarea, this input event's .data should be set to it.
         auto change_event = DOM::Event::create(realm(), HTML::EventNames::input, { .bubbles = true, .composed = true });
         dispatch_event(change_event);
     });

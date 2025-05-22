@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	window.postMessage should be able to transfer a TransformStream
+Pass	a TransformStream with a locked writable should not be transferable
+Pass	a TransformStream with a locked readable should not be transferable
+Pass	a TransformStream with both sides locked should not be transferable
+Pass	piping through transferred transforms should work

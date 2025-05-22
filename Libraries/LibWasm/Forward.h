@@ -14,7 +14,9 @@ struct ValidationError;
 struct Interpreter;
 
 namespace Wasi {
+
 struct Implementation;
+
 }
 
 }

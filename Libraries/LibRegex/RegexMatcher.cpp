@@ -603,6 +603,7 @@ template class Regex<PosixExtendedParser>;
 
 template class Matcher<ECMA262Parser>;
 template class Regex<ECMA262Parser>;
+
 }
 
 template<typename Parser>

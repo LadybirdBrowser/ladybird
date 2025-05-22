@@ -1,21 +1,21 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x30 [BFC] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x31 [BFC] children: not-inline
     BlockContainer <body> at (10,10) content-size 780x0 children: not-inline
-      Box <div.grid> at (11,11) content-size 96.421875x19 floating [GFC] children: not-inline
-        BlockContainer <div.whee> at (12,12) content-size 37.953125x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [12,12 37.953125x17] baseline: 13.296875
+      Box <div.grid> at (11,11) content-size 96.421875x20 floating [GFC] children: not-inline
+        BlockContainer <div.whee> at (12,12) content-size 37.953125x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [12,12 37.953125x18] baseline: 13.796875
               "whee"
           TextNode <#text>
-        BlockContainer <div.yeehaw> at (51.953125,12) content-size 54.46875x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 6, rect: [51.953125,12 54.46875x17] baseline: 13.296875
+        BlockContainer <div.yeehaw> at (51.953125,12) content-size 54.46875x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [51.953125,12 54.46875x18] baseline: 13.796875
               "yeehaw"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x2] overflow: [10,10 98.421875x21]
-      PaintableBox (Box<DIV>.grid) [10,10 98.421875x21]
-        PaintableWithLines (BlockContainer<DIV>.whee) [11,11 39.953125x19]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x2] overflow: [10,10 98.421875x22]
+      PaintableBox (Box<DIV>.grid) [10,10 98.421875x22]
+        PaintableWithLines (BlockContainer<DIV>.whee) [11,11 39.953125x20]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.yeehaw) [50.953125,11 56.46875x19]
+        PaintableWithLines (BlockContainer<DIV>.yeehaw) [50.953125,11 56.46875x20]
           TextPaintable (TextNode<#text>)

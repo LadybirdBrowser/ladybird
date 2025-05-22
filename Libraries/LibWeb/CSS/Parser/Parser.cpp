@@ -14,6 +14,7 @@
 
 #include <AK/Debug.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -45,25 +46,9 @@ ParsingParams::ParsingParams(JS::Realm& realm, ParsingMode mode)
 {
 }
 
-ParsingParams::ParsingParams(JS::Realm& realm, ::URL::URL url, ParsingMode mode)
-    : realm(realm)
-    , url(move(url))
-    , mode(mode)
-{
-}
-
-ParsingParams::ParsingParams(DOM::Document const& document, ::URL::URL url, ParsingMode mode)
-    : realm(const_cast<JS::Realm&>(document.realm()))
-    , document(&document)
-    , url(move(url))
-    , mode(mode)
-{
-}
-
 ParsingParams::ParsingParams(DOM::Document const& document, ParsingMode mode)
     : realm(const_cast<JS::Realm&>(document.realm()))
     , document(&document)
-    , url(document.url())
     , mode(mode)
 {
 }
@@ -77,7 +62,6 @@ Parser Parser::create(ParsingParams const& context, StringView input, StringView
 Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     : m_document(context.document)
     , m_realm(context.realm)
-    , m_url(context.url)
     , m_parsing_mode(context.mode)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
@@ -1325,14 +1309,20 @@ Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_component
     Vector<Vector<ComponentValue>> groups;
 
     // 3. While input is not empty:
+    bool just_consumed_comma = false;
     while (!input.is_empty()) {
 
         // 1. Consume a list of component values from input, with <comma-token> as the stop token, and append the result to groups.
         groups.append(consume_a_list_of_component_values(input, Token::Type::Comma));
 
         // 2. Discard a token from input.
-        input.discard_a_token();
+        just_consumed_comma = input.consume_a_token().is(Token::Type::Comma);
     }
+
+    // AD-HOC: Also append an empty group if there was a trailing comma.
+    // Some related spec discussion: https://github.com/w3c/csswg-drafts/issues/11254
+    if (just_consumed_comma)
+        groups.append({});
 
     // 4. Return groups.
     return groups;
@@ -1345,7 +1335,7 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
         Vector<StyleProperty> expanded_properties;
         for (auto& property : properties) {
             if (property_is_shorthand(property.property_id)) {
-                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, StyleComputer::AllowUnresolved::Yes, [&](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, [&](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
                     expanded_properties.append(CSS::StyleProperty {
                         .important = property.important,
                         .property_id = longhand_property_id,
@@ -1392,6 +1382,8 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
         switch (at_rule_id) {
         case AtRuleID::FontFace:
             return RuleContext::AtFontFace;
+        case AtRuleID::Page:
+            return RuleContext::AtPage;
         case AtRuleID::Property:
             return RuleContext::AtProperty;
         }
@@ -1451,8 +1443,10 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
         return m_rule_context.contains_slow(RuleContext::Style);
 
     case RuleContext::AtFontFace:
+    case RuleContext::AtPage:
     case RuleContext::AtProperty:
-        // @font-face and @property have descriptor declarations
+    case RuleContext::Margin:
+        // These have descriptor declarations
         return true;
 
     case RuleContext::AtKeyframes:
@@ -1469,9 +1463,9 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
 
 bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
 {
-    // All at-rules can appear at the top level
+    // All at-rules can appear at the top level, except margin rules
     if (m_rule_context.is_empty())
-        return true;
+        return !is_margin_rule_name(at_rule.name);
 
     // Only grouping rules can be nested within style rules
     if (m_rule_context.contains_slow(RuleContext::Style))
@@ -1496,10 +1490,15 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
         // @supports cannot check for at-rules
         return false;
 
+    case RuleContext::AtPage:
+        // @page rules can contain margin rules
+        return is_margin_rule_name(at_rule.name);
+
     case RuleContext::AtFontFace:
     case RuleContext::AtKeyframes:
     case RuleContext::Keyframe:
     case RuleContext::AtProperty:
+    case RuleContext::Margin:
         // These can't contain any at-rules
         return false;
     }
@@ -1539,8 +1538,10 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
         return false;
 
     case RuleContext::AtFontFace:
+    case RuleContext::AtPage:
     case RuleContext::AtProperty:
     case RuleContext::Keyframe:
+    case RuleContext::Margin:
         // These can't contain qualified rules
         return false;
     }
@@ -1862,15 +1863,6 @@ bool Parser::in_quirks_mode() const
 bool Parser::is_parsing_svg_presentation_attribute() const
 {
     return m_parsing_mode == ParsingMode::SVGPresentationAttribute;
-}
-
-// https://www.w3.org/TR/css-values-4/#relative-urls
-// FIXME: URLs shouldn't be completed during parsing, but when used.
-Optional<::URL::URL> Parser::complete_url(StringView relative_url) const
-{
-    if (!m_url.has_value())
-        return ::URL::Parser::basic_parse(relative_url);
-    return m_url->complete_url(relative_url);
 }
 
 }

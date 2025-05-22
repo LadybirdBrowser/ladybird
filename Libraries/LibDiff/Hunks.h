@@ -9,7 +9,6 @@
 
 #include <AK/Assertions.h>
 #include <AK/Format.h>
-#include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -31,9 +30,6 @@ struct Line {
         Addition = '+',
         Removal = '-',
         Context = ' ',
-
-        // NOTE: This should only be used when deconstructing a hunk into old and new lines (context format)
-        Change = '!',
     };
 
     static constexpr Operation operation_from_symbol(char symbol)
@@ -58,41 +54,6 @@ struct Hunk {
     HunkLocation location;
     Vector<Line> lines;
 };
-
-enum class Format {
-    Unified,
-    Unknown,
-};
-
-struct Header {
-    Format format { Format::Unknown };
-
-    String old_file_path;
-    String new_file_path;
-};
-
-struct Patch {
-    Header header;
-    Vector<Hunk> hunks;
-};
-
-class Parser : public GenericLexer {
-public:
-    using GenericLexer::GenericLexer;
-
-    ErrorOr<Patch> parse_patch(Optional<size_t> const& strip_count = {});
-
-    ErrorOr<Vector<Hunk>> parse_hunks();
-
-private:
-    ErrorOr<Header> parse_header(Optional<size_t> const& strip_count);
-
-    ErrorOr<String> parse_file_line(Optional<size_t> const& strip_count);
-    Optional<HunkLocation> consume_unified_location();
-    bool consume_line_number(size_t& number);
-};
-
-ErrorOr<Vector<Hunk>> parse_hunks(StringView diff);
 
 }
 

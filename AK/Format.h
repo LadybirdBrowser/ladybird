@@ -514,8 +514,8 @@ struct Formatter<char> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder&, char);
 };
 template<>
-struct Formatter<wchar_t> : StandardFormatter {
-    ErrorOr<void> format(FormatBuilder& builder, wchar_t);
+struct Formatter<char32_t> : StandardFormatter {
+    ErrorOr<void> format(FormatBuilder& builder, char32_t);
 };
 template<>
 struct Formatter<bool> : StandardFormatter {
@@ -737,15 +737,10 @@ struct Formatter<FormatString> : Formatter<StringView> {
 
 template<>
 struct Formatter<Error> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, Error const& error)
-    {
-        if (error.is_syscall())
-            return Formatter<FormatString>::format(builder, "{}: {} (errno={})"sv, error.string_literal(), strerror(error.code()), error.code());
-        if (error.is_errno())
-            return Formatter<FormatString>::format(builder, "{} (errno={})"sv, strerror(error.code()), error.code());
+    ErrorOr<void> format(FormatBuilder& builder, Error const& error);
 
-        return Formatter<FormatString>::format(builder, "{}"sv, error.string_literal());
-    }
+private:
+    ErrorOr<void> format_windows_error(FormatBuilder& builder, Error const& error);
 };
 
 template<typename T, typename ErrorType>

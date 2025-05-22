@@ -15,7 +15,8 @@ namespace Web::ARIA {
 ARIAMixin::ARIAMixin() = default;
 ARIAMixin::~ARIAMixin() = default;
 
-void ARIAMixin::visit_edges(GC::Cell::Visitor& visitor) {
+void ARIAMixin::visit_edges(GC::Cell::Visitor& visitor)
+{
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
     visitor.visit(m_cached_##attribute);
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES

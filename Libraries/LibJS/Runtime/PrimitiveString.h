@@ -45,6 +45,8 @@ public:
     [[nodiscard]] Utf16View utf16_string_view() const;
     bool has_utf16_string() const { return m_utf16_string.has_value(); }
 
+    size_t length_in_utf16_code_units() const;
+
     ThrowCompletionOr<Optional<Value>> get(VM&, PropertyKey const&) const;
 
     [[nodiscard]] bool operator==(PrimitiveString const&) const;

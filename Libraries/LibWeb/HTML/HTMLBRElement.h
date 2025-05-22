@@ -31,6 +31,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLBRElement>() const { return is_html_br_element(); }
+
 }

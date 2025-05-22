@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/TemporaryChange.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
@@ -25,8 +26,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     // AD-HOC: All major browsers refuse to recursively execute execCommand() (e.g. inside input event handlers).
     if (m_inside_exec_command)
         return false;
-    ScopeGuard guard_recursion = [&] { m_inside_exec_command = false; };
-    m_inside_exec_command = true;
+    TemporaryChange guard_recursion { m_inside_exec_command, true };
 
     // 1. If only one argument was provided, let show UI be false.
     // 2. If only one or two arguments were provided, let value be the empty string.
@@ -122,6 +122,11 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
         UIEvents::InputEventInit event_init {};
         event_init.bubbles = true;
         event_init.input_type = command_definition.mapped_value;
+
+        // AD-HOC: For insertText, we do what other browsers do and set data to value.
+        if (command == Editing::CommandNames::insertText)
+            event_init.data = value;
+
         auto event = realm().create<UIEvents::InputEvent>(realm(), HTML::EventNames::input, event_init);
         event->set_is_trusted(true);
         affected_editing_host->dispatch_event(event);
@@ -355,10 +360,11 @@ WebIDL::ExceptionOr<bool> Document::query_command_supported(FlyString const& com
     if (!is_html_document())
         return WebIDL::InvalidStateError::create(realm(), "queryCommandSupported is only supported on HTML documents"_string);
 
-    // When the queryCommandSupported(command) method on the Document interface is invoked, the
-    // user agent must return true if command is supported and available within the current script
-    // on the current site, and false otherwise.
-    return Editing::find_command_definition(command).has_value();
+    // When the queryCommandSupported(command) method on the Document interface is invoked, the user agent must return
+    // true if command is supported and available within the current script on the current site, and false otherwise.
+    // AD-HOC: Supported commands should have an action defined. Currently, ::preserveWhitespace does not have one.
+    auto command_definition = Editing::find_command_definition(command);
+    return command_definition.has_value() && command_definition->action;
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandvalue()

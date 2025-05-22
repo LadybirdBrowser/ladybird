@@ -101,6 +101,9 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#check-validity-steps
     bool check_validity_steps();
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#report-validity-steps
+    bool report_validity_steps();
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#candidate-for-constraint-validation
     bool is_candidate_for_constraint_validation() const;
 
@@ -223,7 +226,7 @@ public:
 
     virtual void handle_insert(String const&) override;
     virtual void handle_delete(DeleteDirection) override;
-    virtual EventResult handle_return_key() override;
+    virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
     virtual void select_all() override;
     virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) override;
     virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) override;

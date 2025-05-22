@@ -53,6 +53,7 @@ public:
     void set_local_initialized(Identifier::Local const&);
     [[nodiscard]] bool is_local_initialized(u32 local_index) const;
     [[nodiscard]] bool is_local_initialized(Identifier::Local const&) const;
+    [[nodiscard]] bool is_local_lexically_declared(Identifier::Local const& local) const;
 
     class SourceLocationScope {
     public:
@@ -358,7 +359,7 @@ public:
 private:
     VM& m_vm;
 
-    static CodeGenerationErrorOr<GC::Ref<Executable>> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<ECMAScriptFunctionObject const>, MustPropagateCompletion, Vector<FlyString> local_variable_names);
+    static CodeGenerationErrorOr<GC::Ref<Executable>> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<ECMAScriptFunctionObject const>, MustPropagateCompletion, Vector<LocalVariable> local_variable_names);
 
     enum class JumpType {
         Continue,
@@ -413,6 +414,7 @@ private:
 
     HashTable<u32> m_initialized_locals;
     HashTable<u32> m_initialized_arguments;
+    Vector<LocalVariable> m_local_variables;
 
     bool m_finished { false };
     bool m_must_propagate_completion { true };

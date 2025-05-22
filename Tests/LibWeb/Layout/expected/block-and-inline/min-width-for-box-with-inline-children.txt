@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x77 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 604x59 children: not-inline
-      BlockContainer <div.outer> at (11,11) content-size 602x57 children: not-inline
-        BlockContainer <div.inner> at (12,12) content-size 600x55 children: inline
-          frag 0 from TextNode start: 0, length: 18, rect: [12,12 426.953125x55] baseline: 42.484375
+  BlockContainer <html> at (1,1) content-size 798x79 [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 604x61 children: not-inline
+      BlockContainer <div.outer> at (11,11) content-size 602x59 children: not-inline
+        BlockContainer <div.inner> at (12,12) content-size 600x57 children: inline
+          frag 0 from TextNode start: 0, length: 18, rect: [12,12 426.953125x57] baseline: 43.484375
               "well hello friends"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x79]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 606x61]
-      PaintableWithLines (BlockContainer<DIV>.outer) [10,10 604x59]
-        PaintableWithLines (BlockContainer<DIV>.inner) [11,11 602x57]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x81]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 606x63]
+      PaintableWithLines (BlockContainer<DIV>.outer) [10,10 604x61]
+        PaintableWithLines (BlockContainer<DIV>.inner) [11,11 602x59]
           TextPaintable (TextNode<#text>)

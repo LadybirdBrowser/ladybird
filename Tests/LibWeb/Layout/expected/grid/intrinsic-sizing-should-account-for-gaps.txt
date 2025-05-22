@@ -1,27 +1,27 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
-    BlockContainer <body> at (0,0) content-size 216.09375x34 children: not-inline
-      Box <div#menu> at (0,0) content-size 216.09375x17 [GFC] children: not-inline
-        BlockContainer <div> at (0,0) content-size 83.046875x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [0,0 83.046875x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x36 [BFC] children: not-inline
+    BlockContainer <body> at (0,0) content-size 216.09375x36 children: not-inline
+      Box <div#menu> at (0,0) content-size 216.09375x18 [GFC] children: not-inline
+        BlockContainer <div> at (0,0) content-size 83.046875x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [0,0 83.046875x18] baseline: 13.796875
               "Community"
           TextNode <#text>
-        BlockContainer <div> at (133.046875,0) content-size 83.046875x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 9, rect: [133.046875,0 83.046875x17] baseline: 13.296875
+        BlockContainer <div> at (133.046875,0) content-size 83.046875x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [133.046875,0 83.046875x18] baseline: 13.796875
               "Community"
           TextNode <#text>
-      BlockContainer <div#wat> at (0,17) content-size 216.09375x17 children: inline
-        frag 0 from TextNode start: 0, length: 3, rect: [0,17 27.421875x17] baseline: 13.296875
+      BlockContainer <div#wat> at (0,18) content-size 216.09375x18 children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [0,18 27.421875x18] baseline: 13.796875
             "wat"
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
-    PaintableWithLines (BlockContainer<BODY>) [0,0 216.09375x34]
-      PaintableBox (Box<DIV>#menu) [0,0 216.09375x17]
-        PaintableWithLines (BlockContainer<DIV>) [0,0 83.046875x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 216.09375x36]
+      PaintableBox (Box<DIV>#menu) [0,0 216.09375x18]
+        PaintableWithLines (BlockContainer<DIV>) [0,0 83.046875x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>) [133.046875,0 83.046875x17]
+        PaintableWithLines (BlockContainer<DIV>) [133.046875,0 83.046875x18]
           TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<DIV>#wat) [0,17 216.09375x17]
+      PaintableWithLines (BlockContainer<DIV>#wat) [0,18 216.09375x18]
         TextPaintable (TextNode<#text>)

@@ -84,6 +84,7 @@ public:
     };
 
     StaticValidationResult statically_validate_constraints();
+    bool interactively_validate_constraints();
     WebIDL::ExceptionOr<bool> check_validity();
     WebIDL::ExceptionOr<bool> report_validity();
 
@@ -157,6 +158,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLFormElement>() const { return is_html_form_element(); }
+
 }

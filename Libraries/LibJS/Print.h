@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
+
 struct PrintContext {
     JS::VM& vm;
     Stream& stream;
@@ -19,4 +20,5 @@ struct PrintContext {
 };
 
 ErrorOr<void> print(JS::Value value, PrintContext&);
+
 }

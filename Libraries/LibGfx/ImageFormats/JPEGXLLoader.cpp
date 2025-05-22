@@ -270,4 +270,5 @@ ErrorOr<Optional<ReadonlyBytes>> JPEGXLImageDecoderPlugin::icc_data()
 {
     return OptionalNone {};
 }
+
 }

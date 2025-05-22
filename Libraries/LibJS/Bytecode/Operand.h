@@ -71,6 +71,7 @@ static_assert(sizeof(Operand) == 8);
 }
 
 namespace AK {
+
 template<>
 class Optional<JS::Bytecode::Operand> : public OptionalBase<JS::Bytecode::Operand> {
     template<typename U>

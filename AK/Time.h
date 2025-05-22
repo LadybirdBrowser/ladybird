@@ -13,9 +13,10 @@
 #include <AK/Platform.h>
 #include <AK/Types.h>
 #ifdef AK_OS_WINDOWS
+// https://learn.microsoft.com/en-us/windows/win32/api/winsock/ns-winsock-timeval
 struct timeval {
-    long tv_sec;
-    long tv_usec;
+    long tv_sec { 0 };
+    long tv_usec { 0 };
 };
 #else
 #    include <sys/time.h>
@@ -83,6 +84,7 @@ constexpr int weeks_in_year(int year)
 }
 
 namespace Detail {
+
 // Integer division rounding towards negative infinity.
 // TODO: This feels like there should be an easier way to do this.
 template<int divisor>
@@ -100,6 +102,7 @@ constexpr i64 mod_zeros_in_range(i64 begin, i64 end)
 {
     return floor_div_by<positive_mod>(end - 1) - floor_div_by<positive_mod>(begin - 1);
 }
+
 }
 
 constexpr i64 years_to_days_since_epoch(int year)

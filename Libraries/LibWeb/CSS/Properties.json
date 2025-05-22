@@ -62,6 +62,21 @@
   "-webkit-border-top-right-radius": {
     "legacy-alias-for": "border-top-right-radius"
   },
+  "-webkit-box-align": {
+    "legacy-alias-for": "align-items"
+  },
+  "-webkit-box-flex": {
+    "legacy-alias-for": "flex-grow"
+  },
+  "-webkit-box-ordinal-group": {
+    "legacy-alias-for": "order"
+  },
+  "-webkit-box-orient": {
+    "legacy-alias-for": "flex-direction"
+  },
+  "-webkit-box-pack": {
+    "legacy-alias-for": "justify-content"
+  },
   "-webkit-box-shadow": {
     "legacy-alias-for": "box-shadow"
   },
@@ -1110,7 +1125,6 @@
     ]
   },
   "contain": {
-    "__comment": "FIXME: Some values of contain need to be mutually exclusive. The grammar this should adhere to is 'none | strict | content | [ [size | inline-size] || layout || style || paint ]'.",
     "affects-stacking-context": true,
     "animation-type": "none",
     "inherited": false,
@@ -1138,8 +1152,7 @@
     ]
   },
   "content-visibility": {
-    "animation-type": "none",
-    "__comment": "FIXME: Implement animation https://drafts.csswg.org/css-contain/#content-visibility-animation",
+    "animation-type": "custom",
     "inherited": false,
     "initial": "visible",
     "valid-types": [
@@ -1440,10 +1453,8 @@
     "animation-type": "custom",
     "inherited": true,
     "initial": "normal",
-    "valid-identifiers": [
-      "italic",
-      "normal",
-      "oblique"
+    "valid-types": [
+      "font-style"
     ]
   },
   "font-variant": {
@@ -2130,7 +2141,7 @@
     "__comment": "FIXME: add longhands mask-clip, mask-composite, mask-mode, mask-origin, mask-position, mask-repeat, mask-size; also reset mask-border",
     "initial": "none",
     "longhands": [
-        "mask-image"
+      "mask-image"
     ]
   },
   "mask-image": {
@@ -2940,6 +2951,15 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
+    ]
+  },
+  "touch-action": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "max-values": 2,
+    "valid-types": [
+      "touch-action"
     ]
   },
   "transform": {

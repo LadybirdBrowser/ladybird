@@ -159,11 +159,11 @@ void Selector::collect_ancestor_hashes()
                         return;
                     break;
                 case SimpleSelector::Type::TagName:
-                    if (append_unique_hash(simple_selector.qualified_name().name.name.hash()))
+                    if (append_unique_hash(simple_selector.qualified_name().name.lowercase_name.hash()))
                         return;
                     break;
                 case SimpleSelector::Type::Attribute:
-                    if (append_unique_hash(simple_selector.attribute().qualified_name.name.name.hash()))
+                    if (append_unique_hash(simple_selector.attribute().qualified_name.name.lowercase_name.hash()))
                         return;
                     break;
                 default:
@@ -348,6 +348,8 @@ String Selector::SimpleSelector::serialize() const
         if (attribute.qualified_name.namespace_type == QualifiedName::NamespaceType::Named) {
             serialize_an_identifier(s, attribute.qualified_name.namespace_);
             s.append('|');
+        } else if (attribute.qualified_name.namespace_type == QualifiedName::NamespaceType::Any) {
+            s.append("*|"sv);
         }
 
         // 3. Append the serialization of the attribute name as an identifier to s.
@@ -442,21 +444,31 @@ String Selector::SimpleSelector::serialize() const
             s.append(':');
             s.append(pseudo_class_name(pseudo_class.type));
             s.append('(');
-            if (pseudo_class.type == PseudoClass::NthChild
-                || pseudo_class.type == PseudoClass::NthLastChild
-                || pseudo_class.type == PseudoClass::NthOfType
-                || pseudo_class.type == PseudoClass::NthLastOfType) {
+            // NB: The spec list is incomplete. For ease of maintenance, we use the data from PseudoClasses.json for
+            //     this instead of a hard-coded list.
+            switch (metadata.parameter_type) {
+            case PseudoClassMetadata::ParameterType::None:
+                break;
+            case PseudoClassMetadata::ParameterType::ANPlusB:
+            case PseudoClassMetadata::ParameterType::ANPlusBOf:
                 // The result of serializing the value using the rules to serialize an <an+b> value.
                 s.append(pseudo_class.nth_child_pattern.serialize());
-            } else if (pseudo_class.type == PseudoClass::Not
-                || pseudo_class.type == PseudoClass::Is
-                || pseudo_class.type == PseudoClass::Where) {
+                break;
+            case PseudoClassMetadata::ParameterType::CompoundSelector:
+            case PseudoClassMetadata::ParameterType::ForgivingSelectorList:
+            case PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
+            case PseudoClassMetadata::ParameterType::RelativeSelectorList:
+            case PseudoClassMetadata::ParameterType::SelectorList:
                 // The result of serializing the value using the rules for serializing a group of selectors.
-                // NOTE: `:is()` and `:where()` aren't in the spec for this yet, but it should be!
                 s.append(serialize_a_group_of_selectors(pseudo_class.argument_selector_list));
-            } else if (pseudo_class.type == PseudoClass::Lang) {
+                break;
+            case PseudoClassMetadata::ParameterType::Ident:
+                s.append(serialize_an_identifier(pseudo_class.ident->string_value));
+                break;
+            case PseudoClassMetadata::ParameterType::LanguageRanges:
                 // The serialization of a comma-separated list of each argument’s serialization as a string, preserving relative order.
                 s.join(", "sv, pseudo_class.languages);
+                break;
             }
             s.append(')');
         }
@@ -484,6 +496,26 @@ String Selector::serialize() const
 {
     StringBuilder s;
 
+    // AD-HOC: If this is a relative selector, we need to serialize the starting combinator.
+    if (!compound_selectors().is_empty()) {
+        switch (compound_selectors().first().combinator) {
+        case Combinator::ImmediateChild:
+            s.append("> "sv);
+            break;
+        case Combinator::NextSibling:
+            s.append("+ "sv);
+            break;
+        case Combinator::SubsequentSibling:
+            s.append("~ "sv);
+            break;
+        case Combinator::Column:
+            s.append("|| "sv);
+            break;
+        default:
+            break;
+        }
+    }
+
     // To serialize a selector let s be the empty string, run the steps below for each part of the chain of the selector, and finally return s:
     for (size_t i = 0; i < compound_selectors().size(); ++i) {
         auto const& compound_selector = compound_selectors()[i];
@@ -499,7 +531,8 @@ String Selector::serialize() const
             for (auto& simple_selector : compound_selector.simple_selectors) {
                 if (simple_selector.type == SimpleSelector::Type::Universal) {
                     auto qualified_name = simple_selector.qualified_name();
-                    if (qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Default)
+                    if (qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Default
+                        || qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Any)
                         continue;
                     // FIXME: I *think* if we have a namespace prefix that happens to equal the same as the default namespace,
                     //        we also should skip it. But we don't have access to that here. eg:

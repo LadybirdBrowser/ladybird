@@ -15,6 +15,7 @@
 #include <jni.h>
 
 namespace Ladybird {
+
 static Gfx::BitmapFormat to_gfx_bitmap_format(i32 f)
 {
     switch (f) {
@@ -142,4 +143,5 @@ NonnullRefPtr<WebView::WebContentClient> WebViewImplementationNative::bind_web_c
 
     return new_client;
 }
+
 }

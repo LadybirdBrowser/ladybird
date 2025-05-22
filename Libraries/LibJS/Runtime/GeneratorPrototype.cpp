@@ -34,7 +34,8 @@ JS_DEFINE_NATIVE_FUNCTION(GeneratorPrototype::next)
 {
     // 1. Return ? GeneratorResume(this value, value, empty).
     auto generator_object = TRY(typed_this_object(vm));
-    return generator_object->resume(vm, vm.argument(0), {});
+    auto iteration_result = TRY(generator_object->resume(vm, vm.argument(0), {}));
+    return create_iterator_result_object(vm, iteration_result.value, iteration_result.done);
 }
 
 // 27.5.1.3 Generator.prototype.return ( value ), https://tc39.es/ecma262/#sec-generator.prototype.return
@@ -47,7 +48,8 @@ JS_DEFINE_NATIVE_FUNCTION(GeneratorPrototype::return_)
     auto completion = Completion(Completion::Type::Return, vm.argument(0));
 
     // 3. Return ? GeneratorResumeAbrupt(g, C, empty).
-    return generator_object->resume_abrupt(vm, completion, {});
+    auto iteration_result = TRY(generator_object->resume_abrupt(vm, completion, {}));
+    return create_iterator_result_object(vm, iteration_result.value, iteration_result.done);
 }
 
 // 27.5.1.4 Generator.prototype.throw ( exception ), https://tc39.es/ecma262/#sec-generator.prototype.throw
@@ -60,7 +62,8 @@ JS_DEFINE_NATIVE_FUNCTION(GeneratorPrototype::throw_)
     auto completion = throw_completion(vm.argument(0));
 
     // 3. Return ? GeneratorResumeAbrupt(g, C, empty).
-    return generator_object->resume_abrupt(vm, completion, {});
+    auto iteration_result = TRY(generator_object->resume_abrupt(vm, completion, {}));
+    return create_iterator_result_object(vm, iteration_result.value, iteration_result.done);
 }
 
 }

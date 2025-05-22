@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
-    Box <body.outer> at (8,8) content-size 200x17 flex-container(column) [FFC] children: not-inline
-      BlockContainer <div.middle> at (8,8) content-size 200x17 flex-item [BFC] children: not-inline
-        BlockContainer <div.inner> at (8,8) content-size 200x17 children: inline
-          frag 0 from TextNode start: 0, length: 20, rect: [8,8 174.234375x17] baseline: 13.296875
+  BlockContainer <html> at (0,0) content-size 800x34 [BFC] children: not-inline
+    Box <body.outer> at (8,8) content-size 200x18 flex-container(column) [FFC] children: not-inline
+      BlockContainer <div.middle> at (8,8) content-size 200x18 flex-item [BFC] children: not-inline
+        BlockContainer <div.inner> at (8,8) content-size 200x18 children: inline
+          frag 0 from TextNode start: 0, length: 20, rect: [8,8 174.234375x18] baseline: 13.796875
               "percentages are hard"
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
-    PaintableBox (Box<BODY>.outer) [8,8 200x17]
-      PaintableWithLines (BlockContainer<DIV>.middle) [8,8 200x17]
-        PaintableWithLines (BlockContainer<DIV>.inner) [8,8 200x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
+    PaintableBox (Box<BODY>.outer) [8,8 200x18]
+      PaintableWithLines (BlockContainer<DIV>.middle) [8,8 200x18]
+        PaintableWithLines (BlockContainer<DIV>.inner) [8,8 200x18]
           TextPaintable (TextNode<#text>)

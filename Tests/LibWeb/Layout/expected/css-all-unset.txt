@@ -1,17 +1,17 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x17 [BFC] children: inline
+  BlockContainer <html> at (0,0) content-size 800x18 [BFC] children: inline
     InlineNode <head>
       InlineNode <style>
-        frag 0 from TextNode start: 1, length: 18, rect: [0,0 134.984375x17] baseline: 13.296875
+        frag 0 from TextNode start: 1, length: 18, rect: [0,0 134.984375x18] baseline: 13.796875
             "* { all: unset; } "
         TextNode <#text>
     InlineNode <body>
-      frag 0 from TextNode start: 0, length: 13, rect: [134.984375,0 103.140625x17] baseline: 13.296875
+      frag 0 from TextNode start: 0, length: 13, rect: [134.984375,0 103.140625x18] baseline: 13.796875
           "Hello friends"
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x18]
     PaintableWithLines (InlineNode<HEAD>)
       PaintableWithLines (InlineNode<STYLE>)
         TextPaintable (TextNode<#text>)

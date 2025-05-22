@@ -9,8 +9,10 @@
 #include <AK/ByteString.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
-#include <math.h>
-#include <unistd.h>
+
+#ifdef AK_OS_WINDOWS
+#    include <stdio.h>
+#endif
 
 TEST_CASE(is_integral_works_properly)
 {
@@ -232,8 +234,12 @@ TEST_CASE(file_descriptor)
 {
     char filename[] = "/tmp/test-file-descriptor-XXXXXX";
 
+#ifdef AK_OS_WINDOWS
+    FILE* file = tmpfile();
+#else
     int fd = mkstemp(filename);
     FILE* file = fdopen(fd, "w+");
+#endif
 
     outln(file, "{}", "Hello, World!");
     out(file, "foo");
@@ -311,7 +317,8 @@ TEST_CASE(no_precision_no_trailing_number)
 
 TEST_CASE(precision_with_trailing_zeros)
 {
-    EXPECT_EQ(ByteString::formatted("{:0.3}", 1.12), "1.120");
+    EXPECT_EQ(ByteString::formatted("{:0.3f}", 1.12), "1.120");
+    EXPECT_EQ(ByteString::formatted("{:0.3}", 1.12), "1.12");
     EXPECT_EQ(ByteString::formatted("{:0.1}", 1.12), "1.1");
 }
 
@@ -396,16 +403,17 @@ TEST_CASE(vector_format)
     }
 }
 
-TEST_CASE(format_wchar)
+TEST_CASE(format_utf32)
 {
-    EXPECT_EQ(ByteString::formatted("{}", L'a'), "a");
-    EXPECT_EQ(ByteString::formatted("{}", L'\U0001F41E'), "\xF0\x9F\x90\x9E");
-    EXPECT_EQ(ByteString::formatted("{:x}", L'a'), "61");
-    EXPECT_EQ(ByteString::formatted("{:x}", L'\U0001F41E'), "1f41e");
-    EXPECT_EQ(ByteString::formatted("{:d}", L'a'), "97");
-    EXPECT_EQ(ByteString::formatted("{:d}", L'\U0001F41E'), "128030");
+    EXPECT_EQ(ByteString::formatted("{}", U'a'), "a");
+    EXPECT_EQ(ByteString::formatted("{}", U'\U0001F41E'), "\xF0\x9F\x90\x9E");
+    EXPECT_EQ(ByteString::formatted("{:x}", U'a'), "61");
+    EXPECT_EQ(ByteString::formatted("{:x}", U'\U0001F41E'), "1f41e");
 
-    EXPECT_EQ(ByteString::formatted("{:6}", L'a'), "a     ");
-    EXPECT_EQ(ByteString::formatted("{:6d}", L'a'), "    97");
-    EXPECT_EQ(ByteString::formatted("{:#x}", L'\U0001F41E'), "0x1f41e");
+    EXPECT_EQ(ByteString::formatted("{:d}", U'a'), "97");
+    EXPECT_EQ(ByteString::formatted("{:d}", U'\U0001F41E'), "128030");
+
+    EXPECT_EQ(ByteString::formatted("{:6}", U'a'), "a     ");
+    EXPECT_EQ(ByteString::formatted("{:6d}", U'a'), "    97");
+    EXPECT_EQ(ByteString::formatted("{:#x}", U'\U0001F41E'), "0x1f41e");
 }

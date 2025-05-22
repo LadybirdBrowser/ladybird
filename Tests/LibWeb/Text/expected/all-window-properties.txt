@@ -46,9 +46,12 @@ CSSKeyframeRule
 CSSKeyframesRule
 CSSLayerBlockRule
 CSSLayerStatementRule
+CSSMarginRule
 CSSMediaRule
 CSSNamespaceRule
 CSSNestedDeclarations
+CSSPageDescriptors
+CSSPageRule
 CSSPropertyRule
 CSSRule
 CSSRuleList
@@ -213,6 +216,7 @@ HashChangeEvent
 Headers
 History
 IDBCursor
+IDBCursorWithValue
 IDBDatabase
 IDBFactory
 IDBIndex
@@ -371,6 +375,7 @@ Set
 ShadowRealm
 ShadowRoot
 SharedArrayBuffer
+SharedWorker
 SourceBuffer
 SourceBufferList
 StaticRange

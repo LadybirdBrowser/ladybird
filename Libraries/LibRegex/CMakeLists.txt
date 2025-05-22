@@ -10,5 +10,5 @@ if(SERENITYOS)
     list(APPEND SOURCES C/Regex.cpp)
 endif()
 
-serenity_lib(LibRegex regex)
+serenity_lib(LibRegex regex EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibRegex PRIVATE LibUnicode)

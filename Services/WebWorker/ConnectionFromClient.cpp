@@ -6,8 +6,8 @@
 
 #include <LibCore/EventLoop.h>
 #include <WebWorker/ConnectionFromClient.h>
-#include <WebWorker/DedicatedWorkerHost.h>
 #include <WebWorker/PageHost.h>
+#include <WebWorker/WorkerHost.h>
 
 namespace WebWorker {
 
@@ -63,10 +63,16 @@ Web::Page const& ConnectionFromClient::page() const
     return m_page_host->page();
 }
 
-void ConnectionFromClient::start_dedicated_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials, String name, Web::HTML::TransferDataHolder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings)
+void ConnectionFromClient::start_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, String name, Web::HTML::TransferDataHolder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings, Web::Bindings::AgentType agent_type)
 {
-    m_worker_host = make_ref_counted<DedicatedWorkerHost>(move(url), type, move(name));
-    m_worker_host->run(page(), move(implicit_port), outside_settings);
+    m_worker_host = make_ref_counted<WorkerHost>(move(url), type, move(name));
+
+    bool const is_shared = agent_type == Web::Bindings::AgentType::SharedWorker;
+    VERIFY(is_shared || agent_type == Web::Bindings::AgentType::DedicatedWorker);
+
+    // FIXME: Add an assertion that the agent_type passed here is the same that was passed at process creation to initialize_main_thread_vm()
+
+    m_worker_host->run(page(), move(implicit_port), outside_settings, credentials, is_shared);
 }
 
 void ConnectionFromClient::handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id)

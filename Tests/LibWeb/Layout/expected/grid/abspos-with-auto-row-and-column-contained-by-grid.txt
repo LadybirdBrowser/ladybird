@@ -5,25 +5,25 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.grid-item> at (58,58) content-size 50x50 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [58,58 6.34375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [58,58 6.34375x18] baseline: 13.796875
               "1"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.grid-item> at (128,58) content-size 100x50 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [128,58 8.8125x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [128,58 8.8125x18] baseline: 13.796875
               "2"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.grid-item> at (58,128) content-size 50x100 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [58,128 9.09375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [58,128 9.09375x18] baseline: 13.796875
               "3"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.grid-item> at (128,128) content-size 100x100 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [128,128 7.75x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [128,128 7.75x18] baseline: 13.796875
               "4"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

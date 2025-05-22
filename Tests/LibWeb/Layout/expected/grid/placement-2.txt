@@ -1,21 +1,21 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x600 [BFC] children: not-inline
-    BlockContainer <body> at (10,10) content-size 780x21 children: not-inline
-      Box <div.grid-container> at (11,11) content-size 778x19 [GFC] children: not-inline
-        BlockContainer <div.grid-item.a> at (12,12) content-size 257.3125x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [12,12 6.34375x17] baseline: 13.296875
+  BlockContainer <html> at (1,1) content-size 798x40 [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x22 children: not-inline
+      Box <div.grid-container> at (11,11) content-size 778x20 [GFC] children: not-inline
+        BlockContainer <div.grid-item.a> at (12,12) content-size 257.3125x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [12,12 6.34375x18] baseline: 13.796875
               "1"
           TextNode <#text>
-        BlockContainer <div.grid-item.b> at (271.3125,12) content-size 516.625x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [271.3125,12 8.8125x17] baseline: 13.296875
+        BlockContainer <div.grid-item.b> at (271.3125,12) content-size 516.625x18 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [271.3125,12 8.8125x18] baseline: 13.796875
               "2"
           TextNode <#text>
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x602]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x602]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x23]
-      PaintableBox (Box<DIV>.grid-container) [10,10 780x21]
-        PaintableWithLines (BlockContainer<DIV>.grid-item.a) [11,11 259.3125x19]
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x42]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x24]
+      PaintableBox (Box<DIV>.grid-container) [10,10 780x22]
+        PaintableWithLines (BlockContainer<DIV>.grid-item.a) [11,11 259.3125x20]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.grid-item.b) [270.3125,11 518.625x19]
+        PaintableWithLines (BlockContainer<DIV>.grid-item.b) [270.3125,11 518.625x20]
           TextPaintable (TextNode<#text>)

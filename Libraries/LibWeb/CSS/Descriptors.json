@@ -104,6 +104,71 @@
       }
     }
   },
+  "page": {
+    "spec": "https://drafts.csswg.org/css-page-3/#at-page-rule",
+    "FIXME": "There are a lot more properties that are valid, see https://drafts.csswg.org/css-page-3/#properties-list",
+    "descriptors": {
+      "bleed": {
+        "initial": "auto",
+        "syntax": [
+          "auto",
+          "<length>"
+        ]
+      },
+      "margin": {
+        "initial": "0",
+        "syntax": [
+          "<'margin'>"
+        ]
+      },
+      "margin-bottom": {
+        "initial": "0",
+        "syntax": [
+          "<'margin-bottom'>"
+        ]
+      },
+      "margin-left": {
+        "initial": "0",
+        "syntax": [
+          "<'margin-left'>"
+        ]
+      },
+      "margin-right": {
+        "initial": "0",
+        "syntax": [
+          "<'margin-right'>"
+        ]
+      },
+      "margin-top": {
+        "initial": "0",
+        "syntax": [
+          "<'margin-top'>"
+        ]
+      },
+      "marks": {
+        "initial": "none",
+        "syntax": [
+          "none",
+          "crop || cross"
+        ]
+      },
+      "page-orientation": {
+        "initial": "upright",
+        "syntax": [
+          "upright",
+          "rotate-left",
+          "rotate-right"
+        ]
+      },
+      "size": {
+        "initial": "auto",
+        "FIXME": "Replace with actual syntax once we parse grammar properly",
+        "syntax": [
+          "<page-size>"
+        ]
+      }
+    }
+  },
   "property": {
     "spec": "https://drafts.css-houdini.org/css-properties-values-api/#at-property-rule",
     "descriptors": {

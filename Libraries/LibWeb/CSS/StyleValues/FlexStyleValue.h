@@ -23,7 +23,7 @@ public:
     virtual double value() const override { return m_flex.raw_value(); }
     virtual StringView unit() const override { return m_flex.unit_name(); }
 
-    virtual String to_string(SerializationMode) const override { return m_flex.to_string(); }
+    virtual String to_string(SerializationMode serialization_mode) const override { return m_flex.to_string(serialization_mode); }
 
     bool equals(CSSStyleValue const& other) const override
     {

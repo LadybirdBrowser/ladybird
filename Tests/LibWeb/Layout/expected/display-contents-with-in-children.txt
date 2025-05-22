@@ -1,11 +1,11 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x17 [BFC] children: inline
+  BlockContainer <html> at (0,0) content-size 800x18 [BFC] children: inline
     InlineNode <span>
-      frag 0 from TextNode start: 0, length: 7, rect: [0,0 51.75x17] baseline: 13.296875
+      frag 0 from TextNode start: 0, length: 7, rect: [0,0 51.75x18] baseline: 13.796875
           "whf :^)"
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x17]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x18]
     PaintableWithLines (InlineNode<SPAN>)
       TextPaintable (TextNode<#text>)

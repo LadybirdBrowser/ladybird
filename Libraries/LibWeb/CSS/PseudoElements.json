@@ -114,7 +114,8 @@
     "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-track"
   },
   "view-transition": {
-    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition"
+    "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition",
+    "is-pseudo-root": true
   },
   "view-transition-group": {
     "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition-group",

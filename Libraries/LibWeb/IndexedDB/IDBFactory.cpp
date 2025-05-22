@@ -69,8 +69,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
         // 2. Set request’s processed flag to true.
         request->set_processed(true);
 
-        // 3. Queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
+        // 3. Queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
             // 1. If result is an error, then:
             if (result.is_error()) {
                 // 1. Set request’s result to undefined.
@@ -149,8 +149,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
         // 2. Set request’s processed flag to true.
         request->set_processed(true);
 
-        // 3. Queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
+        // 3. Queue a database task to run these steps:
+        queue_a_database_task(GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
             // 1.  If result is an error,
             if (result.is_error()) {
                 // set request’s error to result,

@@ -102,6 +102,8 @@ private:
 }
 
 namespace Web::DOM {
+
 template<>
 inline bool Node::fast_is<HTML::HTMLButtonElement>() const { return is_html_button_element(); }
+
 }

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 
 namespace JS {

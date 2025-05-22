@@ -34,6 +34,7 @@
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
@@ -523,6 +524,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_font_language_override_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::FontStyle:
+        if (auto parsed_value = parse_font_style_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::FontVariationSettings:
         if (auto parsed_value = parse_font_variation_settings_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -659,6 +664,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::No); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::TouchAction:
+        if (auto parsed_value = parse_touch_action_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Transform:
         if (auto parsed_value = parse_transform_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -693,6 +702,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         return ParseError::SyntaxError;
     case PropertyID::Scale:
         if (auto parsed_value = parse_scale_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::Contain:
+        if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     default:
@@ -2361,7 +2374,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
         }
         case PropertyID::FontStyle: {
             VERIFY(!font_style);
-            font_style = value.release_nonnull();
+            font_style = FontStyleStyleValue::create(*keyword_to_font_style(value.release_nonnull()->to_keyword()));
             continue;
         }
         case PropertyID::FontVariant: {
@@ -2595,6 +2608,34 @@ RefPtr<CSSStyleValue const> Parser::parse_font_feature_settings_value(TokenStrea
 
     transaction.commit();
     return StyleValueList::create(move(feature_tags), StyleValueList::Separator::Comma);
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-fonts/#font-style-prop
+    // normal | italic | left | right | oblique <angle [-90deg,90deg]>?
+    auto transaction = tokens.begin_transaction();
+    auto keyword_value = parse_css_value_for_property(PropertyID::FontStyle, tokens);
+    if (!keyword_value)
+        return nullptr;
+    auto font_style = keyword_to_font_style(keyword_value->to_keyword());
+    VERIFY(font_style.has_value());
+    if (tokens.has_next_token() && keyword_value->to_keyword() == Keyword::Oblique) {
+        if (auto angle_value = parse_angle_value(tokens)) {
+            if (angle_value->is_angle()) {
+                auto angle = angle_value->as_angle().angle();
+                auto angle_degrees = angle.to_degrees();
+                if (angle_degrees < -90 || angle_degrees > 90)
+                    return nullptr;
+            }
+
+            transaction.commit();
+            return FontStyleStyleValue::create(*font_style, angle_value);
+        }
+    }
+
+    transaction.commit();
+    return FontStyleStyleValue::create(*font_style);
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_font_variation_settings_value(TokenStream<ComponentValue>& tokens)
@@ -3489,6 +3530,67 @@ RefPtr<CSSStyleValue const> Parser::parse_text_decoration_line_value(TokenStream
     });
 
     return StyleValueList::create(move(style_values), StyleValueList::Separator::Space);
+}
+
+// https://www.w3.org/TR/pointerevents/#the-touch-action-css-property
+RefPtr<CSSStyleValue const> Parser::parse_touch_action_value(TokenStream<ComponentValue>& tokens)
+{
+    // auto | none | [ [ pan-x | pan-left | pan-right ] || [ pan-y | pan-up | pan-down ] ] | manipulation
+
+    if (auto value = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+        return value;
+    if (auto value = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return value;
+    if (auto value = parse_all_as_single_keyword_value(tokens, Keyword::Manipulation))
+        return value;
+
+    StyleValueVector parsed_values;
+    auto transaction = tokens.begin_transaction();
+
+    // We will verify that we have up to one vertical and one horizontal value
+    bool has_horizontal = false;
+    bool has_vertical = false;
+
+    // Were the values specified in y/x order? (we need to store them in canonical x/y order)
+    bool swap_order = false;
+
+    while (auto parsed_value = parse_css_value_for_property(PropertyID::TouchAction, tokens)) {
+        switch (parsed_value->as_keyword().keyword()) {
+        case Keyword::PanX:
+        case Keyword::PanLeft:
+        case Keyword::PanRight:
+            if (has_horizontal)
+                return {};
+            if (has_vertical)
+                swap_order = true;
+            has_horizontal = true;
+            break;
+        case Keyword::PanY:
+        case Keyword::PanUp:
+        case Keyword::PanDown:
+            if (has_vertical)
+                return {};
+            has_vertical = true;
+            break;
+        case Keyword::Auto:
+        case Keyword::None:
+        case Keyword::Manipulation:
+            // Not valid as part of a list
+            return {};
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        parsed_values.append(parsed_value.release_nonnull());
+        if (!tokens.has_next_token())
+            break;
+    }
+
+    if (swap_order)
+        swap(parsed_values[0], parsed_values[1]);
+
+    transaction.commit();
+    return StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
 }
 
 // https://www.w3.org/TR/css-transforms-1/#transform-property
@@ -4574,6 +4676,77 @@ RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<Co
 
     transaction.commit();
     return FilterValueListStyleValue::create(move(filter_value_list));
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_contain_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | strict | content | [ [size | inline-size] || layout || style || paint ]
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None)) {
+        transaction.commit();
+        return none;
+    }
+
+    // strict
+    if (auto strict = parse_all_as_single_keyword_value(tokens, Keyword::Strict)) {
+        transaction.commit();
+        return strict;
+    }
+
+    // content
+    if (auto content = parse_all_as_single_keyword_value(tokens, Keyword::Content)) {
+        transaction.commit();
+        return content;
+    }
+
+    // [ [size | inline-size] || layout || style || paint ]
+    if (!tokens.has_next_token())
+        return {};
+
+    bool has_size = false;
+    bool has_layout = false;
+    bool has_style = false;
+    bool has_paint = false;
+
+    StyleValueVector containments;
+    while (tokens.has_next_token()) {
+        tokens.discard_whitespace();
+        auto keyword = parse_keyword_value(tokens);
+        if (!keyword)
+            return {};
+        switch (keyword->to_keyword()) {
+        case Keyword::Size:
+        case Keyword::InlineSize:
+            if (has_size)
+                return {};
+            has_size = true;
+            break;
+        case Keyword::Layout:
+            if (has_layout)
+                return {};
+            has_layout = true;
+            break;
+        case Keyword::Style:
+            if (has_style)
+                return {};
+            has_style = true;
+            break;
+        case Keyword::Paint:
+            if (has_paint)
+                return {};
+            has_paint = true;
+            break;
+        default:
+            return {};
+        }
+        containments.append(*keyword);
+    }
+    transaction.commit();
+
+    return StyleValueList::create(move(containments), StyleValueList::Separator::Space);
 }
 
 }

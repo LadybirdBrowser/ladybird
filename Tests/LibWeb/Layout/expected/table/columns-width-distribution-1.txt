@@ -1,39 +1,39 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x110 children: not-inline
-      TableWrapper <(anonymous)> at (8,8) content-size 784x110 [BFC] children: not-inline
-        Box <table.ambox> at (9,9) content-size 782x108 table-box [TFC] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x132 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x116 children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 784x116 [BFC] children: not-inline
+        Box <table.ambox> at (9,9) content-size 782x114 table-box [TFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text>
-          Box <tbody> at (11,11) content-size 778x104 table-row-group children: not-inline
-            Box <tr> at (11,11) content-size 778x104 table-row children: not-inline
-              BlockContainer <td.mbox-image> at (12,38) content-size 50x50 table-cell [BFC] children: not-inline
-                BlockContainer <div.mbox-image-div> at (12,38) content-size 50x50 children: not-inline
-              BlockContainer <td.mbox-text> at (66,12) content-size 722x102 table-cell [BFC] children: not-inline
-                BlockContainer <(anonymous)> at (66,12) content-size 722x102 children: inline
-                  frag 0 from TextNode start: 1, length: 84, rect: [66,12 689.640625x17] baseline: 13.296875
+          Box <tbody> at (11,11) content-size 778x110 table-row-group children: not-inline
+            Box <tr> at (11,11) content-size 778x110 table-row children: not-inline
+              BlockContainer <td.mbox-image> at (12,41) content-size 50x50 table-cell [BFC] children: not-inline
+                BlockContainer <div.mbox-image-div> at (12,41) content-size 50x50 children: not-inline
+              BlockContainer <td.mbox-text> at (66,12) content-size 722x108 table-cell [BFC] children: not-inline
+                BlockContainer <(anonymous)> at (66,12) content-size 722x108 children: inline
+                  frag 0 from TextNode start: 1, length: 84, rect: [66,12 689.640625x18] baseline: 13.796875
                       "In a scene set in a lawyer's office, the lawyer sits alone and bounces a rubber ball"
-                  frag 1 from TextNode start: 86, length: 84, rect: [66,29 695.5625x17] baseline: 13.296875
+                  frag 1 from TextNode start: 86, length: 84, rect: [66,30 695.5625x18] baseline: 13.796875
                       "against the wall. They receive a call from their assistant who expresses frustration"
-                  frag 2 from TextNode start: 171, length: 85, rect: [66,46 703.125x17] baseline: 13.296875
+                  frag 2 from TextNode start: 171, length: 85, rect: [66,48 703.125x18] baseline: 13.796875
                       "over a packed waiting room and the lawyer's lack of clients. The lawyer then looks at"
-                  frag 3 from TextNode start: 257, length: 81, rect: [66,63 695.90625x17] baseline: 13.296875
+                  frag 3 from TextNode start: 257, length: 81, rect: [66,66 695.90625x18] baseline: 13.796875
                       "some papers from a large envelope, which turn out to be divorce papers from their"
-                  frag 4 from TextNode start: 339, length: 84, rect: [66,80 670.515625x17] baseline: 13.296875
+                  frag 4 from TextNode start: 339, length: 84, rect: [66,84 670.515625x18] baseline: 13.796875
                       "significant other. Finally, the lawyer instructs their assistant to send in the next"
-                  frag 5 from TextNode start: 424, length: 7, rect: [66,97 47.21875x17] baseline: 13.296875
+                  frag 5 from TextNode start: 424, length: 7, rect: [66,102 47.21875x18] baseline: 13.796875
                       "client."
                   TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x110]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 784x110]
-        PaintableBox (Box<TABLE>.ambox) [8,8 784x110]
-          PaintableBox (Box<TBODY>) [11,11 778x104]
-            PaintableBox (Box<TR>) [11,11 778x104]
-              PaintableWithLines (BlockContainer<TD>.mbox-image) [11,11 52x104]
-                PaintableWithLines (BlockContainer<DIV>.mbox-image-div) [12,38 50x50]
-              PaintableWithLines (BlockContainer<TD>.mbox-text) [65,11 724x104]
-                PaintableWithLines (BlockContainer(anonymous)) [66,12 722x102]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x132]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x116]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 784x116]
+        PaintableBox (Box<TABLE>.ambox) [8,8 784x116]
+          PaintableBox (Box<TBODY>) [11,11 778x110]
+            PaintableBox (Box<TR>) [11,11 778x110]
+              PaintableWithLines (BlockContainer<TD>.mbox-image) [11,11 52x110]
+                PaintableWithLines (BlockContainer<DIV>.mbox-image-div) [12,41 50x50]
+              PaintableWithLines (BlockContainer<TD>.mbox-text) [65,11 724x110]
+                PaintableWithLines (BlockContainer(anonymous)) [66,12 722x108]
                   TextPaintable (TextNode<#text>)

@@ -1,6 +1,7 @@
 #include <LibGfx/Rect.h>
 #include <LibIPC/File.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
@@ -116,6 +117,8 @@ endpoint WebContentServer
     color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) =|
     file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files) =|
     select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) =|
+
+    retrieved_clipboard_entries(u64 page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items) =|
 
     toggle_media_play_state(u64 page_id) =|
     toggle_media_mute_state(u64 page_id) =|

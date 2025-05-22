@@ -115,6 +115,13 @@
                 opacity: 0.6;
             }
 
+            .description {
+                margin-bottom: 10px;
+
+                font-size: 14px;
+                opacity: 0.7;
+            }
+
             label {
                 display: block;
                 margin-bottom: 8px;
@@ -238,13 +245,6 @@
                 opacity: 0.3;
             }
 
-            dialog .dialog-description {
-                margin-bottom: 10px;
-
-                font-size: 14px;
-                opacity: 0.7;
-            }
-
             dialog .dialog-list {
                 outline: 1px solid var(--border-color);
                 border-radius: 4px;
@@ -329,31 +329,25 @@
         <div class="card">
             <div class="card-header">Search</div>
             <div class="card-body">
-                <div class="card-group inline-container">
-                    <label for="search-toggle">Enable Search</label>
-                    <input id="search-toggle" type="checkbox" switch />
-                </div>
-                <div class="card-group hidden">
-                    <label for="search-engine">Default Search Engine</label>
+                <div class="card-group">
                     <div class="inline-container">
-                        <select id="search-engine">
-                            <option value="">Please select a search engine</option>
-                            <hr />
-                        </select>
+                        <label for="search-engine">Default Search Engine</label>
                         <button id="search-settings" class="secondary-button">Settings...</button>
                     </div>
+                    <p class="description">Select the search engine to use in the address bar.</p>
+                    <select id="search-engine">
+                        <option value="">Disable search</option>
+                        <hr />
+                    </select>
                 </div>
 
                 <hr />
 
-                <div class="card-group inline-container">
-                    <label for="autocomplete-toggle">Enable Autocomplete</label>
-                    <input id="autocomplete-toggle" type="checkbox" switch />
-                </div>
-                <div class="card-group hidden">
-                    <label for="autocomplete-engine">Default Autocomplete Engine</label>
+                <div class="card-group">
+                    <label for="autocomplete-engine">Search Suggestions</label>
+                    <p class="description">Select the engine that will provide search suggestions.</p>
                     <select id="autocomplete-engine">
-                        <option value="">Please select an autocomplete engine</option>
+                        <option value="">Disable search suggestions</option>
                         <hr />
                     </select>
                 </div>
@@ -433,9 +427,7 @@
                 <button id="languages-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body">
-                <p class="dialog-description">
-                    Choose languages for websites in order of preference
-                </p>
+                <p class="description">Choose languages for websites in order of preference</p>
                 <div id="languages-list" class="dialog-list"></div>
                 <div class="dialog-controls">
                     <select id="languages-select">
@@ -452,7 +444,7 @@
                 <button id="search-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body" style="height: 300px">
-                <p class="dialog-description">Manage custom search engines</p>
+                <p class="description">Manage custom search engines</p>
                 <div id="search-list" class="dialog-list"></div>
             </div>
             <div class="dialog-form">
@@ -462,7 +454,7 @@
                 </div>
                 <div class="form-group">
                     <label for="search-custom-url">Search URL</label>
-                    <p class="dialog-description">Use %s as a placeholder for the search query</p>
+                    <p class="description">Use %s as a placeholder for the search query</p>
                     <input
                         id="search-custom-url"
                         type="url"

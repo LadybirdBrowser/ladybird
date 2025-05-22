@@ -17,16 +17,22 @@
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
 #include <LibJS/SourceRange.h>
 
 namespace JS::Bytecode {
 
+// Represents one polymorphic inline cache used for property lookups.
 struct PropertyLookupCache {
-    WeakPtr<Shape> shape;
-    Optional<u32> property_offset;
-    WeakPtr<Object> prototype;
-    WeakPtr<PrototypeChainValidity> prototype_chain_validity;
+    static constexpr size_t max_number_of_shapes_to_remember = 4;
+    struct Entry {
+        WeakPtr<Shape> shape;
+        Optional<u32> property_offset;
+        WeakPtr<Object> prototype;
+        WeakPtr<PrototypeChainValidity> prototype_chain_validity;
+    };
+    AK::Array<Entry, max_number_of_shapes_to_remember> entries;
 };
 
 struct GlobalVariableCache : public PropertyLookupCache {
@@ -85,7 +91,7 @@ public:
 
     HashMap<size_t, SourceRecord> source_map;
 
-    Vector<FlyString> local_variable_names;
+    Vector<LocalVariable> local_variable_names;
     size_t local_index_base { 0 };
     size_t argument_index_base { 0 };
 

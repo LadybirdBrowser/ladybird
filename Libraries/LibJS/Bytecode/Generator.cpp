@@ -56,7 +56,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
 
     if (function.shared_data().m_arguments_object_needed) {
         Optional<Operand> dst;
-        auto local_var_index = function.shared_data().m_local_variables_names.find_first_index("arguments"_fly_string);
+        auto local_var_index = function.shared_data().m_local_variables_names.find_first_index_if([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; });
         if (local_var_index.has_value())
             dst = local(Identifier::Local::variable(local_var_index.value()));
 
@@ -215,9 +215,10 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     return {};
 }
 
-CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<FlyString> local_variable_names)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<LocalVariable> local_variable_names)
 {
     Generator generator(vm, function, must_propagate_completion);
+    generator.m_local_variables = local_variable_names;
 
     generator.switch_to_basic_block(generator.make_block());
     SourceLocationScope scope(generator, node);
@@ -483,7 +484,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
 
 CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_ast_node(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind)
 {
-    Vector<FlyString> local_variable_names;
+    Vector<LocalVariable> local_variable_names;
     if (is<ScopeNode>(node))
         local_variable_names = static_cast<ScopeNode const&>(node).local_variables_names();
     return compile(vm, node, enclosing_function_kind, {}, MustPropagateCompletion::Yes, move(local_variable_names));
@@ -892,7 +893,11 @@ void Generator::emit_set_variable(JS::Identifier const& identifier, ScopedOperan
             if (initialization_mode == Bytecode::Op::BindingInitializationMode::Initialize) {
                 emit<Bytecode::Op::InitializeLexicalBinding>(identifier_index, value);
             } else if (initialization_mode == Bytecode::Op::BindingInitializationMode::Set) {
-                emit<Bytecode::Op::SetLexicalBinding>(identifier_index, value);
+                if (identifier.is_global()) {
+                    emit<Bytecode::Op::SetGlobal>(identifier_index, value, next_global_variable_cache());
+                } else {
+                    emit<Bytecode::Op::SetLexicalBinding>(identifier_index, value);
+                }
             }
         } else if (environment_mode == Bytecode::Op::EnvironmentMode::Var) {
             if (initialization_mode == Bytecode::Op::BindingInitializationMode::Initialize) {
@@ -1205,6 +1210,13 @@ void Generator::set_local_initialized(Identifier::Local const& local)
     } else {
         VERIFY_NOT_REACHED();
     }
+}
+
+bool Generator::is_local_lexically_declared(Identifier::Local const& local) const
+{
+    if (local.is_argument())
+        return false;
+    return m_local_variables[local.index].declaration_kind == LocalVariable::DeclarationKind::LetOrConst;
 }
 
 ScopedOperand Generator::get_this(Optional<ScopedOperand> preferred_dst)

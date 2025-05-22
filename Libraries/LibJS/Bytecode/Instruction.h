@@ -69,6 +69,7 @@
     O(GetObjectPropertyIterator)       \
     O(GetPrivateById)                  \
     O(GetBinding)                      \
+    O(GetInitializedBinding)           \
     O(GreaterThan)                     \
     O(GreaterThanEquals)               \
     O(HasPrivateId)                    \
@@ -132,6 +133,7 @@
     O(RightShift)                      \
     O(ScheduleJump)                    \
     O(SetCompletionType)               \
+    O(SetGlobal)                       \
     O(SetLexicalBinding)               \
     O(SetVariableBinding)              \
     O(StrictlyEquals)                  \

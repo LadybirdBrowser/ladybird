@@ -314,4 +314,5 @@ void DataTransfer::update_data_transfer_types_list()
     // 3. Set the DataTransfer object's types array to the result of creating a frozen array from L.
     m_types = move(types);
 }
+
 }

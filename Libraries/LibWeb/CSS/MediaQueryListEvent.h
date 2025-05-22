@@ -37,4 +37,5 @@ private:
     String m_media;
     bool m_matches;
 };
+
 }

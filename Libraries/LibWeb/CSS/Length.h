@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -17,7 +18,7 @@ namespace Web::CSS {
 
 class Length {
 public:
-    enum class Type {
+    enum class Type : u8 {
         // Font-relative
         Em,
         Rem,
@@ -218,7 +219,7 @@ public:
         }
     }
 
-    String to_string() const;
+    String to_string(SerializationMode = SerializationMode::Normal) const;
 
     bool operator==(Length const& other) const
     {

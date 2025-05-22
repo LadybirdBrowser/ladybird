@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Resolution.h"
+#include <LibWeb/CSS/Resolution.h>
 
 namespace Web::CSS {
 
@@ -20,9 +20,11 @@ Resolution Resolution::make_dots_per_pixel(double value)
     return { value, Type::Dppx };
 }
 
-String Resolution::to_string() const
+String Resolution::to_string(SerializationMode serialization_mode) const
 {
-    return MUST(String::formatted("{}dppx", to_dots_per_pixel()));
+    if (serialization_mode == SerializationMode::ResolvedValue)
+        return MUST(String::formatted("{}dppx", to_dots_per_pixel()));
+    return MUST(String::formatted("{}{}", raw_value(), unit_name()));
 }
 
 double Resolution::to_dots_per_pixel() const
@@ -33,6 +35,7 @@ double Resolution::to_dots_per_pixel() const
     case Type::Dpcm:
         return m_value / (96.0 / 2.54); // 1cm = 96px/2.54
     case Type::Dppx:
+    case Type::X:
         return m_value;
     }
     VERIFY_NOT_REACHED();
@@ -47,19 +50,22 @@ StringView Resolution::unit_name() const
         return "dpcm"sv;
     case Type::Dppx:
         return "dppx"sv;
+    case Type::X:
+        return "x"sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<Resolution::Type> Resolution::unit_from_name(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("dpi"sv)) {
+    if (name.equals_ignoring_ascii_case("dpi"sv))
         return Type::Dpi;
-    } else if (name.equals_ignoring_ascii_case("dpcm"sv)) {
+    if (name.equals_ignoring_ascii_case("dpcm"sv))
         return Type::Dpcm;
-    } else if (name.equals_ignoring_ascii_case("dppx"sv) || name.equals_ignoring_ascii_case("x"sv)) {
+    if (name.equals_ignoring_ascii_case("dppx"sv))
         return Type::Dppx;
-    }
+    if (name.equals_ignoring_ascii_case("x"sv))
+        return Type::X;
     return {};
 }
 

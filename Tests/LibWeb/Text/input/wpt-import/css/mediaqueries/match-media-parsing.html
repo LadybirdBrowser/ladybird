@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-syntax-3/#parse-comma-separated-list-of-component-values">
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+
+<script>
+function test_parsing(query, expected) {
+    if(expected === undefined)
+        expected = query;
+
+    test(() => {
+        const match = window.matchMedia(query);
+        assert_equals(match.media, expected)
+    }, "Test parsing '" + query + "' with matchMedia");
+}
+
+function test_resolution_parsing() {
+    test_parsing("(min-resolution: 1x)");
+    test_parsing("(min-resolution: calc(1x))", "(min-resolution: calc(1dppx))");
+    test_parsing("(resolution: 2x)");
+    test_parsing("(resolution: calc(2x))", "(resolution: calc(2dppx))");
+    test_parsing("(max-resolution: 7x)");
+    test_parsing("(max-resolution: calc(7x))", "(max-resolution: calc(7dppx))");
+
+    test_parsing("(resolution: 2dppx)");
+    test_parsing("(resolution: 600dpi)");
+    test_parsing("(resolution: 77dpcm)");
+
+    test_parsing("(resolution: calc(1x + 2x))", "(resolution: calc(3dppx))");
+    test_parsing("(resolution: calc(5x - 2x))", "(resolution: calc(3dppx))");
+    test_parsing("(resolution: calc(1x * 3))", "(resolution: calc(3dppx))");
+    test_parsing("(resolution: calc(6x / 2))", "(resolution: calc(3dppx))");
+}
+
+test_parsing("", "");
+test_parsing(" ", "");
+test_parsing("all", "all");
+test_parsing(" all", "all");
+test_parsing("   all   ", "all");
+test_parsing("all,all", "all, all");
+test_parsing(" all , all ", "all, all");
+test_parsing("(color)", "(color)");
+test_parsing("(color", "(color)");
+test_parsing(" (color)", "(color)");
+test_parsing(" ( color  )  ", "(color)");
+test_parsing(" ( color   ", "(color)");
+test_parsing("color)", "not all");
+test_parsing("  color)", "not all");
+test_parsing("  color ), ( color", "not all, (color)");
+test_parsing(" foo ", "foo");
+test_parsing(",", "not all, not all");
+test_parsing(" , ", "not all, not all");
+test_parsing(",,", "not all, not all, not all");
+test_parsing("  ,  ,  ", "not all, not all, not all");
+test_parsing(" foo,", "foo, not all");
+
+test_resolution_parsing();
+</script>

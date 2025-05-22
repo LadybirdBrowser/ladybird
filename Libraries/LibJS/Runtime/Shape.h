@@ -14,7 +14,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/PropertyAttributes.h>
-#include <LibJS/Runtime/StringOrSymbol.h>
+#include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
@@ -25,7 +25,7 @@ struct PropertyMetadata {
 };
 
 struct TransitionKey {
-    StringOrSymbol property_key;
+    PropertyKey property_key;
     PropertyAttributes attributes { 0 };
 
     bool operator==(TransitionKey const& other) const
@@ -66,20 +66,19 @@ public:
         UncacheableDictionary,
     };
 
-    [[nodiscard]] GC::Ref<Shape> create_put_transition(StringOrSymbol const&, PropertyAttributes attributes);
-    [[nodiscard]] GC::Ref<Shape> create_configure_transition(StringOrSymbol const&, PropertyAttributes attributes);
+    [[nodiscard]] GC::Ref<Shape> create_put_transition(PropertyKey const&, PropertyAttributes attributes);
+    [[nodiscard]] GC::Ref<Shape> create_configure_transition(PropertyKey const&, PropertyAttributes attributes);
     [[nodiscard]] GC::Ref<Shape> create_prototype_transition(Object* new_prototype);
-    [[nodiscard]] GC::Ref<Shape> create_delete_transition(StringOrSymbol const&);
+    [[nodiscard]] GC::Ref<Shape> create_delete_transition(PropertyKey const&);
     [[nodiscard]] GC::Ref<Shape> create_cacheable_dictionary_transition();
     [[nodiscard]] GC::Ref<Shape> create_uncacheable_dictionary_transition();
     [[nodiscard]] GC::Ref<Shape> clone_for_prototype();
     [[nodiscard]] static GC::Ref<Shape> create_for_prototype(GC::Ref<Realm>, GC::Ptr<Object> prototype);
 
-    void add_property_without_transition(StringOrSymbol const&, PropertyAttributes);
     void add_property_without_transition(PropertyKey const&, PropertyAttributes);
 
-    void remove_property_without_transition(StringOrSymbol const&, u32 offset);
-    void set_property_attributes_without_transition(StringOrSymbol const&, PropertyAttributes);
+    void remove_property_without_transition(PropertyKey const&, u32 offset);
+    void set_property_attributes_without_transition(PropertyKey const&, PropertyAttributes);
 
     [[nodiscard]] bool is_cacheable() const { return m_cacheable; }
     [[nodiscard]] bool is_dictionary() const { return m_dictionary; }
@@ -96,12 +95,12 @@ public:
     Object* prototype() { return m_prototype; }
     Object const* prototype() const { return m_prototype; }
 
-    Optional<PropertyMetadata> lookup(StringOrSymbol const&) const;
-    OrderedHashMap<StringOrSymbol, PropertyMetadata> const& property_table() const;
+    Optional<PropertyMetadata> lookup(PropertyKey const&) const;
+    OrderedHashMap<PropertyKey, PropertyMetadata> const& property_table() const;
     u32 property_count() const { return m_property_count; }
 
     struct Property {
-        StringOrSymbol key;
+        PropertyKey key;
         PropertyMetadata value;
     };
 
@@ -109,8 +108,8 @@ public:
 
 private:
     explicit Shape(Realm&);
-    Shape(Shape& previous_shape, StringOrSymbol const& property_key, PropertyAttributes attributes, TransitionType);
-    Shape(Shape& previous_shape, StringOrSymbol const& property_key, TransitionType);
+    Shape(Shape& previous_shape, PropertyKey const& property_key, PropertyAttributes attributes, TransitionType);
+    Shape(Shape& previous_shape, PropertyKey const& property_key, TransitionType);
     Shape(Shape& previous_shape, Object* new_prototype);
 
     void invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_prototype_shape);
@@ -120,19 +119,19 @@ private:
 
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_forward_transition(TransitionKey const&);
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_prototype_transition(Object* prototype);
-    [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_delete_transition(StringOrSymbol const&);
+    [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_delete_transition(PropertyKey const&);
 
     void ensure_property_table() const;
 
     GC::Ref<Realm> m_realm;
 
-    mutable OwnPtr<OrderedHashMap<StringOrSymbol, PropertyMetadata>> m_property_table;
+    mutable OwnPtr<OrderedHashMap<PropertyKey, PropertyMetadata>> m_property_table;
 
     OwnPtr<HashMap<TransitionKey, WeakPtr<Shape>>> m_forward_transitions;
     OwnPtr<HashMap<GC::Ptr<Object>, WeakPtr<Shape>>> m_prototype_transitions;
-    OwnPtr<HashMap<StringOrSymbol, WeakPtr<Shape>>> m_delete_transitions;
+    OwnPtr<HashMap<PropertyKey, WeakPtr<Shape>>> m_delete_transitions;
     GC::Ptr<Shape> m_previous;
-    StringOrSymbol m_property_key;
+    Optional<PropertyKey> m_property_key;
     GC::Ptr<Object> m_prototype;
 
     GC::Ptr<PrototypeChainValidity> m_prototype_chain_validity;
@@ -153,6 +152,6 @@ template<>
 struct AK::Traits<JS::TransitionKey> : public DefaultTraits<JS::TransitionKey> {
     static unsigned hash(const JS::TransitionKey& key)
     {
-        return pair_int_hash(key.attributes.bits(), Traits<JS::StringOrSymbol>::hash(key.property_key));
+        return pair_int_hash(key.attributes.bits(), Traits<JS::PropertyKey>::hash(key.property_key));
     }
 };

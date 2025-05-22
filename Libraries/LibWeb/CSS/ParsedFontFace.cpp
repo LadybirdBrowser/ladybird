@@ -6,6 +6,7 @@
  */
 
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
+#include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -38,7 +39,7 @@ Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(CSSStyle
             [&](FontSourceStyleValue::Local const& local) {
                 sources.empend(extract_font_name(local.name), OptionalNone {});
             },
-            [&](::URL::URL const& url) {
+            [&](URL const& url) {
                 // FIXME: tech()
                 sources.empend(url, font_source.format());
             });
@@ -171,6 +172,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     }
 
     return ParsedFontFace {
+        descriptors.parent_rule()->parent_style_sheet(),
         move(font_family),
         move(weight),
         move(slope),
@@ -188,8 +190,9 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 }
 
-ParsedFontFace::ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
-    : m_font_family(move(font_family))
+ParsedFontFace::ParsedFontFace(GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
+    : m_parent_style_sheet(parent_style_sheet)
+    , m_font_family(move(font_family))
     , m_font_named_instance(move(font_named_instance))
     , m_weight(weight)
     , m_slope(slope)

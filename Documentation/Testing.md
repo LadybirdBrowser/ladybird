@@ -16,7 +16,7 @@ The easiest way to run tests is to use the `ladybird.sh` script. The LibWeb test
 just the LibWeb tests with `Meta/ladybird.sh test LibWeb`. The second way is to invoke the headless browser test runner
 directly. See the invocation in `UI/CMakeLists.txt` for the expected command line arguments.
 
-A third way is to invoke `ctest` directly. The simplest method is to use the `default` preset from ``CMakePresets.json``:
+A third way is to invoke `ctest` directly. The simplest method is to use the `default` preset from `CMakePresets.json`:
 
 ```sh
 cmake --preset default
@@ -30,8 +30,8 @@ If you want to avoid building and running LibWeb tests, you can use a Lagom-only
 cmake -GNinja -S Meta/Lagom -B Build/lagom
 ```
 
-The tests can be run via ninja after doing a build. Note that `test-js` requires the `LADYBIRD_SOURCE_DIR` environment variable to be set
-to the root of the ladybird source tree.
+The tests can be run via ninja after doing a build. Note that `test-js` requires the `LADYBIRD_SOURCE_DIR` environment
+variable to be set to the root of the ladybird source tree.
 
 ```sh
 # /path/to/ladybird repository
@@ -57,8 +57,8 @@ classes of common C++ errors, including memory leaks, out of bounds access to st
 signed integer overflow. For more info on the sanitizers, check out the Address Sanitizer [wiki page](https://github.com/google/sanitizers/wiki),
 or the Undefined Sanitizer [documentation](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html) from clang.
 
-Note that a sanitizer build will take significantly longer than a non-sanitizer build, and will mess with caches in tools such as `ccache`.
-The sanitizers can be enabled with the `-DENABLE_FOO_SANITIZER` set of flags.
+Note that a sanitizer build will take significantly longer than a non-sanitizer build, and will mess with caches in tools
+such as `ccache`. The sanitizers can be enabled with the `-DENABLE_FOO_SANITIZER` set of flags.
 
 The simplest way to enable sanitizers is to use the `Sanitizer` preset.
 
@@ -105,30 +105,47 @@ git checkout my-css-change
 
 ### Importing Web Platform Tests
 
-You can import certain Web Platform Tests (WPT) tests into your Ladybird clone (if they’re tests of type that can be imported — and especially if any code changes you’re making cause Ladybird to pass any WPT tests it hasn’t yet been passing). Here’s how:
+You can import certain Web Platform Tests (WPT) tests into your Ladybird clone (if they're tests of type that can be
+imported - and especially if any code changes you're making cause Ladybird to pass any WPT tests it hasn't yet been
+passing). Here's how:
 
 ```sh
 ./Meta/WPT.sh import html/dom/aria-attribute-reflection.html
 ```
 
-That is, you give `./Meta/WPT.sh import` the path part of any `http://wpt.live/` URL for a WPT test you want to import. It will then download both that test and any of its JavaScript scripts, copy those to the `Tests/LibWeb/<test-type>/input/wpt-import` directory, run the test, and then in the `Tests/LibWeb/<test-type>/expected/wpt-import` directory, it will create a file with the expected results from the test.
-
+That is, you give `./Meta/WPT.sh import` the path part of any `http://wpt.live/` URL for a WPT test you want to import.
+It will then download both that test and any of its JavaScript scripts, copy those to the `Tests/LibWeb/<test-type>/input/wpt-import`
+directory, run the test, and then in the `Tests/LibWeb/<test-type>/expected/wpt-import` directory, it will create a file
+with the expected results from the test.
 
 ## Writing tests
 
-Running `Tests/LibWeb/add_libweb_test.py your-new-test-name test_type` will create a new test HTML file in
-`Tests/LibWeb/test_type(/input)` (`/input` is appended for Text and Layout tests) with the correct boilerplate
-code for a `test_type` test — along with a corresponding expectations file in the appropriate directory, e.g.,
-`Tests/LibWeb/Text/expected/your-new-test-name.txt`, for a Text test, or
-`Tests/LibWeb/Ref/reference/your-new-test-name.txt` for a Ref test. The accepted `test_types` are "Text",
-"Ref", "Screenshot", and "Layout".
+Running the following python script to create new test files with correct boilerplate:
 
-If you make a new Text or Layout test, after you update/replace the generated boilerplate in your
-`your-new-test-name.html` test file with your actual test, running
-`./Meta/ladybird.sh run headless-browser --run-tests "./Tests/LibWeb" --rebaseline -f Text/input/foobar.html`
-will regenerate the corresponding expectations file to match the actual output from your updated test.
+```python
+./Tests/LibWeb/add_libweb_test.py your-new-test-name test_type
+```
 
-If you add a new Ref or Screenshot test, you'll need to supply the equivalently rendering HTML manually.
+The accepted `test_type` values are "Text", "Layout", "Ref", and "Screenshot".
+
+This will create a new test HTML file in `Tests/LibWeb/<test_type>/input` with along with a corresponding expectations
+file in the appropriate directory in `Tests/LibWeb/<test_type>/expected`.
+
+After you update/replace the generated boilerplate in your `your-new-test-name.html` test file with your actual test,
+you will need to regenerate the corresponding expectations file to match the actual output from your updated test.
+
+For Text or Layout tests, you can "rebaseline" the tests to regenerate the expectation file:
+
+```bash
+./Meta/ladybird.sh run headless-browser --run-tests "./Tests/LibWeb" --rebaseline -f Text/input/your-new-test-name.html
+```
+
+For Ref and Screenshot tests, you will need to supply the equivalently rendering HTML manually. Though for Screenshot
+tests, you can generate the reference screenshot itself by running headless-browser in test mode:
+
+```bash
+./Meta/ladybird.sh run headless-browser --layout-test-mode Tests/LibWeb/Screenshot/input/your-new-test-name.html --screenshot-path Tests/LibWeb/Screenshot/images/your-new-test-name.png
+```
 
 ### Text tests
 
@@ -144,7 +161,7 @@ when it is done. If an async context is needed to test the API, the lambda passe
 ### Layout
 
 Layout tests compare the layout tree of a page with an expected one. They are best suited for testing layout code, but
-are also used for testing some other features that have an observable effect on the layout. No JavaScript is needed —
+are also used for testing some other features that have an observable effect on the layout. No JavaScript is needed -
 once the page loads, the layout tree will be dumped automatically.
 
 ### Ref

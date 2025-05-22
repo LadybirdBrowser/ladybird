@@ -10,15 +10,19 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayIteratorPrototype.h>
 #include <LibJS/Runtime/ClassFieldDefinition.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/MapIteratorPrototype.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/ProxyObject.h>
+#include <LibJS/Runtime/SetIteratorPrototype.h>
 #include <LibJS/Runtime/Shape.h>
+#include <LibJS/Runtime/StringIteratorPrototype.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
@@ -952,20 +956,32 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
 
 // 10.1.9 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
 // 10.1.9.1 OrdinarySet ( O, P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinaryset
-ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata* cacheable_metadata)
+ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
 {
     VERIFY(!value.is_special_empty_value());
     VERIFY(!receiver.is_special_empty_value());
+
+    if (receiver.is_object() && property_key == vm().names.next) {
+        auto& receiver_object = receiver.as_object();
+        if (auto* array_iterator_prototype = as_if<ArrayIteratorPrototype>(receiver_object))
+            array_iterator_prototype->set_next_method_was_redefined();
+        else if (auto* map_iterator_prototype = as_if<MapIteratorPrototype>(receiver_object))
+            map_iterator_prototype->set_next_method_was_redefined();
+        else if (auto* set_iterator_prototype = as_if<SetIteratorPrototype>(receiver_object))
+            set_iterator_prototype->set_next_method_was_redefined();
+        else if (auto* string_iterator_prototype = as_if<StringIteratorPrototype>(receiver_object))
+            string_iterator_prototype->set_next_method_was_redefined();
+    }
 
     // 2. Let ownDesc be ? O.[[GetOwnProperty]](P).
     auto own_descriptor = TRY(internal_get_own_property(property_key));
 
     // 3. Return ? OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-    return ordinary_set_with_own_descriptor(property_key, value, receiver, own_descriptor, cacheable_metadata);
+    return ordinary_set_with_own_descriptor(property_key, value, receiver, own_descriptor, cacheable_metadata, phase);
 }
 
 // 10.1.9.2 OrdinarySetWithOwnDescriptor ( O, P, V, Receiver, ownDesc ), https://tc39.es/ecma262/#sec-ordinarysetwithowndescriptor
-ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey const& property_key, Value value, Value receiver, Optional<PropertyDescriptor> own_descriptor, CacheablePropertyMetadata* cacheable_metadata)
+ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey const& property_key, Value value, Value receiver, Optional<PropertyDescriptor> own_descriptor, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
 {
     VERIFY(!value.is_special_empty_value());
     VERIFY(!receiver.is_special_empty_value());
@@ -980,7 +996,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
         // b. If parent is not null, then
         if (parent) {
             // i. Return ? parent.[[Set]](P, V, Receiver).
-            return TRY(parent->internal_set(property_key, value, receiver));
+            return TRY(parent->internal_set(property_key, value, receiver, cacheable_metadata, PropertyLookupPhase::PrototypeChain));
         }
         // c. Else,
         else {
@@ -993,6 +1009,27 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
             };
         }
     }
+
+    auto update_inline_cache = [&] {
+        // Non-standard: If the caller has requested cacheable metadata and the property is an own property, fill it in.
+        if (!cacheable_metadata || !own_descriptor->property_offset.has_value() || !shape().is_cacheable())
+            return;
+        if (phase == PropertyLookupPhase::OwnProperty) {
+            *cacheable_metadata = CacheablePropertyMetadata {
+                .type = CacheablePropertyMetadata::Type::OwnProperty,
+                .property_offset = own_descriptor->property_offset.value(),
+                .prototype = nullptr,
+            };
+        } else if (phase == PropertyLookupPhase::PrototypeChain) {
+            VERIFY(shape().is_prototype_shape());
+            VERIFY(shape().prototype_chain_validity()->is_valid());
+            *cacheable_metadata = CacheablePropertyMetadata {
+                .type = CacheablePropertyMetadata::Type::InPrototypeChain,
+                .property_offset = own_descriptor->property_offset.value(),
+                .prototype = this,
+            };
+        }
+    };
 
     // 2. If IsDataDescriptor(ownDesc) is true, then
     if (own_descriptor->is_data_descriptor()) {
@@ -1022,13 +1059,10 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
             // iii. Let valueDesc be the PropertyDescriptor { [[Value]]: V }.
             auto value_descriptor = PropertyDescriptor { .value = value };
 
-            if (cacheable_metadata && own_descriptor.has_value() && own_descriptor->property_offset.has_value() && shape().is_cacheable()) {
-                *cacheable_metadata = CacheablePropertyMetadata {
-                    .type = CacheablePropertyMetadata::Type::OwnProperty,
-                    .property_offset = own_descriptor->property_offset.value(),
-                    .prototype = nullptr,
-                };
-            }
+            // NOTE: We don't cache non-setter properties in the prototype chain, as that's a weird
+            //       use-case, and doesn't seem like something in need of optimization.
+            if (phase == PropertyLookupPhase::OwnProperty)
+                update_inline_cache();
 
             // iv. Return ? Receiver.[[DefineOwnProperty]](P, valueDesc).
             return TRY(receiver_object.internal_define_own_property(property_key, value_descriptor, &existing_descriptor));
@@ -1052,6 +1086,8 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
     // 5. If setter is undefined, return false.
     if (!setter)
         return false;
+
+    update_inline_cache();
 
     // 6. Perform ? Call(setter, Receiver, « V »).
     (void)TRY(call(vm, *setter, receiver, value));
@@ -1095,7 +1131,7 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::internal_own_property_keys() co
     // 2. For each own property key P of O such that P is an array index, in ascending numeric index order, do
     for (auto& entry : m_indexed_properties) {
         // a. Add P as the last element of keys.
-        keys.append(PrimitiveString::create(vm, ByteString::number(entry.index())));
+        keys.append(PrimitiveString::create(vm, String::number(entry.index())));
     }
 
     // 3. For each own property key P of O such that Type(P) is String and P is not an array index, in ascending chronological order of property creation, do
@@ -1163,7 +1199,7 @@ Optional<ValueAndAttributes> Object::storage_get(PropertyKey const& property_key
         value = value_and_attributes->value;
         attributes = value_and_attributes->attributes;
     } else {
-        auto metadata = shape().lookup(property_key.to_string_or_symbol());
+        auto metadata = shape().lookup(property_key);
         if (!metadata.has_value())
             return {};
 
@@ -1184,7 +1220,7 @@ bool Object::storage_has(PropertyKey const& property_key) const
 {
     if (property_key.is_number())
         return m_indexed_properties.has_index(property_key.as_number());
-    return shape().lookup(property_key.to_string_or_symbol()).has_value();
+    return shape().lookup(property_key).has_value();
 }
 
 void Object::storage_set(PropertyKey const& property_key, ValueAndAttributes const& value_and_attributes)
@@ -1202,8 +1238,7 @@ void Object::storage_set(PropertyKey const& property_key, ValueAndAttributes con
             intrinsics->value.remove(property_key.as_string());
     }
 
-    auto property_key_string_or_symbol = property_key.to_string_or_symbol();
-    auto metadata = shape().lookup(property_key_string_or_symbol);
+    auto metadata = shape().lookup(property_key);
 
     if (!metadata.has_value()) {
         static constexpr size_t max_transitions_before_converting_to_dictionary = 64;
@@ -1211,18 +1246,18 @@ void Object::storage_set(PropertyKey const& property_key, ValueAndAttributes con
             set_shape(m_shape->create_cacheable_dictionary_transition());
 
         if (m_shape->is_dictionary())
-            m_shape->add_property_without_transition(property_key_string_or_symbol, attributes);
+            m_shape->add_property_without_transition(property_key, attributes);
         else
-            set_shape(*m_shape->create_put_transition(property_key_string_or_symbol, attributes));
+            set_shape(*m_shape->create_put_transition(property_key, attributes));
         m_storage.append(value);
         return;
     }
 
     if (attributes != metadata->attributes) {
         if (m_shape->is_dictionary())
-            m_shape->set_property_attributes_without_transition(property_key_string_or_symbol, attributes);
+            m_shape->set_property_attributes_without_transition(property_key, attributes);
         else
-            set_shape(*m_shape->create_configure_transition(property_key_string_or_symbol, attributes));
+            set_shape(*m_shape->create_configure_transition(property_key, attributes));
     }
 
     m_storage[metadata->offset] = value;
@@ -1240,18 +1275,18 @@ void Object::storage_delete(PropertyKey const& property_key)
             intrinsics->value.remove(property_key.as_string());
     }
 
-    auto metadata = shape().lookup(property_key.to_string_or_symbol());
+    auto metadata = shape().lookup(property_key);
     VERIFY(metadata.has_value());
 
     if (m_shape->is_cacheable_dictionary()) {
         m_shape = m_shape->create_uncacheable_dictionary_transition();
     }
     if (m_shape->is_uncacheable_dictionary()) {
-        m_shape->remove_property_without_transition(property_key.to_string_or_symbol(), metadata->offset);
+        m_shape->remove_property_without_transition(property_key, metadata->offset);
         m_storage.remove(metadata->offset);
         return;
     }
-    m_shape = m_shape->create_delete_transition(property_key.to_string_or_symbol());
+    m_shape = m_shape->create_delete_transition(property_key);
     m_storage.remove(metadata->offset);
 }
 

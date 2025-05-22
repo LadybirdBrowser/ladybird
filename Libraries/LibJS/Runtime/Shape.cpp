@@ -66,7 +66,7 @@ GC::Ptr<Shape> Shape::get_or_prune_cached_forward_transition(TransitionKey const
     return it->value.ptr();
 }
 
-GC::Ptr<Shape> Shape::get_or_prune_cached_delete_transition(StringOrSymbol const& key)
+GC::Ptr<Shape> Shape::get_or_prune_cached_delete_transition(PropertyKey const& key)
 {
     if (m_is_prototype_shape)
         return nullptr;
@@ -100,7 +100,7 @@ GC::Ptr<Shape> Shape::get_or_prune_cached_prototype_transition(Object* prototype
     return it->value.ptr();
 }
 
-GC::Ref<Shape> Shape::create_put_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
+GC::Ref<Shape> Shape::create_put_transition(PropertyKey const& property_key, PropertyAttributes attributes)
 {
     TransitionKey key { property_key, attributes };
     if (auto existing_shape = get_or_prune_cached_forward_transition(key))
@@ -115,7 +115,7 @@ GC::Ref<Shape> Shape::create_put_transition(StringOrSymbol const& property_key, 
     return new_shape;
 }
 
-GC::Ref<Shape> Shape::create_configure_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
+GC::Ref<Shape> Shape::create_configure_transition(PropertyKey const& property_key, PropertyAttributes attributes)
 {
     TransitionKey key { property_key, attributes };
     if (auto existing_shape = get_or_prune_cached_forward_transition(key))
@@ -151,7 +151,7 @@ Shape::Shape(Realm& realm)
 {
 }
 
-Shape::Shape(Shape& previous_shape, StringOrSymbol const& property_key, PropertyAttributes attributes, TransitionType transition_type)
+Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, PropertyAttributes attributes, TransitionType transition_type)
     : m_realm(previous_shape.m_realm)
     , m_previous(&previous_shape)
     , m_property_key(property_key)
@@ -162,7 +162,7 @@ Shape::Shape(Shape& previous_shape, StringOrSymbol const& property_key, Property
 {
 }
 
-Shape::Shape(Shape& previous_shape, StringOrSymbol const& property_key, TransitionType transition_type)
+Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, TransitionType transition_type)
     : m_realm(previous_shape.m_realm)
     , m_previous(&previous_shape)
     , m_property_key(property_key)
@@ -188,7 +188,8 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_realm);
     visitor.visit(m_prototype);
     visitor.visit(m_previous);
-    m_property_key.visit_edges(visitor);
+    if (m_property_key.has_value())
+        m_property_key->visit_edges(visitor);
 
     // NOTE: We don't need to mark the keys in the property table, since they are guaranteed
     //       to also be marked by the chain of shapes leading up to this one.
@@ -210,7 +211,7 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_prototype_chain_validity);
 }
 
-Optional<PropertyMetadata> Shape::lookup(StringOrSymbol const& property_key) const
+Optional<PropertyMetadata> Shape::lookup(PropertyKey const& property_key) const
 {
     if (m_property_count == 0)
         return {};
@@ -220,7 +221,7 @@ Optional<PropertyMetadata> Shape::lookup(StringOrSymbol const& property_key) con
     return property;
 }
 
-FLATTEN OrderedHashMap<StringOrSymbol, PropertyMetadata> const& Shape::property_table() const
+FLATTEN OrderedHashMap<PropertyKey, PropertyMetadata> const& Shape::property_table() const
 {
     ensure_property_table();
     return *m_property_table;
@@ -230,7 +231,7 @@ void Shape::ensure_property_table() const
 {
     if (m_property_table)
         return;
-    m_property_table = make<OrderedHashMap<StringOrSymbol, PropertyMetadata>>();
+    m_property_table = make<OrderedHashMap<PropertyKey, PropertyMetadata>>();
 
     u32 next_offset = 0;
 
@@ -246,18 +247,18 @@ void Shape::ensure_property_table() const
     }
 
     for (auto const& shape : transition_chain.in_reverse()) {
-        if (!shape.m_property_key.is_valid()) {
+        if (!shape.m_property_key.has_value()) {
             // Ignore prototype transitions as they don't affect the key map.
             continue;
         }
         if (shape.m_transition_type == TransitionType::Put) {
-            m_property_table->set(shape.m_property_key, { next_offset++, shape.m_attributes });
+            m_property_table->set(*shape.m_property_key, { next_offset++, shape.m_attributes });
         } else if (shape.m_transition_type == TransitionType::Configure) {
-            auto it = m_property_table->find(shape.m_property_key);
+            auto it = m_property_table->find(*shape.m_property_key);
             VERIFY(it != m_property_table->end());
             it->value.attributes = shape.m_attributes;
         } else if (shape.m_transition_type == TransitionType::Delete) {
-            auto remove_it = m_property_table->find(shape.m_property_key);
+            auto remove_it = m_property_table->find(*shape.m_property_key);
             VERIFY(remove_it != m_property_table->end());
             auto removed_offset = remove_it->value.offset;
             m_property_table->remove(remove_it);
@@ -270,19 +271,19 @@ void Shape::ensure_property_table() const
     }
 }
 
-GC::Ref<Shape> Shape::create_delete_transition(StringOrSymbol const& property_key)
+GC::Ref<Shape> Shape::create_delete_transition(PropertyKey const& property_key)
 {
     if (auto existing_shape = get_or_prune_cached_delete_transition(property_key))
         return *existing_shape;
     auto new_shape = heap().allocate<Shape>(*this, property_key, TransitionType::Delete);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_delete_transitions)
-        m_delete_transitions = make<HashMap<StringOrSymbol, WeakPtr<Shape>>>();
+        m_delete_transitions = make<HashMap<PropertyKey, WeakPtr<Shape>>>();
     m_delete_transitions->set(property_key, new_shape.ptr());
     return new_shape;
 }
 
-void Shape::add_property_without_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
+void Shape::add_property_without_transition(PropertyKey const& property_key, PropertyAttributes attributes)
 {
     ensure_property_table();
     if (m_property_table->set(property_key, { m_property_count, attributes }) == AK::HashSetResult::InsertedNewEntry) {
@@ -291,12 +292,7 @@ void Shape::add_property_without_transition(StringOrSymbol const& property_key, 
     }
 }
 
-FLATTEN void Shape::add_property_without_transition(PropertyKey const& property_key, PropertyAttributes attributes)
-{
-    add_property_without_transition(property_key.to_string_or_symbol(), attributes);
-}
-
-void Shape::set_property_attributes_without_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
+void Shape::set_property_attributes_without_transition(PropertyKey const& property_key, PropertyAttributes attributes)
 {
     VERIFY(is_dictionary());
     VERIFY(m_property_table);
@@ -306,7 +302,7 @@ void Shape::set_property_attributes_without_transition(StringOrSymbol const& pro
     m_property_table->set(property_key, it->value);
 }
 
-void Shape::remove_property_without_transition(StringOrSymbol const& property_key, u32 offset)
+void Shape::remove_property_without_transition(PropertyKey const& property_key, u32 offset)
 {
     VERIFY(is_uncacheable_dictionary());
     VERIFY(m_property_table);

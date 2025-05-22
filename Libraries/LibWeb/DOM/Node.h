@@ -93,6 +93,7 @@ enum class StyleInvalidationReason {
 #define ENUMERATE_SET_NEEDS_LAYOUT_REASONS(X)         \
     X(CharacterDataReplaceData)                       \
     X(FinalizeACrossDocumentNavigation)               \
+    X(HTMLCanvasElementWidthOrHeightChange)           \
     X(HTMLImageElementReactToChangesInTheEnvironment) \
     X(HTMLImageElementUpdateTheImageData)             \
     X(HTMLVideoElementSetVideoTrack)                  \
@@ -112,7 +113,9 @@ enum class SetNeedsLayoutReason {
 
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(X) \
     X(ElementSetInnerHTML)                                \
+    X(DetailsElementOpenedOrClosed)                       \
     X(HTMLInputElementSrcAttribute)                       \
+    X(HTMLOListElementOrdinalValues)                      \
     X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
     X(KeyframeEffect)                                     \
     X(NodeInsertBefore)                                   \
@@ -560,7 +563,6 @@ public:
     bool is_inert() const;
 
     bool has_inclusive_ancestor_with_display_none();
-    void play_or_cancel_animations_after_display_property_change();
 
 protected:
     Node(JS::Realm&, Document&, NodeType);

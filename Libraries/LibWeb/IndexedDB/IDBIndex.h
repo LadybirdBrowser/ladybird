@@ -29,10 +29,17 @@ public:
     bool multi_entry() const { return m_index->multi_entry(); }
     bool unique() const { return m_index->unique(); }
 
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get(JS::Value);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_key(JS::Value);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_keys(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> count(JS::Value);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_key_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
+
     // The transaction of an index handle is the transaction of its associated object store handle.
     GC::Ref<IDBTransaction> transaction() { return m_object_store_handle->transaction(); }
     GC::Ref<Index> index() { return m_index; }
-    GC::Ref<IDBObjectStore> store() { return m_object_store_handle; }
 
 protected:
     explicit IDBIndex(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);

@@ -574,11 +574,6 @@ void HTMLSelectElement::form_associated_element_was_inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLSelectElement::form_associated_element_was_removed(DOM::Node*)
-{
-    set_shadow_root(nullptr);
-}
-
 void HTMLSelectElement::computed_properties_changed()
 {
     // Hide chevron icon when appearance is none
@@ -714,6 +709,12 @@ bool HTMLSelectElement::will_validate()
 bool HTMLSelectElement::check_validity()
 {
     return check_validity_steps();
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
+bool HTMLSelectElement::report_validity()
+{
+    return report_validity_steps();
 }
 
 bool HTMLSelectElement::is_focusable() const

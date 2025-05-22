@@ -90,7 +90,7 @@ ErrorOr<Vector<Metadata>> parse_metadata(StringView metadata)
         auto algorithm = hash_expr_token_list[0];
 
         // 6. If hash-expr-token-list[1] exists, set base64-value to hash-expr-token-list[1].
-        if (hash_expr_token_list.size() >= 1)
+        if (hash_expr_token_list.size() > 1)
             base64_value = hash_expr_token_list[1];
 
         // 7. If algorithm is not a hash function recognized by the user agent, continue.

@@ -195,14 +195,14 @@ HTML::WindowProxy* NavigableContainer::content_window()
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#shared-attribute-processing-steps-for-iframe-and-frame-elements
-Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_iframe_and_frame(bool initial_insertion)
+Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_iframe_and_frame(InitialInsertion initial_insertion)
 {
     // AD-HOC: If the element was added and immediately removed, the content navigable will be null. Don't process the
     //         src attribute any further.
     if (!m_content_navigable)
         return {};
 
-    if (initial_insertion && m_content_navigable->has_pending_navigations()) {
+    if (initial_insertion == InitialInsertion::Yes && m_content_navigable->has_pending_navigations()) {
         return {};
     }
 
@@ -228,7 +228,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     }
 
     // 4. If url matches about:blank and initialInsertion is true, then perform the URL and history update steps given element's content navigable's active document and url.
-    if (url_matches_about_blank(url) && initial_insertion) {
+    if (url_matches_about_blank(url) && initial_insertion == InitialInsertion::Yes) {
         auto& document = *m_content_navigable->active_document();
         perform_url_and_history_update_steps(document, url);
     }
@@ -238,7 +238,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#navigate-an-iframe-or-frame
-void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<String> srcdoc_string)
+void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<String> srcdoc_string, InitialInsertion initial_insertion)
 {
     // 1. Let historyHandling be "auto".
     auto history_handling = Bindings::NavigationHistoryBehavior::Auto;
@@ -252,7 +252,8 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     //           time given element's node document's relevant global object.
 
     // 4. Navigate element's content navigable to url using element's node document, with historyHandling set to historyHandling,
-    //    referrerPolicy set to referrerPolicy, and documentResource set to scrdocString.
+    //    referrerPolicy set to referrerPolicy, documentResource set to srcdocString, and initialInsertion set to
+    //    initialInsertion.
     Variant<Empty, String, POSTResource> document_resource = Empty {};
     if (srcdoc_string.has_value())
         document_resource = srcdoc_string.value();
@@ -263,6 +264,7 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
         .document_resource = document_resource,
         .history_handling = history_handling,
         .referrer_policy = referrer_policy,
+        .initial_insertion = initial_insertion,
     }));
 }
 
