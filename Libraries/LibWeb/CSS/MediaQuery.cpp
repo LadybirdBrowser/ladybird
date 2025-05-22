@@ -305,8 +305,8 @@ bool MediaQuery::evaluate(HTML::Window const& window)
 
     MatchResult result = matches_media(m_media_type);
 
-    if ((result == MatchResult::True) && m_media_condition)
-        result = m_media_condition->evaluate(&window);
+    if ((result != MatchResult::False) && m_media_condition)
+        result = result && m_media_condition->evaluate(&window);
 
     if (m_negated)
         result = negate(result);
