@@ -1,6 +1,6 @@
 # Disable flake linting for this file since it flags "config" as a non-existent variable
 # flake8: noqa
- 
+
 import os
 import lit.formats
 import lit.util

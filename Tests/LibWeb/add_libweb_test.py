@@ -54,7 +54,7 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
 """
 
         if test_type == "Text":
-            input_boilerplate = fR"""<!DOCTYPE html>
+            input_boilerplate = Rf"""<!DOCTYPE html>
 <script src="{path_to_include_js}"></script>
 <script>
     {f"asyncTest(async (done)" if is_async else "test(()"} => {{
@@ -66,7 +66,7 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
             expected_boilerplate = "Expected println() output\n"
 
         elif test_type == "Ref":
-            input_boilerplate = fR"""<!DOCTYPE html>
+            input_boilerplate = Rf"""<!DOCTYPE html>
 <head>
      <link rel="match" href="{"../" * num_sub_levels}../expected/{Path(test_name).with_suffix("")}-ref.html" />
 <style>

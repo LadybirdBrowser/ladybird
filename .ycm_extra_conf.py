@@ -35,14 +35,14 @@ import os
 import ycm_core
 
 DIR_OF_THIS_SCRIPT = os.path.abspath(os.path.dirname(__file__))
-SOURCE_EXTENSIONS = ['.cpp', '.c']
+SOURCE_EXTENSIONS = [".cpp", ".c"]
 
-database = ycm_core.CompilationDatabase(os.path.join(DIR_OF_THIS_SCRIPT, 'Build/ladybird'))
+database = ycm_core.CompilationDatabase(os.path.join(DIR_OF_THIS_SCRIPT, "Build/ladybird"))
 
 
 def is_header_file(filename):
     extension = os.path.splitext(filename)[1]
-    return extension in ['.h', '.hxx', '.hpp', '.hh']
+    return extension in [".h", ".hxx", ".hpp", ".hh"]
 
 
 def find_corresponding_source_file(filename):
@@ -56,7 +56,7 @@ def find_corresponding_source_file(filename):
 
 
 def Settings(**kwargs):  # noqa: N802
-    if kwargs['language'] != 'cfamily':
+    if kwargs["language"] != "cfamily":
         return {}
     # If the file is a header, try to find the corresponding source file and
     # retrieve its flags from the compilation database if using one. This is
@@ -64,14 +64,14 @@ def Settings(**kwargs):  # noqa: N802
     # In addition, use this source file as the translation unit. This makes it
     # possible to jump from a declaration in the header file to its definition
     # in the corresponding source file.
-    filename = find_corresponding_source_file(kwargs['filename'])
+    filename = find_corresponding_source_file(kwargs["filename"])
 
     compilation_info = database.GetCompilationInfoForFile(filename)
     if not compilation_info.compiler_flags_:
         return {}
 
     return {
-        'flags': list(compilation_info.compiler_flags_),
-        'include_paths_relative_to_dir': DIR_OF_THIS_SCRIPT,
-        'override_filename': filename
+        "flags": list(compilation_info.compiler_flags_),
+        "include_paths_relative_to_dir": DIR_OF_THIS_SCRIPT,
+        "override_filename": filename,
     }

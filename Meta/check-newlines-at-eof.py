@@ -6,22 +6,22 @@ import subprocess
 import sys
 
 
-RE_RELEVANT_FILE_EXTENSION = re.compile('\\.(cpp|h|mm|swift|gml|html|js|css|sh|py|json|txt|cmake|gn|gni)$')
+RE_RELEVANT_FILE_EXTENSION = re.compile("\\.(cpp|h|mm|swift|gml|html|js|css|sh|py|json|txt|cmake|gn|gni)$")
 
 
 def should_check_file(filename):
     if not RE_RELEVANT_FILE_EXTENSION.search(filename):
         return False
-    if filename.startswith('Tests/LibWeb/Layout/'):
+    if filename.startswith("Tests/LibWeb/Layout/"):
         return False
-    if filename.startswith('Tests/LibWeb/Ref/'):
+    if filename.startswith("Tests/LibWeb/Ref/"):
         return False
-    if filename.startswith('Tests/LibWeb/Text/'):
+    if filename.startswith("Tests/LibWeb/Text/"):
         return False
-    if filename.startswith('Meta/CMake/vcpkg/overlay-ports/'):
+    if filename.startswith("Meta/CMake/vcpkg/overlay-ports/"):
         return False
-    if filename.endswith('.txt'):
-        return 'CMake' in filename
+    if filename.endswith(".txt"):
+        return "CMake" in filename
     return True
 
 
@@ -30,7 +30,7 @@ def find_files_here_or_argv():
         raw_list = sys.argv[1:]
     else:
         process = subprocess.run(["git", "ls-files"], check=True, capture_output=True)
-        raw_list = process.stdout.decode().strip('\n').split('\n')
+        raw_list = process.stdout.decode().strip("\n").split("\n")
 
     return filter(should_check_file, raw_list)
 
@@ -46,7 +46,7 @@ def run():
             f.seek(0, os.SEEK_END)
 
             f.seek(f.tell() - 1, os.SEEK_SET)
-            if f.read(1) != '\n':
+            if f.read(1) != "\n":
                 did_fail = True
                 no_newline_at_eof_errors.append(filename)
                 continue
@@ -56,7 +56,7 @@ def run():
                 char = f.read(1)
                 if not char.isspace():
                     break
-                if char == '\n':
+                if char == "\n":
                     did_fail = True
                     blank_lines_at_eof_errors.append(filename)
                     break
@@ -70,6 +70,6 @@ def run():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__) + "/..")
     run()

@@ -26,11 +26,11 @@ def extract_member(file, destination, path):
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     if isinstance(file, tarfile.TarFile):
         with file.extractfile(path) as member:
-            destination_path.write_text(member.read().decode('utf-8'))
+            destination_path.write_text(member.read().decode("utf-8"))
     else:
         assert isinstance(file, zipfile.ZipFile)
         with file.open(path) as member:
-            destination_path.write_text(member.read().decode('utf-8'))
+            destination_path.write_text(member.read().decode("utf-8"))
 
 
 def extract_directory(file, destination, path):
@@ -55,15 +55,11 @@ def extract_directory(file, destination, path):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-                 epilog=__doc__,
-                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('archive', help='input archive')
-    parser.add_argument('paths', nargs='*', help='paths to extract from the archive')
-    parser.add_argument('-s', "--stamp", required=False,
-                        help='stamp file name to create after operation is done')
-    parser.add_argument('-d', "--destination", required=True,
-                        help='directory to write the extracted file to')
+    parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("archive", help="input archive")
+    parser.add_argument("paths", nargs="*", help="paths to extract from the archive")
+    parser.add_argument("-s", "--stamp", required=False, help="stamp file name to create after operation is done")
+    parser.add_argument("-d", "--destination", required=True, help="directory to write the extracted file to")
     args = parser.parse_args()
 
     archive = pathlib.Path(args.archive)
@@ -71,7 +67,7 @@ def main():
 
     def extract_paths(file, paths):
         for path in paths:
-            if path.endswith('/'):
+            if path.endswith("/"):
                 extract_directory(file, destination, path)
             else:
                 extract_member(file, destination, path)
@@ -92,5 +88,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
