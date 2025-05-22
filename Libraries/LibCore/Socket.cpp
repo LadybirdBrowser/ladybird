@@ -10,7 +10,8 @@
 
 namespace Core {
 
-static constexpr size_t MAX_LOCAL_SOCKET_TRANSFER_FDS = 64;
+// FIXME: This limit has been chosen arbitrarily to avoid WPT test flakiness.
+static constexpr size_t MAX_LOCAL_SOCKET_TRANSFER_FDS = 640;
 
 ErrorOr<int> Socket::create_fd(SocketDomain domain, SocketType type)
 {
