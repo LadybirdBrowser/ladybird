@@ -6,7 +6,6 @@ import multiprocessing
 import os
 import platform
 import re
-import resource
 import shutil
 import subprocess
 import sys
@@ -271,6 +270,11 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
 
 
 def configure_skia_jemalloc() -> list[str]:
+    # NOTE: The resource module is only available on Unix, see the "Availability" section at
+    # https://docs.python.org/3/library/resource.html. Given Windows never calls this function, we import locally
+    # instead.
+    import resource
+
     page_size = resource.getpagesize()
     gn = shutil.which("gn") or None
 
