@@ -482,17 +482,6 @@ struct Formatter<char*> : Formatter<char const*> {
 template<size_t Size>
 struct Formatter<char[Size]> : Formatter<char const*> {
 };
-template<size_t Size>
-struct Formatter<unsigned char[Size]> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, unsigned char const* value)
-    {
-        if (m_mode == Mode::Pointer) {
-            Formatter<FlatPtr> formatter { *this };
-            return formatter.format(builder, reinterpret_cast<FlatPtr>(value));
-        }
-        return Formatter<StringView>::format(builder, { value, Size });
-    }
-};
 template<>
 struct Formatter<ByteString> : Formatter<StringView> {
 };
