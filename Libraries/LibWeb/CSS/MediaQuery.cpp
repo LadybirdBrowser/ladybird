@@ -123,22 +123,22 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
         return MatchResult::False;
 
     case Type::ExactValue:
-        return as_match_result(compare(*window, value(), Comparison::Equal, queried_value));
+        return compare(*window, value(), Comparison::Equal, queried_value);
 
     case Type::MinValue:
-        return as_match_result(compare(*window, queried_value, Comparison::GreaterThanOrEqual, value()));
+        return compare(*window, queried_value, Comparison::GreaterThanOrEqual, value());
 
     case Type::MaxValue:
-        return as_match_result(compare(*window, queried_value, Comparison::LessThanOrEqual, value()));
+        return compare(*window, queried_value, Comparison::LessThanOrEqual, value());
 
     case Type::Range: {
-        auto& range = this->range();
-        if (!compare(*window, range.left_value, range.left_comparison, queried_value))
-            return MatchResult::False;
+        auto const& range = this->range();
+        if (auto const left_result = compare(*window, range.left_value, range.left_comparison, queried_value); left_result != MatchResult::True)
+            return left_result;
 
         if (range.right_comparison.has_value())
-            if (!compare(*window, queried_value, *range.right_comparison, *range.right_value))
-                return MatchResult::False;
+            if (auto const right_result = compare(*window, queried_value, *range.right_comparison, *range.right_value); right_result != MatchResult::True)
+                return right_result;
 
         return MatchResult::True;
     }
@@ -147,15 +147,15 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
     VERIFY_NOT_REACHED();
 }
 
-bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right)
+MatchResult MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right)
 {
     if (!left.is_same_type(right))
-        return false;
+        return MatchResult::False;
 
     if (left.is_ident()) {
         if (comparison == Comparison::Equal)
-            return left.ident() == right.ident();
-        return false;
+            return as_match_result(left.ident() == right.ident());
+        return MatchResult::False;
     }
 
     CalculationResolutionContext calculation_context {
@@ -165,15 +165,15 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& 
     if (left.is_integer()) {
         switch (comparison) {
         case Comparison::Equal:
-            return left.integer().resolved(calculation_context).value_or(0) == right.integer().resolved(calculation_context).value_or(0);
+            return as_match_result(left.integer().resolved(calculation_context).value_or(0) == right.integer().resolved(calculation_context).value_or(0));
         case Comparison::LessThan:
-            return left.integer().resolved(calculation_context).value_or(0) < right.integer().resolved(calculation_context).value_or(0);
+            return as_match_result(left.integer().resolved(calculation_context).value_or(0) < right.integer().resolved(calculation_context).value_or(0));
         case Comparison::LessThanOrEqual:
-            return left.integer().resolved(calculation_context).value_or(0) <= right.integer().resolved(calculation_context).value_or(0);
+            return as_match_result(left.integer().resolved(calculation_context).value_or(0) <= right.integer().resolved(calculation_context).value_or(0));
         case Comparison::GreaterThan:
-            return left.integer().resolved(calculation_context).value_or(0) > right.integer().resolved(calculation_context).value_or(0);
+            return as_match_result(left.integer().resolved(calculation_context).value_or(0) > right.integer().resolved(calculation_context).value_or(0));
         case Comparison::GreaterThanOrEqual:
-            return left.integer().resolved(calculation_context).value_or(0) >= right.integer().resolved(calculation_context).value_or(0);
+            return as_match_result(left.integer().resolved(calculation_context).value_or(0) >= right.integer().resolved(calculation_context).value_or(0));
         }
         VERIFY_NOT_REACHED();
     }
@@ -200,15 +200,15 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& 
 
         switch (comparison) {
         case Comparison::Equal:
-            return left_px == right_px;
+            return as_match_result(left_px == right_px);
         case Comparison::LessThan:
-            return left_px < right_px;
+            return as_match_result(left_px < right_px);
         case Comparison::LessThanOrEqual:
-            return left_px <= right_px;
+            return as_match_result(left_px <= right_px);
         case Comparison::GreaterThan:
-            return left_px > right_px;
+            return as_match_result(left_px > right_px);
         case Comparison::GreaterThanOrEqual:
-            return left_px >= right_px;
+            return as_match_result(left_px >= right_px);
         }
 
         VERIFY_NOT_REACHED();
@@ -220,15 +220,15 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& 
 
         switch (comparison) {
         case Comparison::Equal:
-            return left_decimal == right_decimal;
+            return as_match_result(left_decimal == right_decimal);
         case Comparison::LessThan:
-            return left_decimal < right_decimal;
+            return as_match_result(left_decimal < right_decimal);
         case Comparison::LessThanOrEqual:
-            return left_decimal <= right_decimal;
+            return as_match_result(left_decimal <= right_decimal);
         case Comparison::GreaterThan:
-            return left_decimal > right_decimal;
+            return as_match_result(left_decimal > right_decimal);
         case Comparison::GreaterThanOrEqual:
-            return left_decimal >= right_decimal;
+            return as_match_result(left_decimal >= right_decimal);
         }
         VERIFY_NOT_REACHED();
     }
@@ -239,15 +239,15 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& 
 
         switch (comparison) {
         case Comparison::Equal:
-            return left_dppx == right_dppx;
+            return as_match_result(left_dppx == right_dppx);
         case Comparison::LessThan:
-            return left_dppx < right_dppx;
+            return as_match_result(left_dppx < right_dppx);
         case Comparison::LessThanOrEqual:
-            return left_dppx <= right_dppx;
+            return as_match_result(left_dppx <= right_dppx);
         case Comparison::GreaterThan:
-            return left_dppx > right_dppx;
+            return as_match_result(left_dppx > right_dppx);
         case Comparison::GreaterThanOrEqual:
-            return left_dppx >= right_dppx;
+            return as_match_result(left_dppx >= right_dppx);
         }
         VERIFY_NOT_REACHED();
     }

@@ -174,7 +174,7 @@ private:
     {
     }
 
-    static bool compare(HTML::Window const& window, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right);
+    static MatchResult compare(HTML::Window const& window, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right);
     MediaFeatureValue const& value() const { return m_value.get<MediaFeatureValue>(); }
     Range const& range() const { return m_value.get<Range>(); }
 
