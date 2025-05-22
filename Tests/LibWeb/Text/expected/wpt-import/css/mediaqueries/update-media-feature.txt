@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 14 tests
 
-11 Pass
-3 Fail
+14 Pass
 Pass	Should be known: '(update)'
 Pass	Should be known: '(update: none)'
 Pass	Should be known: '(update: slow)'
 Pass	Should be known: '(update: fast)'
-Fail	Should be parseable: '(update: ?)'
+Pass	Should be parseable: '(update: ?)'
 Pass	Should be unknown: '(update: ?)'
-Fail	Should be parseable: '(update: 10px)'
+Pass	Should be parseable: '(update: 10px)'
 Pass	Should be unknown: '(update: 10px)'
-Fail	Should be parseable: '(update: 0)'
+Pass	Should be parseable: '(update: 0)'
 Pass	Should be unknown: '(update: 0)'
 Pass	Check that update: fast always matches fast displays
 Pass	Check that update: slow doesn't match fast displays

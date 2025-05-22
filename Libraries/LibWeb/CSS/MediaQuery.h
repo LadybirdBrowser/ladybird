@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
+#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Ratio.h>
 
 namespace Web::CSS {
@@ -51,6 +52,11 @@ public:
     {
     }
 
+    explicit MediaFeatureValue(Vector<Parser::ComponentValue> unknown_tokens)
+        : m_value(move(unknown_tokens))
+    {
+    }
+
     String to_string() const;
 
     bool is_ident() const { return m_value.has<Keyword>(); }
@@ -58,6 +64,7 @@ public:
     bool is_integer() const { return m_value.has<IntegerOrCalculated>(); }
     bool is_ratio() const { return m_value.has<Ratio>(); }
     bool is_resolution() const { return m_value.has<ResolutionOrCalculated>(); }
+    bool is_unknown() const { return m_value.has<Vector<Parser::ComponentValue>>(); }
     bool is_same_type(MediaFeatureValue const& other) const;
 
     Keyword const& ident() const
@@ -91,7 +98,7 @@ public:
     }
 
 private:
-    Variant<Keyword, LengthOrCalculated, Ratio, ResolutionOrCalculated, IntegerOrCalculated> m_value;
+    Variant<Keyword, LengthOrCalculated, Ratio, ResolutionOrCalculated, IntegerOrCalculated, Vector<Parser::ComponentValue>> m_value;
 };
 
 // https://www.w3.org/TR/mediaqueries-4/#mq-features

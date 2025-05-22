@@ -2,20 +2,19 @@ Harness status: OK
 
 Found 15 tests
 
-10 Pass
-5 Fail
+15 Pass
 Pass	Should be known: '(inverted-colors)'
 Pass	Should be known: '(inverted-colors: none)'
 Pass	Should be known: '(inverted-colors: inverted)'
-Fail	Should be parseable: '(inverted-colors: 0)'
+Pass	Should be parseable: '(inverted-colors: 0)'
 Pass	Should be unknown: '(inverted-colors: 0)'
-Fail	Should be parseable: '(inverted-colors: no-preference)'
+Pass	Should be parseable: '(inverted-colors: no-preference)'
 Pass	Should be unknown: '(inverted-colors: no-preference)'
-Fail	Should be parseable: '(inverted-colors: 10px)'
+Pass	Should be parseable: '(inverted-colors: 10px)'
 Pass	Should be unknown: '(inverted-colors: 10px)'
-Fail	Should be parseable: '(inverted-colors: none inverted)'
+Pass	Should be parseable: '(inverted-colors: none inverted)'
 Pass	Should be unknown: '(inverted-colors: none inverted)'
-Fail	Should be parseable: '(inverted-colors: none/inverted)'
+Pass	Should be parseable: '(inverted-colors: none/inverted)'
 Pass	Should be unknown: '(inverted-colors: none/inverted)'
 Pass	Check that none evaluates to false in the boolean context
 Pass	Check that invalid evaluates to false
