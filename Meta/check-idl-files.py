@@ -16,16 +16,16 @@ lines_to_skip = re.compile(
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--overwrite-inplace", action=argparse.BooleanOptionalAction)
-parser.add_argument('filenames', nargs='*')
+parser.add_argument("filenames", nargs="*")
 args = parser.parse_args()
 
-SINGLE_PAGE_HTML_SPEC_LINK = re.compile('//.*https://html\\.spec\\.whatwg\\.org/#')
+SINGLE_PAGE_HTML_SPEC_LINK = re.compile("//.*https://html\\.spec\\.whatwg\\.org/#")
 
 
 def should_check_file(filename):
     if not filename.endswith(".idl"):
         return False
-    if filename.startswith('Tests/LibWeb/'):
+    if filename.startswith("Tests/LibWeb/"):
         return False
     return True
 
@@ -62,23 +62,24 @@ def run():
                         continue
                     did_fail = True
                     files_without_four_leading_spaces.add(filename)
-                    print(
-                        f"{filename}:{line_number} error: Line does not start with four spaces:{line.rstrip()}")
+                    print(f"{filename}:{line_number} error: Line does not start with four spaces:{line.rstrip()}")
                 lines.append(line)
         if args.overwrite_inplace:
             with open(filename, "w") as f:
                 f.writelines(lines)
 
     if files_without_four_leading_spaces:
-        print("\nWebIDL files that have lines without four leading spaces:",
-              " ".join(files_without_four_leading_spaces))
+        print(
+            "\nWebIDL files that have lines without four leading spaces:", " ".join(files_without_four_leading_spaces)
+        )
         if not args.overwrite_inplace:
-            print(
-                f"\nTo fix the WebIDL files in place, run: ./Meta/{script_name} --overwrite-inplace")
+            print(f"\nTo fix the WebIDL files in place, run: ./Meta/{script_name} --overwrite-inplace")
 
     if files_with_single_page_html_spec_link:
-        print("\nWebIDL files that have links to the single-page HTML spec:",
-              " ".join(files_with_single_page_html_spec_link))
+        print(
+            "\nWebIDL files that have links to the single-page HTML spec:",
+            " ".join(files_with_single_page_html_spec_link),
+        )
 
     if did_fail:
         sys.exit(1)

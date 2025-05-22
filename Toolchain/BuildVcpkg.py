@@ -23,8 +23,9 @@ def main() -> int:
     if not vcpkg_checkout.is_dir():
         subprocess.check_call(args=["git", "clone", git_repo], cwd=build_dir)
     else:
-        bootstrapped_vcpkg_version = subprocess.check_output(
-            ["git", "-C", vcpkg_checkout, "rev-parse", "HEAD"]).strip().decode()
+        bootstrapped_vcpkg_version = (
+            subprocess.check_output(["git", "-C", vcpkg_checkout, "rev-parse", "HEAD"]).strip().decode()
+        )
 
         if bootstrapped_vcpkg_version == git_rev:
             return 0
@@ -34,7 +35,7 @@ def main() -> int:
     subprocess.check_call(args=["git", "fetch", "origin"], cwd=vcpkg_checkout)
     subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
 
-    bootstrap_script = "bootstrap-vcpkg.bat" if os.name == 'nt' else "bootstrap-vcpkg.sh"
+    bootstrap_script = "bootstrap-vcpkg.bat" if os.name == "nt" else "bootstrap-vcpkg.sh"
     subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
 
     return 0

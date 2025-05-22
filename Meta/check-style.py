@@ -14,23 +14,24 @@ import sys
 #  * SPDX-License-Identifier: BSD-2-Clause
 #  */
 GOOD_LICENSE_HEADER_PATTERN = re.compile(
-    '^/\\*\n' +
-    '( \\* Copyright \\(c\\) [0-9]{4}(-[0-9]{4})?, .*\n)+' +
-    ' \\*\n' +
-    ' \\* SPDX-License-Identifier: BSD-2-Clause\n' +
-    ' \\*/\n' +
-    '\n')
+    "^/\\*\n"
+    + "( \\* Copyright \\(c\\) [0-9]{4}(-[0-9]{4})?, .*\n)+"
+    + " \\*\n"
+    + " \\* SPDX-License-Identifier: BSD-2-Clause\n"
+    + " \\*/\n"
+    + "\n"
+)
 LICENSE_HEADER_CHECK_EXCLUDES = {
-    'AK/Checked.h',
-    'AK/Function.h',
-    'Libraries/LibCore/SocketpairWindows.cpp',
+    "AK/Checked.h",
+    "AK/Function.h",
+    "Libraries/LibCore/SocketpairWindows.cpp",
 }
 
 # We check that "#pragma once" is present
-PRAGMA_ONCE_STRING = '#pragma once'
+PRAGMA_ONCE_STRING = "#pragma once"
 
 # We make sure that there's a blank line before and after pragma once
-GOOD_PRAGMA_ONCE_PATTERN = re.compile('(^|\\S\n\n)#pragma once(\n\n\\S.|$)')
+GOOD_PRAGMA_ONCE_PATTERN = re.compile("(^|\\S\n\n)#pragma once(\n\n\\S.|$)")
 
 # LibC is supposed to be a system library; don't mention the directory.
 BAD_INCLUDE_LIBC = re.compile("# *include <LibC/")
@@ -43,28 +44,26 @@ ANY_INCLUDE_PATTERN = re.compile('^ *# *include\\b.*[>"](?!\\)).*$', re.M)
 SYSTEM_INCLUDE_PATTERN = re.compile("^ *# *include *<([^>]+)>(?: /[*/].*)?$")
 LOCAL_INCLUDE_PATTERN = re.compile('^ *# *include *"([^>]+)"(?: /[*/].*)?$')
 
-INCLUDE_CHECK_EXCLUDES = {
-}
+INCLUDE_CHECK_EXCLUDES = {}
 
-LOCAL_INCLUDE_ROOT_OVERRIDES = {
-}
+LOCAL_INCLUDE_ROOT_OVERRIDES = {}
 
 LOCAL_INCLUDE_SUFFIX_EXCLUDES = [
     # Some Qt files are required to include their .moc files, which will be located in a deep
     # subdirectory that we won't find from here.
-    '.moc',
+    ".moc",
 ]
 
 # We check for and disallow any comments linking to the single-page HTML spec because it takes a long time to load.
-SINGLE_PAGE_HTML_SPEC_LINK = re.compile('//.*https://html\\.spec\\.whatwg\\.org/#')
+SINGLE_PAGE_HTML_SPEC_LINK = re.compile("//.*https://html\\.spec\\.whatwg\\.org/#")
 
 
 def should_check_file(filename):
-    if not filename.endswith('.cpp') and not filename.endswith('.h'):
+    if not filename.endswith(".cpp") and not filename.endswith(".h"):
         return False
-    if filename.startswith('Base/'):
+    if filename.startswith("Base/"):
         return False
-    if filename.startswith('Meta/CMake/vcpkg/overlay-ports/'):
+    if filename.startswith("Meta/CMake/vcpkg/overlay-ports/"):
         return False
     return True
 
@@ -74,15 +73,13 @@ def find_files_here_or_argv():
         raw_list = sys.argv[1:]
     else:
         process = subprocess.run(["git", "ls-files"], check=True, capture_output=True)
-        raw_list = process.stdout.decode().strip('\n').split('\n')
+        raw_list = process.stdout.decode().strip("\n").split("\n")
 
     return filter(should_check_file, raw_list)
 
 
 def is_in_prefix_list(filename, prefix_list):
-    return any(
-        filename.startswith(prefix) for prefix in prefix_list
-    )
+    return any(filename.startswith(prefix) for prefix in prefix_list)
 
 
 def find_matching_prefix(filename, prefix_list):
@@ -102,12 +99,12 @@ def run():
     errors_single_page_html_spec = []
 
     for filename in find_files_here_or_argv():
-        with open(filename, mode="r", encoding='utf-8') as f:
+        with open(filename, mode="r", encoding="utf-8") as f:
             file_content = f.read()
         if not is_in_prefix_list(filename, LICENSE_HEADER_CHECK_EXCLUDES):
             if not GOOD_LICENSE_HEADER_PATTERN.search(file_content):
                 errors_license.append(filename)
-        if filename.endswith('.h'):
+        if filename.endswith(".h"):
             if GOOD_PRAGMA_ONCE_PATTERN.search(file_content):
                 # Excellent, the formatting is correct.
                 pass
@@ -180,21 +177,18 @@ def run():
         have_errors = True
     if errors_include_bad_complex:
         print(
-             "Files that include a non-AK complex header:",
-             " ".join(errors_include_bad_complex),
+            "Files that include a non-AK complex header:",
+            " ".join(errors_include_bad_complex),
         )
         have_errors = True
     if errors_single_page_html_spec:
-        print(
-            "Files with links to the single-page HTML spec:",
-            " ".join(errors_single_page_html_spec)
-        )
+        print("Files with links to the single-page HTML spec:", " ".join(errors_single_page_html_spec))
         have_errors = True
 
     if have_errors:
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__) + "/..")
     run()

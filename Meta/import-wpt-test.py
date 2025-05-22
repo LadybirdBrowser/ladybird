@@ -11,13 +11,13 @@ import re
 import os
 import sys
 
-wpt_base_url = 'https://wpt.live/'
+wpt_base_url = "https://wpt.live/"
 
 
 class TestType(Enum):
-    TEXT = 1, 'Tests/LibWeb/Text/input/wpt-import', 'Tests/LibWeb/Text/expected/wpt-import'
-    REF = 2, 'Tests/LibWeb/Ref/input/wpt-import', 'Tests/LibWeb/Ref/expected/wpt-import'
-    CRASH = 3, 'Tests/LibWeb/Crash/wpt-import', ''
+    TEXT = 1, "Tests/LibWeb/Text/input/wpt-import", "Tests/LibWeb/Text/expected/wpt-import"
+    REF = 2, "Tests/LibWeb/Ref/input/wpt-import", "Tests/LibWeb/Ref/expected/wpt-import"
+    CRASH = 3, "Tests/LibWeb/Crash/wpt-import", ""
 
     def __new__(cls, *args, **kwds):
         obj = object.__new__(cls)
@@ -29,7 +29,7 @@ class TestType(Enum):
         self.expected_path = expected_path
 
 
-PathMapping = namedtuple('PathMapping', ['source', 'destination'])
+PathMapping = namedtuple("PathMapping", ["source", "destination"])
 
 
 class ResourceType(Enum):
@@ -115,8 +115,8 @@ def map_to_path(sources: list[ResourceAndType], is_resource=True, resource_path=
     for source in sources:
         base_directory = test_type.input_path if source.type == ResourceType.INPUT else test_type.expected_path
 
-        if source.resource.startswith('/') or not is_resource:
-            file_path = Path(base_directory, source.resource.lstrip('/'))
+        if source.resource.startswith("/") or not is_resource:
+            file_path = Path(base_directory, source.resource.lstrip("/"))
         else:
             # Add it as a sibling path if it's a relative resource
             sibling_location = Path(resource_path).parent
@@ -124,7 +124,7 @@ def map_to_path(sources: list[ResourceAndType], is_resource=True, resource_path=
 
             file_path = Path(parent_directory, source.resource)
         # Map to source and destination
-        output_path = wpt_base_url + str(file_path).replace(base_directory, '')
+        output_path = wpt_base_url + str(file_path).replace(base_directory, "")
 
         filepaths.append(PathMapping(output_path, file_path.absolute()))
 
@@ -136,12 +136,12 @@ def is_crash_test(url_string):
     # A test file is treated as a crash test if they have -crash in their name before the file extension, or they are
     # located in a folder named crashtests
     parsed_url = urlparse(url_string)
-    path_segments = parsed_url.path.strip('/').split('/')
+    path_segments = parsed_url.path.strip("/").split("/")
     if len(path_segments) > 1 and "crashtests" in path_segments[::-1]:
         return True
     file_name = path_segments[-1]
-    file_name_parts = file_name.split('.')
-    if len(file_name_parts) > 1 and any([part.endswith('-crash') for part in file_name_parts[:-1]]):
+    file_name_parts = file_name.split(".")
+    if len(file_name_parts) > 1 and any([part.endswith("-crash") for part in file_name_parts[:-1]]):
         return True
     return False
 
@@ -152,28 +152,28 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
         folder_index = str(file).find(test_type.input_path)
         if folder_index == -1:
             folder_index = str(file).find(test_type.expected_path)
-            non_prefixed_path = str(file)[folder_index + len(test_type.expected_path):]
+            non_prefixed_path = str(file)[folder_index + len(test_type.expected_path) :]
         else:
-            non_prefixed_path = str(file)[folder_index + len(test_type.input_path):]
+            non_prefixed_path = str(file)[folder_index + len(test_type.input_path) :]
 
         parent_folder_count = len(Path(non_prefixed_path).parent.parts) - 1
-        parent_folder_path = '../' * parent_folder_count
+        parent_folder_path = "../" * parent_folder_count
 
-        with open(file, 'r') as f:
+        with open(file, "r") as f:
             page_source = f.read()
 
         # Iterate all scripts and overwrite the src attribute
         for i, resource in enumerate(map(lambda r: r.resource, resources)):
-            if resource.startswith('/'):
+            if resource.startswith("/"):
                 new_src_value = parent_folder_path + resource[1::]
                 page_source = page_source.replace(resource, new_src_value)
 
         # Look for mentions of the reference page, and update their href
         if raw_reference_path is not None:
-            new_reference_path = parent_folder_path + '../../expected/wpt-import/' + reference_path[::]
+            new_reference_path = parent_folder_path + "../../expected/wpt-import/" + reference_path[::]
             page_source = page_source.replace(raw_reference_path, new_reference_path)
 
-        with open(file, 'w') as f:
+        with open(file, "w") as f:
             f.write(str(page_source))
 
 
@@ -181,7 +181,7 @@ def download_files(filepaths):
     downloaded_files = []
 
     for file in filepaths:
-        source = urljoin(file.source, "/".join(file.source.split('/')[3:]))
+        source = urljoin(file.source, "/".join(file.source.split("/")[3:]))
         destination = Path(os.path.normpath(file.destination))
 
         if destination.exists():
@@ -197,7 +197,7 @@ def download_files(filepaths):
 
         os.makedirs(destination.parent, exist_ok=True)
 
-        with open(destination, 'wb') as f:
+        with open(destination, "wb") as f:
             f.write(connection.read())
 
             downloaded_files.append(destination)
@@ -212,7 +212,7 @@ def create_expectation_files(files):
 
     for file in files:
         new_path = str(file.destination).replace(test_type.input_path, test_type.expected_path)
-        new_path = new_path.rsplit(".", 1)[0] + '.txt'
+        new_path = new_path.rsplit(".", 1)[0] + ".txt"
 
         expected_file = Path(new_path)
         if expected_file.exists():
@@ -229,7 +229,7 @@ def main():
         return
 
     url_to_import = sys.argv[1]
-    resource_path = '/'.join(Path(url_to_import).parts[2::])
+    resource_path = "/".join(Path(url_to_import).parts[2::])
 
     with urlopen(url_to_import) as response:
         page = response.read().decode("utf-8")
@@ -249,21 +249,23 @@ def main():
     main_paths = map_to_path(main_file, False)
 
     if test_type == TestType.REF and raw_reference_path is None:
-        raise RuntimeError('Failed to file reference path in ref test')
+        raise RuntimeError("Failed to file reference path in ref test")
 
     if raw_reference_path is not None:
-        if raw_reference_path.startswith('/'):
+        if raw_reference_path.startswith("/"):
             reference_path = raw_reference_path
-            main_paths.append(PathMapping(
-                wpt_base_url + raw_reference_path,
-                Path(test_type.expected_path + raw_reference_path).absolute()
-            ))
+            main_paths.append(
+                PathMapping(
+                    wpt_base_url + raw_reference_path, Path(test_type.expected_path + raw_reference_path).absolute()
+                )
+            )
         else:
             reference_path = Path(resource_path).parent.joinpath(raw_reference_path).__str__()
-            main_paths.append(PathMapping(
-                wpt_base_url + '/' + reference_path,
-                Path(test_type.expected_path + '/' + reference_path).absolute()
-            ))
+            main_paths.append(
+                PathMapping(
+                    wpt_base_url + "/" + reference_path, Path(test_type.expected_path + "/" + reference_path).absolute()
+                )
+            )
 
     files_to_modify = download_files(main_paths)
     create_expectation_files(main_paths)
