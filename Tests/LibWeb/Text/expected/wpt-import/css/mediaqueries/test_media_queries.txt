@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1345 tests
 
-1265 Pass
-80 Fail
+1269 Pass
+76 Fail
 Pass	query_should_be_parseable: (orientation)
 Pass	query_should_be_parseable: not (orientation)
 Pass	expression_should_be_known: (orientation)
@@ -1211,11 +1211,11 @@ Pass	expression_should_be_parseable: max-scan
 Pass	expression_should_be_unknown: max-scan
 Pass	expression_should_be_parseable: max-scan: progressive
 Pass	expression_should_be_unknown: max-scan: progressive
-Fail	should_not_apply: (scan)
-Fail	should_not_apply: (scan: progressive)
+Pass	should_not_apply: (scan)
+Pass	should_not_apply: (scan: progressive)
 Pass	should_not_apply: (scan: interlace)
-Fail	should_apply: not all and (scan)
-Fail	should_apply: not all and (scan: progressive)
+Pass	should_apply: not all and (scan)
+Pass	should_apply: not all and (scan: progressive)
 Pass	should_apply: not all and (scan: interlace)
 Pass	expression_should_be_known: grid
 Pass	expression_should_be_known: grid: 0
