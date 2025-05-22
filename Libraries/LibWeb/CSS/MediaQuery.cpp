@@ -121,12 +121,9 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
         if (queried_value.is_resolution())
             return as_match_result(queried_value.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0) != 0);
         if (queried_value.is_ident()) {
-            // NOTE: It is not technically correct to always treat `no-preference` as false, but every
-            //       media-feature that accepts it as a value treats it as false, so good enough. :^)
-            //       If other features gain this property for other keywords in the future, we can
-            //       add more robust handling for them then.
-            return as_match_result(queried_value.ident() != Keyword::None
-                && queried_value.ident() != Keyword::NoPreference);
+            if (media_feature_keyword_is_falsey(m_id, queried_value.ident()))
+                return MatchResult::False;
+            return MatchResult::True;
         }
         return MatchResult::False;
 

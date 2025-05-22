@@ -216,10 +216,11 @@ They are listed in the [`@media` descriptor table](https://www.w3.org/TR/mediaqu
 
 The definitions here are like a simplified version of the `Properties.json` definitions.
 
-| Field    | Description                                                                                                                                                                                       |
-|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `type`   | String. How the media-feature is evaluated, either `discrete` or `range`.                                                                                                                         |
-| `values` | Array of strings. These are directly taken from the spec, with keywords as they are, and `<>` around type names. Types may be `<boolean>`, `<integer>`, `<length>`, `<ratio>`, or `<resolution>`. |
+| Field            | Description                                                                                                                                                                                       |
+|------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `type`           | String. How the media-feature is evaluated, either `discrete` or `range`.                                                                                                                         |
+| `values`         | Array of strings. These are directly taken from the spec, with keywords as they are, and `<>` around type names. Types may be `<boolean>`, `<integer>`, `<length>`, `<ratio>`, or `<resolution>`. |
+| `false-keywords` | Array of strings. These are any keywords that should be considered false when the media feature is evaluated as `@media (foo)`. Generally this will be a single value, such as `"none"`.          |
 
 The generated code provides:
 - A `MediaFeatureValueType` enum listing the possible value types
@@ -229,6 +230,7 @@ The generated code provides:
 - `bool media_feature_type_is_range(MediaFeatureID)` returns whether the media feature is a `range` type, as opposed to a `discrete` type
 - `bool media_feature_accepts_type(MediaFeatureID, MediaFeatureValueType)` returns whether the media feature will accept values of this type
 - `bool media_feature_accepts_keyword(MediaFeatureID, Keyword)` returns whether the media feature accepts this keyword
+- `bool media_feature_keyword_is_falsey(MediaFeatureID, Keyword)` returns whether the given keyword is considered false when the media-feature is evaluated in a boolean context. (Like `@media (foo)`)
 
 ## MathFunctions.json
 
