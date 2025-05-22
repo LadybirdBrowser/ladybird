@@ -535,13 +535,17 @@ void HTMLObjectElement::load_image()
         return;
     }
 
+    m_document_load_event_delayer_for_resource_load.empend(document());
+
     m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), *url);
     m_resource_request->add_callbacks(
         [this] {
             run_object_representation_completed_steps(Representation::Image);
+            m_document_load_event_delayer_for_resource_load.take_last();
         },
         [this] {
             run_object_representation_fallback_steps();
+            m_document_load_event_delayer_for_resource_load.take_last();
         });
 
     if (m_resource_request->needs_fetching()) {
