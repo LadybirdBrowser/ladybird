@@ -406,7 +406,8 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
     case CSS::MediaFeatureID::Resolution:
         return CSS::MediaFeatureValue(CSS::Resolution(device_pixel_ratio(), CSS::Resolution::Type::Dppx));
     case CSS::MediaFeatureID::Scan:
-        return CSS::MediaFeatureValue(CSS::Keyword::Progressive);
+        // FIXME: Detect this from the display, if we can. Most displays aren't scanning and should return None.
+        return CSS::MediaFeatureValue(CSS::Keyword::None);
     case CSS::MediaFeatureID::Scripting:
         if (associated_document().is_scripting_enabled())
             return CSS::MediaFeatureValue(CSS::Keyword::Enabled);
