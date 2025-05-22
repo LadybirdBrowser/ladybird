@@ -4,10 +4,9 @@ import json
 import os
 import pathlib
 import subprocess
-import sys
 
 
-def main() -> int:
+def build_vcpkg():
     script_dir = pathlib.Path(__file__).parent.resolve()
 
     with open(script_dir.parent / "vcpkg.json", "r") as vcpkg_json_file:
@@ -28,7 +27,7 @@ def main() -> int:
         )
 
         if bootstrapped_vcpkg_version == git_rev:
-            return 0
+            return
 
     print(f"Building vcpkg@{git_rev}")
 
@@ -38,8 +37,10 @@ def main() -> int:
     bootstrap_script = "bootstrap-vcpkg.bat" if os.name == "nt" else "bootstrap-vcpkg.sh"
     subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
 
-    return 0
+
+def main():
+    build_vcpkg()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

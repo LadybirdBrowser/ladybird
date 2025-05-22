@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import importlib.util
 import multiprocessing
 import os
 import platform
@@ -9,9 +10,27 @@ import resource
 import shutil
 import subprocess
 import sys
+import types
 
 from enum import IntEnum
 from pathlib import Path
+
+
+def import_module(module_path: Path) -> types.ModuleType:
+    spec = importlib.util.spec_from_file_location(module_path.stem, module_path)
+    if not spec or not spec.loader:
+        raise ModuleNotFoundError(f"Could not find module {module_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    return module
+
+
+META_PATH = Path(__file__).parent
+TOOLCHAIN_PATH = META_PATH.parent / "Toolchain"
+
+BuildVcpkg = import_module(TOOLCHAIN_PATH / "BuildVcpkg.py")
 
 
 class HostArchitecture(IntEnum):
@@ -200,7 +219,7 @@ def main():
         build_main(build_dir, "install", args.args)
     elif args.command == "vcpkg":
         configure_build_env(args.preset, args.cc, args.cxx)
-        build_vcpkg()
+        BuildVcpkg.build_vcpkg()
     elif args.command == "clean":
         clean_main(args.preset, args.cc, args.cxx)
     elif args.command == "rebuild":
@@ -215,7 +234,7 @@ def main():
 
 def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     ladybird_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(preset, cc, cxx)
-    build_vcpkg()
+    BuildVcpkg.build_vcpkg()
 
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
@@ -311,14 +330,6 @@ def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, lis
     os.environ["PATH"] += os.pathsep + str(vcpkg_root)
 
     return ladybird_source_dir, build_preset_dir, cmake_args
-
-
-def build_vcpkg():
-    sys.path.append(str(Path(__file__).parent.joinpath("..", "Toolchain")))
-    # FIXME: Rename main() in BuildVcpkg.py to build_vcpkg() and call that from the scripts __main__
-    from BuildVcpkg import main as build_vcpkg  # pyright: ignore
-
-    build_vcpkg()
 
 
 def validate_cmake_version():
