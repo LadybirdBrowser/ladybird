@@ -14,18 +14,42 @@
 namespace Web::CSS {
 
 // Corresponds to Kleene 3-valued logic.
-enum class MatchResult {
+enum class MatchResult : u8 {
     False,
     True,
     Unknown,
 };
 
-inline MatchResult as_match_result(bool value)
+constexpr MatchResult operator&&(MatchResult const a, MatchResult const b)
+{
+    // If either is false, false.
+    if (a == MatchResult::False || b == MatchResult::False)
+        return MatchResult::False;
+    // If both are true, true.
+    if (a == MatchResult::True && b == MatchResult::True)
+        return MatchResult::True;
+    // Otherwise, unknown.
+    return MatchResult::Unknown;
+}
+
+constexpr MatchResult operator||(MatchResult const a, MatchResult const b)
+{
+    // If either is true, true.
+    if (a == MatchResult::True || b == MatchResult::True)
+        return MatchResult::True;
+    // If both are false, false.
+    if (a == MatchResult::False && b == MatchResult::False)
+        return MatchResult::False;
+    // Otherwise, unknown.
+    return MatchResult::Unknown;
+}
+
+constexpr MatchResult as_match_result(bool value)
 {
     return value ? MatchResult::True : MatchResult::False;
 }
 
-inline MatchResult negate(MatchResult value)
+constexpr MatchResult negate(MatchResult value)
 {
     switch (value) {
     case MatchResult::False:
@@ -34,6 +58,19 @@ inline MatchResult negate(MatchResult value)
         return MatchResult::False;
     case MatchResult::Unknown:
         return MatchResult::Unknown;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+constexpr StringView to_string(MatchResult result)
+{
+    switch (result) {
+    case MatchResult::False:
+        return "false"sv;
+    case MatchResult::True:
+        return "true"sv;
+    case MatchResult::Unknown:
+        return "unknown"sv;
     }
     VERIFY_NOT_REACHED();
 }
