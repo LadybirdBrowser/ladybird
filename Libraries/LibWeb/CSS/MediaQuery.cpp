@@ -82,10 +82,14 @@ String MediaFeature::to_string() const
         return MUST(String::formatted("max-{}: {}", string_from_media_feature_id(m_id), value().to_string()));
     case Type::Range: {
         auto& range = this->range();
-        if (!range.right_comparison.has_value())
-            return MUST(String::formatted("{} {} {}", range.left_value.to_string(), comparison_string(range.left_comparison), string_from_media_feature_id(m_id)));
+        StringBuilder builder;
+        if (range.left_comparison.has_value())
+            builder.appendff("{} {} ", range.left_value->to_string(), comparison_string(*range.left_comparison));
+        builder.append(string_from_media_feature_id(m_id));
+        if (range.right_comparison.has_value())
+            builder.appendff(" {} {}", comparison_string(*range.right_comparison), range.right_value->to_string());
 
-        return MUST(String::formatted("{} {} {} {} {}", range.left_value.to_string(), comparison_string(range.left_comparison), string_from_media_feature_id(m_id), comparison_string(*range.right_comparison), range.right_value->to_string()));
+        return builder.to_string_without_validation();
     }
     }
 
@@ -137,12 +141,15 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
 
     case Type::Range: {
         auto const& range = this->range();
-        if (auto const left_result = compare(*window, range.left_value, range.left_comparison, queried_value); left_result != MatchResult::True)
-            return left_result;
+        if (range.left_comparison.has_value()) {
+            if (auto const left_result = compare(*window, *range.left_value, *range.left_comparison, queried_value); left_result != MatchResult::True)
+                return left_result;
+        }
 
-        if (range.right_comparison.has_value())
+        if (range.right_comparison.has_value()) {
             if (auto const right_result = compare(*window, queried_value, *range.right_comparison, *range.right_value); right_result != MatchResult::True)
                 return right_result;
+        }
 
         return MatchResult::True;
     }

@@ -132,13 +132,20 @@ public:
         return adopt_own(*new MediaFeature(Type::MaxValue, id, move(value)));
     }
 
-    // Corresponds to `<mf-range>` grammar, with a single comparison
     static NonnullOwnPtr<MediaFeature> half_range(MediaFeatureValue value, Comparison comparison, MediaFeatureID id)
     {
         return adopt_own(*new MediaFeature(Type::Range, id,
             Range {
                 .left_value = move(value),
                 .left_comparison = comparison,
+            }));
+    }
+    static NonnullOwnPtr<MediaFeature> half_range(MediaFeatureID id, Comparison comparison, MediaFeatureValue value)
+    {
+        return adopt_own(*new MediaFeature(Type::Range, id,
+            Range {
+                .right_comparison = comparison,
+                .right_value = move(value),
             }));
     }
 
@@ -168,8 +175,8 @@ private:
     };
 
     struct Range {
-        MediaFeatureValue left_value;
-        Comparison left_comparison;
+        Optional<MediaFeatureValue> left_value {};
+        Optional<Comparison> left_comparison {};
         Optional<Comparison> right_comparison {};
         Optional<MediaFeatureValue> right_value {};
     };
