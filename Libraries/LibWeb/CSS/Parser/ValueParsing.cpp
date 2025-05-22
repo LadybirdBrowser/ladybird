@@ -964,6 +964,11 @@ RefPtr<CSSStyleValue const> Parser::parse_resolution_value(TokenStream<Component
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
+        // The allowed range of <resolution> values always excludes negative values, in addition to any explicit
+        // ranges that might be specified.
+        // https://drafts.csswg.org/css-values-4/#resolution
+        if (dimension_token.dimension_value() < 0)
+            return nullptr;
         if (auto resolution_type = Resolution::unit_from_name(dimension_token.dimension_unit()); resolution_type.has_value()) {
             transaction.commit();
             return ResolutionStyleValue::create(Resolution { (dimension_token.dimension_value()), resolution_type.release_value() });

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1345 tests
 
-1269 Pass
-76 Fail
+1272 Pass
+73 Fail
 Pass	query_should_be_parseable: (orientation)
 Pass	query_should_be_parseable: not (orientation)
 Pass	expression_should_be_known: (orientation)
@@ -1153,7 +1153,7 @@ Pass	expression_should_be_known: resolution: 0dppx
 Pass	expression_should_be_known: resolution: 0x
 Pass	expression_should_be_known: resolution: calc(6x / 2)
 Pass	expression_should_be_parseable: resolution: -3dpi
-Fail	expression_should_be_unknown: resolution: -3dpi
+Pass	expression_should_be_unknown: resolution: -3dpi
 Pass	expression_should_be_known: min-resolution: 3dpi
 Pass	expression_should_be_known: min-resolution:3dpi
 Pass	expression_should_be_known: min-resolution: 3.0dpi
@@ -1169,7 +1169,7 @@ Pass	expression_should_be_known: min-resolution: 0dppx
 Pass	expression_should_be_known: min-resolution: 0x
 Pass	expression_should_be_known: min-resolution: calc(6x / 2)
 Pass	expression_should_be_parseable: min-resolution: -3dpi
-Fail	expression_should_be_unknown: min-resolution: -3dpi
+Pass	expression_should_be_unknown: min-resolution: -3dpi
 Pass	expression_should_be_known: max-resolution: 3dpi
 Pass	expression_should_be_known: max-resolution:3dpi
 Pass	expression_should_be_known: max-resolution: 3.0dpi
@@ -1185,7 +1185,7 @@ Pass	expression_should_be_known: max-resolution: 0dppx
 Pass	expression_should_be_known: max-resolution: 0x
 Pass	expression_should_be_known: max-resolution: calc(6x / 2)
 Pass	expression_should_be_parseable: max-resolution: -3dpi
-Fail	expression_should_be_unknown: max-resolution: -3dpi
+Pass	expression_should_be_unknown: max-resolution: -3dpi
 Pass	find_resolution
 Pass	resolution is exact: should_apply: (resolution: ${resolution}dpi)
 Pass	resolution is exact: should_apply: (resolution: ${Math.floor(resolution/96)}dppx)
