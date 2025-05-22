@@ -15,9 +15,24 @@ DocumentLoadEventDelayer::DocumentLoadEventDelayer(Document& document)
     m_document->increment_number_of_things_delaying_the_load_event({});
 }
 
+DocumentLoadEventDelayer::DocumentLoadEventDelayer(DocumentLoadEventDelayer&& delayer)
+    : m_document(move(delayer.m_document))
+{
+    delayer.m_document = nullptr;
+}
+
+DocumentLoadEventDelayer& DocumentLoadEventDelayer::operator=(DocumentLoadEventDelayer&& delayer)
+{
+    m_document = move(delayer.m_document);
+    delayer.m_document = nullptr;
+
+    return *this;
+}
+
 DocumentLoadEventDelayer::~DocumentLoadEventDelayer()
 {
-    m_document->decrement_number_of_things_delaying_the_load_event({});
+    if (m_document)
+        m_document->decrement_number_of_things_delaying_the_load_event({});
 }
 
 }

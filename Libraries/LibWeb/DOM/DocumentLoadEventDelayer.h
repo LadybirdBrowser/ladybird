@@ -13,11 +13,14 @@
 namespace Web::DOM {
 
 class DocumentLoadEventDelayer {
-    AK_MAKE_NONMOVABLE(DocumentLoadEventDelayer);
     AK_MAKE_NONCOPYABLE(DocumentLoadEventDelayer);
 
 public:
     explicit DocumentLoadEventDelayer(Document&);
+
+    DocumentLoadEventDelayer(DocumentLoadEventDelayer&&);
+    DocumentLoadEventDelayer& operator=(DocumentLoadEventDelayer&&);
+
     ~DocumentLoadEventDelayer();
 
 private:
