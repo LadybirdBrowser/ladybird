@@ -1425,30 +1425,27 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     auto const& showing_popovers = document.showing_auto_popover_list();
     bool auto_popover_list_contains_element = !showing_popovers.is_empty() && showing_popovers.last() == this;
 
-    // 9. Set element's popover invoker to null.
-    m_popover_invoker = nullptr;
-
-    // 10. If fireEvents is true:
+    // 9. If fireEvents is true:
     if (fire_events == FireEvents::Yes) {
-        // 10.1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open" and the newState attribute initialized to "closed" at element.
+        // 9.1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open" and the newState attribute initialized to "closed" at element.
         ToggleEventInit event_init {};
         event_init.old_state = "open"_string;
         event_init.new_state = "closed"_string;
         dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
 
-        // 10.2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not element, then run hide all popovers until given element, focusPreviousElement, and false.
+        // 9.2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not element, then run hide all popovers until given element, focusPreviousElement, and false.
         if (auto_popover_list_contains_element && (showing_popovers.is_empty() || showing_popovers.last() != this))
             hide_all_popovers_until(GC::Ptr(this), focus_previous_element, FireEvents::No);
 
-        // 10.3. If the result of running check popover validity given element, true, throwExceptions, null, and ignoreDomState is false, then run cleanupSteps and return.
+        // 9.3. If the result of running check popover validity given element, true, throwExceptions, null, and ignoreDomState is false, then run cleanupSteps and return.
         if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr, ignore_dom_state))) {
             cleanup_steps();
             return {};
         }
-        // 10.4. Request an element to be removed from the top layer given element.
+        // 9.4. Request an element to be removed from the top layer given element.
         document.request_an_element_to_be_remove_from_the_top_layer(*this);
     } else {
-        // 11. Otherwise, remove an element from the top layer immediately given element.
+        // 10. Otherwise, remove an element from the top layer immediately given element.
         document.remove_an_element_from_the_top_layer_immediately(*this);
     }
 
@@ -1476,6 +1473,9 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
             auto_popovers.remove(auto_popovers.size() - 1);
         }
     }
+
+    // 11. Set element's popover invoker to null.
+    m_popover_invoker = nullptr;
 
     // 12. Set element's opened in popover mode to null.
     m_opened_in_popover_mode = {};
