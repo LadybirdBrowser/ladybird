@@ -274,22 +274,6 @@ OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& to
         return {};
     };
 
-    auto flip = [](MediaFeature::Comparison comparison) {
-        switch (comparison) {
-        case MediaFeature::Comparison::Equal:
-            return MediaFeature::Comparison::Equal;
-        case MediaFeature::Comparison::LessThan:
-            return MediaFeature::Comparison::GreaterThan;
-        case MediaFeature::Comparison::LessThanOrEqual:
-            return MediaFeature::Comparison::GreaterThanOrEqual;
-        case MediaFeature::Comparison::GreaterThan:
-            return MediaFeature::Comparison::LessThan;
-        case MediaFeature::Comparison::GreaterThanOrEqual:
-            return MediaFeature::Comparison::LessThanOrEqual;
-        }
-        VERIFY_NOT_REACHED();
-    };
-
     auto comparisons_match = [](MediaFeature::Comparison a, MediaFeature::Comparison b) -> bool {
         switch (a) {
         case MediaFeature::Comparison::Equal:
@@ -322,7 +306,7 @@ OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& to
                     tokens.discard_whitespace();
                     if (!tokens.has_next_token() && !maybe_value->is_ident()) {
                         transaction.commit();
-                        return MediaFeature::half_range(maybe_value.release_value(), flip(maybe_comparison.release_value()), maybe_name->id);
+                        return MediaFeature::half_range(maybe_name->id, maybe_comparison.release_value(), maybe_value.release_value());
                     }
                 }
             }
