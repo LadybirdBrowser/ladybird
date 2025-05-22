@@ -4,6 +4,9 @@
     "values": [
       "none",
       "hover"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "any-pointer": {
@@ -12,6 +15,9 @@
       "none",
       "coarse",
       "fine"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "aspect-ratio": {
@@ -73,6 +79,11 @@
     "values": [
       "standard",
       "high"
+    ],
+    "FIXME": "This always evaluating to false in a boolean context seems like a spec bug. https://github.com/w3c/csswg-drafts/issues/8050",
+    "false-keywords": [
+      "standard",
+      "high"
     ]
   },
   "environment-blending": {
@@ -88,6 +99,9 @@
     "values": [
       "none",
       "active"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "grid": {
@@ -113,6 +127,9 @@
     "values": [
       "none",
       "hover"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "inverted-colors": {
@@ -120,6 +137,9 @@
     "values": [
       "none",
       "inverted"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "monochrome": {
@@ -133,6 +153,9 @@
     "values": [
       "none",
       "back"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "orientation": {
@@ -148,6 +171,9 @@
       "none",
       "scroll",
       "paged"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "overflow-inline": {
@@ -155,6 +181,9 @@
     "values": [
       "none",
       "scroll"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "pointer": {
@@ -163,6 +192,9 @@
       "none",
       "coarse",
       "fine"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "prefers-color-scheme": {
@@ -179,6 +211,9 @@
       "less",
       "more",
       "custom"
+    ],
+    "false-keywords": [
+      "no-preference"
     ]
   },
   "prefers-reduced-data": {
@@ -186,6 +221,9 @@
     "values": [
       "no-preference",
       "reduce"
+    ],
+    "false-keywords": [
+      "no-preference"
     ]
   },
   "prefers-reduced-motion": {
@@ -193,6 +231,9 @@
     "values": [
       "no-preference",
       "reduce"
+    ],
+    "false-keywords": [
+      "no-preference"
     ]
   },
   "prefers-reduced-transparency": {
@@ -200,6 +241,9 @@
     "values": [
       "no-preference",
       "reduce"
+    ],
+    "false-keywords": [
+      "no-preference"
     ]
   },
   "resolution": {
@@ -214,6 +258,9 @@
     "values": [
       "interlace",
       "progressive"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "scripting": {
@@ -222,6 +269,9 @@
       "none",
       "initial-only",
       "enabled"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "update": {
@@ -230,6 +280,9 @@
       "none",
       "slow",
       "fast"
+    ],
+    "false-keywords": [
+      "none"
     ]
   },
   "vertical-viewport-segments": {
@@ -249,6 +302,11 @@
   "video-dynamic-range": {
     "type": "discrete",
     "values": [
+      "standard",
+      "high"
+    ],
+    "FIXME": "See dynamic-range",
+    "false-keywords": [
       "standard",
       "high"
     ]

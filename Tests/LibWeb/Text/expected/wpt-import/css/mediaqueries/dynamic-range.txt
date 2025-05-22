@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 23 tests
 
-21 Pass
-2 Fail
+23 Pass
 Pass	Should be known: '(dynamic-range: standard)'
 Pass	Should be known: '(dynamic-range: high)'
 Pass	Should be known: '(video-dynamic-range: standard)'
@@ -22,8 +21,8 @@ Pass	Should be parseable: '(video-dynamic-range: 10px)'
 Pass	Should be unknown: '(video-dynamic-range: 10px)'
 Pass	Should be parseable: '(video-dynamic-range: invalid)'
 Pass	Should be unknown: '(video-dynamic-range: invalid)'
-Fail	Check that dynamic-range evaluates to false in the boolean context
-Fail	Check that video-dynamic-range evaluates to false in the boolean context
+Pass	Check that dynamic-range evaluates to false in the boolean context
+Pass	Check that video-dynamic-range evaluates to false in the boolean context
 Pass	Check that dynamic-range always matches 'standard'
 Pass	Check that video-dynamic-range always matches 'standard'
 Pass	Check that video-dynamic-range is not 'invalid'

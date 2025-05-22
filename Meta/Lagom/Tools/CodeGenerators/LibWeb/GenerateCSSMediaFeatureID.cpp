@@ -80,6 +80,8 @@ bool media_feature_type_is_range(MediaFeatureID);
 bool media_feature_accepts_type(MediaFeatureID, MediaFeatureValueType);
 bool media_feature_accepts_keyword(MediaFeatureID, Keyword);
 
+bool media_feature_keyword_is_falsey(MediaFeatureID, Keyword);
+
 }
 )~~~");
 
@@ -288,6 +290,41 @@ bool media_feature_accepts_keyword(MediaFeatureID media_feature_id, Keyword keyw
     generator.append(R"~~~(
     }
     VERIFY_NOT_REACHED();
+}
+
+bool media_feature_keyword_is_falsey(MediaFeatureID media_feature_id, Keyword keyword)
+{
+    switch (media_feature_id) {)~~~");
+    media_feature_data.for_each_member([&](auto& name, JsonValue const& feature_value) {
+        VERIFY(feature_value.is_object());
+        auto& feature = feature_value.as_object();
+        auto false_keywords = feature.get_array("false-keywords"sv);
+        if (!false_keywords.has_value() || false_keywords->is_empty())
+            return;
+
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+        member_generator.append(R"~~~(
+    case MediaFeatureID::@name:titlecase@:
+        switch (keyword) {)~~~");
+
+        false_keywords.value().for_each([&](JsonValue const& value) {
+            auto value_generator = member_generator.fork();
+            member_generator.set("false_keyword:titlecase", title_casify(value.as_string()));
+            member_generator.append(R"~~~(
+        case Keyword::@false_keyword:titlecase@:)~~~");
+        });
+        member_generator.append(R"~~~(
+            return true;
+        default:
+            return false;
+        })~~~");
+    });
+
+    generator.append(R"~~~(
+    default:
+        return false;
+    }
 }
 
 }
