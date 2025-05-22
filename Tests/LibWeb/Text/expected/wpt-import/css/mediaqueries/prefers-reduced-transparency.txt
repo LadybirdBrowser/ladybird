@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 17 tests
 
-11 Pass
-6 Fail
+17 Pass
 Pass	Should be known: '(prefers-reduced-transparency)'
 Pass	Should be known: '(prefers-reduced-transparency: no-preference)'
 Pass	Should be known: '(prefers-reduced-transparency: reduce)'
-Fail	Should be parseable: '(prefers-reduced-transparency: 0)'
+Pass	Should be parseable: '(prefers-reduced-transparency: 0)'
 Pass	Should be unknown: '(prefers-reduced-transparency: 0)'
-Fail	Should be parseable: '(prefers-reduced-transparency: none)'
+Pass	Should be parseable: '(prefers-reduced-transparency: none)'
 Pass	Should be unknown: '(prefers-reduced-transparency: none)'
-Fail	Should be parseable: '(prefers-reduced-transparency: 10px)'
+Pass	Should be parseable: '(prefers-reduced-transparency: 10px)'
 Pass	Should be unknown: '(prefers-reduced-transparency: 10px)'
-Fail	Should be parseable: '(prefers-reduced-transparency: no-preference reduce)'
+Pass	Should be parseable: '(prefers-reduced-transparency: no-preference reduce)'
 Pass	Should be unknown: '(prefers-reduced-transparency: no-preference reduce)'
-Fail	Should be parseable: '(prefers-reduced-transparency: reduced)'
+Pass	Should be parseable: '(prefers-reduced-transparency: reduced)'
 Pass	Should be unknown: '(prefers-reduced-transparency: reduced)'
-Fail	Should be parseable: '(prefers-reduced-transparency: no-preference/reduce)'
+Pass	Should be parseable: '(prefers-reduced-transparency: no-preference/reduce)'
 Pass	Should be unknown: '(prefers-reduced-transparency: no-preference/reduce)'
 Pass	Check that no-preference evaluates to false in the boolean context
 Pass	Check that invalid evaluates to false

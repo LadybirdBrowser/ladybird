@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 17 tests
 
-12 Pass
-5 Fail
+17 Pass
 Pass	Should be known: '(display-mode)'
 Pass	Should be known: '(display-mode: standalone)'
 Pass	Should be known: '(display-mode: browser)'
 Pass	Should be known: '(display-mode: minimal-ui)'
 Pass	Should be known: '(display-mode: fullscreen)'
 Pass	Should be known: '(display-mode: picture-in-picture)'
-Fail	Should be parseable: '(display-mode: 0)'
+Pass	Should be parseable: '(display-mode: 0)'
 Pass	Should be unknown: '(display-mode: 0)'
-Fail	Should be parseable: '(display-mode: none)'
+Pass	Should be parseable: '(display-mode: none)'
 Pass	Should be unknown: '(display-mode: none)'
-Fail	Should be parseable: '(display-mode: random)'
+Pass	Should be parseable: '(display-mode: random)'
 Pass	Should be unknown: '(display-mode: random)'
-Fail	Should be parseable: '(display-mode: 10px)'
+Pass	Should be parseable: '(display-mode: 10px)'
 Pass	Should be unknown: '(display-mode: 10px)'
-Fail	Should be parseable: '(display-mode: 1%)'
+Pass	Should be parseable: '(display-mode: 1%)'
 Pass	Should be unknown: '(display-mode: 1%)'
 Pass	Check that display-mode evaluates to true in the boolean context

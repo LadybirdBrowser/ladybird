@@ -36,6 +36,9 @@ String MediaFeatureValue::to_string() const
             if (integer.is_calculated())
                 return integer.calculated()->to_string(SerializationMode::Normal);
             return String::number(integer.value());
+        },
+        [&](Vector<Parser::ComponentValue> const& values) {
+            return serialize_a_series_of_component_values(values);
         });
 }
 
@@ -46,7 +49,8 @@ bool MediaFeatureValue::is_same_type(MediaFeatureValue const& other) const
         [&](LengthOrCalculated const&) { return other.is_length(); },
         [&](Ratio const&) { return other.is_ratio(); },
         [&](ResolutionOrCalculated const&) { return other.is_resolution(); },
-        [&](IntegerOrCalculated const&) { return other.is_integer(); });
+        [&](IntegerOrCalculated const&) { return other.is_integer(); },
+        [&](Vector<Parser::ComponentValue> const&) { return other.is_unknown(); });
 }
 
 String MediaFeature::to_string() const
@@ -149,6 +153,9 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
 
 MatchResult MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right)
 {
+    if (left.is_unknown() || right.is_unknown())
+        return MatchResult::Unknown;
+
     if (!left.is_same_type(right))
         return MatchResult::False;
 

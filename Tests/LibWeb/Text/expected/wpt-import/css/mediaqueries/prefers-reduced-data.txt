@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 17 tests
 
-11 Pass
-6 Fail
+17 Pass
 Pass	Should be known: '(prefers-reduced-data)'
 Pass	Should be known: '(prefers-reduced-data: no-preference)'
 Pass	Should be known: '(prefers-reduced-data: reduce)'
-Fail	Should be parseable: '(prefers-reduced-data: 0)'
+Pass	Should be parseable: '(prefers-reduced-data: 0)'
 Pass	Should be unknown: '(prefers-reduced-data: 0)'
-Fail	Should be parseable: '(prefers-reduced-data: none)'
+Pass	Should be parseable: '(prefers-reduced-data: none)'
 Pass	Should be unknown: '(prefers-reduced-data: none)'
-Fail	Should be parseable: '(prefers-reduced-data: 10px)'
+Pass	Should be parseable: '(prefers-reduced-data: 10px)'
 Pass	Should be unknown: '(prefers-reduced-data: 10px)'
-Fail	Should be parseable: '(prefers-reduced-data: no-preference reduce)'
+Pass	Should be parseable: '(prefers-reduced-data: no-preference reduce)'
 Pass	Should be unknown: '(prefers-reduced-data: no-preference reduce)'
-Fail	Should be parseable: '(prefers-reduced-data: reduced)'
+Pass	Should be parseable: '(prefers-reduced-data: reduced)'
 Pass	Should be unknown: '(prefers-reduced-data: reduced)'
-Fail	Should be parseable: '(prefers-reduced-data: no-preference/reduce)'
+Pass	Should be parseable: '(prefers-reduced-data: no-preference/reduce)'
 Pass	Should be unknown: '(prefers-reduced-data: no-preference/reduce)'
 Pass	Check that no-preference evaluates to false in the boolean context
 Pass	Check that invalid evaluates to false
