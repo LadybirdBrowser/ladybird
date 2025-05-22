@@ -155,7 +155,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
             return;
     }
 
-    // 4. Let target be the result of running element's get the commandfor associated element.
+    // 4. Let target be the result of running element's get the commandfor-associated element.
     //    AD-HOC: Target needs to be an HTML Element in the following steps.
     GC::Ptr<HTMLElement> target = as_if<HTMLElement>(m_command_for_element.ptr());
     if (!target) {
@@ -186,7 +186,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 
         // 4. If isPopover is false and command is not in the Custom state:
         auto command_is_in_custom_state = command.starts_with_bytes("--"sv);
-        if (!is_popover && !command.starts_with_bytes("--"sv)) {
+        if (!is_popover && !command_is_in_custom_state) {
             // 1. Assert: target's namespace is the HTML namespace.
             VERIFY(target->namespace_uri() == Namespace::HTML);
 
@@ -219,9 +219,6 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         // 8. If command is in the Custom state, then return.
         if (command_is_in_custom_state)
             return;
-
-        // AD-HOC: The parameters provided in the spec do not match the function signatures in the following steps.
-        //         The inconsistent parameters were therefore selected ad hoc.
 
         // 9. If command is in the Hide Popover state:
         if (command == "hide-popover") {
