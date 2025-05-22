@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1345 tests
 
-1257 Pass
-88 Fail
+1265 Pass
+80 Fail
 Pass	query_should_be_parseable: (orientation)
 Pass	query_should_be_parseable: not (orientation)
 Pass	expression_should_be_known: (orientation)
@@ -1015,22 +1015,22 @@ Fail	should_apply: (max-aspect-ratio: 60/80)
 Fail	should_apply: (max-aspect-ratio: 59/79)
 Pass	expression_should_be_parseable: max-aspect-ratio
 Pass	expression_should_be_unknown: max-aspect-ratio
-Fail	should_apply: (device-aspect-ratio: ${real_dar})
+Pass	should_apply: (device-aspect-ratio: ${real_dar})
 Pass	should_apply: not all and (device-aspect-ratio: ${high_dar_1})
 Pass	should_not_apply: all and (device-aspect-ratio: ${high_dar_2})
 Pass	should_not_apply: all and (device-aspect-ratio: ${low_dar_1})
 Pass	should_apply: not all and (device-aspect-ratio: ${low_dar_2})
-Fail	should_apply: (device-aspect-ratio)
-Fail	should_apply: (min-device-aspect-ratio: ${real_dar})
+Pass	should_apply: (device-aspect-ratio)
+Pass	should_apply: (min-device-aspect-ratio: ${real_dar})
 Pass	should_not_apply: all and (min-device-aspect-ratio: ${high_dar_1})
 Pass	should_apply: not all and (min-device-aspect-ratio: ${high_dar_2})
-Fail	should_not_apply: not all and (min-device-aspect-ratio: ${low_dar_1})
-Fail	should_apply: all and (min-device-aspect-ratio: ${low_dar_2})
+Pass	should_not_apply: not all and (min-device-aspect-ratio: ${low_dar_1})
+Pass	should_apply: all and (min-device-aspect-ratio: ${low_dar_2})
 Pass	expression_should_be_parseable: min-device-aspect-ratio
 Pass	expression_should_be_unknown: min-device-aspect-ratio
-Fail	should_apply: all and (max-device-aspect-ratio: ${real_dar})
-Fail	should_apply: (max-device-aspect-ratio: ${high_dar_1})
-Fail	should_apply: (max-device-aspect-ratio: ${high_dar_2})
+Pass	should_apply: all and (max-device-aspect-ratio: ${real_dar})
+Pass	should_apply: (max-device-aspect-ratio: ${high_dar_1})
+Pass	should_apply: (max-device-aspect-ratio: ${high_dar_2})
 Pass	should_not_apply: all and (max-device-aspect-ratio: ${low_dar_1})
 Pass	should_apply: not all and (max-device-aspect-ratio: ${low_dar_2})
 Pass	expression_should_be_parseable: max-device-aspect-ratio

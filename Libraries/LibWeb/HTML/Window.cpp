@@ -323,7 +323,10 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
         return CSS::MediaFeatureValue(CSS::Keyword::Srgb);
     case CSS::MediaFeatureID::ColorIndex:
         return CSS::MediaFeatureValue(0);
-    // FIXME: device-aspect-ratio
+    case CSS::MediaFeatureID::DeviceAspectRatio: {
+        auto screen_area = page().client().screen_rect();
+        return CSS::MediaFeatureValue(CSS::Ratio(screen_area.width().value(), screen_area.height().value()));
+    }
     case CSS::MediaFeatureID::DeviceHeight:
         return CSS::MediaFeatureValue(CSS::Length::make_px(page().web_exposed_screen_area().height()));
     case CSS::MediaFeatureID::DeviceWidth:
