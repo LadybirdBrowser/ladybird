@@ -3874,6 +3874,7 @@ RefPtr<StringStyleValue const> Parser::parse_opentype_tag_value(TokenStream<Comp
     return string_value;
 }
 
+// https://drafts.csswg.org/css-fonts/#font-face-src-parsing
 RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<ComponentValue>& tokens)
 {
     // <font-src> = <url> [ format(<font-format>)]? [ tech( <font-tech>#)]? | local(<family-name>)
@@ -3917,6 +3918,12 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
         } else {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`format()` parameter not an ident or string; is: {}); discarding.", format_name_token.to_debug_string());
             return nullptr;
+        }
+
+        // FIXME: Some of the formats support an optional "-variations" suffix that's really supposed to map to tech(variations).
+        //        Once we support tech(*), we should ensure this propagates correctly.
+        if (format_name.is_one_of("woff2-variations"sv, "woff-variations"sv, "truetype-variations"sv, "opentype-variations"sv)) {
+            format_name = MUST(format_name.to_string().substring_from_byte_offset(0, format_name.bytes().size() - strlen("-variations")));
         }
 
         if (!font_format_is_supported(format_name)) {

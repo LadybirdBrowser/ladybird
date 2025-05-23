@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 48 tests
 
-44 Pass
-4 Fail
+48 Pass
 Pass	Load Ahem with format woff
 Pass	Load Ahem with format truetype
 Pass	Load Ahem with format opentype
 Pass	Load Ahem with format woff2
-Fail	Load Ahem with format woff-variations
-Fail	Load Ahem with format truetype-variations
-Fail	Load Ahem with format opentype-variations
-Fail	Load Ahem with format woff2-variations
+Pass	Load Ahem with format woff-variations
+Pass	Load Ahem with format truetype-variations
+Pass	Load Ahem with format opentype-variations
+Pass	Load Ahem with format woff2-variations
 Pass	Do not load Ahem with format xyzwoff
 Pass	Do not load Ahem with format xyztruetype
 Pass	Do not load Ahem with format xyzopentype
