@@ -2310,33 +2310,71 @@ RefPtr<CSSStyleValue const> Parser::parse_flex_flow_value(TokenStream<ComponentV
         { flex_direction.release_nonnull(), flex_wrap.release_nonnull() });
 }
 
+// https://drafts.csswg.org/css-fonts-4/#font-prop
 RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& tokens)
 {
-    RefPtr<CSSStyleValue const> font_width;
+    // [ [ <'font-style'> || <font-variant-css2> || <'font-weight'> || <font-width-css3> ]? <'font-size'> [ / <'line-height'> ]? <'font-family'># ] | <system-family-name>
     RefPtr<CSSStyleValue const> font_style;
+    RefPtr<CSSStyleValue const> font_variant;
     RefPtr<CSSStyleValue const> font_weight;
+    RefPtr<CSSStyleValue const> font_width;
     RefPtr<CSSStyleValue const> font_size;
     RefPtr<CSSStyleValue const> line_height;
     RefPtr<CSSStyleValue const> font_families;
-    RefPtr<CSSStyleValue const> font_variant;
 
-    // FIXME: Handle system fonts. (caption, icon, menu, message-box, small-caption, status-bar)
+    // FIXME: Handle <system-family-name>. (caption, icon, menu, message-box, small-caption, status-bar)
 
     // Several sub-properties can be "normal", and appear in any order: style, variant, weight, stretch
     // So, we have to handle that separately.
     int normal_count = 0;
 
-    // FIXME: `font-variant` allows a lot of different values which aren't allowed in the `font` shorthand.
-    // FIXME: `font-width` allows <percentage> values, which aren't allowed in the `font` shorthand.
-    auto remaining_longhands = Vector { PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontVariant, PropertyID::FontWeight, PropertyID::FontWidth };
+    // font-variant and font-width aren't included because we have special parsing rules for them in font.
+    auto remaining_longhands = Vector { PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontWeight };
     auto transaction = tokens.begin_transaction();
 
     while (tokens.has_next_token()) {
-        auto& peek_token = tokens.next_token();
-        if (peek_token.is_ident("normal"sv)) {
+        if (tokens.next_token().is_ident("normal"sv)) {
             normal_count++;
             tokens.discard_a_token();
             continue;
+        }
+
+        // <font-variant-css2> = normal | small-caps
+        // So, we handle that manually instead of trying to parse the font-variant property.
+        if (!font_variant && tokens.peek_token().is_ident("small-caps"sv)) {
+            tokens.discard_a_token(); // small-caps
+
+            font_variant = ShorthandStyleValue::create(PropertyID::FontVariant,
+                { PropertyID::FontVariantAlternates,
+                    PropertyID::FontVariantCaps,
+                    PropertyID::FontVariantEastAsian,
+                    PropertyID::FontVariantEmoji,
+                    PropertyID::FontVariantLigatures,
+                    PropertyID::FontVariantNumeric,
+                    PropertyID::FontVariantPosition },
+                {
+                    property_initial_value(PropertyID::FontVariantAlternates),
+                    CSSKeywordValue::create(Keyword::SmallCaps),
+                    property_initial_value(PropertyID::FontVariantEastAsian),
+                    property_initial_value(PropertyID::FontVariantEmoji),
+                    property_initial_value(PropertyID::FontVariantLigatures),
+                    property_initial_value(PropertyID::FontVariantNumeric),
+                    property_initial_value(PropertyID::FontVariantPosition),
+                });
+            continue;
+        }
+
+        // <font-width-css3> = normal | ultra-condensed | extra-condensed | condensed | semi-condensed | semi-expanded | expanded | extra-expanded | ultra-expanded
+        // So again, we do this manually.
+        if (!font_width && tokens.peek_token().is(Token::Type::Ident)) {
+            auto font_width_transaction = tokens.begin_transaction();
+            if (auto keyword = parse_keyword_value(tokens)) {
+                if (keyword_to_font_width(keyword->to_keyword()).has_value()) {
+                    font_width_transaction.commit();
+                    font_width = keyword.release_nonnull();
+                    continue;
+                }
+            }
         }
 
         auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
@@ -2367,19 +2405,9 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
             font_families = maybe_font_families.release_nonnull();
             continue;
         }
-        case PropertyID::FontWidth: {
-            VERIFY(!font_width);
-            font_width = value.release_nonnull();
-            continue;
-        }
         case PropertyID::FontStyle: {
             VERIFY(!font_style);
             font_style = FontStyleStyleValue::create(*keyword_to_font_style(value.release_nonnull()->to_keyword()));
-            continue;
-        }
-        case PropertyID::FontVariant: {
-            VERIFY(!font_variant);
-            font_variant = value.release_nonnull();
             continue;
         }
         case PropertyID::FontWeight: {
