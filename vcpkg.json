@@ -151,7 +151,7 @@
     },
     {
       "name": "fontconfig",
-      "version": "2.14.2#1"
+      "version": "2.15.0#4"
     },
     {
       "name": "icu",
