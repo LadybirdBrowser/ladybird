@@ -238,8 +238,9 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             append(font_style_string);
         if (font_variant_string != "normal"sv && font_variant_string != "initial"sv)
             append(font_variant_string);
-        if (font_weight->to_font_weight() != Gfx::FontWeight::Regular && font_weight->to_keyword() != Keyword::Initial)
-            append(font_weight->to_string(mode));
+        auto font_weight_string = font_weight->to_string(mode);
+        if (font_weight_string != "normal"sv && font_weight_string != "initial"sv && font_weight_string != "400"sv)
+            append(font_weight_string);
         if (font_width->to_keyword() != Keyword::Normal && font_width->to_keyword() != Keyword::Initial)
             append(font_width->to_string(mode));
         append(font_size->to_string(mode));
