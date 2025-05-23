@@ -13,6 +13,7 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/LegendBox.h>
@@ -690,6 +691,19 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         layout_floating_box(box, block_container, available_space, margin_top + y);
         bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
         return;
+    }
+
+    if (box.is_anonymous() && box.children_are_inline() && is<Layout::BlockContainer>(box)) {
+        // A <br> is an inline-level element that creates a line box,
+        // and line boxes prevent margins from being adjoining.
+        // So if there's a <br> inside this anonymous container, we must stop margin collapsing.
+        auto const& container = static_cast<Layout::BlockContainer const&>(box);
+        for (auto const* child = container.first_child(); child; child = child->next_sibling()) {
+            if (is<Layout::BreakNode>(*child)) {
+                m_margin_state.reset();
+                break;
+            }
+        }
     }
 
     m_margin_state.add_margin(box_state.margin_top);
