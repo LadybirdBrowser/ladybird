@@ -1,0 +1,54 @@
+Harness status: OK
+
+Found 48 tests
+
+44 Pass
+4 Fail
+Pass	Load Ahem with format woff
+Pass	Load Ahem with format truetype
+Pass	Load Ahem with format opentype
+Pass	Load Ahem with format woff2
+Fail	Load Ahem with format woff-variations
+Fail	Load Ahem with format truetype-variations
+Fail	Load Ahem with format opentype-variations
+Fail	Load Ahem with format woff2-variations
+Pass	Do not load Ahem with format xyzwoff
+Pass	Do not load Ahem with format xyztruetype
+Pass	Do not load Ahem with format xyzopentype
+Pass	Do not load Ahem with format xyzwoff2
+Pass	Do not load Ahem with format xyzwoff-variations
+Pass	Do not load Ahem with format xyztruetype-variations
+Pass	Do not load Ahem with format xyzopentype-variations
+Pass	Do not load Ahem with format xyzwoff2-variations
+Pass	Do not load Ahem with format woffxyz
+Pass	Do not load Ahem with format truetypexyz
+Pass	Do not load Ahem with format opentypexyz
+Pass	Do not load Ahem with format woff2xyz
+Pass	Do not load Ahem with format woff-variationsxyz
+Pass	Do not load Ahem with format truetype-variationsxyz
+Pass	Do not load Ahem with format opentype-variationsxyz
+Pass	Do not load Ahem with format woff2-variationsxyz
+Pass	Do not load Ahem with format wo
+Pass	Do not load Ahem with format truety
+Pass	Do not load Ahem with format openty
+Pass	Do not load Ahem with format wof
+Pass	Do not load Ahem with format woff-variatio
+Pass	Do not load Ahem with format truetype-variatio
+Pass	Do not load Ahem with format opentype-variatio
+Pass	Do not load Ahem with format woff2-variatio
+Pass	Do not load Ahem with format ff
+Pass	Do not load Ahem with format uetype
+Pass	Do not load Ahem with format entype
+Pass	Do not load Ahem with format ff2
+Pass	Do not load Ahem with format ff-variations
+Pass	Do not load Ahem with format uetype-variations
+Pass	Do not load Ahem with format entype-variations
+Pass	Do not load Ahem with format ff2-variations
+Pass	Do not load Ahem with format wff
+Pass	Do not load Ahem with format tretype
+Pass	Do not load Ahem with format opntype
+Pass	Do not load Ahem with format wff2
+Pass	Do not load Ahem with format woff-ariations
+Pass	Do not load Ahem with format truetye-variations
+Pass	Do not load Ahem with format opentye-variations
+Pass	Do not load Ahem with format woff2variations

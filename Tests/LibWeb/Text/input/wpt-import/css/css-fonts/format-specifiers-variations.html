@@ -1,0 +1,57 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>CSS Test: Supported format specifiers should load</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#src-desc"/>
+<meta name="assert" content="Supported format specifiers should load"/>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+setup({
+    explicit_done: true
+});
+
+var formatSpecifiers = [
+    "woff",
+    "truetype",
+    "opentype",
+    "woff2",
+    "woff-variations",
+    "truetype-variations",
+    "opentype-variations",
+    "woff2-variations"
+];
+
+var defaultAhemSrc = 'url("../../fonts/Ahem.ttf") format("INSERT_FORMAT")';
+
+function runTestOnFormatSpecifiers(formats, expectFail) {
+    for (var i = 0; i < formats.length; ++i) {
+        promise_test((testDetails) => {
+            var familyName = "load_ahem_" + i;
+            var ahemSrcFormat = defaultAhemSrc.replace("INSERT_FORMAT", testDetails.properties.format);
+            var fontFace = new FontFace(familyName, ahemSrcFormat);
+            if (!expectFail) {
+                return fontFace.load();
+            } else {
+                return promise_rejects_dom(testDetails, "SyntaxError", fontFace.load());
+            }
+        }, (expectFail ? "Do not load" : "Load") + " Ahem with format " + formats[i], {
+            "format": formats[i]
+        });
+    }
+}
+
+runTestOnFormatSpecifiers(formatSpecifiers, false);
+runTestOnFormatSpecifiers(formatSpecifiers.map(x => "xyz" + x), true);
+runTestOnFormatSpecifiers(formatSpecifiers.map(x => x + "xyz"), true);
+runTestOnFormatSpecifiers(formatSpecifiers.map(x => x.slice(0, -2)), true);
+runTestOnFormatSpecifiers(formatSpecifiers.map(x => x.slice(2)), true);
+runTestOnFormatSpecifiers(formatSpecifiers.map(x => x.slice(0, x.length / 3) + x.slice(x.length / 3 + 1)), true);
+
+done();
+</script>
+</body>
+</html>
