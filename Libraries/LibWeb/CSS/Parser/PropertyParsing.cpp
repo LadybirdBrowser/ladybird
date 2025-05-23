@@ -2451,7 +2451,6 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
             PropertyID::FontFamily,
             PropertyID::FontSize,
             PropertyID::FontWidth,
-            // FIXME: PropertyID::FontStretch
             PropertyID::FontStyle,
             PropertyID::FontVariant,
             PropertyID::FontWeight,
@@ -2463,13 +2462,6 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
             PropertyID::FontLanguageOverride,
             // FIXME: PropertyID::FontOpticalSizing,
             // FIXME: PropertyID::FontSizeAdjust,
-            PropertyID::FontVariantAlternates,
-            PropertyID::FontVariantCaps,
-            PropertyID::FontVariantEastAsian,
-            PropertyID::FontVariantEmoji,
-            PropertyID::FontVariantLigatures,
-            PropertyID::FontVariantNumeric,
-            PropertyID::FontVariantPosition,
             PropertyID::FontVariationSettings,
         },
         {
@@ -2477,7 +2469,6 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
             font_families.release_nonnull(),
             font_size.release_nonnull(),
             font_width.release_nonnull(),
-            // FIXME: font-stretch
             font_style.release_nonnull(),
             font_variant.release_nonnull(),
             font_weight.release_nonnull(),
@@ -2489,13 +2480,6 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
             initial_value, // font-language-override
                            // FIXME: font-optical-sizing,
                            // FIXME: font-size-adjust,
-            initial_value, // font-variant-alternates
-            initial_value, // font-variant-caps
-            initial_value, // font-variant-east-asian
-            initial_value, // font-variant-emoji
-            initial_value, // font-variant-ligatures
-            initial_value, // font-variant-numeric
-            initial_value, // font-variant-position
             initial_value, // font-variation-settings
         });
 }

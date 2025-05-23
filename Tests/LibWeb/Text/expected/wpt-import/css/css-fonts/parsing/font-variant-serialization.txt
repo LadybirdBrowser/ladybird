@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	checking serialized value of font-variant
+1 Pass
+Pass	checking serialized value of font-variant
