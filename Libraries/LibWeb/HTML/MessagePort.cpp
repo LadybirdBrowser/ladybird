@@ -147,9 +147,13 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
 
 void MessagePort::disentangle()
 {
-    if (m_remote_port) {
+    if (auto remote_port = m_remote_port) {
+        // Set the pointers to null before disentangling the remote port to prevent infinite recursion here.
         m_remote_port->m_remote_port = nullptr;
         m_remote_port = nullptr;
+
+        if (remote_port)
+            remote_port->disentangle();
     }
 
     if (m_transport) {
