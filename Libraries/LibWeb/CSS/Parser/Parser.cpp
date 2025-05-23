@@ -1783,6 +1783,8 @@ bool Parser::has_ignored_vendor_prefix(StringView string)
         return false;
     if (string.starts_with("-libweb-"sv))
         return false;
+    if (string.count('-') == 1)
+        return false;
     return true;
 }
 

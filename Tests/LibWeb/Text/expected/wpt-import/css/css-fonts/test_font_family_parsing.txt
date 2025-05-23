@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 2232 tests
 
-2180 Pass
-52 Fail
+2232 Pass
 Pass	font-family: simple
 Pass	font-family: simple (setter)
 Pass	font: 16px simple
@@ -90,32 +89,32 @@ Pass	font: bolder oblique 16px "simple"
 Pass	font: bolder oblique 16px "simple" (setter)
 Pass	font-family: -simple
 Pass	font-family: -simple (setter)
-Fail	font: 16px -simple
-Fail	font: 16px -simple (setter)
-Fail	font: 900px -simple
-Fail	font: 900px -simple (setter)
-Fail	font: 900em -simple
-Fail	font: 900em -simple (setter)
-Fail	font: 35% -simple
-Fail	font: 35% -simple (setter)
-Fail	font: 7832.3% -simple
-Fail	font: 7832.3% -simple (setter)
-Fail	font: xx-large -simple
-Fail	font: xx-large -simple (setter)
-Fail	font: lighter larger -simple
-Fail	font: lighter larger -simple (setter)
-Fail	font: italic 16px -simple
-Fail	font: italic 16px -simple (setter)
-Fail	font: italic bold 16px -simple
-Fail	font: italic bold 16px -simple (setter)
-Fail	font: normal smaller -simple
-Fail	font: normal smaller -simple (setter)
-Fail	font: normal normal 16px -simple
-Fail	font: normal normal 16px -simple (setter)
-Fail	font: 400 normal 16px -simple
-Fail	font: 400 normal 16px -simple (setter)
-Fail	font: bolder oblique 16px -simple
-Fail	font: bolder oblique 16px -simple (setter)
+Pass	font: 16px -simple
+Pass	font: 16px -simple (setter)
+Pass	font: 900px -simple
+Pass	font: 900px -simple (setter)
+Pass	font: 900em -simple
+Pass	font: 900em -simple (setter)
+Pass	font: 35% -simple
+Pass	font: 35% -simple (setter)
+Pass	font: 7832.3% -simple
+Pass	font: 7832.3% -simple (setter)
+Pass	font: xx-large -simple
+Pass	font: xx-large -simple (setter)
+Pass	font: lighter larger -simple
+Pass	font: lighter larger -simple (setter)
+Pass	font: italic 16px -simple
+Pass	font: italic 16px -simple (setter)
+Pass	font: italic bold 16px -simple
+Pass	font: italic bold 16px -simple (setter)
+Pass	font: normal smaller -simple
+Pass	font: normal smaller -simple (setter)
+Pass	font: normal normal 16px -simple
+Pass	font: normal normal 16px -simple (setter)
+Pass	font: 400 normal 16px -simple
+Pass	font: 400 normal 16px -simple (setter)
+Pass	font: bolder oblique 16px -simple
+Pass	font: bolder oblique 16px -simple (setter)
 Pass	font-family: _simple
 Pass	font-family: _simple (setter)
 Pass	font: 16px _simple
@@ -202,32 +201,32 @@ Pass	font: bolder oblique 16px quite _simple
 Pass	font: bolder oblique 16px quite _simple (setter)
 Pass	font-family: quite -simple
 Pass	font-family: quite -simple (setter)
-Fail	font: 16px quite -simple
-Fail	font: 16px quite -simple (setter)
-Fail	font: 900px quite -simple
-Fail	font: 900px quite -simple (setter)
-Fail	font: 900em quite -simple
-Fail	font: 900em quite -simple (setter)
-Fail	font: 35% quite -simple
-Fail	font: 35% quite -simple (setter)
-Fail	font: 7832.3% quite -simple
-Fail	font: 7832.3% quite -simple (setter)
-Fail	font: xx-large quite -simple
-Fail	font: xx-large quite -simple (setter)
-Fail	font: lighter larger quite -simple
-Fail	font: lighter larger quite -simple (setter)
-Fail	font: italic 16px quite -simple
-Fail	font: italic 16px quite -simple (setter)
-Fail	font: italic bold 16px quite -simple
-Fail	font: italic bold 16px quite -simple (setter)
-Fail	font: normal smaller quite -simple
-Fail	font: normal smaller quite -simple (setter)
-Fail	font: normal normal 16px quite -simple
-Fail	font: normal normal 16px quite -simple (setter)
-Fail	font: 400 normal 16px quite -simple
-Fail	font: 400 normal 16px quite -simple (setter)
-Fail	font: bolder oblique 16px quite -simple
-Fail	font: bolder oblique 16px quite -simple (setter)
+Pass	font: 16px quite -simple
+Pass	font: 16px quite -simple (setter)
+Pass	font: 900px quite -simple
+Pass	font: 900px quite -simple (setter)
+Pass	font: 900em quite -simple
+Pass	font: 900em quite -simple (setter)
+Pass	font: 35% quite -simple
+Pass	font: 35% quite -simple (setter)
+Pass	font: 7832.3% quite -simple
+Pass	font: 7832.3% quite -simple (setter)
+Pass	font: xx-large quite -simple
+Pass	font: xx-large quite -simple (setter)
+Pass	font: lighter larger quite -simple
+Pass	font: lighter larger quite -simple (setter)
+Pass	font: italic 16px quite -simple
+Pass	font: italic 16px quite -simple (setter)
+Pass	font: italic bold 16px quite -simple
+Pass	font: italic bold 16px quite -simple (setter)
+Pass	font: normal smaller quite -simple
+Pass	font: normal smaller quite -simple (setter)
+Pass	font: normal normal 16px quite -simple
+Pass	font: normal normal 16px quite -simple (setter)
+Pass	font: 400 normal 16px quite -simple
+Pass	font: 400 normal 16px quite -simple (setter)
+Pass	font: bolder oblique 16px quite -simple
+Pass	font: bolder oblique 16px quite -simple (setter)
 Pass	font-family: 0simple
 Pass	font-family: 0simple (setter)
 Pass	font: 16px 0simple

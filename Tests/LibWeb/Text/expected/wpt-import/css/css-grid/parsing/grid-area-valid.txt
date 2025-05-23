@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 57 tests
 
-24 Pass
-33 Fail
+30 Pass
+27 Fail
 Pass	e.style['grid-area'] = "auto" should set the property value
 Pass	e.style['grid-area'] = "auto / auto" should set the property value
 Pass	e.style['grid-area'] = "auto / auto / auto" should set the property value
@@ -13,23 +13,23 @@ Pass	e.style['grid-row'] = "auto" should set the property value
 Pass	e.style['grid-row'] = "auto/auto" should set the property value
 Pass	e.style['grid-column-end'] = "AuTo" should set the property value
 Fail	e.style['grid-area'] = "--a" should set the property value
-Fail	e.style['grid-row'] = "-zπ" should set the property value
-Fail	e.style['grid-row'] = "-zπ/-zπ" should set the property value
+Pass	e.style['grid-row'] = "-zπ" should set the property value
+Pass	e.style['grid-row'] = "-zπ/-zπ" should set the property value
 Pass	e.style['grid-row'] = "i / i" should set the property value
 Pass	e.style['grid-row-start'] = "AZ" should set the property value
-Fail	e.style['grid-column-start'] = "-_π" should set the property value
+Pass	e.style['grid-column-start'] = "-_π" should set the property value
 Pass	e.style['grid-row-end'] = "_9" should set the property value
 Fail	e.style['grid-area'] = "1" should set the property value
 Fail	e.style['grid-area'] = "+90 -a-" should set the property value
 Pass	e.style['grid-row'] = "az 2" should set the property value
 Pass	e.style['grid-column'] = "9" should set the property value
 Pass	e.style['grid-column'] = "-19 zA" should set the property value
-Fail	e.style['grid-column'] = "-A0 33" should set the property value
+Pass	e.style['grid-column'] = "-A0 33" should set the property value
 Pass	e.style['grid-row-start'] = "-19" should set the property value
-Fail	e.style['grid-row-start'] = "9 -Z_" should set the property value
+Pass	e.style['grid-row-start'] = "9 -Z_" should set the property value
 Pass	e.style['grid-column-start'] = "+90" should set the property value
 Pass	e.style['grid-column-start'] = "Z -44" should set the property value
-Fail	e.style['grid-row-end'] = "1 -πA" should set the property value
+Pass	e.style['grid-row-end'] = "1 -πA" should set the property value
 Pass	e.style['grid-column-end'] = "π_ +5" should set the property value
 Fail	e.style['grid-area'] = "span 2 i" should set the property value
 Fail	e.style['grid-area'] = "i 2 SpAn" should set the property value
