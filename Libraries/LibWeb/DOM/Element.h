@@ -378,6 +378,12 @@ public:
     CSSPixelPoint scroll_offset(ScrollOffsetFor type) const { return m_scroll_offset[to_underlying(type)]; }
     void set_scroll_offset(ScrollOffsetFor type, CSSPixelPoint offset) { m_scroll_offset[to_underlying(type)] = offset; }
 
+    enum class TranslationMode {
+        TranslateEnabled,
+        NoTranslate
+    };
+    TranslationMode translation_mode() const;
+
     enum class Dir {
         Ltr,
         Rtl,

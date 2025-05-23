@@ -104,6 +104,25 @@ bool HTMLElement::is_potentially_render_blocking()
     return is_implicitly_potentially_render_blocking();
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#dom-translate
+bool HTMLElement::translate() const
+{
+    // The translate IDL attribute must, on getting, return true if the element's translation mode is
+    // translate-enabled, and false otherwise
+    return translation_mode() == TranslationMode::TranslateEnabled;
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#dom-translate
+void HTMLElement::set_translate(bool new_value)
+{
+    // On setting, it must set the content attribute's value to "yes" if the new value is true, and set the content
+    // attribute's value to "no" otherwise.
+    if (new_value)
+        MUST(set_attribute(HTML::AttributeNames::translate, "yes"_string));
+    else
+        MUST(set_attribute(HTML::AttributeNames::translate, "no"_string));
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dir
 StringView HTMLElement::dir() const
 {

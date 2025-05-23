@@ -14,7 +14,7 @@ interface HTMLElement : Element {
     // metadata attributes
     [Reflect, CEReactions] attribute DOMString title;
     [Reflect, CEReactions] attribute DOMString lang;
-    [FIXME, CEReactions] attribute boolean translate;
+    [CEReactions] attribute boolean translate;
     [CEReactions] attribute DOMString dir;
 
     // user interaction

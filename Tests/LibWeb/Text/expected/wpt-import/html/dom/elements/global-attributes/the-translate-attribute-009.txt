@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	If the translate attribute is set to no, javascript will detect the translation mode of text as no-translate.

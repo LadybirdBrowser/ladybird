@@ -82,6 +82,9 @@ public:
 
     Optional<String> title() const { return attribute(HTML::AttributeNames::title); }
 
+    bool translate() const;
+    void set_translate(bool);
+
     StringView dir() const;
     void set_dir(String const&);
 

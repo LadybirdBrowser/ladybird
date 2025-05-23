@@ -1,0 +1,46 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Non-HTML elements have a translation mode</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+  test(() => {
+    const svgContainer = document.createElement("svg");
+    const foreignObject = document.createElement("foreignObject");
+    svgContainer.appendChild(foreignObject);
+    const div = document.createElement("div");
+    foreignObject.appendChild(div);
+
+    assert_true(div.translate);
+  }, 'Non-HTML elements default to translate-enabled');
+
+  test(() => {
+    const outerDiv = document.createElement("div");
+    outerDiv.translate = true;
+    assert_true(outerDiv.translate);
+
+    const svgContainer = document.createElement("svg");
+    outerDiv.appendChild(svgContainer);
+    const foreignObject = document.createElement("foreignObject");
+    svgContainer.appendChild(foreignObject);
+    const div = document.createElement("div");
+    foreignObject.appendChild(div);
+
+    assert_true(div.translate);
+  }, "Non-HTML elements inherit their parent's translation-enabled state");
+
+  test(() => {
+    const outerDiv = document.createElement("div");
+    outerDiv.translate = false;
+    assert_false(outerDiv.translate);
+
+    const svgContainer = document.createElement("svg");
+    outerDiv.appendChild(svgContainer);
+    const foreignObject = document.createElement("foreignObject");
+    svgContainer.appendChild(foreignObject);
+    const div = document.createElement("div");
+    foreignObject.appendChild(div);
+
+    assert_false(div.translate);
+  }, "Non-HTML elements inherit their parent's no-translation state");
+</script>
