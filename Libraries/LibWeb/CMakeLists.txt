@@ -250,6 +250,7 @@ set(SOURCES
     DOM/ParentNode.cpp
     DOM/Position.cpp
     DOM/ProcessingInstruction.cpp
+    DOM/PseudoElement.cpp
     DOM/QualifiedName.cpp
     DOM/Range.cpp
     DOM/ShadowRoot.cpp
