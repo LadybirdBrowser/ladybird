@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://html.spec.whatwg.org/#attr-translate">
+<link rel="help" href="https://html.spec.whatwg.org/#enumerated-attribute">
+<meta name="assert" content="@translate values are ASCII case-insensitive">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<!--
+  We wrap the <span> elements under test with <div> elements so the invalid
+  value default (inherit) can be distinguished from true through the IDL
+  attribute. The inherit state would otherwise yield true because inheritance
+  would go all the way to :root, whose translation mode is translate-enabled
+  because it’s also in the inherit state.
+-->
+<div translate="no"><span translate="yes"></span></div>
+<div translate="no"><span translate="YeS"></span></div>
+<div translate="no"><span translate="yeſ"></span></div>
+<script>
+const span = document.querySelectorAll("span");
+
+test(() => {
+  assert_equals(span[0].translate, true, "lowercase valid");
+  assert_equals(span[1].translate, true, "mixed case valid");
+  assert_equals(span[2].translate, false, "non-ASCII invalid");
+}, "keyword yes");
+</script>

@@ -299,6 +299,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(text, "text")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(title, "title")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(topmargin, "topmargin")                                   \
+    __ENUMERATE_HTML_ATTRIBUTE(translate, "translate")                                   \
     __ENUMERATE_HTML_ATTRIBUTE(truespeed, "truespeed")                                   \
     __ENUMERATE_HTML_ATTRIBUTE(type, "type")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(usemap, "usemap")                                         \
