@@ -1931,6 +1931,9 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     request->set_url(url);
     request->set_policy_container(source_snapshot_params->source_policy_container);
 
+    // AD-HOC: See https://github.com/whatwg/html/issues/4651, requires some investigation to figure out what we should be setting here.
+    request->set_client(source_snapshot_params->fetch_client);
+
     // 5. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
     if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
         return;
