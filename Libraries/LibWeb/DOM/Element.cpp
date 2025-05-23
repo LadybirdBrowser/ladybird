@@ -91,9 +91,6 @@
 
 namespace Web::DOM {
 
-GC_DEFINE_ALLOCATOR(Element::PseudoElement);
-GC_DEFINE_ALLOCATOR(Element::PseudoElementTreeNode);
-
 Element::Element(Document& document, DOM::QualifiedName qualified_name)
     : ParentNode(document, NodeType::ELEMENT_NODE)
     , m_qualified_name(move(qualified_name))
@@ -131,15 +128,6 @@ void Element::visit_edges(Cell::Visitor& visitor)
         for (auto& registered_intersection_observers : *m_registered_intersection_observers)
             visitor.visit(registered_intersection_observers.observer);
     }
-}
-
-void Element::PseudoElement::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-
-    visitor.visit(cascaded_properties);
-    visitor.visit(computed_properties);
-    visitor.visit(layout_node);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattribute
@@ -715,14 +703,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
         for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
             auto pseudo_element_type = static_cast<CSS::PseudoElement>(i);
             auto pseudo_element = get_pseudo_element(pseudo_element_type);
-            if (!pseudo_element.has_value() || !pseudo_element->layout_node)
+            if (!pseudo_element.has_value() || !pseudo_element->layout_node())
                 continue;
 
             auto pseudo_element_style = pseudo_element_computed_properties(pseudo_element_type);
             if (!pseudo_element_style)
                 continue;
 
-            if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element->layout_node.ptr())) {
+            if (auto node_with_style = pseudo_element->layout_node()) {
                 node_with_style->apply_style(*pseudo_element_style);
                 if (invalidation.repaint && node_with_style->first_paintable())
                     node_with_style->first_paintable()->set_needs_display();
@@ -1327,13 +1315,13 @@ void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoEle
         return;
     }
 
-    ensure_pseudo_element(pseudo_element).layout_node = move(pseudo_element_node);
+    ensure_pseudo_element(pseudo_element).set_layout_node(move(pseudo_element_node));
 }
 
 GC::Ptr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::PseudoElement pseudo_element) const
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
-        return element_data->layout_node;
+        return element_data->layout_node();
     return nullptr;
 }
 
@@ -1344,9 +1332,9 @@ bool Element::affected_by_pseudo_class(CSS::PseudoClass pseudo_class) const
     }
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
-            if (!pseudo_element.value->computed_properties)
+            if (!pseudo_element.value->computed_properties())
                 continue;
-            if (pseudo_element.value->computed_properties->has_attempted_match_against_pseudo_class(pseudo_class))
+            if (pseudo_element.value->computed_properties()->has_attempted_match_against_pseudo_class(pseudo_class))
                 return true;
         }
     }
@@ -1513,7 +1501,7 @@ bool Element::has_pseudo_elements() const
 {
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
-            if (pseudo_element.value->layout_node)
+            if (pseudo_element.value->layout_node())
                 return true;
         }
     }
@@ -1524,7 +1512,7 @@ void Element::clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>)
 {
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
-            pseudo_element.value->layout_node = nullptr;
+            pseudo_element.value->set_layout_node(nullptr);
         }
     }
 }
@@ -2838,7 +2826,7 @@ GC::Ptr<CSS::CascadedProperties> Element::cascaded_properties(Optional<CSS::Pseu
     if (pseudo_element.has_value()) {
         auto pseudo_element_data = get_pseudo_element(pseudo_element.value());
         if (pseudo_element_data.has_value())
-            return pseudo_element_data->cascaded_properties;
+            return pseudo_element_data->cascaded_properties();
         return nullptr;
     }
     return m_cascaded_properties;
@@ -2849,7 +2837,7 @@ void Element::set_cascaded_properties(Optional<CSS::PseudoElement> pseudo_elemen
     if (pseudo_element.has_value()) {
         if (pseudo_element.value() >= CSS::PseudoElement::KnownPseudoElementCount)
             return;
-        ensure_pseudo_element(pseudo_element.value()).cascaded_properties = cascaded_properties;
+        ensure_pseudo_element(pseudo_element.value()).set_cascaded_properties(cascaded_properties);
     } else {
         m_cascaded_properties = cascaded_properties;
     }
@@ -2869,18 +2857,18 @@ void Element::set_pseudo_element_computed_properties(CSS::PseudoElement pseudo_e
     if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element))
         return;
 
-    ensure_pseudo_element(pseudo_element).computed_properties = style;
+    ensure_pseudo_element(pseudo_element).set_computed_properties(style);
 }
 
 GC::Ptr<CSS::ComputedProperties> Element::pseudo_element_computed_properties(CSS::PseudoElement type)
 {
     auto pseudo_element = get_pseudo_element(type);
     if (pseudo_element.has_value())
-        return pseudo_element->computed_properties;
+        return pseudo_element->computed_properties();
     return {};
 }
 
-Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement type) const
+Optional<PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement type) const
 {
     if (!m_pseudo_element_data)
         return {};
@@ -2896,7 +2884,7 @@ Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement
     return *(pseudo_element.value());
 }
 
-Element::PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
+PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
 {
     if (!m_pseudo_element_data)
         m_pseudo_element_data = make<PseudoElementData>();
@@ -2925,7 +2913,7 @@ void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element,
         return;
     }
 
-    ensure_pseudo_element(pseudo_element.value()).custom_properties = move(custom_properties);
+    ensure_pseudo_element(pseudo_element.value()).set_custom_properties(move(custom_properties));
 }
 
 HashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::PseudoElement> pseudo_element) const
@@ -2935,7 +2923,7 @@ HashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optiona
 
     VERIFY(CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()));
 
-    return ensure_pseudo_element(pseudo_element.value()).custom_properties;
+    return ensure_pseudo_element(pseudo_element.value()).custom_properties();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll

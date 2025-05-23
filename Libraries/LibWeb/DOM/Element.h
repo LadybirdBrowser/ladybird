@@ -23,6 +23,7 @@
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/NonDocumentTypeChildNode.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/DOM/QualifiedName.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/HTML/AttributeNames.h>
@@ -564,25 +565,6 @@ private:
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
 
-    struct PseudoElement : public JS::Cell {
-        GC_CELL(PseudoElement, JS::Cell);
-        GC_DECLARE_ALLOCATOR(PseudoElement);
-
-        GC::Ptr<Layout::NodeWithStyle> layout_node;
-        GC::Ptr<CSS::CascadedProperties> cascaded_properties;
-        GC::Ptr<CSS::ComputedProperties> computed_properties;
-        HashMap<FlyString, CSS::StyleProperty> custom_properties;
-
-    private:
-        virtual void visit_edges(JS::Cell::Visitor&) override;
-    };
-    // https://drafts.csswg.org/css-view-transitions/#pseudo-element-tree
-    struct PseudoElementTreeNode
-        : public PseudoElement
-        , TreeNode<PseudoElementTreeNode> {
-        GC_CELL(PseudoElementTreeNode, PseudoElement);
-        GC_DECLARE_ALLOCATOR(PseudoElementTreeNode);
-    };
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
     Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;
@@ -673,7 +655,7 @@ inline bool Element::has_pseudo_element(CSS::PseudoElement type) const
     auto pseudo_element = m_pseudo_element_data->get(type);
     if (!pseudo_element.has_value())
         return false;
-    return pseudo_element.value()->layout_node;
+    return pseudo_element.value()->layout_node();
 }
 
 WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<FlyString> namespace_, FlyString const& qualified_name);
