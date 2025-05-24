@@ -1,15 +1,16 @@
 /*
  * Copyright (c) 2023, Andrew Kaster <akaster@serenityos.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "PlaybackStreamAudioUnit.h"
 #include <AK/Atomic.h>
 #include <AK/SourceLocation.h>
-#include <LibCore/SharedCircularQueue.h>
+#include <AK/Vector.h>
 #include <LibCore/ThreadedPromise.h>
+#include <LibMedia/Audio/PlaybackStreamAudioUnit.h>
+#include <LibThreading/Mutex.h>
 
 #include <AudioUnit/AudioUnit.h>
 
@@ -67,12 +68,9 @@ struct AudioTask {
 
 class AudioState : public RefCounted<AudioState> {
 public:
-    using AudioTaskQueue = Core::SharedSingleProducerCircularQueue<AudioTask>;
-
     static ErrorOr<NonnullRefPtr<AudioState>> create(AudioStreamBasicDescription description, PlaybackStream::AudioDataRequestCallback data_request_callback, OutputState initial_output_state)
     {
-        auto task_queue = TRY(AudioTaskQueue::create());
-        auto state = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) AudioState(description, move(task_queue), move(data_request_callback), initial_output_state)));
+        auto state = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) AudioState(description, move(data_request_callback), initial_output_state)));
 
         AudioComponentDescription component_description;
         component_description.componentType = kAudioUnitType_Output;
@@ -116,11 +114,11 @@ public:
             AudioOutputUnitStop(m_audio_unit);
     }
 
-    ErrorOr<void> queue_task(AudioTask task)
+    void queue_task(AudioTask task)
     {
-        return m_task_queue.blocking_enqueue(move(task), []() {
-            usleep(10'000);
-        });
+        Threading::MutexLocker lock(m_task_queue_mutex);
+        m_task_queue.append(move(task));
+        m_task_queue_is_empty = false;
     }
 
     AK::Duration last_sample_time() const
@@ -129,12 +127,24 @@ public:
     }
 
 private:
-    AudioState(AudioStreamBasicDescription description, AudioTaskQueue task_queue, PlaybackStream::AudioDataRequestCallback data_request_callback, OutputState initial_output_state)
+    AudioState(AudioStreamBasicDescription description, PlaybackStream::AudioDataRequestCallback data_request_callback, OutputState initial_output_state)
         : m_description(description)
-        , m_task_queue(move(task_queue))
         , m_paused(initial_output_state == OutputState::Playing ? Paused::No : Paused::Yes)
         , m_data_request_callback(move(data_request_callback))
     {
+    }
+
+    Optional<AudioTask> dequeue_task()
+    {
+        // OPTIMIZATION: We can avoid taking a lock in the audio decoder thread if there are no queued commands, which
+        //               will be the case most of the time.
+        if (m_task_queue_is_empty.load())
+            return {};
+
+        Threading::MutexLocker lock(m_task_queue_mutex);
+
+        m_task_queue_is_empty = m_task_queue.size() == 1;
+        return m_task_queue.take_first();
     }
 
     static OSStatus on_audio_unit_buffer_request(void* user_data, AudioUnitRenderActionFlags*, AudioTimeStamp const* time_stamp, UInt32 element, UInt32 frames_to_render, AudioBufferList* output_buffer_list)
@@ -150,13 +160,10 @@ private:
         auto last_sample_time = static_cast<i64>(sample_time_seconds * 1000.0);
         state.m_last_sample_time.store(last_sample_time);
 
-        if (auto result = state.m_task_queue.dequeue(); result.is_error()) {
-            VERIFY(result.error() == AudioTaskQueue::QueueStatus::Empty);
-        } else {
-            auto task = result.release_value();
+        if (auto task = state.dequeue_task(); task.has_value()) {
             OSStatus error = noErr;
 
-            switch (task.type) {
+            switch (task->type) {
             case AudioTask::Type::Play:
                 state.m_paused = Paused::No;
                 break;
@@ -171,15 +178,15 @@ private:
                 break;
 
             case AudioTask::Type::Volume:
-                VERIFY(task.data.has_value());
-                error = AudioUnitSetParameter(state.m_audio_unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, static_cast<float>(*task.data), 0);
+                VERIFY(task->data.has_value());
+                error = AudioUnitSetParameter(state.m_audio_unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, static_cast<float>(*task->data), 0);
                 break;
             }
 
             if (error == noErr)
-                task.resolve(AK::Duration::from_milliseconds(last_sample_time));
+                task->resolve(AK::Duration::from_milliseconds(last_sample_time));
             else
-                task.reject(error);
+                task->reject(error);
         }
 
         Bytes output_buffer {
@@ -203,7 +210,9 @@ private:
     AudioComponentInstance m_audio_unit { nullptr };
     AudioStreamBasicDescription m_description {};
 
-    AudioTaskQueue m_task_queue;
+    Threading::Mutex m_task_queue_mutex;
+    Vector<AudioTask, 4> m_task_queue;
+    Atomic<bool> m_task_queue_is_empty { true };
 
     enum class Paused {
         Yes,
@@ -251,10 +260,7 @@ void PlaybackStreamAudioUnit::set_underrun_callback(Function<void()>)
 NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamAudioUnit::resume()
 {
     auto promise = Core::ThreadedPromise<AK::Duration>::create();
-    AudioTask task { AudioTask::Type::Play, promise };
-
-    if (auto result = m_state->queue_task(move(task)); result.is_error())
-        promise->reject(result.release_error());
+    m_state->queue_task({ AudioTask::Type::Play, promise });
 
     return promise;
 }
@@ -262,10 +268,7 @@ NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamAudioUnit::resu
 NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::drain_buffer_and_suspend()
 {
     auto promise = Core::ThreadedPromise<void>::create();
-    AudioTask task { AudioTask::Type::Pause, promise };
-
-    if (auto result = m_state->queue_task(move(task)); result.is_error())
-        promise->reject(result.release_error());
+    m_state->queue_task({ AudioTask::Type::Pause, promise });
 
     return promise;
 }
@@ -273,10 +276,7 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::drain_buffer
 NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::discard_buffer_and_suspend()
 {
     auto promise = Core::ThreadedPromise<void>::create();
-    AudioTask task { AudioTask::Type::PauseAndDiscard, promise };
-
-    if (auto result = m_state->queue_task(move(task)); result.is_error())
-        promise->reject(result.release_error());
+    m_state->queue_task({ AudioTask::Type::PauseAndDiscard, promise });
 
     return promise;
 }
@@ -289,10 +289,7 @@ ErrorOr<AK::Duration> PlaybackStreamAudioUnit::total_time_played()
 NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::set_volume(double volume)
 {
     auto promise = Core::ThreadedPromise<void>::create();
-    AudioTask task { AudioTask::Type::Volume, promise, volume };
-
-    if (auto result = m_state->queue_task(move(task)); result.is_error())
-        promise->reject(result.release_error());
+    m_state->queue_task({ AudioTask::Type::Volume, promise, volume });
 
     return promise;
 }
