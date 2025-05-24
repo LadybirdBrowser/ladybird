@@ -46,7 +46,12 @@ SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
     auto bytes_to_send = min(max_bytes, m_stream.used_buffer_size());
     result.bytes.resize(bytes_to_send);
     m_stream.peek_some(result.bytes);
-    result.fds = m_fds;
+
+    if (m_fds.size() > 0) {
+        auto fds_to_send = min(m_fds.size(), Core::LocalSocket::MAX_TRANSFER_FDS);
+        result.fds = Vector<int> { m_fds.span().slice(0, fds_to_send) };
+        // NOTE: This relies on a subsequent call to discard to actually remove the fds from m_fds
+    }
     return result;
 }
 
@@ -287,7 +292,7 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
         }
 
         auto bytes_read = maybe_bytes_read.release_value();
-        if (bytes_read.is_empty()) {
+        if (bytes_read.is_empty() && received_fds.is_empty()) {
             should_shutdown = true;
             break;
         }
