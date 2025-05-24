@@ -1594,6 +1594,14 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_type(String const& type)
     return set_attribute(HTML::AttributeNames::type, type);
 }
 
+bool HTMLInputElement::can_have_text_editing_cursor() const
+{
+    if (first_is_one_of(type_state(), TypeAttributeState::SubmitButton, TypeAttributeState::ResetButton, TypeAttributeState::Button))
+        return false;
+
+    return true;
+}
+
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-simple-colour
 static bool is_valid_simple_color(StringView value)
 {
