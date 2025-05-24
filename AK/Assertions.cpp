@@ -8,6 +8,7 @@
 #include <AK/Backtrace.h>
 #include <AK/Format.h>
 #include <AK/Platform.h>
+#include <AK/kmalloc.h>
 
 #ifdef AK_OS_WINDOWS
 #    include <Windows.h>
@@ -70,13 +71,13 @@ void dump_backtrace()
             syms[i][idx.value() + end_of_sym] = '\0';
 
             size_t buf_size = 128u;
-            char* buf = static_cast<char*>(malloc(buf_size));
+            char* buf = static_cast<char*>(kmalloc(buf_size));
             auto* raw_str = &syms[i][idx.value()];
             buf = abi::__cxa_demangle(raw_str, buf, &buf_size, nullptr);
 
             auto* buf_to_print = buf ? buf : raw_str;
             error_builder.append(buf_to_print, strlen(buf_to_print));
-            free(buf);
+            kfree(buf);
 
             error_builder.append(' ');
             auto* end_of_line = &syms[i][idx.value() + end_of_sym + 1];
@@ -90,7 +91,7 @@ void dump_backtrace()
         error_builder.append('\0');
         PRINT_ERROR(error_builder.string_view().characters_without_null_termination());
     }
-    free(syms);
+    kfree(syms);
 }
 #else
 void dump_backtrace()
