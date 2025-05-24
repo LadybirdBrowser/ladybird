@@ -12,7 +12,6 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> value)
 {
-    dbgln("Potential FIXME: Creating unknown Content Security Policy directive: {}", name);
     return heap.allocate<Directive>(move(name), move(value));
 }
 
