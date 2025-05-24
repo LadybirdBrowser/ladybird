@@ -62,7 +62,9 @@ URL::URL WorkerEnvironmentSettingsObject::api_base_url() const
 
 URL::Origin WorkerEnvironmentSettingsObject::origin() const
 {
-    // FIXME: Return a unique opaque origin if worker global scope's url's scheme is "data", and inherited origin otherwise.
+    // Return a unique opaque origin if worker global scope's url's scheme is "data", and inherited origin otherwise.
+    if (m_global_scope->url().scheme() == "data")
+        return URL::Origin {};
     return m_origin;
 }
 
