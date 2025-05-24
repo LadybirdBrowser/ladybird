@@ -2,12 +2,14 @@
  * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2020-2022, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2025, Ryszard Goc <ryszardgoc@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/JsonValue.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Platform.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ConfigFile.h>
@@ -26,10 +28,13 @@
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/SourceTextModule.h>
-#include <LibLine/Editor.h>
 #include <LibMain/Main.h>
 #include <LibTextCodec/Decoder.h>
 #include <signal.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <LibLine/Editor.h>
+#endif
 
 // FIXME: https://github.com/LadybirdBrowser/ladybird/issues/2412
 //    We should be able to destroy the VM on process exit.
@@ -81,9 +86,11 @@ static bool s_as_module = false;
 static bool s_print_last_result = false;
 static bool s_strip_ansi = false;
 static bool s_disable_source_location_hints = false;
+#if !defined(AK_OS_WINDOWS)
 static RefPtr<Line::Editor> s_editor;
+#endif
 static String s_history_path = String {};
-static int s_repl_line_level = 0;
+[[maybe_unused]] static int s_repl_line_level = 0;
 static bool s_keep_running_repl = true;
 static int s_exit_code = 0;
 
@@ -105,7 +112,7 @@ static ErrorOr<void> print(JS::Value value, PrintTarget target = PrintTarget::St
 }
 
 static size_t s_ctrl_c_hit_count = 0;
-static ErrorOr<String> prompt_for_level(int level)
+[[maybe_unused]] static ErrorOr<String> prompt_for_level(int level)
 {
     static StringBuilder prompt_builder;
     prompt_builder.clear();
@@ -117,79 +124,6 @@ static ErrorOr<String> prompt_for_level(int level)
         prompt_builder.append("    "sv);
 
     return prompt_builder.to_string();
-}
-
-static ErrorOr<String> read_next_piece()
-{
-    StringBuilder piece;
-
-    auto line_level_delta_for_next_line { 0 };
-
-    do {
-        auto line_result = s_editor->get_line(TRY(prompt_for_level(s_repl_line_level)).to_byte_string());
-
-        s_ctrl_c_hit_count = 0;
-        line_level_delta_for_next_line = 0;
-
-        if (line_result.is_error()) {
-            s_keep_running_repl = false;
-            return String {};
-        }
-
-        auto& line = line_result.value();
-        s_editor->add_to_history(line);
-
-        piece.append(line);
-        piece.append('\n');
-        auto lexer = JS::Lexer(line);
-
-        enum {
-            NotInLabelOrObjectKey,
-            InLabelOrObjectKeyIdentifier,
-            InLabelOrObjectKey
-        } label_state { NotInLabelOrObjectKey };
-
-        for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
-            switch (token.type()) {
-            case JS::TokenType::BracketOpen:
-            case JS::TokenType::CurlyOpen:
-            case JS::TokenType::ParenOpen:
-                label_state = NotInLabelOrObjectKey;
-                s_repl_line_level++;
-                break;
-            case JS::TokenType::BracketClose:
-            case JS::TokenType::CurlyClose:
-            case JS::TokenType::ParenClose:
-                label_state = NotInLabelOrObjectKey;
-                s_repl_line_level--;
-                break;
-
-            case JS::TokenType::Identifier:
-            case JS::TokenType::StringLiteral:
-                if (label_state == NotInLabelOrObjectKey)
-                    label_state = InLabelOrObjectKeyIdentifier;
-                else
-                    label_state = NotInLabelOrObjectKey;
-                break;
-            case JS::TokenType::Colon:
-                if (label_state == InLabelOrObjectKeyIdentifier)
-                    label_state = InLabelOrObjectKey;
-                else
-                    label_state = NotInLabelOrObjectKey;
-                break;
-            default:
-                break;
-            }
-        }
-
-        if (label_state == InLabelOrObjectKey) {
-            // If there's a label or object literal key at the end of this line,
-            // prompt for more lines but do not change the line level.
-            line_level_delta_for_next_line += 1;
-        }
-    } while (s_repl_line_level + line_level_delta_for_next_line > 0);
-
-    return piece.to_string();
 }
 
 static ErrorOr<void> write_to_file(String const& path)
@@ -437,19 +371,6 @@ JS_DEFINE_NATIVE_FUNCTION(ScriptObject::print)
     return JS::js_undefined();
 }
 
-static ErrorOr<void> repl(JS::Realm& realm)
-{
-    while (s_keep_running_repl) {
-        auto const piece = TRY(read_next_piece());
-        if (Utf8View { piece }.trim(JS::whitespace_characters).is_empty())
-            continue;
-
-        g_repl_statements.append(piece);
-        TRY(parse_and_run(realm, piece, "REPL"sv));
-    }
-    return {};
-}
-
 class ReplConsoleClient final : public JS::ConsoleClient {
     GC_CELL(ReplConsoleClient, JS::ConsoleClient);
 
@@ -528,6 +449,326 @@ private:
     int m_group_stack_depth { 0 };
 };
 
+#if !defined(AK_OS_WINDOWS)
+static ErrorOr<String> read_next_piece()
+{
+    StringBuilder piece;
+
+    auto line_level_delta_for_next_line { 0 };
+
+    do {
+        auto line_result = s_editor->get_line(TRY(prompt_for_level(s_repl_line_level)).to_byte_string());
+
+        s_ctrl_c_hit_count = 0;
+        line_level_delta_for_next_line = 0;
+
+        if (line_result.is_error()) {
+            s_keep_running_repl = false;
+            return String {};
+        }
+
+        auto& line = line_result.value();
+        s_editor->add_to_history(line);
+
+        piece.append(line);
+        piece.append('\n');
+        auto lexer = JS::Lexer(line);
+
+        enum {
+            NotInLabelOrObjectKey,
+            InLabelOrObjectKeyIdentifier,
+            InLabelOrObjectKey
+        } label_state { NotInLabelOrObjectKey };
+
+        for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
+            switch (token.type()) {
+            case JS::TokenType::BracketOpen:
+            case JS::TokenType::CurlyOpen:
+            case JS::TokenType::ParenOpen:
+                label_state = NotInLabelOrObjectKey;
+                s_repl_line_level++;
+                break;
+            case JS::TokenType::BracketClose:
+            case JS::TokenType::CurlyClose:
+            case JS::TokenType::ParenClose:
+                label_state = NotInLabelOrObjectKey;
+                s_repl_line_level--;
+                break;
+
+            case JS::TokenType::Identifier:
+            case JS::TokenType::StringLiteral:
+                if (label_state == NotInLabelOrObjectKey)
+                    label_state = InLabelOrObjectKeyIdentifier;
+                else
+                    label_state = NotInLabelOrObjectKey;
+                break;
+            case JS::TokenType::Colon:
+                if (label_state == InLabelOrObjectKeyIdentifier)
+                    label_state = InLabelOrObjectKey;
+                else
+                    label_state = NotInLabelOrObjectKey;
+                break;
+            default:
+                break;
+            }
+        }
+
+        if (label_state == InLabelOrObjectKey) {
+            // If there's a label or object literal key at the end of this line,
+            // prompt for more lines but do not change the line level.
+            line_level_delta_for_next_line += 1;
+        }
+    } while (s_repl_line_level + line_level_delta_for_next_line > 0);
+
+    return piece.to_string();
+}
+
+static ErrorOr<void> repl(JS::Realm& realm)
+{
+    while (s_keep_running_repl) {
+        auto const piece = TRY(read_next_piece());
+        if (Utf8View { piece }.trim(JS::whitespace_characters).is_empty())
+            continue;
+
+        g_repl_statements.append(piece);
+        TRY(parse_and_run(realm, piece, "REPL"sv));
+    }
+    return {};
+}
+
+static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
+{
+    s_print_last_result = true;
+
+    auto root_execution_context = JS::create_simple_execution_context<ReplObject>(*g_vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto& console_object = *realm.intrinsics().console_object();
+    ReplConsoleClient console_client(console_object.console());
+    console_object.console().set_client(console_client);
+    g_vm->heap().set_should_collect_on_every_allocation(gc_on_every_allocation);
+
+    auto& global_environment = realm.global_environment();
+
+    s_editor = Line::Editor::construct();
+    s_editor->load_history(s_history_path.to_byte_string());
+
+    signal(SIGINT, [](int) {
+        if (!s_editor->is_editing())
+            exit(0);
+        s_editor->save_history(s_history_path.to_byte_string());
+    });
+
+    s_editor->register_key_input_callback(Line::ctrl('C'), [](Line::Editor& editor) -> bool {
+        if (editor.buffer_view().length() == 0 || s_ctrl_c_hit_count > 0) {
+            if (++s_ctrl_c_hit_count == 2) {
+                s_keep_running_repl = false;
+                editor.finish_edit();
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    s_editor->on_display_refresh = [syntax_highlight](Line::Editor& editor) {
+        auto stylize = [&](Line::Span span, Line::Style styles) {
+            if (syntax_highlight)
+                editor.stylize(span, styles);
+        };
+        editor.strip_styles();
+
+        size_t open_indents = s_repl_line_level;
+
+        auto line = editor.line();
+        JS::Lexer lexer(line);
+        bool indenters_starting_line = true;
+        for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
+            auto length = Utf8View { token.value() }.length();
+            auto start = token.offset();
+            auto end = start + length;
+            if (indenters_starting_line) {
+                if (token.type() != JS::TokenType::ParenClose && token.type() != JS::TokenType::BracketClose && token.type() != JS::TokenType::CurlyClose) {
+                    indenters_starting_line = false;
+                } else {
+                    --open_indents;
+                }
+            }
+
+            switch (token.category()) {
+            case JS::TokenCategory::Invalid:
+                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Red), Line::Style::Underline });
+                break;
+            case JS::TokenCategory::Number:
+                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Magenta) });
+                break;
+            case JS::TokenCategory::String:
+                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Green), Line::Style::Bold });
+                break;
+            case JS::TokenCategory::Punctuation:
+                break;
+            case JS::TokenCategory::Operator:
+                break;
+            case JS::TokenCategory::Keyword:
+                switch (token.type()) {
+                case JS::TokenType::BoolLiteral:
+                case JS::TokenType::NullLiteral:
+                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Yellow), Line::Style::Bold });
+                    break;
+                default:
+                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Blue), Line::Style::Bold });
+                    break;
+                }
+                break;
+            case JS::TokenCategory::ControlKeyword:
+                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Cyan), Line::Style::Italic });
+                break;
+            case JS::TokenCategory::Identifier:
+                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::White), Line::Style::Bold });
+                break;
+            default:
+                break;
+            }
+        }
+
+        editor.set_prompt(prompt_for_level(open_indents).release_value_but_fixme_should_propagate_errors().to_byte_string());
+    };
+
+    auto complete = [&realm, &global_environment](Line::Editor const& editor) -> Vector<Line::CompletionSuggestion> {
+        auto line = editor.line(editor.cursor());
+
+        JS::Lexer lexer { line };
+        enum {
+            Initial,
+            CompleteVariable,
+            CompleteNullProperty,
+            CompleteProperty,
+        } mode { Initial };
+
+        FlyString variable_name;
+        FlyString property_name;
+
+        // we're only going to complete either
+        //    - <N>
+        //        where N is part of the name of a variable
+        //    - <N>.<P>
+        //        where N is the complete name of a variable and
+        //        P is part of the name of one of its properties
+        auto js_token = lexer.next();
+        for (; js_token.type() != JS::TokenType::Eof; js_token = lexer.next()) {
+            switch (mode) {
+            case CompleteVariable:
+                switch (js_token.type()) {
+                case JS::TokenType::Period:
+                    // ...<name> <dot>
+                    mode = CompleteNullProperty;
+                    break;
+                default:
+                    // not a dot, reset back to initial
+                    mode = Initial;
+                    break;
+                }
+                break;
+            case CompleteNullProperty:
+                if (js_token.is_identifier_name()) {
+                    // ...<name> <dot> <name>
+                    mode = CompleteProperty;
+                    property_name = js_token.fly_string_value();
+                } else {
+                    mode = Initial;
+                }
+                break;
+            case CompleteProperty:
+                // something came after the property access, reset to initial
+            case Initial:
+                if (js_token.type() == JS::TokenType::Identifier) {
+                    // ...<name>...
+                    mode = CompleteVariable;
+                    variable_name = js_token.fly_string_value();
+                } else {
+                    mode = Initial;
+                }
+                break;
+            }
+        }
+
+        bool last_token_has_trivia = js_token.trivia().length() > 0;
+
+        if (mode == CompleteNullProperty) {
+            mode = CompleteProperty;
+            property_name = ""_fly_string;
+            last_token_has_trivia = false; // <name> <dot> [tab] is sensible to complete.
+        }
+
+        if (mode == Initial || last_token_has_trivia)
+            return {}; // we do not know how to complete this
+
+        Vector<Line::CompletionSuggestion> results;
+
+        Function<void(JS::Shape const&, StringView)> list_all_properties = [&results, &list_all_properties](JS::Shape const& shape, auto property_pattern) {
+            for (auto const& descriptor : shape.property_table()) {
+                if (!descriptor.key.is_string())
+                    continue;
+                auto key = descriptor.key.as_string();
+                if (key.bytes_as_string_view().starts_with(property_pattern)) {
+                    Line::CompletionSuggestion completion { key, Line::CompletionSuggestion::ForSearch };
+                    if (!results.contains_slow(completion)) { // hide duplicates
+                        results.append(key.to_string().to_byte_string());
+                        results.last().invariant_offset = property_pattern.length();
+                    }
+                }
+            }
+            if (auto const* prototype = shape.prototype()) {
+                list_all_properties(prototype->shape(), property_pattern);
+            }
+        };
+
+        switch (mode) {
+        case CompleteProperty: {
+            auto reference_or_error = g_vm->resolve_binding(variable_name, &global_environment);
+            if (reference_or_error.is_error())
+                return {};
+            auto value_or_error = reference_or_error.value().get_value(*g_vm);
+            if (value_or_error.is_error())
+                return {};
+            auto variable = value_or_error.value();
+            VERIFY(!variable.is_special_empty_value());
+
+            if (!variable.is_object())
+                break;
+
+            auto const object = MUST(variable.to_object(*g_vm));
+            auto const& shape = object->shape();
+            list_all_properties(shape, property_name);
+            break;
+        }
+        case CompleteVariable: {
+            auto const& variable = realm.global_object();
+            list_all_properties(variable.shape(), variable_name);
+
+            for (auto const& name : global_environment.declarative_record().bindings()) {
+                if (name.bytes_as_string_view().starts_with(variable_name)) {
+                    results.empend(name);
+                    results.last().invariant_offset = variable_name.bytes().size();
+                }
+            }
+
+            break;
+        }
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        return results;
+    };
+    s_editor->on_tab_complete = move(complete);
+    TRY(repl(realm));
+    s_editor->save_history(s_history_path.to_byte_string());
+    return s_exit_code;
+}
+
+#endif
+
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     bool gc_on_every_allocation = false;
@@ -553,7 +794,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_positional_argument(script_paths, "Path to script files", "scripts", Core::ArgsParser::Required::No);
     args_parser.parse(arguments);
 
-    bool syntax_highlight = !disable_syntax_highlight;
+    [[maybe_unused]] bool syntax_highlight = !disable_syntax_highlight;
 
     AK::set_debug_enabled(!disable_debug_printing);
     s_history_path = TRY(String::formatted("{}/.js-history", Core::StandardPaths::home_directory()));
@@ -584,232 +825,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     // FIXME: Figure out some way to interrupt the interpreter now that vm.exception() is gone.
 
     if (evaluate_script.is_empty() && script_paths.is_empty()) {
-        s_print_last_result = true;
-
-        auto root_execution_context = JS::create_simple_execution_context<ReplObject>(*g_vm);
-        auto& realm = *root_execution_context->realm;
-
-        auto& console_object = *realm.intrinsics().console_object();
-        ReplConsoleClient console_client(console_object.console());
-        console_object.console().set_client(console_client);
-        g_vm->heap().set_should_collect_on_every_allocation(gc_on_every_allocation);
-
-        auto& global_environment = realm.global_environment();
-
-        s_editor = Line::Editor::construct();
-        s_editor->load_history(s_history_path.to_byte_string());
-
-        signal(SIGINT, [](int) {
-            if (!s_editor->is_editing())
-                exit(0);
-            s_editor->save_history(s_history_path.to_byte_string());
-        });
-
-        s_editor->register_key_input_callback(Line::ctrl('C'), [](Line::Editor& editor) -> bool {
-            if (editor.buffer_view().length() == 0 || s_ctrl_c_hit_count > 0) {
-                if (++s_ctrl_c_hit_count == 2) {
-                    s_keep_running_repl = false;
-                    editor.finish_edit();
-                    return false;
-                }
-            }
-
-            return true;
-        });
-
-        s_editor->on_display_refresh = [syntax_highlight](Line::Editor& editor) {
-            auto stylize = [&](Line::Span span, Line::Style styles) {
-                if (syntax_highlight)
-                    editor.stylize(span, styles);
-            };
-            editor.strip_styles();
-
-            size_t open_indents = s_repl_line_level;
-
-            auto line = editor.line();
-            JS::Lexer lexer(line);
-            bool indenters_starting_line = true;
-            for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
-                auto length = Utf8View { token.value() }.length();
-                auto start = token.offset();
-                auto end = start + length;
-                if (indenters_starting_line) {
-                    if (token.type() != JS::TokenType::ParenClose && token.type() != JS::TokenType::BracketClose && token.type() != JS::TokenType::CurlyClose) {
-                        indenters_starting_line = false;
-                    } else {
-                        --open_indents;
-                    }
-                }
-
-                switch (token.category()) {
-                case JS::TokenCategory::Invalid:
-                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Red), Line::Style::Underline });
-                    break;
-                case JS::TokenCategory::Number:
-                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Magenta) });
-                    break;
-                case JS::TokenCategory::String:
-                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Green), Line::Style::Bold });
-                    break;
-                case JS::TokenCategory::Punctuation:
-                    break;
-                case JS::TokenCategory::Operator:
-                    break;
-                case JS::TokenCategory::Keyword:
-                    switch (token.type()) {
-                    case JS::TokenType::BoolLiteral:
-                    case JS::TokenType::NullLiteral:
-                        stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Yellow), Line::Style::Bold });
-                        break;
-                    default:
-                        stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Blue), Line::Style::Bold });
-                        break;
-                    }
-                    break;
-                case JS::TokenCategory::ControlKeyword:
-                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Cyan), Line::Style::Italic });
-                    break;
-                case JS::TokenCategory::Identifier:
-                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::White), Line::Style::Bold });
-                    break;
-                default:
-                    break;
-                }
-            }
-
-            editor.set_prompt(prompt_for_level(open_indents).release_value_but_fixme_should_propagate_errors().to_byte_string());
-        };
-
-        auto complete = [&realm, &global_environment](Line::Editor const& editor) -> Vector<Line::CompletionSuggestion> {
-            auto line = editor.line(editor.cursor());
-
-            JS::Lexer lexer { line };
-            enum {
-                Initial,
-                CompleteVariable,
-                CompleteNullProperty,
-                CompleteProperty,
-            } mode { Initial };
-
-            FlyString variable_name;
-            FlyString property_name;
-
-            // we're only going to complete either
-            //    - <N>
-            //        where N is part of the name of a variable
-            //    - <N>.<P>
-            //        where N is the complete name of a variable and
-            //        P is part of the name of one of its properties
-            auto js_token = lexer.next();
-            for (; js_token.type() != JS::TokenType::Eof; js_token = lexer.next()) {
-                switch (mode) {
-                case CompleteVariable:
-                    switch (js_token.type()) {
-                    case JS::TokenType::Period:
-                        // ...<name> <dot>
-                        mode = CompleteNullProperty;
-                        break;
-                    default:
-                        // not a dot, reset back to initial
-                        mode = Initial;
-                        break;
-                    }
-                    break;
-                case CompleteNullProperty:
-                    if (js_token.is_identifier_name()) {
-                        // ...<name> <dot> <name>
-                        mode = CompleteProperty;
-                        property_name = js_token.fly_string_value();
-                    } else {
-                        mode = Initial;
-                    }
-                    break;
-                case CompleteProperty:
-                    // something came after the property access, reset to initial
-                case Initial:
-                    if (js_token.type() == JS::TokenType::Identifier) {
-                        // ...<name>...
-                        mode = CompleteVariable;
-                        variable_name = js_token.fly_string_value();
-                    } else {
-                        mode = Initial;
-                    }
-                    break;
-                }
-            }
-
-            bool last_token_has_trivia = js_token.trivia().length() > 0;
-
-            if (mode == CompleteNullProperty) {
-                mode = CompleteProperty;
-                property_name = ""_fly_string;
-                last_token_has_trivia = false; // <name> <dot> [tab] is sensible to complete.
-            }
-
-            if (mode == Initial || last_token_has_trivia)
-                return {}; // we do not know how to complete this
-
-            Vector<Line::CompletionSuggestion> results;
-
-            Function<void(JS::Shape const&, StringView)> list_all_properties = [&results, &list_all_properties](JS::Shape const& shape, auto property_pattern) {
-                for (auto const& descriptor : shape.property_table()) {
-                    if (!descriptor.key.is_string())
-                        continue;
-                    auto key = descriptor.key.as_string();
-                    if (key.bytes_as_string_view().starts_with(property_pattern)) {
-                        Line::CompletionSuggestion completion { key, Line::CompletionSuggestion::ForSearch };
-                        if (!results.contains_slow(completion)) { // hide duplicates
-                            results.append(key.to_string().to_byte_string());
-                            results.last().invariant_offset = property_pattern.length();
-                        }
-                    }
-                }
-                if (auto const* prototype = shape.prototype()) {
-                    list_all_properties(prototype->shape(), property_pattern);
-                }
-            };
-
-            switch (mode) {
-            case CompleteProperty: {
-                auto reference_or_error = g_vm->resolve_binding(variable_name, &global_environment);
-                if (reference_or_error.is_error())
-                    return {};
-                auto value_or_error = reference_or_error.value().get_value(*g_vm);
-                if (value_or_error.is_error())
-                    return {};
-                auto variable = value_or_error.value();
-                VERIFY(!variable.is_special_empty_value());
-
-                if (!variable.is_object())
-                    break;
-
-                auto const object = MUST(variable.to_object(*g_vm));
-                auto const& shape = object->shape();
-                list_all_properties(shape, property_name);
-                break;
-            }
-            case CompleteVariable: {
-                auto const& variable = realm.global_object();
-                list_all_properties(variable.shape(), variable_name);
-
-                for (auto const& name : global_environment.declarative_record().bindings()) {
-                    if (name.bytes_as_string_view().starts_with(variable_name)) {
-                        results.empend(name);
-                        results.last().invariant_offset = variable_name.bytes().size();
-                    }
-                }
-
-                break;
-            }
-            default:
-                VERIFY_NOT_REACHED();
-            }
-
-            return results;
-        };
-        s_editor->on_tab_complete = move(complete);
-        TRY(repl(realm));
-        s_editor->save_history(s_history_path.to_byte_string());
+#if defined(AK_OS_WINDOWS)
+        dbgln("REPL functionality is not supported on Windows");
+        VERIFY_NOT_REACHED();
+#else
+        return run_repl(gc_on_every_allocation, syntax_highlight);
+#endif
     } else {
         OwnPtr<JS::ExecutionContext> root_execution_context;
         if (use_test262_global)

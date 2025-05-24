@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibGC/Export.h>
 #include <LibGC/Forward.h>
 
 namespace GC {
@@ -33,7 +34,7 @@ class HeapBlockBase {
     AK_MAKE_NONCOPYABLE(HeapBlockBase);
 
 public:
-    static size_t block_size;
+    GC_API static size_t block_size;
     static HeapBlockBase* from_cell(Cell const* cell)
     {
         return reinterpret_cast<HeapBlockBase*>(bit_cast<FlatPtr>(cell) & ~(HeapBlockBase::block_size - 1));

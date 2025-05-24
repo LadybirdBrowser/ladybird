@@ -104,7 +104,7 @@ private:
     ExecutionContext* m_running_execution_context { nullptr };
 };
 
-extern bool g_dump_bytecode;
+JS_API extern bool g_dump_bytecode;
 
 ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, ASTNode const&, JS::FunctionKind kind, FlyString const& name);
 ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, ECMAScriptFunctionObject const&);
