@@ -157,27 +157,36 @@ struct MessageHeader {
     Type type { Type::Payload };
     u32 payload_size { 0 };
     u32 fd_count { 0 };
+
+    static Vector<u8> encode_with_payload(MessageHeader header, ReadonlyBytes payload)
+    {
+        Vector<u8> message_buffer;
+        message_buffer.resize(sizeof(MessageHeader) + payload.size());
+        memcpy(message_buffer.data(), &header, sizeof(MessageHeader));
+        memcpy(message_buffer.data() + sizeof(MessageHeader), payload.data(), payload.size());
+        return message_buffer;
+    }
 };
 
 void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const& fds)
 {
-    Vector<u8> message_buffer;
-    message_buffer.resize(sizeof(MessageHeader) + bytes_to_write.size());
-    MessageHeader header;
-    header.payload_size = bytes_to_write.size();
-    header.fd_count = fds.size();
-    header.type = MessageHeader::Type::Payload;
-    memcpy(message_buffer.data(), &header, sizeof(MessageHeader));
-    memcpy(message_buffer.data() + sizeof(MessageHeader), bytes_to_write.data(), bytes_to_write.size());
+    auto num_fds_to_transfer = fds.size();
+
+    auto message_buffer = MessageHeader::encode_with_payload(
+        {
+            .type = MessageHeader::Type::Payload,
+            .payload_size = static_cast<u32>(bytes_to_write.size()),
+            .fd_count = static_cast<u32>(num_fds_to_transfer),
+        },
+        bytes_to_write);
 
     for (auto const& fd : fds)
         m_fds_retained_until_received_by_peer.enqueue(fd);
 
     auto raw_fds = Vector<int, 1> {};
-    auto num_fds_to_transfer = fds.size();
     if (num_fds_to_transfer > 0) {
         raw_fds.ensure_capacity(num_fds_to_transfer);
-        for (auto& owned_fd : fds) {
+        for (auto const& owned_fd : fds) {
             raw_fds.unchecked_append(owned_fd->value());
         }
     }
