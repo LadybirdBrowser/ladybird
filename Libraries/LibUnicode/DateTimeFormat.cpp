@@ -658,6 +658,8 @@ static bool is_formatted_range_actually_a_range(icu::FormattedDateInterval const
     return has_range;
 }
 
+namespace {
+
 class DateTimeFormatImpl : public DateTimeFormat {
 public:
     DateTimeFormatImpl(icu::Locale& locale, icu::UnicodeString const& pattern, StringView time_zone_identifier, NonnullOwnPtr<icu::SimpleDateFormat> formatter)
@@ -869,6 +871,8 @@ private:
     NonnullOwnPtr<icu::SimpleDateFormat> m_formatter;
     mutable OwnPtr<icu::DateIntervalFormat> m_range_formatter;
 };
+
+}
 
 NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
     StringView locale,

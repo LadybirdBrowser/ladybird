@@ -17,7 +17,7 @@
 
 namespace Core {
 
-class MappedFile : public FixedMemoryStream {
+class MappedFile final : public FixedMemoryStream {
     AK_MAKE_NONCOPYABLE(MappedFile);
     AK_MAKE_NONMOVABLE(MappedFile);
 

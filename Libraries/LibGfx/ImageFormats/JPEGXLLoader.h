@@ -12,7 +12,7 @@ namespace Gfx {
 
 class JPEGXLLoadingContext;
 
-class JPEGXLImageDecoderPlugin : public ImageDecoderPlugin {
+class JPEGXLImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);

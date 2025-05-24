@@ -72,7 +72,7 @@ public:
         }
     }
 
-    virtual NonnullOwnPtr<T> copy() const
+    NonnullOwnPtr<T> copy() const
     {
         auto context = create();
         if (EVP_MD_CTX_copy_ex(context->m_context, m_context) != 1) {
