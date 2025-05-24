@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<body>
+<ol id="ol1">
+    <li>1</li>
+<!--  Remove x  -->
+    <li>2</li>
+    <div id="div1">
+        <li>3</li>
+<!-- Remove div / y    -->
+        <li>4</li>
+    </div>
+    <div>
+        <ol reversed start=20 id="ol2">
+            <div> <!-- insert start -->
+                <li>20</li>
+                <li>19</li>
+            </div>
+            <p id="p1">
+                <span>
+                    <li>18</li>
+                </span>
+            </p>
+            <li>17</li>
+            <li>16</li> <!-- append -->
+            <li>15</li> <!-- insert last -->
+        </ol>
+    </div>
+    <hr />
+    <ol >
+        <li value=30>30</li>
+        <div>
+            <li>31</li>
+        </div>
+        <div><div>
+            <li>32</li>
+            <li>33</li>
+            <li>34</li>
+        </div></div>
+            <ol start=40>
+                <li>40</li>
+                <div style="display:list-item">41</div>
+                <div id="div2"><div><div>
+                    <span style="display:list-item">42</span> <!-- insert before move -->
+                </div></div></div>
+                <p id="p2" style="display:list-item">43</p>
+            </ol>
+        <div><div><div id="div3">
+            <li>35</li>
+<!--  Remove child -->
+            <div></div>
+            <li>36</li>
+            <li>37</li>
+        </div></div></div>
+    </ol>
+    <li>5</li>
+    <li>6</li>
+</ol>
+</body>
