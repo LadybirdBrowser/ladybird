@@ -37,6 +37,9 @@ wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | 
 # Use the key to authorize an entry for apt.kitware.com in apt sources list
 echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/kitware.list
 
+# Use this for correct Ubuntu codename on Linux Mint
+# echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(sed 's/UBUNTU_CODENAME=//;t;d' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/kitware.list
+
 # Update apt package list and install cmake
 sudo apt update -y && sudo apt install cmake -y
 ```
@@ -53,6 +56,9 @@ sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm
 
 # Use the key to authorize an entry for apt.llvm.org in apt sources list
 echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+
+# Use this for correct Ubuntu codename on Linux Mint
+# echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(sed 's/UBUNTU_CODENAME=//;t;d' /etc/os-release)/ llvm-toolchain-$(sed 's/UBUNTU_CODENAME=//;t;d' /etc/os-release)-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
 # Update apt package list and install clang and associated packages
 sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
