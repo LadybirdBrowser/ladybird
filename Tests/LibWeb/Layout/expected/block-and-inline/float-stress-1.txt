@@ -14,36 +14,30 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             "baz"
         frag 4 from TextNode start: 13, length: 3, rect: [263,57 27.15625x16] baseline: 12.796875
             "foo"
-        frag 5 from TextNode start: 17, length: 7, rect: [9,77 62.84375x16] baseline: 12.796875
+        frag 5 from TextNode start: 17, length: 11, rect: [9,77 98x16] baseline: 12.796875
+            "bar baz foo"
+        frag 6 from TextNode start: 29, length: 11, rect: [9,93 98x16] baseline: 12.796875
+            "bar baz foo"
+        frag 7 from TextNode start: 41, length: 7, rect: [9,109 62.84375x16] baseline: 12.796875
             "bar baz"
-        frag 6 from TextNode start: 25, length: 7, rect: [9,93 62.796875x16] baseline: 12.796875
+        frag 8 from TextNode start: 1, length: 7, rect: [9,125 62.796875x16] baseline: 12.796875
             "foo bar"
-        frag 7 from TextNode start: 33, length: 7, rect: [9,109 62.359375x16] baseline: 12.796875
-            "baz foo"
-        frag 8 from TextNode start: 41, length: 7, rect: [9,125 62.84375x16] baseline: 12.796875
-            "bar baz"
-        frag 9 from TextNode start: 1, length: 27, rect: [9,141 239.15625x16] baseline: 12.796875
-            "foo bar baz foo bar baz foo"
-        frag 10 from TextNode start: 29, length: 27, rect: [9,157 239.640625x16] baseline: 12.796875
-            "bar baz foo bar baz foo bar"
-        frag 11 from TextNode start: 57, length: 16, rect: [61,173 141.203125x16] baseline: 12.796875
-            "baz foo bar baz "
-        frag 12 from TextNode start: 1, length: 11, rect: [202.203125,173 98x16] baseline: 12.796875
-            "foo bar baz"
-        frag 13 from TextNode start: 13, length: 12, rect: [61,189 106x16] baseline: 12.796875
-            "foo bar baz "
-        frag 14 from TextNode start: 1, length: 11, rect: [167,189 98x16] baseline: 12.796875
-            "foo bar baz"
-        frag 15 from TextNode start: 13, length: 23, rect: [61,205 204x16] baseline: 12.796875
-            "foo bar baz foo bar baz"
-        frag 16 from TextNode start: 37, length: 27, rect: [61,221 239.15625x16] baseline: 12.796875
-            "foo bar baz foo bar baz foo"
-        frag 17 from TextNode start: 65, length: 31, rect: [9,237 274.84375x16] baseline: 12.796875
+        frag 9 from TextNode start: 9, length: 31, rect: [9,141 274.359375x16] baseline: 12.796875
+            "baz foo bar baz foo bar baz foo"
+        frag 10 from TextNode start: 41, length: 31, rect: [9,157 274.84375x16] baseline: 12.796875
             "bar baz foo bar baz foo bar baz"
-        frag 18 from TextNode start: 97, length: 31, rect: [9,253 274.796875x16] baseline: 12.796875
-            "foo bar baz foo bar baz foo bar"
-        frag 19 from TextNode start: 129, length: 15, rect: [9,269 133.203125x16] baseline: 12.796875
-            "baz foo bar baz"
+        frag 11 from TextNode start: 1, length: 23, rect: [61,173 204x16] baseline: 12.796875
+            "foo bar baz foo bar baz"
+        frag 12 from TextNode start: 1, length: 23, rect: [61,189 204x16] baseline: 12.796875
+            "foo bar baz foo bar baz"
+        frag 13 from TextNode start: 25, length: 27, rect: [61,205 239.15625x16] baseline: 12.796875
+            "foo bar baz foo bar baz foo"
+        frag 14 from TextNode start: 53, length: 27, rect: [61,221 239.640625x16] baseline: 12.796875
+            "bar baz foo bar baz foo bar"
+        frag 15 from TextNode start: 81, length: 31, rect: [9,237 274.359375x16] baseline: 12.796875
+            "baz foo bar baz foo bar baz foo"
+        frag 16 from TextNode start: 113, length: 31, rect: [9,253 274.84375x16] baseline: 12.796875
+            "bar baz foo bar baz foo bar baz"
         TextNode <#text>
         BlockContainer <div.lefty> at (10,10) content-size 50x50 floating [BFC] children: not-inline
         TextNode <#text>
@@ -51,26 +45,26 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TextNode <#text>
         BlockContainer <div.two> at (108,78) content-size 200x50 floating [BFC] children: not-inline
         TextNode <#text>
-        BlockContainer <div.righty> at (278,142) content-size 30x30 floating [BFC] children: not-inline
+        BlockContainer <div.righty> at (76,110) content-size 30x30 floating [BFC] children: not-inline
         TextNode <#text>
         BlockContainer <div.lefty.shwifty> at (10,174) content-size 50x50 floating [BFC] children: not-inline
         TextNode <#text>
-        BlockContainer <div.righty> at (278,190) content-size 30x30 floating [BFC] children: not-inline
+        BlockContainer <div.righty> at (278,174) content-size 30x30 floating [BFC] children: not-inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x268] overflow: [0,0 800x285]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x252] overflow: [8,8 784x277]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x268] overflow: [0,0 800x269]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x252] overflow: [8,8 784x261]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>.outer) [8,8 302x252] overflow: [9,9 300x276]
+      PaintableWithLines (BlockContainer<DIV>.outer) [8,8 302x252] overflow: [9,9 300x260]
         TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.lefty) [9,9 52x52]
         PaintableWithLines (BlockContainer<DIV>.one) [61,25 202x52]
         PaintableWithLines (BlockContainer<DIV>.two) [107,77 202x52]
         TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.righty) [277,141 32x32]
+        PaintableWithLines (BlockContainer<DIV>.righty) [75,109 32x32]
         TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.lefty.shwifty) [9,173 52x52]
         TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.righty) [277,189 32x32]
+        PaintableWithLines (BlockContainer<DIV>.righty) [277,173 32x32]
         TextPaintable (TextNode<#text>)
