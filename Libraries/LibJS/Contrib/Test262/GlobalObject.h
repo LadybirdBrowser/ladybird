@@ -7,11 +7,12 @@
 #pragma once
 
 #include <LibJS/Contrib/Test262/262Object.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS::Test262 {
 
-class GlobalObject final : public JS::GlobalObject {
+class JS_API GlobalObject final : public JS::GlobalObject {
     JS_OBJECT(GlobalObject, JS::GlobalObject);
     GC_DECLARE_ALLOCATOR(GlobalObject);
 
