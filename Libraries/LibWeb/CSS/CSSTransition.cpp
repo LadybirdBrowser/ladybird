@@ -150,11 +150,11 @@ double CSSTransition::timing_function_output_at_time(double t) const
     return m_keyframe_effect->timing_function().evaluate_at(progress, before_flag);
 }
 
-NonnullRefPtr<CSSStyleValue const> CSSTransition::value_at_time(double t) const
+NonnullRefPtr<CSSStyleValue const> CSSTransition::value_at_time(double t, AllowDiscrete allow_discrete) const
 {
     // https://drafts.csswg.org/css-transitions/#application
     auto progress = timing_function_output_at_time(t);
-    auto result = interpolate_property(*m_keyframe_effect->target(), m_transition_property, m_start_value, m_end_value, progress);
+    auto result = interpolate_property(*m_keyframe_effect->target(), m_transition_property, m_start_value, m_end_value, progress, allow_discrete);
     if (result)
         return result.release_nonnull();
     return m_start_value;

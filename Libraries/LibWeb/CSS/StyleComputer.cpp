@@ -1266,7 +1266,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             continue;
         }
 
-        if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe)) {
+        if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe, AllowDiscrete::Yes)) {
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal), next_value->to_string(SerializationMode::Normal));
             computed_properties.set_animated_property(it.key, *next_value);
         } else {
@@ -1488,7 +1488,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             auto transition = CSSTransition::start_a_transition(element, property_id, document().transition_generation(),
                 start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
-            new_style.set_animated_property(property_id, transition->value_at_time(style_change_event_time));
+            new_style.set_animated_property(property_id, transition->value_at_time(style_change_event_time, matching_transition_properties->transition_behavior == TransitionBehavior::AllowDiscrete ? AllowDiscrete::Yes : AllowDiscrete::No));
         };
 
         // 1. If all of the following are true:
@@ -1498,7 +1498,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // - there is a matching transition-property value, and
             (matching_transition_properties.has_value()) &&
             // - the before-change style is different from the after-change style for that property, and the values for the property are transitionable,
-            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value, matching_transition_properties->transition_behavior)) &&
+            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value, element, matching_transition_properties->transition_behavior)) &&
             // - the element does not have a completed transition for the property
             //   or the end value of the completed transition is different from the after-change style for the property,
             (!has_completed_transition || !existing_transition->transition_end_value()->equals(after_change_value)) &&
@@ -1560,8 +1560,8 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
-            auto current_value = existing_transition->value_at_time(style_change_event_time);
-            if (current_value->equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, matching_transition_properties->transition_behavior)) {
+            auto current_value = existing_transition->value_at_time(style_change_event_time, matching_transition_properties->transition_behavior == TransitionBehavior::AllowDiscrete ? AllowDiscrete::Yes : AllowDiscrete::No);
+            if (current_value->equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties->transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.1");
                 existing_transition->cancel();
             }
@@ -1570,7 +1570,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             //    or if the current value of the property in the running transition is not transitionable with the value of the property in the after-change style,
             //    then implementations must cancel the running transition.
             else if ((combined_duration(matching_transition_properties.value()) <= 0)
-                || !property_values_are_transitionable(property_id, current_value, after_change_value, matching_transition_properties->transition_behavior)) {
+                || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties->transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.2");
                 existing_transition->cancel();
             }

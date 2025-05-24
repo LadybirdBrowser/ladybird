@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 130 tests
 
-124 Pass
-6 Fail
+130 Pass
 Pass	CSS Transitions: property <content-visibility> from [visible] to [hidden] at (-1) should be [visible]
 Pass	CSS Transitions: property <content-visibility> from [visible] to [hidden] at (0) should be [visible]
 Pass	CSS Transitions: property <content-visibility> from [visible] to [hidden] at (0.1) should be [visible]
@@ -66,16 +65,16 @@ Pass	CSS Transitions with transition-property:all and transition-behavor:allow-d
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <content-visibility> from [auto] to [visible] at (0.6) should be [visible]
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <content-visibility> from [auto] to [visible] at (1) should be [visible]
 Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <content-visibility> from [auto] to [visible] at (1.5) should be [visible]
-Fail	CSS Transitions: property <content-visibility> from [auto] to [visible] at (-0.3) should be [visible]
-Fail	CSS Transitions: property <content-visibility> from [auto] to [visible] at (0) should be [visible]
-Fail	CSS Transitions: property <content-visibility> from [auto] to [visible] at (0.3) should be [visible]
+Pass	CSS Transitions: property <content-visibility> from [auto] to [visible] at (-0.3) should be [visible]
+Pass	CSS Transitions: property <content-visibility> from [auto] to [visible] at (0) should be [visible]
+Pass	CSS Transitions: property <content-visibility> from [auto] to [visible] at (0.3) should be [visible]
 Pass	CSS Transitions: property <content-visibility> from [auto] to [visible] at (0.5) should be [visible]
 Pass	CSS Transitions: property <content-visibility> from [auto] to [visible] at (0.6) should be [visible]
 Pass	CSS Transitions: property <content-visibility> from [auto] to [visible] at (1) should be [visible]
 Pass	CSS Transitions: property <content-visibility> from [auto] to [visible] at (1.5) should be [visible]
-Fail	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (-0.3) should be [visible]
-Fail	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (0) should be [visible]
-Fail	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (0.3) should be [visible]
+Pass	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (-0.3) should be [visible]
+Pass	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (0) should be [visible]
+Pass	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (0.3) should be [visible]
 Pass	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (0.5) should be [visible]
 Pass	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (0.6) should be [visible]
 Pass	CSS Transitions with transition: all: property <content-visibility> from [auto] to [visible] at (1) should be [visible]
