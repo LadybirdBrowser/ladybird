@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestLibCoreFileWatcher.cpp
     # FIXME: Identify and address the commit that caused this to start failing at runtime
     #TestLibCoreMappedFile.cpp
+    TestLibCoreMimeType.cpp
     TestLibCorePromise.cpp
     TestLibCoreSharedSingleProducerCircularQueue.cpp
     # FIXME: Identify and address the commit that caused this to start failing at runtime
