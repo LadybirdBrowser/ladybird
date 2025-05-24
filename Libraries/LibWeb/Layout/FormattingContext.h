@@ -123,6 +123,7 @@ protected:
         CSSPixels left_total_containing_margin;
         CSSPixels right_total_containing_margin;
         GC::Ptr<Box const> matching_left_float_box;
+        GC::Ptr<Box const> matching_right_float_box;
     };
 
     struct ShrinkToFitResult {
