@@ -106,7 +106,13 @@ ErrorOr<void> vformat_impl(TypeErasedFormatParams& params, FormatBuilder& builde
     auto& parameter = params.parameters().at(specifier.index);
 
     FormatParser argparser { specifier.flags };
-    TRY(parameter.formatter(params, builder, argparser, parameter.value));
+    TRY(parameter.visit([&]<typename T>(T const& value) {
+        if constexpr (IsSame<T, TypeErasedParameter::CustomType>) {
+            return value.formatter(params, builder, argparser, value.value);
+        } else {
+            return __format_value<T>(params, builder, argparser, &value);
+        }
+    }));
     TRY(vformat_impl(params, builder, parser));
     return {};
 }
