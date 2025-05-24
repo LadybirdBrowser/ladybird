@@ -1,5 +1,5 @@
 Blob              [Success]: [object ImageBitmap]
-ImageData         [ Error ]: Error: Not Implemented: createImageBitmap() for non-blob types
+ImageData         [Success]: [object ImageBitmap]
 HTMLImageElement  [ Error ]: InvalidStateError: image argument is not usable
 SVGImageElement   [ Error ]: InvalidStateError: image argument is not usable
 HTMLCanvasElement [ Error ]: Error: Not Implemented: createImageBitmap() for non-blob types
