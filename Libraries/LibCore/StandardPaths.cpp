@@ -22,10 +22,6 @@
 #    include <unistd.h>
 #endif
 
-#if defined(AK_OS_HAIKU)
-#    include <FindDirectory.h>
-#endif
-
 namespace Core {
 
 static Optional<StringView> get_environment_if_not_empty(StringView name)
@@ -234,51 +230,6 @@ ByteString StandardPaths::tempfile_directory()
     return getenv("TEMP");
 #else
     return "/tmp";
-#endif
-}
-
-ErrorOr<Vector<String>> StandardPaths::font_directories()
-{
-#if defined(AK_OS_HAIKU)
-    Vector<String> paths_vector;
-    char** paths;
-    size_t paths_count;
-    if (find_paths(B_FIND_PATH_FONTS_DIRECTORY, NULL, &paths, &paths_count) == B_OK) {
-        for (size_t i = 0; i < paths_count; ++i) {
-            StringBuilder builder;
-            builder.append(paths[i], strlen(paths[i]));
-            paths_vector.append(TRY(builder.to_string()));
-        }
-    }
-    return paths_vector;
-#else
-    auto paths = Vector { {
-#    if defined(AK_OS_SERENITY)
-        "/res/fonts"_string,
-#    elif defined(AK_OS_MACOS)
-        "/System/Library/Fonts"_string,
-        "/Library/Fonts"_string,
-        TRY(String::formatted("{}/Library/Fonts"sv, home_directory())),
-#    elif defined(AK_OS_ANDROID)
-        // FIXME: We should be using the ASystemFontIterator NDK API here.
-        // There is no guarantee that this will continue to exist on future versions of Android.
-        "/system/fonts"_string,
-#    elif defined(AK_OS_WINDOWS)
-        TRY(String::formatted(R"({}\Fonts)"sv, getenv("WINDIR"))),
-        TRY(String::formatted(R"({}\Microsoft\Windows\Fonts)"sv, getenv("LOCALAPPDATA"))),
-#    else
-        TRY(String::formatted("{}/fonts", user_data_directory())),
-        TRY(String::formatted("{}/X11/fonts", user_data_directory())),
-#    endif
-    } };
-#    if !(defined(AK_OS_SERENITY) || defined(AK_OS_MACOS) || defined(AK_OS_WINDOWS))
-    auto data_directories = system_data_directories();
-    for (auto& data_directory : data_directories) {
-        paths.append(TRY(String::formatted("{}/fonts", data_directory)));
-        paths.append(TRY(String::formatted("{}/X11/fonts", data_directory)));
-    }
-#    endif
-    return paths;
 #endif
 }
 

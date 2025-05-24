@@ -32,6 +32,8 @@ public:
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
     [[nodiscard]] StringView system_font_provider_name() const;
 
+    static ErrorOr<Vector<String>> font_directories();
+
 private:
     FontDatabase();
     ~FontDatabase() = default;
