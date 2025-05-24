@@ -10,8 +10,8 @@
 
 namespace Core {
 
-// FIXME: This limit has been chosen arbitrarily to avoid WPT test flakiness.
-static constexpr size_t MAX_LOCAL_SOCKET_TRANSFER_FDS = 640;
+// FIXME: This limit has been chosen arbitrarily
+size_t const LocalSocket::MAX_TRANSFER_FDS = 64;
 
 ErrorOr<int> Socket::create_fd(SocketDomain domain, SocketType type)
 {
@@ -400,12 +400,12 @@ ErrorOr<ssize_t> LocalSocket::send_message(ReadonlyBytes data, int flags, Vector
     size_t const num_fds = fds.size();
     if (num_fds == 0)
         return m_helper.write(data, flags | default_flags());
-    if (num_fds > MAX_LOCAL_SOCKET_TRANSFER_FDS)
+    if (num_fds > MAX_TRANSFER_FDS)
         return Error::from_string_literal("Too many file descriptors to send");
 
     auto const fd_payload_size = num_fds * sizeof(int);
 
-    alignas(struct cmsghdr) char control_buf[CMSG_SPACE(sizeof(int) * MAX_LOCAL_SOCKET_TRANSFER_FDS)] {};
+    alignas(struct cmsghdr) char control_buf[CMSG_SPACE(sizeof(int) * MAX_TRANSFER_FDS)] {};
 
     // Note: We don't use designated initializers here due to weirdness with glibc's flexible array members.
     auto* header = new (control_buf) cmsghdr {};
@@ -434,7 +434,7 @@ ErrorOr<Bytes> LocalSocket::receive_message(AK::Bytes buffer, int flags, Vector<
         .iov_len = buffer.size(),
     };
 
-    alignas(struct cmsghdr) char control_buf[CMSG_SPACE(sizeof(int) * MAX_LOCAL_SOCKET_TRANSFER_FDS)] {};
+    alignas(struct cmsghdr) char control_buf[CMSG_SPACE(sizeof(int) * MAX_TRANSFER_FDS)] {};
 
     struct msghdr msg = {};
     msg.msg_iov = &iov;
