@@ -3027,6 +3027,18 @@ bool HTMLInputElement::required_applies() const
     }
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#do-not-apply
+bool HTMLInputElement::checked_applies() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::Checkbox:
+    case TypeAttributeState::RadioButton:
+        return true;
+    default:
+        return false;
+    }
+}
+
 bool HTMLInputElement::has_selectable_text() const
 {
     // Potential FIXME: Date, Month, Week, Time and LocalDateAndTime are rendered as a basic text input for now,

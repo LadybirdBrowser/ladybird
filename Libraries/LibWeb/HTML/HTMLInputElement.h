@@ -220,6 +220,7 @@ public:
     bool pattern_applies() const;
     bool multiple_applies() const;
     bool required_applies() const;
+    bool checked_applies() const;
     bool has_selectable_text() const;
 
     bool supports_a_picker() const;

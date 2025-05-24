@@ -1176,13 +1176,13 @@ JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#default-button
-FormAssociatedElement* HTMLFormElement::default_button()
+FormAssociatedElement* HTMLFormElement::default_button() const
 {
     // A form element's default button is the first submit button in tree order whose form owner is that form element.
     FormAssociatedElement* default_button = nullptr;
 
     root().for_each_in_subtree([&](auto& node) {
-        auto* form_associated_element = dynamic_cast<FormAssociatedElement*>(&node);
+        auto* form_associated_element = const_cast<FormAssociatedElement*>(dynamic_cast<FormAssociatedElement const*>(&node));
         if (!form_associated_element)
             return TraversalDecision::Continue;
 

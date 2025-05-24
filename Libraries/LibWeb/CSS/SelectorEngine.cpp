@@ -1037,6 +1037,29 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
 
         return false;
     }
+    case CSS::PseudoClass::Default: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-default
+
+        // The :default pseudo-class must match any element falling into one of the following categories:
+        if (auto const* form_associated_element = as_if<Web::HTML::FormAssociatedElement>(element)) {
+            // - Submit buttons that are default buttons of their form owner.
+            if (form_associated_element->is_submit_button() && form_associated_element->form() && form_associated_element->form()->default_button() == form_associated_element)
+                return true;
+
+            // - input elements to which the checked attribute applies and that have a checked attribute
+            if (auto const* input_element = as_if<Web::HTML::HTMLInputElement>(form_associated_element)) {
+                if (input_element->checked_applies() && input_element->has_attribute(HTML::AttributeNames::checked))
+                    return true;
+            }
+        }
+        // - option elements that have a selected attribute
+        else if (auto const* option_element = as_if<Web::HTML::HTMLOptionElement>(element)) {
+            if (option_element->has_attribute(HTML::AttributeNames::selected))
+                return true;
+        }
+
+        return false;
+    }
     }
 
     return false;

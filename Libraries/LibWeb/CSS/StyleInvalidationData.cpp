@@ -75,6 +75,7 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
         case PseudoClass::Link:
         case PseudoClass::AnyLink:
         case PseudoClass::LocalLink:
+        case PseudoClass::Default:
             if (in_has)
                 style_invalidation_data.pseudo_classes_used_in_has_selectors.set(pseudo_class.type);
             break;
