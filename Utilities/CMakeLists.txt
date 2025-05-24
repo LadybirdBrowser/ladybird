@@ -1,3 +1,9 @@
+if(WIN32)
+    lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+else()
+    lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+endif()
+
 # FIXME: Increase support for building targets on Windows
 if (WIN32 AND ENABLE_WINDOWS_CI)
     return()
@@ -11,7 +17,6 @@ if (ENABLE_GUI_TARGETS)
     lagom_utility(image SOURCES image.cpp LIBS LibGfx LibMain)
 endif()
 
-lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
 lagom_utility(test262-runner SOURCES test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
