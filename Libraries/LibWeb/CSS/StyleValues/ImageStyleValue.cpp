@@ -10,6 +10,8 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
@@ -127,31 +129,56 @@ bool ImageStyleValue::equals(CSSStyleValue const& other) const
 
 Optional<CSSPixels> ImageStyleValue::natural_width() const
 {
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_width();
+    if (auto const image_data = this->image_data())
+        return image_data->intrinsic_width(Gfx::ImageOrientation::FromExif);
+
     return {};
 }
 
 Optional<CSSPixels> ImageStyleValue::natural_height() const
 {
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_height();
+    if (auto const image_data = this->image_data())
+        return image_data->intrinsic_height(Gfx::ImageOrientation::FromExif);
+
     return {};
 }
 
 Optional<CSSPixelFraction> ImageStyleValue::natural_aspect_ratio() const
 {
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_aspect_ratio();
+    if (auto const image_data = this->image_data())
+        return image_data->intrinsic_aspect_ratio(Gfx::ImageOrientation::FromExif);
+
+    return {};
+}
+Optional<CSSPixels> ImageStyleValue::intrinsic_width(Gfx::ImageOrientation image_orientation) const
+{
+    if (auto const image_data = this->image_data())
+        return image_data->intrinsic_width(image_orientation);
+
+    return {};
+}
+Optional<CSSPixels> ImageStyleValue::intrinsic_height(Gfx::ImageOrientation image_orientation) const
+{
+    if (auto const image_data = this->image_data())
+        return image_data->intrinsic_height(image_orientation);
+
+    return {};
+}
+Optional<CSSPixelFraction> ImageStyleValue::intrinsic_aspect_ratio(Gfx::ImageOrientation image_orientation) const
+{
+    if (auto const image_data = this->image_data())
+        return image_data->intrinsic_aspect_ratio(image_orientation);
+
     return {};
 }
 
-void ImageStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const
+void ImageStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, CSS::ImageOrientation image_orientation) const
 {
     if (auto const* b = bitmap(m_current_frame_index, dest_rect.size().to_type<int>()); b != nullptr) {
-        auto scaling_mode = to_gfx_scaling_mode(image_rendering, b->rect(), dest_rect.to_type<int>());
+        auto gfx_image_orientation = to_gfx_image_orientation(image_orientation);
+        auto scaling_mode = to_gfx_scaling_mode(image_rendering, b->rect(gfx_image_orientation), dest_rect.to_type<int>());
         auto dest_int_rect = dest_rect.to_type<int>();
-        context.display_list_recorder().draw_scaled_immutable_bitmap(dest_int_rect, dest_int_rect, *b, scaling_mode);
+        context.display_list_recorder().draw_scaled_immutable_bitmap(dest_int_rect, dest_int_rect, *b, scaling_mode, gfx_image_orientation);
     }
 }
 
@@ -170,7 +197,7 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data() const
 Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap() const
 {
     if (auto const* b = bitmap(m_current_frame_index)) {
-        if (b->width() == 1 && b->height() == 1)
+        if (b->width(Gfx::ImageOrientation::FromDecoded) == 1 && b->height(Gfx::ImageOrientation::FromDecoded) == 1)
             return b->get_pixel(0, 0);
     }
     return {};

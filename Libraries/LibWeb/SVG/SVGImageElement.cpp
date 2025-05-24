@@ -9,6 +9,8 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/SVGImageElementPrototype.h>
+#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
@@ -200,8 +202,15 @@ Optional<CSSPixels> SVGImageElement::intrinsic_width() const
 {
     if (!m_resource_request)
         return {};
-    if (auto image_data = m_resource_request->image_data())
-        return image_data->intrinsic_width();
+
+    if (auto image_data = m_resource_request->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? to_gfx_image_orientation(computed_properties()->image_orientation())
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_width(image_orientation);
+    }
+
     return {};
 }
 
@@ -209,8 +218,15 @@ Optional<CSSPixels> SVGImageElement::intrinsic_height() const
 {
     if (!m_resource_request)
         return {};
-    if (auto image_data = m_resource_request->image_data())
-        return image_data->intrinsic_height();
+
+    if (auto image_data = m_resource_request->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? to_gfx_image_orientation(computed_properties()->image_orientation())
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_height(image_orientation);
+    }
+
     return {};
 }
 
@@ -218,8 +234,15 @@ Optional<CSSPixelFraction> SVGImageElement::intrinsic_aspect_ratio() const
 {
     if (!m_resource_request)
         return {};
-    if (auto image_data = m_resource_request->image_data())
-        return image_data->intrinsic_aspect_ratio();
+
+    if (auto image_data = m_resource_request->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? to_gfx_image_orientation(computed_properties()->image_orientation())
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_aspect_ratio(image_orientation);
+    }
+
     return {};
 }
 
