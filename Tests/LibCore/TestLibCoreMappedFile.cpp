@@ -46,7 +46,7 @@ constexpr auto expected_buffer_contents = "&lt;small&gt;(Please consider transla
 
 TEST_CASE(mapped_file_read_bytes)
 {
-    auto file = TRY_OR_FAIL(Core::MappedFile::map("/usr/Tests/LibCore/long_lines.txt"sv, Core::MappedFile::Mode::ReadOnly));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map("./long_lines.txt"sv, Core::MappedFile::Mode::ReadOnly));
 
     auto buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(131));
 
@@ -63,7 +63,7 @@ constexpr auto expected_seek_contents3 = "levels of advanc"sv;
 
 TEST_CASE(mapped_file_seeking_around)
 {
-    auto file = TRY_OR_FAIL(Core::MappedFile::map("/usr/Tests/LibCore/long_lines.txt"sv, Core::MappedFile::Mode::ReadOnly));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map("./long_lines.txt"sv, Core::MappedFile::Mode::ReadOnly));
 
     EXPECT_EQ(file->size().release_value(), 8702ul);
 
@@ -89,7 +89,7 @@ TEST_CASE(mapped_file_seeking_around)
 
 BENCHMARK_CASE(file_tell)
 {
-    auto file = TRY_OR_FAIL(Core::MappedFile::map("/usr/Tests/LibCore/10kb.txt"sv, Core::MappedFile::Mode::ReadOnly));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map("./10kb.txt"sv, Core::MappedFile::Mode::ReadOnly));
     auto expected_file_offset = 0u;
     auto ten_byte_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(1));
     for (auto i = 0u; i < 4000; ++i) {
@@ -108,10 +108,10 @@ BENCHMARK_CASE(file_tell)
 
 TEST_CASE(mapped_file_adopt_fd)
 {
-    int rc = ::open("/usr/Tests/LibCore/long_lines.txt", O_RDONLY);
+    int rc = ::open("./long_lines.txt", O_RDONLY);
     EXPECT(rc >= 0);
 
-    auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_and_close(rc, "/usr/Tests/LibCore/long_lines.txt"sv));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_and_close(rc, "./long_lines.txt"sv));
 
     EXPECT_EQ(file->size().release_value(), 8702ul);
 
@@ -129,14 +129,14 @@ TEST_CASE(mapped_file_adopt_fd)
 
 TEST_CASE(mapped_file_adopt_invalid_fd)
 {
-    auto maybe_file = Core::MappedFile::map_from_fd_and_close(-1, "/usr/Tests/LibCore/long_lines.txt"sv);
+    auto maybe_file = Core::MappedFile::map_from_fd_and_close(-1, "./long_lines.txt"sv);
     EXPECT(maybe_file.is_error());
     EXPECT_EQ(maybe_file.error().code(), EBADF);
 }
 
 TEST_CASE(mapped_file_tell_and_seek)
 {
-    auto mapped_file = Core::MappedFile::map("/usr/Tests/LibCore/small.txt"sv).release_value();
+    auto mapped_file = Core::MappedFile::map("./small.txt"sv).release_value();
 
     // Initial state.
     {
