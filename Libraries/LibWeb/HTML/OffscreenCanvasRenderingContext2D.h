@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025, Ladybird contributors
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,11 +7,14 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Variant.h>
+#include <LibGfx/AffineTransform.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
-#include <LibGfx/TextLayout.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawPath.h>
@@ -29,25 +30,17 @@
 #include <LibWeb/HTML/Canvas/CanvasText.h>
 #include <LibWeb/HTML/Canvas/CanvasTextDrawingStyles.h>
 #include <LibWeb/HTML/Canvas/CanvasTransform.h>
+#include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
-struct CanvasRenderingContext2DSettings {
-    bool alpha { true };
-    bool desynchronized { false };
-    Bindings::PredefinedColorSpace color_space { Bindings::PredefinedColorSpace::Srgb };
-    Bindings::CanvasColorType color_type { Bindings::CanvasColorType::Unorm8 };
-    bool will_read_frequently { false };
-};
-
-class CanvasRenderingContext2D
-    : public Bindings::PlatformObject
-    , public CanvasPath
+class OffscreenCanvasRenderingContext2D : public Bindings::PlatformObject
     , public CanvasState
-    , public CanvasTransform<CanvasRenderingContext2D>
-    , public CanvasFillStrokeStyles<CanvasRenderingContext2D>
-    , public CanvasShadowStyles<CanvasRenderingContext2D>
+    , public CanvasTransform<OffscreenCanvasRenderingContext2D>
+    , public CanvasFillStrokeStyles<OffscreenCanvasRenderingContext2D>
+    , public CanvasShadowStyles<OffscreenCanvasRenderingContext2D>
     , public CanvasFilters
     , public CanvasRect
     , public CanvasDrawPath
@@ -56,15 +49,19 @@ class CanvasRenderingContext2D
     , public CanvasImageData
     , public CanvasImageSmoothing
     , public CanvasCompositing
-    , public CanvasPathDrawingStyles<CanvasRenderingContext2D>
-    , public CanvasTextDrawingStyles<CanvasRenderingContext2D, HTMLCanvasElement> {
+    , public CanvasPathDrawingStyles<OffscreenCanvasRenderingContext2D>
+    , public CanvasTextDrawingStyles<OffscreenCanvasRenderingContext2D, OffscreenCanvas>
+    , public CanvasPath
 
-    WEB_PLATFORM_OBJECT(CanvasRenderingContext2D, Bindings::PlatformObject);
-    GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
+{
+    WEB_PLATFORM_OBJECT(OffscreenCanvasRenderingContext2D, Bindings::PlatformObject);
+    GC_DECLARE_ALLOCATOR(OffscreenCanvasRenderingContext2D);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(JS::Realm&, HTMLCanvasElement&, JS::Value options);
-    virtual ~CanvasRenderingContext2D() override;
+    [[nodiscard]] static GC::Ref<OffscreenCanvasRenderingContext2D> create(JS::Realm&, OffscreenCanvas&);
+    virtual ~OffscreenCanvasRenderingContext2D() override;
+
+    GC::Ref<OffscreenCanvas> canvas();
 
     virtual void fill_rect(float x, float y, float width, float height) override;
     virtual void stroke_rect(float x, float y, float width, float height) override;
@@ -88,10 +85,6 @@ public:
     virtual void put_image_data(ImageData&, float x, float y) override;
 
     virtual void reset_to_default_state() override;
-
-    GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
-
-    CanvasRenderingContext2DSettings get_context_attributes() const { return m_context_attributes; }
 
     virtual GC::Ref<TextMetrics> measure_text(StringView text) override;
 
@@ -124,67 +117,29 @@ public:
     virtual String shadow_color() const override;
     virtual void set_shadow_color(String) override;
 
-    HTMLCanvasElement& canvas_element();
-    HTMLCanvasElement const& canvas_element() const;
+    OffscreenCanvas& canvas_element();
+    OffscreenCanvas const& canvas_element() const;
 
     [[nodiscard]] Gfx::Painter* painter();
 
     void set_size(Gfx::IntSize const&);
 
-    RefPtr<Gfx::PaintingSurface> surface() { return m_surface; }
-    void allocate_painting_surface_if_needed();
-
 private:
-    CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, CanvasRenderingContext2DSettings);
+    explicit OffscreenCanvasRenderingContext2D(JS::Realm&, OffscreenCanvas&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    static JS::ThrowCompletionOr<CanvasRenderingContext2DSettings> context_attributes_from_options(JS::VM&, JS::Value);
-
-    virtual Gfx::Painter* painter_for_canvas_state() override { return painter(); }
+    virtual Gfx::Painter* painter_for_canvas_state() override
+    {
+        dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::painter_for_canvas_state()");
+        return nullptr;
+    }
     virtual Gfx::Path& path_for_canvas_state() override { return path(); }
 
-    struct PreparedText {
-        Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
-        Gfx::TextAlignment physical_alignment;
-        Gfx::FloatRect bounding_box;
-    };
-
-    void did_draw(Gfx::FloatRect const&);
-
-    RefPtr<Gfx::FontCascadeList const> font_cascade_list();
-
-    PreparedText prepare_text(ByteString const& text, float max_width = INFINITY);
-
-    [[nodiscard]] Gfx::Path rect_path(float x, float y, float width, float height);
-    [[nodiscard]] Gfx::Path text_path(StringView text, float x, float y, Optional<double> max_width);
-
-    Gfx::Color clear_color() const;
-
-    void stroke_internal(Gfx::Path const&);
-    void fill_internal(Gfx::Path const&, Gfx::WindingRule);
-    void clip_internal(Gfx::Path&, Gfx::WindingRule);
-    void paint_shadow_for_fill_internal(Gfx::Path const&, Gfx::WindingRule);
-    void paint_shadow_for_stroke_internal(Gfx::Path const&);
-
-    GC::Ref<HTMLCanvasElement> m_element;
-    OwnPtr<Gfx::Painter> m_painter;
-
-    // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
-    bool m_origin_clean { true };
+    GC::Ref<OffscreenCanvas> m_canvas;
 
     Gfx::IntSize m_size;
-    RefPtr<Gfx::PaintingSurface> m_surface;
-    CanvasRenderingContext2DSettings m_context_attributes;
 };
-
-enum class CanvasImageSourceUsability {
-    Bad,
-    Good,
-};
-
-WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
-bool image_is_not_origin_clean(CanvasImageSource const&);
 
 }
