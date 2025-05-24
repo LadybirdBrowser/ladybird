@@ -55,8 +55,9 @@ void LineBox::add_fragment(Node const& layout_node, int start, int length, CSSPi
 CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespace should_remove)
 {
     auto should_trim = [](LineBoxFragment* fragment) {
-        auto ws = fragment->layout_node().computed_values().white_space();
-        return ws == CSS::WhiteSpace::Normal || ws == CSS::WhiteSpace::Nowrap || ws == CSS::WhiteSpace::PreLine;
+        auto white_space_collapse = fragment->layout_node().computed_values().white_space_collapse();
+
+        return white_space_collapse == CSS::WhiteSpaceCollapse::Collapse || white_space_collapse == CSS::WhiteSpaceCollapse::PreserveBreaks;
     };
 
     CSSPixels whitespace_width = 0;

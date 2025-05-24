@@ -59,7 +59,6 @@ Pass	text-justify
 Pass	text-shadow
 Pass	text-transform
 Pass	visibility
-Pass	white-space
 Pass	word-break
 Pass	word-spacing
 Pass	word-wrap
@@ -199,6 +198,7 @@ Pass	unicode-bidi
 Pass	user-select
 Pass	vertical-align
 Pass	view-transition-name
+Pass	white-space-trim
 Fail	width
 Pass	x
 Pass	y

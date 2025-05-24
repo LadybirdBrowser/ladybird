@@ -617,6 +617,10 @@
     "none",
     "uppercase"
   ],
+  "text-wrap-mode": [
+    "wrap",
+    "nowrap"
+  ],
   "touch-action": [
     "auto",
     "manipulation",
@@ -671,10 +675,17 @@
   ],
   "white-space": [
     "normal",
-    "nowrap",
     "pre",
     "pre-line",
     "pre-wrap"
+  ],
+  "white-space-collapse": [
+    "collapse",
+    "discard",
+    "preserve",
+    "preserve-breaks",
+    "preserve-spaces",
+    "break-spaces"
   ],
   "word-break": [
     "normal",

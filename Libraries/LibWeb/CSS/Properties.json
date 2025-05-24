@@ -2937,6 +2937,14 @@
       "text-transform"
     ]
   },
+  "text-wrap-mode": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "wrap",
+    "valid-types": [
+      "text-wrap-mode"
+    ]
+  },
   "top": {
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3119,11 +3127,34 @@
     ]
   },
   "white-space": {
-    "animation-type": "discrete",
-    "inherited": true,
+    "inherited": false,
     "initial": "normal",
     "valid-types": [
       "white-space"
+    ],
+    "longhands": [
+      "white-space-collapse",
+      "text-wrap-mode",
+      "white-space-trim"
+    ]
+  },
+  "white-space-collapse": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "collapse",
+    "valid-types": [
+      "white-space-collapse"
+    ]
+  },
+  "white-space-trim": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none",
+      "discard-before",
+      "discard-after",
+      "discard-inner"
     ]
   },
   "width": {

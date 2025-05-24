@@ -7,6 +7,8 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS {
@@ -99,17 +101,19 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<CSSS
 
 void CascadedProperties::set_property_from_presentational_hint(PropertyID property_id, NonnullRefPtr<CSSStyleValue const> value)
 {
-    auto& entries = m_properties.ensure(property_id);
+    StyleComputer::for_each_property_expanding_shorthands(property_id, value, [this](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+        auto& entries = m_properties.ensure(longhand_property_id);
 
-    entries.append(Entry {
-        .property = StyleProperty {
-            .important = Important::No,
-            .property_id = property_id,
-            .value = value,
-        },
-        .origin = CascadeOrigin::Author,
-        .layer_name = {},
-        .source = nullptr,
+        entries.append(Entry {
+            .property = StyleProperty {
+                .important = Important::No,
+                .property_id = longhand_property_id,
+                .value = longhand_value,
+            },
+            .origin = CascadeOrigin::Author,
+            .layer_name = {},
+            .source = nullptr,
+        });
     });
 }
 

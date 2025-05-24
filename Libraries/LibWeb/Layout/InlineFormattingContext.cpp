@@ -264,7 +264,7 @@ void InlineFormattingContext::generate_line_boxes()
 
         // Ignore collapsible whitespace chunks at the start of line, and if the last fragment already ends in whitespace.
         if (item.is_collapsible_whitespace && (line_boxes.is_empty() || line_boxes.last().is_empty_or_ends_in_whitespace())) {
-            if (item.node->computed_values().white_space() != CSS::WhiteSpace::Nowrap) {
+            if (item.node->computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 auto next_width = iterator.next_non_whitespace_sequence_width();
                 if (next_width > 0)
                     line_builder.break_if_needed(next_width);
@@ -291,7 +291,7 @@ void InlineFormattingContext::generate_line_boxes()
         case InlineLevelIterator::Item::Type::Element: {
             auto& box = as<Layout::Box>(*item.node);
             compute_inset(box, content_box_rect(m_containing_block_used_values).size());
-            if (containing_block().computed_values().white_space() != CSS::WhiteSpace::Nowrap) {
+            if (containing_block().computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 auto minimum_space_needed_on_line = item.border_box_width();
                 if (item.margin_start < 0)
                     minimum_space_needed_on_line += item.margin_start;
@@ -322,7 +322,7 @@ void InlineFormattingContext::generate_line_boxes()
         case InlineLevelIterator::Item::Type::Text: {
             auto& text_node = as<Layout::TextNode>(*item.node);
 
-            if (text_node.computed_values().white_space() != CSS::WhiteSpace::Nowrap) {
+            if (text_node.computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 bool is_whitespace = false;
                 CSSPixels next_width = 0;
                 // If we're in a whitespace-collapsing context, we can simply check the flag.

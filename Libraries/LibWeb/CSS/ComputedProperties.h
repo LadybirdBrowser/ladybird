@@ -100,7 +100,8 @@ public:
     ContentVisibility content_visibility() const;
     Vector<CursorData> cursor() const;
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
-    WhiteSpace white_space() const;
+    WhiteSpaceCollapse white_space_collapse() const;
+    WhiteSpaceTrimData white_space_trim() const;
     WordBreak word_break() const;
     Optional<LengthOrCalculated> word_spacing() const;
     Optional<LengthOrCalculated> letter_spacing() const;
@@ -110,6 +111,7 @@ public:
     TextDecorationStyle text_decoration_style() const;
     TextTransform text_transform() const;
     Vector<ShadowData> text_shadow(Layout::Node const&) const;
+    TextWrapMode text_wrap_mode() const;
     ListStyleType list_style_type() const;
     ListStylePosition list_style_position() const;
     FlexDirection flex_direction() const;

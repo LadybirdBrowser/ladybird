@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    #single-value {
+        white-space-trim: discard-inner;
+    }
+
+    #multiple-values {
+        white-space-trim: discard-inner discard-after;
+    }
+</style>
+<div id="default"></div>
+<div id="single-value"></div>
+<div id="multiple-values"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(document.getElementById("default")).whiteSpaceTrim);
+        println(getComputedStyle(document.getElementById("single-value")).whiteSpaceTrim);
+        println(getComputedStyle(document.getElementById("multiple-values")).whiteSpaceTrim);
+    });
+</script>

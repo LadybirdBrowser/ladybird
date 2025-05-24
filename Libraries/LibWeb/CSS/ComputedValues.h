@@ -100,7 +100,7 @@ public:
     static CSS::PreferredColorScheme color_scheme() { return CSS::PreferredColorScheme::Auto; }
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CursorData cursor() { return { CSS::Cursor::Auto }; }
-    static CSS::WhiteSpace white_space() { return CSS::WhiteSpace::Normal; }
+    static CSS::WhiteSpaceCollapse white_space_collapse() { return CSS::WhiteSpaceCollapse::Collapse; }
     static CSS::WordBreak word_break() { return CSS::WordBreak::Normal; }
     static CSS::LengthOrCalculated word_spacing() { return CSS::Length::make_px(0); }
     static LengthOrCalculated letter_spacing() { return CSS::Length::make_px(0); }
@@ -114,6 +114,7 @@ public:
     static CSS::TextTransform text_transform() { return CSS::TextTransform::None; }
     static CSS::TextOverflow text_overflow() { return CSS::TextOverflow::Clip; }
     static CSS::LengthPercentage text_indent() { return CSS::Length::make_px(0); }
+    static CSS::TextWrapMode text_wrap_mode() { return CSS::TextWrapMode::Wrap; }
     static CSS::Display display() { return CSS::Display { CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow }; }
     static Color color() { return Color::Black; }
     static Color stop_color() { return Color::Black; }
@@ -332,6 +333,12 @@ struct TouchActionData {
     }
 };
 
+struct WhiteSpaceTrimData {
+    bool discard_before : 1 { false };
+    bool discard_after : 1 { false };
+    bool discard_inner : 1 { false };
+};
+
 struct TransformOrigin {
     CSS::LengthPercentage x { Percentage(50) };
     CSS::LengthPercentage y { Percentage(50) };
@@ -414,6 +421,7 @@ public:
     CSS::TextAlign text_align() const { return m_inherited.text_align; }
     CSS::TextJustify text_justify() const { return m_inherited.text_justify; }
     CSS::LengthPercentage const& text_indent() const { return m_inherited.text_indent; }
+    CSS::TextWrapMode text_wrap_mode() const { return m_inherited.text_wrap_mode; }
     Vector<CSS::TextDecorationLine> const& text_decoration_line() const { return m_noninherited.text_decoration_line; }
     CSS::LengthPercentage const& text_decoration_thickness() const { return m_noninherited.text_decoration_thickness; }
     CSS::TextDecorationStyle text_decoration_style() const { return m_noninherited.text_decoration_style; }
@@ -422,7 +430,8 @@ public:
     CSS::TextOverflow text_overflow() const { return m_noninherited.text_overflow; }
     Vector<ShadowData> const& text_shadow() const { return m_inherited.text_shadow; }
     CSS::Positioning position() const { return m_noninherited.position; }
-    CSS::WhiteSpace white_space() const { return m_inherited.white_space; }
+    CSS::WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
+    WhiteSpaceTrimData white_space_trim() const { return m_noninherited.white_space_trim; }
     CSS::LengthOrCalculated word_spacing() const { return m_inherited.word_spacing; }
     LengthOrCalculated letter_spacing() const { return m_inherited.letter_spacing; }
     CSS::FlexDirection flex_direction() const { return m_noninherited.flex_direction; }
@@ -615,7 +624,8 @@ protected:
         CSS::TextJustify text_justify { InitialValues::text_justify() };
         CSS::TextTransform text_transform { InitialValues::text_transform() };
         CSS::LengthPercentage text_indent { InitialValues::text_indent() };
-        CSS::WhiteSpace white_space { InitialValues::white_space() };
+        CSS::TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
+        CSS::WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
         CSS::WordBreak word_break { InitialValues::word_break() };
         CSS::LengthOrCalculated word_spacing { InitialValues::word_spacing() };
         LengthOrCalculated letter_spacing { InitialValues::letter_spacing() };
@@ -736,6 +746,7 @@ protected:
         CSS::Isolation isolation { InitialValues::isolation() };
         CSS::Containment contain { InitialValues::contain() };
         CSS::MixBlendMode mix_blend_mode { InitialValues::mix_blend_mode() };
+        WhiteSpaceTrimData white_space_trim;
         Optional<FlyString> view_transition_name;
         TouchActionData touch_action;
 
@@ -815,10 +826,12 @@ public:
     void set_text_transform(CSS::TextTransform value) { m_inherited.text_transform = value; }
     void set_text_shadow(Vector<ShadowData>&& value) { m_inherited.text_shadow = move(value); }
     void set_text_indent(CSS::LengthPercentage value) { m_inherited.text_indent = move(value); }
+    void set_text_wrap_mode(CSS::TextWrapMode value) { m_inherited.text_wrap_mode = value; }
     void set_text_overflow(CSS::TextOverflow value) { m_noninherited.text_overflow = value; }
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
-    void set_white_space(CSS::WhiteSpace value) { m_inherited.white_space = value; }
+    void set_white_space_collapse(CSS::WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
+    void set_white_space_trim(WhiteSpaceTrimData value) { m_noninherited.white_space_trim = value; }
     void set_word_spacing(CSS::LengthOrCalculated value) { m_inherited.word_spacing = move(value); }
     void set_word_break(CSS::WordBreak value) { m_inherited.word_break = value; }
     void set_letter_spacing(CSS::LengthOrCalculated value) { m_inherited.letter_spacing = value; }

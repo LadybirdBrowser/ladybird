@@ -708,6 +708,14 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::WhiteSpace:
+        if (auto parsed_value = parse_white_space_shorthand(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::WhiteSpaceTrim:
+        if (auto parsed_value = parse_white_space_trim_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     default:
         break;
     }
@@ -4759,6 +4767,153 @@ RefPtr<CSSStyleValue const> Parser::parse_contain_value(TokenStream<ComponentVal
     transaction.commit();
 
     return StyleValueList::create(move(containments), StyleValueList::Separator::Space);
+}
+
+// https://www.w3.org/TR/css-text-4/#white-space-trim
+RefPtr<CSSStyleValue const> Parser::parse_white_space_trim_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | discard-before || discard-after || discard-inner
+
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
+
+    auto transaction = tokens.begin_transaction();
+
+    RefPtr<CSSStyleValue const> discard_before;
+    RefPtr<CSSStyleValue const> discard_after;
+    RefPtr<CSSStyleValue const> discard_inner;
+
+    while (auto parsed_value = parse_css_value_for_property(PropertyID::WhiteSpaceTrim, tokens)) {
+        switch (parsed_value->as_keyword().keyword()) {
+        case Keyword::DiscardBefore:
+            if (discard_before)
+                return {};
+            discard_before = parsed_value;
+            break;
+        case Keyword::DiscardAfter:
+            if (discard_after)
+                return {};
+            discard_after = parsed_value;
+            break;
+        case Keyword::DiscardInner:
+            if (discard_inner)
+                return {};
+            discard_inner = parsed_value;
+            break;
+        default:
+            return {};
+        }
+
+        if (!tokens.has_next_token())
+            break;
+    }
+
+    StyleValueVector parsed_values;
+
+    // NOTE: The values are appended here rather than in the loop above to canonicalize their order.
+    if (discard_before)
+        parsed_values.append(discard_before.release_nonnull());
+    if (discard_after)
+        parsed_values.append(discard_after.release_nonnull());
+    if (discard_inner)
+        parsed_values.append(discard_inner.release_nonnull());
+
+    transaction.commit();
+
+    return StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
+}
+
+// https://www.w3.org/TR/css-text-4/#white-space-property
+RefPtr<CSSStyleValue const> Parser::parse_white_space_shorthand(TokenStream<ComponentValue>& tokens)
+{
+    // normal | pre | pre-wrap | pre-line | <'white-space-collapse'> || <'text-wrap-mode'> || <'white-space-trim'>
+
+    auto transaction = tokens.begin_transaction();
+
+    auto make_whitespace_shorthand = [&](RefPtr<CSSStyleValue const> white_space_collapse, RefPtr<CSSStyleValue const> text_wrap_mode, RefPtr<CSSStyleValue const> white_space_trim) {
+        transaction.commit();
+
+        if (!white_space_collapse)
+            white_space_collapse = property_initial_value(PropertyID::WhiteSpaceCollapse);
+
+        if (!text_wrap_mode)
+            text_wrap_mode = property_initial_value(PropertyID::TextWrapMode);
+
+        if (!white_space_trim)
+            white_space_trim = property_initial_value(PropertyID::WhiteSpaceTrim);
+
+        return ShorthandStyleValue::create(
+            PropertyID::WhiteSpace,
+            { PropertyID::WhiteSpaceCollapse, PropertyID::TextWrapMode, PropertyID::WhiteSpaceTrim },
+            { white_space_collapse.release_nonnull(), text_wrap_mode.release_nonnull(), white_space_trim.release_nonnull() });
+    };
+
+    // normal | pre | pre-wrap | pre-line
+    if (parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::Collapse), CSSKeywordValue::create(Keyword::Wrap), CSSKeywordValue::create(Keyword::None));
+
+    if (parse_all_as_single_keyword_value(tokens, Keyword::Pre))
+        return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::Preserve), CSSKeywordValue::create(Keyword::Nowrap), CSSKeywordValue::create(Keyword::None));
+
+    if (parse_all_as_single_keyword_value(tokens, Keyword::PreWrap))
+        return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::Preserve), CSSKeywordValue::create(Keyword::Wrap), CSSKeywordValue::create(Keyword::None));
+
+    if (parse_all_as_single_keyword_value(tokens, Keyword::PreLine))
+        return make_whitespace_shorthand(CSSKeywordValue::create(Keyword::PreserveBreaks), CSSKeywordValue::create(Keyword::Wrap), CSSKeywordValue::create(Keyword::None));
+
+    // <'white-space-collapse'> || <'text-wrap-mode'> || <'white-space-trim'>
+    RefPtr<CSSStyleValue const> white_space_collapse;
+    RefPtr<CSSStyleValue const> text_wrap_mode;
+    RefPtr<CSSStyleValue const> white_space_trim;
+
+    while (tokens.has_next_token()) {
+        if (auto value = parse_css_value_for_property(PropertyID::WhiteSpaceCollapse, tokens)) {
+            if (white_space_collapse)
+                return {};
+            white_space_collapse = value;
+            continue;
+        }
+
+        if (auto value = parse_css_value_for_property(PropertyID::TextWrapMode, tokens)) {
+            if (text_wrap_mode)
+                return {};
+            text_wrap_mode = value;
+            continue;
+        }
+
+        Vector<ComponentValue> white_space_trim_component_values;
+
+        while (true) {
+            auto peek_token = tokens.next_token();
+
+            if (!peek_token.is(Token::Type::Ident)) {
+                break;
+            }
+
+            auto keyword = keyword_from_string(peek_token.token().ident());
+
+            if (!keyword.has_value() || !property_accepts_keyword(PropertyID::WhiteSpaceTrim, keyword.value())) {
+                break;
+            }
+
+            white_space_trim_component_values.append(tokens.consume_a_token());
+        }
+
+        if (!white_space_trim_component_values.is_empty()) {
+            auto white_space_trim_token_stream = TokenStream { white_space_trim_component_values };
+
+            if (auto value = parse_white_space_trim_value(white_space_trim_token_stream)) {
+                if (white_space_trim)
+                    return {};
+                white_space_trim = value;
+                continue;
+            }
+        }
+
+        return {};
+    }
+
+    return make_whitespace_shorthand(white_space_collapse, text_wrap_mode, white_space_trim);
 }
 
 }
