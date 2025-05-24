@@ -61,12 +61,15 @@ if (WIN32)
   add_compile_definitions(NAME_MAX=255)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
   add_compile_options(-Wno-deprecated-declarations)
+  add_compile_definitions(_WIN32_WINNT=0x0A00)
 endif()
 
 if (MSVC)
     add_cxx_compile_options(/W4)
     # disable exceptions
     add_cxx_compile_options(/EHs-)
+    # increase stack size reserve to match linux
+    add_link_options(/STACK:0x800000)
     # disable floating-point expression contraction
     add_cxx_compile_options(/fp:precise)
 else()
