@@ -51,7 +51,7 @@ constexpr auto expected_buffer_contents = "&lt;small&gt;(Please consider transla
 
 TEST_CASE(file_read_bytes)
 {
-    auto file = TRY_OR_FAIL(Core::File::open("/usr/Tests/LibCore/long_lines.txt"sv, Core::File::OpenMode::Read));
+    auto file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read));
 
     auto buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(131));
 
@@ -68,7 +68,7 @@ constexpr auto expected_seek_contents3 = "levels of advanc"sv;
 
 TEST_CASE(file_seeking_around)
 {
-    auto file = TRY_OR_FAIL(Core::File::open("/usr/Tests/LibCore/long_lines.txt"sv, Core::File::OpenMode::Read));
+    auto file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read));
 
     EXPECT_EQ(file->size().release_value(), 8702ul);
 
@@ -94,7 +94,7 @@ TEST_CASE(file_seeking_around)
 
 BENCHMARK_CASE(file_tell)
 {
-    auto file = TRY_OR_FAIL(Core::File::open("/usr/Tests/LibCore/10kb.txt"sv, Core::File::OpenMode::Read));
+    auto file = TRY_OR_FAIL(Core::File::open("./10kb.txt"sv, Core::File::OpenMode::Read));
     auto expected_file_offset = 0u;
     auto ten_byte_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(1));
     for (auto i = 0u; i < 4000; ++i) {
@@ -131,7 +131,7 @@ TEST_CASE(file_buffered_write_and_seek)
 
 TEST_CASE(file_adopt_fd)
 {
-    int rc = ::open("/usr/Tests/LibCore/long_lines.txt", O_RDONLY);
+    int rc = ::open("./long_lines.txt", O_RDONLY);
     EXPECT(rc >= 0);
 
     auto file = TRY_OR_FAIL(Core::File::adopt_fd(rc, Core::File::OpenMode::Read));
@@ -191,7 +191,7 @@ TEST_CASE(tcp_socket_read)
     Core::EventLoop event_loop;
 
     auto tcp_server = TRY_OR_FAIL(Core::TCPServer::try_create());
-    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090));
+    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090, Core::TCPServer::AllowAddressReuse::Yes));
     TRY_OR_FAIL(tcp_server->set_blocking(true));
 
     auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
@@ -217,7 +217,7 @@ TEST_CASE(tcp_socket_write)
     Core::EventLoop event_loop;
 
     auto tcp_server = TRY_OR_FAIL(Core::TCPServer::try_create());
-    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090));
+    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090, Core::TCPServer::AllowAddressReuse::Yes));
     TRY_OR_FAIL(tcp_server->set_blocking(true));
 
     auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
@@ -240,7 +240,7 @@ TEST_CASE(tcp_socket_eof)
     Core::EventLoop event_loop;
 
     auto tcp_server = TRY_OR_FAIL(Core::TCPServer::try_create());
-    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090));
+    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090, Core::TCPServer::AllowAddressReuse::Yes));
     TRY_OR_FAIL(tcp_server->set_blocking(true));
 
     auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
@@ -293,7 +293,10 @@ TEST_CASE(udp_socket_read_write)
     TRY_OR_FAIL(udp_server->send({ udp_reply_data.characters_without_null_termination(), udp_reply_data.length() }, client_address));
 
     EXPECT(client_socket->can_read_without_blocking(100).release_value());
+#ifdef AK_OS_LINUX
+    // FIONREAD only returns this expected 'the bytes I just sent' value on Linux. macOS gives a completely different value.
     EXPECT_EQ(client_socket->pending_bytes().release_value(), udp_reply_data.length());
+#endif
 
     // Testing that supplying a smaller buffer than required causes a failure.
     auto small_buffer = ByteBuffer::create_uninitialized(8).release_value();
@@ -395,7 +398,7 @@ TEST_CASE(local_socket_write)
 
 TEST_CASE(buffered_long_file_read)
 {
-    auto raw_file = TRY_OR_FAIL(Core::File::open("/usr/Tests/LibCore/long_lines.txt"sv, Core::File::OpenMode::Read));
+    auto raw_file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read));
     auto file = TRY_OR_FAIL(Core::InputBufferedFile::create(move(raw_file)));
 
     auto buffer = ByteBuffer::create_uninitialized(4096).release_value();
@@ -412,7 +415,7 @@ TEST_CASE(buffered_long_file_read)
 
 TEST_CASE(buffered_small_file_read)
 {
-    auto raw_file = TRY_OR_FAIL(Core::File::open("/usr/Tests/LibCore/small.txt"sv, Core::File::OpenMode::Read));
+    auto raw_file = TRY_OR_FAIL(Core::File::open("./small.txt"sv, Core::File::OpenMode::Read));
     auto file = TRY_OR_FAIL(Core::InputBufferedFile::create(move(raw_file)));
 
     static constexpr StringView expected_lines[] {
@@ -437,7 +440,7 @@ TEST_CASE(buffered_small_file_read)
 TEST_CASE(buffered_file_tell_and_seek)
 {
     // We choose a buffer size of 12 bytes to cover half of the input file.
-    auto file = Core::File::open("/usr/Tests/LibCore/small.txt"sv, Core::File::OpenMode::Read).release_value();
+    auto file = Core::File::open("./small.txt"sv, Core::File::OpenMode::Read).release_value();
     auto buffered_file = Core::InputBufferedFile::create(move(file), 12).release_value();
 
     // Initial state.
@@ -547,7 +550,7 @@ TEST_CASE(buffered_tcp_socket_read)
     Core::EventLoop event_loop;
 
     auto tcp_server = TRY_OR_FAIL(Core::TCPServer::try_create());
-    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090));
+    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090, Core::TCPServer::AllowAddressReuse::Yes));
     TRY_OR_FAIL(tcp_server->set_blocking(true));
 
     auto unbuffered_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
