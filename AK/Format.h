@@ -53,95 +53,148 @@ concept Formattable = HasFormatter<T>;
 
 constexpr size_t max_format_arguments = 256;
 
+template<typename T>
+ErrorOr<void> __format_value(TypeErasedFormatParams& params, FormatBuilder& builder, FormatParser& parser, void const* value)
+{
+    Formatter<T> formatter;
+
+    formatter.parse(params, parser);
+    return formatter.format(builder, *static_cast<T const*>(value));
+}
+
 struct TypeErasedParameter {
     enum class Type {
-        UInt8,
-        UInt16,
-        UInt32,
-        UInt64,
-        Int8,
-        Int16,
-        Int32,
-        Int64,
-        Custom
+        UnsignedInteger,
+        SignedInteger,
+        Boolean,
+        Character,
+        Float,
+        Double,
+        StringView,
+        CString,
+        CustomType
     };
 
-    template<size_t size, bool is_unsigned>
-    static consteval Type get_type_from_size()
-    {
-        if constexpr (is_unsigned) {
-            if constexpr (size == 1)
-                return Type::UInt8;
-            if constexpr (size == 2)
-                return Type::UInt16;
-            if constexpr (size == 4)
-                return Type::UInt32;
-            if constexpr (size == 8)
-                return Type::UInt64;
-        } else {
-            if constexpr (size == 1)
-                return Type::Int8;
-            if constexpr (size == 2)
-                return Type::Int16;
-            if constexpr (size == 4)
-                return Type::Int32;
-            if constexpr (size == 8)
-                return Type::Int64;
-        }
+    struct CustomType {
+        void const* value;
+        ErrorOr<void> (*formatter)(TypeErasedFormatParams&, FormatBuilder&, FormatParser&, void const* value);
+    };
 
-        VERIFY_NOT_REACHED();
+    template<typename T>
+    static bool const IsChar = IsOneOf<T, char, wchar_t, char8_t, char16_t, char32_t>;
+
+    template<Unsigned U>
+    explicit constexpr TypeErasedParameter(U const& value)
+    requires(!IsChar<U> && sizeof(U) <= sizeof(u64))
+        : value { .as_unsigned = value }
+        , type { Type::UnsignedInteger }
+    {
+    }
+
+    template<Signed I>
+    explicit constexpr TypeErasedParameter(I const& value)
+    requires(!IsChar<I> && sizeof(I) <= sizeof(i64))
+        : value { .as_signed = value }
+        , type { Type::SignedInteger }
+    {
+    }
+
+    explicit constexpr TypeErasedParameter(bool const& value)
+        : value { .as_bool = value }
+        , type { Type::Boolean }
+    {
+    }
+
+    explicit constexpr TypeErasedParameter(char const& value)
+        : value { .as_char = value }
+        , type { Type::Character }
+    {
+    }
+
+    explicit constexpr TypeErasedParameter(float const& value)
+        : value { .as_float = value }
+        , type { Type::Float }
+    {
+    }
+
+    explicit constexpr TypeErasedParameter(double const& value)
+        : value { .as_double = value }
+        , type { Type::Double }
+    {
+    }
+
+    explicit constexpr TypeErasedParameter(StringView const& value)
+        : value { .as_string_view = value }
+        , type { Type::StringView }
+    {
+    }
+
+    explicit constexpr TypeErasedParameter(char const* value)
+        : value { .as_c_string = value }
+        , type { Type::CString }
+    {
     }
 
     template<typename T>
-    static consteval Type get_type()
+    explicit constexpr TypeErasedParameter(T const& value)
+        : value { .as_custom_type = { &value, __format_value<T> } }
+        , type { Type::CustomType }
     {
-        if constexpr (IsIntegral<T>)
-            return get_type_from_size<sizeof(T), IsUnsigned<T>>();
-        else
-            return Type::Custom;
     }
 
     template<typename Visitor>
     constexpr auto visit(Visitor&& visitor) const
     {
         switch (type) {
-        case TypeErasedParameter::Type::UInt8:
-            return visitor(*static_cast<u8 const*>(value));
-        case TypeErasedParameter::Type::UInt16:
-            return visitor(*static_cast<u16 const*>(value));
-        case TypeErasedParameter::Type::UInt32:
-            return visitor(*static_cast<u32 const*>(value));
-        case TypeErasedParameter::Type::UInt64:
-            return visitor(*static_cast<u64 const*>(value));
-        case TypeErasedParameter::Type::Int8:
-            return visitor(*static_cast<i8 const*>(value));
-        case TypeErasedParameter::Type::Int16:
-            return visitor(*static_cast<i16 const*>(value));
-        case TypeErasedParameter::Type::Int32:
-            return visitor(*static_cast<i32 const*>(value));
-        case TypeErasedParameter::Type::Int64:
-            return visitor(*static_cast<i64 const*>(value));
-        default:
-            TODO();
+        case Type::UnsignedInteger:
+            return visitor(value.as_unsigned);
+        case Type::SignedInteger:
+            return visitor(value.as_signed);
+        case Type::Boolean:
+            return visitor(value.as_bool);
+        case Type::Character:
+            return visitor(value.as_char);
+        case Type::Float:
+            return visitor(value.as_float);
+        case Type::Double:
+            return visitor(value.as_double);
+        case Type::StringView:
+            return visitor(value.as_string_view);
+        case Type::CString:
+            return visitor(value.as_c_string);
+        case Type::CustomType:
+            return visitor(value.as_custom_type);
         }
+        VERIFY_NOT_REACHED();
     }
 
     constexpr size_t to_size() const
     {
-        return visit([]<typename T>(T value) {
-            if constexpr (sizeof(T) > sizeof(size_t))
-                VERIFY(value < NumericLimits<size_t>::max());
-            if constexpr (IsSigned<T>)
+        return visit([]<typename T>(T value) -> size_t {
+            if constexpr (IsSame<T, u64>)
+                return static_cast<size_t>(value);
+
+            if constexpr (IsSame<T, i64>) {
                 VERIFY(value >= 0);
-            return static_cast<size_t>(value);
+                return static_cast<size_t>(value);
+            }
+
+            TODO();
         });
     }
 
-    // FIXME: Getters and setters.
-
-    void const* value;
+    union {
+        u64 as_unsigned;
+        i64 as_signed;
+        bool as_bool;
+        char as_char;
+        float as_float;
+        double as_double;
+        StringView as_string_view;
+        char const* as_c_string;
+        CustomType as_custom_type;
+    } value;
     Type type;
-    ErrorOr<void> (*formatter)(TypeErasedFormatParams&, FormatBuilder&, FormatParser&, void const* value);
 };
 
 class FormatBuilder {
@@ -293,15 +346,6 @@ private:
     TypeErasedParameter m_parameters[0];
 };
 
-template<typename T>
-ErrorOr<void> __format_value(TypeErasedFormatParams& params, FormatBuilder& builder, FormatParser& parser, void const* value)
-{
-    Formatter<T> formatter;
-
-    formatter.parse(params, parser);
-    return formatter.format(builder, *static_cast<T const*>(value));
-}
-
 template<AllowDebugOnlyFormatters allow_debug_formatters, typename... Parameters>
 class VariadicFormatParams : public TypeErasedFormatParams {
 public:
@@ -309,7 +353,7 @@ public:
 
     explicit VariadicFormatParams(Parameters const&... parameters)
         : TypeErasedFormatParams(sizeof...(Parameters))
-        , m_parameter_storage { TypeErasedParameter { &parameters, TypeErasedParameter::get_type<Parameters>(), __format_value<Parameters> }... }
+        , m_parameter_storage { TypeErasedParameter { parameters }... }
     {
         constexpr bool any_debug_formatters = (is_debug_only_formatter<Formatter<Parameters>>() || ...);
         static_assert(!any_debug_formatters || allow_debug_formatters == AllowDebugOnlyFormatters::Yes,
