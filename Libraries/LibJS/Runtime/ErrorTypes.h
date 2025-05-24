@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <LibJS/Export.h>
 
 #define JS_ENUMERATE_ERROR_TYPES(M)                                                                                                 \
     M(AccessorBadField, "Accessor descriptor's '{}' field must be a function or undefined")                                         \
@@ -306,7 +307,7 @@
 
 namespace JS {
 
-class ErrorType {
+class JS_API ErrorType {
 public:
 #define __ENUMERATE_JS_ERROR(name, message) \
     static const ErrorType name;
