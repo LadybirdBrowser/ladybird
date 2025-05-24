@@ -458,6 +458,15 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             goto start;
         }
 
+        handle_JumpIfNot: {
+            auto& instruction = *reinterpret_cast<Op::JumpIfNot const*>(&bytecode[program_counter]);
+            if (!get(instruction.condition()).to_boolean())
+                program_counter = instruction.true_target().address();
+            else
+                program_counter = instruction.false_target().address();
+            goto start;
+        }
+
 #define HANDLE_COMPARISON_OP(op_TitleCase, op_snake_case, numeric_operator)                                             \
     handle_Jump##op_TitleCase:                                                                                          \
     {                                                                                                                   \
@@ -657,7 +666,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewPrimitiveArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewRegExp);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewTypeError);
-            HANDLE_INSTRUCTION(Not);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Not);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(PrepareYield);
             HANDLE_INSTRUCTION(PostfixDecrement);
             HANDLE_INSTRUCTION(PostfixIncrement);
@@ -683,7 +692,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ThrowIfNotObject);
             HANDLE_INSTRUCTION(ThrowIfNullish);
             HANDLE_INSTRUCTION(ThrowIfTDZ);
-            HANDLE_INSTRUCTION(Typeof);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Typeof);
             HANDLE_INSTRUCTION(TypeofBinding);
             HANDLE_INSTRUCTION(UnaryMinus);
             HANDLE_INSTRUCTION(UnaryPlus);
@@ -2182,12 +2191,12 @@ ThrowCompletionOr<void> GreaterThanEquals::execute_impl(Bytecode::Interpreter& i
     return {};
 }
 
-static ThrowCompletionOr<Value> not_(VM&, Value value)
+static ALWAYS_INLINE Value not_(VM&, Value value)
 {
     return Value(!value.to_boolean());
 }
 
-static ThrowCompletionOr<Value> typeof_(VM& vm, Value value)
+static ALWAYS_INLINE Value typeof_(VM& vm, Value value)
 {
     return value.typeof_(vm);
 }
@@ -2207,6 +2216,21 @@ static ThrowCompletionOr<Value> typeof_(VM& vm, Value value)
     }
 
 JS_ENUMERATE_COMMON_UNARY_OPS(JS_DEFINE_COMMON_UNARY_OP)
+
+#define JS_DEFINE_COMMON_UNARY_OP_WITHOUT_EXCEPTION_CHECK(OpTitleCase, op_snake_case)         \
+    void OpTitleCase::execute_impl(Bytecode::Interpreter& interpreter) const                  \
+    {                                                                                         \
+        auto& vm = interpreter.vm();                                                          \
+        interpreter.set(dst(), op_snake_case(vm, interpreter.get(src())));                    \
+    }                                                                                         \
+    ByteString OpTitleCase::to_byte_string_impl(Bytecode::Executable const& executable) const \
+    {                                                                                         \
+        return ByteString::formatted(#OpTitleCase " {}, {}",                                  \
+            format_operand("dst"sv, dst(), executable),                                       \
+            format_operand("src"sv, src(), executable));                                      \
+    }
+
+JS_ENUMERATE_COMMON_UNARY_OPS_WITHOUT_EXCEPTION_CHECK(JS_DEFINE_COMMON_UNARY_OP_WITHOUT_EXCEPTION_CHECK)
 
 void NewArray::execute_impl(Bytecode::Interpreter& interpreter) const
 {
@@ -3612,6 +3636,13 @@ ByteString JumpFalse::to_byte_string_impl(Bytecode::Executable const& executable
     return ByteString::formatted("JumpFalse {}, {}",
         format_operand("condition"sv, m_condition, executable),
         m_target);
+}
+
+ByteString JumpIfNot::to_byte_string_impl(Bytecode::Executable const&) const
+{
+    return ByteString::formatted("JumpIfNot false:{}, true:{}",
+        m_false_target,
+        m_true_target);
 }
 
 ByteString JumpNullish::to_byte_string_impl(Bytecode::Executable const& executable) const

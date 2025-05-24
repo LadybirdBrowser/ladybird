@@ -398,7 +398,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
                 }
             }
 
-            // OPTIMIZATION: For `JumpIf` where one of the targets is the very next block,
+            // OPTIMIZATION: For `JumpIf`/`JumpIfNot` where one of the targets is the very next block,
             //               we can emit a `JumpTrue` or `JumpFalse` (to the other block) instead.
             if (instruction.type() == Instruction::Type::JumpIf) {
                 auto& jump = static_cast<Bytecode::Op::JumpIf&>(instruction);
@@ -417,6 +417,27 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
                     size_t label_offset = bytecode.size() + (bit_cast<FlatPtr>(&label) - bit_cast<FlatPtr>(&jump_true));
                     label_offsets.append(label_offset);
                     bytecode.append(reinterpret_cast<u8 const*>(&jump_true), jump_true.length());
+                    ++it;
+                    continue;
+                }
+            } else if (instruction.type() == Instruction::Type::JumpIfNot) {
+                auto& jump = static_cast<Bytecode::Op::JumpIfNot&>(instruction);
+                if (jump.true_target().basic_block_index() == block->index() + 1) {
+                    Op::JumpTrue jump_true(jump.condition(), Label { jump.false_target() });
+                    auto& label = jump_true.target();
+                    size_t label_offset = bytecode.size() + (bit_cast<FlatPtr>(&label) - bit_cast<FlatPtr>(&jump_true));
+                    label_offsets.append(label_offset);
+                    bytecode.append(reinterpret_cast<u8 const*>(&jump_true), jump_true.length());
+                    ++it;
+                    continue;
+                }
+
+                if (jump.false_target().basic_block_index() == block->index() + 1) {
+                    Op::JumpFalse jump_false(jump.condition(), Label { jump.true_target() });
+                    auto& label = jump_false.target();
+                    size_t label_offset = bytecode.size() + (bit_cast<FlatPtr>(&label) - bit_cast<FlatPtr>(&jump_false));
+                    label_offsets.append(label_offset);
+                    bytecode.append(reinterpret_cast<u8 const*>(&jump_false), jump_false.length());
                     ++it;
                     continue;
                 }
@@ -1267,6 +1288,14 @@ bool Generator::fuse_compare_and_jump(ScopedOperand const& condition, Label true
 
     JS_ENUMERATE_COMPARISON_OPS(HANDLE_COMPARISON_OP);
 #undef HANDLE_COMPARISON_OP
+
+    if (last_instruction.type() == Instruction::Type::Not) {
+        auto& not_ = static_cast<Op::Not const&>(last_instruction);
+        VERIFY(not_.dst() == condition);
+        m_current_basic_block->rewind();
+        emit<Op::JumpIfNot>(not_.src(), true_target, false_target);
+        return true;
+    }
 
     return false;
 }

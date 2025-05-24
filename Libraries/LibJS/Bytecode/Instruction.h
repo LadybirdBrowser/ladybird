@@ -88,6 +88,7 @@
     O(JumpGreaterThan)                 \
     O(JumpGreaterThanEquals)           \
     O(JumpIf)                          \
+    O(JumpIfNot)                       \
     O(JumpLessThan)                    \
     O(JumpLessThanEquals)              \
     O(JumpLooselyEquals)               \

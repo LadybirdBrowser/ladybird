@@ -170,9 +170,11 @@ JS_ENUMERATE_COMMON_BINARY_OPS_WITH_FAST_PATH(JS_DECLARE_COMMON_BINARY_OP)
 
 #define JS_ENUMERATE_COMMON_UNARY_OPS(O) \
     O(BitwiseNot, bitwise_not)           \
-    O(Not, not_)                         \
     O(UnaryPlus, unary_plus)             \
-    O(UnaryMinus, unary_minus)           \
+    O(UnaryMinus, unary_minus)
+
+#define JS_ENUMERATE_COMMON_UNARY_OPS_WITHOUT_EXCEPTION_CHECK(O) \
+    O(Not, not_)                                                 \
     O(Typeof, typeof_)
 
 #define JS_DECLARE_COMMON_UNARY_OP(OpTitleCase, op_snake_case)              \
@@ -203,6 +205,35 @@ JS_ENUMERATE_COMMON_BINARY_OPS_WITH_FAST_PATH(JS_DECLARE_COMMON_BINARY_OP)
 
 JS_ENUMERATE_COMMON_UNARY_OPS(JS_DECLARE_COMMON_UNARY_OP)
 #undef JS_DECLARE_COMMON_UNARY_OP
+
+#define JS_DECLARE_COMMON_UNARY_OP_WITHOUT_EXCEPTION_CHECK(OpTitleCase, op_snake_case) \
+    class OpTitleCase final : public Instruction {                                     \
+    public:                                                                            \
+        OpTitleCase(Operand dst, Operand src)                                          \
+            : Instruction(Type::OpTitleCase)                                           \
+            , m_dst(dst)                                                               \
+            , m_src(src)                                                               \
+        {                                                                              \
+        }                                                                              \
+                                                                                       \
+        void execute_impl(Bytecode::Interpreter&) const;                               \
+        ByteString to_byte_string_impl(Bytecode::Executable const&) const;             \
+        void visit_operands_impl(Function<void(Operand&)> visitor)                     \
+        {                                                                              \
+            visitor(m_dst);                                                            \
+            visitor(m_src);                                                            \
+        }                                                                              \
+                                                                                       \
+        Operand dst() const { return m_dst; }                                          \
+        Operand src() const { return m_src; }                                          \
+                                                                                       \
+    private:                                                                           \
+        Operand m_dst;                                                                 \
+        Operand m_src;                                                                 \
+    };
+
+JS_ENUMERATE_COMMON_UNARY_OPS_WITHOUT_EXCEPTION_CHECK(JS_DECLARE_COMMON_UNARY_OP_WITHOUT_EXCEPTION_CHECK)
+#undef JS_DECLARE_COMMON_UNARY_OP_WITHOUT_EXCEPTION_CHECK
 
 class NewObject final : public Instruction {
 public:
@@ -1684,6 +1715,39 @@ public:
 private:
     Operand m_condition;
     Label m_target;
+};
+
+class JumpIfNot final : public Instruction {
+public:
+    constexpr static bool IsTerminator = true;
+
+    explicit JumpIfNot(Operand condition, Label true_target, Label false_target)
+        : Instruction(Type::JumpIfNot)
+        , m_condition(condition)
+        , m_true_target(true_target)
+        , m_false_target(false_target)
+    {
+    }
+
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_labels_impl(Function<void(Label&)> visitor)
+    {
+        visitor(m_true_target);
+        visitor(m_false_target);
+    }
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_condition);
+    }
+
+    Operand condition() const { return m_condition; }
+    auto& true_target() const { return m_true_target; }
+    auto& false_target() const { return m_false_target; }
+
+private:
+    Operand m_condition;
+    Label m_true_target;
+    Label m_false_target;
 };
 
 #define JS_ENUMERATE_COMPARISON_OPS(X)            \
