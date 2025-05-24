@@ -918,4 +918,9 @@ void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
     page().top_level_traversable()->set_needs_repaint();
 }
 
+void PageClient::page_did_request_download(String const& filename, ByteBuffer const& bytes)
+{
+    client().async_did_request_download(m_id, filename, bytes);
+}
+
 }

@@ -690,4 +690,12 @@ Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, So
     return {};
 }
 
+void WebContentClient::did_request_download(u64 page_id, String filename, ByteBuffer bytes)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_request_download)
+            view->on_request_download(filename, bytes);
+    }
+}
+
 }

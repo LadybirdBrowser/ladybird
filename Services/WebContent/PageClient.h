@@ -177,6 +177,8 @@ private:
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
     virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
 
+    virtual void page_did_request_download(String const& filename, ByteBuffer const& bytes) override;
+
     Web::Layout::Viewport* layout_root();
     void setup_palette();
     ConnectionFromClient& client() const;
