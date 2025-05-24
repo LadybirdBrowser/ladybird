@@ -167,15 +167,8 @@ void ViewportPaintable::assign_clip_frames()
                 continue;
             }
             auto const& block_paintable_box = static_cast<PaintableBox const&>(*paintable);
-            bool clip_x = paintable->computed_values().overflow_x() != CSS::Overflow::Visible;
-            bool clip_y = paintable->computed_values().overflow_y() != CSS::Overflow::Visible;
-
-            auto clip_rect = block_paintable_box.overflow_clip_edge_rect();
-            if (block_paintable_box.get_clip_rect().has_value()) {
-                clip_rect.intersect(block_paintable_box.get_clip_rect().value());
-                clip_x = true;
-                clip_y = true;
-            }
+            auto overflow_x = paintable->computed_values().overflow_x();
+            auto overflow_y = paintable->computed_values().overflow_y();
 
             // https://drafts.csswg.org/css-contain-2/#paint-containment
             // 1. The contents of the element including any ink or scrollable overflow must be clipped to the overflow clip
@@ -188,26 +181,41 @@ void ViewportPaintable::assign_clip_frames()
                 // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
                 //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
                 //       values of 'overflow-x' and 'overflow-y' unchanged.
-                clip_x = true;
-                clip_y = true;
+                overflow_x = CSS::Overflow::Clip;
+                overflow_y = CSS::Overflow::Clip;
             }
 
-            if (clip_x || clip_y) {
+            auto clip_rect = block_paintable_box.absolute_padding_box_rect();
+
+            // https://drafts.csswg.org/css-overflow-3/#propdef-overflow
+            // 'clip'
+            //    This value indicates that the box’s content is clipped to its overflow clip edge
+            auto overflow_clip_edge = block_paintable_box.overflow_clip_edge_rect();
+            if (overflow_x == CSS::Overflow::Clip) {
+                clip_rect.set_left(overflow_clip_edge.left());
+                clip_rect.set_right(overflow_clip_edge.right());
+            }
+            if (overflow_y == CSS::Overflow::Clip) {
+                clip_rect.set_top(overflow_clip_edge.top());
+                clip_rect.set_bottom(overflow_clip_edge.bottom());
+            }
+
+            if (overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible) {
                 // https://drafts.csswg.org/css-overflow-3/#corner-clipping
                 // As mentioned in CSS Backgrounds 3 § 4.3 Corner Clipping, the clipping region established by overflow can be
                 // rounded:
-                if (clip_x && clip_y) {
+                if (overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible) {
                     // - When overflow-x and overflow-y compute to hidden, scroll, or auto, the clipping region is rounded
                     //   based on the border radius, adjusted to the padding edge, as described in CSS Backgrounds 3 § 4.2 Corner
                     //   Shaping.
                     // - When both overflow-x and overflow-y compute to clip, the clipping region is rounded as described in § 3.2
                     //   Expanding Clipping Bounds: the overflow-clip-margin property.
-                    // FIXME: Implement overflow-clip-margin
+                    // FIXME: Adjust the border radii for the overflow-clip-margin case. (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
                     clip_frame.add_clip_rect(clip_rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
                 } else {
                     // - However, when one of overflow-x or overflow-y computes to clip and the other computes to visible, the
                     //   clipping region is not rounded.
-                    if (clip_x) {
+                    if (overflow_y == CSS::Overflow::Visible) {
                         clip_rect.set_top(0);
                         clip_rect.set_bottom(CSSPixels::max_integer_value);
                     } else {
@@ -217,6 +225,17 @@ void ViewportPaintable::assign_clip_frames()
                     clip_frame.add_clip_rect(clip_rect, {}, block_paintable_box.enclosing_scroll_frame());
                 }
             }
+
+            // https://drafts.fxtf.org/css-masking/#clip-property
+            // The clip property applies only to absolutely positioned elements. In SVG, it applies to elements which establish
+            // a new viewport, pattern elements and mask elements. Values have the following meanings:
+            // FIXME: Take care of the SVG case.
+            if (block_paintable_box.computed_values().position() == CSS::Positioning::Absolute) {
+                if (block_paintable_box.get_clip_rect().has_value()) {
+                    clip_frame.add_clip_rect(block_paintable_box.get_clip_rect().value(), {}, block_paintable_box.enclosing_scroll_frame());
+                }
+            }
+
             if (block->has_css_transform()) {
                 break;
             }

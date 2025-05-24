@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Overflow-clip-margin: child of a small-border-box out-of-view large-clip-margin parent is shown</title>
+<link rel="help" href="https://www.w3.org/TR/css-overflow-3/#propdef-overflow-clip-margin">
+<link rel="author" title="Xianzhu Wang" href="mailto:wangxianzhu@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-overflow/overflow-clip-margin-011-ref.html">
+<style>
+  .overflow-hidden {
+    width: 200px;
+    height: 200px;
+    overflow: hidden;
+  }
+  .parent {
+    width: 100px;
+    height: 100px;
+    position: relative;
+    top: 500px;
+    overflow: clip;
+    overflow-clip-margin: 500px;
+    z-index: 1;
+    background: red;
+  }
+  .child {
+    width: 100px;
+    height: 100px;
+    position: relative;
+    top: -500px;
+    background: green;
+  }
+</style>
+<div class="overflow-hidden">
+  <div class="parent">
+    <div class="child">
+  </div>
+</div>
