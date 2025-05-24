@@ -74,6 +74,9 @@ public:
         // https://w3c.github.io/media-capabilities/#media-capabilities-task-source
         MediaCapabilities,
 
+        // https://w3c.github.io/geolocation/#dfn-geolocation-task-source
+        Geolocation,
+
         // !!! IMPORTANT: Keep this field last!
         // This serves as the base value of all unique task sources.
         // Some elements, such as the HTMLMediaElement, must have a unique task source per instance.

@@ -461,6 +461,11 @@ void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpa
     client().async_retrieved_clipboard_entries(page_id(), request_id, items);
 }
 
+void ViewImplementation::geolocation_update(u64 request_id, Web::Geolocation::GeolocationUpdateState state)
+{
+    client().async_geolocation_update(page_id(), request_id, state);
+}
+
 void ViewImplementation::toggle_media_play_state()
 {
     client().async_toggle_media_play_state(page_id());

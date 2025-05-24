@@ -70,6 +70,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
     visitor.visit(m_credentials);
+    visitor.visit(m_geolocation);
 }
 
 GC::Ref<MimeTypeArray> Navigator::mime_types()
@@ -105,6 +106,13 @@ GC::Ref<CredentialManagement::CredentialsContainer> Navigator::credentials()
     if (!m_credentials)
         m_credentials = realm().create<CredentialManagement::CredentialsContainer>(realm());
     return *m_credentials;
+}
+
+GC::Ref<Geolocation::Geolocation> Navigator::geolocation()
+{
+    if (!m_geolocation)
+        m_geolocation = realm().create<Geolocation::Geolocation>(realm());
+    return *m_geolocation;
 }
 
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints

@@ -26,6 +26,7 @@
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Geolocation/GeolocationUpdateState.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
@@ -168,6 +169,15 @@ public:
     void request_clipboard_entries(ClipboardRequest);
     void retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemClipboardItem>);
 
+    using GeolocationCallback = GC::Ref<GC::Function<void(Geolocation::GeolocationUpdateState state)>>;
+    struct GeolocationRequest {
+        bool watch;
+        GeolocationCallback callback;
+    };
+    u64 request_geolocation(bool enable_high_accuracy, bool watch, GeolocationCallback callback);
+    void stop_geolocation_watch(u64 request_id);
+    void geolocation_update(u64 request_id, Geolocation::GeolocationUpdateState state);
+
     enum class PendingNonBlockingDialog {
         None,
         ColorPicker,
@@ -278,6 +288,9 @@ private:
 
     HashMap<u64, ClipboardRequest> m_pending_clipboard_requests;
     u64 m_next_clipboard_request_id { 0 };
+
+    HashMap<u64, GeolocationRequest> m_geolocation_requests;
+    u64 m_next_geolocation_request_id { 0 };
 
     Vector<UniqueNodeID> m_media_elements;
     Optional<UniqueNodeID> m_media_context_menu_element_id;
@@ -402,6 +415,9 @@ public:
 
     virtual void page_did_insert_clipboard_entry(Clipboard::SystemClipboardRepresentation const&, [[maybe_unused]] StringView presentation_style) { }
     virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id) { }
+
+    virtual void page_did_request_geolocation_watch([[maybe_unused]] u64 request_id, [[maybe_unused]] bool enable_high_accuracy) { }
+    virtual void page_did_stop_geolocation_watch([[maybe_unused]] u64 request_id) { }
 
     virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
 

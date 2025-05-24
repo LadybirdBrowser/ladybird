@@ -69,5 +69,7 @@
                 </array>
             </dict>
         </array>
+        <key>NSLocationUsageDescription</key>
+        <string>Websites you visit may request your location.</string>
     </dict>
 </plist>

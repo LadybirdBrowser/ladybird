@@ -1,0 +1,22 @@
+#import <Geolocation/GeolocationCoordinates.idl>
+#import <Geolocation/GeolocationPosition.idl>
+#import <Geolocation/GeolocationPositionError.idl>
+
+// https://w3c.github.io/geolocation/#geolocation_interface
+[Exposed=Window]
+interface Geolocation {
+    undefined getCurrentPosition(PositionCallback successCallback, optional PositionErrorCallback? errorCallback = null, optional PositionOptions options = {});
+    long watchPosition(PositionCallback successCallback, optional PositionErrorCallback? errorCallback = null, optional PositionOptions options = {});
+    undefined clearWatch(long watchId);
+};
+
+callback PositionCallback = undefined (GeolocationPosition position);
+
+callback PositionErrorCallback = undefined (GeolocationPositionError positionError);
+
+// https://w3c.github.io/geolocation/#position_options_interface
+dictionary PositionOptions {
+    boolean enableHighAccuracy = false;
+    [Clamp] unsigned long timeout = 0xFFFFFFFF;
+    [Clamp] unsigned long maximumAge = 0;
+};
