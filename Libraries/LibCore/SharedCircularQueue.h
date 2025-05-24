@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/BuiltinWrappers.h>
 #include <AK/ByteString.h>
 #include <AK/Debug.h>
@@ -162,22 +163,24 @@ private:
     };
 
     class RefCountedSharedMemorySPCQ
-        : public RefCounted<RefCountedSharedMemorySPCQ>
+        : public AtomicRefCounted<RefCountedSharedMemorySPCQ>
         , public AnonymousBuffer {
         friend class SharedSingleProducerCircularQueue;
 
     public:
         SharedMemorySPCQ* m_queue;
+        ByteString m_name;
 
         ~RefCountedSharedMemorySPCQ()
         {
-            dbgln_if(SHARED_QUEUE_DEBUG, "destructed SSPCQ at {:p}, shared mem: {:p}", this, m_queue);
+            dbgln_if(SHARED_QUEUE_DEBUG, "destructed SSPCQ at {:p} named {}, shared mem: {:p}", this, m_name, m_queue);
         }
 
     private:
-        RefCountedSharedMemorySPCQ(AnonymousBuffer anon_buf, SharedMemorySPCQ* shared_queue)
+        RefCountedSharedMemorySPCQ(AnonymousBuffer anon_buf, SharedMemorySPCQ* shared_queue, ByteString name)
             : AnonymousBuffer(anon_buf)
             , m_queue(shared_queue)
+            , m_name(move(name))
         {
         }
     };
@@ -188,19 +191,16 @@ private:
             return Error::from_string_literal("Unexpected error when creating shared queue from raw memory");
         auto name = ByteString::formatted("SharedSingleProducerCircularQueue@{:x}", anon_buf.fd());
         dbgln_if(SHARED_QUEUE_DEBUG, "successfully mmapped {} at {:p}", name, shared_queue);
-        auto ref_counted = new (nothrow) RefCountedSharedMemorySPCQ(anon_buf, shared_queue);
-        return SharedSingleProducerCircularQueue<T, Size> { move(name), adopt_ref(*ref_counted) };
+        auto ref_counted = new (nothrow) RefCountedSharedMemorySPCQ(anon_buf, shared_queue, move(name));
+        return SharedSingleProducerCircularQueue<T, Size> { adopt_ref(*ref_counted) };
     }
 
-    SharedSingleProducerCircularQueue(ByteString name, RefPtr<RefCountedSharedMemorySPCQ> queue)
+    SharedSingleProducerCircularQueue(RefPtr<RefCountedSharedMemorySPCQ> queue)
         : m_queue(queue)
-        , m_name(move(name))
     {
     }
 
     RefPtr<RefCountedSharedMemorySPCQ> m_queue;
-
-    ByteString m_name {};
 };
 
 }
