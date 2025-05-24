@@ -15,7 +15,10 @@ namespace URL {
 
 class Origin {
 public:
+    // FIXME: This should be generating a unique origin identifer that can be used for equality checks.
+    //        Probably we should remove the default constructor, and instead expose this as a factory method.
     Origin() = default;
+
     Origin(Optional<String> const& scheme, Host const& host, Optional<u16> port)
         : m_state(State {
               .scheme = scheme,
@@ -36,6 +39,7 @@ public:
     bool is_same_origin(Origin const& other) const
     {
         // 1. If A and B are the same opaque origin, then return true.
+        // FIXME: What about opaque origins that are not equal to one another?
         if (is_opaque() && other.is_opaque())
             return true;
 
@@ -55,6 +59,7 @@ public:
     bool is_same_origin_domain(Origin const& other) const
     {
         // 1. If A and B are the same opaque origin, then return true.
+        // FIXME: What about opaque origins that are not equal to one another?
         if (is_opaque() && other.is_opaque())
             return true;
 
