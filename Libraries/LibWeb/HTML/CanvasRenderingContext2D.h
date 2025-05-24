@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/Canvas/CanvasPath.h>
 #include <LibWeb/HTML/Canvas/CanvasPathDrawingStyles.h>
 #include <LibWeb/HTML/Canvas/CanvasRect.h>
+#include <LibWeb/HTML/Canvas/CanvasSettings.h>
 #include <LibWeb/HTML/Canvas/CanvasShadowStyles.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/HTML/Canvas/CanvasText.h>
@@ -32,14 +33,6 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
-
-struct CanvasRenderingContext2DSettings {
-    bool alpha { true };
-    bool desynchronized { false };
-    Bindings::PredefinedColorSpace color_space { Bindings::PredefinedColorSpace::Srgb };
-    Bindings::CanvasColorType color_type { Bindings::CanvasColorType::Unorm8 };
-    bool will_read_frequently { false };
-};
 
 class CanvasRenderingContext2D
     : public Bindings::PlatformObject
@@ -56,6 +49,7 @@ class CanvasRenderingContext2D
     , public CanvasImageData
     , public CanvasImageSmoothing
     , public CanvasCompositing
+    , public CanvasSettings
     , public CanvasPathDrawingStyles<CanvasRenderingContext2D>
     , public CanvasTextDrawingStyles<CanvasRenderingContext2D> {
 
@@ -91,7 +85,7 @@ public:
 
     GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
 
-    CanvasRenderingContext2DSettings get_context_attributes() const { return m_context_attributes; }
+    virtual CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
 
     virtual GC::Ref<TextMetrics> measure_text(StringView text) override;
 

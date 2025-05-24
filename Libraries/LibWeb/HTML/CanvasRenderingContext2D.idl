@@ -10,15 +10,20 @@
 #import <HTML/Canvas/CanvasPathDrawingStyles.idl>
 #import <HTML/Canvas/CanvasTextDrawingStyles.idl>
 #import <HTML/Canvas/CanvasRect.idl>
+#import <HTML/Canvas/CanvasSettings.idl>
 #import <HTML/Canvas/CanvasShadowStyles.idl>
 #import <HTML/Canvas/CanvasState.idl>
 #import <HTML/Canvas/CanvasText.idl>
 #import <HTML/Canvas/CanvasTransform.idl>
 #import <HTML/Canvas/CanvasUserInterface.idl>
 
+// FIXME: This should be in CanvasSettings.idl but then it is not exported
+// https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
 enum PredefinedColorSpace { "srgb", "display-p3" };
+// https://html.spec.whatwg.org/multipage/canvas.html#canvascolortype
 enum CanvasColorType { "unorm8", "float16" };
 
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2dsettings
 dictionary CanvasRenderingContext2DSettings {
     boolean alpha = true;
     boolean desynchronized = false;
@@ -60,9 +65,3 @@ CanvasRenderingContext2D includes CanvasImageData;
 CanvasRenderingContext2D includes CanvasPathDrawingStyles;
 CanvasRenderingContext2D includes CanvasTextDrawingStyles;
 CanvasRenderingContext2D includes CanvasPath;
-
-// https://html.spec.whatwg.org/multipage/canvas.html#canvassettings
-interface mixin CanvasSettings {
-    // settings
-    CanvasRenderingContext2DSettings getContextAttributes();
-};
