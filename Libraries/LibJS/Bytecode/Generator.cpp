@@ -1344,6 +1344,12 @@ ScopedOperand Generator::add_constant(Value value)
             return append_new_constant();
         });
     }
+    if (value.is_string()) {
+        auto as_string = value.as_string().utf8_string();
+        return m_string_constants.ensure(as_string, [&] {
+            return append_new_constant();
+        });
+    }
     return append_new_constant();
 }
 
