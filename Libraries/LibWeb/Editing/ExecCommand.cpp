@@ -256,7 +256,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& comm
                 if (!Editing::is_formattable_node(descendant))
                     return TraversalDecision::Continue;
 
-                auto node_value = Editing::effective_command_value(descendant, command);
+                auto node_value = Editing::effective_command_value(descendant, command_definition.command);
                 if (!node_value.has_value())
                     return TraversalDecision::Continue;
 
@@ -284,7 +284,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& comm
                 if (!Editing::is_formattable_node(descendant))
                     return TraversalDecision::Continue;
 
-                auto node_value = Editing::effective_command_value(descendant, command);
+                auto node_value = Editing::effective_command_value(descendant, command_definition.command);
                 if (!node_value.has_value())
                     return TraversalDecision::Continue;
 
@@ -319,7 +319,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_state(FlyString const& command
     if (!optional_command.has_value())
         return false;
     auto const& command_definition = optional_command.release_value();
-    auto state_override = command_state_override(command);
+    auto state_override = command_state_override(command_definition.command);
     if (!command_definition.state && !state_override.has_value()) {
         // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
         // If a command has inline command activated values defined, its state is true if either no formattable node is
@@ -336,12 +336,12 @@ WebIDL::ExceptionOr<bool> Document::query_command_state(FlyString const& command
             return TraversalDecision::Continue;
         });
         if (formattable_nodes.is_empty())
-            return inline_values.contains_slow(Editing::effective_command_value(range->start_container(), command).value_or({}));
+            return inline_values.contains_slow(Editing::effective_command_value(range->start_container(), command_definition.command).value_or({}));
 
         // or if there is at least one formattable node effectively contained in the active range, and all of them have
         // an effective command value equal to one of the given values.
         return all_of(formattable_nodes, [&](GC::Ref<Node> node) {
-            return inline_values.contains_slow(Editing::effective_command_value(node, command).value_or({}));
+            return inline_values.contains_slow(Editing::effective_command_value(node, command_definition.command).value_or({}));
         });
     }
 
@@ -379,13 +379,13 @@ WebIDL::ExceptionOr<String> Document::query_command_value(FlyString const& comma
     if (!optional_command.has_value())
         return String {};
     auto const& command_definition = optional_command.release_value();
-    auto value_override = command_value_override(command);
+    auto value_override = command_value_override(command_definition.command);
     if (!command_definition.value && !value_override.has_value())
         return String {};
 
     // 2. If command is "fontSize" and its value override is set, convert the value override to an
     //    integer number of pixels and return the legacy font size for the result.
-    if (command == Editing::CommandNames::fontSize && value_override.has_value()) {
+    if (command_definition.command == Editing::CommandNames::fontSize && value_override.has_value()) {
         auto pixel_size = Editing::font_size_to_pixel_size(value_override.release_value());
         return Editing::legacy_font_size(pixel_size.to_int());
     }
