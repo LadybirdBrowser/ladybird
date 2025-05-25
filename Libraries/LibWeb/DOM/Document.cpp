@@ -316,7 +316,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             top_level_creation_url = parent_environment.top_level_creation_url;
 
             // 3. Set topLevelOrigin to parentEnvironment's top-level origin.
-            top_level_origin = parent_environment.top_level_origin;
+            top_level_origin = parent_environment.top_level_origin.value();
         }
 
         // 10. Set up a window environment settings object with creationURL, realm execution context,

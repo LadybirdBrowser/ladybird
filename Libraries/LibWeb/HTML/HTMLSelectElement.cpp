@@ -515,8 +515,8 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
         return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_string);
 
     // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
-    // and this is a select element, then throw a "SecurityError" DOMException.
-    if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*this).top_level_origin)) {
+    //    and this is a select element, then throw a "SecurityError" DOMException.
+    if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*this).top_level_origin.value())) {
         return WebIDL::SecurityError::create(realm(), "Cross origin pickers are not allowed"_string);
     }
 

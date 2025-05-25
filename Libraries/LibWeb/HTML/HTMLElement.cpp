@@ -1039,7 +1039,7 @@ TokenizedFeature::NoOpener HTMLElement::get_an_elements_noopener(URL::URL const&
         auto const& top_level_origin = relevant_settings_object(*this).top_level_origin;
 
         // 3. If blobOrigin is not same site with topLevelOrigin, then return true.
-        if (!blob_origin.is_same_site(top_level_origin))
+        if (!blob_origin.is_same_site(top_level_origin.value()))
             return TokenizedFeature::NoOpener::Yes;
     }
 

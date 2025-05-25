@@ -35,7 +35,7 @@ ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
     object.id = TRY(decoder.decode<String>());
     object.creation_url = TRY(decoder.decode<URL::URL>());
     object.top_level_creation_url = TRY(decoder.decode<Optional<URL::URL>>());
-    object.top_level_origin = TRY(decoder.decode<URL::Origin>());
+    object.top_level_origin = TRY(decoder.decode<Optional<URL::Origin>>());
     object.api_url_character_encoding = TRY(decoder.decode<String>());
     object.api_base_url = TRY(decoder.decode<URL::URL>());
     object.origin = TRY(decoder.decode<URL::Origin>());

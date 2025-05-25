@@ -23,7 +23,7 @@ struct SerializedEnvironmentSettingsObject {
     String id;
     URL::URL creation_url;
     Optional<URL::URL> top_level_creation_url;
-    URL::Origin top_level_origin;
+    Optional<URL::Origin> top_level_origin;
 
     String api_url_character_encoding;
     URL::URL api_base_url;
