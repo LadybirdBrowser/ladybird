@@ -329,7 +329,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_state(FlyString const& command
         if (inline_values.is_empty())
             return false;
         auto range = Editing::active_range(*this);
-        Vector<GC::Ref<Node>> formattable_nodes;
+        GC::RootVector<GC::Ref<Node>> formattable_nodes(heap());
         Editing::for_each_node_effectively_contained_in_range(range, [&](GC::Ref<Node> descendant) {
             if (Editing::is_formattable_node(descendant))
                 formattable_nodes.append(descendant);
