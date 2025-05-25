@@ -443,8 +443,12 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
                 else
                     error_builder.append("Load failed"sv);
 
-                if (status_code.has_value() && *status_code > 0)
-                    error_builder.appendff(" (status: {} {})", *status_code, HTTP::HttpResponse::reason_phrase_for_code(*status_code));
+                if (status_code.has_value()) {
+                    if (*status_code >= 100 && *status_code <= 599)
+                        error_builder.appendff(" (status: {} {})", *status_code, HTTP::HttpResponse::reason_phrase_for_code(*status_code));
+                    else
+                        error_builder.appendff(" (status: {})", *status_code);
+                }
 
                 log_failure(request, error_builder.string_view());
                 if (error_callback)
