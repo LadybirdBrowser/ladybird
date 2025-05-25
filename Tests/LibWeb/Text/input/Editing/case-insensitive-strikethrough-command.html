@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true">
+  This is <span id="target">some text</span> to test.
+</div>
+<script>
+  test(() => {
+    const target = document.getElementById("target");
+    const range = document.createRange();
+    const selection = window.getSelection();
+
+    // println(`strikeThrough active?: ${document.queryCommandState("strikeThrough")}`);
+    range.selectNodeContents(target);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand("strikeThrough");
+
+    println(`strikeThrough active?: ${document.queryCommandState("strikeThrough")}`);
+  });
+</script>
