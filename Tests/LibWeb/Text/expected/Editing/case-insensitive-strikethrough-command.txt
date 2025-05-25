@@ -1,1 +1,2 @@
+strikeThrough active?: false
 strikeThrough active?: true
