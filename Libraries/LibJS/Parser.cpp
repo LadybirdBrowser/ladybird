@@ -1065,8 +1065,12 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
 
             auto const_correct_parameters = parse_formal_parameters(function_length, FunctionNodeParseOptions::IsArrowFunction | (is_async ? FunctionNodeParseOptions::IsAsyncFunction : 0));
             parameters = fixme_launder_const_through_pointer_cast(const_correct_parameters);
-            if (m_state.errors.size() > previous_syntax_errors && m_state.errors[previous_syntax_errors].message.bytes_as_string_view().starts_with("Unexpected token"sv))
-                return nullptr;
+            if (m_state.errors.size() > previous_syntax_errors) {
+                auto error_message = m_state.errors[previous_syntax_errors].message.bytes_as_string_view();
+                if (error_message.starts_with("Unexpected token"sv) || error_message.starts_with("Duplicate parameter names"sv)) {
+                    return nullptr;
+                }
+            }
             if (!match(TokenType::ParenClose))
                 return nullptr;
             consume();
