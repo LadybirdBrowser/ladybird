@@ -37,7 +37,10 @@ public:
     Optional<URL::URL> top_level_creation_url;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-origin
-    URL::Origin top_level_origin;
+    // A for now implementation-defined value, null, or an origin. For a "top-level" potential execution environment it is null
+    // (i.e., when there is no response yet); otherwise it is the "top-level" environment's origin. For a dedicated worker or worklet
+    // it is the top-level origin of its creator. For a shared or service worker it is an implementation-defined value.
+    Optional<URL::Origin> top_level_origin;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
     GC::Ptr<BrowsingContext> target_browsing_context;
@@ -52,7 +55,7 @@ public:
 
 protected:
     Environment() = default;
-    Environment(String id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url, URL::Origin top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
+    Environment(String id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url, Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
         : id(move(id))
         , creation_url(move(creation_url))
         , top_level_creation_url(move(top_level_creation_url))

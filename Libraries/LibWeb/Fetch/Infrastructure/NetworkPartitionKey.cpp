@@ -15,8 +15,9 @@ NetworkPartitionKey determine_the_network_partition_key(HTML::Environment const&
     // 1. Let topLevelOrigin be environment’s top-level origin.
     auto top_level_origin = environment.top_level_origin;
 
-    // FIXME: 2. If topLevelOrigin is null, then set topLevelOrigin to environment’s top-level creation URL’s origin
-    // This field is supposed to be nullable
+    // 2. If topLevelOrigin is null, then set topLevelOrigin to environment’s top-level creation URL’s origin
+    if (!top_level_origin.has_value())
+        top_level_origin = environment.top_level_creation_url->origin();
 
     // 3. Assert: topLevelOrigin is an origin.
 
@@ -26,7 +27,7 @@ NetworkPartitionKey determine_the_network_partition_key(HTML::Environment const&
     void* second_key = nullptr;
 
     // 6. Return (topLevelSite, secondKey).
-    return { top_level_origin, second_key };
+    return { top_level_origin.release_value(), second_key };
 }
 
 // https://fetch.spec.whatwg.org/#request-determine-the-network-partition-key

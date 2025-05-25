@@ -428,7 +428,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             // 4. If currentDocument's opener policy's value is "same-origin" or "same-origin-plus-COEP",
             //    and currentDocument's origin is not same origin with currentDocument's relevant settings object's top-level origin, then:
             if ((current_document->opener_policy().value == OpenerPolicyValue::SameOrigin || current_document->opener_policy().value == OpenerPolicyValue::SameOriginPlusCOEP)
-                && !current_document->origin().is_same_origin(relevant_settings_object(*current_document).top_level_origin)) {
+                && !current_document->origin().is_same_origin(relevant_settings_object(*current_document).top_level_origin.value())) {
 
                 // 1. Set noopener to true.
                 no_opener = TokenizedFeature::NoOpener::Yes;
@@ -936,7 +936,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
             Optional<URL::URL> top_level_creation_url = current_url;
 
             // 2. Let topLevelOrigin be null.
-            URL::Origin top_level_origin;
+            Optional<URL::Origin> top_level_origin;
 
             // 3. If navigable is not a top-level traversable, then:
             if (!navigable->is_top_level_traversable()) {

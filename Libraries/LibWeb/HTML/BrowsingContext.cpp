@@ -254,7 +254,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
         document->set_policy_container(creator->policy_container()->clone(document->heap()));
 
         // 3. If creator's origin is same origin with creator's relevant settings object's top-level origin,
-        if (creator->origin().is_same_origin(creator->relevant_settings_object().top_level_origin)) {
+        if (creator->origin().is_same_origin(creator->relevant_settings_object().top_level_origin.value())) {
             // then set document's opener policy to creator's browsing context's top-level browsing context's active document's opener policy.
             VERIFY(creator->browsing_context());
             VERIFY(creator->browsing_context()->top_level_browsing_context()->active_document());

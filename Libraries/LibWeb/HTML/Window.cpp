@@ -171,7 +171,7 @@ static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document con
         auto top_level_origin = source_document.relevant_settings_object().top_level_origin;
 
         // 3. If blobOrigin is not same site with topLevelOrigin, then return true.
-        if (!blob_origin.is_same_site(top_level_origin))
+        if (!blob_origin.is_same_site(top_level_origin.value()))
             return TokenizedFeature::NoOpener::Yes;
     }
 
