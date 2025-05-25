@@ -9,7 +9,7 @@
     const range = document.createRange();
     const selection = window.getSelection();
 
-    // println(`strikeThrough active?: ${document.queryCommandState("strikeThrough")}`);
+    println(`strikeThrough active?: ${document.queryCommandState("strikeThrough")}`);
     range.selectNodeContents(target);
     selection.removeAllRanges();
     selection.addRange(range);

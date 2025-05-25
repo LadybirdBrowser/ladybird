@@ -329,6 +329,9 @@ WebIDL::ExceptionOr<bool> Document::query_command_state(FlyString const& command
         if (inline_values.is_empty())
             return false;
         auto range = Editing::active_range(*this);
+        if (!range)
+            return false;
+
         Vector<GC::Ref<Node>> formattable_nodes;
         Editing::for_each_node_effectively_contained_in_range(range, [&](GC::Ref<Node> descendant) {
             if (Editing::is_formattable_node(descendant))
