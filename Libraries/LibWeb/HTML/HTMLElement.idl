@@ -27,7 +27,7 @@ interface HTMLElement : Element {
     [CEReactions] attribute boolean spellcheck;
     [CEReactions] attribute DOMString writingSuggestions;
     [CEReactions] attribute DOMString autocapitalize;
-    [FIXME, CEReactions] attribute boolean autocorrect;
+    [CEReactions] attribute boolean autocorrect;
 
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString innerText;
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString outerText;
