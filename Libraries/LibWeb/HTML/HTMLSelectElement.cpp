@@ -574,6 +574,16 @@ void HTMLSelectElement::form_associated_element_was_inserted()
     create_shadow_tree_if_needed();
 }
 
+void HTMLSelectElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&)
+{
+    if (name == HTML::AttributeNames::multiple) {
+        // If the multiple attribute is absent then update the selectedness of the option elements.
+        if (!value.has_value()) {
+            update_selectedness();
+        }
+    }
+}
+
 void HTMLSelectElement::computed_properties_changed()
 {
     // Hide chevron icon when appearance is none
