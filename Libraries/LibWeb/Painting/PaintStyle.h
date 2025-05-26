@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
-#include <AK/Variant.h>
+#include <AK/AtomicRefCounted.h>
 #include <LibGfx/PaintStyle.h>
 
 namespace Web::Painting {
@@ -18,7 +17,7 @@ struct ColorStop {
     Optional<float> transition_hint = {};
 };
 
-class SVGGradientPaintStyle : public RefCounted<SVGGradientPaintStyle> {
+class SVGGradientPaintStyle : public AtomicRefCounted<SVGGradientPaintStyle> {
 public:
     enum class SpreadMethod {
         Pad,
