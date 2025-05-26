@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -38,6 +39,20 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     //       In the future, we can make this invalidation narrower.
     if (property_id == CSS::PropertyID::OverflowX || property_id == CSS::PropertyID::OverflowY) {
         return RequiredInvalidationAfterStyleChange::full();
+    }
+
+    // NOTE: A change to a counter "definition" propagates to all subsequent instances of this counter:
+    //       descendents, siblings and their descendents (the "next tree slice").
+    //       Rebuilding the layout tree (from the parent node) covers at least the "next_tree_slice".
+    //       OPTIMIZATION? The counter change will only be visible if the counter value is used in the `content` of a pseudo-element:
+    //        - Re-building the layout tree is not necessary if the counter is not included in any `content`.
+    //        - However, determinining if a change is visible would [always] require a visit to the next tree slice ("always penalize").
+    //        * As a compromise, we don't check the visibility of a change and always rebuild the layout tree.
+    //          We "trust the author" to "show counters they change".
+    //           - A relayout penalty is only incurred if a counter is changed but never used.
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::CounterReset, CSS::PropertyID::CounterSet, CSS::PropertyID::CounterIncrement)) {
+        invalidation.rebuild_layout_tree = property_value_changed;
+        return invalidation;
     }
 
     // OPTIMIZATION: Special handling for CSS `visibility`:
