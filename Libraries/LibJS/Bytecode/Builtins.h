@@ -23,7 +23,8 @@ namespace JS::Bytecode {
     O(MathRandom, math_random, Math, random, 0) \
     O(MathRound, math_round, Math, round, 1)    \
     O(MathSqrt, math_sqrt, Math, sqrt, 1)       \
-    O(MathSin, math_sin, Math, sin, 1)
+    O(MathSin, math_sin, Math, sin, 1)          \
+    O(MathCos, math_cos, Math, cos, 1)
 
 enum class Builtin : u8 {
 #define DEFINE_BUILTIN_ENUM(name, ...) name,
