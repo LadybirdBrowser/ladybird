@@ -314,7 +314,8 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(vspace, "vspace")                                         \
     __ENUMERATE_HTML_ATTRIBUTE(width, "width")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(willvalidate, "willvalidate")                             \
-    __ENUMERATE_HTML_ATTRIBUTE(wrap, "wrap")
+    __ENUMERATE_HTML_ATTRIBUTE(wrap, "wrap")                                             \
+    __ENUMERATE_HTML_ATTRIBUTE(writingsuggestions, "writingsuggestions")
 
 #define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) extern WEB_API FlyString name;
 ENUMERATE_HTML_ATTRIBUTES

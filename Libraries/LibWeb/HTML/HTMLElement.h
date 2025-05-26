@@ -120,6 +120,9 @@ public:
     bool spellcheck() const;
     void set_spellcheck(bool);
 
+    String writing_suggestions() const;
+    void set_writing_suggestions(String const&);
+
     bool fire_a_synthetic_pointer_event(FlyString const& type, DOM::Element& target, bool not_trusted);
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-label

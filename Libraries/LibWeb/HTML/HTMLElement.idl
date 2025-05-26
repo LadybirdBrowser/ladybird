@@ -25,6 +25,7 @@ interface HTMLElement : Element {
     readonly attribute DOMString accessKeyLabel;
     [CEReactions] attribute boolean draggable;
     [CEReactions] attribute boolean spellcheck;
+    [CEReactions] attribute DOMString writingSuggestions;
     [FIXME, CEReactions] attribute DOMString autocapitalize;
     [FIXME, CEReactions] attribute boolean autocorrect;
 
