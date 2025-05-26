@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 317 tests
 
-309 Pass
-8 Fail
+312 Pass
+5 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "Offline createGain"
@@ -318,6 +318,6 @@ Pass	> [verifyTests]
 Pass	  Number of nodes not tested : 0
 Pass	< [verifyTests] All assertions passed. (total 1 assertions)
 Pass	> [automation] 
-Fail	X Test automations (check console logs) incorrectly threw NotSupportedError: "FIXME: Implement AudioParam::linear_ramp_to_value_at_time".
-Fail	< [automation] 1 out of 1 assertions were failed.
-Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 24 tasks were failed.
+Pass	  Test automations (check console logs) did not throw an exception.
+Pass	< [automation] All assertions passed. (total 1 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 24 tasks ran successfully.
