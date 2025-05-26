@@ -208,6 +208,7 @@ All properties associated with getComputedStyle(document.body):
     "rx",
     "ry",
     "scale",
+    "scrollbar-color",
     "scrollbar-gutter",
     "scrollbar-width",
     "stop-color",

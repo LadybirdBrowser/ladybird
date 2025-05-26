@@ -206,6 +206,7 @@ row-gap: normal
 rx: auto
 ry: auto
 scale: none
+scrollbar-color: auto
 scrollbar-gutter: auto
 scrollbar-width: auto
 stop-color: rgb(0, 0, 0)

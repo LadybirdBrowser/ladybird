@@ -81,6 +81,11 @@ struct Containment {
     bool is_empty() const { return !(size_containment || inline_size_containment || layout_containment || style_containment || paint_containment); }
 };
 
+struct ScrollbarColorData {
+    Color thumb_color { Color::Transparent };
+    Color track_color { Color::Transparent };
+};
+
 using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, Cursor>;
 
 using ListStyleType = Variant<CounterStyleNameKeyword, String>;
@@ -211,6 +216,13 @@ public:
     static CSS::MathStyle math_style() { return CSS::MathStyle::Normal; }
     static int math_depth() { return 0; }
 
+    static ScrollbarColorData scrollbar_color()
+    {
+        return ScrollbarColorData {
+            .thumb_color = Color(Color::NamedColor::DarkGray).with_alpha(192),
+            .track_color = Color(Color::NamedColor::WarmGray).with_alpha(192),
+        };
+    }
     static CSS::ScrollbarWidth scrollbar_width() { return CSS::ScrollbarWidth::Auto; }
 };
 
@@ -581,6 +593,7 @@ public:
     CSS::MathStyle math_style() const { return m_inherited.math_style; }
     int math_depth() const { return m_inherited.math_depth; }
 
+    ScrollbarColorData scrollbar_color() const { return m_inherited.scrollbar_color; }
     CSS::ScrollbarWidth scrollbar_width() const { return m_noninherited.scrollbar_width; }
 
     NonnullOwnPtr<ComputedValues> clone_inherited_values() const
@@ -655,6 +668,8 @@ protected:
         CSS::MathShift math_shift { InitialValues::math_shift() };
         CSS::MathStyle math_style { InitialValues::math_style() };
         int math_depth { InitialValues::math_depth() };
+
+        ScrollbarColorData scrollbar_color { InitialValues::scrollbar_color() };
     } m_inherited;
 
     struct {
@@ -967,6 +982,7 @@ public:
     void set_math_style(CSS::MathStyle value) { m_inherited.math_style = value; }
     void set_math_depth(int value) { m_inherited.math_depth = value; }
 
+    void set_scrollbar_color(ScrollbarColorData value) { m_inherited.scrollbar_color = move(value); }
     void set_scrollbar_width(CSS::ScrollbarWidth value) { m_noninherited.scrollbar_width = value; }
 
     void set_counter_increment(Vector<CounterData> value) { m_noninherited.counter_increment = move(value); }

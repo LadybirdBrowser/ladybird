@@ -2684,6 +2684,12 @@
     "affects-layout": false,
     "affects-stacking-context": true
   },
+  "scrollbar-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": "yes",
+    "initial": "auto"
+  },
   "scrollbar-gutter": {
     "affects-layout": false,
     "animation-type": "discrete",

@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -1849,6 +1850,22 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
         return {};
 
     dbgln("Unhandled type for {} value: '{}'", string_from_property_id(property_id), value.to_string(SerializationMode::Normal));
+    return {};
+}
+
+ScrollbarColorData ComputedProperties::scrollbar_color(Layout::NodeWithStyle const& layout_node) const
+{
+    auto const& value = property(PropertyID::ScrollbarColor);
+    if (value.is_keyword() && value.as_keyword().keyword() == Keyword::Auto)
+        return InitialValues::scrollbar_color();
+
+    if (value.is_scrollbar_color()) {
+        auto& scrollbar_color_value = value.as_scrollbar_color();
+        auto thumb_color = scrollbar_color_value.thumb_color()->to_color(layout_node);
+        auto track_color = scrollbar_color_value.track_color()->to_color(layout_node);
+        return { thumb_color, track_color };
+    }
+
     return {};
 }
 
