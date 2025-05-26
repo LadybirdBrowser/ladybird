@@ -2195,4 +2195,41 @@ void HTMLElement::set_spellcheck(bool spellcheck)
         MUST(set_attribute(HTML::AttributeNames::spellcheck, "false"_string));
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
+String HTMLElement::writing_suggestions() const
+{
+    // The writingsuggestions content attribute is an enumerated attribute with the following keywords and states:
+    // Keyword            | State | Brief description
+    // true               | True  | Writing suggestions should be offered on this element.
+    // (the empty string) |       |
+    // false              | False | Writing suggestions should not be offered on this element.
+
+    // The attribute's missing value default is the Default state. The default state indicates that the element is to
+    // act according to a default behavior, possibly based on the parent element's own writingsuggestions state, as
+    // defined below.
+
+    // The attribute's invalid value default is the True state.
+
+    // 1. If element's writingsuggestions content attribute is in the False state, return "false".
+    auto maybe_writing_suggestions_attribute = attribute(HTML::AttributeNames::writingsuggestions);
+
+    if (maybe_writing_suggestions_attribute.has_value() && maybe_writing_suggestions_attribute.value().equals_ignoring_ascii_case("false"sv))
+        return "false"_string;
+
+    // 2. If element's writingsuggestions content attribute is in the Default state, element has a parent element, and the computed writing suggestions value of element's parent element is "false", then return "false".
+    if (!maybe_writing_suggestions_attribute.has_value() && first_ancestor_of_type<HTMLElement>() && first_ancestor_of_type<HTMLElement>()->writing_suggestions() == "false"sv) {
+        return "false"_string;
+    }
+
+    // 3. Return "true".
+    return "true"_string;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
+void HTMLElement::set_writing_suggestions(String const& given_value)
+{
+    // 1. Set this's writingsuggestions content attribute to the given value.
+    MUST(set_attribute(HTML::AttributeNames::writingsuggestions, given_value));
+}
+
 }
