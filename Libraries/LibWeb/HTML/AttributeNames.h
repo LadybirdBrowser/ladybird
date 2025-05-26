@@ -286,6 +286,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(sizes, "sizes")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(slot, "slot")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(span, "span")                                             \
+    __ENUMERATE_HTML_ATTRIBUTE(spellcheck, "spellcheck")                                 \
     __ENUMERATE_HTML_ATTRIBUTE(src, "src")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(srcdoc, "srcdoc")                                         \
     __ENUMERATE_HTML_ATTRIBUTE(srclang, "srclang")                                       \

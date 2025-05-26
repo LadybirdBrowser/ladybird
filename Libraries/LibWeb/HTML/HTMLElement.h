@@ -117,6 +117,9 @@ public:
 
     [[nodiscard]] String access_key_label() const;
 
+    bool spellcheck() const;
+    void set_spellcheck(bool);
+
     bool fire_a_synthetic_pointer_event(FlyString const& type, DOM::Element& target, bool not_trusted);
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
