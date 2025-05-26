@@ -135,6 +135,15 @@ public:
     String autocapitalize() const;
     void set_autocapitalize(String const&);
 
+    enum class AutocorrectionState {
+        On,
+        Off
+    };
+
+    AutocorrectionState used_autocorrection_state() const;
+    bool autocorrect() const;
+    void set_autocorrect(bool);
+
     bool fire_a_synthetic_pointer_event(FlyString const& type, DOM::Element& target, bool not_trusted);
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-label

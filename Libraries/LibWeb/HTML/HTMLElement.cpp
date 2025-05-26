@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
@@ -2323,6 +2324,66 @@ void HTMLElement::set_autocapitalize(String const& given_value)
 {
     // The autocapitalize setter steps are to set the autocapitalize content attribute to the given value.
     MUST(set_attribute(HTML::AttributeNames::autocapitalize, given_value));
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#used-autocorrection-state
+HTMLElement::AutocorrectionState HTMLElement::used_autocorrection_state() const
+{
+    // The autocorrect attribute is an enumerated attribute with the following keywords and states:
+    // Keyword            | State | Brief description
+    // on                 | on    | The user agent is permitted to automatically correct spelling errors while the user
+    // (the empty string) |       | types. Whether spelling is automatically corrected while typing left is for the user
+    //                    |       | agent to decide, and may depend on the element as well as the user's preferences.
+    // off                | off   | The user agent is not allowed to automatically correct spelling while the user types.
+
+    // The attribute's invalid value default and missing value default are both the on state.
+
+    auto autocorrect_attribute_state = [](Optional<String> attribute) {
+        if (attribute.has_value() && attribute.value().equals_ignoring_ascii_case("off"sv))
+            return AutocorrectionState::Off;
+
+        return AutocorrectionState::On;
+    };
+
+    // To compute the used autocorrection state of an element element, run these steps:
+    // 1. If element is an input element whose type attribute is in one of the URL, E-mail, or Password states, then return off.
+    if (auto const* input_element = as_if<HTMLInputElement>(this)) {
+        if (first_is_one_of(input_element->type_state(), HTMLInputElement::TypeAttributeState::URL, HTMLInputElement::TypeAttributeState::Email, HTMLInputElement::TypeAttributeState::Password))
+            return AutocorrectionState::Off;
+    }
+
+    // 2. If the autocorrect content attribute is present on element, then return the state of the attribute.
+    auto maybe_autocorrect_attribute = attribute(HTML::AttributeNames::autocorrect);
+
+    if (maybe_autocorrect_attribute.has_value())
+        return autocorrect_attribute_state(maybe_autocorrect_attribute);
+
+    // 3. If element is an autocapitalize-and-autocorrect inheriting element and has a non-null form owner, then return
+    //    the state of element's form owner's autocorrect attribute.
+    if (auto const* form_associated_element = as_if<FormAssociatedElement>(this)) {
+        if (form_associated_element->is_autocapitalize_and_autocorrect_inheriting() && form_associated_element->form())
+            return autocorrect_attribute_state(form_associated_element->form()->attribute(HTML::AttributeNames::autocorrect));
+    }
+
+    // 4. Return on.
+    return AutocorrectionState::On;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-autocorrect
+bool HTMLElement::autocorrect() const
+{
+    // The autocorrect getter steps are: return true if the element's used autocorrection state is on and false if the element's used autocorrection state is off.
+    return used_autocorrection_state() == AutocorrectionState::On;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-autocorrect
+void HTMLElement::set_autocorrect(bool given_value)
+{
+    // The setter steps are: if the given value is true, then the element's autocorrect attribute must be set to "on"; otherwise it must be set to "off".
+    if (given_value)
+        MUST(set_attribute(HTML::AttributeNames::autocorrect, "on"_string));
+    else
+        MUST(set_attribute(HTML::AttributeNames::autocorrect, "off"_string));
 }
 
 }
