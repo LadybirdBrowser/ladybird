@@ -48,6 +48,7 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -642,6 +643,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         return ParseError::SyntaxError;
     case PropertyID::Rotate:
         if (auto parsed_value = parse_rotate_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::ScrollbarColor:
+        if (auto parsed_value = parse_scrollbar_color_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::ScrollbarGutter:
@@ -4055,6 +4060,32 @@ RefPtr<CSSStyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue
 
     transaction.commit();
     return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { maybe_x.release_nonnull(), maybe_y.release_nonnull(), maybe_z.release_nonnull() });
+}
+
+// https://drafts.csswg.org/css-scrollbars/#propdef-scrollbar-color
+RefPtr<CSSStyleValue const> Parser::parse_scrollbar_color_value(TokenStream<ComponentValue>& tokens)
+{
+    // auto | <color>{2}
+    if (!tokens.has_next_token())
+        return nullptr;
+    if (auto auto_keyword = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+        return auto_keyword;
+
+    auto transaction = tokens.begin_transaction();
+
+    auto thumb_color = parse_color_value(tokens);
+    if (!thumb_color)
+        return nullptr;
+
+    tokens.discard_whitespace();
+
+    auto track_color = parse_color_value(tokens);
+    if (!track_color)
+        return nullptr;
+    tokens.discard_whitespace();
+    transaction.commit();
+
+    return ScrollbarColorStyleValue::create(thumb_color.release_nonnull(), track_color.release_nonnull());
 }
 
 // https://drafts.csswg.org/css-overflow/#propdef-scrollbar-gutter

@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Scrollbars: parsing scrollbar-color declarations</title>
+<link rel="help" href="https://drafts.csswg.org/css-scrollbars/"/>
+<meta name="assert" content="Parsing scrollbar-color declarations">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+
+<script>
+    test_valid_value('scrollbar-color', 'initial');
+    test_valid_value('scrollbar-color', 'inherit');
+    test_valid_value('scrollbar-color', 'unset');
+    test_valid_value('scrollbar-color', 'revert');
+    test_valid_value('scrollbar-color', 'auto');
+    test_valid_value("scrollbar-color", "red green");
+    test_valid_value("scrollbar-color", "#FF0000 #00FF00", "rgb(255, 0, 0) rgb(0, 255, 0)");
+    test_valid_value("scrollbar-color", "currentcolor currentcolor");
+
+    test_invalid_value("scrollbar-color", "");
+    test_invalid_value("scrollbar-color", "auto auto");
+    test_invalid_value("scrollbar-color", "auto currentcolor");
+    test_invalid_value("scrollbar-color", "red");
+    test_invalid_value("scrollbar-color", "#FF0000");
+
+</script>

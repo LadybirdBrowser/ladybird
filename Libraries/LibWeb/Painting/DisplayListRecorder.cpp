@@ -400,13 +400,15 @@ void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a
         .thickness = thickness });
 }
 
-void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, CSSPixelFraction scroll_size, bool vertical)
+void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, CSSPixelFraction scroll_size, Color thumb_color, Color track_color, bool vertical)
 {
     append(PaintScrollBar {
         .scroll_frame_id = scroll_frame_id,
         .gutter_rect = gutter_rect,
         .thumb_rect = thumb_rect,
         .scroll_size = scroll_size,
+        .thumb_color = thumb_color,
+        .track_color = track_color,
         .vertical = vertical });
 }
 

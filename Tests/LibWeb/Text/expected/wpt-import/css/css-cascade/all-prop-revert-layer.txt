@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 199 tests
+Found 200 tests
 
-189 Pass
+190 Pass
 10 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -175,6 +175,7 @@ Pass	row-gap
 Pass	rx
 Pass	ry
 Pass	scale
+Pass	scrollbar-color
 Pass	scrollbar-gutter
 Pass	scrollbar-width
 Pass	stop-color
