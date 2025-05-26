@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Test that the autocapitalize is available on HTMLInputElement.
+Pass	Test that the autocapitalize is available on HTMLTextAreaElement.
+Pass	Test that the autocapitalize is available on div.
+Pass	Test deprecated values of autocapitalize.
+Pass	Test reflection of autocapitalize.
+Pass	Test that the IDL attribute returns the empty string if the content attribute is not set.
+Pass	Test inheriting values from a form.
+Pass	Verify that even input types that are never autocapitalized support the IDL interface.

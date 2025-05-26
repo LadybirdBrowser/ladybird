@@ -26,6 +26,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(archive, "archive")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(as, "as")                                                 \
     __ENUMERATE_HTML_ATTRIBUTE(async, "async")                                           \
+    __ENUMERATE_HTML_ATTRIBUTE(autocapitalize, "autocapitalize")                         \
     __ENUMERATE_HTML_ATTRIBUTE(autocomplete, "autocomplete")                             \
     __ENUMERATE_HTML_ATTRIBUTE(autofocus, "autofocus")                                   \
     __ENUMERATE_HTML_ATTRIBUTE(autoplay, "autoplay")                                     \

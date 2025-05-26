@@ -2232,4 +2232,97 @@ void HTMLElement::set_writing_suggestions(String const& given_value)
     MUST(set_attribute(HTML::AttributeNames::writingsuggestions, given_value));
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#own-autocapitalization-hint
+HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() const
+{
+    // The autocapitalization processing model is based on selecting among five autocapitalization hints, defined as follows:
+    //
+    // default
+    //     The user agent and input method should make their own determination of whether or not to enable autocapitalization.
+    // none
+    //     No autocapitalization should be applied (all letters should default to lowercase).
+    // sentences
+    //     The first letter of each sentence should default to a capital letter; all other letters should default to lowercase.
+    // words
+    //     The first letter of each word should default to a capital letter; all other letters should default to lowercase.
+    // characters
+    //     All letters should default to uppercase.
+
+    // The autocapitalize attribute is an enumerated attribute whose states are the possible autocapitalization hints.
+    // The autocapitalization hint specified by the attribute's state combines with other considerations to form the
+    // used autocapitalization hint, which informs the behavior of the user agent. The keywords for this attribute and
+    // their state mappings are as follows:
+
+    // Keyword    | State
+    // off        | none
+    // none       |
+    // on         | sentences
+    // sentences  |
+    // words      | words
+    // characters | characters
+
+    // The attribute's missing value default is the default state, and its invalid value default is the sentences state.
+
+    // To compute the own autocapitalization hint of an element element, run the following steps:
+    // 1. If the autocapitalize content attribute is present on element, and its value is not the empty string, return the
+    //    state of the attribute.
+    auto maybe_autocapitalize_attribute = attribute(HTML::AttributeNames::autocapitalize);
+
+    if (maybe_autocapitalize_attribute.has_value() && !maybe_autocapitalize_attribute.value().is_empty()) {
+        auto autocapitalize_attribute_string_view = maybe_autocapitalize_attribute.value().bytes_as_string_view();
+
+        if (autocapitalize_attribute_string_view.is_one_of_ignoring_ascii_case("off"sv, "none"sv))
+            return AutocapitalizationHint::None;
+
+        if (autocapitalize_attribute_string_view.equals_ignoring_ascii_case("words"sv))
+            return AutocapitalizationHint::Words;
+
+        if (autocapitalize_attribute_string_view.equals_ignoring_ascii_case("characters"sv))
+            return AutocapitalizationHint::Characters;
+
+        return AutocapitalizationHint::Sentences;
+    }
+
+    // If element is an autocapitalize-and-autocorrect inheriting element and has a non-null form owner, return the own autocapitalization hint of element's form owner.
+    auto const* form_associated_element = as_if<FormAssociatedElement>(this);
+    if (form_associated_element && form_associated_element->is_autocapitalize_and_autocorrect_inheriting() && form_associated_element->form())
+        return form_associated_element->form()->own_autocapitalization_hint();
+
+    // 3. Return default.
+    return AutocapitalizationHint::Default;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#attr-autocapitalize
+String HTMLElement::autocapitalize() const
+{
+    // The autocapitalize getter steps are to:
+    // 1. Let state be the own autocapitalization hint of this.
+    auto state = own_autocapitalization_hint();
+
+    // 2. If state is default, then return the empty string.
+    // 3. If state is none, then return "none".
+    // 4. If state is sentences, then return "sentences".
+    // 5. Return the keyword value corresponding to state.
+    switch (state) {
+    case AutocapitalizationHint::Default:
+        return String {};
+    case AutocapitalizationHint::None:
+        return "none"_string;
+    case AutocapitalizationHint::Sentences:
+        return "sentences"_string;
+    case AutocapitalizationHint::Words:
+        return "words"_string;
+    case AutocapitalizationHint::Characters:
+        return "characters"_string;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+void HTMLElement::set_autocapitalize(String const& given_value)
+{
+    // The autocapitalize setter steps are to set the autocapitalize content attribute to the given value.
+    MUST(set_attribute(HTML::AttributeNames::autocapitalize, given_value));
+}
+
 }

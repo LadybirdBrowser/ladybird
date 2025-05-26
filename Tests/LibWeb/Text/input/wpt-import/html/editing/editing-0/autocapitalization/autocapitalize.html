@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#autocapitalization">
+<body>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+
+test(function() {
+    assert_true('autocapitalize' in document.createElement('input'));
+}, "Test that the autocapitalize is available on HTMLInputElement.")
+
+test(function() {
+    assert_true('autocapitalize' in document.createElement('textarea'));
+}, "Test that the autocapitalize is available on HTMLTextAreaElement.")
+
+test(function() {
+    assert_true('autocapitalize' in document.createElement('div'));
+}, "Test that the autocapitalize is available on div.")
+
+test(function() {
+  var elements = [ document.createElement('input'),
+                   document.createElement('textarea'),
+                   document.createElement('div') ];
+
+  elements.forEach(function(e) {
+    e.autocapitalize = 'on';
+    assert_equals(e.autocapitalize, 'sentences');
+
+    e.autocapitalize = 'off';
+    assert_equals(e.autocapitalize, 'none');
+  });
+}, "Test deprecated values of autocapitalize.");
+
+test(function() {
+  var elements = [ document.createElement('input'),
+                   document.createElement('textarea'),
+                   document.createElement('div') ];
+  var knownValues = [ 'none', 'characters', 'words', 'sentences' ];
+
+  elements.forEach(function(e) {
+    // Default value.
+    assert_equals(e.autocapitalize, '');
+
+    // Empty value.
+    e.autocapitalize = '';
+    assert_equals(e.autocapitalize, '');
+    assert_equals(e.getAttribute('autocapitalize'), '');
+    e.setAttribute('autocapitalize', '');
+    assert_equals(e.autocapitalize, '');
+    assert_equals(e.getAttribute('autocapitalize'), '');
+    assert_equals(e.autocapitalize, '');
+
+    // Invalid value.
+    e.autocapitalize = 'foo';
+    assert_equals(e.autocapitalize, 'sentences');
+    assert_equals(e.getAttribute('autocapitalize'), 'foo');
+    e.setAttribute('autocapitalize', 'bar');
+    assert_equals(e.autocapitalize, 'sentences');
+    assert_equals(e.getAttribute('autocapitalize'), 'bar');
+
+    // Default value.
+    e.removeAttribute('autocapitalize');
+    assert_equals(e.autocapitalize, '');
+    assert_equals(e.getAttribute('autocapitalize'), null);
+
+    // Case insensitive.
+    e.setAttribute('autocapitalize', 'NoNe');
+    assert_equals(e.autocapitalize, 'none');
+    assert_equals(e.getAttribute('autocapitalize'), 'NoNe');
+    e.autocapitalize = 'WORDS';
+    assert_equals(e.autocapitalize, 'words');
+    assert_equals(e.getAttribute('autocapitalize'), 'WORDS');
+
+    knownValues.forEach(function(value) {
+      e.setAttribute('autocapitalize', value);
+      assert_equals(e.autocapitalize, value);
+      assert_equals(e.getAttribute('autocapitalize'), value);
+
+      e.removeAttribute('autocapitalize');
+
+      e.autocapitalize = value;
+      assert_equals(e.autocapitalize, value);
+      assert_equals(e.getAttribute('autocapitalize'), value);
+
+      e.removeAttribute('autocapitalize');
+    });
+  });
+}, "Test reflection of autocapitalize.");
+
+test(function() {
+var testData = [ 'text',
+                 'search',
+                 'email',
+                 'url',
+                 'tel',
+                 'number',
+                 'date',
+                 'color',
+                 'password' ];
+
+  testData.forEach(function(data) {
+    const input = document.createElement('input');
+    input.type = data;
+    assert_equals(input.autocapitalize, '');
+
+    // Verify that wrapping the input element in a form doesn't change the
+    // defaults.
+    const form = document.createElement('form');
+    form.appendChild(input);
+    assert_equals(input.autocapitalize, '');
+  });
+}, "Test that the IDL attribute returns the empty string if the content "
++ "attribute is not set.")
+
+test(function() {
+  const testData = [
+    {
+      formValue: null,
+      formElementValue: null,
+      inheritedResult: '',
+      uninheritedResult: '',
+    },
+    {
+      formValue: null,
+      formElementValue: '',
+      inheritedResult: '',
+      uninheritedResult: '',
+    },
+    {
+      formValue: null,
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: null,
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: null,
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: null,
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: null,
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: null,
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: null,
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: '',
+      formElementValue: null,
+      inheritedResult: '',
+      uninheritedResult: '',
+    },
+    {
+      formValue: '',
+      formElementValue: '',
+      inheritedResult: '',
+      uninheritedResult: '',
+    },
+    {
+      formValue: '',
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: '',
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: '',
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: '',
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: '',
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: '',
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: '',
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'on',
+      formElementValue: null,
+      inheritedResult: 'sentences',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'on',
+      formElementValue: '',
+      inheritedResult: 'sentences',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'on',
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'on',
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'on',
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'on',
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: 'on',
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: 'on',
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'on',
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'off',
+      formElementValue: null,
+      inheritedResult: 'none',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'off',
+      formElementValue: '',
+      inheritedResult: 'none',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'off',
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'off',
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'off',
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'off',
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: 'off',
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: 'off',
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'off',
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'none',
+      formElementValue: null,
+      inheritedResult: 'none',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'none',
+      formElementValue: '',
+      inheritedResult: 'none',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'none',
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'none',
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'none',
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'none',
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: 'none',
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: 'none',
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'none',
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: null,
+      inheritedResult: 'characters',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: '',
+      inheritedResult: 'characters',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'characters',
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'words',
+      formElementValue: null,
+      inheritedResult: 'words',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'words',
+      formElementValue: '',
+      inheritedResult: 'words',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'words',
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'words',
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'words',
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'words',
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: 'words',
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: 'words',
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'words',
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: null,
+      inheritedResult: 'sentences',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: '',
+      inheritedResult: 'sentences',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'sentences',
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: null,
+      inheritedResult: 'sentences',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: '',
+      inheritedResult: 'sentences',
+      uninheritedResult: '',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: 'on',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: 'off',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: 'none',
+      inheritedResult: 'none',
+      uninheritedResult: 'none',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: 'characters',
+      inheritedResult: 'characters',
+      uninheritedResult: 'characters',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: 'words',
+      inheritedResult: 'words',
+      uninheritedResult: 'words',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: 'sentences',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+    {
+      formValue: 'foo',
+      formElementValue: 'foo',
+      inheritedResult: 'sentences',
+      uninheritedResult: 'sentences',
+    },
+  ];
+
+  const formElements = [
+    {element: 'button', inherits: true},
+    {element: 'fieldset', inherits: true},
+    {element: 'img', inherits: false},
+    {element: 'input', inherits: true},
+    {element: 'object', inherits: false},
+    {element: 'output', inherits: true},
+    {element: 'select', inherits: true},
+    {element: 'textarea', inherits: true},
+  ];
+
+  const form = document.createElement('form');
+  form.id = 'form';
+  document.body.appendChild(form);
+
+  testData.forEach(data => {
+    form.removeAttribute('autocapitalize');
+
+    if (data.formValue !== null) {
+      form.setAttribute('autocapitalize', data.formValue);
+    }
+
+    formElements.forEach(elementData => {
+      const element = document.createElement(elementData.element);
+      form.appendChild(element);
+
+      const element2 = document.createElement(elementData.element);
+      element2.setAttribute('form', 'form');
+      document.body.appendChild(element2);
+
+      if (data.formElementValue !== null) {
+        element.setAttribute('autocapitalize', data.formElementValue);
+        element2.setAttribute('autocapitalize', data.formElementValue);
+      }
+
+      const descriptionSuffix = 'with "' + data.formValue
+          + '" and form element with "'+ data.formElementValue + '"';
+
+      if (elementData.inherits) {
+        assert_equals(element.autocapitalize, data.inheritedResult,
+                      `${elementData.element} element with form parent `
+                          + `${descriptionSuffix}`);
+        assert_equals(element2.autocapitalize, data.inheritedResult,
+                      `${elementData.element} element with form owner attribute`
+                          + ` set ${descriptionSuffix}`);
+      } else {
+        assert_equals(element.autocapitalize, data.uninheritedResult,
+                      `${elementData.element} element with form parent `
+                          + `${descriptionSuffix}`);
+        assert_equals(element2.autocapitalize, data.uninheritedResult,
+                      `${elementData.element} element with form owner attribute`
+                          + `set ${descriptionSuffix}`);
+      }
+    });
+  });
+}, "Test inheriting values from a form.")
+
+test(function() {
+  const testData = [ 'text',
+                     'search',
+                     'email',
+                     'url',
+                     'tel',
+                     'number',
+                     'date',
+                     'color',
+                     'password' ];
+
+  testData.forEach(function(data) {
+    const form = document.createElement('form');
+    form.setAttribute('autocapitalize', 'sentences');
+    const input = document.createElement('input');
+    input.setAttribute('type', data);
+    form.appendChild(input);
+
+    assert_equals(input.autocapitalize, 'sentences');
+  });
+}, "Verify that even input types that are never autocapitalized support the "
++ "IDL interface.")
+
+</script>
+</body>
+</html>
