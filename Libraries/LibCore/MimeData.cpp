@@ -61,8 +61,7 @@ static Array constexpr s_plaintext_suffixes = {
 
     // Base names
     ".history"sv,
-    ".shellrc"sv
-    "CMakeLists.txt"sv,
+    ".shellrc"sv,
 };
 
 // See https://www.iana.org/assignments/media-types/<mime-type> for a list of registered MIME types.
