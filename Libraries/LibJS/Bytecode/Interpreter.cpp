@@ -2819,6 +2819,8 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
         return TRY(MathObject::round_impl(interpreter.vm(), interpreter.get(arguments[0])));
     case Builtin::MathSqrt:
         return TRY(MathObject::sqrt_impl(interpreter.vm(), interpreter.get(arguments[0])));
+    case Builtin::MathSin:
+        return TRY(MathObject::sin_impl(interpreter.vm(), interpreter.get(arguments[0])));
     case Bytecode::Builtin::__Count:
         VERIFY_NOT_REACHED();
     }

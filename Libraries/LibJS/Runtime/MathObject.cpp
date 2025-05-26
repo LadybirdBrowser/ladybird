@@ -42,7 +42,7 @@ void MathObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.max, max, 2, attr);
     define_native_function(realm, vm.names.min, min, 2, attr);
     define_native_function(realm, vm.names.trunc, trunc, 1, attr);
-    define_native_function(realm, vm.names.sin, sin, 1, attr);
+    define_native_function(realm, vm.names.sin, sin, 1, attr, Bytecode::Builtin::MathSin);
     define_native_function(realm, vm.names.cos, cos, 1, attr);
     define_native_function(realm, vm.names.tan, tan, 1, attr);
     define_native_function(realm, vm.names.pow, pow, 2, attr, Bytecode::Builtin::MathPow);
@@ -905,10 +905,10 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sign)
 }
 
 // 21.3.2.31 Math.sin ( x ), https://tc39.es/ecma262/#sec-math.sin
-JS_DEFINE_NATIVE_FUNCTION(MathObject::sin)
+ThrowCompletionOr<Value> MathObject::sin_impl(VM& vm, Value value)
 {
     // 1. Let n be ? ToNumber(x).
-    auto number = TRY(vm.argument(0).to_number(vm));
+    auto number = TRY(value.to_number(vm));
 
     // 2. If n is NaN, n is +0𝔽, or n is -0𝔽, return n.
     if (number.is_nan() || number.is_positive_zero() || number.is_negative_zero())
@@ -920,6 +920,11 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sin)
 
     // 4. Return an implementation-approximated Number value representing the result of the sine of ℝ(n).
     return Value(::sin(number.as_double()));
+}
+
+JS_DEFINE_NATIVE_FUNCTION(MathObject::sin)
+{
+    return sin_impl(vm, vm.argument(0));
 }
 
 // 21.3.2.32 Math.sinh ( x ), https://tc39.es/ecma262/#sec-math.sinh
