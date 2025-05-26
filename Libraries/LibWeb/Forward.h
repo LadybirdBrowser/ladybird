@@ -288,6 +288,7 @@ class Selector;
 class ShadowStyleValue;
 class ShorthandStyleValue;
 class Size;
+class ScrollbarColorStyleValue;
 class StringStyleValue;
 class StyleComputer;
 class ComputedProperties;

@@ -417,6 +417,7 @@ private:
     RefPtr<CSSStyleValue const> parse_place_items_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_place_self_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_quotes_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_scrollbar_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_scrollbar_gutter_value(TokenStream<ComponentValue>&);
     enum class AllowInsetKeyword {
         No,

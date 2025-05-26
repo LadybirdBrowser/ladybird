@@ -479,16 +479,16 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
     }
 
     if (phase == PaintPhase::Overlay && (g_paint_viewport_scrollbars || !is_viewport()) && computed_values().scrollbar_width() != CSS::ScrollbarWidth::None) {
+        auto scrollbar_colors = computed_values().scrollbar_color();
         if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
             auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
             auto thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>();
-            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, true);
+            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, scrollbar_colors.thumb_color, scrollbar_colors.track_color, true);
         }
-
         if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
             auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
             auto thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>();
-            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, false);
+            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, scrollbar_colors.thumb_color, scrollbar_colors.track_color, false);
         }
     }
 
