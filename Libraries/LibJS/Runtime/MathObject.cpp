@@ -43,7 +43,7 @@ void MathObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.min, min, 2, attr);
     define_native_function(realm, vm.names.trunc, trunc, 1, attr);
     define_native_function(realm, vm.names.sin, sin, 1, attr, Bytecode::Builtin::MathSin);
-    define_native_function(realm, vm.names.cos, cos, 1, attr);
+    define_native_function(realm, vm.names.cos, cos, 1, attr, Bytecode::Builtin::MathCos);
     define_native_function(realm, vm.names.tan, tan, 1, attr);
     define_native_function(realm, vm.names.pow, pow, 2, attr, Bytecode::Builtin::MathPow);
     define_native_function(realm, vm.names.exp, exp, 1, attr, Bytecode::Builtin::MathExp);
@@ -392,10 +392,10 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::clz32)
 }
 
 // 21.3.2.12 Math.cos ( x ), https://tc39.es/ecma262/#sec-math.cos
-JS_DEFINE_NATIVE_FUNCTION(MathObject::cos)
+ThrowCompletionOr<Value> MathObject::cos_impl(VM& vm, Value value)
 {
     // 1. Let n be ? ToNumber(x).
-    auto number = TRY(vm.argument(0).to_number(vm));
+    auto number = TRY(value.to_number(vm));
 
     // 2. If n is NaN, n is +∞𝔽, or n is -∞𝔽, return NaN.
     if (number.is_nan() || number.is_infinity())
@@ -407,6 +407,11 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::cos)
 
     // 4. Return an implementation-approximated Number value representing the result of the cosine of ℝ(n).
     return Value(::cos(number.as_double()));
+}
+
+JS_DEFINE_NATIVE_FUNCTION(MathObject::cos)
+{
+    return cos_impl(vm, vm.argument(0));
 }
 
 // 21.3.2.13 Math.cosh ( x ), https://tc39.es/ecma262/#sec-math.cosh
