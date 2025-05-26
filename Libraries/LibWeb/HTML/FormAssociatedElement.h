@@ -91,7 +91,7 @@ public:
     virtual bool is_resettable() const { return false; }
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-autocapitalize
-    virtual bool is_auto_capitalize_inheriting() const { return false; }
+    virtual bool is_autocapitalize_and_autocorrect_inheriting() const { return false; }
 
     // https://html.spec.whatwg.org/multipage/forms.html#concept-button
     virtual bool is_button() const { return false; }
