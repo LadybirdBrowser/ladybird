@@ -50,7 +50,8 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
     // FIXME: 4. Queue a control message to start the AudioScheduledSourceNode, including the parameter values in the message.
     // FIXME: 5. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
 
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioScheduledSourceNode::start"_string);
+    dbgln("FIXME: Implement AudioScheduledSourceNode::start");
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-stop
@@ -67,7 +68,8 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
 
     // FIXME: 3. Queue a control message to stop the AudioScheduledSourceNode, including the parameter values in the message.
 
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioScheduledSourceNode::stop"_string);
+    dbgln("FIXME: Implement AudioScheduledSourceNode::stop");
+    return {};
 }
 
 void AudioScheduledSourceNode::initialize(JS::Realm& realm)
