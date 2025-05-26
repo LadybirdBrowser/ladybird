@@ -28,6 +28,8 @@ public:
     static ThrowCompletionOr<Value> abs_impl(VM&, Value);
     static ThrowCompletionOr<Value> sum_precise_impl(VM&, Value);
     static ThrowCompletionOr<Value> imul_impl(VM&, Value, Value);
+    static ThrowCompletionOr<Value> sin_impl(VM&, Value);
+
     static Value random_impl();
 
 private:
