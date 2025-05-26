@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -38,6 +39,11 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     //       In the future, we can make this invalidation narrower.
     if (property_id == CSS::PropertyID::OverflowX || property_id == CSS::PropertyID::OverflowY) {
         return RequiredInvalidationAfterStyleChange::full();
+    }
+
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::CounterReset, CSS::PropertyID::CounterSet, CSS::PropertyID::CounterIncrement)) {
+        invalidation.rebuild_layout_tree = property_value_changed;
+        return invalidation;
     }
 
     // OPTIMIZATION: Special handling for CSS `visibility`:
