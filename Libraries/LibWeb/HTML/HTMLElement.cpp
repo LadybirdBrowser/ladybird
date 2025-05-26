@@ -2133,4 +2133,66 @@ bool HTMLElement::draggable() const
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-spellcheck
+bool HTMLElement::spellcheck() const
+{
+    // The spellcheck attribute is an enumerated attribute with the following keywords and states:
+    // Keyword            | State | Brief description
+    // true               | True  | Spelling and grammar will be checked.
+    // (the empty string) |       |
+    // false              | False | and grammar will not be checked.
+
+    // The attribute's missing value default and invalid value default are both the Default state. The default state
+    // indicates that the element is to act according to a default behavior, possibly based on the parent element's
+    // own spellcheck state, as defined below.
+
+    // For each element, user agents must establish a default behavior, either through defaults or through preferences
+    // expressed by the user. There are three possible default behaviors for each element:
+
+    // true-by-default
+    //     The element will be checked for spelling and grammar if its contents are editable and spellchecking is not
+    //     explicitly disabled through the spellcheck attribute.
+    // false-by-default
+    //     The element will never be checked for spelling and grammar unless spellchecking is explicitly enabled
+    //     through the spellcheck attribute.
+    // inherit-by-default
+    //     The element's default behavior is the same as its parent element's. Elements that have no parent element
+    //     cannot have this as their default behavior.
+
+    // NOTE: We use "true-by-default" for elements which are editable, editing hosts, or form associated text control
+    //       elements "false-by-default" for root elements, and "inherit-by-default" for other elements.
+
+    auto maybe_spellcheck_attribute = attribute(HTML::AttributeNames::spellcheck);
+
+    // The spellcheck IDL attribute, on getting, must return true if the element's spellcheck content attribute is in the True state,
+    if (maybe_spellcheck_attribute.has_value() && (maybe_spellcheck_attribute.value().equals_ignoring_ascii_case("true"sv) || maybe_spellcheck_attribute.value().is_empty()))
+        return true;
+
+    if (!maybe_spellcheck_attribute.has_value() || !maybe_spellcheck_attribute.value().equals_ignoring_ascii_case("false"sv)) {
+        // or if the element's spellcheck content attribute is in the Default state and the element's default behavior is true-by-default,
+        if (is_editable_or_editing_host() || is<FormAssociatedTextControlElement>(this))
+            return true;
+
+        // or if the element's spellcheck content attribute is in the Default state and the element's default behavior is inherit-by-default
+        if (auto* parent_html_element = first_ancestor_of_type<HTMLElement>()) {
+            // and the element's parent element's spellcheck IDL attribute would return true;
+            if (parent_html_element->spellcheck())
+                return true;
+        }
+    }
+
+    // if none of those conditions applies, then the attribute must instead return false.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-spellcheck
+void HTMLElement::set_spellcheck(bool spellcheck)
+{
+    // On setting, if the new value is true, then the element's spellcheck content attribute must be set to "true", otherwise it must be set to "false".
+    if (spellcheck)
+        MUST(set_attribute(HTML::AttributeNames::spellcheck, "true"_string));
+    else
+        MUST(set_attribute(HTML::AttributeNames::spellcheck, "false"_string));
+}
+
 }
