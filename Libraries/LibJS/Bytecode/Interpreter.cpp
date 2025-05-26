@@ -2823,6 +2823,8 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
         return TRY(MathObject::sin_impl(interpreter.vm(), interpreter.get(arguments[0])));
     case Builtin::MathCos:
         return TRY(MathObject::cos_impl(interpreter.vm(), interpreter.get(arguments[0])));
+    case Builtin::MathTan:
+        return TRY(MathObject::tan_impl(interpreter.vm(), interpreter.get(arguments[0])));
     case Bytecode::Builtin::__Count:
         VERIFY_NOT_REACHED();
     }
