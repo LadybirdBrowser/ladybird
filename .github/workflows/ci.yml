@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os_name: ['Linux']
-        os: [ubuntu-24.04]
+        runner: [ubuntu-24.04]
         arch: ['x86_64']
         build_preset: ['Sanitizer_CI']
         toolchain: ['GNU']
@@ -23,21 +23,21 @@ jobs:
 
         include:
           - os_name: 'Linux'
-            os: ubuntu-24.04
+            runner: ubuntu-24.04
             arch: 'x86_64'
             build_preset: 'Sanitizer_CI'
             toolchain: 'Clang'
             clang_plugins: true
 
           - os_name: 'macOS'
-            os: macos-15
+            runner: macos-15
             arch: 'arm64'
             build_preset: 'Sanitizer_CI'
             toolchain: 'Clang'
             clang_plugins: false
 
           - os_name: 'Linux'
-            os: ubuntu-24.04
+            runner: ubuntu-24.04
             arch: 'x86_64'
             build_preset: 'Fuzzers_CI'
             toolchain: 'Clang'
@@ -47,7 +47,7 @@ jobs:
     with:
       toolchain: ${{ matrix.toolchain }}
       os_name: ${{ matrix.os_name }}
-      os: ${{ matrix.os }}
+      runner: ${{ matrix.runner }}
       arch: ${{ matrix.arch }}
       build_preset: ${{ matrix.build_preset }}
       clang_plugins: ${{ matrix.clang_plugins }}

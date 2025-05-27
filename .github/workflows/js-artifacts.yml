@@ -11,19 +11,19 @@ env:
 
 jobs:
   build-and-package:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     if: github.repository == 'LadybirdBrowser/ladybird'
     strategy:
       fail-fast: false
       matrix:
         os_name: ['Linux']
-        os: ['ubuntu-24.04']
+        runner: ['ubuntu-24.04']
         arch: ['x86_64']
         package_type: ['Linux-x86_64']
 
         include:
           - os_name: 'macOS'
-            os: 'macos-15'
+            runner: 'macos-15'
             arch: 'arm64'
             package_type: 'macOS-universal2'
 

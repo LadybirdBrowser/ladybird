@@ -8,19 +8,19 @@ on:
 
 jobs:
   js-benchmarks:
-    runs-on: ['js-benchmarks', 'self-hosted', '${{ matrix.os }}']
+    runs-on: ['js-benchmarks', 'self-hosted', '${{ matrix.runner }}']
     if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
     strategy:
       fail-fast: false
       matrix:
         os_name: ['Linux']
-        os: ['ubuntu-24.04-internal']
+        runner: ['ubuntu-24.04-internal']
         arch: ['x86_64']
         package_type: ['Linux-x86_64']
 
         include:
           - os_name: 'macOS'
-            os: 'macos-15'
+            runner: 'macos-15'
             arch: 'arm64'
             package_type: 'macOS-universal2'
 
