@@ -9,7 +9,7 @@ on:
 
 jobs:
   stale:
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     permissions:
       actions: write  # required for cache management (see https://github.com/actions/stale/issues/1133)
       pull-requests: write
