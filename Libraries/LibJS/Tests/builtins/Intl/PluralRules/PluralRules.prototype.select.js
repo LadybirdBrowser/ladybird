@@ -139,4 +139,25 @@ describe("correct behavior", () => {
         expect(mk.select(27)).toBe("many");
         expect(mk.select(28)).toBe("many");
     });
+
+    test("notation", () => {
+        const standard = new Intl.PluralRules("fr", { notation: "standard" });
+        const engineering = new Intl.PluralRules("fr", { notation: "engineering" });
+        const scientific = new Intl.PluralRules("fr", { notation: "scientific" });
+        const compact = new Intl.PluralRules("fr", { notation: "compact" });
+
+        // prettier-ignore
+        const data = [
+            { value: 1e6, standard: "many", engineering: "many", scientific: "many", compact: "many" },
+            { value: 1.5e6, standard: "other", engineering: "many", scientific: "many", compact: "many" },
+            { value: 1e-6, standard: "one", engineering: "many", scientific: "many", compact: "one" },
+        ];
+
+        data.forEach(d => {
+            expect(standard.select(d.value)).toBe(d.standard);
+            expect(engineering.select(d.value)).toBe(d.engineering);
+            expect(scientific.select(d.value)).toBe(d.scientific);
+            expect(compact.select(d.value)).toBe(d.compact);
+        });
+    });
 });

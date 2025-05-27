@@ -52,6 +52,15 @@ public:
     int max_significant_digits() const { return *m_max_significant_digits; }
     void set_max_significant_digits(int max_significant_digits) { m_max_significant_digits = max_significant_digits; }
 
+    Unicode::Notation notation() const { return m_notation; }
+    StringView notation_string() const { return Unicode::notation_to_string(m_notation); }
+    void set_notation(StringView notation) { m_notation = Unicode::notation_from_string(notation); }
+
+    bool has_compact_display() const { return m_compact_display.has_value(); }
+    Unicode::CompactDisplay compact_display() const { return *m_compact_display; }
+    StringView compact_display_string() const { return Unicode::compact_display_to_string(*m_compact_display); }
+    void set_compact_display(StringView compact_display) { m_compact_display = Unicode::compact_display_from_string(compact_display); }
+
     Unicode::RoundingType rounding_type() const { return m_rounding_type; }
     StringView rounding_type_string() const { return Unicode::rounding_type_to_string(m_rounding_type); }
     void set_rounding_type(Unicode::RoundingType rounding_type) { m_rounding_type = rounding_type; }
@@ -71,6 +80,7 @@ public:
     StringView trailing_zero_display_string() const { return Unicode::trailing_zero_display_to_string(m_trailing_zero_display); }
     void set_trailing_zero_display(StringView trailing_zero_display) { m_trailing_zero_display = Unicode::trailing_zero_display_from_string(trailing_zero_display); }
 
+    virtual Unicode::DisplayOptions display_options() const;
     Unicode::RoundingOptions rounding_options() const;
 
     Unicode::NumberFormat const& formatter() const { return *m_formatter; }
@@ -86,6 +96,8 @@ private:
     Optional<int> m_max_fraction_digits {};                                                      // [[MaximumFractionDigits]]
     Optional<int> m_min_significant_digits {};                                                   // [[MinimumSignificantDigits]]
     Optional<int> m_max_significant_digits {};                                                   // [[MaximumSignificantDigits]]
+    Unicode::Notation m_notation;                                                                // [[Notation]]
+    Optional<Unicode::CompactDisplay> m_compact_display;                                         // [[CompactDisplay]]
     Unicode::RoundingType m_rounding_type;                                                       // [[RoundingType]]
     ComputedRoundingPriority m_computed_rounding_priority { ComputedRoundingPriority::Invalid }; // [[ComputedRoundingPriority]]
     Unicode::RoundingMode m_rounding_mode;                                                       // [[RoundingMode]]
@@ -140,15 +152,6 @@ public:
     Value use_grouping_to_value(VM&) const;
     void set_use_grouping(StringOrBoolean const& use_grouping);
 
-    Unicode::Notation notation() const { return m_notation; }
-    StringView notation_string() const { return Unicode::notation_to_string(m_notation); }
-    void set_notation(StringView notation) { m_notation = Unicode::notation_from_string(notation); }
-
-    bool has_compact_display() const { return m_compact_display.has_value(); }
-    Unicode::CompactDisplay compact_display() const { return *m_compact_display; }
-    StringView compact_display_string() const { return Unicode::compact_display_to_string(*m_compact_display); }
-    void set_compact_display(StringView compact_display) { m_compact_display = Unicode::compact_display_from_string(compact_display); }
-
     Unicode::SignDisplay sign_display() const { return m_sign_display; }
     StringView sign_display_string() const { return Unicode::sign_display_to_string(m_sign_display); }
     void set_sign_display(StringView sign_display) { m_sign_display = Unicode::sign_display_from_string(sign_display); }
@@ -156,7 +159,7 @@ public:
     NativeFunction* bound_format() const { return m_bound_format; }
     void set_bound_format(NativeFunction* bound_format) { m_bound_format = bound_format; }
 
-    Unicode::DisplayOptions display_options() const;
+    Unicode::DisplayOptions display_options() const override;
 
 private:
     explicit NumberFormat(Object& prototype);
@@ -172,8 +175,6 @@ private:
     Optional<String> m_unit;                                       // [[Unit]]
     Optional<Unicode::Style> m_unit_display;                       // [[UnitDisplay]]
     Unicode::Grouping m_use_grouping { Unicode::Grouping::False }; // [[UseGrouping]]
-    Unicode::Notation m_notation;                                  // [[Notation]]
-    Optional<Unicode::CompactDisplay> m_compact_display;           // [[CompactDisplay]]
     Unicode::SignDisplay m_sign_display;                           // [[SignDisplay]]
     GC::Ptr<NativeFunction> m_bound_format;                        // [[BoundFormat]]
 };
