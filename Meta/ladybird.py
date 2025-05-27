@@ -186,6 +186,9 @@ def main():
         print("ladybird.py must be run from a Visual Studio enabled environment", file=sys.stderr)
         sys.exit(1)
 
+    if args.target == "ladybird":
+        args.target = "Ladybird"
+
     if args.command == "build":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.target, args.args)
