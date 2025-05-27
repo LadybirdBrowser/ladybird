@@ -4,7 +4,7 @@ This file covers a few advanced scenarios that go beyond what the basic build gu
 
 ## Ninja build targets
 
-The `Meta/ladybird.sh` script provides an abstraction over the build targets which are made available by CMake. The
+The `Meta/ladybird.py` script provides an abstraction over the build targets which are made available by CMake. The
 following build targets cannot be accessed through the script and have to be used directly by changing the current
 directory to `Build/release` and then running `ninja <target>`:
 

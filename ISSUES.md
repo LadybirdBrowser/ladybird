@@ -72,5 +72,5 @@ That will give you a URL which you can then include in the issue you raise for t
 When investigating a bug, it can be helpful to use the `--enable-idl-tracing` command-line flag when running Ladybird. This will output detailed information about the calls being made to the browser's internal interfaces, which can help pinpoint where a problem is occurring.
 
 ```bash
-./Meta/ladybird.sh run ladybird --enable-idl-tracing
+./Meta/ladybird.py run ladybird --enable-idl-tracing
 ```

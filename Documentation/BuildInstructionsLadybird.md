@@ -172,36 +172,36 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 
 ## Build steps
 
-### Using ladybird.sh
+### Using ladybird.py
 
-The simplest way to build and run ladybird is via the ladybird.sh script:
+The simplest way to build and run ladybird is via the ladybird.py script:
 
 ```bash
 # From /path/to/ladybird
-./Meta/ladybird.sh run
+./Meta/ladybird.py run
 ```
 
 On macOS, to build using clang from homebrew:
 ```bash
-CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.py run
 ```
 
 You may also choose to start it in `gdb` using:
 ```bash
-./Meta/ladybird.sh gdb ladybird
+./Meta/ladybird.py gdb ladybird
 ```
 
 The above commands will build a Release version of Ladybird. To instead build a Debug version, run the
-`Meta/ladybird.sh` script with the value of the `BUILD_PRESET` environment variable set to `Debug`, like this:
+`Meta/ladybird.py` script with the value of the `BUILD_PRESET` environment variable set to `Debug`, like this:
 
 ```bash
-BUILD_PRESET=Debug ./Meta/ladybird.sh run
+BUILD_PRESET=Debug ./Meta/ladybird.py run
 ```
 
 Note that debug symbols are available in both Release and Debug builds.
 
 If you want to run other applications, such as the headless-browser, the JS REPL, or the WebAssembly REPL, specify an
-executable with `./Meta/ladybird.sh run <executable_name>`.
+executable with `./Meta/ladybird.py run <executable_name>`.
 
 ### The User Interfaces
 
@@ -260,14 +260,14 @@ to CMAKE_INSTALL_PREFIX. If it is not, things will break.
 
 ### Custom CMake build directory
 
-The script Meta/ladybird.sh and the default preset in CMakePresets.json both define a build directory of
+The script Meta/ladybird.py and the default preset in CMakePresets.json both define a build directory of
 `Build/release`. For distribution purposes, or when building multiple configurations, it may be useful to create a custom
 CMake build directory.
 
 The install rules in UI/cmake/InstallRules.cmake define which binaries and libraries will be
 installed into the configured CMAKE_PREFIX_PATH or path passed to ``cmake --install``.
 
-Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide a suitable C++
+Note that when using a custom build directory rather than Meta/ladybird.py, the user may need to provide a suitable C++
 compiler (see [Build Prerequisites](BuildInstructionsLadybird.md#build-prerequisites)) via the CMAKE_C_COMPILER and
 CMAKE_CXX_COMPILER cmake options.
 
@@ -291,8 +291,8 @@ cmake --preset default -B MyBuildDir -DLAGOM_LINK_POOL_SIZE=2
 
 ### Running manually
 
-The Meta/ladybird.sh script will execute the `run-ladybird` and `debug-ladybird` custom targets.
-If you don't want to use the ladybird.sh script to run the application, you can run the following commands:
+The Meta/ladybird.py script will execute the `run-ladybird` and `debug-ladybird` custom targets.
+If you don't want to use the ladybird.py script to run the application, you can run the following commands:
 
 To automatically run in gdb:
 ```
@@ -326,7 +326,7 @@ cross-compiling to other platforms.
 Ladybird should be built with debug symbols first. This can be done by adding `-DCMAKE_BUILD_TYPE=Debug` to the cmake command line,
 or selecting the Build Type Debug in the CLion CMake profile.
 
-After running Ladybird as suggested above with `./Meta/ladybird.sh run ladybird`, you can now in CLion use Run -> Attach to Process to connect. If debugging layout or rendering issues, filter the listing that opens for `WebContent` and attach to that.
+After running Ladybird as suggested above with `./Meta/ladybird.py run ladybird`, you can now in CLion use Run -> Attach to Process to connect. If debugging layout or rendering issues, filter the listing that opens for `WebContent` and attach to that.
 
 Now breakpoints, stepping and variable inspection will work.
 
@@ -334,10 +334,10 @@ Now breakpoints, stepping and variable inspection will work.
 
 If all you want to do is use Instruments, then an Xcode project is not required.
 
-Simply run the `ladybird.sh` script as normal, and then make sure to codesign the Ladybird binary with the proper entitlements to allow Instruments to attach to it.
+Simply run the `ladybird.py` script as normal, and then make sure to codesign the Ladybird binary with the proper entitlements to allow Instruments to attach to it.
 
 ```
-./Meta/ladybird.sh build
+./Meta/ladybird.py build
  ninja -C Build/release apply-debug-entitlements
  # or
  codesign -s - -v -f --entitlements Meta/debug.plist Build/release/bin/Ladybird.app
