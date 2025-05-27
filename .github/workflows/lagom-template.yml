@@ -9,7 +9,7 @@ on:
       os_name:
         required: true
         type: string
-      os:
+      runner:
         required: true
         type: string
       arch:
@@ -38,7 +38,7 @@ env:
 
 jobs:
   CI:
-    runs-on: ${{ inputs.os }}
+    runs-on: ${{ inputs.runner }}
 
     steps:
       # Pull requests can trail behind `master` and can cause breakage if merging before running the CI checks on an updated branch.
