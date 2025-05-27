@@ -7,7 +7,7 @@ on: [pull_request_target]
 
 jobs:
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     if: github.repository == 'LadybirdBrowser/ladybird'
 
     steps:
