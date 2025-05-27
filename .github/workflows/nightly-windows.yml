@@ -41,6 +41,7 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: 'cache-restore'
         with:
+          runner_label: windows-2022
           os: Windows
           arch: x86_64
           toolchain: ClangCL
@@ -61,6 +62,7 @@ jobs:
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
+          runner_label: windows-2022
           arch: x86_64
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
