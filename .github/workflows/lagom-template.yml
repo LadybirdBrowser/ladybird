@@ -3,25 +3,25 @@ name: Lagom Template
 on:
   workflow_call:
     inputs:
-        toolchain:
-          required: true
-          type: string
-        os_name:
-          required: true
-          type: string
-        os:
-          required: true
-          type: string
-        arch:
-          required: true
-          type: string
-        build_preset:
-          required: true
-          type: string
-        clang_plugins:
-          required: false
-          type: boolean
-          default: false
+      toolchain:
+        required: true
+        type: string
+      os_name:
+        required: true
+        type: string
+      os:
+        required: true
+        type: string
+      arch:
+        required: true
+        type: string
+      build_preset:
+        required: true
+        type: string
+      clang_plugins:
+        required: false
+        type: boolean
+        default: false
 
 env:
   # runner.workspace = /home/runner/work/ladybird
