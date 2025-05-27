@@ -1,2 +1,2 @@
 Before: foo<div style="white-space: pre">bar</div>
-After: foo<span style="white-space-collapse: preserve; text-wrap-mode: nowrap; white-space-trim: none;">bar</span>
+After: foo<span style="white-space: pre;">bar</span>

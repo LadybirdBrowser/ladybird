@@ -268,6 +268,8 @@ bool property_accepts_time(PropertyID, Time const&);
 
 bool property_is_shorthand(PropertyID);
 Vector<PropertyID> longhands_for_shorthand(PropertyID);
+bool property_maps_to_shorthand(PropertyID);
+Vector<PropertyID> shorthands_for_longhand(PropertyID);
 
 size_t property_maximum_value_count(PropertyID);
 
@@ -1092,6 +1094,78 @@ Vector<PropertyID> longhands_for_shorthand(PropertyID property_id)
     generator.append(R"~~~(
         default:
                 return { };
+        }
+}
+)~~~");
+
+    HashMap<String, Vector<String>> shorthands_for_longhand_map;
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        if (is_legacy_alias(value.as_object()))
+            return;
+
+        if (value.as_object().has("longhands"sv)) {
+            auto longhands = value.as_object().get("longhands"sv);
+            VERIFY(longhands.has_value() && longhands->is_array());
+            auto longhand_values = longhands->as_array();
+            for (auto& longhand : longhand_values.values()) {
+                VERIFY(longhand.is_string());
+                auto& longhand_name = longhand.as_string();
+                shorthands_for_longhand_map.ensure(longhand_name).append(name);
+            }
+        }
+    });
+
+    generator.append(R"~~~(
+bool property_maps_to_shorthand(PropertyID property_id)
+{
+    switch (property_id) {
+)~~~");
+    for (auto const& longhand : shorthands_for_longhand_map.keys()) {
+        auto property_generator = generator.fork();
+        property_generator.set("name:titlecase", title_casify(longhand));
+        property_generator.append(R"~~~(
+        case PropertyID::@name:titlecase@:
+)~~~");
+    }
+
+    generator.append(R"~~~(
+            return true;
+        default:
+            return false;
+        }
+}
+)~~~");
+
+    generator.append(R"~~~(
+Vector<PropertyID> shorthands_for_longhand(PropertyID property_id)
+{
+    switch (property_id) {
+)~~~");
+
+    for (auto const& longhand : shorthands_for_longhand_map.keys()) {
+        auto property_generator = generator.fork();
+        property_generator.set("name:titlecase", title_casify(longhand));
+        auto& shorthands = shorthands_for_longhand_map.get(longhand).value();
+        StringBuilder builder;
+        bool first = true;
+        for (auto& shorthand : shorthands) {
+            if (first)
+                first = false;
+            else
+                builder.append(", "sv);
+            builder.appendff("PropertyID::{}", title_casify(shorthand));
+        }
+        property_generator.set("shorthands", builder.to_byte_string());
+        property_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@:
+        return { @shorthands@ };
+)~~~");
+    }
+
+    generator.append(R"~~~(
+        default:
+            return { };
         }
 }
 )~~~");
