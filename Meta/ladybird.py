@@ -131,7 +131,6 @@ def main():
         help="Launches the application on the build host in a gdb or lldb session",
         parents=[preset_parser, target_parser],
     )
-
     debug_parser.add_argument(
         "--debugger", required=False, default="gdb" if platform.host_system == HostSystem.Linux else "lldb"
     )
@@ -227,7 +226,7 @@ def main():
         build_main(build_dir, args.target, args.args)
     elif args.command == "addr2line":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.target, args.args)
+        build_main(build_dir, args.target)
         addr2line_main(build_dir, args.target, args.program, args.addresses)
 
 
