@@ -78,6 +78,16 @@ describe("correct behavior", () => {
         expect(en3.resolvedOptions().maximumSignificantDigits).toBe(10);
     });
 
+    test("notation", () => {
+        const en1 = new Intl.PluralRules("en");
+        expect(en1.resolvedOptions().notation).toBe("standard");
+
+        ["standard", "scientific", "engineering", "compact"].forEach(notation => {
+            const en2 = new Intl.PluralRules("en", { notation: notation });
+            expect(en2.resolvedOptions().notation).toBe(notation);
+        });
+    });
+
     test("plural categories", () => {
         const enCardinal = new Intl.PluralRules("en", { type: "cardinal" }).resolvedOptions();
         expect(enCardinal.pluralCategories).toEqual(["one", "other"]);

@@ -111,20 +111,28 @@ Unicode::RoundingOptions NumberFormatBase::rounding_options() const
     };
 }
 
+Unicode::DisplayOptions NumberFormatBase::display_options() const
+{
+    Unicode::DisplayOptions options;
+    options.notation = m_notation;
+    options.compact_display = m_compact_display;
+
+    return options;
+}
+
 Unicode::DisplayOptions NumberFormat::display_options() const
 {
-    return {
-        .style = m_style,
-        .sign_display = m_sign_display,
-        .notation = m_notation,
-        .compact_display = m_compact_display,
-        .grouping = m_use_grouping,
-        .currency = m_currency,
-        .currency_display = m_currency_display,
-        .currency_sign = m_currency_sign,
-        .unit = m_unit,
-        .unit_display = m_unit_display,
-    };
+    auto options = Base::display_options();
+    options.style = m_style;
+    options.sign_display = m_sign_display;
+    options.grouping = m_use_grouping;
+    options.currency = m_currency;
+    options.currency_display = m_currency_display;
+    options.currency_sign = m_currency_sign;
+    options.unit = m_unit;
+    options.unit_display = m_unit_display;
+
+    return options;
 }
 
 // 16.5.1 CurrencyDigits ( currency ), https://tc39.es/ecma402/#sec-currencydigits

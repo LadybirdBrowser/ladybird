@@ -117,6 +117,12 @@ describe("errors", () => {
         }).toThrowWithMessage(RangeError, "Value 22 is NaN or is not between 1 and 21");
     });
 
+    test("notation option is invalid ", () => {
+        expect(() => {
+            new Intl.PluralRules("en", { notation: "hello!" });
+        }).toThrowWithMessage(RangeError, "hello! is not a valid value for option notation");
+    });
+
     test("roundingPriority option is invalid", () => {
         expect(() => {
             new Intl.PluralRules("en", { roundingPriority: "hello!" });
@@ -237,6 +243,14 @@ describe("normal behavior", () => {
                 new Intl.PluralRules("en", { maximumSignificantDigits: i });
             }).not.toThrow();
         }
+    });
+
+    test("all valid notation options", () => {
+        ["standard", "scientific", "engineering", "compact"].forEach(notation => {
+            expect(() => {
+                new Intl.PluralRules("en", { notation: notation });
+            }).not.toThrow();
+        });
     });
 
     test("all valid roundingPriority options", () => {

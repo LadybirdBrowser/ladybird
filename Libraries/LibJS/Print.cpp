@@ -717,6 +717,8 @@ ErrorOr<void> print_intl_plural_rules(JS::PrintContext& print_context, JS::Intl:
     TRY(print_value(print_context, JS::PrimitiveString::create(plural_rules.vm(), plural_rules.locale()), seen_objects));
     TRY(js_out(print_context, "\n  type: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(plural_rules.vm(), plural_rules.type_string()), seen_objects));
+    TRY(js_out(print_context, "\n  notation: "));
+    TRY(print_value(print_context, JS::PrimitiveString::create(plural_rules.vm(), plural_rules.notation_string()), seen_objects));
     TRY(js_out(print_context, "\n  minimumIntegerDigits: "));
     TRY(print_value(print_context, JS::Value(plural_rules.min_integer_digits()), seen_objects));
     if (plural_rules.has_min_fraction_digits()) {
