@@ -41,6 +41,7 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: 'cache-restore'
         with:
+          runner_label: ${{ matrix.runner }}
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
           cache_key_extra: 'LibJS Artifacts'
@@ -76,6 +77,7 @@ jobs:
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
+          runner_label: ${{ matrix.runner }}
           arch: 'Lagom'
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}

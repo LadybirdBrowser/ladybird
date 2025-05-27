@@ -3,6 +3,9 @@ description: 'Restores caches of downloaded files and build artifacts.'
 author: 'Andrew Kaster <akaster@serenityos.org>'
 
 inputs:
+  runner_label:
+    description: 'Name of runner instance'
+    required: true
   os:
     description: 'Operating System to restore caches for'
     required: true
@@ -39,10 +42,10 @@ inputs:
 outputs:
   ccache_primary_key:
     description: 'Primary ccache key'
-    value: ${{ steps.ccache.outputs.cache-primary-key }}
+    value: ${{ steps.cache-outputs.outputs.ccache_primary_key }}
   vcpkg_cache_primary_key:
     description: 'Primary vcpkg binary cache key'
-    value: ${{ steps.vcpkg.outputs.cache-primary-key }}
+    value: ${{ steps.cache-outputs.outputs.vcpkg_cache_primary_key }}
 
 runs:
   using: "composite"
@@ -53,15 +56,25 @@ runs:
       run: |
         echo "timestamp=$(date -u "+%Y%m%d%H%M_%S")" >> "$GITHUB_OUTPUT"
 
-    - name: 'Compiler Cache'
+    - name: 'Compiler Cache (blacksmith)'
       uses: useblacksmith/cache/restore@v5
-      id: 'ccache'
-      if: ${{ inputs.ccache_path != '' }}
+      id: 'ccache-blacksmith'
+      if: ${{ inputs.ccache_path != '' && startsWith(inputs.runner_label, 'blacksmith') }}
       with:
           path: ${{ inputs.ccache_path }}
           key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
           restore-keys: |
               "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+
+    - name: 'Compiler Cache (GitHub runner)'
+      uses: actions/cache/restore@v4
+      id: 'ccache-gh'
+      if: ${{ inputs.ccache_path != '' && !startsWith(inputs.runner_label, 'blacksmith') }}
+      with:
+        path: ${{ inputs.ccache_path }}
+        key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        restore-keys: |
+          "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
 
     - name: 'Configure Compiler Cache'
       if: ${{ inputs.ccache_path != '' }}
@@ -75,12 +88,34 @@ runs:
           CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
           CCACHE_DIR=${{ inputs.ccache_path }} ccache -z
 
-    - name: 'Restore vcpkg cache'
+    - name: 'Restore vcpkg cache (blacksmith)'
       uses: useblacksmith/cache/restore@v5
-      if: ${{ inputs.vcpkg_cache_path != '' }}
-      id: 'vcpkg'
+      if: ${{ inputs.vcpkg_cache_path != '' && startsWith(inputs.runner_label, 'blacksmith') }}
+      id: 'vcpkg-blacksmith'
       with:
         path: ${{ inputs.vcpkg_cache_path }}
         key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
         restore-keys: |
           "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+
+    - name: 'Compiler Cache (GitHub runner)'
+      uses: actions/cache/restore@v4
+      if: ${{ inputs.ccache_path != '' && !startsWith(inputs.runner_label, 'blacksmith') }}
+      id: 'vcpkg-gh'
+      with:
+        path: ${{ inputs.vcpkg_cache_path }}
+        key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        restore-keys: |
+          "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+
+    - name: 'Cache Outputs'
+      id: 'cache-outputs'
+      shell: bash
+      run: |
+        if ${{ startsWith(inputs.runner_label, 'blacksmith') }} ; then
+          echo "ccache_primary_key=${{ steps.ccache-blacksmith.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
+          echo "vcpkg_cache_primary_key=${{ steps.vcpkg-blacksmith.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "ccache_primary_key=${{ steps.ccache-gh.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
+          echo "vcpkg_cache_primary_key=${{ steps.vcpkg-gh.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
+        fi
