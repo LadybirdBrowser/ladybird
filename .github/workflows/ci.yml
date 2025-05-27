@@ -15,33 +15,33 @@ jobs:
       fail-fast: false
       matrix:
         os_name: ['Linux']
-        runner: [ubuntu-24.04]
         arch: ['x86_64']
         build_preset: ['Sanitizer_CI']
         toolchain: ['GNU']
         clang_plugins: [false]
+        runner: ['blacksmith-16vcpu-ubuntu-2404']
 
         include:
           - os_name: 'Linux'
-            runner: ubuntu-24.04
             arch: 'x86_64'
             build_preset: 'Sanitizer_CI'
             toolchain: 'Clang'
             clang_plugins: true
+            runner: 'blacksmith-16vcpu-ubuntu-2404'
 
           - os_name: 'macOS'
-            runner: macos-15
             arch: 'arm64'
             build_preset: 'Sanitizer_CI'
             toolchain: 'Clang'
             clang_plugins: false
+            runner: 'macos-15'
 
           - os_name: 'Linux'
-            runner: ubuntu-24.04
             arch: 'x86_64'
             build_preset: 'Fuzzers_CI'
             toolchain: 'Clang'
             clang_plugins: false
+            runner: 'blacksmith-16vcpu-ubuntu-2404'
 
     uses: ./.github/workflows/lagom-template.yml
     with:

@@ -17,15 +17,15 @@ jobs:
       fail-fast: false
       matrix:
         os_name: ['Linux']
-        runner: ['ubuntu-24.04']
         arch: ['x86_64']
         package_type: ['Linux-x86_64']
+        runner: ['blacksmith-8vcpu-ubuntu-2404']
 
         include:
           - os_name: 'macOS'
-            runner: 'macos-15'
             arch: 'arm64'
             package_type: 'macOS-universal2'
+            runner: 'macos-15'
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
