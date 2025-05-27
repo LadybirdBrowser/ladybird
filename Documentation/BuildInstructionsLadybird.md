@@ -5,7 +5,7 @@
 Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler are required.
 
 We currently use gcc-14 and clang-20 in our CI pipeline. If these versions are not available on your system, see
-[`Meta/find_compiler.sh`](../Meta/find_compiler.sh) for the minimum compatible version.
+[`Meta/find_compiler.py`](../Meta/find_compiler.py) for the minimum compatible version.
 
 CMake 3.25 or newer must be available in $PATH.
 
