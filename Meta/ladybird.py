@@ -103,7 +103,7 @@ def main():
     )
 
     target_parser = argparse.ArgumentParser(add_help=False)
-    target_parser.add_argument("--target", required=False, default="Ladybird")
+    target_parser.add_argument("target", nargs=argparse.OPTIONAL, default="Ladybird")
 
     build_parser = subparsers.add_parser(
         "build", help="Compiles the target binaries", parents=[preset_parser, compiler_parser, target_parser]
