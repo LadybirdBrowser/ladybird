@@ -243,7 +243,7 @@ ensure_wpt_repository() {
 }
 
 build_ladybird_and_webdriver() {
-    "${DIR}"/ladybird.sh build WebDriver
+    "${DIR}"/ladybird.py build WebDriver
 }
 
 update_wpt() {
@@ -597,7 +597,7 @@ import_wpt()
     done < <(printf "%s\n" "${RAW_TESTS[@]}" | sort -u)
 
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
-        ./Meta/ladybird.sh build headless-browser
+        ./Meta/ladybird.py build headless-browser
         set +e
         for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"

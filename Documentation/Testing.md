@@ -11,9 +11,9 @@ Tests of internal C++ code go in their own `TestFoo.cpp` file in `Tests/LibWeb`.
 > [!NOTE]
 > To reproduce a CI failure, see the section on [Running with Sanitizers](#running-with-sanitizers).
 
-The easiest way to run tests is to use the `ladybird.sh` script. The LibWeb tests are registered with CMake as a test in
-`UI/CMakeLists.txt`. Using the built-in test filtering, you can run all tests with `Meta/ladybird.sh test` or run
-just the LibWeb tests with `Meta/ladybird.sh test LibWeb`. The second way is to invoke the headless browser test runner
+The easiest way to run tests is to use the `ladybird.py` script. The LibWeb tests are registered with CMake as a test in
+`UI/CMakeLists.txt`. Using the built-in test filtering, you can run all tests with `Meta/ladybird.py test` or run
+just the LibWeb tests with `Meta/ladybird.py test LibWeb`. The second way is to invoke the headless browser test runner
 directly. See the invocation in `UI/CMakeLists.txt` for the expected command line arguments.
 
 A third way is to invoke `ctest` directly. The simplest method is to use the `default` preset from `CMakePresets.json`:
@@ -137,14 +137,14 @@ you will need to regenerate the corresponding expectations file to match the act
 For Text or Layout tests, you can "rebaseline" the tests to regenerate the expectation file:
 
 ```bash
-./Meta/ladybird.sh run headless-browser --run-tests "./Tests/LibWeb" --rebaseline -f Text/input/your-new-test-name.html
+./Meta/ladybird.py run headless-browser --run-tests "./Tests/LibWeb" --rebaseline -f Text/input/your-new-test-name.html
 ```
 
 For Ref and Screenshot tests, you will need to supply the equivalently rendering HTML manually. Though for Screenshot
 tests, you can generate the reference screenshot itself by running headless-browser in test mode:
 
 ```bash
-./Meta/ladybird.sh run headless-browser --layout-test-mode Tests/LibWeb/Screenshot/input/your-new-test-name.html --screenshot-path Tests/LibWeb/Screenshot/images/your-new-test-name.png
+./Meta/ladybird.py run headless-browser --layout-test-mode Tests/LibWeb/Screenshot/input/your-new-test-name.html --screenshot-path Tests/LibWeb/Screenshot/images/your-new-test-name.png
 ```
 
 ### Text tests

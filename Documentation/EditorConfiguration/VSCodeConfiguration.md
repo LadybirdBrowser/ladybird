@@ -12,7 +12,7 @@ The recommended extensions for VS Code include:
 
 ## Configuration
 
-Run `./Meta/ladybird.sh build` at least once to kick off downloading and building vcpkg dependencies.
+Run `./Meta/ladybird.py build` at least once to kick off downloading and building vcpkg dependencies.
 
 The CMake Tools plugin should automatically detect the `CMakePresets.json` at the root of the repository.
 Selecting and activating the `default` preset should be enough to get started after the initial build.
@@ -30,7 +30,7 @@ The official clangd extension can be used for C++ comprehension. It is recommend
 
 clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/release.
 
-Run ``./Meta/ladybird.sh run ladybird`` at least once to generate the ``compile_commands.json`` file.
+Run ``./Meta/ladybird.py run ladybird`` at least once to generate the ``compile_commands.json`` file.
 
 #### Known issues
 
@@ -170,7 +170,7 @@ The following three example tasks should suffice in most situations, and allow y
             ],
             "args": [
                 "-c",
-                "\"Meta/ladybird.sh build\""
+                "\"Meta/ladybird.py build\""
             ],
             "presentation": {
                 "echo": true,
@@ -188,7 +188,7 @@ The following three example tasks should suffice in most situations, and allow y
             "command": "bash",
             "args": [
                 "-c",
-                "Meta/ladybird.sh build"
+                "Meta/ladybird.py build"
             ],
             "problemMatcher": [
                 {
@@ -225,7 +225,7 @@ The following three example tasks should suffice in most situations, and allow y
             "command": "bash",
             "args": [
                 "-c",
-                "Meta/ladybird.sh run ladybird"
+                "Meta/ladybird.py run ladybird"
             ],
             "options": {
                 "env": {
@@ -303,7 +303,7 @@ If you want to run the debugger, first place the content below in `.vscode/launc
 then run Ladybird with the debug preset and with the `--debug-process WebContent` flag:
 
 ```bash
-CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird --debug-process WebContent
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ BUILD_PRESET=Debug ./Meta/ladybird.py run ladybird --debug-process WebContent
 ```
 
 Running Ladybird in this way will pause execution until a debugger is attached. You can then run the debugger by going to the **Run and Debug** menu and selecting the **Attach to WebContent** configuration.
@@ -329,7 +329,7 @@ For Linux, the `launch.json` will instead be the file below.
 Running Ladybird as follows:
 
 ```bash
-BUILD_PRESET=Debug Meta/ladybird.sh run ladybird --debug-process WebContent
+BUILD_PRESET=Debug Meta/ladybird.py run ladybird --debug-process WebContent
 ```
 
 Then follow the same steps found in the Mac section. Notice also that you need to have `gdb` (the GNU Debugger) installed.

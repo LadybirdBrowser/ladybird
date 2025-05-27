@@ -6,26 +6,26 @@ project:
 1. With [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) (assumes existing setup)
 2. With [coc.nvim](https://github.com/neoclide/coc.nvim) (from scratch, potentially out of date)
 
-For both setups, make sure you ran `./Meta/ladybird.sh run ladybird` at least 
+For both setups, make sure you ran `./Meta/ladybird.py run ladybird` at least
 once.
 
 ## With nvim-lspconfig
 
-> Note: This guide assumes Lua is being used, but can easily be adapted to 
+> Note: This guide assumes Lua is being used, but can easily be adapted to
 > VimScript.
 
 If you have an [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig), setup
 already, registering clangd is similar to other LSPs:
 ```lua
 require('lspconfig').clangd.setup {
-  -- If you have an on_attach function, this is where you'd put it. If not, 
+  -- If you have an on_attach function, this is where you'd put it. If not,
   -- you can delete this line.
   -- on_attach = ...,
 
   -- This is where you'd put capabilities (i.e. if you're useing nvim-cmp)
   -- capabilities = ...,
 
-  -- If you have another clangd installation, put it here. Note that we use 
+  -- If you have another clangd installation, put it here. Note that we use
   -- clangd version 18 for the Ladybird project.
   -- cmd = { '/path/to/clangd' },
 }
