@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
-import importlib.util
 import multiprocessing
 import os
 import platform
@@ -14,72 +13,19 @@ import re
 import shutil
 import subprocess
 import sys
-import types
 
-from enum import IntEnum
 from pathlib import Path
 
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-def import_module(module_path: Path) -> types.ModuleType:
-    spec = importlib.util.spec_from_file_location(module_path.stem, module_path)
-    if not spec or not spec.loader:
-        raise ModuleNotFoundError(f"Could not find module {module_path}")
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    return module
-
-
-META_PATH = Path(__file__).parent
-TOOLCHAIN_PATH = META_PATH.parent / "Toolchain"
-
-BuildVcpkg = import_module(TOOLCHAIN_PATH / "BuildVcpkg.py")
-
-
-class HostArchitecture(IntEnum):
-    Unsupported = 0
-    x86_64 = 1
-    AArch64 = 2
-
-
-class HostSystem(IntEnum):
-    Unsupported = 0
-    Linux = 1
-    macOS = 2
-    Windows = 3
-
-
-class Platform:
-    def __init__(self):
-        self.system = platform.system()
-        if self.system == "Windows":
-            self.host_system = HostSystem.Windows
-        elif self.system == "Darwin":
-            self.host_system = HostSystem.macOS
-        elif self.system == "Linux":
-            self.host_system = HostSystem.Linux
-        else:
-            self.host_system = HostSystem.Unsupported
-
-        self.architecture = platform.machine().lower()
-        if self.architecture in ("x86_64", "amd64"):
-            self.host_architecture = HostArchitecture.x86_64
-        elif self.architecture in ("aarch64", "arm64"):
-            self.host_architecture = HostArchitecture.AArch64
-        else:
-            self.host_architecture = HostArchitecture.Unsupported
+from Meta.host_platform import HostArchitecture
+from Meta.host_platform import HostSystem
+from Meta.host_platform import Platform
+from Toolchain.BuildVcpkg import build_vcpkg
 
 
 def main():
     platform = Platform()
-
-    if platform.host_system == HostSystem.Unsupported:
-        print(f"Unsupported host system {platform.system}", file=sys.stderr)
-        sys.exit(1)
-    if platform.host_architecture == HostArchitecture.Unsupported:
-        print(f"Unsupported host architecture {platform.architecture}", file=sys.stderr)
-        sys.exit(1)
 
     parser = argparse.ArgumentParser(description="Ladybird")
     subparsers = parser.add_subparsers(dest="command")
@@ -225,7 +171,7 @@ def main():
         build_main(build_dir, "install", args.args)
     elif args.command == "vcpkg":
         configure_build_env(args.preset, args.cc, args.cxx)
-        BuildVcpkg.build_vcpkg()
+        build_vcpkg()
     elif args.command == "clean":
         clean_main(args.preset, args.cc, args.cxx)
     elif args.command == "rebuild":
@@ -240,7 +186,7 @@ def main():
 
 def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     ladybird_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(preset, cc, cxx)
-    BuildVcpkg.build_vcpkg()
+    build_vcpkg()
 
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
