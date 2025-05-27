@@ -52,6 +52,8 @@ public:
     WebIDL::ExceptionOr<void> set_css_float(StringView);
 
     virtual String serialized() const final override;
+    String serialize_a_css_value(StyleProperty const&) const;
+    String serialize_a_css_value(Vector<StyleProperty>) const;
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
     void set_declarations_from_text(StringView);
