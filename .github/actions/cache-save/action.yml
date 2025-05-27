@@ -34,7 +34,7 @@ runs:
         CCACHE_DIR=${{ inputs.ccache_path }} ccache --evict-older-than=1d
 
     - name: 'Compiler Cache'
-      uses: actions/cache/save@v4
+      uses: useblacksmith/cache/save@v5
       if: ${{ inputs.ccache_path != '' }}
       with:
         path: ${{ inputs.ccache_path }}
@@ -47,7 +47,7 @@ runs:
         CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
 
     - name: 'vcpkg binary cache'
-      uses: actions/cache/save@v4
+      uses: useblacksmith/cache/save@v5
       if: ${{ inputs.vcpkg_cache_path != '' }}
       with:
         path: ${{ inputs.vcpkg_cache_path }}

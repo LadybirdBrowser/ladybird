@@ -54,7 +54,7 @@ runs:
         echo "timestamp=$(date -u "+%Y%m%d%H%M_%S")" >> "$GITHUB_OUTPUT"
 
     - name: 'Compiler Cache'
-      uses: actions/cache/restore@v4
+      uses: useblacksmith/cache/restore@v5
       id: 'ccache'
       if: ${{ inputs.ccache_path != '' }}
       with:
@@ -76,7 +76,7 @@ runs:
           CCACHE_DIR=${{ inputs.ccache_path }} ccache -z
 
     - name: 'Restore vcpkg cache'
-      uses: actions/cache/restore@v4
+      uses: useblacksmith/cache/restore@v5
       if: ${{ inputs.vcpkg_cache_path != '' }}
       id: 'vcpkg'
       with:
