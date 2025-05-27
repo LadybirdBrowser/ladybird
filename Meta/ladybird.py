@@ -19,6 +19,8 @@ from typing import Optional
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from Meta.find_compiler import default_host_compiler
+from Meta.find_compiler import pick_host_compiler
 from Meta.host_platform import HostArchitecture
 from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
@@ -27,6 +29,7 @@ from Toolchain.BuildVcpkg import build_vcpkg
 
 def main():
     platform = Platform()
+    (default_cc, default_cxx) = default_host_compiler(platform)
 
     parser = argparse.ArgumentParser(description="Ladybird")
     subparsers = parser.add_subparsers(dest="command")
@@ -40,19 +43,9 @@ def main():
         ),
     )
 
-    # FIXME: Validate that the cc/cxx combination is compatible (e.g. don't allow CC=gcc and CXX=clang++)
-    # FIXME: Migrate find_compiler.sh for more explicit compiler validation
     compiler_parser = argparse.ArgumentParser(add_help=False)
-    compiler_parser.add_argument(
-        "--cc",
-        required=False,
-        default=os.environ.get("CC", "clang-cl" if platform.host_system == HostSystem.Windows else "cc"),
-    )
-    compiler_parser.add_argument(
-        "--cxx",
-        required=False,
-        default=os.environ.get("CXX", "clang-cl" if platform.host_system == HostSystem.Windows else "c++"),
-    )
+    compiler_parser.add_argument("--cc", required=False, default=default_cc)
+    compiler_parser.add_argument("--cxx", required=False, default=default_cxx)
 
     target_parser = argparse.ArgumentParser(add_help=False)
     target_parser.add_argument("target", nargs=argparse.OPTIONAL, default="Ladybird")
@@ -141,11 +134,13 @@ def main():
     if args.target == "ladybird":
         args.target = "Ladybird"
 
+    (cc, cxx) = pick_host_compiler(platform, args.cc, args.cxx)
+
     if args.command == "build":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, cc, cxx)
         build_main(build_dir, args.target, args.args)
     elif args.command == "test":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, cc, cxx)
         build_main(build_dir)
         test_main(build_dir, args.preset, args.pattern)
     elif args.command == "run":
@@ -159,28 +154,28 @@ def main():
             os.environ["UBSAN_OPTIONS"] = os.environ.get(
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, cc, cxx)
         build_main(build_dir, args.target)
         run_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "debug":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, cc, cxx)
         build_main(build_dir, args.target, args.args)
         debug_main(platform.host_system, build_dir, args.target, args.debugger, args.cmd)
     elif args.command == "install":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, cc, cxx)
         build_main(build_dir, args.target, args.args)
         build_main(build_dir, "install", args.args)
     elif args.command == "vcpkg":
-        configure_build_env(args.preset, args.cc, args.cxx)
+        configure_build_env(args.preset, cc, cxx)
         build_vcpkg()
     elif args.command == "clean":
-        clean_main(args.preset, args.cc, args.cxx)
+        clean_main(args.preset, cc, cxx)
     elif args.command == "rebuild":
-        clean_main(args.preset, args.cc, args.cxx)
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        clean_main(args.preset, cc, cxx)
+        build_dir = configure_main(platform, args.preset, cc, cxx)
         build_main(build_dir, args.target, args.args)
     elif args.command == "addr2line":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, cc, cxx)
         build_main(build_dir, args.target)
         addr2line_main(build_dir, args.target, args.program, args.addresses)
 
