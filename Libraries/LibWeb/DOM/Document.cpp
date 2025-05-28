@@ -4623,11 +4623,7 @@ void Document::queue_intersection_observer_task()
         m_intersection_observer_task_queued = false;
 
         // 2. Let notify list be a list of all IntersectionObservers whose root is in the DOM tree of document.
-        Vector<GC::Root<IntersectionObserver::IntersectionObserver>> notify_list;
-        notify_list.try_ensure_capacity(m_intersection_observers.size()).release_value_but_fixme_should_propagate_errors();
-        for (auto& observer : m_intersection_observers) {
-            notify_list.append(GC::make_root(observer));
-        }
+        auto notify_list = GC::RootVector { heap(), m_intersection_observers.values() };
 
         // 3. For each IntersectionObserver object observer in notify list, run these steps:
         for (auto& observer : notify_list) {
@@ -4709,10 +4705,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     // 2. For each observer in observer list:
 
     // NOTE: We make a copy of the intersection observers list to avoid modifying it while iterating.
-    GC::RootVector<GC::Ref<IntersectionObserver::IntersectionObserver>> intersection_observers(heap());
-    intersection_observers.ensure_capacity(m_intersection_observers.size());
-    for (auto& observer : m_intersection_observers)
-        intersection_observers.append(observer);
+    auto intersection_observers = GC::RootVector { heap(), m_intersection_observers.values() };
 
     for (auto& observer : intersection_observers) {
         // 1. Let rootBounds be observer’s root intersection rectangle.
@@ -5829,11 +5822,7 @@ size_t Document::broadcast_active_resize_observations()
     // 2. For each observer in document.[[resizeObservers]] run these steps:
 
     // NOTE: We make a copy of the resize observers list to avoid modifying it while iterating.
-    GC::RootVector<GC::Ref<ResizeObserver::ResizeObserver>> resize_observers(heap());
-    resize_observers.ensure_capacity(m_resize_observers.size());
-    for (auto const& observer : m_resize_observers)
-        resize_observers.append(observer);
-
+    auto resize_observers = GC::RootVector { heap(), m_resize_observers };
     for (auto const& observer : resize_observers) {
         // 1. If observer.[[activeTargets]] slot is empty, continue.
         if (observer->active_targets().is_empty()) {
