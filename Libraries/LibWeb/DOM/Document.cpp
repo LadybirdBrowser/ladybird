@@ -6125,7 +6125,7 @@ void Document::process_top_layer_removals()
     GC::RootVector<GC::Ref<Element>> elements_to_remove(heap());
     for (auto& element : m_top_layer_pending_removals) {
         // FIXME: Implement overlay property
-        if (true || !element->paintable()) {
+        if (!element->paintable()) {
             elements_to_remove.append(element);
         }
     }
