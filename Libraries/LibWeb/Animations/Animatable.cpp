@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,6 +19,15 @@
 #include <LibWeb/DOM/Element.h>
 
 namespace Web::Animations {
+
+struct Animatable::Transition {
+    HashMap<CSS::PropertyID, size_t> transition_attribute_indices;
+    Vector<TransitionAttributes> transition_attributes;
+    GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source;
+    HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> associated_transitions;
+};
+
+Animatable::Impl::~Impl() = default;
 
 // https://www.w3.org/TR/web-animations-1/#dom-animatable-animate
 WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS::Object>> keyframes, Variant<Empty, double, KeyframeAnimationOptions> options)
@@ -128,86 +138,100 @@ void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
     impl.associated_animations.remove_first_matching([&](auto element) { return animation == element; });
 }
 
-void Animatable::add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions, CSS::StyleValueVector transition_behaviors)
+void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo_element, Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions, CSS::StyleValueVector transition_behaviors)
 {
-    auto& impl = ensure_impl();
-
     VERIFY(properties.size() == delays.size());
     VERIFY(properties.size() == durations.size());
     VERIFY(properties.size() == timing_functions.size());
     VERIFY(properties.size() == transition_behaviors.size());
 
+    auto* maybe_transition = ensure_transition(pseudo_element);
+    if (!maybe_transition)
+        return;
+
+    auto& transition = *maybe_transition;
     for (size_t i = 0; i < properties.size(); i++) {
-        size_t index_of_this_transition = impl.transition_attributes.size();
+        size_t index_of_this_transition = transition.transition_attributes.size();
         auto delay = delays[i]->is_time() ? delays[i]->as_time().time().to_milliseconds() : 0;
         auto duration = durations[i]->is_time() ? durations[i]->as_time().time().to_milliseconds() : 0;
         auto timing_function = timing_functions[i]->is_easing() ? timing_functions[i]->as_easing().function() : CSS::EasingStyleValue::CubicBezier::ease();
         auto transition_behavior = CSS::keyword_to_transition_behavior(transition_behaviors[i]->to_keyword()).value_or(CSS::TransitionBehavior::Normal);
         VERIFY(timing_functions[i]->is_easing());
-        impl.transition_attributes.empend(delay, duration, timing_function, transition_behavior);
+        transition.transition_attributes.empend(delay, duration, timing_function, transition_behavior);
 
         for (auto const& property : properties[i])
-            impl.transition_attribute_indices.set(property, index_of_this_transition);
+            transition.transition_attribute_indices.set(property, index_of_this_transition);
     }
 }
 
-Optional<Animatable::TransitionAttributes const&> Animatable::property_transition_attributes(CSS::PropertyID property) const
+Optional<Animatable::TransitionAttributes const&> Animatable::property_transition_attributes(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property) const
 {
-    if (!m_impl)
+    auto* maybe_transition = ensure_transition(pseudo_element);
+    if (!maybe_transition)
         return {};
-
-    auto& impl = *m_impl;
-    if (auto maybe_index = impl.transition_attribute_indices.get(property); maybe_index.has_value())
-        return impl.transition_attributes[maybe_index.value()];
+    auto& transition = *maybe_transition;
+    if (auto maybe_attr_index = transition.transition_attribute_indices.get(property); maybe_attr_index.has_value())
+        return transition.transition_attributes[maybe_attr_index.value()];
     return {};
 }
 
-GC::Ptr<CSS::CSSTransition> Animatable::property_transition(CSS::PropertyID property) const
+GC::Ptr<CSS::CSSTransition> Animatable::property_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property) const
 {
-    if (!m_impl)
+    auto* maybe_transition = ensure_transition(pseudo_element);
+    if (!maybe_transition)
         return {};
-    auto& impl = *m_impl;
-    if (auto maybe_animation = impl.associated_transitions.get(property); maybe_animation.has_value())
+    auto& transition = *maybe_transition;
+    if (auto maybe_animation = transition.associated_transitions.get(property); maybe_animation.has_value())
         return maybe_animation.value();
     return {};
 }
 
-void Animatable::set_transition(CSS::PropertyID property, GC::Ref<CSS::CSSTransition> animation)
+void Animatable::set_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property, GC::Ref<CSS::CSSTransition> animation)
 {
-    auto& impl = ensure_impl();
-    VERIFY(!impl.associated_transitions.contains(property));
-    impl.associated_transitions.set(property, animation);
-}
-
-void Animatable::remove_transition(CSS::PropertyID property_id)
-{
-    auto& impl = *m_impl;
-    VERIFY(impl.associated_transitions.contains(property_id));
-    impl.associated_transitions.remove(property_id);
-}
-
-void Animatable::clear_transitions()
-{
-    if (!m_impl)
+    auto maybe_transition = ensure_transition(pseudo_element);
+    if (!maybe_transition)
         return;
-    auto& impl = *m_impl;
-    impl.associated_transitions.clear();
-    impl.transition_attribute_indices.clear();
-    impl.transition_attributes.clear();
+    auto& transition = *maybe_transition;
+    VERIFY(!transition.associated_transitions.contains(property));
+    transition.associated_transitions.set(property, animation);
+}
+
+void Animatable::remove_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property_id)
+{
+    auto maybe_transition = ensure_transition(pseudo_element);
+    if (!maybe_transition)
+        return;
+    auto& transition = *maybe_transition;
+    VERIFY(transition.associated_transitions.contains(property_id));
+    transition.associated_transitions.remove(property_id);
+}
+
+void Animatable::clear_transitions(Optional<CSS::PseudoElement> pseudo_element)
+{
+    auto maybe_transition = ensure_transition(pseudo_element);
+    if (!maybe_transition)
+        return;
+
+    auto& transition = *maybe_transition;
+    transition.associated_transitions.clear();
+    transition.transition_attribute_indices.clear();
+    transition.transition_attributes.clear();
 }
 
 void Animatable::visit_edges(JS::Cell::Visitor& visitor)
 {
-    if (!m_impl)
-        return;
-    auto& impl = *m_impl;
+    auto& impl = ensure_impl();
     visitor.visit(impl.associated_animations);
     for (auto const& cached_animation_source : impl.cached_animation_name_source)
         visitor.visit(cached_animation_source);
     for (auto const& cached_animation_name : impl.cached_animation_name_animation)
         visitor.visit(cached_animation_name);
-    visitor.visit(impl.cached_transition_property_source);
-    visitor.visit(impl.associated_transitions);
+    for (auto const& transition : impl.transitions) {
+        if (transition) {
+            visitor.visit(transition->cached_transition_property_source);
+            visitor.visit(transition->associated_transitions);
+        }
+    }
 }
 
 GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::PseudoElement> pseudo_element) const
@@ -267,24 +291,43 @@ void Animatable::set_cached_animation_name_animation(GC::Ptr<Animations::Animati
     }
 }
 
-GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_transition_property_source() const
+GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_transition_property_source(Optional<CSS::PseudoElement> pseudo_element) const
 {
-    if (!m_impl)
+    auto* maybe_transition = ensure_transition(pseudo_element);
+    if (!maybe_transition)
         return {};
-    return m_impl->cached_transition_property_source;
+    return maybe_transition->cached_transition_property_source;
 }
 
-void Animatable::set_cached_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> value)
+void Animatable::set_cached_transition_property_source(Optional<CSS::PseudoElement> pseudo_element, GC::Ptr<CSS::CSSStyleDeclaration const> value)
 {
-    ensure_impl();
-    m_impl->cached_transition_property_source = value;
+    auto* maybe_transition = ensure_transition(pseudo_element);
+    if (!maybe_transition)
+        return;
+    maybe_transition->cached_transition_property_source = value;
 }
 
-Animatable::Impl& Animatable::ensure_impl()
+Animatable::Impl& Animatable::ensure_impl() const
 {
     if (!m_impl)
         m_impl = make<Impl>();
     return *m_impl;
+}
+
+Animatable::Transition* Animatable::ensure_transition(Optional<CSS::PseudoElement> pseudo_element) const
+{
+    auto& impl = ensure_impl();
+
+    size_t pseudo_element_index = 0;
+    if (pseudo_element.has_value()) {
+        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
+            return nullptr;
+        pseudo_element_index = to_underlying(pseudo_element.value()) + 1;
+    }
+
+    if (!impl.transitions[pseudo_element_index])
+        impl.transitions[pseudo_element_index] = make<Transition>();
+    return impl.transitions[pseudo_element_index];
 }
 
 }

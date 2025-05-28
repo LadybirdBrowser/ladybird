@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -56,20 +57,22 @@ public:
     GC::Ptr<Animations::Animation> cached_animation_name_animation(Optional<CSS::PseudoElement>) const;
     void set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::PseudoElement>);
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source() const;
-    void set_cached_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> value);
+    GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source(Optional<CSS::PseudoElement>) const;
+    void set_cached_transition_property_source(Optional<CSS::PseudoElement>, GC::Ptr<CSS::CSSStyleDeclaration const> value);
 
-    void add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions, CSS::StyleValueVector transition_behaviors);
-    Optional<TransitionAttributes const&> property_transition_attributes(CSS::PropertyID) const;
-    void set_transition(CSS::PropertyID, GC::Ref<CSS::CSSTransition>);
-    void remove_transition(CSS::PropertyID);
-    GC::Ptr<CSS::CSSTransition> property_transition(CSS::PropertyID) const;
-    void clear_transitions();
+    void add_transitioned_properties(Optional<CSS::PseudoElement>, Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions, CSS::StyleValueVector transition_behaviors);
+    Optional<TransitionAttributes const&> property_transition_attributes(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
+    void set_transition(Optional<CSS::PseudoElement>, CSS::PropertyID, GC::Ref<CSS::CSSTransition>);
+    void remove_transition(Optional<CSS::PseudoElement>, CSS::PropertyID);
+    GC::Ptr<CSS::CSSTransition> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
+    void clear_transitions(Optional<CSS::PseudoElement>);
 
 protected:
     void visit_edges(JS::Cell::Visitor&);
 
 private:
+    struct Transition;
+
     struct Impl {
         Vector<GC::Ref<Animation>> associated_animations;
         bool is_sorted_by_composite_order { true };
@@ -77,14 +80,14 @@ private:
         Array<GC::Ptr<CSS::CSSStyleDeclaration const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> cached_animation_name_source;
         Array<GC::Ptr<Animation>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> cached_animation_name_animation;
 
-        HashMap<CSS::PropertyID, size_t> transition_attribute_indices;
-        Vector<TransitionAttributes> transition_attributes;
-        GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source;
-        HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> associated_transitions;
-    };
-    Impl& ensure_impl();
+        mutable Array<OwnPtr<Transition>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> transitions;
 
-    OwnPtr<Impl> m_impl;
+        ~Impl();
+    };
+    Impl& ensure_impl() const;
+    Transition* ensure_transition(Optional<CSS::PseudoElement>) const;
+
+    mutable OwnPtr<Impl> m_impl;
 };
 
 }
