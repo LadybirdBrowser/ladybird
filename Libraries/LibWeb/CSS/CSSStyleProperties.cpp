@@ -1080,12 +1080,23 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(StringView prope
     // 4. Let removed be false.
     bool removed = false;
 
-    // FIXME: 5. If property is a shorthand property, for each longhand property longhand that property maps to:
-    //           1. If longhand is not a property name of a CSS declaration in the declarations, continue.
-    //           2. Remove that CSS declaration and let removed be true.
+    // 5. If property is a shorthand property, for each longhand property longhand that property maps to:
+    if (property_is_shorthand(*property_id)) {
+        auto component_value_list = owner_node().has_value()
+            ? parse_css_value(CSS::Parser::ParsingParams { owner_node()->element().document() }, value, *property_id)
+            : parse_css_value(CSS::Parser::ParsingParams {}, value, *property_id);
+        if (!component_value_list)
+            return value;
+
+        StyleComputer::for_each_property_expanding_shorthands(*property_id, *component_value_list, [this, &removed](PropertyID longhand_property_id, CSSStyleValue const&) {
+            // 1. If longhand is not a property name of a CSS declaration in the declarations, continue.
+            // 2. Remove that CSS declaration and let removed be true.
+            removed |= m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == longhand_property_id; });
+        });
+    }
 
     // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations, remove that CSS declaration and let removed be true.
-    if (property_id == PropertyID::Custom) {
+    else if (property_id == PropertyID::Custom) {
         auto custom_name = FlyString::from_utf8_without_validation(property_name.bytes());
         removed = m_custom_properties.remove(custom_name);
     } else {
