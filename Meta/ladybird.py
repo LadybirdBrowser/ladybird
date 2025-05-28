@@ -15,6 +15,7 @@ import subprocess
 import sys
 
 from pathlib import Path
+from typing import Optional
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
@@ -329,7 +330,7 @@ def ensure_ladybird_source_dir() -> Path:
     return ladybird_source_dir
 
 
-def build_main(build_dir: Path, target: str | None = None, args: list[str] = []):
+def build_main(build_dir: Path, target: Optional[str] = None, args: list[str] = []):
     build_args = [
         "cmake",
         "--build",
@@ -351,7 +352,7 @@ def build_main(build_dir: Path, target: str | None = None, args: list[str] = [])
         sys.exit(1)
 
 
-def test_main(build_dir: Path, preset: str, pattern: str | None):
+def test_main(build_dir: Path, preset: str, pattern: Optional[str]):
     test_args = [
         "ctest",
         "--preset",
