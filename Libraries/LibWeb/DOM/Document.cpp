@@ -5240,7 +5240,9 @@ void Document::update_animations_and_send_events(Optional<double> const& timesta
     //   updated.
     // - Queueing animation events for any such animations.
     m_last_animation_frame_timestamp = timestamp;
-    for (auto const& timeline : m_associated_animation_timelines)
+
+    auto timelines_to_update = GC::RootVector { heap(), m_associated_animation_timelines.values() };
+    for (auto const& timeline : timelines_to_update)
         timeline->set_current_time(timestamp);
 
     // 2. Remove replaced animations for doc.
@@ -5296,8 +5298,9 @@ void Document::update_animations_and_send_events(Optional<double> const& timesta
     for (auto const& event : events_to_dispatch)
         event.target->dispatch_event(event.event);
 
-    for (auto& timeline : m_associated_animation_timelines) {
-        for (auto& animation : timeline->associated_animations())
+    for (auto& timeline : timelines_to_update) {
+        auto animations_to_dispatch = GC::RootVector { heap(), timeline->associated_animations().values() };
+        for (auto& animation : animations_to_dispatch)
             dispatch_events_for_animation_if_necessary(animation);
     }
 }
