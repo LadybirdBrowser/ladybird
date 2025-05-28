@@ -1769,7 +1769,8 @@ void Document::invalidate_style_of_elements_affected_by_has()
         return;
     }
 
-    for (auto const& node : m_pending_nodes_for_style_invalidation_due_to_presence_of_has) {
+    auto nodes = move(m_pending_nodes_for_style_invalidation_due_to_presence_of_has);
+    for (auto const& node : nodes) {
         if (node.is_null())
             continue;
         for (auto* ancestor = node.ptr(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
