@@ -2236,7 +2236,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
     } else if (interface.equals_ignoring_ascii_case("textevent"sv)) {
         event = UIEvents::TextEvent::create(realm, FlyString {});
     } else if (interface.equals_ignoring_ascii_case("touchevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create TouchEvent
+        return WebIDL::NotSupportedError::create(realm, "expose legacy touch event APIs"_string);
     } else if (interface.equals_ignoring_ascii_case("uievent"sv)
         || interface.equals_ignoring_ascii_case("uievents"sv)) {
         event = UIEvents::UIEvent::create(realm, FlyString {});
