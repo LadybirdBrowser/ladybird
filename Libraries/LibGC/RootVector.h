@@ -96,4 +96,13 @@ public:
     }
 };
 
+template<typename T>
+RootVector(Heap&, ReadonlySpan<T> const&) -> RootVector<T>;
+
+template<typename T>
+RootVector(Heap&, Span<T> const&) -> RootVector<T>;
+
+template<typename T>
+RootVector(Heap&, Vector<T> const&) -> RootVector<T>;
+
 }
