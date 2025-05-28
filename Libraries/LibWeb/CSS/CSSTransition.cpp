@@ -19,12 +19,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSTransition);
 
-GC::Ref<CSSTransition> CSSTransition::start_a_transition(DOM::Element& element, PropertyID property_id, size_t transition_generation,
-    double start_time, double end_time, NonnullRefPtr<CSSStyleValue const> start_value, NonnullRefPtr<CSSStyleValue const> end_value,
-    NonnullRefPtr<CSSStyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor)
+GC::Ref<CSSTransition> CSSTransition::start_a_transition(DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id,
+    size_t transition_generation, double start_time, double end_time, NonnullRefPtr<CSSStyleValue const> start_value,
+    NonnullRefPtr<CSSStyleValue const> end_value, NonnullRefPtr<CSSStyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor)
 {
     auto& realm = element.realm();
-    return realm.create<CSSTransition>(realm, element, property_id, transition_generation, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+    return realm.create<CSSTransition>(realm, element, pseudo_element, property_id, transition_generation, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
 }
 
 Animations::AnimationClass CSSTransition::animation_class() const
@@ -75,7 +75,7 @@ Optional<int> CSSTransition::class_specific_composite_order(GC::Ref<Animations::
     return {};
 }
 
-CSSTransition::CSSTransition(JS::Realm& realm, DOM::Element& element, PropertyID property_id, size_t transition_generation,
+CSSTransition::CSSTransition(JS::Realm& realm, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, size_t transition_generation,
     double start_time, double end_time, NonnullRefPtr<CSSStyleValue const> start_value, NonnullRefPtr<CSSStyleValue const> end_value,
     NonnullRefPtr<CSSStyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor)
     : Animations::Animation(realm)
@@ -99,9 +99,11 @@ CSSTransition::CSSTransition(JS::Realm& realm, DOM::Element& element, PropertyID
 
     // Construct a KeyframesEffect for our animation
     m_keyframe_effect->set_target(&element);
+    if (pseudo_element.has_value())
+        m_keyframe_effect->set_pseudo_element(Selector::PseudoElementSelector { pseudo_element.value() });
     m_keyframe_effect->set_start_delay(start_time);
     m_keyframe_effect->set_iteration_duration(m_end_time - start_time);
-    m_keyframe_effect->set_timing_function(element.property_transition_attributes(property_id)->timing_function);
+    m_keyframe_effect->set_timing_function(element.property_transition_attributes(pseudo_element, property_id)->timing_function);
 
     auto key_frame_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
     Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame initial_keyframe;
@@ -118,7 +120,7 @@ CSSTransition::CSSTransition(JS::Realm& realm, DOM::Element& element, PropertyID
     set_owning_element(element);
     set_effect(m_keyframe_effect);
     element.associate_with_animation(*this);
-    element.set_transition(m_transition_property, *this);
+    element.set_transition(pseudo_element, m_transition_property, *this);
 
     HTML::TemporaryExecutionContext context(realm);
     play().release_value_but_fixme_should_propagate_errors();

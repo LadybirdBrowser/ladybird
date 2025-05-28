@@ -1366,19 +1366,16 @@ static void apply_dimension_attribute(CascadedProperties& cascaded_properties, D
 
 static void compute_transitioned_properties(ComputedProperties const& style, DOM::Element& element, Optional<PseudoElement> pseudo_element)
 {
-    // FIXME: Implement transitioning for pseudo-elements
-    (void)pseudo_element;
-
     auto const source_declaration = style.transition_property_source();
     if (!source_declaration)
         return;
     if (!element.computed_properties())
         return;
-    if (source_declaration == element.cached_transition_property_source())
+    if (source_declaration == element.cached_transition_property_source(pseudo_element))
         return;
     // Reparse this transition property
-    element.clear_transitions();
-    element.set_cached_transition_property_source(*source_declaration);
+    element.clear_transitions(pseudo_element);
+    element.set_cached_transition_property_source(pseudo_element, *source_declaration);
 
     auto const& transition_properties_value = style.property(PropertyID::TransitionProperty);
     auto transition_properties = transition_properties_value.is_value_list()
@@ -1453,15 +1450,12 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
         PropertyID::TransitionBehavior,
         [] { return CSSKeywordValue::create(Keyword::None); });
 
-    element.add_transitioned_properties(move(properties), move(delays), move(durations), move(timing_functions), move(transition_behaviors));
+    element.add_transitioned_properties(pseudo_element, move(properties), move(delays), move(durations), move(timing_functions), move(transition_behaviors));
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
 void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties& new_style, DOM::Element& element, Optional<PseudoElement> pseudo_element) const
 {
-    // FIXME: Implement transitions for pseudo-elements
-    if (pseudo_element.has_value())
-        return;
 
     // https://drafts.csswg.org/css-transitions/#transition-combined-duration
     auto combined_duration = [](Animations::Animatable::TransitionAttributes const& transition_attributes) {
@@ -1474,19 +1468,19 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
 
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
-        auto matching_transition_properties = element.property_transition_attributes(property_id);
+        auto matching_transition_properties = element.property_transition_attributes(pseudo_element, property_id);
         auto const& before_change_value = previous_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
         auto const& after_change_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
 
-        auto existing_transition = element.property_transition(property_id);
+        auto existing_transition = element.property_transition(pseudo_element, property_id);
         bool has_running_transition = existing_transition && !existing_transition->is_finished();
         bool has_completed_transition = existing_transition && existing_transition->is_finished();
 
         auto start_a_transition = [&](auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value->to_string(), end_value->to_string());
 
-            auto transition = CSSTransition::start_a_transition(element, property_id, document().transition_generation(),
-                start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+            auto transition = CSSTransition::start_a_transition(element, pseudo_element, property_id,
+                document().transition_generation(), start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
             collect_animation_into(element, {}, as<Animations::KeyframeEffect>(*transition->effect()), new_style, AnimationRefresh::No);
         };
@@ -1509,7 +1503,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
 
             // then implementations must remove the completed transition (if present) from the set of completed transitions
             if (has_completed_transition)
-                element.remove_transition(property_id);
+                element.remove_transition(pseudo_element, property_id);
             // and start a transition whose:
 
             // - start time is the time of the style change event plus the matching transition delay,
@@ -1538,7 +1532,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         //    then implementations must remove the completed transition from the set of completed transitions.
         else if (has_completed_transition && !existing_transition->transition_end_value()->equals(after_change_value)) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 2.");
-            element.remove_transition(property_id);
+            element.remove_transition(pseudo_element, property_id);
         }
 
         // 3. If the element has a running transition or completed transition for the property,
@@ -1549,7 +1543,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             if (has_running_transition)
                 existing_transition->cancel();
             else
-                element.remove_transition(property_id);
+                element.remove_transition(pseudo_element, property_id);
         }
 
         // 4. If the element has a running transition for the property,
@@ -1583,7 +1577,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 existing_transition->cancel();
                 // AD-HOC: Remove the cancelled transition, otherwise it breaks the invariant that there is only one
                 // running or completed transition for a property at once.
-                element.remove_transition(property_id);
+                element.remove_transition(pseudo_element, property_id);
 
                 // - reversing-adjusted start value is the end value of the running transition,
                 auto reversing_adjusted_start_value = existing_transition->transition_end_value();
@@ -1623,7 +1617,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 existing_transition->cancel();
                 // AD-HOC: Remove the cancelled transition, otherwise it breaks the invariant that there is only one
                 // running or completed transition for a property at once.
-                element.remove_transition(property_id);
+                element.remove_transition(pseudo_element, property_id);
 
                 // - start time is the time of the style change event plus the matching transition delay,
                 auto start_time = style_change_event_time + matching_transition_properties->delay;
