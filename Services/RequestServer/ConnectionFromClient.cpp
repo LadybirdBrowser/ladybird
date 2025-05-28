@@ -99,7 +99,7 @@ ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringVi
     return resolve_opt_builder.to_byte_string();
 }
 
-struct ConnectionFromClient::ActiveRequest {
+struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     CURLM* multi { nullptr };
     CURL* easy { nullptr };
     Vector<curl_slist*> curl_string_lists;
@@ -133,9 +133,11 @@ struct ConnectionFromClient::ActiveRequest {
 
     void schedule_self_destruction() const
     {
-        Core::deferred_invoke([this] {
-            if (client)
-                client->m_active_requests.remove(request_id);
+        Core::deferred_invoke([weak_this = make_weak_ptr()] {
+            if (!weak_this)
+                return;
+            if (weak_this->client)
+                weak_this->client->m_active_requests.remove(weak_this->request_id);
         });
     }
 
