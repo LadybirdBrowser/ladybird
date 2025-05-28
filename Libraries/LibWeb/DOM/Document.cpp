@@ -6122,12 +6122,17 @@ void Document::process_top_layer_removals()
 {
     // 1. For each element el in doc’s pending top layer removals: if el’s computed value of overlay is none, or el is
     //    not rendered, remove el from doc’s top layer and pending top layer removals.
+    GC::RootVector<GC::Ref<Element>> elements_to_remove(heap());
     for (auto& element : m_top_layer_pending_removals) {
         // FIXME: Implement overlay property
         if (true || !element->paintable()) {
-            m_top_layer_elements.remove(element);
-            m_top_layer_pending_removals.remove(element);
+            elements_to_remove.append(element);
         }
+    }
+
+    for (auto& element : elements_to_remove) {
+        m_top_layer_elements.remove(element);
+        m_top_layer_pending_removals.remove(element);
     }
 }
 
