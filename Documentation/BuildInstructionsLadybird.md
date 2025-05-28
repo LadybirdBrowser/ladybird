@@ -80,9 +80,9 @@ sudo apt install qt6-multimedia-dev
 ```
 
 ### Arch Linux/Manjaro:
-
+This will also update your package database and update everything to avoid partial upgrades which is recommended.
 ```
-sudo pacman -Syy --needed autoconf-archive automake base-devel ccache cmake curl libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
+sudo pacman -Syu --needed autoconf-archive automake base-devel ccache cmake curl libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
 ```
 
 ### Fedora or derivatives:
