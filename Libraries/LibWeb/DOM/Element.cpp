@@ -789,13 +789,6 @@ GC::Ref<CSS::ComputedProperties> Element::resolved_css_values(Optional<CSS::Pseu
     return properties;
 }
 
-void Element::reset_animated_css_properties()
-{
-    if (!m_computed_properties)
-        return;
-    m_computed_properties->reset_animated_properties();
-}
-
 DOMTokenList* Element::class_list()
 {
     if (!m_class_list)

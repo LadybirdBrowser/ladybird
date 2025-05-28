@@ -103,7 +103,7 @@ void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<CSSS
     m_animated_property_values.set(id, move(value));
 }
 
-void ComputedProperties::reset_animated_properties()
+void ComputedProperties::reset_animated_properties(Badge<Animations::KeyframeEffect>)
 {
     m_animated_property_values.clear();
 }

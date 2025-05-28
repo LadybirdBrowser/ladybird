@@ -1571,8 +1571,6 @@ void Document::update_animated_style_if_needed()
             if (animation->is_idle() || animation->is_finished())
                 continue;
             if (auto effect = animation->effect()) {
-                if (auto* target = effect->target())
-                    target->reset_animated_css_properties();
                 effect->update_computed_properties();
             }
         }

@@ -941,6 +941,12 @@ void KeyframeEffect::update_computed_properties()
         return;
 
     auto animated_properties_before_update = style->animated_property_values();
+    if (!pseudo_element_type().has_value()) {
+        if (auto computed_properties = target->computed_properties())
+            computed_properties->reset_animated_properties({});
+    } else if (auto computed_properties = target->pseudo_element_computed_properties(pseudo_element_type().value())) {
+        computed_properties->reset_animated_properties({});
+    }
 
     auto& document = target->document();
     document.style_computer().collect_animation_into(*target, pseudo_element_type(), *this, *style, CSS::StyleComputer::AnimationRefresh::Yes);
