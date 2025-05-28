@@ -1475,7 +1475,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto matching_transition_properties = element.property_transition_attributes(property_id);
-        auto const& before_change_value = previous_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
+        auto const& before_change_value = previous_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
         auto const& after_change_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
 
         auto existing_transition = element.property_transition(property_id);
@@ -1488,7 +1488,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             auto transition = CSSTransition::start_a_transition(element, property_id, document().transition_generation(),
                 start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
-            new_style.set_animated_property(property_id, transition->value_at_time(style_change_event_time, matching_transition_properties->transition_behavior == TransitionBehavior::AllowDiscrete ? AllowDiscrete::Yes : AllowDiscrete::No));
+            collect_animation_into(element, {}, as<Animations::KeyframeEffect>(*transition->effect()), new_style, AnimationRefresh::No);
         };
 
         // 1. If all of the following are true:
@@ -1560,8 +1560,8 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
-            auto current_value = existing_transition->value_at_time(style_change_event_time, matching_transition_properties->transition_behavior == TransitionBehavior::AllowDiscrete ? AllowDiscrete::Yes : AllowDiscrete::No);
-            if (current_value->equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties->transition_behavior)) {
+            auto& current_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
+            if (current_value.equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties->transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.1");
                 existing_transition->cancel();
             }
