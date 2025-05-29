@@ -47,7 +47,7 @@ def main():
     compiler_parser.add_argument("--cxx", required=False, default=default_cxx)
 
     target_parser = argparse.ArgumentParser(add_help=False)
-    target_parser.add_argument("target", nargs=argparse.OPTIONAL, default="Ladybird")
+    target_parser.add_argument("target", nargs=argparse.OPTIONAL)
 
     build_parser = subparsers.add_parser(
         "build", help="Compiles the target binaries", parents=[preset_parser, compiler_parser, target_parser]
@@ -121,6 +121,8 @@ def main():
         sys.exit(1)
 
     if args.target == "ladybird":
+        args.target = "Ladybird"
+    if not args.target and args.command not in ("build", "rebuild"):
         args.target = "Ladybird"
 
     (cc, cxx) = pick_host_compiler(platform, args.cc, args.cxx)
