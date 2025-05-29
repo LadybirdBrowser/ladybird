@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+# Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
+# Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 import argparse
 import importlib.util
 import multiprocessing
