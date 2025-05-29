@@ -8,7 +8,7 @@ body { height: 200vh; }
   background-color: green;
   width: 100px;
   height: 200px;
-  mask-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAADIAQMAAAAk8taCAAAABlBMVEUAAAAAAAClZ7nPAAAAAXRSTlMAQObYZgAAACJJREFUSMftxyEBAAAIA7D3T0sDsBQAtbmll4qZmV0PgFcD8QgJXHxT3vkAAAAASUVORK5CYII=");
+  mask-image: url("../data/mask-image-100x200.png");
 }
 </style>
 <div id="spacer"></div>
@@ -16,3 +16,5 @@ body { height: 200vh; }
 <script>
     window.scrollTo(0, 100);
 </script>
+<!-- FIXME: Workaround to ensure CSS mask-image is loaded before taking screenshot: https://github.com/LadybirdBrowser/ladybird/issues/3448 -->
+<img style="display: none" src="../data/mask-image-100x200.png">
