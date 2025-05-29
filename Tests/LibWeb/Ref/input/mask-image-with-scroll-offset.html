@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/mask-image-with-scroll-offset-ref.html" />
+<style>
+* { scrollbar-width: none; }
+body { height: 200vh; }
+#spacer { height: 100px; }
+#mask-image-box {
+  background-color: green;
+  width: 100px;
+  height: 200px;
+  mask-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAADIAQMAAAAk8taCAAAABlBMVEUAAAAAAAClZ7nPAAAAAXRSTlMAQObYZgAAACJJREFUSMftxyEBAAAIA7D3T0sDsBQAtbmll4qZmV0PgFcD8QgJXHxT3vkAAAAASUVORK5CYII=");
+}
+</style>
+<div id="spacer"></div>
+<div id="mask-image-box"></div>
+<script>
+    window.scrollTo(0, 100);
+</script>

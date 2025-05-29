@@ -371,7 +371,9 @@ void StackingContext::paint(PaintContext& context) const
         }
     }
 
+    context.display_list_recorder().push_scroll_frame_id({});
     paint_internal(context);
+    context.display_list_recorder().pop_scroll_frame_id();
 
     if (!filter.is_empty()) {
         context.display_list_recorder().restore();

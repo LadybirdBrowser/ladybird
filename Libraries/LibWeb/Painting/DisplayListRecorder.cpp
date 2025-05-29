@@ -310,12 +310,10 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
             .matrix = params.transform.matrix,
         },
         .clip_path = params.clip_path });
-    m_scroll_frame_id_stack.append({});
 }
 
 void DisplayListRecorder::pop_stacking_context()
 {
-    (void)m_scroll_frame_id_stack.take_last();
     append(PopStackingContext {});
 }
 
