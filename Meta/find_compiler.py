@@ -123,6 +123,9 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
             "gcc-14",
         ]
 
+        if platform.host_system == HostSystem.BSD:
+            gcc_candidates.append("egcc")
+
     if platform.host_system == HostSystem.macOS:
         clang_homebrew_path = Path("/opt/homebrew/opt/llvm/bin")
         homebrew_path = Path("/opt/homebrew/bin")
@@ -131,7 +134,7 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
         clang_candidates.extend([str(homebrew_path.joinpath(c)) for c in clang_candidates])
 
         gcc_candidates.extend([str(homebrew_path.joinpath(c)) for c in gcc_candidates])
-    elif platform.host_system == HostSystem.Linux:
+    elif platform.host_system in (HostSystem.Linux, HostSystem.BSD):
         local_path = Path("/usr/local/bin")
 
         clang_candidates.extend([str(local_path.joinpath(c)) for c in clang_candidates])
@@ -166,15 +169,9 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
     sys.exit(1)
 
 
-def default_host_compiler(platform: Platform) -> tuple[str, str]:
-    if platform.host_system == HostSystem.Windows:
-        return ("clang-cl", "clang-cl")
-    return ("cc", "c++")
-
-
 def main():
     platform = Platform()
-    (default_cc, default_cxx) = default_host_compiler(platform)
+    (default_cc, default_cxx) = platform.default_compiler()
 
     parser = argparse.ArgumentParser(description="Find valid compilers")
 

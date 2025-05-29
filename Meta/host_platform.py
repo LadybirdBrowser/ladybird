@@ -17,6 +17,7 @@ class HostSystem(enum.IntEnum):
     Linux = enum.auto()
     macOS = enum.auto()
     Windows = enum.auto()
+    BSD = enum.auto()
 
 
 class Platform:
@@ -28,6 +29,8 @@ class Platform:
             self.host_system = HostSystem.macOS
         elif self.system == "Linux":
             self.host_system = HostSystem.Linux
+        elif self.system in ("FreeBSD", "OpenBSD", "NetBSD", "DragonFly"):
+            self.host_system = HostSystem.BSD
         else:
             print(f"Unsupported host system {self.system}", file=sys.stderr)
             sys.exit(1)
@@ -40,3 +43,20 @@ class Platform:
         else:
             print(f"Unsupported host architecture {self.architecture}", file=sys.stderr)
             sys.exit(1)
+
+    def default_compiler(self) -> tuple[str, str]:
+        if self.host_system == HostSystem.Windows:
+            return ("clang-cl", "clang-cl")
+        return ("cc", "c++")
+
+    def default_debugger(self) -> str:
+        if self.host_system in (HostSystem.Linux, HostSystem.BSD):
+            return "gdb"
+        return "lldb"
+
+    def default_symbolizer(self) -> str:
+        if self.host_system == HostSystem.Windows:
+            return "llvm-symbolizer"
+        if self.host_system == HostSystem.macOS:
+            return "atos"
+        return "addr2line"
