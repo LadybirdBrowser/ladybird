@@ -27,6 +27,7 @@ font-variant-position: normal
 font-variation-settings: normal
 font-weight: 400
 font-width: normal
+image-orientation: from-image
 image-rendering: auto
 letter-spacing: normal
 line-height: normal

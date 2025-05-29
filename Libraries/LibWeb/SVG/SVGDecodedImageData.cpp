@@ -135,7 +135,7 @@ RefPtr<Gfx::ImmutableBitmap> SVGDecodedImageData::bitmap(size_t, Gfx::IntSize si
     return immutable_bitmap;
 }
 
-Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
+Optional<CSSPixels> SVGDecodedImageData::intrinsic_width(Gfx::ImageOrientation) const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     m_document->update_style();
@@ -147,7 +147,7 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
     return {};
 }
 
-Optional<CSSPixels> SVGDecodedImageData::intrinsic_height() const
+Optional<CSSPixels> SVGDecodedImageData::intrinsic_height(Gfx::ImageOrientation) const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     m_document->update_style();
@@ -159,11 +159,11 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_height() const
     return {};
 }
 
-Optional<CSSPixelFraction> SVGDecodedImageData::intrinsic_aspect_ratio() const
+Optional<CSSPixelFraction> SVGDecodedImageData::intrinsic_aspect_ratio(Gfx::ImageOrientation orientation) const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
-    auto width = intrinsic_width();
-    auto height = intrinsic_height();
+    auto width = intrinsic_width(orientation);
+    auto height = intrinsic_height(orientation);
     if (height.has_value() && *height == 0)
         return {};
 

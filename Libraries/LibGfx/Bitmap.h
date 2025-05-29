@@ -12,6 +12,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/Rect.h>
 
 namespace Gfx {
@@ -64,11 +65,11 @@ struct BackingStore;
 
 class Bitmap : public AtomicRefCounted<Bitmap> {
 public:
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, AlphaType, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {});
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize, ExifOrientation = ExifOrientation::Default);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize, ExifOrientation = ExifOrientation::Default);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, AlphaType, IntSize, ExifOrientation = ExifOrientation::Default);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {}, ExifOrientation = ExifOrientation::Default);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize, ExifOrientation = ExifOrientation::Default);
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
 
@@ -102,10 +103,11 @@ public:
     [[nodiscard]] ARGB32 const* end() const;
     [[nodiscard]] size_t data_size() const;
 
-    [[nodiscard]] IntRect rect() const { return { {}, m_size }; }
-    [[nodiscard]] IntSize size() const { return m_size; }
-    [[nodiscard]] int width() const { return m_size.width(); }
-    [[nodiscard]] int height() const { return m_size.height(); }
+    [[nodiscard]] IntRect rect(ImageOrientation orientation = ImageOrientation::FromDecoded) const;
+    [[nodiscard]] IntSize size(ImageOrientation orientation = ImageOrientation::FromDecoded) const;
+    [[nodiscard]] int width(ImageOrientation orientation = ImageOrientation::FromDecoded) const;
+    [[nodiscard]] int height(ImageOrientation orientation = ImageOrientation::FromDecoded) const;
+    [[nodiscard]] ExifOrientation exif_orientation() const { return m_exif_orientation; }
 
     [[nodiscard]] size_t pitch() const { return m_pitch; }
 
@@ -118,7 +120,7 @@ public:
     void strip_alpha_channel();
 
     [[nodiscard]] static constexpr size_t size_in_bytes(size_t pitch, int height) { return pitch * height; }
-    [[nodiscard]] size_t size_in_bytes() const { return size_in_bytes(m_pitch, height()); }
+    [[nodiscard]] size_t size_in_bytes() const { return size_in_bytes(m_pitch, height(ImageOrientation::FromDecoded)); }
 
     [[nodiscard]] Color get_pixel(int physical_x, int physical_y) const;
     [[nodiscard]] Color get_pixel(IntPoint physical_position) const
@@ -143,9 +145,9 @@ public:
     void set_alpha_type_destructive(AlphaType);
 
 private:
-    Bitmap(BitmapFormat, AlphaType, IntSize, BackingStore const&);
-    Bitmap(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
-    Bitmap(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
+    Bitmap(BitmapFormat, AlphaType, IntSize, BackingStore const&, ExifOrientation);
+    Bitmap(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback, ExifOrientation);
+    Bitmap(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize, ExifOrientation);
 
     static ErrorOr<BackingStore> allocate_backing_store(BitmapFormat format, IntSize size);
 
@@ -156,6 +158,7 @@ private:
     AlphaType m_alpha_type { AlphaType::Premultiplied };
     Core::AnonymousBuffer m_buffer;
     Function<void()> m_destruction_callback;
+    ExifOrientation m_exif_orientation;
 };
 
 ALWAYS_INLINE u8* Bitmap::unchecked_scanline_u8(int y)
