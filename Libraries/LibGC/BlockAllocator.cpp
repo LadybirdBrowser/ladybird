@@ -1,9 +1,12 @@
 /*
  * Copyright (c) 2021-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Ryszard Goc <ryszardgoc@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
+#include <AK/Format.h>
 #include <AK/Platform.h>
 #include <AK/Random.h>
 #include <AK/Vector.h>
@@ -20,16 +23,28 @@
 #    define USE_FALLBACK_BLOCK_DEALLOCATION
 #endif
 
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#    include <memoryapi.h>
+#endif
+
 namespace GC {
 
 BlockAllocator::~BlockAllocator()
 {
     for (auto* block : m_blocks) {
         ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::block_size);
+#if !defined(AK_OS_WINDOWS)
         if (munmap(block, HeapBlock::block_size) < 0) {
             perror("munmap");
             VERIFY_NOT_REACHED();
         }
+#else
+        if (!VirtualFree(block, HeapBlock::block_size, MEM_RELEASE)) {
+            warnln("{}", Error::from_windows_error());
+            VERIFY_NOT_REACHED();
+        }
+#endif
     }
 }
 
@@ -44,8 +59,13 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
         return block;
     }
 
+#if !defined(AK_OS_WINDOWS)
     auto* block = (HeapBlock*)mmap(nullptr, HeapBlock::block_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     VERIFY(block != MAP_FAILED);
+#else
+    auto* block = (HeapBlock*)VirtualAlloc(NULL, HeapBlock::block_size, MEM_COMMIT, PAGE_READWRITE);
+    VERIFY(block);
+#endif
     LSAN_REGISTER_ROOT_REGION(block, HeapBlock::block_size);
     return block;
 }
@@ -54,7 +74,13 @@ void BlockAllocator::deallocate_block(void* block)
 {
     VERIFY(block);
 
-#if defined(USE_FALLBACK_BLOCK_DEALLOCATION)
+#if defined(AK_OS_WINDOWS)
+    DWORD ret = DiscardVirtualMemory(block, HeapBlock::block_size);
+    if (ret != ERROR_SUCCESS) {
+        warnln("{}", Error::from_windows_error(ret));
+        VERIFY_NOT_REACHED();
+    }
+#elif defined(USE_FALLBACK_BLOCK_DEALLOCATION)
     // If we can't use any of the nicer techniques, unmap and remap the block to return the physical pages while keeping the VM.
     if (munmap(block, HeapBlock::block_size) < 0) {
         perror("munmap");
