@@ -120,10 +120,11 @@ def main():
         print("ladybird.py must be run from a Visual Studio enabled environment", file=sys.stderr)
         sys.exit(1)
 
-    if args.target == "ladybird":
-        args.target = "Ladybird"
-    if not args.target and args.command not in ("build", "rebuild"):
-        args.target = "Ladybird"
+    if "target" in args:
+        if args.target == "ladybird":
+            args.target = "Ladybird"
+        if not args.target and args.command not in ("build", "rebuild"):
+            args.target = "Ladybird"
 
     (cc, cxx) = pick_host_compiler(platform, args.cc, args.cxx)
 
