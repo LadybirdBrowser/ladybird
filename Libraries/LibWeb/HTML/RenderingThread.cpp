@@ -26,8 +26,8 @@ RenderingThread::RenderingThread()
 
 RenderingThread::~RenderingThread()
 {
-    m_exit = true;
-    m_rendering_task_ready_wake_condition.signal();
+    // Note: Promise rejection is expected to signal the thread to exit.
+    m_main_thread_exit_promise->reject(Error::from_errno(ECANCELED));
     (void)m_thread->join();
 }
 
