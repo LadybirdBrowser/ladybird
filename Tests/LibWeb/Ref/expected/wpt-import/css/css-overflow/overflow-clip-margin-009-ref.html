@@ -1,0 +1,22 @@
+<!doctype html>
+<html class="reftest">
+<meta charset="utf-8">
+<title>Overflow-clip-margin can be inherited even if it has no effect on specified element</title>
+<link rel="help" href="https://www.w3.org/TR/css-overflow-3/#propdef-overflow-clip-margin">
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org">
+<style>
+.container {
+  width: 100px;
+  height: 100px;
+  overflow-clip-margin: 20px;
+  overflow: clip;
+}
+.child {
+  width: 200px;
+  height: 200px;
+  background: lightblue;
+}
+</style>
+<div class=container>
+  <div class=child></div>
+</div>

@@ -187,6 +187,14 @@ outline-color: rgb(0, 0, 0)
 outline-offset: 0px
 outline-style: none
 outline-width: 0px
+overflow-clip-margin-block-end: 0px
+overflow-clip-margin-block-start: 0px
+overflow-clip-margin-bottom: 0px
+overflow-clip-margin-inline-end: 0px
+overflow-clip-margin-inline-start: 0px
+overflow-clip-margin-left: 0px
+overflow-clip-margin-right: 0px
+overflow-clip-margin-top: 0px
 overflow-x: visible
 overflow-y: visible
 padding-block-end: 0px
