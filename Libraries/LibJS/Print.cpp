@@ -1038,7 +1038,7 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
     else if (value.is_undefined())
         TRY(js_out(print_context, "\033[34;1m"));
 
-    if (value.is_string())
+    if (value.is_string() && !print_context.disable_string_quotes)
         TRY(js_out(print_context, "\""));
     else if (value.is_negative_zero())
         TRY(js_out(print_context, "-"));
@@ -1049,7 +1049,7 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
     else
         TRY(js_out(print_context, "{}", contents));
 
-    if (value.is_string())
+    if (value.is_string() && !print_context.disable_string_quotes)
         TRY(js_out(print_context, "\""));
     TRY(js_out(print_context, "\033[0m"));
     return {};
