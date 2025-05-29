@@ -21,7 +21,7 @@ static auto s_builtin_search_engines = to_array<SearchEngine>({
     { "Yahoo"_string, "https://search.yahoo.com/search?p=%s"_string },
     { "Yandex"_string, "https://yandex.com/search/?text=%s"_string },
     { "Leta"_string, "https://leta.mullvad.net/search?q=%s"_string },
-    { "Qwant"_string, "https://www.qwant.com/?q=%s"_string }
+    { "Qwant"_string, "https://www.qwant.com/?q=%s"_string },
 });
 
 ReadonlySpan<SearchEngine> builtin_search_engines()
