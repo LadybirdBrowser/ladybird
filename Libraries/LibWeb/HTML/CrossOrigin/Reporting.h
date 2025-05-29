@@ -18,6 +18,6 @@ enum class AccessorAccessedRelationship {
     None,
 };
 
-void check_if_access_between_two_browsing_contexts_should_be_reported(BrowsingContext const& accessor, BrowsingContext const* accessed, JS::PropertyKey const&, EnvironmentSettingsObject const&);
+void check_if_access_between_two_browsing_contexts_should_be_reported(GC::Ptr<BrowsingContext const> accessor, GC::Ptr<BrowsingContext const> accessed, JS::PropertyKey const&, GC::Ref<EnvironmentSettingsObject const>);
 
 }

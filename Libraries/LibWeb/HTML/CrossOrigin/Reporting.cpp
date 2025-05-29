@@ -17,13 +17,13 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/origin.html#coop-check-access-report
 void check_if_access_between_two_browsing_contexts_should_be_reported(
-    BrowsingContext const& accessor,
-    BrowsingContext const* accessed,
+    GC::Ptr<BrowsingContext const> accessor,
+    GC::Ptr<BrowsingContext const> accessed,
     JS::PropertyKey const& property_key,
-    EnvironmentSettingsObject const& environment)
+    GC::Ref<EnvironmentSettingsObject const> environment)
 {
     // FIXME: Spec bug: https://github.com/whatwg/html/issues/10192
-    if (!accessed)
+    if (!accessor || !accessed)
         return;
 
     // 1. If propertyKey is not a cross-origin accessible window property name, then return.
@@ -31,15 +31,15 @@ void check_if_access_between_two_browsing_contexts_should_be_reported(
         return;
 
     // 2. Assert: accessor's active document and accessed's active document are both fully active.
-    VERIFY(accessor.active_document()->is_fully_active());
+    VERIFY(accessor->active_document()->is_fully_active());
     VERIFY(accessed->active_document()->is_fully_active());
 
     // 3. Let accessorTopDocument be accessor's top-level browsing context's active document.
-    auto* accessor_top_document = accessor.top_level_browsing_context()->active_document();
+    auto* accessor_top_document = accessor->top_level_browsing_context()->active_document();
 
     // 4. Let accessorInclusiveAncestorOrigins be the list obtained by taking the origin of the active document of each of accessor's active document's inclusive ancestor navigables.
     Vector<URL::Origin> accessor_inclusive_ancestor_origins = {};
-    auto accessor_inclusive_ancestors = accessor.active_document()->ancestor_navigables();
+    auto accessor_inclusive_ancestors = accessor->active_document()->ancestor_navigables();
     accessor_inclusive_ancestor_origins.ensure_capacity(accessor_inclusive_ancestors.size());
     for (auto const& ancestor : accessor_inclusive_ancestors) {
         VERIFY(ancestor != nullptr);
@@ -70,18 +70,18 @@ void check_if_access_between_two_browsing_contexts_should_be_reported(
             return;
 
     // 8. If accessor's top-level browsing context's virtual browsing context group ID is accessed's top-level browsing context's virtual browsing context group ID, then return.
-    if (accessor.top_level_browsing_context()->virtual_browsing_context_group_id() == accessed->top_level_browsing_context()->virtual_browsing_context_group_id())
+    if (accessor->top_level_browsing_context()->virtual_browsing_context_group_id() == accessed->top_level_browsing_context()->virtual_browsing_context_group_id())
         return;
 
     // 9. Let accessorAccessedRelationship be a new accessor-accessed relationship with value none.
     auto accessor_accessed_relationship = AccessorAccessedRelationship::None;
 
     // 10. If accessed's top-level browsing context's opener browsing context is accessor or is an ancestor of accessor, then set accessorAccessedRelationship to accessor is opener.
-    if (accessor.is_ancestor_of(*accessed->top_level_browsing_context()->opener_browsing_context()))
+    if (accessor->is_ancestor_of(*accessed->top_level_browsing_context()->opener_browsing_context()))
         accessor_accessed_relationship = AccessorAccessedRelationship::AccessorIsOpener;
 
     // 11. If accessor's top-level browsing context's opener browsing context is accessed or is an ancestor of accessed, then set accessorAccessedRelationship to accessor is openee.
-    if (accessed->is_ancestor_of(*accessor.top_level_browsing_context()->opener_browsing_context()))
+    if (accessed->is_ancestor_of(*accessor->top_level_browsing_context()->opener_browsing_context()))
         accessor_accessed_relationship = AccessorAccessedRelationship::AccessorIsOpener;
 
     // 12. Queue violation reports for accesses, given accessorAccessedRelationship, accessorTopDocument's opener policy, accessedTopDocument's opener policy, accessor's active document's URL, accessed's active document's URL, accessor's top-level browsing context's initial URL, accessed's top-level browsing context's initial URL, accessor's active document's origin, accessed's active document's origin, accessor's top-level browsing context's opener origin at creation, accessed's top-level browsing context's opener origin at creation, accessorTopDocument's referrer, accessedTopDocument's referrer, propertyKey, and environment.
