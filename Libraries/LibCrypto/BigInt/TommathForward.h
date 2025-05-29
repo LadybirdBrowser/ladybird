@@ -6,8 +6,15 @@
 
 #pragma once
 
+#include <AK/Platform.h>
+#include <stdint.h>
+
 extern "C" {
+#if defined(AK_OS_WINDOWS)
+typedef uint32_t mp_digit;
+#else
 typedef uint64_t mp_digit;
+#endif
 typedef int mp_sign;
 
 // This is a workaround for the fact that Tommath doesn't have a proper
