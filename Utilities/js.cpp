@@ -105,6 +105,21 @@ static ErrorOr<void> print(JS::Value value, PrintTarget target = PrintTarget::St
     return print(value, *stream);
 }
 
+static ErrorOr<void> print_all_arguments(JS::VM const& vm, PrintTarget target = PrintTarget::StandardOutput)
+{
+    auto stream = TRY(target == PrintTarget::StandardError ? Core::File::standard_error() : Core::File::standard_output());
+
+    for (size_t i = 0; i < vm.argument_count(); i++) {
+        TRY(print(vm.argument(i), *stream));
+
+        if (i < vm.argument_count() - 1) {
+            TRY(stream->write_until_depleted(" "sv));
+        }
+    }
+
+    return {};
+}
+
 static size_t s_ctrl_c_hit_count = 0;
 static ErrorOr<String> prompt_for_level(int level)
 {
@@ -397,9 +412,9 @@ JS_DEFINE_NATIVE_FUNCTION(ReplObject::load_json)
 
 JS_DEFINE_NATIVE_FUNCTION(ReplObject::print)
 {
-    auto result = ::print(vm.argument(0));
+    auto result = print_all_arguments(vm);
     if (result.is_error())
-        return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value: {}", result.error())));
+        return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value(s): {}", result.error())));
 
     outln();
 
@@ -429,9 +444,9 @@ JS_DEFINE_NATIVE_FUNCTION(ScriptObject::load_json)
 
 JS_DEFINE_NATIVE_FUNCTION(ScriptObject::print)
 {
-    auto result = ::print(vm.argument(0));
+    auto result = print_all_arguments(vm);
     if (result.is_error())
-        return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value: {}", result.error())));
+        return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value(s): {}", result.error())));
 
     outln();
 
