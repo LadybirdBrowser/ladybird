@@ -23,3 +23,7 @@ if (ENABLE_SWIFT)
     target_link_libraries(LibGC PRIVATE AK)
     add_swift_target_properties(LibGC LAGOM_LIBRARIES AK)
 endif()
+
+# TODO: Use lagom_generate_export_header and annotate entire LibGC with export macros
+include(GenerateExportHeader)
+generate_export_header(LibGC EXPORT_MACRO_NAME GC_API EXPORT_FILE_NAME "Export.h")
