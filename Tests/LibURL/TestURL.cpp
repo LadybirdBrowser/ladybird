@@ -263,6 +263,7 @@ TEST_CASE(equality)
     EXPECT_NE(URL::Parser::basic_parse("http://serenityos.org/index.html"sv), URL::Parser::basic_parse("http://serenityos.org/test.html"sv));
 }
 
+#ifndef AK_OS_WINDOWS
 TEST_CASE(create_with_file_scheme)
 {
     auto maybe_url = URL::create_with_file_scheme("/home/anon/README.md");
@@ -290,6 +291,42 @@ TEST_CASE(create_with_file_scheme)
     url = URL::Parser::basic_parse("file:///home/anon/"sv).value();
     EXPECT_EQ(url.serialize_path(), "/home/anon/");
 }
+#else
+TEST_CASE(create_with_file_scheme)
+{
+    // create_with_file_scheme doesn't work for Unix paths on Windows because it returns nothing if the path is not absolute
+    auto maybe_url = URL::create_with_file_scheme("C:\\home\\anon\\README.md");
+    EXPECT(maybe_url.has_value());
+    auto url = maybe_url.release_value();
+    EXPECT_EQ(url.scheme(), "file");
+    EXPECT_EQ(url.port_or_default(), 0);
+    EXPECT_EQ(url.path_segment_count(), 4u);
+    EXPECT_EQ(url.path_segment_at_index(0), "C:");
+    EXPECT_EQ(url.path_segment_at_index(1), "home");
+    EXPECT_EQ(url.path_segment_at_index(2), "anon");
+    EXPECT_EQ(url.path_segment_at_index(3), "README.md");
+    EXPECT_EQ(url.serialize_path(), "/C:/home/anon/README.md");
+    EXPECT_EQ(url.file_path(), "C:/home/anon/README.md");
+    EXPECT(!url.query().has_value());
+    EXPECT(!url.fragment().has_value());
+
+    maybe_url = URL::create_with_file_scheme("C:/home/anon/");
+    EXPECT(maybe_url.has_value());
+    url = maybe_url.release_value();
+    EXPECT_EQ(url.path_segment_count(), 4u);
+    EXPECT_EQ(url.path_segment_at_index(0), "C:");
+    EXPECT_EQ(url.path_segment_at_index(1), "home");
+    EXPECT_EQ(url.path_segment_at_index(2), "anon");
+    EXPECT_EQ(url.path_segment_at_index(3), "");
+    EXPECT_EQ(url.serialize_path(), "/C:/home/anon/");
+
+    url = URL::Parser::basic_parse("file://C:/home/anon/"sv).value();
+    EXPECT_EQ(url.serialize_path(), "/C:/home/anon/");
+
+    url = URL::Parser::basic_parse("file:///home/anon/"sv).value();
+    EXPECT_EQ(url.serialize_path(), "/home/anon/");
+}
+#endif
 
 TEST_CASE(complete_url)
 {
