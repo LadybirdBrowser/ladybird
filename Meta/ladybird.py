@@ -18,7 +18,6 @@ from typing import Optional
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from Meta.find_compiler import default_host_compiler
 from Meta.find_compiler import pick_host_compiler
 from Meta.host_platform import HostArchitecture
 from Meta.host_platform import HostSystem
@@ -29,7 +28,7 @@ from Toolchain.BuildVcpkg import build_vcpkg
 
 def main():
     platform = Platform()
-    (default_cc, default_cxx) = default_host_compiler(platform)
+    (default_cc, default_cxx) = platform.default_compiler()
 
     parser = argparse.ArgumentParser(description="Ladybird")
     subparsers = parser.add_subparsers(dest="command")
@@ -76,9 +75,7 @@ def main():
         help="Launches the application on the build host in a gdb or lldb session",
         parents=[preset_parser, target_parser],
     )
-    debug_parser.add_argument(
-        "--debugger", required=False, default="gdb" if platform.host_system == HostSystem.Linux else "lldb"
-    )
+    debug_parser.add_argument("--debugger", required=False, default=platform.default_debugger())
     debug_parser.add_argument(
         "-cmd", action="append", required=False, default=[], help="Additional commands passed through to the debugger"
     )
@@ -107,15 +104,7 @@ def main():
         help="Resolves the addresses in the target binary to a file:line",
         parents=[preset_parser, compiler_parser, target_parser],
     )
-    addr2line_parser.add_argument(
-        "--program",
-        required=False,
-        default=(
-            "llvm-symbolizer"
-            if platform.host_system == HostSystem.Windows
-            else "addr2line" if platform.host_system == HostSystem.Linux else "atos"
-        ),
-    )
+    addr2line_parser.add_argument("--program", required=False, default=platform.default_symbolizer())
     addr2line_parser.add_argument("addresses", nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
