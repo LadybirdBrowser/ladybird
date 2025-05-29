@@ -673,15 +673,15 @@ void ViewImplementation::do_not_track_changed()
     client().async_set_enable_do_not_track(page_id(), do_not_track == DoNotTrack::Yes);
 }
 
-static ErrorOr<LexicalPath> save_screenshot(Gfx::ShareableBitmap const& bitmap)
+static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
 {
-    if (!bitmap.is_valid())
+    if (!bitmap)
         return Error::from_string_literal("Failed to take a screenshot");
 
     auto file = Core::DateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
     auto path = TRY(Application::the().path_for_downloaded_file(file));
 
-    auto encoded = TRY(Gfx::PNGWriter::encode(*bitmap.bitmap()));
+    auto encoded = TRY(Gfx::PNGWriter::encode(*bitmap));
 
     auto dump_file = TRY(Core::File::open(path.string(), Core::File::OpenMode::Write));
     TRY(dump_file->write_until_depleted(encoded));
@@ -700,12 +700,10 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
         return promise;
     }
 
-    Gfx::ShareableBitmap bitmap;
-
     switch (type) {
     case ScreenshotType::Visible:
         if (auto* visible_bitmap = m_client_state.has_usable_bitmap ? m_client_state.front_bitmap.bitmap.ptr() : m_backup_bitmap.ptr()) {
-            if (auto result = save_screenshot(visible_bitmap->to_shareable_bitmap()); result.is_error())
+            if (auto result = save_screenshot(visible_bitmap); result.is_error())
                 promise->reject(result.release_error());
             else
                 promise->resolve(result.release_value());
@@ -742,7 +740,7 @@ void ViewImplementation::did_receive_screenshot(Badge<WebContentClient>, Gfx::Sh
 {
     VERIFY(m_pending_screenshot);
 
-    if (auto result = save_screenshot(screenshot); result.is_error())
+    if (auto result = save_screenshot(screenshot.bitmap()); result.is_error())
         m_pending_screenshot->reject(result.release_error());
     else
         m_pending_screenshot->resolve(result.release_value());
