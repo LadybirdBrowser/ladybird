@@ -1001,17 +1001,20 @@ void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
 
     auto& canvas = surface().canvas();
 
-    auto gutter_fill_color = Color(Color::NamedColor::WarmGray).with_alpha(192);
+    auto gutter_fill_color = command.track_color;
     SkPaint gutter_fill_paint;
     gutter_fill_paint.setColor(to_skia_color(gutter_fill_color));
     canvas.drawRect(gutter_rect, gutter_fill_paint);
 
-    auto thumb_fill_color = Color(Color::NamedColor::DarkGray).with_alpha(gutter_rect.isEmpty() ? 128 : 192);
+    auto thumb_fill_color = command.thumb_color;
+    if (command.gutter_rect.is_empty() && thumb_fill_color == CSS::InitialValues::scrollbar_color().thumb_color)
+        thumb_fill_color = thumb_fill_color.with_alpha(128);
+
     SkPaint thumb_fill_paint;
     thumb_fill_paint.setColor(to_skia_color(thumb_fill_color));
     canvas.drawRRect(thumb_rrect, thumb_fill_paint);
 
-    auto stroke_color = Color(Color::NamedColor::LightGray).with_alpha(128);
+    auto stroke_color = thumb_fill_color.lightened();
     SkPaint stroke_paint;
     stroke_paint.setStroke(true);
     stroke_paint.setStrokeWidth(1);

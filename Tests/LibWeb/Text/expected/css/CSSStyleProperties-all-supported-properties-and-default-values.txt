@@ -564,6 +564,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'rx': 'auto'
 'ry': 'auto'
 'scale': 'none'
+'scrollbarColor': 'auto'
+'scrollbar-color': 'auto'
 'scrollbarGutter': 'auto'
 'scrollbar-gutter': 'auto'
 'scrollbarWidth': 'auto'

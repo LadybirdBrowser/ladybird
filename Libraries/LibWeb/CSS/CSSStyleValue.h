@@ -130,6 +130,7 @@ public:
         Ratio,
         Rect,
         Resolution,
+        ScrollbarColor,
         ScrollbarGutter,
         Shadow,
         Shorthand,
@@ -324,6 +325,10 @@ public:
     bool is_resolution() const { return type() == Type::Resolution; }
     ResolutionStyleValue const& as_resolution() const;
     ResolutionStyleValue& as_resolution() { return const_cast<ResolutionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_resolution()); }
+
+    bool is_scrollbar_color() const { return type() == Type::ScrollbarColor; }
+    ScrollbarColorStyleValue const& as_scrollbar_color() const;
+    ScrollbarColorStyleValue& as_scrollbar_color() { return const_cast<ScrollbarColorStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_scrollbar_color()); }
 
     bool is_scrollbar_gutter() const { return type() == Type::ScrollbarGutter; }
     ScrollbarGutterStyleValue const& as_scrollbar_gutter() const;

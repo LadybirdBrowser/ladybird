@@ -405,6 +405,8 @@ struct PaintScrollBar {
     Gfx::IntRect gutter_rect;
     Gfx::IntRect thumb_rect;
     CSSPixelFraction scroll_size;
+    Color thumb_color;
+    Color track_color;
     bool vertical;
 
     void translate_by(Gfx::IntPoint const& offset)
