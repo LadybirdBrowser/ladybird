@@ -60,7 +60,7 @@ def main():
         "test", help="Runs the unit tests on the build host", parents=[preset_parser, compiler_parser]
     )
     test_parser.add_argument(
-        "--pattern", required=False, help="Limits the tests that are ran to those that match the regex pattern"
+        "pattern", nargs=argparse.OPTIONAL, help="Limits the tests that are run to those that match the regex pattern"
     )
 
     run_parser = subparsers.add_parser(
