@@ -11,7 +11,6 @@ import os
 import platform
 import re
 import shutil
-import subprocess
 import sys
 
 from pathlib import Path
@@ -24,6 +23,7 @@ from Meta.find_compiler import pick_host_compiler
 from Meta.host_platform import HostArchitecture
 from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
+from Meta.utils import run_command
 from Toolchain.BuildVcpkg import build_vcpkg
 
 
@@ -209,11 +209,7 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
 
     # FIXME: Improve error reporting for vcpkg install failures
     # https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/BuildInstructionsLadybird.md#unable-to-find-a-build-program-corresponding-to-ninja
-    try:
-        subprocess.check_call(config_args)
-    except subprocess.CalledProcessError as e:
-        print_process_stderr(e, "Unable to configure ladybird project")
-        sys.exit(1)
+    run_command(config_args, exit_on_failure=True)
 
     return build_preset_dir
 
@@ -289,22 +285,20 @@ def validate_cmake_version():
     # FIXME: This 3.25+ CMake version check may not be needed anymore due to vcpkg downloading a newer version
     cmake_install_message = "Please install CMake version 3.25 or newer."
 
-    try:
-        cmake_version_output = subprocess.check_output(["cmake", "--version"], text=True).strip()
+    cmake_version_output = run_command(["cmake", "--version"], return_output=True, exit_on_failure=True)
+    assert cmake_version_output
 
-        version_match = re.search(r"version\s+(\d+)\.(\d+)\.(\d+)?", cmake_version_output)
-        if version_match:
-            major = int(version_match.group(1))
-            minor = int(version_match.group(2))
-            patch = int(version_match.group(3))
-            if major < 3 or (major == 3 and minor < 25):
-                print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_install_message}", file=sys.stderr)
-                sys.exit(1)
-        else:
-            print(f"Unable to determine CMake version. {cmake_install_message}", file=sys.stderr)
-            sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f"CMake not found. {cmake_install_message}\n")
+    version_match = re.search(r"version\s+(\d+)\.(\d+)\.(\d+)?", cmake_version_output)
+    if not version_match:
+        print(f"Unable to determine CMake version. {cmake_install_message}", file=sys.stderr)
+        sys.exit(1)
+
+    major = int(version_match.group(1))
+    minor = int(version_match.group(2))
+    patch = int(version_match.group(3))
+
+    if major < 3 or (major == 3 and minor < 25):
+        print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_install_message}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -313,14 +307,11 @@ def ensure_ladybird_source_dir() -> Path:
     ladybird_source_dir = Path(ladybird_source_dir) if ladybird_source_dir else None
 
     if not ladybird_source_dir or not ladybird_source_dir.is_dir():
-        try:
-            top_dir = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-            ladybird_source_dir = Path(top_dir)
+        root_dir = run_command(["git", "rev-parse", "--show-toplevel"], return_output=True, exit_on_failure=True)
+        assert root_dir
 
-            os.environ["LADYBIRD_SOURCE_DIR"] = str(ladybird_source_dir)
-        except subprocess.CalledProcessError as e:
-            print_process_stderr(e, "Unable to determine LADYBIRD_SOURCE_DIR:")
-            sys.exit(1)
+        os.environ["LADYBIRD_SOURCE_DIR"] = root_dir
+        ladybird_source_dir = Path(root_dir)
 
     return ladybird_source_dir
 
@@ -340,11 +331,7 @@ def build_main(build_dir: Path, target: Optional[str] = None, args: list[str] = 
         build_args.append("--")
         build_args.extend(args)
 
-    try:
-        subprocess.check_call(build_args)
-    except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f"Unable to build Ladybird {f'target {target}' if target else 'project'}")
-        sys.exit(1)
+    run_command(build_args, exit_on_failure=True)
 
 
 def test_main(build_dir: Path, preset: str, pattern: Optional[str]):
@@ -360,11 +347,7 @@ def test_main(build_dir: Path, preset: str, pattern: Optional[str]):
     if pattern:
         test_args.extend(["-R", pattern])
 
-    try:
-        subprocess.check_call(test_args)
-    except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f"Unable to test Ladybird {f'pattern {pattern}' if pattern else 'project'}")
-        sys.exit(1)
+    run_command(test_args, exit_on_failure=True)
 
 
 def run_main(host_system: HostSystem, build_dir: Path, target: str, args: list[str]):
@@ -385,12 +368,7 @@ def run_main(host_system: HostSystem, build_dir: Path, target: str, args: list[s
 
     run_args.extend(args)
 
-    try:
-        # FIXME: For Windows, set the working directory so DLLs are found
-        subprocess.check_call(run_args)
-    except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f'Unable to run ladybird target "{target}"')
-        sys.exit(1)
+    run_command(run_args, exit_on_failure=True)
 
 
 def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: str, debugger_commands: list[str]):
@@ -408,12 +386,7 @@ def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: 
     else:
         gdb_args.append(str(build_dir.joinpath("bin", target)))
 
-    try:
-        # FIXME: For Windows, set the working directory so DLLs are found
-        subprocess.check_call(gdb_args)
-    except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f'Unable to run ladybird target "{target}" with "{debugger}" debugger')
-        sys.exit(1)
+    run_command(gdb_args, exit_on_failure=True)
 
 
 def clean_main(preset: str, cc: str, cxx: str):
@@ -447,16 +420,7 @@ def addr2line_main(build_dir, target: str, program: str, addresses: list[str]):
     ]
     addr2line_args.extend(addresses)
 
-    try:
-        subprocess.check_call(addr2line_args)
-    except subprocess.CalledProcessError as e:
-        print_process_stderr(e, f'Unable to find lines with "{program}" for binary target "{target}"')
-        sys.exit(1)
-
-
-def print_process_stderr(exception: subprocess.CalledProcessError, message: str):
-    details = f": {exception.stderr}" if exception.stderr else ""
-    print(f"{message}{details}", file=sys.stderr)
+    run_command(addr2line_args, exit_on_failure=True)
 
 
 if __name__ == "__main__":
