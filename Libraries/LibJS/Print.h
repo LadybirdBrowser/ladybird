@@ -17,6 +17,7 @@ struct PrintContext {
     JS::VM& vm;
     Stream& stream;
     bool strip_ansi { false };
+    bool disable_string_quotes { false };
 };
 
 ErrorOr<void> print(JS::Value value, PrintContext&);

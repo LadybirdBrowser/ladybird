@@ -85,6 +85,7 @@ static bool s_dump_ast = false;
 static bool s_as_module = false;
 static bool s_print_last_result = false;
 static bool s_strip_ansi = false;
+static bool s_disable_string_quotes = false;
 static bool s_disable_source_location_hints = false;
 #if !defined(AK_OS_WINDOWS)
 static RefPtr<Line::Editor> s_editor;
@@ -96,7 +97,7 @@ static int s_exit_code = 0;
 
 static ErrorOr<void> print(JS::Value value, Stream& stream)
 {
-    JS::PrintContext print_context { .vm = *g_vm, .stream = stream, .strip_ansi = s_strip_ansi };
+    JS::PrintContext print_context { .vm = *g_vm, .stream = stream, .strip_ansi = s_strip_ansi, .disable_string_quotes = s_disable_string_quotes };
     return JS::print(value, print_context);
 }
 
@@ -788,6 +789,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(s_disable_source_location_hints, "Disable source location hints", "disable-source-location-hints", 'h');
     args_parser.add_option(gc_on_every_allocation, "GC on every allocation", "gc-on-every-allocation", 'g');
     args_parser.add_option(disable_syntax_highlight, "Disable live syntax highlighting", "no-syntax-highlight", 's');
+    args_parser.add_option(s_disable_string_quotes, "Disable quotes around strings", "disable-string-quotes", {});
     args_parser.add_option(disable_debug_printing, "Disable debug output", "disable-debug-output", {});
     args_parser.add_option(evaluate_script, "Evaluate argument as a script", "evaluate", 'c', "script");
     args_parser.add_option(use_test262_global, "Use test262 global ($262)", "use-test262-global", {});
