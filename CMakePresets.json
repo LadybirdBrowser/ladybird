@@ -116,26 +116,6 @@
       ]
     },
     {
-      "hidden": true,
-      "name": "windows_msbuild",
-      "inherits": [
-        "default_base",
-        "windows"
-      ],
-      "generator": "Visual Studio 17 2022",
-      "toolset": "ClangCL"
-    },
-    {
-      "hidden": false,
-      "name": "windows_dev_msbuild",
-      "displayName": "Windows Development (ClangCL and MSBuild)",
-      "description": "Windows development build using MSBuild (experimental)",
-      "inherits": [
-        "windows_msbuild",
-        "windows_dev"
-      ]
-    },
-    {
       "name": "Distribution",
       "inherits": "default",
       "displayName": "Distribution Config",
@@ -254,16 +234,6 @@
       ]
     },
     {
-      "name": "windows_dev_msbuild",
-      "inherits": "windows",
-      "configurePreset": "windows_dev_msbuild",
-      "displayName": "Build",
-      "description": "Build the project",
-      "targets": [
-        "ALL_BUILD"
-      ]
-    },
-    {
       "name": "windows_dev_ninja",
       "inherits": "windows",
       "configurePreset": "windows_dev_ninja",
@@ -377,11 +347,6 @@
       "name": "windows_ci_ninja",
       "inherits": "default_windows",
       "configurePreset": "windows_ci_ninja"
-    },
-    {
-      "name": "windows_dev_msbuild",
-      "inherits": "default_windows",
-      "configurePreset": "windows_dev_msbuild"
     }
   ]
 }
