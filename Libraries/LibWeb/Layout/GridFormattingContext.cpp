@@ -351,6 +351,14 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
         }
     }
 
+    if (!placement_start.is_positioned() && placement_end.is_positioned() && !placement_end.is_span()) {
+        if (result.span == 0)
+            result.span = 1;
+        result.start = result.end - result.span;
+        if (result.start < 0)
+            result.start = 0;
+    }
+
     if (placement_start.is_positioned() && placement_end.is_positioned()) {
         if (result.start > result.end)
             swap(result.start, result.end);
