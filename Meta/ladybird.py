@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
-import multiprocessing
 import os
 import platform
 import re
@@ -45,6 +44,7 @@ def main():
     compiler_parser = argparse.ArgumentParser(add_help=False)
     compiler_parser.add_argument("--cc", required=False, default=default_cc)
     compiler_parser.add_argument("--cxx", required=False, default=default_cxx)
+    compiler_parser.add_argument("--jobs", "-j", required=False)
 
     target_parser = argparse.ArgumentParser(add_help=False)
     target_parser.add_argument("target", nargs=argparse.OPTIONAL)
@@ -126,10 +126,10 @@ def main():
 
     if args.command == "build":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.target, args.args)
+        build_main(build_dir, args.jobs, args.target, args.args)
     elif args.command == "test":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir)
+        build_main(build_dir, args.jobs)
         test_main(build_dir, args.preset, args.pattern)
     elif args.command == "run":
         if args.preset == "Sanitizer":
@@ -143,16 +143,16 @@ def main():
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.target)
+        build_main(build_dir, args.jobs, args.target)
         run_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "debug":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.target, args.args)
+        build_main(build_dir, args.jobs, args.target, args.args)
         debug_main(platform.host_system, build_dir, args.target, args.debugger, args.cmd)
     elif args.command == "install":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.target, args.args)
-        build_main(build_dir, "install", args.args)
+        build_main(build_dir, args.jobs, args.target, args.args)
+        build_main(build_dir, args.jobs, "install", args.args)
     elif args.command == "vcpkg":
         configure_build_env(args.preset)
         build_vcpkg()
@@ -161,10 +161,10 @@ def main():
     elif args.command == "rebuild":
         clean_main(args.preset)
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.target, args.args)
+        build_main(build_dir, args.jobs, args.target, args.args)
     elif args.command == "addr2line":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
-        build_main(build_dir, args.target)
+        build_main(build_dir, args.jobs, args.target)
         addr2line_main(build_dir, args.target, args.program, args.addresses)
 
 
@@ -297,14 +297,13 @@ def ensure_ladybird_source_dir() -> Path:
     return ladybird_source_dir
 
 
-def build_main(build_dir: Path, target: Optional[str] = None, args: list[str] = []):
-    build_args = [
-        "ninja",
-        "-C",
-        str(build_dir),
-        "-j",
-        os.environ.get("MAKEJOBS", str(multiprocessing.cpu_count())),
-    ]
+def build_main(build_dir: Path, jobs: str | None, target: Optional[str] = None, args: list[str] = []):
+    build_args = ["ninja", "-C", str(build_dir)]
+
+    if not jobs:
+        jobs = os.environ.get("MAKEJOBS", None)
+    if jobs:
+        build_args.extend(["-j", jobs])
 
     if target:
         build_args.append(target)
