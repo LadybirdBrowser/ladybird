@@ -11,7 +11,11 @@ endif()
 include("Meta/CMake/use_linker.cmake")
 
 if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET 14.0)
+    if (ENABLE_SWIFT)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET 15.0)
+    else()
+        set(CMAKE_OSX_DEPLOYMENT_TARGET 14.0)
+    endif()
 endif()
 
 # Pass additional information to vcpkg toolchain files if we are using vcpkg.
