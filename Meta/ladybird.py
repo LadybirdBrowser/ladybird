@@ -84,11 +84,9 @@ def main():
         "install", help="Installs the target binary", parents=[preset_parser, compiler_parser, target_parser]
     )
 
-    subparsers.add_parser(
-        "vcpkg", help="Ensure that dependencies are available", parents=[preset_parser, compiler_parser]
-    )
+    subparsers.add_parser("vcpkg", help="Ensure that dependencies are available", parents=[preset_parser])
 
-    subparsers.add_parser("clean", help="Cleans the build environment", parents=[preset_parser, compiler_parser])
+    subparsers.add_parser("clean", help="Cleans the build environment", parents=[preset_parser])
 
     rebuild_parser = subparsers.add_parser(
         "rebuild",
@@ -126,13 +124,11 @@ def main():
         if not args.target and args.command not in ("build", "rebuild"):
             args.target = "Ladybird"
 
-    (cc, cxx) = pick_host_compiler(platform, args.cc, args.cxx)
-
     if args.command == "build":
-        build_dir = configure_main(platform, args.preset, cc, cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.target, args.args)
     elif args.command == "test":
-        build_dir = configure_main(platform, args.preset, cc, cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir)
         test_main(build_dir, args.preset, args.pattern)
     elif args.command == "run":
@@ -146,46 +142,41 @@ def main():
             os.environ["UBSAN_OPTIONS"] = os.environ.get(
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
-        build_dir = configure_main(platform, args.preset, cc, cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.target)
         run_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "debug":
-        build_dir = configure_main(platform, args.preset, cc, cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.target, args.args)
         debug_main(platform.host_system, build_dir, args.target, args.debugger, args.cmd)
     elif args.command == "install":
-        build_dir = configure_main(platform, args.preset, cc, cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.target, args.args)
         build_main(build_dir, "install", args.args)
     elif args.command == "vcpkg":
-        configure_build_env(args.preset, cc, cxx)
+        configure_build_env(args.preset)
         build_vcpkg()
     elif args.command == "clean":
-        clean_main(args.preset, cc, cxx)
+        clean_main(args.preset)
     elif args.command == "rebuild":
-        clean_main(args.preset, cc, cxx)
-        build_dir = configure_main(platform, args.preset, cc, cxx)
+        clean_main(args.preset)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.target, args.args)
     elif args.command == "addr2line":
-        build_dir = configure_main(platform, args.preset, cc, cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.target)
         addr2line_main(build_dir, args.target, args.program, args.addresses)
 
 
 def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
-    ladybird_source_dir, build_preset_dir, build_env_cmake_args = configure_build_env(preset, cc, cxx)
+    ladybird_source_dir, build_preset_dir = configure_build_env(preset)
     build_vcpkg()
 
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
         return build_preset_dir
 
-    cmake_args = []
-
-    host_system = platform.host_system
-    if host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
-        cmake_args.extend(configure_skia_jemalloc())
-
     validate_cmake_version()
+    (cc, cxx) = pick_host_compiler(platform, cc, cxx)
 
     config_args = [
         "cmake",
@@ -195,9 +186,12 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         ladybird_source_dir,
         "-B",
         build_preset_dir,
+        f"-DCMAKE_C_COMPILER={cc}",
+        f"-DCMAKE_CXX_COMPILER={cxx}",
     ]
-    config_args.extend(build_env_cmake_args)
-    config_args.extend(cmake_args)
+
+    if platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
+        config_args.extend(configure_skia_jemalloc())
 
     # FIXME: Improve error reporting for vcpkg install failures
     # https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/BuildInstructionsLadybird.md#unable-to-find-a-build-program-corresponding-to-ninja
@@ -241,12 +235,7 @@ def configure_skia_jemalloc() -> list[str]:
     return cmake_args
 
 
-def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, list[str]]:
-    cmake_args = [
-        f"-DCMAKE_C_COMPILER={cc}",
-        f"-DCMAKE_CXX_COMPILER={cxx}",
-    ]
-
+def configure_build_env(preset: str) -> tuple[Path, Path]:
     ladybird_source_dir = ensure_ladybird_source_dir()
     build_root_dir = ladybird_source_dir / "Build"
 
@@ -266,11 +255,11 @@ def configure_build_env(preset: str, cc: str, cxx: str) -> tuple[Path, Path, lis
         sys.exit(1)
 
     vcpkg_root = str(build_root_dir / "vcpkg")
-    os.environ["VCPKG_ROOT"] = vcpkg_root
     os.environ["PATH"] += os.pathsep + str(ladybird_source_dir.joinpath("Toolchain", "Local", "cmake", "bin"))
-    os.environ["PATH"] += os.pathsep + str(vcpkg_root)
+    os.environ["PATH"] += os.pathsep + vcpkg_root
+    os.environ["VCPKG_ROOT"] = vcpkg_root
 
-    return ladybird_source_dir, build_preset_dir, cmake_args
+    return ladybird_source_dir, build_preset_dir
 
 
 def validate_cmake_version():
@@ -382,8 +371,8 @@ def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: 
     run_command(gdb_args, exit_on_failure=True)
 
 
-def clean_main(preset: str, cc: str, cxx: str):
-    ladybird_source_dir, build_preset_dir, _ = configure_build_env(preset, cc, cxx)
+def clean_main(preset: str):
+    ladybird_source_dir, build_preset_dir = configure_build_env(preset)
     shutil.rmtree(str(build_preset_dir), ignore_errors=True)
 
     user_vars_cmake_module = ladybird_source_dir.joinpath("Meta", "CMake", "vcpkg", "user-variables.cmake")
