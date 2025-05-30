@@ -61,10 +61,11 @@ runs:
       id: 'ccache-blacksmith'
       if: ${{ inputs.ccache_path != '' && startsWith(inputs.runner_label, 'blacksmith') }}
       with:
-          path: ${{ inputs.ccache_path }}
-          key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
-          restore-keys: |
-              "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+        path: ${{ inputs.ccache_path }}
+        key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        restore-keys: |
+          ccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ inputs.ccache_version }}
+          "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
 
     - name: 'Compiler Cache (GitHub runner)'
       uses: actions/cache/restore@v4
@@ -74,6 +75,7 @@ runs:
         path: ${{ inputs.ccache_path }}
         key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
         restore-keys: |
+          ccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ inputs.ccache_version }}
           "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
 
     - name: 'Configure Compiler Cache'
@@ -96,9 +98,10 @@ runs:
         path: ${{ inputs.vcpkg_cache_path }}
         key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
         restore-keys: |
+          vcpkg | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ inputs.ccache_version }}
           "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
 
-    - name: 'Compiler Cache (GitHub runner)'
+    - name: 'Restore vcpkg cache (GitHub runner)'
       uses: actions/cache/restore@v4
       if: ${{ inputs.ccache_path != '' && !startsWith(inputs.runner_label, 'blacksmith') }}
       id: 'vcpkg-gh'
@@ -106,8 +109,11 @@ runs:
         path: ${{ inputs.vcpkg_cache_path }}
         key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
         restore-keys: |
+          vcpkg | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ inputs.ccache_version }}
           "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
 
+    # FIXME: When all runners are using the useblacksmith/cache action and this step is removed, we should also be able
+    #        to remove the quoteless cache restore keys in the cache actions above.
     - name: 'Cache Outputs'
       id: 'cache-outputs'
       shell: bash
