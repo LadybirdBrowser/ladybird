@@ -118,6 +118,20 @@ find_package(harfbuzz REQUIRED)
 target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
             WebP::webpdemux WebP::libwebpmux skia harfbuzz)
 
+set(CMAKE_REQUIRED_LIBRARIES PNG::PNG)
+check_c_source_compiles([=[
+    #include <png.h>
+    #if !defined(PNG_APNG_SUPPORTED) || !defined(PNG_READ_APNG_SUPPORTED) || !defined(PNG_READ_APNG_SUPPORTED)
+    #error "APNG support is required"
+    #endif
+    int main() {}
+]=] LIBPNG_HAS_APNG)
+unset(CMAKE_REQUIRED_LIBRARIES)
+
+if (NOT LIBPNG_HAS_APNG)
+    message(FATAL_ERROR "libpng does not support APNG, which is required by LibGfx.")
+endif()
+
 if (NOT ANDROID)
     pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
     target_link_libraries(LibGfx PRIVATE PkgConfig::Jxl)
