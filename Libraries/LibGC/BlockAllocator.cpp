@@ -40,7 +40,7 @@ BlockAllocator::~BlockAllocator()
             VERIFY_NOT_REACHED();
         }
 #else
-        if (!VirtualFree(block, HeapBlock::block_size, MEM_RELEASE)) {
+        if (!VirtualFree(block, 0, MEM_RELEASE)) {
             warnln("{}", Error::from_windows_error());
             VERIFY_NOT_REACHED();
         }
