@@ -126,6 +126,17 @@ ErrorOr<ByteString> getcwd()
     return string_cwd;
 }
 
+ErrorOr<void> chdir(StringView path)
+{
+    if (path.is_null())
+        return Error::from_errno(EFAULT);
+
+    ByteString path_string = path;
+    if (::_chdir(path_string.characters()) < 0)
+        return Error::from_syscall("chdir"sv, errno);
+    return {};
+}
+
 ErrorOr<struct stat> stat(StringView path)
 {
     if (path.is_null())
