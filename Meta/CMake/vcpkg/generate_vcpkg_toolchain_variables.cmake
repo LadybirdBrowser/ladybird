@@ -17,6 +17,10 @@ if (LINUX AND NOT LAGOM_USE_LINKER)
     string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{LDFLAGS} -Wl,-z,noseparate-code)\n")
 endif()
 
+if (CMAKE_OSX_DEPLOYMENT_TARGET)
+    string(APPEND EXTRA_VCPKG_VARIABLES "set(VCPKG_OSX_DEPLOYMENT_TARGET ${CMAKE_OSX_DEPLOYMENT_TARGET})\n")
+endif()
+
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-vcpkg-variables.cmake" "${EXTRA_VCPKG_VARIABLES}")
 
 # Munge the VCPKG_TRIPLET to correspond to the right one for our presets

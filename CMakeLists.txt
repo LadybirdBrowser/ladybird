@@ -10,6 +10,10 @@ endif()
 # vcpkg flags depend on what linker we are using
 include("Meta/CMake/use_linker.cmake")
 
+if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 14.0)
+endif()
+
 # Pass additional information to vcpkg toolchain files if we are using vcpkg.
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake$")
     set(CMAKE_PROJECT_ladybird_INCLUDE_BEFORE "Meta/CMake/vcpkg/generate_vcpkg_toolchain_variables.cmake")
