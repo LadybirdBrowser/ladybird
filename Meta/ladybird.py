@@ -241,12 +241,11 @@ def configure_build_env(preset: str) -> tuple[Path, Path]:
 
     known_presets = {
         "default": build_root_dir / "release",
+        "Debug": build_root_dir / "debug",
+        "Distribution": build_root_dir / "distribution",
+        "Sanitizer": build_root_dir / "sanitizers",
         "windows_ci_ninja": build_root_dir / "release",
         "windows_dev_ninja": build_root_dir / "debug",
-        "windows_dev_msbuild": build_root_dir / "debug",
-        "Debug": build_root_dir / "debug",
-        "Sanitizer": build_root_dir / "sanitizers",
-        "Distribution": build_root_dir / "distribution",
     }
 
     build_preset_dir = known_presets.get(preset, None)
