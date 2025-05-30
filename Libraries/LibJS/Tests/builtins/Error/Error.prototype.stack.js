@@ -6,11 +6,11 @@ describe("getter - normal behavior", () => {
     test("basic functionality", () => {
         const stackFrames = [
             /^    at .*Error$/,
-            /^    at .+\/Error\/Error\.prototype\.stack\.js:\d+:\d+$/,
-            /^    at test \(.+\/test-common.js:\d+:\d+\)$/,
-            /^    at .+\/Error\/Error\.prototype\.stack\.js:6:9$/,
-            /^    at describe \(.+\/test-common\.js:\d+:\d+\)$/,
-            /^    at .+\/Error\/Error\.prototype\.stack\.js:5:9$/,
+            /^    at .+[\\/]Error[\\/]Error\.prototype\.stack\.js:\d+:\d+$/,
+            /^    at test \(.+[\\/]test-common\.js:\d+:\d+\)$/,
+            /^    at .+[\\/]Error[\\/]Error\.prototype\.stack\.js:6:9$/,
+            /^    at describe \(.+[\\/]test-common\.js:\d+:\d+\)$/,
+            /^    at .+[\\/]Error[\\/]Error\.prototype\.stack\.js:5:9$/,
         ];
         const values = [
             {

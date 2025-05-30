@@ -6,7 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/LexicalPath.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/Environment.h>
+#include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <signal.h>
@@ -36,19 +39,35 @@ using namespace Test::JS;
 
 static StringView g_program_name { "test-js"sv };
 
+static bool set_abort_action(void (*function)(int))
+{
+#if defined(AK_OS_WINDOWS)
+    auto rc = signal(SIGABRT, function);
+    if (rc == SIG_ERR) {
+        perror("sigaction");
+        return false;
+    }
+    return true;
+#else
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    act.sa_flags = 0;
+    act.sa_handler = function;
+    int rc = sigaction(SIGABRT, &act, nullptr);
+    if (rc < 0) {
+        perror("sigaction");
+        return false;
+    }
+    return true;
+#endif
+}
+
 static void handle_sigabrt(int)
 {
     dbgln("{}: SIGABRT received, cleaning up.", g_program_name);
     Test::cleanup();
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    act.sa_flags = 0;
-    act.sa_handler = SIG_DFL;
-    int rc = sigaction(SIGABRT, &act, nullptr);
-    if (rc < 0) {
-        perror("sigaction");
+    if (!set_abort_action(SIG_DFL))
         exit(1);
-    }
     abort();
 }
 
@@ -64,15 +83,8 @@ int main(int argc, char** argv)
     auto program_name = LexicalPath::basename(argv[0]);
     g_program_name = program_name;
 
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    act.sa_flags = 0;
-    act.sa_handler = handle_sigabrt;
-    int rc = sigaction(SIGABRT, &act, nullptr);
-    if (rc < 0) {
-        perror("sigaction");
+    if (!set_abort_action(handle_sigabrt))
         return 1;
-    }
 
 #ifdef SIGINFO
     signal(SIGINFO, [](int) {
@@ -128,7 +140,7 @@ int main(int argc, char** argv)
     if (test_globs.is_empty())
         test_globs.append("*"sv);
 
-    if (getenv("DISABLE_DBG_OUTPUT")) {
+    if (Core::Environment::has("DISABLE_DBG_OUTPUT"sv)) {
         AK::set_debug_enabled(false);
     }
 
@@ -137,13 +149,13 @@ int main(int argc, char** argv)
     if (!specified_test_root.is_empty()) {
         test_root = ByteString { specified_test_root };
     } else {
-        char* ladybird_source_dir = getenv("LADYBIRD_SOURCE_DIR");
-        if (!ladybird_source_dir) {
+        auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv);
+        if (!ladybird_source_dir.has_value()) {
             warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
             return 1;
         }
-        test_root = ByteString::formatted("{}/{}", ladybird_source_dir, g_test_root_fragment);
-        common_path = ByteString::formatted("{}/Libraries/LibJS/Tests/test-common.js", ladybird_source_dir);
+        test_root = LexicalPath::join(*ladybird_source_dir, g_test_root_fragment).string();
+        common_path = LexicalPath::join(*ladybird_source_dir, "Libraries"sv, "LibJS"sv, "Tests"sv, "test-common.js"sv).string();
     }
     if (!FileSystem::is_directory(test_root)) {
         warnln("Test root is not a directory: {}", test_root);
@@ -151,12 +163,12 @@ int main(int argc, char** argv)
     }
 
     if (common_path.is_empty()) {
-        char* ladybird_source_dir = getenv("LADYBIRD_SOURCE_DIR");
-        if (!ladybird_source_dir) {
+        auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv);
+        if (!ladybird_source_dir.has_value()) {
             warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
             return 1;
         }
-        common_path = ByteString::formatted("{}/Libraries/LibJS/Tests/test-common.js", ladybird_source_dir);
+        common_path = LexicalPath::join(*ladybird_source_dir, "Libraries"sv, "LibJS"sv, "Tests"sv, "test-common.js"sv).string();
     }
 
     auto test_root_or_error = FileSystem::real_path(test_root);
@@ -173,9 +185,8 @@ int main(int argc, char** argv)
     }
     common_path = common_path_or_error.release_value();
 
-    if (chdir(test_root.characters()) < 0) {
-        auto saved_errno = errno;
-        warnln("chdir failed: {}", strerror(saved_errno));
+    if (auto err = Core::System::chdir(test_root); err.is_error()) {
+        warnln("chdir failed: {}", err.error());
         return 1;
     }
 

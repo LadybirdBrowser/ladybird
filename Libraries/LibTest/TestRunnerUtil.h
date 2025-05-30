@@ -8,9 +8,12 @@
 
 #include <AK/Time.h>
 #include <LibCore/DirIterator.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/time.h>
+#include <LibFileSystem/FileSystem.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <fcntl.h>
+#    include <sys/stat.h>
+#endif
 
 namespace Test {
 
@@ -27,11 +30,15 @@ inline void iterate_directory_recursively(ByteString const& directory_path, Call
 
     while (directory_iterator.has_next()) {
         auto name = directory_iterator.next_path();
+        auto full_path = LexicalPath::join(directory_path, name).string();
+#if defined(AK_OS_WINDOWS)
+        bool is_directory = FileSystem::is_directory(full_path);
+#else
         struct stat st = {};
         if (fstatat(directory_iterator.fd(), name.characters(), &st, AT_SYMLINK_NOFOLLOW) < 0)
             continue;
         bool is_directory = S_ISDIR(st.st_mode);
-        auto full_path = ByteString::formatted("{}/{}", directory_path, name);
+#endif
         if (is_directory && name != "/Fixtures"sv) {
             iterate_directory_recursively(full_path, callback);
         } else if (!is_directory) {
