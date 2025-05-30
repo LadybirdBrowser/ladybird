@@ -310,14 +310,15 @@ def ensure_ladybird_source_dir() -> Path:
 
 def build_main(build_dir: Path, target: Optional[str] = None, args: list[str] = []):
     build_args = [
-        "cmake",
-        "--build",
+        "ninja",
+        "-C",
         str(build_dir),
-        "--parallel",
+        "-j",
         os.environ.get("MAKEJOBS", str(multiprocessing.cpu_count())),
     ]
+
     if target:
-        build_args.extend(["--target", target])
+        build_args.append(target)
 
     if args:
         build_args.append("--")
