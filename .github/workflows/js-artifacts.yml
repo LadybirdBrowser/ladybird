@@ -24,7 +24,7 @@ jobs:
         include:
           - os_name: 'macOS'
             arch: 'arm64'
-            package_type: 'macOS-universal2'
+            package_type: 'macOS-arm64'
             runner: 'macos-15'
 
     steps:
