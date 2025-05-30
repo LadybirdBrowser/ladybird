@@ -41,6 +41,11 @@ serenity_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
 serenity_option(ENABLE_STD_STACKTRACE OFF CACHE BOOL "Force use of std::stacktrace instead of libbacktrace. If it is not supported the build will fail")
 serenity_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets supported on Windows for CI")
 
+if (ENABLE_FUZZERS_LIBFUZZER)
+    # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
+    set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING "Type of target to use for try_compile()" FORCE)
+endif()
+
 if (ENABLE_SWIFT)
     include(${CMAKE_CURRENT_LIST_DIR}/Swift/swift-settings.cmake)
 endif()
