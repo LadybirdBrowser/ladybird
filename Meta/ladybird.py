@@ -73,11 +73,14 @@ def main():
     debug_parser = subparsers.add_parser(
         "debug",
         help="Launches the application on the build host in a gdb or lldb session",
-        parents=[preset_parser, target_parser],
+        parents=[preset_parser, compiler_parser, target_parser],
     )
     debug_parser.add_argument("--debugger", required=False, default=platform.default_debugger())
     debug_parser.add_argument(
         "-cmd", action="append", required=False, default=[], help="Additional commands passed through to the debugger"
+    )
+    debug_parser.add_argument(
+        "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
     )
 
     subparsers.add_parser(
