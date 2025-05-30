@@ -59,6 +59,7 @@ set(SOURCES
 )
 
 set(SWIFT_EXCLUDE_HEADERS
+    GlobalFontConfig.h
     MetalContext.h
     VulkanContext.h
     SkiaUtils.h
