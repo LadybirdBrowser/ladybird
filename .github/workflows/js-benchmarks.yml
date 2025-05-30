@@ -22,7 +22,7 @@ jobs:
           - os_name: 'macOS'
             runner: 'macos-15'
             arch: 'arm64'
-            package_type: 'macOS-universal2'
+            package_type: 'macOS-arm64'
 
     permissions:
       actions: read
