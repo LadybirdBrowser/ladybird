@@ -348,8 +348,8 @@ void StackingContext::paint(PaintContext& context) const
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
 
     auto const& filter = computed_values.filter();
-    if (!filter.is_empty()) {
-        context.display_list_recorder().apply_filters(paintable_box().computed_values().filter());
+    if (filter.has_value()) {
+        context.display_list_recorder().apply_filter(paintable_box().computed_values().filter().value());
     }
 
     if (auto mask_image = computed_values.mask_image()) {
@@ -375,7 +375,7 @@ void StackingContext::paint(PaintContext& context) const
     paint_internal(context);
     context.display_list_recorder().pop_scroll_frame_id();
 
-    if (!filter.is_empty()) {
+    if (filter.has_value()) {
         context.display_list_recorder().restore();
     }
 

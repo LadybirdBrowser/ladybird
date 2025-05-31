@@ -9,6 +9,8 @@ set(SOURCES
     Color.cpp
     ColorSpace.cpp
     Cursor.cpp
+    Filter.cpp
+    FilterSkia.cpp
     FontCascadeList.cpp
     Font/Font.cpp
     Font/FontData.cpp
