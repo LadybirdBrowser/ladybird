@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<head>
+     <link rel="match" href="../expected/ol-render-node-remove-ref.html" />
+</head>
+<html class="reftest-wait">
+<body>
+<ol id="ol1">
+    <li id="x1">X1</li>
+    <li>One</li>
+    <li>Two</li>
+</ol>
+<ol reversed id="ol2">
+    <li id="x2">X2</li>
+    <li>Two</li>
+    <li>One</li>
+</ol>
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const x1 = document.getElementById("x1");
+        x1.remove();
+
+        const x2 = document.getElementById("x2");
+        x2.remove();
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</body>
+</html>
