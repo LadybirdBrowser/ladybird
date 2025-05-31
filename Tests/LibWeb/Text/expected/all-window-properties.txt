@@ -424,6 +424,7 @@ TransformStream
 TransformStreamDefaultController
 TransitionEvent
 TreeWalker
+TrustedTypePolicyFactory
 TypeError
 UIEvent
 URIError
