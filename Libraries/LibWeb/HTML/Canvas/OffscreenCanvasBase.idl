@@ -1,0 +1,9 @@
+#import <DOM/EventTarget.idl>
+
+// https://html.spec.whatwg.org/multipage/canvas.html#offscreenrenderingcontext
+typedef (OffscreenCanvasRenderingContext2D or 
+         WebGLRenderingContext or 
+//FIXME: ImageBitmapRenderingContext or
+         WebGL2RenderingContext 
+//FIXME: GPUCanvasContext
+         ) OffscreenRenderingContext;
