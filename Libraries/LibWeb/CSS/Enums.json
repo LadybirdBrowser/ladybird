@@ -621,6 +621,12 @@
     "wrap",
     "nowrap"
   ],
+  "text-wrap-style": [
+    "auto",
+    "balance",
+    "stable",
+    "pretty"
+  ],
   "touch-action": [
     "auto",
     "manipulation",
