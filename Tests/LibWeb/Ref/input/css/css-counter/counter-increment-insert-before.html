@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/counter-increment-insert-before-ref.html" />
+<style>
+div > div::before { content: counter(item) ': '; }
+.Inc1 { counter-increment: item 1; }
+</style>
+
+<div id='parent'>
+    <div id='two' class='Inc1'>Two</div>
+    <div class='Inc1'>Three</div>
+</div>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+
+        const parent = document.getElementById('parent');
+        const two = document.getElementById('two');
+
+        const one = document.createElement('div');
+        one.innerHTML = 'One';
+        one.classList.add('Inc1');
+
+        parent.insertBefore( one, two );
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>

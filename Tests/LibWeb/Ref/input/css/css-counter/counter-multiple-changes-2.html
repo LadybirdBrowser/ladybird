@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/counter-multiple-changes-2-ref.html" />
+<style>
+div > div::before { content: counter(item) ': '; }
+
+.Res4 { counter-reset: item 4; }
+.Inc1 { counter-increment: item; }
+.Set8 { counter-set: item 8; }
+
+</style>
+
+<div id='zero'>
+    <div id='five'>Five</div>
+    <div id='six'>Six</div>
+    <div id='eight'>Eight</div>
+    <div id='nine' class='Inc1'>Eight</div>
+</div>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('zero' ).classList.toggle('Res4');
+        document.getElementById('five'  ).classList.toggle('Inc1');
+        document.getElementById('six'  ).classList.toggle('Inc1');
+        document.getElementById('eight').classList.toggle('Set8');
+        document.getElementById('nine' ).classList.toggle('Inc1');
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>
