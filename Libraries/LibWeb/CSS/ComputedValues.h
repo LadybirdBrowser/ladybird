@@ -358,10 +358,13 @@ struct ContentData {
         Normal,
         None,
         String,
+        Image,
     } type { Type::Normal };
 
     // FIXME: Data is a list of identifiers, strings and image values.
     String data {};
+    Optional<RefPtr<AbstractImageStyleValue const>> image {};
+
     Optional<String> alt_text {};
 };
 
@@ -771,6 +774,8 @@ protected:
         Vector<CounterData, 0> counter_increment;
         Vector<CounterData, 0> counter_reset;
         Vector<CounterData, 0> counter_set;
+
+        RefPtr<CSS::AbstractImageStyleValue const> content_image;
     } m_noninherited;
 };
 
