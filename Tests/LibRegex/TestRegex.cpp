@@ -1298,3 +1298,17 @@ TEST_CASE(optimizer_repeat_offset)
         Regex<ECMA262> re("\\/?\\??#?([\\/?#]|[\\uD800-\\uDBFF]|%[c-f][0-9a-f](%[89ab][0-9a-f]){0,2}(%[89ab]?)?|%[0-9a-f]?)$"sv);
     }
 }
+
+TEST_CASE(zero_width_backreference)
+{
+    {
+        // Ensure that a zero-width backreference will match correctly.
+        Regex<ECMA262> re("(a*)b\\1+", ECMAScriptFlags::Global);
+        auto result = re.match("baaac"sv);
+
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "b"sv);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), ""sv);
+    }
+}
