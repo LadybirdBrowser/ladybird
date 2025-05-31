@@ -165,6 +165,7 @@ public:
     ErrorOr<SECPxxxr1Point> compute_coordinate(UnsignedBigInteger scalar, SECPxxxr1Point point);
     ErrorOr<bool> verify(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature);
     ErrorOr<SECPxxxr1Signature> sign(ReadonlyBytes hash, UnsignedBigInteger private_key);
+    ErrorOr<bool> is_valid_point(SECPxxxr1Point pubkey, Optional<UnsignedBigInteger> private_key = {});
 
 protected:
     SECPxxxr1(char const* curve_name, size_t scalar_size)
