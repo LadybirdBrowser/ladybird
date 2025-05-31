@@ -35,6 +35,8 @@ public:
     UnsignedBigInteger const& public_exponent() const { return m_public_exponent; }
     size_t length() const { return m_length; }
 
+    ErrorOr<bool> is_valid() const;
+
     ErrorOr<ByteBuffer> export_as_der() const
     {
         ASN1::Encoder encoder;
@@ -87,6 +89,8 @@ public:
     UnsignedBigInteger const& exponent2() const { return m_exponent_2; }
     UnsignedBigInteger const& coefficient() const { return m_coefficient; }
     size_t length() const { return m_length; }
+
+    ErrorOr<bool> is_valid() const;
 
     ErrorOr<ByteBuffer> export_as_der() const
     {
@@ -196,9 +200,6 @@ public:
 
 protected:
     virtual ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx);
-
-    static ErrorOr<OpenSSL_PKEY> public_key_to_openssl_pkey(PublicKeyType const& public_key);
-    static ErrorOr<OpenSSL_PKEY> private_key_to_openssl_pkey(PrivateKeyType const& private_key);
 };
 
 ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind);
