@@ -2678,6 +2678,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
         auto const animation_name = computed_style->maybe_null_property(PropertyID::AnimationName);
         if (!animation_name)
             return OptionalNone {};
+        if (animation_name->is_keyword() && animation_name->to_keyword() == Keyword::None)
+            return OptionalNone {};
         if (animation_name->is_string())
             return animation_name->as_string().string_value().to_string();
         return animation_name->to_string(SerializationMode::Normal);
