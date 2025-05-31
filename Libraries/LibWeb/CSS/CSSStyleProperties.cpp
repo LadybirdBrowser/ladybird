@@ -1077,20 +1077,31 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(StringView prope
     // 3. Let value be the return value of invoking getPropertyValue() with property as argument.
     auto value = get_property_value(property_name);
 
-    // 4. Let removed be false.
-    bool removed = false;
+    Function<bool(PropertyID)> remove_declaration = [&](auto property_id) {
+        // 4. Let removed be false.
+        bool removed = false;
 
-    // FIXME: 5. If property is a shorthand property, for each longhand property longhand that property maps to:
-    //           1. If longhand is not a property name of a CSS declaration in the declarations, continue.
-    //           2. Remove that CSS declaration and let removed be true.
+        // 5. If property is a shorthand property, for each longhand property longhand that property maps to:
+        if (property_is_shorthand(property_id)) {
+            for (auto longhand_property_id : longhands_for_shorthand(property_id)) {
+                // 1. If longhand is not a property name of a CSS declaration in the declarations, continue.
+                // 2. Remove that CSS declaration and let removed be true.
+                removed |= remove_declaration(longhand_property_id);
+            }
+        } else {
+            // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations, remove that CSS declaration and let removed be true.
+            if (property_id == PropertyID::Custom) {
+                auto custom_name = FlyString::from_utf8_without_validation(property_name.bytes());
+                removed = m_custom_properties.remove(custom_name);
+            } else {
+                removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_id; });
+            }
+        }
 
-    // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations, remove that CSS declaration and let removed be true.
-    if (property_id == PropertyID::Custom) {
-        auto custom_name = FlyString::from_utf8_without_validation(property_name.bytes());
-        removed = m_custom_properties.remove(custom_name);
-    } else {
-        removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_id; });
-    }
+        return removed;
+    };
+
+    auto removed = remove_declaration(property_id.value());
 
     // 7. If removed is true, Update style attribute for the CSS declaration block.
     if (removed) {
