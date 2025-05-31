@@ -14,7 +14,6 @@
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/RSA.h>
-#include <LibCrypto/SecureRandom.h>
 
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
@@ -121,7 +120,7 @@ ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private,
     }
 }
 
-ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, IntegerType e)
+ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, UnsignedBigInteger e)
 {
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr)));
 
