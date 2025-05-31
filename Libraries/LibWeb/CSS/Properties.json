@@ -2937,12 +2937,28 @@
       "text-transform"
     ]
   },
+  "text-wrap": {
+    "inherited": true,
+    "initial": "wrap auto",
+    "longhands": [
+      "text-wrap-mode",
+      "text-wrap-style"
+    ]
+  },
   "text-wrap-mode": {
     "animation-type": "discrete",
     "inherited": true,
     "initial": "wrap",
     "valid-types": [
       "text-wrap-mode"
+    ]
+  },
+  "text-wrap-style": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "text-wrap-style"
     ]
   },
   "top": {
