@@ -65,8 +65,6 @@ WebIDL::ExceptionOr<GC::Root<WebIDL::ArrayBufferView>> Crypto::get_random_values
     if (JS::typed_array_byte_length(typed_array_record) > 65536)
         return WebIDL::QuotaExceededError::create(realm(), "array's byteLength may not be greater than 65536"_string);
 
-    // FIXME: Handle SharedArrayBuffers
-
     // 3. Overwrite all elements of array with cryptographically strong random values of the appropriate type.
     ::Crypto::fill_with_secure_random(array->viewed_array_buffer()->buffer().bytes().slice(array->byte_offset(), array->byte_length()));
 
