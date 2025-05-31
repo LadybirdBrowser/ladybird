@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	Property text-wrap value 'wrap'
+Pass	Property text-wrap value 'nowrap'
+Pass	Property text-wrap value 'auto'
+Pass	Property text-wrap value 'balance'
+Pass	Property text-wrap value 'stable'
+Pass	Property text-wrap value 'wrap auto'
+Pass	Property text-wrap value 'wrap balance'
+Pass	Property text-wrap value 'wrap stable'
+Pass	Property text-wrap value 'auto wrap'
+Pass	Property text-wrap value 'balance wrap'
+Pass	Property text-wrap value 'stable wrap'
+Pass	Property text-wrap value 'nowrap auto'
+Pass	Property text-wrap value 'nowrap balance'
+Pass	Property text-wrap value 'nowrap stable'
+Pass	Property text-wrap value 'auto nowrap'
+Pass	Property text-wrap value 'balance nowrap'
+Pass	Property text-wrap value 'stable nowrap'
