@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/VisibilityState.h>
+#include <LibWeb/Geolocation/GeolocationUpdateState.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWebView/Attribute.h>
@@ -119,6 +120,8 @@ endpoint WebContentServer
     select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) =|
 
     retrieved_clipboard_entries(u64 page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items) =|
+
+    geolocation_update(u64 page_id, u64 request_id, Web::Geolocation::GeolocationUpdateState state) =|
 
     toggle_media_play_state(u64 page_id) =|
     toggle_media_mute_state(u64 page_id) =|

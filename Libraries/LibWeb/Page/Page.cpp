@@ -51,6 +51,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
     visitor.visit(m_pending_clipboard_requests);
+    visitor.visit(m_geolocation_requests);
 }
 
 HTML::Navigable& Page::focused_navigable()
@@ -468,6 +469,29 @@ void Page::retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemC
 {
     if (auto request = m_pending_clipboard_requests.take(request_id); request.has_value())
         (*request)->function()(move(items));
+}
+
+u64 Page::request_geolocation(bool enable_high_accuracy, bool watch, GeolocationCallback callback)
+{
+    u64 request_id = m_next_geolocation_request_id++;
+    m_geolocation_requests.set(request_id, { watch, callback });
+    client().page_did_request_geolocation_watch(request_id, enable_high_accuracy);
+    return request_id;
+}
+
+void Page::stop_geolocation_watch(u64 request_id)
+{
+    m_geolocation_requests.remove(request_id);
+    client().page_did_stop_geolocation_watch(request_id);
+}
+
+void Page::geolocation_update(u64 request_id, Geolocation::GeolocationUpdateState state)
+{
+    if (auto request = m_geolocation_requests.get(request_id); request.has_value()) {
+        request->callback->function()(state);
+        if (!request->watch)
+            m_geolocation_requests.remove(request_id);
+    }
 }
 
 void Page::register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id)
