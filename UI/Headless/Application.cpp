@@ -6,6 +6,7 @@
 
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Utilities.h>
@@ -37,7 +38,6 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(dump_text, "Dump text and exit", "dump-text", 'T');
     args_parser.add_option(test_concurrency, "Maximum number of tests to run at once", "test-concurrency", 'j', "jobs");
     args_parser.add_option(python_executable_path, "Path to python3", "python-executable", 'P', "path");
-    args_parser.add_option(test_root_path, "Run tests in path", "run-tests", 'R', "test-root-path");
     args_parser.add_option(test_globs, "Only run tests matching the given glob", "filter", 'f', "glob");
     args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
     args_parser.add_option(dump_failed_ref_tests, "Dump screenshots of failing ref tests", "dump-failed-ref-tests", 'D');
@@ -48,6 +48,27 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(per_test_timeout_in_seconds, "Per-test timeout (default: 30)", "per-test-timeout", 't', "seconds");
     args_parser.add_option(width, "Set viewport width in pixels (default: 800)", "width", 'W', "pixels");
     args_parser.add_option(height, "Set viewport height in pixels (default: 600)", "height", 'H', "pixels");
+
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .help_string = "Run tests. If a path is provided, tests are loaded from that path. Otherwise, LADYBIRD_SOURCE_DIR must be set.",
+        .long_name = "run-tests",
+        .short_name = 'R',
+        .value_name = "test-root-path",
+        .accept_value = [&](StringView value) -> ErrorOr<bool> {
+            if (!value.is_empty()) {
+                test_root_path = value;
+                return true;
+            }
+
+            if (auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); ladybird_source_dir.has_value()) {
+                test_root_path = LexicalPath::join(*ladybird_source_dir, "Tests"sv, "LibWeb"sv).string();
+                return true;
+            }
+
+            return false;
+        },
+    });
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
