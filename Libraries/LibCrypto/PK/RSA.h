@@ -34,7 +34,6 @@ public:
     UnsignedBigInteger const& modulus() const { return m_modulus; }
     UnsignedBigInteger const& public_exponent() const { return m_public_exponent; }
     size_t length() const { return m_length; }
-    void set_length(size_t length) { m_length = length; }
 
     ErrorOr<ByteBuffer> export_as_der() const
     {
@@ -46,13 +45,6 @@ public:
         }));
 
         return encoder.finish();
-    }
-
-    void set(UnsignedBigInteger n, UnsignedBigInteger e)
-    {
-        m_modulus = move(n);
-        m_public_exponent = move(e);
-        m_length = m_modulus.byte_length();
     }
 
 private:
@@ -157,7 +149,7 @@ public:
     RSA(PrivateKeyType const& privkey)
     {
         m_private_key = privkey;
-        m_public_key.set(m_private_key.modulus(), m_private_key.public_exponent());
+        m_public_key = RSAPublicKey(m_private_key.modulus(), m_private_key.public_exponent());
     }
 
     RSA(PublicKeyType const& pubkey)
@@ -174,7 +166,7 @@ public:
     RSA(StringView privKeyPEM)
     {
         import_private_key(privKeyPEM.bytes());
-        m_public_key.set(m_private_key.modulus(), m_private_key.public_exponent());
+        m_public_key = RSAPublicKey(m_private_key.modulus(), m_private_key.public_exponent());
     }
 
     virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) override;
