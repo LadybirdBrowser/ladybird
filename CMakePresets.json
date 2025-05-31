@@ -30,14 +30,23 @@
       }
     },
     {
+      "name": "default",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "inherits": "default_base"
+    },
+    {
       "hidden": true,
-      "name": "windows",
-      "description": "Visual Studio IDE config (experimental)",
+      "name": "windows_base",
+      "inherits": "default",
+      "description": "Visual Studio via Clang/LLVM Toolchain",
       "architecture": {
         "value": "x64",
         "strategy": "external"
       },
       "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl",
         "ENABLE_QT": "OFF",
         "ENABLE_GUI_TARGETS": "OFF"
       },
@@ -51,69 +60,6 @@
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       }
-    },
-    {
-      "hidden": true,
-      "name": "windows_ci",
-      "binaryDir": "${fileDir}/Build/release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "ENABLE_WINDOWS_CI": "ON"
-      }
-    },
-    {
-      "hidden": true,
-      "name": "windows_dev",
-      "binaryDir": "${fileDir}/Build/debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "ENABLE_WINDOWS_CI": "OFF"
-      }
-    },
-    {
-      "name": "default",
-      "description": "Default build using Ninja generator",
-      "generator": "Ninja",
-      "inherits": "default_base",
-      "condition": {
-        "type": "notEquals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-
-    {
-      "hidden": true,
-      "name": "windows_ninja",
-      "inherits": [
-        "default_base",
-        "windows"
-      ],
-      "generator": "Ninja",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-cl",
-        "CMAKE_CXX_COMPILER": "clang-cl"
-      }
-    },
-    {
-      "hidden": false,
-      "name": "windows_ci_ninja",
-      "displayName": "Windows Continuous Integration (ClangCL and Ninja)",
-      "description": "Windows continuous integration build using Ninja (experimental)",
-      "inherits": [
-        "windows_ninja",
-        "windows_ci"
-      ]
-    },
-    {
-      "hidden": false,
-      "name": "windows_dev_ninja",
-      "displayName": "Windows Development (ClangCL and Ninja)",
-      "description": "Windows development build using Ninja (experimental)",
-      "inherits": [
-        "windows_ninja",
-        "windows_dev"
-      ]
     },
     {
       "name": "Distribution",
@@ -136,6 +82,18 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
+      }
+    },
+    {
+      "hidden": false,
+      "name": "Windows_Experimental",
+      "inherits": "windows_base",
+      "displayName": "Windows Experimental Config",
+      "description": "Experimental windows configuration that builds all targets, allowing for gradual increase in support",
+      "binaryDir": "${fileDir}/Build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_WINDOWS_CI": "OFF"
       }
     },
     {
@@ -162,6 +120,17 @@
         "default"
       ],
       "displayName": "Non-Sanitizer CI Config"
+    },
+    {
+      "hidden": false,
+      "name": "Windows_CI",
+      "inherits": "windows_base",
+      "displayName": "Windows CI Config",
+      "binaryDir": "${fileDir}/Build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "ENABLE_WINDOWS_CI": "ON"
+      }
     },
     {
       "name": "Distribution_CI",
@@ -234,9 +203,9 @@
       ]
     },
     {
-      "name": "windows_dev_ninja",
+      "name": "Windows_Experimental",
       "inherits": "windows",
-      "configurePreset": "windows_dev_ninja",
+      "configurePreset": "Windows_Experimental",
       "displayName": "Build",
       "description": "Build the project",
       "targets": [
@@ -244,9 +213,9 @@
       ]
     },
     {
-      "name": "windows_ci_ninja",
+      "name": "Windows_CI",
       "inherits": "windows",
-      "configurePreset": "windows_ci_ninja",
+      "configurePreset": "Windows_CI",
       "displayName": "Build",
       "description": "Build the project",
       "targets": [
@@ -339,14 +308,14 @@
       "configurePreset": "Distribution"
     },
     {
-      "name": "windows_dev_ninja",
+      "name": "Windows_Experimental",
       "inherits": "default_windows",
-      "configurePreset": "windows_dev_ninja"
+      "configurePreset": "Windows_Experimental"
     },
     {
-      "name": "windows_ci_ninja",
+      "name": "Windows_CI",
       "inherits": "default_windows",
-      "configurePreset": "windows_ci_ninja"
+      "configurePreset": "Windows_CI"
     }
   ]
 }
