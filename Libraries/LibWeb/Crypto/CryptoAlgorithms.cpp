@@ -233,7 +233,7 @@ static WebIDL::ExceptionOr<::Crypto::Certificate::PrivateKey> parse_a_private_ke
     return parse_an_ASN1_structure<::Crypto::Certificate::PrivateKey>(realm, bytes, true);
 }
 
-static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey<>> parse_jwk_rsa_private_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
+static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> parse_jwk_rsa_private_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
 {
     auto n = TRY(base64_url_uint_decode(realm, *jwk.n));
     auto d = TRY(base64_url_uint_decode(realm, *jwk.d));
@@ -241,7 +241,7 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey<>> parse_jwk_rsa_private_
 
     // We know that if any of the extra parameters are provided, all of them must be
     if (!jwk.p.has_value())
-        return ::Crypto::PK::RSAPrivateKey<>(move(n), move(d), move(e));
+        return ::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e));
 
     auto p = TRY(base64_url_uint_decode(realm, *jwk.p));
     auto q = TRY(base64_url_uint_decode(realm, *jwk.q));
@@ -249,15 +249,15 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey<>> parse_jwk_rsa_private_
     auto dq = TRY(base64_url_uint_decode(realm, *jwk.dq));
     auto qi = TRY(base64_url_uint_decode(realm, *jwk.qi));
 
-    return ::Crypto::PK::RSAPrivateKey<>(move(n), move(d), move(e), move(p), move(q), move(dp), move(dq), move(qi));
+    return ::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e), move(p), move(q), move(dp), move(dq), move(qi));
 }
 
-static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey<>> parse_jwk_rsa_public_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
+static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> parse_jwk_rsa_public_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
 {
     auto e = TRY(base64_url_uint_decode(realm, *jwk.e));
     auto n = TRY(base64_url_uint_decode(realm, *jwk.n));
 
-    return ::Crypto::PK::RSAPublicKey<>(move(n), move(e));
+    return ::Crypto::PK::RSAPublicKey(move(n), move(e));
 }
 
 static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
@@ -667,7 +667,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
     auto const& label = normalized_algorithm.label;
 
     auto const& handle = key->handle();
-    auto public_key = handle.get<::Crypto::PK::RSAPublicKey<>>();
+    auto public_key = handle.get<::Crypto::PK::RSAPublicKey>();
     auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the encryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA public key,
@@ -716,7 +716,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
     auto const& label = normalized_algorithm.label;
 
     auto const& handle = key->handle();
-    auto private_key = handle.get<::Crypto::PK::RSAPrivateKey<>>();
+    auto private_key = handle.get<::Crypto::PK::RSAPrivateKey>();
     auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the decryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA private key,
@@ -1055,12 +1055,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
     // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
     // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
     TRY(key->handle().visit(
-        [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> WebIDL::ExceptionOr<void> {
+        [&](::Crypto::PK::RSAPublicKey const& public_key) -> WebIDL::ExceptionOr<void> {
             algorithm->set_modulus_length(public_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(public_key.public_exponent()));
             return {};
         },
-        [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> WebIDL::ExceptionOr<void> {
+        [&](::Crypto::PK::RSAPrivateKey const& private_key) -> WebIDL::ExceptionOr<void> {
             algorithm->set_modulus_length(private_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(private_key.public_exponent()));
             return {};
@@ -1104,7 +1104,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
         // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
         //   that represents the RSA public key represented by the [[handle]] internal slot of key
         auto maybe_data = handle.visit(
-            [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
+            [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
             [](auto) -> ErrorOr<ByteBuffer> {
@@ -1131,7 +1131,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
         // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
         // that represents the RSA private key represented by the [[handle]] internal slot of key
         auto maybe_data = handle.visit(
-            [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
+            [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
             [](auto) -> ErrorOr<ByteBuffer> {
@@ -1185,12 +1185,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
 
         // 10. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
         auto maybe_error = handle.visit(
-            [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<void> {
+            [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<void> {
                 jwk.n = TRY(base64_url_uint_encode(public_key.modulus()));
                 jwk.e = TRY(base64_url_uint_encode(public_key.public_exponent()));
                 return {};
             },
-            [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<void> {
+            [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<void> {
                 jwk.n = TRY(base64_url_uint_encode(private_key.modulus()));
                 jwk.e = TRY(base64_url_uint_encode(private_key.public_exponent()));
 
@@ -1319,7 +1319,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(AlgorithmParams const
     if (key->type() != Bindings::KeyType::Private)
         return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
 
-    auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey<>>();
+    auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey>();
     auto pss_params = static_cast<RsaPssParams const&>(params);
     auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
@@ -1365,7 +1365,7 @@ WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(AlgorithmParams const& params, GC:
     if (key->type() != Bindings::KeyType::Public)
         return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
 
-    auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey<>>();
+    auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey>();
     auto pss_params = static_cast<RsaPssParams const&>(params);
     auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
@@ -1633,12 +1633,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
     // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
     // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
     TRY(key->handle().visit(
-        [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> WebIDL::ExceptionOr<void> {
+        [&](::Crypto::PK::RSAPublicKey const& public_key) -> WebIDL::ExceptionOr<void> {
             algorithm->set_modulus_length(public_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(public_key.public_exponent()));
             return {};
         },
-        [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> WebIDL::ExceptionOr<void> {
+        [&](::Crypto::PK::RSAPrivateKey const& private_key) -> WebIDL::ExceptionOr<void> {
             algorithm->set_modulus_length(private_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(private_key.public_exponent()));
             return {};
@@ -1682,7 +1682,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
         // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
         //   that represents the RSA public key represented by the [[handle]] internal slot of key
         auto maybe_data = handle.visit(
-            [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
+            [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
             [](auto) -> ErrorOr<ByteBuffer> {
@@ -1709,7 +1709,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
         // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
         // that represents the RSA private key represented by the [[handle]] internal slot of key
         auto maybe_data = handle.visit(
-            [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
+            [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
             [](auto) -> ErrorOr<ByteBuffer> {
@@ -1763,13 +1763,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
 
         // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
         auto maybe_error = handle.visit(
-            [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<void> {
+            [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<void> {
                 jwk.n = TRY(base64_url_uint_encode(public_key.modulus()));
                 jwk.e = TRY(base64_url_uint_encode(public_key.public_exponent()));
                 return {};
             },
             // 6. If the [[type]] internal slot of key is "private":
-            [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<void> {
+            [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<void> {
                 jwk.n = TRY(base64_url_uint_encode(private_key.modulus()));
                 jwk.e = TRY(base64_url_uint_encode(private_key.public_exponent()));
 
@@ -1898,7 +1898,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(AlgorithmParams 
     if (key->type() != Bindings::KeyType::Private)
         return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
 
-    auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey<>>();
+    auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey>();
     auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the signature generation operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
@@ -1941,7 +1941,7 @@ WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(AlgorithmParams const&, GC::R
     if (key->type() != Bindings::KeyType::Public)
         return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
 
-    auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey<>>();
+    auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey>();
     auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 2. Perform the signature verification operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
@@ -2204,12 +2204,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
     // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
     // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
     TRY(key->handle().visit(
-        [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> WebIDL::ExceptionOr<void> {
+        [&](::Crypto::PK::RSAPublicKey const& public_key) -> WebIDL::ExceptionOr<void> {
             algorithm->set_modulus_length(public_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(public_key.public_exponent()));
             return {};
         },
-        [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> WebIDL::ExceptionOr<void> {
+        [&](::Crypto::PK::RSAPrivateKey const& private_key) -> WebIDL::ExceptionOr<void> {
             algorithm->set_modulus_length(private_key.modulus().byte_length() * 8);
             TRY(algorithm->set_public_exponent(private_key.public_exponent()));
             return {};
@@ -2253,7 +2253,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
         // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
         //   that represents the RSA public key represented by the [[handle]] internal slot of key
         auto maybe_data = handle.visit(
-            [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
+            [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
             [](auto) -> ErrorOr<ByteBuffer> {
@@ -2280,7 +2280,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
         // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
         // that represents the RSA private key represented by the [[handle]] internal slot of key
         auto maybe_data = handle.visit(
-            [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
+            [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
             [](auto) -> ErrorOr<ByteBuffer> {
@@ -2334,13 +2334,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
 
         // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
         auto maybe_error = handle.visit(
-            [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<void> {
+            [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<void> {
                 jwk.n = TRY(base64_url_uint_encode(public_key.modulus()));
                 jwk.e = TRY(base64_url_uint_encode(public_key.public_exponent()));
                 return {};
             },
             // 6. If the [[type]] internal slot of key is "private":
-            [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<void> {
+            [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<void> {
                 jwk.n = TRY(base64_url_uint_encode(private_key.modulus()));
                 jwk.e = TRY(base64_url_uint_encode(private_key.public_exponent()));
 
@@ -3741,7 +3741,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
 
     auto public_key_data = maybe_public_key_data.release_value();
-    auto ec_public_key = ::Crypto::PK::ECPublicKey<> { public_key_data };
+    auto ec_public_key = ::Crypto::PK::ECPublicKey { public_key_data };
 
     // 7. Let algorithm be a new EcKeyAlgorithm object.
     auto algorithm = EcKeyAlgorithm::create(m_realm);
@@ -3768,7 +3768,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
 
     // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-    auto ec_private_key = ::Crypto::PK::ECPrivateKey<> { private_key_data, public_key_data.size, {}, ec_public_key };
+    auto ec_private_key = ::Crypto::PK::ECPrivateKey { private_key_data, public_key_data.size, {}, ec_public_key };
     auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_private_key });
 
     // 16. Set the [[type]] internal slot of privateKey to "private"
@@ -3824,7 +3824,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
     auto M = TRY_OR_THROW_OOM(vm, ByteBuffer::copy(digest.immutable_data(), hash.digest_size()));
 
     // 4. Let d be the ECDSA private key associated with key.
-    auto d = key->handle().get<::Crypto::PK::ECPrivateKey<>>();
+    auto d = key->handle().get<::Crypto::PK::ECPrivateKey>();
 
     // FIXME: 5. Let params be the EC domain parameters associated with key.
 
@@ -3920,7 +3920,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
     auto M = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(digest.immutable_data(), hash.digest_size()));
 
     // 4. Let Q be the ECDSA public key associated with key.
-    auto Q = key->handle().get<::Crypto::PK::ECPublicKey<>>();
+    auto Q = key->handle().get<::Crypto::PK::ECPublicKey>();
 
     // FIXME: 5. Let params be the EC domain parameters associated with key.
 
@@ -4063,7 +4063,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
         TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
             auto maybe_valid = key->handle().visit(
                 [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
-                [&](::Crypto::PK::ECPublicKey<> const& public_key) {
+                [&](::Crypto::PK::ECPublicKey const& public_key) {
                     return instance.is_valid_point(public_key.to_secpxxxr1_point());
                 });
             if (maybe_valid.is_error())
@@ -4181,7 +4181,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
         TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
             auto maybe_valid = key->handle().visit(
                 [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
-                [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<bool> {
+                [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<bool> {
                     if (!private_key.public_key().has_value())
                         return true;
 
@@ -4320,7 +4320,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
             if (y_bytes.size() != coord_size)
                 return WebIDL::DataError::create(m_realm, "Invalid key size"_string);
 
-            auto public_key = ::Crypto::PK::ECPublicKey<> {
+            auto public_key = ::Crypto::PK::ECPublicKey {
                 ::Crypto::UnsignedBigInteger::import_data(x_bytes),
                 ::Crypto::UnsignedBigInteger::import_data(y_bytes),
                 coord_size,
@@ -4339,7 +4339,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
 
                 // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
                 //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
-                auto private_key = ::Crypto::PK::ECPrivateKey<> {
+                auto private_key = ::Crypto::PK::ECPrivateKey {
                     ::Crypto::UnsignedBigInteger::import_data(d_bytes),
                     coord_size,
                     {},
@@ -4381,10 +4381,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
         TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
             auto maybe_valid = key->handle().visit(
                 [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
-                [&](::Crypto::PK::ECPublicKey<> const& public_key) {
+                [&](::Crypto::PK::ECPublicKey const& public_key) {
                     return instance.is_valid_point(public_key.to_secpxxxr1_point());
                 },
-                [&](::Crypto::PK::ECPrivateKey<> const& private_key) {
+                [&](::Crypto::PK::ECPrivateKey const& private_key) {
                     return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
                 });
             if (maybe_valid.is_error())
@@ -4507,7 +4507,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             //      Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
             // NOTE: everything above happens in wrap_in_subject_public_key_info
             auto maybe_data = handle.visit(
-                [&](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
+                [&](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                     auto public_key_bytes = TRY(public_key.to_uncompressed());
 
                     Span<int const> ec_params;
@@ -4576,7 +4576,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             //          Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
             // NOTE: everything above happens in wrap_in_private_key_info
             auto maybe_data = handle.visit(
-                [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
+                [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<ByteBuffer> {
                     Span<int const> ec_params;
                     if (algorithm.named_curve() == "P-256"sv)
                         ec_params = ::Crypto::ASN1::secp256r1_oid;
@@ -4638,7 +4638,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             }
 
             auto maybe_error = handle.visit(
-                [&](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<void> {
+                [&](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<void> {
                     // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
                     auto x_bytes = TRY(public_key.x_bytes());
                     jwk.x = TRY(encode_base64url(x_bytes, AK::OmitPadding::Yes));
@@ -4649,7 +4649,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
 
                     return {};
                 },
-                [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
+                [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<void> {
                     Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
                     if (algorithm.named_curve() == "P-256"sv)
                         curve = ::Crypto::Curves::SECP256r1 {};
@@ -4686,7 +4686,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             // 4. If the [[type]] internal slot of key is "private"
             if (key->type() == Bindings::KeyType::Private) {
                 auto maybe_error = handle.visit(
-                    [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
+                    [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<void> {
                         // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
                         auto d_bytes = TRY(private_key.d_bytes());
                         jwk.d = TRY(encode_base64url(d_bytes, AK::OmitPadding::Yes));
@@ -4737,7 +4737,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             // Let data be an octet string representing the Elliptic Curve point Q represented by [[handle]] internal slot
             // of key according to [SEC1] 2.3.3 using the uncompressed format.
             auto maybe_data = handle.visit(
-                [](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
+                [](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                     return public_key.to_uncompressed();
                 },
                 [](auto) -> ErrorOr<ByteBuffer> {
@@ -4822,7 +4822,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
 
     auto public_key_data = maybe_public_key_data.release_value();
-    auto ec_public_key = ::Crypto::PK::ECPublicKey<> { public_key_data };
+    auto ec_public_key = ::Crypto::PK::ECPublicKey { public_key_data };
 
     // 4. Let algorithm be a new EcKeyAlgorithm object.
     auto algorithm = EcKeyAlgorithm::create(m_realm);
@@ -4849,7 +4849,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     public_key->set_usages({});
 
     // 12. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-    auto ec_private_key = ::Crypto::PK::ECPrivateKey<> { private_key_data, public_key_data.size, {}, ec_public_key };
+    auto ec_private_key = ::Crypto::PK::ECPrivateKey { private_key_data, public_key_data.size, {}, ec_public_key };
     auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_private_key });
 
     // 13. Set the [[type]] internal slot of privateKey to "private"
@@ -4911,8 +4911,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
         //    by the [[handle]] internal slot of publicKey as the EC public key.
         // 2. Let secret be the result of applying the field element to octet string conversion
         //    defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
-        auto private_key_data = key->handle().get<::Crypto::PK::ECPrivateKey<>>();
-        auto public_key_data = public_key->handle().get<::Crypto::PK::ECPublicKey<>>();
+        auto private_key_data = key->handle().get<::Crypto::PK::ECPrivateKey>();
+        auto public_key_data = public_key->handle().get<::Crypto::PK::ECPublicKey>();
 
         Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
         if (internal_algorithm.named_curve() == "P-256"sv)
@@ -5066,7 +5066,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
             auto maybe_valid = key->handle().visit(
                 [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
-                [&](::Crypto::PK::ECPublicKey<> const& public_key) {
+                [&](::Crypto::PK::ECPublicKey const& public_key) {
                     return instance.is_valid_point(public_key.to_secpxxxr1_point());
                 });
             if (maybe_valid.is_error())
@@ -5184,7 +5184,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
             auto maybe_valid = key->handle().visit(
                 [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
-                [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<bool> {
+                [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<bool> {
                     if (!private_key.public_key().has_value())
                         return true;
 
@@ -5292,7 +5292,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
             if (y_bytes.size() != coord_size)
                 return WebIDL::DataError::create(m_realm, "Invalid key size"_string);
 
-            auto public_key = ::Crypto::PK::ECPublicKey<> {
+            auto public_key = ::Crypto::PK::ECPublicKey {
                 ::Crypto::UnsignedBigInteger::import_data(x_bytes),
                 ::Crypto::UnsignedBigInteger::import_data(y_bytes),
                 coord_size,
@@ -5311,7 +5311,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
 
                 // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
                 //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
-                auto private_key = ::Crypto::PK::ECPrivateKey<> {
+                auto private_key = ::Crypto::PK::ECPrivateKey {
                     ::Crypto::UnsignedBigInteger::import_data(d_bytes),
                     coord_size,
                     {},
@@ -5353,10 +5353,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
             auto maybe_valid = key->handle().visit(
                 [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
-                [&](::Crypto::PK::ECPublicKey<> const& public_key) {
+                [&](::Crypto::PK::ECPublicKey const& public_key) {
                     return instance.is_valid_point(public_key.to_secpxxxr1_point());
                 },
-                [&](::Crypto::PK::ECPrivateKey<> const& private_key) {
+                [&](::Crypto::PK::ECPrivateKey const& private_key) {
                     return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
                 });
             if (maybe_valid.is_error())
@@ -5470,7 +5470,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             //      Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
             // NOTE: everything above happens in wrap_in_subject_public_key_info
             auto maybe_data = handle.visit(
-                [&](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
+                [&](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                     auto public_key_bytes = TRY(public_key.to_uncompressed());
 
                     Span<int const> ec_params;
@@ -5539,7 +5539,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             //          Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
             // NOTE: everything above happens in wrap_in_private_key_info
             auto maybe_data = handle.visit(
-                [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
+                [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<ByteBuffer> {
                     Span<int const> ec_params;
                     if (algorithm.named_curve() == "P-256"sv)
                         ec_params = ::Crypto::ASN1::secp256r1_oid;
@@ -5601,7 +5601,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             }
 
             auto maybe_error = handle.visit(
-                [&](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<void> {
+                [&](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<void> {
                     // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
                     auto x_bytes = TRY(public_key.x_bytes());
                     jwk.x = TRY(encode_base64url(x_bytes, AK::OmitPadding::Yes));
@@ -5612,7 +5612,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
 
                     return {};
                 },
-                [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
+                [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<void> {
                     Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
                     if (algorithm.named_curve() == "P-256"sv)
                         curve = ::Crypto::Curves::SECP256r1 {};
@@ -5649,7 +5649,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             // 4. If the [[type]] internal slot of key is "private"
             if (key->type() == Bindings::KeyType::Private) {
                 auto maybe_error = handle.visit(
-                    [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
+                    [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<void> {
                         // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
                         auto d_bytes = TRY(private_key.d_bytes());
                         jwk.d = TRY(encode_base64url(d_bytes, AK::OmitPadding::Yes));
@@ -5700,7 +5700,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             // Let data be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
             // of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
             auto maybe_data = handle.visit(
-                [](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
+                [](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                     return public_key.to_uncompressed();
                 },
                 [](auto) -> ErrorOr<ByteBuffer> {

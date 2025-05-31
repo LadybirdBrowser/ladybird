@@ -25,7 +25,7 @@ class CryptoKey final
     GC_DECLARE_ALLOCATOR(CryptoKey);
 
 public:
-    using InternalKeyData = Variant<ByteBuffer, Bindings::JsonWebKey, ::Crypto::PK::RSAPublicKey<>, ::Crypto::PK::RSAPrivateKey<>, ::Crypto::PK::ECPublicKey<>, ::Crypto::PK::ECPrivateKey<>>;
+    using InternalKeyData = Variant<ByteBuffer, Bindings::JsonWebKey, ::Crypto::PK::RSAPublicKey, ::Crypto::PK::RSAPrivateKey, ::Crypto::PK::ECPublicKey, ::Crypto::PK::ECPrivateKey>;
 
     [[nodiscard]] static GC::Ref<CryptoKey> create(JS::Realm&, InternalKeyData);
     [[nodiscard]] static GC::Ref<CryptoKey> create(JS::Realm&);
