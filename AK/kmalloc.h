@@ -12,13 +12,43 @@
 #include <new>
 #include <stdlib.h>
 
+// Allocation functions
 #define kcalloc calloc
+#define kfree free
 #define kmalloc malloc
 #define kmalloc_good_size malloc_good_size
+#define krealloc realloc
+
+// Allocating library functions
+// Some allocator libraries provide their own versions of these. If they don't and we use a different free
+// for kfree we need to be careful to use libc free when not overriding malloc
+#define krealpath realpath
+#define kstrdup strdup
+#define kstrndup strndup
+
+// Microsoft extensions
+#if defined(AK_OS_WINDOWS)
+#    define k_expand _expand
+#    define k_msize _msize
+#    define k_recalloc _recalloc
+// Aligned versions
+#    define kaligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+#    define kaligned_free _aligned_free
+#else
+#    define kaligned_alloc(alignment, size) aligned_alloc(alignment, size)
+#    define kaligned_free free
+#endif
+
+// Posix functions
+#if !defined(AK_OS_WINDOWS)
+
+#else
+
+#endif
 
 inline void kfree_sized(void* ptr, size_t)
 {
-    free(ptr);
+    kfree(ptr);
 }
 
 #ifndef AK_OS_SERENITY
