@@ -1121,9 +1121,8 @@ ALWAYS_INLINE ExecutionResult OpCode_JumpNonEmpty::execute(MatchInput const& inp
         }
     }
 
-    if (state.string_position < input.view.length()) {
+    if (form() == OpCodeId::Jump && state.string_position < input.view.length())
         return ExecutionResult::Failed_ExecuteLowPrioForks;
-    }
 
     return ExecutionResult::Continue;
 }
