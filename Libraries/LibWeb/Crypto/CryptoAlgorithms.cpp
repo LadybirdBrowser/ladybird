@@ -3725,7 +3725,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     // NOTE: Spec jumps to 6 here for some reason
     // 6. If performing the key generation operation results in an error, then throw an OperationError.
     auto maybe_private_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<::Crypto::UnsignedBigInteger> { return Error::from_string_literal("noop error"); },
+        [](Empty const&) -> ErrorOr<::Crypto::UnsignedBigInteger> { VERIFY_NOT_REACHED(); },
         [](auto instance) { return instance.generate_private_key(); });
 
     if (maybe_private_key_data.is_error())
@@ -3734,7 +3734,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     auto private_key_data = maybe_private_key_data.release_value();
 
     auto maybe_public_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { VERIFY_NOT_REACHED(); },
         [&](auto instance) { return instance.generate_public_key(private_key_data); });
 
     if (maybe_public_key_data.is_error())
@@ -3854,7 +3854,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
         //    using params as the EC domain parameters, and with d as the private key.
         // 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
         auto maybe_signature = curve.visit(
-            [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Signature> { return Error::from_string_literal("Failed to create valid crypto instance"); },
+            [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Signature> { VERIFY_NOT_REACHED(); },
             [&](auto instance) { return instance.sign(M, d.d()); });
 
         if (maybe_signature.is_error()) {
@@ -3950,7 +3950,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
         auto s = ::Crypto::UnsignedBigInteger::import_data(signature.data() + half_size, half_size);
 
         auto maybe_result = curve.visit(
-            [](Empty const&) -> ErrorOr<bool> { return Error::from_string_literal("Failed to create valid crypto instance"); },
+            [](Empty const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
             [&](auto instance) { return instance.verify(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s, half_size }); });
 
         if (maybe_result.is_error()) {
@@ -4661,7 +4661,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
                         VERIFY_NOT_REACHED();
 
                     auto maybe_public_key = curve.visit(
-                        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+                        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { VERIFY_NOT_REACHED(); },
                         [&](auto instance) { return instance.generate_public_key(private_key.d()); });
 
                     auto public_key = TRY(maybe_public_key);
@@ -4806,7 +4806,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
 
     // 3. If performing the operation results in an error, then throw a OperationError.
     auto maybe_private_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<::Crypto::UnsignedBigInteger> { return Error::from_string_literal("noop error"); },
+        [](Empty const&) -> ErrorOr<::Crypto::UnsignedBigInteger> { VERIFY_NOT_REACHED(); },
         [](auto instance) { return instance.generate_private_key(); });
 
     if (maybe_private_key_data.is_error())
@@ -4815,7 +4815,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     auto private_key_data = maybe_private_key_data.release_value();
 
     auto maybe_public_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { VERIFY_NOT_REACHED(); },
         [&](auto instance) { return instance.generate_public_key(private_key_data); });
 
     if (maybe_public_key_data.is_error())
@@ -4925,7 +4925,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
             VERIFY_NOT_REACHED();
 
         auto maybe_secret = curve.visit(
-            [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+            [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { VERIFY_NOT_REACHED(); },
             [&private_key_data, &public_key_data](auto instance) { return instance.compute_coordinate(private_key_data.d(), public_key_data.to_secpxxxr1_point()); });
 
         if (maybe_secret.is_error()) {
@@ -5624,7 +5624,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                         VERIFY_NOT_REACHED();
 
                     auto maybe_public_key = curve.visit(
-                        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+                        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { VERIFY_NOT_REACHED(); },
                         [&](auto instance) { return instance.generate_public_key(private_key.d()); });
 
                     auto public_key = TRY(maybe_public_key);
