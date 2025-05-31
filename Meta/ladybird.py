@@ -37,7 +37,7 @@ def main():
         "--preset",
         required=False,
         default=os.environ.get(
-            "BUILD_PRESET", "windows_dev_ninja" if platform.host_system == HostSystem.Windows else "default"
+            "BUILD_PRESET", "Windows_Experimental" if platform.host_system == HostSystem.Windows else "Release"
         ),
     )
 
@@ -247,12 +247,12 @@ def configure_build_env(preset: str) -> tuple[Path, Path]:
     build_root_dir = ladybird_source_dir / "Build"
 
     known_presets = {
-        "default": build_root_dir / "release",
         "Debug": build_root_dir / "debug",
         "Distribution": build_root_dir / "distribution",
+        "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
-        "windows_ci_ninja": build_root_dir / "release",
-        "windows_dev_ninja": build_root_dir / "debug",
+        "Windows_CI": build_root_dir / "release",
+        "Windows_Experimental": build_root_dir / "debug",
     }
 
     build_preset_dir = known_presets.get(preset, None)

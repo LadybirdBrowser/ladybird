@@ -8,8 +8,9 @@
   "configurePresets": [
     {
       "hidden": true,
-      "name": "default_base",
+      "name": "base",
       "displayName": "Default Config",
+      "generator": "Ninja",
       "binaryDir": "${fileDir}/Build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
@@ -31,13 +32,26 @@
     },
     {
       "hidden": true,
-      "name": "windows",
-      "description": "Visual Studio IDE config (experimental)",
+      "name": "unix_base",
+      "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "windows_base",
+      "inherits": "base",
+      "description": "Visual Studio via Clang/LLVM Toolchain",
       "architecture": {
         "value": "x64",
         "strategy": "external"
       },
       "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl",
         "ENABLE_QT": "OFF",
         "ENABLE_GUI_TARGETS": "OFF"
       },
@@ -53,73 +67,37 @@
       }
     },
     {
-      "hidden": true,
-      "name": "windows_ci",
-      "binaryDir": "${fileDir}/Build/release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "ENABLE_WINDOWS_CI": "ON"
-      }
+      "name": "Release",
+      "inherits": "unix_base",
+      "displayName": "Release Config"
     },
     {
-      "hidden": true,
-      "name": "windows_dev",
+      "name": "Debug",
+      "inherits": "unix_base",
+      "displayName": "Debug Config",
       "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
+      }
+    },
+    {
+      "name": "Windows_Experimental",
+      "inherits": "windows_base",
+      "displayName": "Windows Experimental Config",
+      "description": "Experimental windows configuration that builds all targets, allowing for gradual increase in support",
+      "binaryDir": "${fileDir}/Build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets",
         "ENABLE_WINDOWS_CI": "OFF"
       }
     },
     {
-      "name": "default",
-      "description": "Default build using Ninja generator",
-      "generator": "Ninja",
-      "inherits": "default_base",
-      "condition": {
-        "type": "notEquals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-
-    {
-      "hidden": true,
-      "name": "windows_ninja",
-      "inherits": [
-        "default_base",
-        "windows"
-      ],
-      "generator": "Ninja",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-cl",
-        "CMAKE_CXX_COMPILER": "clang-cl"
-      }
-    },
-    {
-      "hidden": false,
-      "name": "windows_ci_ninja",
-      "displayName": "Windows Continuous Integration (ClangCL and Ninja)",
-      "description": "Windows continuous integration build using Ninja (experimental)",
-      "inherits": [
-        "windows_ninja",
-        "windows_ci"
-      ]
-    },
-    {
-      "hidden": false,
-      "name": "windows_dev_ninja",
-      "displayName": "Windows Development (ClangCL and Ninja)",
-      "description": "Windows development build using Ninja (experimental)",
-      "inherits": [
-        "windows_ninja",
-        "windows_dev"
-      ]
-    },
-    {
       "name": "Distribution",
-      "inherits": "default",
+      "inherits": "unix_base",
       "displayName": "Distribution Config",
-      "description": "Distribution build with static libraries using Ninja generator",
+      "description": "Distribution build with static libraries",
       "binaryDir": "${fileDir}/Build/distribution",
       "cacheVariables": {
         "BUILD_SHARED_LIBS": "OFF",
@@ -128,21 +106,13 @@
       }
     },
     {
-      "name": "Debug",
-      "inherits": "default",
-      "displayName": "Debug Config",
-      "description": "Debug build using Ninja generator",
-      "binaryDir": "${fileDir}/Build/debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
-      }
-    },
-    {
       "name": "Sanitizer",
-      "inherits": "default",
+      "inherits": [
+        "unix_base",
+        "Release"
+      ],
       "displayName": "Sanitizer Config",
-      "description": "Sanitizer build using Ninja generator",
+      "description": "Sanitizer build",
       "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
         "ENABLE_UNDEFINED_SANITIZER": "ON",
@@ -157,11 +127,19 @@
     },
     {
       "name": "CI",
+      "displayName": "Non-Sanitizer CI Config",
       "inherits": [
         "vcpkg_ci",
-        "default"
-      ],
-      "displayName": "Non-Sanitizer CI Config"
+        "unix_base"
+      ]
+    },
+    {
+      "name": "Windows_CI",
+      "inherits": "windows_base",
+      "displayName": "Windows CI Config",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "ON"
+      }
     },
     {
       "name": "Distribution_CI",
@@ -182,7 +160,7 @@
     },
     {
       "name": "Fuzzers",
-      "inherits": "default",
+      "inherits": "unix_base",
       "displayName": "Fuzzers Config",
       "description": "Fuzzers build",
       "binaryDir": "${fileDir}/Build/fuzzers",
@@ -207,7 +185,16 @@
   "buildPresets": [
     {
       "hidden": true,
-      "name": "unix",
+      "name": "base",
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "hidden": true,
+      "name": "unix_base",
+      "inherits": "base",
+      "configurePreset": "unix_base",
       "condition": {
         "type": "notEquals",
         "lhs": "${hostSystemName}",
@@ -216,7 +203,9 @@
     },
     {
       "hidden": true,
-      "name": "windows",
+      "name": "windows_base",
+      "inherits": "base",
+      "configurePreset": "windows_base",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -224,70 +213,52 @@
       }
     },
     {
-      "name": "default",
-      "inherits": "unix",
-      "configurePreset": "default",
+      "name": "Release",
+      "inherits": "unix_base",
+      "configurePreset": "Release",
       "displayName": "Build",
-      "description": "Build the project",
-      "targets": [
-        "all"
-      ]
-    },
-    {
-      "name": "windows_dev_ninja",
-      "inherits": "windows",
-      "configurePreset": "windows_dev_ninja",
-      "displayName": "Build",
-      "description": "Build the project",
-      "targets": [
-        "all"
-      ]
-    },
-    {
-      "name": "windows_ci_ninja",
-      "inherits": "windows",
-      "configurePreset": "windows_ci_ninja",
-      "displayName": "Build",
-      "description": "Build the project",
-      "targets": [
-        "all"
-      ]
-    },
-    {
-      "name": "Distribution",
-      "inherits": "unix",
-      "configurePreset": "Distribution",
-      "displayName": "Build",
-      "description": "Build the project for distribution",
-      "targets": [
-        "all"
-      ]
+      "description": "Build the project in release"
     },
     {
       "name": "Debug",
-      "inherits": "unix",
+      "inherits": "unix_base",
       "configurePreset": "Debug",
       "displayName": "Build",
-      "description": "Build the project in debug",
-      "targets": [
-        "all"
-      ]
+      "description": "Build the project in debug"
+    },
+    {
+      "name": "Windows_Experimental",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Experimental",
+      "displayName": "Build",
+      "description": "Build the project"
+    },
+    {
+      "name": "Distribution",
+      "inherits": "unix_base",
+      "configurePreset": "Distribution",
+      "displayName": "Build",
+      "description": "Build the project for distribution"
     },
     {
       "name": "Sanitizer",
-      "inherits": "unix",
+      "inherits": "unix_base",
       "configurePreset": "Sanitizer",
       "displayName": "Build with Sanitizers",
-      "description": "Build the project with Sanitizers",
-      "targets": [
-        "all"
-      ]
+      "description": "Build the project with Sanitizers"
+    },
+    {
+      "name": "Windows_CI",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_CI",
+      "displayName": "Build",
+      "description": "Build the project"
     }
   ],
   "testPresets": [
     {
       "hidden": true,
-      "name": "default_base",
+      "name": "base",
       "output": {
         "outputOnFailure": true
       },
@@ -301,8 +272,9 @@
     },
     {
       "hidden": true,
-      "name": "default_windows",
-      "inherits": "default_base",
+      "name": "windows_base",
+      "configurePreset": "windows_base",
+      "inherits": "base",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -310,9 +282,10 @@
       }
     },
     {
-      "name": "default",
-      "configurePreset": "default",
-      "inherits": "default_base",
+      "hidden": true,
+      "name": "unix_base",
+      "configurePreset": "unix_base",
+      "inherits": "base",
       "condition": {
         "type": "notEquals",
         "lhs": "${hostSystemName}",
@@ -320,8 +293,28 @@
       }
     },
     {
+      "name": "Release",
+      "inherits": "unix_base",
+      "configurePreset": "Release"
+    },
+    {
+      "name": "Debug",
+      "inherits": "unix_base",
+      "configurePreset": "Debug"
+    },
+    {
+      "name": "Windows_Experimental",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Experimental"
+    },
+    {
+      "name": "Distribution",
+      "inherits": "unix_base",
+      "configurePreset": "Distribution"
+    },
+    {
       "name": "Sanitizer",
-      "inherits": "default",
+      "inherits": "unix_base",
       "configurePreset": "Sanitizer",
       "environment": {
         "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
@@ -329,24 +322,9 @@
       }
     },
     {
-      "name": "Debug",
-      "inherits": "default",
-      "configurePreset": "Debug"
-    },
-    {
-      "name": "Distribution",
-      "inherits": "default",
-      "configurePreset": "Distribution"
-    },
-    {
-      "name": "windows_dev_ninja",
-      "inherits": "default_windows",
-      "configurePreset": "windows_dev_ninja"
-    },
-    {
-      "name": "windows_ci_ninja",
-      "inherits": "default_windows",
-      "configurePreset": "windows_ci_ninja"
+      "name": "Windows_CI",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_CI"
     }
   ]
 }
