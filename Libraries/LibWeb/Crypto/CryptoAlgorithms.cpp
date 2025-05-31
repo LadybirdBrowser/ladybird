@@ -837,7 +837,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
 
         // 6. If an error occurred while parsing, or it can be determined that publicKey is not
         //    a valid public key according to [RFC3447], then throw a DataError.
-        // FIXME: Validate the public key
+        auto maybe_valid = public_key.is_valid();
+        if (maybe_valid.is_error())
+            return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+        if (!maybe_valid.value())
+            return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
         // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
         key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
@@ -874,7 +878,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
 
         // 6. If an error occurred while parsing, or if rsaPrivateKey is not
         //    a valid RSA private key according to [RFC3447], then throw a DataError.
-        // FIXME: Validate the private key
+        auto maybe_valid = rsa_private_key.is_valid();
+        if (maybe_valid.is_error())
+            return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+        if (!maybe_valid.value())
+            return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
         // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
         key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { rsa_private_key });
@@ -989,7 +997,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
             auto private_key = TRY(parse_jwk_rsa_private_key(realm, jwk));
 
             // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
-            // FIXME: Validate the private key
+            auto maybe_valid = private_key.is_valid();
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
             // 4. Let key be a new CryptoKey representing privateKey.
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
@@ -1008,7 +1020,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
             auto public_key = TRY(parse_jwk_rsa_public_key(realm, jwk));
 
             // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
-            // FIXME: Validate the public key
+            auto maybe_valid = public_key.is_valid();
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
             // 4. Let key be a new CryptoKey representing publicKey.
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
@@ -1414,7 +1430,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
 
         // 6. If an error occurred while parsing, or it can be determined that publicKey is not
         //    a valid public key according to [RFC3447], then throw a DataError.
-        // FIXME: Validate the public key
+        auto maybe_valid = public_key.is_valid();
+        if (maybe_valid.is_error())
+            return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+        if (!maybe_valid.value())
+            return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
         // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
         key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
@@ -1451,7 +1471,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
 
         // 6. If an error occurred while parsing, or if rsaPrivateKey is not
         //    a valid RSA private key according to [RFC3447], then throw a DataError.
-        // FIXME: Validate the private key
+        auto maybe_valid = rsa_private_key.is_valid();
+        if (maybe_valid.is_error())
+            return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+        if (!maybe_valid.value())
+            return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
         // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
         key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { rsa_private_key });
@@ -1567,7 +1591,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
 
             // FIXME: Spec error, it should say 'not to be a valid RSA private key'
             // 3. If privateKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
-            // FIXME: Validate the private key
+            auto maybe_valid = private_key.is_valid();
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
             // 4. Let key be a new CryptoKey representing privateKey.
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
@@ -1586,7 +1614,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
             auto public_key = TRY(parse_jwk_rsa_public_key(realm, jwk));
 
             // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
-            // FIXME: Validate the public key
+            auto maybe_valid = public_key.is_valid();
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
             // 4. Let key be a new CryptoKey representing publicKey.
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
@@ -1987,7 +2019,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
 
         // 6. If an error occurred while parsing, or it can be determined that publicKey is not
         //    a valid public key according to [RFC3447], then throw a DataError.
-        // FIXME: Validate the public key
+        auto maybe_valid = public_key.is_valid();
+        if (maybe_valid.is_error())
+            return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+        if (!maybe_valid.value())
+            return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
         // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
         key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
@@ -2024,7 +2060,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
 
         // 6. If an error occurred while parsing, or if rsaPrivateKey is not
         //    a valid RSA private key according to [RFC3447], then throw a DataError.
-        // FIXME: Validate the private key
+        auto maybe_valid = rsa_private_key.is_valid();
+        if (maybe_valid.is_error())
+            return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+        if (!maybe_valid.value())
+            return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
         // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
         key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { rsa_private_key });
@@ -2138,7 +2178,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
             auto private_key = TRY(parse_jwk_rsa_private_key(realm, jwk));
 
             // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
-            // FIXME: Validate the private key
+            auto maybe_valid = private_key.is_valid();
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
             // 4. Let key be a new CryptoKey representing privateKey.
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
@@ -2157,7 +2201,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
             auto public_key = TRY(parse_jwk_rsa_public_key(realm, jwk));
 
             // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
-            // FIXME: Validate the public key
+            auto maybe_valid = public_key.is_valid();
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
 
             // 4. Let key be a new CryptoKey representing publicKey.
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
