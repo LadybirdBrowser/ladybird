@@ -181,4 +181,32 @@ ErrorOr<SECPxxxr1Signature> SECPxxxr1::sign(ReadonlyBytes hash, UnsignedBigInteg
     };
 }
 
+ErrorOr<bool> SECPxxxr1::is_valid_point(SECPxxxr1Point pubkey, Optional<UnsignedBigInteger> private_key)
+{
+    auto* group = OPENSSL_TRY_PTR(EC_GROUP_new_by_curve_name(EC_curve_nist2nid(m_curve_name)));
+    ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
+
+    auto x = TRY(unsigned_big_integer_to_openssl_bignum(pubkey.x));
+    auto y = TRY(unsigned_big_integer_to_openssl_bignum(pubkey.y));
+
+    auto* point = OPENSSL_TRY_PTR(EC_POINT_new(group));
+    ScopeGuard const free_point = [&] { EC_POINT_free(point); };
+
+    // Check public point is on the curve, EC_POINT_set_affine_coordinates calls EC_POINT_is_on_curve internally
+    if (EC_POINT_set_affine_coordinates(group, point, x.ptr(), y.ptr(), nullptr) != 1)
+        return false;
+
+    if (!private_key.has_value())
+        return true;
+
+    // Check that the public key is a valid point for the given private key
+    auto private_key_int = TRY(unsigned_big_integer_to_openssl_bignum(*private_key));
+
+    auto* expected_point = EC_POINT_new(group);
+    ScopeGuard const free_expected_point = [&] { EC_POINT_free(expected_point); };
+
+    OPENSSL_TRY(EC_POINT_mul(group, expected_point, private_key_int.ptr(), nullptr, nullptr, nullptr));
+    return EC_POINT_cmp(group, expected_point, point, nullptr) == 0;
+}
+
 }

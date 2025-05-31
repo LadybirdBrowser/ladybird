@@ -4049,8 +4049,29 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
         if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
-        // TODO: 12. If the public key value is not a valid point on the Elliptic Curve identified
-        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+        // 12. If the public key value is not a valid point on the Elliptic Curve identified
+        //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+        auto curve = [&named_curve] -> Variant<::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> {
+            if (named_curve == "P-256")
+                return ::Crypto::Curves::SECP256r1 {};
+            if (named_curve == "P-384")
+                return ::Crypto::Curves::SECP384r1 {};
+            if (named_curve == "P-521")
+                return ::Crypto::Curves::SECP521r1 {};
+            VERIFY_NOT_REACHED();
+        }();
+        TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
+            auto maybe_valid = key->handle().visit(
+                [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
+                [&](::Crypto::PK::ECPublicKey<> const& public_key) {
+                    return instance.is_valid_point(public_key.to_secpxxxr1_point());
+                });
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
+            return {};
+        }));
 
         // 13. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -4146,8 +4167,32 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
         if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
-        // TODO: 12. If the key value is not a valid point on the Elliptic Curve identified
-        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+        // 12. If the key value is not a valid point on the Elliptic Curve identified
+        //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+        auto curve = [&named_curve] -> Variant<::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> {
+            if (named_curve == "P-256")
+                return ::Crypto::Curves::SECP256r1 {};
+            if (named_curve == "P-384")
+                return ::Crypto::Curves::SECP384r1 {};
+            if (named_curve == "P-521")
+                return ::Crypto::Curves::SECP521r1 {};
+            VERIFY_NOT_REACHED();
+        }();
+        TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
+            auto maybe_valid = key->handle().visit(
+                [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
+                [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<bool> {
+                    if (!private_key.public_key().has_value())
+                        return true;
+
+                    return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
+                });
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
+            return {};
+        }));
 
         // 13. Set the [[type]] internal slot of key to "private".
         key->set_type(Bindings::KeyType::Private);
@@ -4322,8 +4367,32 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
-        // TODO: 10. If the key value is not a valid point on the Elliptic Curve identified
-        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+        // 10. If the key value is not a valid point on the Elliptic Curve identified
+        //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+        auto curve = [&named_curve] -> Variant<::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> {
+            if (named_curve == "P-256")
+                return ::Crypto::Curves::SECP256r1 {};
+            if (named_curve == "P-384")
+                return ::Crypto::Curves::SECP384r1 {};
+            if (named_curve == "P-521")
+                return ::Crypto::Curves::SECP521r1 {};
+            VERIFY_NOT_REACHED();
+        }();
+        TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
+            auto maybe_valid = key->handle().visit(
+                [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
+                [&](::Crypto::PK::ECPublicKey<> const& public_key) {
+                    return instance.is_valid_point(public_key.to_secpxxxr1_point());
+                },
+                [&](::Crypto::PK::ECPrivateKey<> const& private_key) {
+                    return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
+                });
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
+            return {};
+        }));
 
         // 11. Let algorithm be a new instance of an EcKeyAlgorithm object.
         auto algorithm = EcKeyAlgorithm::create(m_realm);
@@ -4983,8 +5052,29 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
-        // TODO: 12. If the key value is not a valid point on the Elliptic Curve identified
-        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+        // 12. If the key value is not a valid point on the Elliptic Curve identified
+        //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+        auto curve = [&named_curve] -> Variant<::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> {
+            if (named_curve == "P-256")
+                return ::Crypto::Curves::SECP256r1 {};
+            if (named_curve == "P-384")
+                return ::Crypto::Curves::SECP384r1 {};
+            if (named_curve == "P-521")
+                return ::Crypto::Curves::SECP521r1 {};
+            VERIFY_NOT_REACHED();
+        }();
+        TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
+            auto maybe_valid = key->handle().visit(
+                [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
+                [&](::Crypto::PK::ECPublicKey<> const& public_key) {
+                    return instance.is_valid_point(public_key.to_secpxxxr1_point());
+                });
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
+            return {};
+        }));
 
         // 13. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -5080,8 +5170,32 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
-        // TODO: 12. If the key value is not a valid point on the Elliptic Curve identified
-        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+        // 12. If the key value is not a valid point on the Elliptic Curve identified
+        //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+        auto curve = [&named_curve] -> Variant<::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> {
+            if (named_curve == "P-256")
+                return ::Crypto::Curves::SECP256r1 {};
+            if (named_curve == "P-384")
+                return ::Crypto::Curves::SECP384r1 {};
+            if (named_curve == "P-521")
+                return ::Crypto::Curves::SECP521r1 {};
+            VERIFY_NOT_REACHED();
+        }();
+        TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
+            auto maybe_valid = key->handle().visit(
+                [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
+                [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<bool> {
+                    if (!private_key.public_key().has_value())
+                        return true;
+
+                    return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
+                });
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
+            return {};
+        }));
 
         // 13. Set the [[type]] internal slot of key to "private".
         key->set_type(Bindings::KeyType::Private);
@@ -5225,8 +5339,32 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
-        // TODO: 11. If the key value is not a valid point on the Elliptic Curve identified
-        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+        // 11. If the key value is not a valid point on the Elliptic Curve identified
+        //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+        auto curve = [&named_curve] -> Variant<::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> {
+            if (named_curve == "P-256")
+                return ::Crypto::Curves::SECP256r1 {};
+            if (named_curve == "P-384")
+                return ::Crypto::Curves::SECP384r1 {};
+            if (named_curve == "P-521")
+                return ::Crypto::Curves::SECP521r1 {};
+            VERIFY_NOT_REACHED();
+        }();
+        TRY(curve.visit([&](auto& instance) -> WebIDL::ExceptionOr<void> {
+            auto maybe_valid = key->handle().visit(
+                [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); },
+                [&](::Crypto::PK::ECPublicKey<> const& public_key) {
+                    return instance.is_valid_point(public_key.to_secpxxxr1_point());
+                },
+                [&](::Crypto::PK::ECPrivateKey<> const& private_key) {
+                    return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
+                });
+            if (maybe_valid.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
+            if (!maybe_valid.value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
+            return {};
+        }));
 
         // 12. Let algorithm be a new instance of an EcKeyAlgorithm object.
         auto algorithm = EcKeyAlgorithm::create(m_realm);
