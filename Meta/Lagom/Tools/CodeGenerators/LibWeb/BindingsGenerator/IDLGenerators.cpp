@@ -116,6 +116,7 @@ static bool is_platform_object(Type const& type)
         "TextMetrics"sv,
         "TextTrack"sv,
         "TimeRanges"sv,
+        "TrustedTypePolicyFactory"sv,
         "URLSearchParams"sv,
         "VTTRegion"sv,
         "VideoTrack"sv,
@@ -4840,6 +4841,7 @@ using namespace Web::ServiceWorker;
 using namespace Web::StorageAPI;
 using namespace Web::Streams;
 using namespace Web::SVG;
+using namespace Web::TrustedTypes;
 using namespace Web::UIEvents;
 using namespace Web::URLPattern;
 using namespace Web::UserTiming;

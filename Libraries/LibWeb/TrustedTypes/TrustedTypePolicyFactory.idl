@@ -1,0 +1,21 @@
+// https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory
+[Exposed=(Window,Worker)]
+interface TrustedTypePolicyFactory {
+    [FIXME] TrustedTypePolicy createPolicy(
+        DOMString policyName, optional TrustedTypePolicyOptions policyOptions = {});
+    [FIXME] boolean isHTML(any value);
+    [FIXME] boolean isScript(any value);
+    [FIXME] boolean isScriptURL(any value);
+    [FIXME] readonly attribute TrustedHTML emptyHTML;
+    [FIXME] readonly attribute TrustedScript emptyScript;
+    [FIXME] DOMString? getAttributeType(
+        DOMString tagName,
+        DOMString attribute,
+        optional DOMString? elementNs = "",
+        optional DOMString? attrNs = "");
+    [FIXME] DOMString? getPropertyType(
+        DOMString tagName,
+        DOMString property,
+        optional DOMString? elementNs = "");
+    [FIXME] readonly attribute TrustedTypePolicy? defaultPolicy;
+};
