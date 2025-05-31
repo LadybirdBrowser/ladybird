@@ -6,14 +6,13 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/Time.h>
 #include <LibCore/Environment.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <LibUnicode/TimeZone.h>
-#include <stdlib.h>
-#include <time.h>
 
 TEST_ROOT("Libraries/LibJS/Tests");
 
