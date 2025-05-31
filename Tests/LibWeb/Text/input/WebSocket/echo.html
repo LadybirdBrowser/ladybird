@@ -2,7 +2,8 @@
 <script src="../include.js"></script>
 <script>
     asyncTest((done) => {
-        const ws = new WebSocket('wss://websocket-echo.app.ladybird.org');
+        const httpServer = httpTestServer();
+        const ws = new WebSocket(httpServer.getWebsocketEchoURL());
 
         let messageCount = 0;
 
