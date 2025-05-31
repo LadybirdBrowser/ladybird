@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Altomani Gianluca <altomanigianluca@gmail.com>
+ * Copyright (c) 2024-2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,16 +8,14 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/StringView.h>
-#include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/PK/PK.h>
 
 namespace Crypto::PK {
 
-template<typename Integer = UnsignedBigInteger>
 class ECPublicKey {
 public:
-    ECPublicKey(Integer x, Integer y, size_t scalar_size)
+    ECPublicKey(UnsignedBigInteger x, UnsignedBigInteger y, size_t scalar_size)
         : m_x(move(x))
         , m_y(move(y))
         , m_scalar_size(scalar_size)
@@ -61,16 +59,15 @@ public:
     }
 
 private:
-    Integer m_x;
-    Integer m_y;
+    UnsignedBigInteger m_x;
+    UnsignedBigInteger m_y;
     size_t m_scalar_size;
 };
 
 // https://www.rfc-editor.org/rfc/rfc5915#section-3
-template<typename Integer = UnsignedBigInteger>
 class ECPrivateKey {
 public:
-    ECPrivateKey(Integer d, size_t scalar_size, Optional<Vector<int>> parameters, Optional<ECPublicKey<Integer>> public_key)
+    ECPrivateKey(UnsignedBigInteger d, size_t scalar_size, Optional<Vector<int>> parameters, Optional<ECPublicKey> public_key)
         : m_d(move(d))
         , m_scalar_size(scalar_size)
         , m_parameters(parameters)
@@ -80,23 +77,23 @@ public:
 
     ECPrivateKey() = default;
 
-    Integer const& d() const { return m_d; }
+    UnsignedBigInteger const& d() const { return m_d; }
     ErrorOr<ByteBuffer> d_bytes() const
     {
         return Curves::SECPxxxr1Point::scalar_to_bytes(m_d, m_scalar_size);
     }
 
     Optional<Vector<int> const&> parameters() const { return m_parameters; }
-    Optional<ECPublicKey<Integer> const&> public_key() const { return m_public_key; }
+    Optional<ECPublicKey const&> public_key() const { return m_public_key; }
 
     ErrorOr<ByteBuffer> export_as_der() const;
 
 private:
-    Integer m_d;
+    UnsignedBigInteger m_d;
     size_t m_scalar_size;
 
     Optional<Vector<int>> m_parameters;
-    Optional<ECPublicKey<Integer>> m_public_key;
+    Optional<ECPublicKey> m_public_key;
 };
 
 template<typename PubKey, typename PrivKey>
@@ -105,8 +102,7 @@ struct ECKeyPair {
     PrivKey private_key;
 };
 
-using IntegerType = UnsignedBigInteger;
-class EC : public PKSystem<ECPrivateKey<IntegerType>, ECPublicKey<IntegerType>> {
+class EC : public PKSystem<ECPrivateKey, ECPublicKey> {
 public:
     using KeyPairType = ECKeyPair<PublicKeyType, PrivateKeyType>;
 

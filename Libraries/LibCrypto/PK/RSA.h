@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, Ali Mohammad Pur <mpfard@serenityos.org>
  * Copyright (c) 2022, the SerenityOS developers.
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,10 +16,9 @@
 
 namespace Crypto::PK {
 
-template<typename Integer = UnsignedBigInteger>
 class RSAPublicKey {
 public:
-    RSAPublicKey(Integer n, Integer e)
+    RSAPublicKey(UnsignedBigInteger n, UnsignedBigInteger e)
         : m_modulus(move(n))
         , m_public_exponent(move(e))
         , m_length(m_modulus.byte_length())
@@ -31,8 +31,8 @@ public:
     {
     }
 
-    Integer const& modulus() const { return m_modulus; }
-    Integer const& public_exponent() const { return m_public_exponent; }
+    UnsignedBigInteger const& modulus() const { return m_modulus; }
+    UnsignedBigInteger const& public_exponent() const { return m_public_exponent; }
     size_t length() const { return m_length; }
     void set_length(size_t length) { m_length = length; }
 
@@ -48,7 +48,7 @@ public:
         return encoder.finish();
     }
 
-    void set(Integer n, Integer e)
+    void set(UnsignedBigInteger n, UnsignedBigInteger e)
     {
         m_modulus = move(n);
         m_public_exponent = move(e);
@@ -56,15 +56,14 @@ public:
     }
 
 private:
-    Integer m_modulus;
-    Integer m_public_exponent;
+    UnsignedBigInteger m_modulus;
+    UnsignedBigInteger m_public_exponent;
     size_t m_length { 0 };
 };
 
-template<typename Integer = UnsignedBigInteger>
 class RSAPrivateKey {
 public:
-    RSAPrivateKey(Integer n, Integer d, Integer e)
+    RSAPrivateKey(UnsignedBigInteger n, UnsignedBigInteger d, UnsignedBigInteger e)
         : m_modulus(move(n))
         , m_private_exponent(move(d))
         , m_public_exponent(move(e))
@@ -72,7 +71,7 @@ public:
     {
     }
 
-    RSAPrivateKey(Integer n, Integer d, Integer e, Integer p, Integer q, Integer dp, Integer dq, Integer qinv)
+    RSAPrivateKey(UnsignedBigInteger n, UnsignedBigInteger d, UnsignedBigInteger e, UnsignedBigInteger p, UnsignedBigInteger q, UnsignedBigInteger dp, UnsignedBigInteger dq, UnsignedBigInteger qinv)
         : m_modulus(move(n))
         , m_private_exponent(move(d))
         , m_public_exponent(move(e))
@@ -87,14 +86,14 @@ public:
 
     RSAPrivateKey() = default;
 
-    Integer const& modulus() const { return m_modulus; }
-    Integer const& private_exponent() const { return m_private_exponent; }
-    Integer const& public_exponent() const { return m_public_exponent; }
-    Integer const& prime1() const { return m_prime_1; }
-    Integer const& prime2() const { return m_prime_2; }
-    Integer const& exponent1() const { return m_exponent_1; }
-    Integer const& exponent2() const { return m_exponent_2; }
-    Integer const& coefficient() const { return m_coefficient; }
+    UnsignedBigInteger const& modulus() const { return m_modulus; }
+    UnsignedBigInteger const& private_exponent() const { return m_private_exponent; }
+    UnsignedBigInteger const& public_exponent() const { return m_public_exponent; }
+    UnsignedBigInteger const& prime1() const { return m_prime_1; }
+    UnsignedBigInteger const& prime2() const { return m_prime_2; }
+    UnsignedBigInteger const& exponent1() const { return m_exponent_1; }
+    UnsignedBigInteger const& exponent2() const { return m_exponent_2; }
+    UnsignedBigInteger const& coefficient() const { return m_coefficient; }
     size_t length() const { return m_length; }
 
     ErrorOr<ByteBuffer> export_as_der() const
@@ -121,14 +120,14 @@ public:
     }
 
 private:
-    Integer m_modulus;
-    Integer m_private_exponent;
-    Integer m_public_exponent;
-    Integer m_prime_1;
-    Integer m_prime_2;
-    Integer m_exponent_1;  // d mod (p-1)
-    Integer m_exponent_2;  // d mod (q-1)
-    Integer m_coefficient; // q^-1 mod p
+    UnsignedBigInteger m_modulus;
+    UnsignedBigInteger m_private_exponent;
+    UnsignedBigInteger m_public_exponent;
+    UnsignedBigInteger m_prime_1;
+    UnsignedBigInteger m_prime_2;
+    UnsignedBigInteger m_exponent_1;  // d mod (p-1)
+    UnsignedBigInteger m_exponent_2;  // d mod (q-1)
+    UnsignedBigInteger m_coefficient; // q^-1 mod p
     size_t m_length { 0 };
 };
 
@@ -138,21 +137,20 @@ struct RSAKeyPair {
     PrivKey private_key;
 };
 
-using IntegerType = UnsignedBigInteger;
-class RSA : public PKSystem<RSAPrivateKey<IntegerType>, RSAPublicKey<IntegerType>> {
+class RSA : public PKSystem<RSAPrivateKey, RSAPublicKey> {
 public:
     using KeyPairType = RSAKeyPair<PublicKeyType, PrivateKeyType>;
 
     static ErrorOr<KeyPairType> parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
-    static ErrorOr<KeyPairType> generate_key_pair(size_t bits, IntegerType e = 65537);
+    static ErrorOr<KeyPairType> generate_key_pair(size_t bits, UnsignedBigInteger e = 65537);
 
     RSA(KeyPairType const& pair)
-        : PKSystem<RSAPrivateKey<IntegerType>, RSAPublicKey<IntegerType>>(pair.public_key, pair.private_key)
+        : PKSystem<RSAPrivateKey, RSAPublicKey>(pair.public_key, pair.private_key)
     {
     }
 
     RSA(PublicKeyType const& pubkey, PrivateKeyType const& privkey)
-        : PKSystem<RSAPrivateKey<IntegerType>, RSAPublicKey<IntegerType>>(pubkey, privkey)
+        : PKSystem<RSAPrivateKey, RSAPublicKey>(pubkey, privkey)
     {
     }
 
