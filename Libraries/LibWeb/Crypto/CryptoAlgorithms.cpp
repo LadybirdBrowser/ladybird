@@ -2409,6 +2409,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::encrypt(AlgorithmParams co
     return JS::ArrayBuffer::create(m_realm, maybe_ciphertext.release_value());
 }
 
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-decrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
@@ -2417,21 +2418,20 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams co
     if (normalized_algorithm.iv.size() != 16)
         return WebIDL::OperationError::create(m_realm, "IV to AES-CBC must be exactly 16 bytes"_string);
 
-    // Spec bug? TODO: https://github.com/w3c/webcrypto/issues/381
-    // If ciphertext does not have a length that is a multiple of 16 bytes, then throw an OperationError. (Note that a zero-length ciphertext will result in an OperationError in all cases.)
-    if (ciphertext.size() % 16 != 0)
+    // 2. If the length of ciphertext is zero or is not a multiple of 16 bytes, then throw an OperationError.
+    if (ciphertext.is_empty() || ciphertext.size() % 16 != 0)
         return WebIDL::OperationError::create(m_realm, "Ciphertext length must be a multiple of 16 bytes"_string);
 
-    // 2. Let paddedPlaintext be the result of performing the CBC Decryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the contents of the iv member of normalizedAlgorithm as the IV input parameter and the contents of ciphertext as the input ciphertext.
-    // 3. Let p be the value of the last octet of paddedPlaintext.
-    // 4. If p is zero or greater than 16, or if any of the last p octets of paddedPlaintext have a value which is not p, then throw an OperationError.
-    // 5. Let plaintext be the result of removing p octets from the end of paddedPlaintext.
+    // 3. Let paddedPlaintext be the result of performing the CBC Decryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the iv member of normalizedAlgorithm as the IV input parameter and ciphertext as the input ciphertext.
+    // 4. Let p be the value of the last octet of paddedPlaintext.
+    // 5. If p is zero or greater than 16, or if any of the last p octets of paddedPlaintext have a value which is not p, then throw an OperationError.
+    // 6. Let plaintext be the result of removing p octets from the end of paddedPlaintext.
     ::Crypto::Cipher::AESCBCCipher cipher(key->handle().get<ByteBuffer>());
     auto maybe_plaintext = cipher.decrypt(ciphertext, normalized_algorithm.iv);
     if (maybe_plaintext.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to decrypt"_string);
 
-    // 6. Return the result of creating an ArrayBuffer containing plaintext.
+    // 7. Return plaintext.
     return JS::ArrayBuffer::create(m_realm, maybe_plaintext.release_value());
 }
 
