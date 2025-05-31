@@ -12,7 +12,7 @@ namespace Gfx {
 
 struct JPEGLoadingContext;
 
-class JPEGImageDecoderPlugin : public ImageDecoderPlugin {
+class JPEGImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);

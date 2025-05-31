@@ -133,6 +133,8 @@ static constexpr StringView icu_relative_time_format_field_to_string(i32 field)
     VERIFY_NOT_REACHED();
 }
 
+namespace {
+
 class RelativeTimeFormatImpl : public RelativeTimeFormat {
 public:
     explicit RelativeTimeFormatImpl(NonnullOwnPtr<icu::RelativeDateTimeFormatter> formatter)
@@ -233,6 +235,8 @@ private:
 
     NonnullOwnPtr<icu::RelativeDateTimeFormatter> m_formatter;
 };
+
+}
 
 NonnullOwnPtr<RelativeTimeFormat> RelativeTimeFormat::create(StringView locale, Style style)
 {
