@@ -1,33 +1,33 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x31 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x15 children: not-inline
-      BlockContainer <div> at (8,8) content-size 100x15 children: inline
+  BlockContainer <html> at (0,0) content-size 800x61 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x45 children: not-inline
+      BlockContainer <div> at (8,8) content-size 100x45 children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 111.59375x15] baseline: 11.390625
-        frag 1 from BlockContainer start: 0, length: 0, rect: [119.59375,8 119.1875x15] baseline: 11.390625
-        frag 2 from BlockContainer start: 0, length: 0, rect: [238.78125,8 127.5625x15] baseline: 11.390625
+        frag 1 from BlockContainer start: 0, length: 0, rect: [8,23 119.1875x15] baseline: 11.390625
+        frag 2 from BlockContainer start: 0, length: 0, rect: [8,38 127.5625x15] baseline: 11.390625
         BlockContainer <span> at (8,8) content-size 111.59375x15 inline-block [BFC] children: inline
           frag 0 from TextNode start: 0, length: 2, rect: [8,8 111.59375x15] baseline: 11.390625
               "	A"
           TextNode <#text>
-        BlockContainer <span> at (119.59375,8) content-size 119.1875x15 inline-block [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [119.59375,8 119.1875x15] baseline: 11.390625
+        BlockContainer <span> at (8,23) content-size 119.1875x15 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [8,23 119.1875x15] baseline: 11.390625
               "	AB"
           TextNode <#text>
-        BlockContainer <span> at (238.78125,8) content-size 127.5625x15 inline-block [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 4, rect: [238.78125,8 127.5625x15] baseline: 11.390625
+        BlockContainer <span> at (8,38) content-size 127.5625x15 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [8,38 127.5625x15] baseline: 11.390625
               "	ABC"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,23) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,53) content-size 784x0 children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x31]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x15]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 100x15] overflow: [8,8 358.34375x15]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x61]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x45]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 100x45] overflow: [8,8 127.5625x45]
         PaintableWithLines (BlockContainer<SPAN>) [8,8 111.59375x15]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<SPAN>) [119.59375,8 119.1875x15]
+        PaintableWithLines (BlockContainer<SPAN>) [8,23 119.1875x15]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<SPAN>) [238.78125,8 127.5625x15]
+        PaintableWithLines (BlockContainer<SPAN>) [8,38 127.5625x15]
           TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [8,23 784x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,53 784x0]

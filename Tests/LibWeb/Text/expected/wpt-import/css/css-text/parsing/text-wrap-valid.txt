@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	e.style['text-wrap'] = "wrap" should set the property value
+Pass	e.style['text-wrap'] = "nowrap" should set the property value
+Pass	e.style['text-wrap'] = "auto" should set the property value
+Pass	e.style['text-wrap'] = "balance" should set the property value
+Pass	e.style['text-wrap'] = "stable" should set the property value
+Pass	e.style['text-wrap'] = "wrap auto" should set the property value
+Pass	e.style['text-wrap'] = "wrap balance" should set the property value
+Pass	e.style['text-wrap'] = "wrap stable" should set the property value
+Pass	e.style['text-wrap'] = "auto wrap" should set the property value
+Pass	e.style['text-wrap'] = "balance wrap" should set the property value
+Pass	e.style['text-wrap'] = "stable wrap" should set the property value
+Pass	e.style['text-wrap'] = "nowrap auto" should set the property value
+Pass	e.style['text-wrap'] = "nowrap balance" should set the property value
+Pass	e.style['text-wrap'] = "nowrap stable" should set the property value
+Pass	e.style['text-wrap'] = "auto nowrap" should set the property value
+Pass	e.style['text-wrap'] = "balance nowrap" should set the property value
+Pass	e.style['text-wrap'] = "stable nowrap" should set the property value
+Pass	e.style['text-wrap'] = "initial" should set the property value
+Pass	e.style['text-wrap'] = "inherit" should set the property value
+Pass	e.style['text-wrap'] = "unset" should set the property value
+Pass	e.style['text-wrap'] = "revert" should set the property value
+Pass	e.style['text-wrap'] = "revert-layer" should set the property value
