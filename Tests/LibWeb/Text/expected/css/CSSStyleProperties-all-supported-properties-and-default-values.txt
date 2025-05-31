@@ -619,6 +619,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'text-transform': 'none'
 'textWrapMode': 'wrap'
 'text-wrap-mode': 'wrap'
+'textWrapStyle': 'auto'
+'text-wrap-style': 'auto'
 'top': 'auto'
 'touchAction': 'auto'
 'touch-action': 'auto'

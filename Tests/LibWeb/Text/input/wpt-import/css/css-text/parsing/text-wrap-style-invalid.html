@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Module Test: parsing text-wrap-style with invalid values</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#text-wrap-style">
+<meta name="assert" content="text-wrap-style supports only the grammar '<text-wrap-style>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("text-wrap-style", "normal");
+test_invalid_value("text-wrap-style", "none");
+test_invalid_value("text-wrap-style", "wrap");
+test_invalid_value("text-wrap-style", "nowrap");
+test_invalid_value("text-wrap-style", "wrap wrap");
+test_invalid_value("text-wrap-style", "nowrap nowrap");
+test_invalid_value("text-wrap-style", "wrap nowrap");
+test_invalid_value("text-wrap-style", "pretty balance");
+test_invalid_value("text-wrap-style", "balance stable");
+test_invalid_value("text-wrap-style", "stable pretty");
+test_invalid_value("text-wrap-style", "delicious wrap");
+test_invalid_value("text-wrap-style", "5px");
+</script>
+</body>
+</html>
