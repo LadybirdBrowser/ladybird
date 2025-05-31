@@ -1163,3 +1163,9 @@ template<>
 ErrorOr<Web::UniqueNodeID> decode(Decoder&);
 
 }
+
+namespace Web::TrustedTypes {
+
+class TrustedTypePolicyFactory;
+
+}

@@ -6,6 +6,7 @@
 #import <HTML/MessagePort.idl>
 #import <IndexedDB/IDBFactory.idl>
 #import <ServiceWorker/CacheStorage.idl>
+#import <TrustedTypes/TrustedTypePolicyFactory.idl>
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
 typedef (DOMString or Function) TimerHandler;
@@ -43,4 +44,7 @@ interface mixin WindowOrWorkerGlobalScope {
 
     // https://w3c.github.io/ServiceWorker/#cache-storage-interface
     [SecureContext, SameObject] readonly attribute CacheStorage caches;
+
+    // https://w3c.github.io/trusted-types/dist/spec/#extensions-to-the-windoworworkerglobalscope-interface
+    readonly attribute TrustedTypePolicyFactory trustedTypes;
 };
