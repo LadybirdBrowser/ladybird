@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022-2024, Kenneth Myhra <kennethmyhra@serenityos.org>
- * Copyright (c) 2023, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -357,7 +357,7 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
                 // FIXME: Spec bug: https://github.com/w3c/FileAPI/issues/206
                 //
                 // We need to close the stream so that the stream will finish reading.
-                Streams::readable_stream_close(*stream);
+                stream->close();
             }));
         }
     }

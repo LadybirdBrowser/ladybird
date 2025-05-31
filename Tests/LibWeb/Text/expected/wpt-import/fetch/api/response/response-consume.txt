@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 40 tests
 
-28 Pass
-12 Fail
+33 Pass
+7 Fail
 Pass	Consume response's body: from text to text
 Pass	Consume response's body: from text to blob
 Pass	Consume response's body: from text to arrayBuffer
@@ -13,13 +13,13 @@ Fail	Consume response's body: from text with correct multipart type to formData 
 Pass	Consume response's body: from text without correct multipart type to formData (error case)
 Pass	Consume response's body: from text with correct urlencoded type to formData
 Pass	Consume response's body: from text without correct urlencoded type to formData (error case)
-Fail	Consume response's body: from blob to blob
-Fail	Consume response's body: from blob to text
-Fail	Consume response's body: from blob to arrayBuffer
-Fail	Consume response's body: from blob to json
+Pass	Consume response's body: from blob to blob
+Pass	Consume response's body: from blob to text
+Pass	Consume response's body: from blob to arrayBuffer
+Pass	Consume response's body: from blob to json
 Fail	Consume response's body: from blob with correct multipart type to formData
 Pass	Consume response's body: from blob without correct multipart type to formData (error case)
-Fail	Consume response's body: from blob with correct urlencoded type to formData
+Pass	Consume response's body: from blob with correct urlencoded type to formData
 Pass	Consume response's body: from blob without correct urlencoded type to formData (error case)
 Pass	Consume response's body: from FormData to formData
 Pass	Consume response's body: from FormData without correct type to formData (error case)
