@@ -24,8 +24,11 @@ auto text_plain_filenames = Vector {
     ".shellrc"sv,
     "CMakeList.txt"sv,
 };
-// FIXME: fails because .xht extension is in MimeType text/html and application/xhtml+xml
-// auto html_filenames = Vector {"about.html"sv, "send-data-blob.htm"sv, "content.xht"sv, "dir/settings.html"sv,};
+auto html_filenames = Vector {
+    "about.html"sv,
+    "send-data-blob.htm"sv,
+    "dir/settings.html"sv,
+};
 auto xhtml_filenames = Vector {
     "about.xhtml"sv,
     "content.xht"sv,
@@ -46,8 +49,7 @@ auto shell_filenames = Vector {
 TEST_CASE(various_types_guessed)
 {
     check_filename_mimetype(text_plain_filenames, "text/plain"sv);
-    // FIXME: fails because .xht extension is in MimeType text/html and application/xhtml+xml
-    // check_filename_mimetype(html_filenames, "text/html"sv);
+    check_filename_mimetype(html_filenames, "text/html"sv);
     check_filename_mimetype(xhtml_filenames, "application/xhtml+xml"sv);
     check_filename_mimetype(gzip_filenames, "application/gzip"sv);
     check_filename_mimetype(markdown_filenames, "text/markdown"sv);
