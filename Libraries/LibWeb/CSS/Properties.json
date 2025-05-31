@@ -2943,6 +2943,14 @@
       "text-transform"
     ]
   },
+  "text-wrap": {
+    "inherited": true,
+    "initial": "wrap",
+    "longhands": [
+      "text-wrap-mode",
+      "text-wrap-style"
+    ]
+  },
   "text-wrap-mode": {
     "animation-type": "discrete",
     "inherited": true,
