@@ -40,7 +40,7 @@ describe("errors", () => {
     test("invalid padding", () => {
         expect(() => {
             Uint8Array.fromBase64("Zm9v=", { lastChunkHandling: "strict" });
-        }).toThrowWithMessage(SyntaxError, "Invalid trailing data");
+        }).toThrowWithMessage(SyntaxError, "Invalid base64 character");
 
         expect(() => {
             Uint8Array.fromBase64("Zm9vaa=", { lastChunkHandling: "strict" });
