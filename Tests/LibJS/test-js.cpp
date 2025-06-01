@@ -6,14 +6,11 @@
  */
 
 #include <AK/Enumerate.h>
-#include <LibCore/Environment.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <LibUnicode/TimeZone.h>
-#include <stdlib.h>
-#include <time.h>
 
 TEST_ROOT("Libraries/LibJS/Tests");
 
@@ -111,23 +108,13 @@ TESTJS_GLOBAL_FUNCTION(detach_array_buffer, detachArrayBuffer)
 
 TESTJS_GLOBAL_FUNCTION(set_time_zone, setTimeZone)
 {
-    auto current_time_zone = JS::js_null();
+    auto current_time_zone = JS::PrimitiveString::create(vm, Unicode::current_time_zone());
+    auto time_zone = TRY(vm.argument(0).to_string(vm));
 
-    if (auto time_zone = Core::Environment::get("TZ"sv); time_zone.has_value())
-        current_time_zone = JS::PrimitiveString::create(vm, *time_zone);
-
-    if (auto time_zone = vm.argument(0); time_zone.is_null()) {
-        if (auto result = Core::Environment::unset("TZ"sv); result.is_error())
-            return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Could not unset time zone: {}", result.error())));
-    } else {
-        if (auto result = Core::Environment::set("TZ"sv, TRY(time_zone.to_string(vm)), Core::Environment::Overwrite::Yes); result.is_error())
-            return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
-    }
+    if (auto result = Unicode::set_current_time_zone(time_zone); result.is_error())
+        return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
 
     JS::clear_system_time_zone_cache();
-    Unicode::clear_system_time_zone_cache();
-    tzset();
-
     return current_time_zone;
 }
 

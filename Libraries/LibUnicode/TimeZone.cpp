@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -24,8 +24,8 @@ String current_time_zone()
 
     UErrorCode status = U_ZERO_ERROR;
 
-    auto time_zone = adopt_own_if_nonnull(icu::TimeZone::detectHostTimeZone());
-    if (!time_zone)
+    auto time_zone = adopt_own_if_nonnull(icu::TimeZone::createDefault());
+    if (!time_zone || *time_zone == icu::TimeZone::getUnknown())
         return "UTC"_string;
 
     icu::UnicodeString time_zone_id;
@@ -44,6 +44,18 @@ String current_time_zone()
 void clear_system_time_zone_cache()
 {
     cached_system_time_zone.clear();
+}
+
+ErrorOr<void> set_current_time_zone(StringView time_zone)
+{
+    auto time_zone_data = TimeZoneData::for_time_zone(time_zone);
+    if (!time_zone_data.has_value())
+        return Error::from_string_literal("Unable to find the provided time zone");
+
+    icu::TimeZone::setDefault(time_zone_data->time_zone());
+    clear_system_time_zone_cache();
+
+    return {};
 }
 
 // https://github.com/unicode-org/icu/blob/main/icu4c/source/tools/tzcode/icuzones
