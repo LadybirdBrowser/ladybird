@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/OwnPtr.h>
+#include <AK/Vector.h>
 #include <LibWebGPUNative/Metal/Handle.h>
 #include <LibWebGPUNative/Queue.h>
 
@@ -18,8 +20,12 @@ struct Queue::Impl {
 
     id command_queue() const { return m_command_queue->get(); }
 
+    ErrorOr<void> submit(Vector<NonnullRawPtr<CommandBuffer>> const& gpu_command_buffers);
+    void on_submitted(Function<void()> callback);
+
 private:
     OwnPtr<MetalCommandQueueHandle> m_command_queue;
+    Function<void()> m_submitted_callback;
 };
 
 }

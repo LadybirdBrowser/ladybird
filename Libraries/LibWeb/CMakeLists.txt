@@ -924,6 +924,7 @@ set(SOURCES
     WebGPU/GPUDevice.cpp
     WebGPU/GPUQueue.cpp
     WebGPU/GPUTexture.cpp
+    WebGPU/GPUTextureView.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp
     WebIDL/Buffers.cpp
