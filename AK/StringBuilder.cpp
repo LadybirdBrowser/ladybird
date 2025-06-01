@@ -41,8 +41,9 @@ ErrorOr<StringBuilder> StringBuilder::create(size_t initial_capacity)
 }
 
 StringBuilder::StringBuilder()
-    : StringBuilder(inline_capacity)
 {
+    static_assert(inline_capacity > STRING_BASE_PREFIX_SIZE);
+    m_buffer.resize(STRING_BASE_PREFIX_SIZE);
 }
 
 StringBuilder::StringBuilder(size_t initial_capacity)
