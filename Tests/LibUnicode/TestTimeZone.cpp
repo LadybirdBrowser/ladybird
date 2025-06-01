@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,29 +7,25 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/StringView.h>
-#include <LibCore/Environment.h>
 #include <LibUnicode/TimeZone.h>
 
 class TimeZoneGuard {
 public:
     explicit TimeZoneGuard(StringView time_zone)
-        : m_time_zone(Core::Environment::get("TZ"sv))
+        : m_time_zone(Unicode::current_time_zone())
     {
-        MUST(Core::Environment::set("TZ"sv, time_zone, Core::Environment::Overwrite::Yes));
-        Unicode::clear_system_time_zone_cache();
+        (void)Unicode::set_current_time_zone(time_zone);
     }
 
     ~TimeZoneGuard()
     {
-        if (m_time_zone.has_value())
-            MUST(Core::Environment::set("TZ"sv, *m_time_zone, Core::Environment::Overwrite::Yes));
-        else
-            MUST(Core::Environment::unset("TZ"sv));
-        Unicode::clear_system_time_zone_cache();
+        MUST(Unicode::set_current_time_zone(m_time_zone));
     }
 
+    String const& time_zone() const { return m_time_zone; }
+
 private:
-    Optional<StringView> m_time_zone;
+    String m_time_zone;
 };
 
 TEST_CASE(current_time_zone)
@@ -39,8 +35,12 @@ TEST_CASE(current_time_zone)
         EXPECT_EQ(Unicode::current_time_zone(), "America/New_York"sv);
     }
     {
+        TimeZoneGuard guard { "America/Los_Angeles"sv };
+        EXPECT_EQ(Unicode::current_time_zone(), "America/Los_Angeles"sv);
+    }
+    {
         TimeZoneGuard guard { "ladybird"sv };
-        EXPECT_EQ(Unicode::current_time_zone(), "UTC"sv);
+        EXPECT_EQ(Unicode::current_time_zone(), guard.time_zone());
     }
 }
 

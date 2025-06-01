@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <AK/Error.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Time.h>
@@ -24,6 +25,7 @@ struct TimeZoneOffset {
 };
 
 String current_time_zone();
+ErrorOr<void> set_current_time_zone(StringView);
 void clear_system_time_zone_cache();
 Vector<String> const& available_time_zones();
 Vector<String> available_time_zones_in_region(StringView region);
