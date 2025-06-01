@@ -91,4 +91,20 @@ private:
     id m_buffer;
 };
 
+class MetalRenderCommandEncoderHandle {
+public:
+    explicit MetalRenderCommandEncoderHandle(id render_command_encoder);
+    ~MetalRenderCommandEncoderHandle();
+
+    MetalRenderCommandEncoderHandle(MetalRenderCommandEncoderHandle const&) = delete;
+    MetalRenderCommandEncoderHandle& operator=(MetalRenderCommandEncoderHandle const&) = delete;
+    MetalRenderCommandEncoderHandle(MetalRenderCommandEncoderHandle&&) noexcept;
+    MetalRenderCommandEncoderHandle& operator=(MetalRenderCommandEncoderHandle&&) noexcept;
+
+    id get() const { return m_render_command_encoder; }
+
+private:
+    id m_render_command_encoder;
+};
+
 }

@@ -25,4 +25,18 @@ ErrorOr<void> CommandEncoder::initialize()
     return m_impl->initialize();
 }
 
+ErrorOr<RenderPassEncoder> CommandEncoder::begin_render_pass(RenderPassDescriptor const& render_pass_descriptor) const
+{
+    auto render_pass_encoder = RenderPassEncoder(*this, render_pass_descriptor);
+    TRY(render_pass_encoder.initialize());
+    TRY(m_impl->begin_render_pass(render_pass_encoder));
+    return render_pass_encoder;
+}
+
+ErrorOr<CommandBuffer> CommandEncoder::finish()
+{
+    TRY(m_impl->finish());
+    return CommandBuffer(*this);
+}
+
 }
