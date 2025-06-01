@@ -6,8 +6,8 @@
 
 #include <AK/Utf8View.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/StringIterator.h>
-#include <LibJS/Runtime/StringIteratorPrototype.h>
 
 namespace JS {
 
@@ -23,8 +23,19 @@ StringIterator::StringIterator(String string, Object& prototype)
     , m_string(move(string))
     , m_iterator(Utf8View(m_string).begin())
 {
-    auto& string_iterator_prototype = as<StringIteratorPrototype>(prototype);
-    m_next_method_was_redefined = string_iterator_prototype.next_method_was_redefined();
+}
+
+BuiltinIterator* StringIterator::as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const& iterator_record)
+{
+    if (iterator_record.next_method.is_object()) {
+        auto const& next_function = iterator_record.next_method.as_object();
+        if (next_function.is_native_function()) {
+            auto const& native_function = static_cast<NativeFunction const&>(next_function);
+            if (native_function.is_string_prototype_next_builtin())
+                return this;
+        }
+    }
+    return nullptr;
 }
 
 ThrowCompletionOr<void> StringIterator::next(VM& vm, bool& done, Value& value)

@@ -5,8 +5,8 @@
  */
 
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/SetIterator.h>
-#include <LibJS/Runtime/SetIteratorPrototype.h>
 
 namespace JS {
 
@@ -23,14 +23,25 @@ SetIterator::SetIterator(Set& set, Object::PropertyKind iteration_kind, Object& 
     , m_iteration_kind(iteration_kind)
     , m_iterator(static_cast<Set const&>(set).begin())
 {
-    auto& set_iterator_prototype = as<SetIteratorPrototype>(prototype);
-    m_next_method_was_redefined = set_iterator_prototype.next_method_was_redefined();
 }
 
 void SetIterator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_set);
+}
+
+BuiltinIterator* SetIterator::as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const& iterator_record)
+{
+    if (iterator_record.next_method.is_object()) {
+        auto const& next_function = iterator_record.next_method.as_object();
+        if (next_function.is_native_function()) {
+            auto const& native_function = static_cast<NativeFunction const&>(next_function);
+            if (native_function.is_set_prototype_next_builtin())
+                return this;
+        }
+    }
+    return nullptr;
 }
 
 ThrowCompletionOr<void> SetIterator::next(VM& vm, bool& done, Value& value)

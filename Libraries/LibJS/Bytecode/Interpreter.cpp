@@ -1799,7 +1799,7 @@ class JS_API PropertyNameIterator final
 public:
     virtual ~PropertyNameIterator() override = default;
 
-    BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined() override { return this; }
+    BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const&) override { return this; }
     ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override
     {
         while (true) {
@@ -2826,6 +2826,11 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
         return TRY(MathObject::cos_impl(interpreter.vm(), interpreter.get(arguments[0])));
     case Builtin::MathTan:
         return TRY(MathObject::tan_impl(interpreter.vm(), interpreter.get(arguments[0])));
+    case Builtin::ArrayIteratorPrototypeNext:
+    case Builtin::MapIteratorPrototypeNext:
+    case Builtin::SetIteratorPrototypeNext:
+    case Builtin::StringIteratorPrototypeNext:
+        VERIFY_NOT_REACHED();
     case Bytecode::Builtin::__Count:
         VERIFY_NOT_REACHED();
     }

@@ -205,7 +205,7 @@ ThrowCompletionOr<Value> iterator_value(VM& vm, Object& iterator_result)
 // 7.4.9 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
 ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecord& iterator_record)
 {
-    if (auto* builtin_iterator = iterator_record.iterator->as_builtin_iterator_if_next_is_not_redefined()) {
+    if (auto* builtin_iterator = iterator_record.iterator->as_builtin_iterator_if_next_is_not_redefined(iterator_record)) {
         Value value;
         bool done = false;
         TRY(builtin_iterator->next(vm, done, value));
@@ -283,7 +283,7 @@ static Completion iterator_close_impl(VM& vm, IteratorRecord const& iterator_rec
     auto iterator = iterator_record.iterator;
 
     // OPTIMIZATION: "return" method is not defined on any of iterators we treat as built-in.
-    if (iterator->as_builtin_iterator_if_next_is_not_redefined())
+    if (iterator->as_builtin_iterator_if_next_is_not_redefined(iterator_record))
         return completion;
 
     // 3. Let innerResult be Completion(GetMethod(iterator, "return")).
