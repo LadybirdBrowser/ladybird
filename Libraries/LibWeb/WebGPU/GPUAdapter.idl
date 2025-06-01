@@ -1,0 +1,4 @@
+// https://www.w3.org/TR/webgpu/#gpuadapter
+[Exposed=(Window,Worker), SecureContext]
+interface GPUAdapter {
+};
