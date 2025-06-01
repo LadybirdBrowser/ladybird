@@ -2,22 +2,21 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        const bodyStyleDeclaration = getComputedStyle(document.body);
+        function printProperties(properties) {
+            println(JSON.stringify(Object.values(properties), null, 4));
+        }
 
-        const serializedBodyComputedStyle = JSON.stringify(bodyStyleDeclaration, null, 4);
         println("All properties associated with getComputedStyle(document.body):");
-        println(serializedBodyComputedStyle);
+        printProperties(getComputedStyle(document.body));
 
-        const serializedBodyElementStyle = JSON.stringify(document.body.style, null, 4);
         println("All properties associated with document.body.style by default:");
-        println(serializedBodyElementStyle);
+        printProperties(document.body.style);
 
         document.body.style.display = "none";
         document.body.style.backgroundColor = "red";
         document.body.style.fontSize = "15px";
 
-        const serializedBodyElementStyleWithSetProperties = JSON.stringify(document.body.style, null, 4);
         println("All properties associated with document.body.style after setting some properties:");
-        println(serializedBodyElementStyleWithSetProperties);
+        printProperties(document.body.style);
     });
 </script>
