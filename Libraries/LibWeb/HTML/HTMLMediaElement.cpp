@@ -40,6 +40,7 @@
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::HTML {
@@ -813,138 +814,140 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
     // 3. Set the media element's delaying-the-load-event flag to true (this delays the load event).
     m_delaying_the_load_event.emplace(document());
 
-    // FIXME: 4. Await a stable state, allowing the task that invoked this algorithm to continue. The synchronous section consists of all the remaining
-    //           steps of this algorithm until the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
+    // 4. Await a stable state, allowing the task that invoked this algorithm to continue. The synchronous section consists of all the remaining
+    // steps of this algorithm until the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
 
-    // FIXME: 5. ⌛ If the media element's blocked-on-parser flag is false, then populate the list of pending text tracks.
+    queue_a_microtask(&document(), GC::create_function(realm.heap(), [this, &realm]() {
+        // FIXME: 5. ⌛ If the media element's blocked-on-parser flag is false, then populate the list of pending text tracks.
 
-    Optional<SelectMode> mode;
-    GC::Ptr<HTMLSourceElement> candidate;
+        Optional<SelectMode> mode;
+        GC::Ptr<HTMLSourceElement> candidate;
 
-    // 6. FIXME: ⌛ If the media element has an assigned media provider object, then let mode be object.
+        // 6. FIXME: ⌛ If the media element has an assigned media provider object, then let mode be object.
 
-    // ⌛ Otherwise, if the media element has no assigned media provider object but has a src attribute, then let mode be attribute.
-    if (has_attribute(HTML::AttributeNames::src)) {
-        mode = SelectMode::Attribute;
-    }
-    // ⌛ Otherwise, if the media element does not have an assigned media provider object and does not have a src attribute, but does have
-    // a source element child, then let mode be children and let candidate be the first such source element child in tree order.
-    else if (auto* source_element = first_child_of_type<HTMLSourceElement>()) {
-        mode = SelectMode::Children;
-        candidate = source_element;
-    }
-    // ⌛ Otherwise the media element has no assigned media provider object and has neither a src attribute nor a source element child:
-    else {
-        // 1. ⌛ Set the networkState to NETWORK_EMPTY.
-        m_network_state = NetworkState::Empty;
+        // ⌛ Otherwise, if the media element has no assigned media provider object but has a src attribute, then let mode be attribute.
+        if (has_attribute(HTML::AttributeNames::src)) {
+            mode = SelectMode::Attribute;
+        }
+        // ⌛ Otherwise, if the media element does not have an assigned media provider object and does not have a src attribute, but does have
+        // a source element child, then let mode be children and let candidate be the first such source element child in tree order.
+        else if (auto* source_element = first_child_of_type<HTMLSourceElement>()) {
+            mode = SelectMode::Children;
+            candidate = source_element;
+        }
+        // ⌛ Otherwise the media element has no assigned media provider object and has neither a src attribute nor a source element child:
+        else {
+            // 1. ⌛ Set the networkState to NETWORK_EMPTY.
+            m_network_state = NetworkState::Empty;
 
-        // 2. ⌛ Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
-        m_delaying_the_load_event.clear();
+            // 2. ⌛ Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
+            m_delaying_the_load_event.clear();
 
-        // 3. End the synchronous section and return.
-        return {};
-    }
-
-    // 7. ⌛ Set the media element's networkState to NETWORK_LOADING.
-    m_network_state = NetworkState::Loading;
-
-    // 8. ⌛ Queue a media element task given the media element to fire an event named loadstart at the media element.
-    queue_a_media_element_task([this] {
-        dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::loadstart));
-    });
-
-    // 9. Run the appropriate steps from the following list:
-    switch (*mode) {
-    // -> If mode is object
-    case SelectMode::Object:
-        // FIXME: 1. ⌛ Set the currentSrc attribute to the empty string.
-        // FIXME: 2. End the synchronous section, continuing the remaining steps in parallel.
-        // FIXME: 3. Run the resource fetch algorithm with the assigned media provider object. If that algorithm returns without aborting this one,
-        //           then theload failed.
-        // FIXME: 4. Failed with media provider: Reaching this step indicates that the media resource failed to load. Take pending play promises and queue
-        //           a media element task given the media element to run the dedicated media source failure steps with the result.
-        // FIXME: 5. Wait for the task queued by the previous step to have executed.
-
-        // 6. Return. The element won't attempt to load another resource until this algorithm is triggered again.
-        return {};
-
-    // -> If mode is attribute
-    case SelectMode::Attribute: {
-        auto failed_with_attribute = [this](auto error_message) {
-            IGNORE_USE_IN_ESCAPING_LAMBDA bool ran_media_element_task = false;
-
-            // 6. Failed with attribute: Reaching this step indicates that the media resource failed to load or that the given URL could not be parsed. Take
-            //    pending play promises and queue a media element task given the media element to run the dedicated media source failure steps with the result.
-            queue_a_media_element_task([this, &ran_media_element_task, error_message = move(error_message)]() mutable {
-                auto promises = take_pending_play_promises();
-                handle_media_source_failure(promises, move(error_message)).release_value_but_fixme_should_propagate_errors();
-
-                ran_media_element_task = true;
-            });
-
-            // 7. Wait for the task queued by the previous step to have executed.
-            HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() { return ran_media_element_task; }));
-        };
-
-        // 1. ⌛ If the src attribute's value is the empty string, then end the synchronous section, and jump down to the failed with attribute step below.
-        auto source = get_attribute_value(HTML::AttributeNames::src);
-        if (source.is_empty()) {
-            failed_with_attribute("The 'src' attribute is empty"_string);
-            return {};
+            // 3. End the synchronous section and return.
+            return;
         }
 
-        // 2. ⌛ Let urlString and urlRecord be the resulting URL string and the resulting URL record, respectively, that would have resulted from parsing
-        //    the URL specified by the src attribute's value relative to the media element's node document when the src attribute was last changed.
-        auto url_record = document().parse_url(source);
+        // 7. ⌛ Set the media element's networkState to NETWORK_LOADING.
+        m_network_state = NetworkState::Loading;
 
-        // 3. ⌛ If urlString was obtained successfully, set the currentSrc attribute to urlString.
-        if (url_record.has_value())
-            m_current_src = url_record->to_string();
+        // 8. ⌛ Queue a media element task given the media element to fire an event named loadstart at the media element.
+        queue_a_media_element_task([this] {
+            dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::loadstart));
+        });
 
-        // 4. End the synchronous section, continuing the remaining steps in parallel.
+        // 9. Run the appropriate steps from the following list:
+        switch (*mode) {
+        // -> If mode is object
+        case SelectMode::Object:
+            // FIXME: 1. ⌛ Set the currentSrc attribute to the empty string.
+            // FIXME: 2. End the synchronous section, continuing the remaining steps in parallel.
+            // FIXME: 3. Run the resource fetch algorithm with the assigned media provider object. If that algorithm returns without aborting this one,
+            //           then theload failed.
+            // FIXME: 4. Failed with media provider: Reaching this step indicates that the media resource failed to load. Take pending play promises and queue
+            //           a media element task given the media element to run the dedicated media source failure steps with the result.
+            // FIXME: 5. Wait for the task queued by the previous step to have executed.
 
-        // 5. If urlRecord was obtained successfully, run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one,
-        //    then the load failed.
-        if (url_record.has_value()) {
-            TRY(fetch_resource(*url_record, move(failed_with_attribute)));
-            return {};
+            // 6. Return. The element won't attempt to load another resource until this algorithm is triggered again.
+            return;
+
+        // -> If mode is attribute
+        case SelectMode::Attribute: {
+            auto failed_with_attribute = [this](auto error_message) {
+                IGNORE_USE_IN_ESCAPING_LAMBDA bool ran_media_element_task = false;
+
+                // 6. Failed with attribute: Reaching this step indicates that the media resource failed to load or that the given URL could not be parsed. Take
+                //    pending play promises and queue a media element task given the media element to run the dedicated media source failure steps with the result.
+                queue_a_media_element_task([this, &ran_media_element_task, error_message = move(error_message)]() mutable {
+                    auto promises = take_pending_play_promises();
+                    handle_media_source_failure(promises, move(error_message)).release_value_but_fixme_should_propagate_errors();
+
+                    ran_media_element_task = true;
+                });
+
+                // 7. Wait for the task queued by the previous step to have executed.
+                HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() { return ran_media_element_task; }));
+            };
+
+            // 1. ⌛ If the src attribute's value is the empty string, then end the synchronous section, and jump down to the failed with attribute step below.
+            auto source = get_attribute_value(HTML::AttributeNames::src);
+            if (source.is_empty()) {
+                failed_with_attribute("The 'src' attribute is empty"_string);
+                return;
+            }
+
+            // 2. ⌛ Let urlString and urlRecord be the resulting URL string and the resulting URL record, respectively, that would have resulted from parsing
+            //    the URL specified by the src attribute's value relative to the media element's node document when the src attribute was last changed.
+            auto url_record = document().parse_url(source);
+
+            // 3. ⌛ If urlString was obtained successfully, set the currentSrc attribute to urlString.
+            if (url_record.has_value())
+                m_current_src = url_record->to_string();
+
+            // 4. End the synchronous section, continuing the remaining steps in parallel.
+
+            // 5. If urlRecord was obtained successfully, run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one,
+            //    then the load failed.
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, url_record = move(url_record), failed_with_attribute = move(failed_with_attribute)]() mutable {
+                if (url_record.has_value()) {
+                    fetch_resource(*url_record, move(failed_with_attribute)).release_value_but_fixme_should_propagate_errors();
+                    return;
+                }
+            }));
+
+            // 8. Return. The element won't attempt to load another resource until this algorithm is triggered again.
+            return;
         }
 
-        failed_with_attribute("Failed to parse 'src' attribute as a URL"_string);
+        // -> Otherwise (mode is children)
+        case SelectMode::Children:
+            VERIFY(candidate);
 
-        // 8. Return. The element won't attempt to load another resource until this algorithm is triggered again.
-        return {};
-    }
+            // 1. ⌛ Let pointer be a position defined by two adjacent nodes in the media element's child list, treating the start of the list (before the
+            //    first child in the list, if any) and end of the list (after the last child in the list, if any) as nodes in their own right. One node is
+            //    the node before pointer, and the other node is the node after pointer. Initially, let pointer be the position between the candidate node
+            //    and the next node, if there are any, or the end of the list, if it is the last node.
+            //
+            //    As nodes are inserted and removed into the media element, pointer must be updated as follows:
+            //
+            //    If a new node is inserted between the two nodes that define pointer
+            //        Let pointer be the point between the node before pointer and the new node. In other words, insertions at pointer go after pointer.
+            //    If the node before pointer is removed
+            //        Let pointer be the point between the node after pointer and the node before the node after pointer. In other words, pointer doesn't
+            //        move relative to the remaining nodes.
+            //    If the node after pointer is removed
+            //        Let pointer be the point between the node before pointer and the node after the node before pointer. Just as with the previous case,
+            //        pointer doesn't move relative to the remaining nodes.
+            //    Other changes don't affect pointer.
 
-    // -> Otherwise (mode is children)
-    case SelectMode::Children:
-        VERIFY(candidate);
+            // NOTE: We do not bother with maintaining this pointer. We inspect the DOM tree on the fly, rather than dealing
+            //       with the headache of auto-updating this pointer as the DOM changes.
 
-        // 1. ⌛ Let pointer be a position defined by two adjacent nodes in the media element's child list, treating the start of the list (before the
-        //    first child in the list, if any) and end of the list (after the last child in the list, if any) as nodes in their own right. One node is
-        //    the node before pointer, and the other node is the node after pointer. Initially, let pointer be the position between the candidate node
-        //    and the next node, if there are any, or the end of the list, if it is the last node.
-        //
-        //    As nodes are inserted and removed into the media element, pointer must be updated as follows:
-        //
-        //    If a new node is inserted between the two nodes that define pointer
-        //        Let pointer be the point between the node before pointer and the new node. In other words, insertions at pointer go after pointer.
-        //    If the node before pointer is removed
-        //        Let pointer be the point between the node after pointer and the node before the node after pointer. In other words, pointer doesn't
-        //        move relative to the remaining nodes.
-        //    If the node after pointer is removed
-        //        Let pointer be the point between the node before pointer and the node after the node before pointer. Just as with the previous case,
-        //        pointer doesn't move relative to the remaining nodes.
-        //    Other changes don't affect pointer.
+            m_source_element_selector = realm.create<SourceElementSelector>(*this, *candidate);
+            m_source_element_selector->process_candidate().release_value_but_fixme_should_propagate_errors();
 
-        // NOTE: We do not bother with maintaining this pointer. We inspect the DOM tree on the fly, rather than dealing
-        //       with the headache of auto-updating this pointer as the DOM changes.
-
-        m_source_element_selector = realm.create<SourceElementSelector>(*this, *candidate);
-        TRY(m_source_element_selector->process_candidate());
-
-        break;
-    }
+            break;
+        }
+    }));
 
     return {};
 }

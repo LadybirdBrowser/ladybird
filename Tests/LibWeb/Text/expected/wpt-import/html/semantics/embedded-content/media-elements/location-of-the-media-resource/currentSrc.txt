@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	audio.currentSrc initial value
+Pass	audio.currentSrc after setting src attribute ""
+Pass	audio.currentSrc after adding source element with src attribute ""
+Pass	audio.currentSrc after setting src attribute "."
+Pass	audio.currentSrc after adding source element with src attribute "."
+Pass	audio.currentSrc after setting src attribute " "
+Pass	audio.currentSrc after adding source element with src attribute " "
+Pass	audio.currentSrc after setting src attribute "data:,"
+Pass	audio.currentSrc after adding source element with src attribute "data:,"
+Pass	video.currentSrc initial value
+Pass	video.currentSrc after setting src attribute ""
+Pass	video.currentSrc after adding source element with src attribute ""
+Pass	video.currentSrc after setting src attribute "."
+Pass	video.currentSrc after adding source element with src attribute "."
+Pass	video.currentSrc after setting src attribute " "
+Pass	video.currentSrc after adding source element with src attribute " "
+Pass	video.currentSrc after setting src attribute "data:,"
+Pass	video.currentSrc after adding source element with src attribute "data:,"
