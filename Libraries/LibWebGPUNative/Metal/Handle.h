@@ -59,4 +59,36 @@ private:
     id m_command_buffer;
 };
 
+class MetalTextureHandle {
+public:
+    explicit MetalTextureHandle(id texture);
+    ~MetalTextureHandle();
+
+    MetalTextureHandle(MetalTextureHandle const&) = delete;
+    MetalTextureHandle& operator=(MetalTextureHandle const&) = delete;
+    MetalTextureHandle(MetalTextureHandle&&) noexcept;
+    MetalTextureHandle& operator=(MetalTextureHandle&&) noexcept;
+
+    id get() const { return m_texture; }
+
+private:
+    id m_texture;
+};
+
+class MetalBufferHandle {
+public:
+    explicit MetalBufferHandle(id buffer);
+    ~MetalBufferHandle();
+
+    MetalBufferHandle(MetalBufferHandle const&) = delete;
+    MetalBufferHandle& operator=(MetalBufferHandle const&) = delete;
+    MetalBufferHandle(MetalBufferHandle&&) noexcept;
+    MetalBufferHandle& operator=(MetalBufferHandle&&) noexcept;
+
+    id get() const { return m_buffer; }
+
+private:
+    id m_buffer;
+};
+
 }

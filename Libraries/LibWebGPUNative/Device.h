@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <LibGfx/Forward.h>
 #include <LibWebGPUNative/Forward.h>
 
 namespace WebGPUNative {
@@ -14,11 +15,14 @@ namespace WebGPUNative {
 class Adapter;
 class CommandEncoder;
 class Queue;
+class Texture;
 
 class WEBGPUNATIVE_API Device {
 public:
+    friend class Adapter;
     friend class CommandEncoder;
     friend class Queue;
+    friend class Texture;
 
     explicit Device(Adapter const&);
     Device(Device&&) noexcept;
@@ -28,6 +32,8 @@ public:
     ErrorOr<void> initialize();
 
     Queue queue() const;
+
+    Texture texture(Gfx::IntSize) const;
 
     CommandEncoder command_encoder() const;
 
