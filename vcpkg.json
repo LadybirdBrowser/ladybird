@@ -139,7 +139,7 @@
     },
     {
       "name": "curl",
-      "version": "8.13.0#0"
+      "version": "8.14.0#0"
     },
     {
       "name": "dirent",
