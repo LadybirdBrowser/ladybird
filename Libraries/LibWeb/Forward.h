@@ -1066,6 +1066,7 @@ namespace Web::WebGPU {
 class GPU;
 class GPUAdapter;
 class GPUCommandBuffer;
+class GPUCommandEncoder;
 class GPUDevice;
 class GPUQueue;
 
