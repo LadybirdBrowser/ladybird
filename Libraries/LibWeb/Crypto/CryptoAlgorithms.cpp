@@ -88,7 +88,6 @@ static ::Crypto::UnsignedBigInteger big_integer_from_api_big_integer(GC::Ptr<JS:
 
     auto const& buffer = big_integer->viewed_array_buffer()->buffer();
 
-    ::Crypto::UnsignedBigInteger result(0);
     if (buffer.size() > 0) {
         if constexpr (AK::HostIsLittleEndian) {
             // We need to reverse the buffer to get it into little-endian order
@@ -122,18 +121,7 @@ ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger integer)
 
     auto data_slice_be = bytes.bytes().slice(bytes.size() - data_size, data_size);
 
-    String encoded;
-    if constexpr (AK::HostIsLittleEndian) {
-        // We need to encode the integer's big endian representation as a base64 string
-        Vector<u8, 32> data_slice_cpu;
-        data_slice_cpu.ensure_capacity(data_size);
-        for (size_t i = 0; i < data_size; ++i) {
-            data_slice_cpu.append(data_slice_be[data_size - i - 1]);
-        }
-        encoded = TRY(encode_base64url(data_slice_cpu));
-    } else {
-        encoded = TRY(encode_base64url(data_slice_be));
-    }
+    auto encoded = TRY(encode_base64url(data_slice_be));
 
     // FIXME: create a version of encode_base64url that omits padding bytes
     if (auto first_padding_byte = encoded.find_byte_offset('='); first_padding_byte.has_value())
@@ -163,18 +151,7 @@ WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm& realm, String
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm& realm, String const& base64_url_string)
 {
     auto base64_bytes_be = TRY(base64_url_bytes_decode(realm, base64_url_string));
-
-    if constexpr (AK::HostIsLittleEndian) {
-        // We need to swap the integer's big-endian representation to little endian in order to import it
-        Vector<u8, 32> base64_bytes_cpu;
-        base64_bytes_cpu.ensure_capacity(base64_bytes_be.size());
-        for (size_t i = 0; i < base64_bytes_be.size(); ++i) {
-            base64_bytes_cpu.append(base64_bytes_be[base64_bytes_be.size() - i - 1]);
-        }
-        return ::Crypto::UnsignedBigInteger::import_data(base64_bytes_cpu.data(), base64_bytes_cpu.size());
-    } else {
-        return ::Crypto::UnsignedBigInteger::import_data(base64_bytes_be.data(), base64_bytes_be.size());
-    }
+    return ::Crypto::UnsignedBigInteger::import_data(base64_bytes_be.data(), base64_bytes_be.size());
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
