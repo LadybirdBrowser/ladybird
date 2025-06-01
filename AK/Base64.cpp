@@ -45,9 +45,7 @@ static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, 
         to_simdutf_last_chunk_handling(last_chunk_handling),
         decode_up_to_bad_character);
 
-    if (result.error == simdutf::BASE64_INPUT_REMAINDER && last_chunk_handling == LastChunkHandling::StopBeforePartial) {
-        result.error = simdutf::SUCCESS;
-    } else if (result.error != simdutf::SUCCESS && result.error != simdutf::OUTPUT_BUFFER_TOO_SMALL) {
+    if (result.error != simdutf::SUCCESS && result.error != simdutf::OUTPUT_BUFFER_TOO_SMALL) {
         output.resize((result.count / 4) * 3);
 
         auto error = [&]() {
@@ -69,10 +67,7 @@ static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, 
     VERIFY(output_length <= output.size());
     output.resize(output_length);
 
-    if (last_chunk_handling == LastChunkHandling::StopBeforePartial)
-        return input.length() - (input.length() % 4);
-
-    return result.error == simdutf::SUCCESS ? input.length() : result.count;
+    return result.count;
 }
 
 static ErrorOr<ByteBuffer> decode_base64_impl(StringView input, LastChunkHandling last_chunk_handling, simdutf::base64_options options)
