@@ -138,6 +138,7 @@ FormDataEvent
 Function
 GPU
 GPUAdapter
+GPUCanvasContext
 GPUCommandBuffer
 GPUCommandEncoder
 GPUDevice
