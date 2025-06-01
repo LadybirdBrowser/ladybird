@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>HTML5 Media Elements: An empty src should not crash the player.</title>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+    <link rel="author" title="Alicia Boya García" href="mailto:aboya@igalia.com"/>
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+    function makeCrashTest(src) {
+        async_test((test) => {
+            const video = document.createElement("video");
+            video.src = src;
+            video.controls = true;
+            video.addEventListener("error", () => {
+                document.body.removeChild(video);
+                test.done();
+            });
+            document.body.appendChild(video);
+        }, `src="${src}" does not crash.`);
+    }
+
+    makeCrashTest("about:blank");
+    makeCrashTest("");
+</script>
+</body>
+</html>
