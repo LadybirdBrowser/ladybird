@@ -29,14 +29,25 @@ ArrayIterator::ArrayIterator(Value array, Object::PropertyKind iteration_kind, O
     , m_array(array)
     , m_iteration_kind(iteration_kind)
 {
-    auto& array_iterator_prototype = as<ArrayIteratorPrototype>(prototype);
-    m_next_method_was_redefined = array_iterator_prototype.next_method_was_redefined();
 }
 
 void ArrayIterator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_array);
+}
+
+BuiltinIterator* ArrayIterator::as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const& iterator_record)
+{
+    if (iterator_record.next_method.is_object()) {
+        auto const& next_function = iterator_record.next_method.as_object();
+        if (next_function.is_native_function()) {
+            auto const& native_function = static_cast<NativeFunction const&>(next_function);
+            if (native_function.is_array_prototype_next_builtin())
+                return this;
+        }
+    }
+    return nullptr;
 }
 
 ThrowCompletionOr<void> ArrayIterator::next(VM& vm, bool& done, Value& value)

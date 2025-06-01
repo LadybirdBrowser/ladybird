@@ -961,18 +961,6 @@ ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Va
     VERIFY(!value.is_special_empty_value());
     VERIFY(!receiver.is_special_empty_value());
 
-    if (receiver.is_object() && property_key == vm().names.next) {
-        auto& receiver_object = receiver.as_object();
-        if (auto* array_iterator_prototype = as_if<ArrayIteratorPrototype>(receiver_object))
-            array_iterator_prototype->set_next_method_was_redefined();
-        else if (auto* map_iterator_prototype = as_if<MapIteratorPrototype>(receiver_object))
-            map_iterator_prototype->set_next_method_was_redefined();
-        else if (auto* set_iterator_prototype = as_if<SetIteratorPrototype>(receiver_object))
-            set_iterator_prototype->set_next_method_was_redefined();
-        else if (auto* string_iterator_prototype = as_if<StringIteratorPrototype>(receiver_object))
-            string_iterator_prototype->set_next_method_was_redefined();
-    }
-
     // 2. Let ownDesc be ? O.[[GetOwnProperty]](P).
     auto own_descriptor = TRY(internal_get_own_property(property_key));
 
@@ -1349,7 +1337,7 @@ Value Object::get_without_side_effects(PropertyKey const& property_key) const
 
 void Object::define_native_function(Realm& realm, PropertyKey const& property_key, Function<ThrowCompletionOr<Value>(VM&)> native_function, i32 length, PropertyAttributes attribute, Optional<Bytecode::Builtin> builtin)
 {
-    auto function = NativeFunction::create(realm, move(native_function), length, property_key, &realm);
+    auto function = NativeFunction::create(realm, move(native_function), length, property_key, &realm, {}, builtin);
     define_direct_property(property_key, function, attribute);
     if (builtin.has_value())
         realm.define_builtin(builtin.value(), function);

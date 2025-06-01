@@ -212,7 +212,7 @@ public:
     virtual bool is_array_iterator() const { return false; }
     virtual bool is_raw_json_object() const { return false; }
 
-    virtual BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined() { return nullptr; }
+    virtual BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const&) { return nullptr; }
 
     virtual bool is_array_iterator_prototype() const { return false; }
     virtual bool is_map_iterator_prototype() const { return false; }

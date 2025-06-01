@@ -12,20 +12,24 @@
 namespace JS::Bytecode {
 
 // TitleCaseName, snake_case_name, base, property, argument_count
-#define JS_ENUMERATE_BUILTINS(O)                \
-    O(MathAbs, math_abs, Math, abs, 1)          \
-    O(MathLog, math_log, Math, log, 1)          \
-    O(MathPow, math_pow, Math, pow, 2)          \
-    O(MathExp, math_exp, Math, exp, 1)          \
-    O(MathCeil, math_ceil, Math, ceil, 1)       \
-    O(MathFloor, math_floor, Math, floor, 1)    \
-    O(MathImul, math_imul, Math, imul, 2)       \
-    O(MathRandom, math_random, Math, random, 0) \
-    O(MathRound, math_round, Math, round, 1)    \
-    O(MathSqrt, math_sqrt, Math, sqrt, 1)       \
-    O(MathSin, math_sin, Math, sin, 1)          \
-    O(MathCos, math_cos, Math, cos, 1)          \
-    O(MathTan, math_tan, Math, tan, 1)
+#define JS_ENUMERATE_BUILTINS(O)                                                                  \
+    O(MathAbs, math_abs, Math, abs, 1)                                                            \
+    O(MathLog, math_log, Math, log, 1)                                                            \
+    O(MathPow, math_pow, Math, pow, 2)                                                            \
+    O(MathExp, math_exp, Math, exp, 1)                                                            \
+    O(MathCeil, math_ceil, Math, ceil, 1)                                                         \
+    O(MathFloor, math_floor, Math, floor, 1)                                                      \
+    O(MathImul, math_imul, Math, imul, 2)                                                         \
+    O(MathRandom, math_random, Math, random, 0)                                                   \
+    O(MathRound, math_round, Math, round, 1)                                                      \
+    O(MathSqrt, math_sqrt, Math, sqrt, 1)                                                         \
+    O(MathSin, math_sin, Math, sin, 1)                                                            \
+    O(MathCos, math_cos, Math, cos, 1)                                                            \
+    O(MathTan, math_tan, Math, tan, 1)                                                            \
+    O(ArrayIteratorPrototypeNext, array_iterator_prototype_next, ArrayIteratorPrototype, next, 0) \
+    O(MapIteratorPrototypeNext, map_iterator_prototype_next, MapIteratorPrototype, next, 0)       \
+    O(SetIteratorPrototypeNext, set_iterator_prototype_next, SetIteratorPrototype, next, 0)       \
+    O(StringIteratorPrototypeNext, string_iterator_prototype_next, StringIteratorPrototype, next, 0)
 
 enum class Builtin : u8 {
 #define DEFINE_BUILTIN_ENUM(name, ...) name,
