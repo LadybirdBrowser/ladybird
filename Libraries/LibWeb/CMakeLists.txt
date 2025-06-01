@@ -966,6 +966,7 @@ set(SOURCES
     WebGL/WebGLVertexArrayObject.cpp
     WebGPU/GPU.cpp
     WebGPU/GPUAdapter.cpp
+    WebGPU/GPUCanvasContext.cpp
     WebGPU/GPUCommandBuffer.cpp
     WebGPU/GPUCommandEncoder.cpp
     WebGPU/GPUDevice.cpp

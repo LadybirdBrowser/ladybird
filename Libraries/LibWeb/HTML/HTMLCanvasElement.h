@@ -18,7 +18,7 @@ class HTMLCanvasElement final : public HTMLElement {
     GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
 public:
-    using RenderingContext = Variant<GC::Root<CanvasRenderingContext2D>, GC::Root<WebGL::WebGLRenderingContext>, GC::Root<WebGL::WebGL2RenderingContext>, Empty>;
+    using RenderingContext = Variant<GC::Root<CanvasRenderingContext2D>, GC::Root<WebGL::WebGLRenderingContext>, GC::Root<WebGL::WebGL2RenderingContext>, GC::Root<WebGPU::GPUCanvasContext>, Empty>;
 
     virtual ~HTMLCanvasElement() override;
 
@@ -61,10 +61,13 @@ private:
 
     template<typename ContextType>
     JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
+
+    JS::ThrowCompletionOr<HasOrCreatedContext> create_webgpu_context(JS::Value options);
+
     void reset_context_to_default_state();
     void notify_context_about_canvas_size_change();
 
-    Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
+    Variant<GC::Ref<CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, GC::Ref<WebGPU::GPUCanvasContext>, Empty> m_context;
 };
 
 }
