@@ -1044,7 +1044,7 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
         TRY(js_out(print_context, "-"));
 
     auto contents = value.to_string_without_side_effects();
-    if (value.is_string())
+    if (value.is_string() && !print_context.disable_string_quotes)
         TRY(js_out(print_context, "{}", TRY(escape_for_string_literal(contents))));
     else
         TRY(js_out(print_context, "{}", contents));
