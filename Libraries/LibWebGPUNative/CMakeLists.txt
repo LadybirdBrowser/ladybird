@@ -14,6 +14,8 @@ if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
             Metal/Adapter.cpp
             Metal/AdapterImpl.mm
             Metal/AdapterImpl.swift
+            Metal/CommandBuffer.cpp
+            Metal/CommandBufferImpl.mm
             Metal/Device.cpp
             Metal/DeviceImpl.mm
             Metal/Handle.mm
@@ -50,6 +52,8 @@ elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
         PRIVATE
             Vulkan/Adapter.cpp
             Vulkan/AdapterImpl.cpp
+            Vulkan/CommandBuffer.cpp
+            Vulkan/CommandBufferImpl.cpp
             Vulkan/Device.cpp
             Vulkan/DeviceImpl.cpp
             Vulkan/Instance.cpp
