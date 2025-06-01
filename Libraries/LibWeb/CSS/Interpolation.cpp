@@ -932,7 +932,7 @@ RefPtr<CSSStyleValue const> interpolate_repeatable_list(DOM::Element& element, C
     if (!from.is_value_list() && to.is_value_list())
         from_list = make_single_value_list(from, to.as_value_list().size(), to.as_value_list().separator());
     else if (!to.is_value_list() && from.is_value_list())
-        to_list = make_single_value_list(to, from.as_value_list().size(), to.as_value_list().separator());
+        to_list = make_single_value_list(to, from.as_value_list().size(), from.as_value_list().separator());
     else if (!from.is_value_list() && !to.is_value_list())
         return interpolate_value(element, calculation_context, from, to, delta, allow_discrete);
 
