@@ -14,6 +14,9 @@ if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
             Metal/Adapter.cpp
             Metal/AdapterImpl.mm
             Metal/AdapterImpl.swift
+            Metal/Device.cpp
+            Metal/DeviceImpl.mm
+            Metal/Handle.mm
             Metal/Instance.cpp
     )
     find_library(METAL_FRAMEWORK Metal REQUIRED)
@@ -27,6 +30,8 @@ elseif (ENABLE_WEBGPUNATIVE_DIRECTX_IMPL)
         PRIVATE
             DirectX/Adapter.cpp
             DirectX/AdapterImpl.cpp
+            DirectX/Device.cpp
+            DirectX/DeviceImpl.cpp
             DirectX/Instance.cpp
     )
     find_package(directx-headers CONFIG REQUIRED)
@@ -43,6 +48,8 @@ elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
         PRIVATE
             Vulkan/Adapter.cpp
             Vulkan/AdapterImpl.cpp
+            Vulkan/Device.cpp
+            Vulkan/DeviceImpl.cpp
             Vulkan/Instance.cpp
             Vulkan/InstanceImpl.cpp
     )

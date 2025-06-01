@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWebGPUNative/Adapter.h>
+#include <LibWebGPUNative/Device.h>
+#include <d3d12.h>
 #include <dxgi1_6.h>
 #include <wrl.h>
 
@@ -14,17 +15,15 @@ using namespace Microsoft::WRL;
 
 namespace WebGPUNative {
 
-struct Adapter::Impl {
-    explicit Impl() = default;
-    ~Impl();
+struct Device::Impl {
+    explicit Impl(Adapter const& gpu_adapter);
+    ~Impl() = default;
 
     ErrorOr<void> initialize();
 
-    ComPtr<IDXGIAdapter4> adapter() const { return m_adapter; }
-
 private:
-    ComPtr<IDXGIFactory6> m_factory;
     ComPtr<IDXGIAdapter4> m_adapter;
+    ComPtr<ID3D12Device> m_device;
 };
 
 }
