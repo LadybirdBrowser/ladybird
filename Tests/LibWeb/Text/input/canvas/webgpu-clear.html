@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ladybird WebGPU: Clear</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+<canvas id="webgpuCanvas"></canvas>
+
+<script>
+    const ctx = webgpuCanvas.getContext("webgpu");
+    let device;
+    let greenValue = 0;
+
+    function render() {
+        greenValue += 0.01;
+        if (greenValue > 1.0) {
+            greenValue = 0;
+        }
+
+        const renderPassDescriptor = {
+            colorAttachments: [
+                {
+                    view: ctx.getCurrentTexture().createView(),
+                    clearValue: [1.0, greenValue, 0, 1.0],
+                },
+            ],
+        };
+        const commandEncoder = device.createCommandEncoder();
+        const renderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+        renderPassEncoder.end();
+        device.queue.submit([commandEncoder.finish()]);
+
+        requestAnimationFrame(render);
+    }
+
+    async function initWebGPU() {
+        if (!navigator.gpu) {
+            throw Error("WebGPU not supported");
+        }
+        const adapter = await navigator.gpu.requestAdapter();
+        device = await adapter.requestDevice();
+        ctx.configure({
+            device: device,
+        });
+        requestAnimationFrame(render);
+    }
+    initWebGPU();
+</script>
+</body>
+</html>
