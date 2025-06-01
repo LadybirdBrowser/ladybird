@@ -323,6 +323,13 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::gcd(UnsignedBigInteger const& oth
     return result;
 }
 
+FLATTEN UnsignedBigInteger UnsignedBigInteger::lcm(UnsignedBigInteger const& other) const
+{
+    UnsignedBigInteger result;
+    MP_MUST(mp_lcm(&m_mp, &other.m_mp, &result.m_mp));
+    return result;
+}
+
 u32 UnsignedBigInteger::hash() const
 {
     if (m_hash.has_value())
