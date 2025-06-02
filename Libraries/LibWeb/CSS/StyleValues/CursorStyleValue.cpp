@@ -8,6 +8,7 @@
 #include <LibGfx/Painter.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
@@ -51,6 +52,8 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         .current_color = layout_node.computed_values().color(),
     };
 
+    auto const image_orientation = layout_node.computed_values().image_orientation();
+
     // Create a bitmap if needed.
     // The cursor size for a given image never changes. It's based either on the image itself, or our default size,
     // neither of which is affected by what layout node it's for.
@@ -66,7 +69,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         // 32x32 is selected arbitrarily.
         // FIXME: Ask the OS for the default size?
         CSSPixelSize const default_cursor_size { 32, 32 };
-        auto cursor_css_size = run_default_sizing_algorithm({}, {}, image.natural_width(), image.natural_height(), image.natural_aspect_ratio(), default_cursor_size);
+        auto cursor_css_size = run_default_sizing_algorithm({}, {}, image.intrinsic_width(image_orientation), image.intrinsic_height(image_orientation), image.intrinsic_aspect_ratio(image_orientation), default_cursor_size);
         // FIXME: How do we determine what cursor sizes the OS allows?
         // We don't multiply by the pixel ratio, because we want to use the image's actual pixel size.
         DevicePixelSize cursor_device_size { cursor_css_size.to_type<double>().to_rounded<int>() };
@@ -94,8 +97,8 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         Painting::DisplayListRecorder display_list_recorder(display_list);
         DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel() };
 
-        image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
-        image.paint(paint_context, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto);
+        image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size(image_orientation) });
+        image.paint(paint_context, DevicePixelRect { bitmap.rect(image_orientation) }, ImageRendering::Auto, image_orientation);
 
         switch (document.page().client().display_list_player_type()) {
         case DisplayListPlayerType::SkiaGPUIfAvailable:

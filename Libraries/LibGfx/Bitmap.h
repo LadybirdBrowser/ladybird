@@ -104,10 +104,10 @@ public:
     [[nodiscard]] ARGB32 const* end() const;
     [[nodiscard]] size_t data_size() const;
 
-    [[nodiscard]] IntRect rect() const;
-    [[nodiscard]] IntSize size() const;
-    [[nodiscard]] int width() const;
-    [[nodiscard]] int height() const;
+    [[nodiscard]] IntRect rect(ImageOrientation orientation = ImageOrientation::FromDecoded) const;
+    [[nodiscard]] IntSize size(ImageOrientation orientation = ImageOrientation::FromDecoded) const;
+    [[nodiscard]] int width(ImageOrientation orientation = ImageOrientation::FromDecoded) const;
+    [[nodiscard]] int height(ImageOrientation orientation = ImageOrientation::FromDecoded) const;
     [[nodiscard]] ExifOrientation exif_orientation() const { return m_exif_orientation; }
 
     [[nodiscard]] size_t pitch() const { return m_pitch; }
@@ -121,7 +121,7 @@ public:
     void strip_alpha_channel();
 
     [[nodiscard]] static constexpr size_t size_in_bytes(size_t pitch, int height) { return pitch * height; }
-    [[nodiscard]] size_t size_in_bytes() const { return size_in_bytes(m_pitch, height()); }
+    [[nodiscard]] size_t size_in_bytes() const { return size_in_bytes(m_pitch, height(ImageOrientation::FromDecoded)); }
 
     [[nodiscard]] Color get_pixel(int physical_x, int physical_y) const;
     [[nodiscard]] Color get_pixel(IntPoint physical_position) const

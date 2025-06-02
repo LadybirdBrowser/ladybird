@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/ImageOrientation.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BorderPainting.h>
 
@@ -47,6 +48,6 @@ struct ResolvedBackground {
 
 ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii);
 
-void paint_background(DisplayListRecordingContext&, PaintableBox const&, CSS::ImageRendering, ResolvedBackground resolved_background, BorderRadiiData const&);
+void paint_background(DisplayListRecordingContext&, PaintableBox const&, CSS::ImageRendering, Gfx::ImageOrientation image_orientation, ResolvedBackground resolved_background, BorderRadiiData const&);
 
 }

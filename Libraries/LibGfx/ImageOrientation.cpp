@@ -25,9 +25,12 @@ bool is_valid_exif_orientation(u32 orientation)
     }
 }
 
-bool exif_orientation_affects_image_size(Gfx::ExifOrientation orientation)
+bool exif_orientation_affects_image_size(Gfx::ImageOrientation image_orientation, Gfx::ExifOrientation exif_orientation)
 {
-    switch (orientation) {
+    if (image_orientation == Gfx::ImageOrientation::FromDecoded)
+        return false;
+
+    switch (exif_orientation) {
     case Gfx::ExifOrientation::Rotate90Clockwise:
     case Gfx::ExifOrientation::Rotate90CounterClockwise:
     case Gfx::ExifOrientation::FlipHorizontallyThenRotate90Clockwise:

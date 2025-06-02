@@ -19,6 +19,8 @@ namespace Web::HTML {
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using CanvasImageSource = Variant<GC::Root<HTMLImageElement>, GC::Root<SVG::SVGImageElement>, GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>, GC::Root<HTMLVideoElement>>;
 
+[[nodiscard]] Gfx::ImageOrientation get_image_orientation_from_canvas_source(CanvasImageSource const& source);
+
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawimage
 class CanvasDrawImage {
 public:
