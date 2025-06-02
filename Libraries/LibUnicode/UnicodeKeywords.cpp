@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -59,16 +59,7 @@ Vector<String> available_calendars(StringView locale)
     if (icu_failure(status))
         return {};
 
-    auto calendars = icu_string_enumeration_to_list(move(keywords));
-
-    for (auto& calendar : calendars) {
-        if (calendar == "gregorian"sv)
-            calendar = "gregory"_string;
-        else if (calendar == "ethiopic-amete-alem"sv)
-            calendar = "ethioaa"_string;
-    }
-
-    return calendars;
+    return icu_string_enumeration_to_list(move(keywords), "ca");
 }
 
 Vector<String> const& available_currencies()
@@ -162,7 +153,7 @@ Vector<String> const& available_number_systems()
         if (icu_failure(status))
             return {};
 
-        auto number_systems = icu_string_enumeration_to_list(move(keywords), [&](char const* keyword) {
+        auto number_systems = icu_string_enumeration_to_list(move(keywords), "nu", [&](char const* keyword) {
             auto system = adopt_own_if_nonnull(icu::NumberingSystem::createInstanceByName(keyword, status));
             if (icu_failure(status))
                 return false;
