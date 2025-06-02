@@ -1,4 +1,5 @@
 #import <DOM/EventHandler.idl>
+#import <HTML/CookieStore.idl>
 
 // https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope
 [Global=(Worker,ServiceWorker), Exposed=ServiceWorker, SecureContext]
@@ -16,3 +17,5 @@ interface ServiceWorkerGlobalScope : WorkerGlobalScope {
     attribute EventHandler onmessage;
     attribute EventHandler onmessageerror;
 };
+
+ServiceWorkerGlobalScope includes WindowOrWorkerCookieStore;

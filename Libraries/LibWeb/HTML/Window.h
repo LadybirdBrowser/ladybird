@@ -170,6 +170,7 @@ public:
     [[nodiscard]] GC::Ref<Location> location();
     GC::Ref<History> history() const;
     GC::Ref<Navigation> navigation();
+    GC::Ref<CookieStore> cookie_store();
     void stop();
     void focus();
     void blur();
@@ -313,6 +314,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#window-navigation-api
     GC::Ptr<Navigation> m_navigation;
+
+    // https://wicg.github.io/cookie-store/#window-associated-cookiestore
+    GC::Ptr<CookieStore> m_cookie_store;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-api
     // Each Window object has an associated custom element registry (a CustomElementRegistry object).

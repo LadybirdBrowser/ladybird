@@ -123,6 +123,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/HTML/CanvasRenderingContext2D.idl",
   "//Userland/Libraries/LibWeb/HTML/CloseEvent.idl",
   "//Userland/Libraries/LibWeb/HTML/CloseWatcher.idl",
+  "//Userland/Libraries/LibWeb/HTML/CookieStore.idl",
   "//Userland/Libraries/LibWeb/HTML/CustomElements/CustomElementRegistry.idl",
   "//Userland/Libraries/LibWeb/HTML/DataTransfer.idl",
   "//Userland/Libraries/LibWeb/HTML/DataTransferItem.idl",
