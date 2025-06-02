@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,6 +16,7 @@
 #include <unicode/locid.h>
 #include <unicode/strenum.h>
 #include <unicode/stringpiece.h>
+#include <unicode/uloc.h>
 #include <unicode/unistr.h>
 #include <unicode/utypes.h>
 #include <unicode/uversion.h>
@@ -102,7 +103,7 @@ String icu_string_to_string(icu::UnicodeString const& string);
 String icu_string_to_string(UChar const*, i32 length);
 
 template<typename Filter>
-Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration, Filter&& filter)
+Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration, char const* bcp47_keyword, Filter&& filter)
 {
     UErrorCode status = U_ZERO_ERROR;
     Vector<String> result;
@@ -112,23 +113,28 @@ Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enu
 
     while (true) {
         i32 length = 0;
-        auto const* keyword = enumeration->next(&length, status);
+        auto const* value = enumeration->next(&length, status);
 
-        if (icu_failure(status) || keyword == nullptr)
+        if (icu_failure(status) || value == nullptr)
             break;
 
-        if (!filter(keyword))
+        if (!filter(value))
             continue;
 
-        result.append(MUST(String::from_utf8({ keyword, static_cast<size_t>(length) })));
+        if (bcp47_keyword) {
+            if (auto const* bcp47_value = uloc_toUnicodeLocaleType(bcp47_keyword, value))
+                result.append(MUST(String::from_utf8({ bcp47_value, strlen(bcp47_value) })));
+        } else {
+            result.append(MUST(String::from_utf8({ value, static_cast<size_t>(length) })));
+        }
     }
 
     return result;
 }
 
-ALWAYS_INLINE Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration)
+ALWAYS_INLINE Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration, char const* bcp47_keyword)
 {
-    return icu_string_enumeration_to_list(move(enumeration), [](char const*) { return true; });
+    return icu_string_enumeration_to_list(move(enumeration), bcp47_keyword, [](char const*) { return true; });
 }
 
 }

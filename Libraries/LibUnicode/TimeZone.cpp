@@ -107,7 +107,7 @@ static Vector<String> icu_available_time_zones(Optional<ByteString> const& regio
     if (icu_failure(status))
         return { "UTC"_string };
 
-    auto time_zones = icu_string_enumeration_to_list(move(time_zone_enumerator), [](char const* zone) {
+    auto time_zones = icu_string_enumeration_to_list(move(time_zone_enumerator), nullptr, [](char const* zone) {
         return !is_legacy_non_iana_time_zone({ zone, strlen(zone) });
     });
 
