@@ -95,7 +95,7 @@ static String s_history_path = String {};
 static bool s_keep_running_repl = true;
 static int s_exit_code = 0;
 
-static ErrorOr<void> print(JS::Value value, Stream& stream)
+static ErrorOr<void> print_inline(JS::Value value, Stream& stream)
 {
     JS::PrintContext print_context { .vm = *g_vm, .stream = stream, .strip_ansi = s_strip_ansi, .disable_string_quotes = s_disable_string_quotes };
     return JS::print(value, print_context);
@@ -106,23 +106,48 @@ enum class PrintTarget {
     StandardOutput,
 };
 
-static ErrorOr<void> print(JS::Value value, PrintTarget target = PrintTarget::StandardOutput)
+static ErrorOr<NonnullOwnPtr<Stream>> flushed_print_stream(PrintTarget target)
 {
-    auto stream = TRY(target == PrintTarget::StandardError ? Core::File::standard_error() : Core::File::standard_output());
-    return print(value, *stream);
+    if (target == PrintTarget::StandardOutput) {
+        (void)fflush(stdout);
+        return Core::File::standard_output();
+    }
+
+    (void)fflush(stderr);
+    return Core::File::standard_error();
 }
 
-static ErrorOr<void> print_all_arguments(JS::VM const& vm, PrintTarget target = PrintTarget::StandardOutput)
+enum class PrintEnd {
+    Newline,
+    None
+};
+
+static ErrorOr<void> print(JS::Value value, PrintTarget target = PrintTarget::StandardOutput, PrintEnd end = PrintEnd::Newline)
 {
-    auto stream = TRY(target == PrintTarget::StandardError ? Core::File::standard_error() : Core::File::standard_output());
+    auto stream = TRY(flushed_print_stream(target));
+
+    TRY(print_inline(value, *stream));
+
+    if (end == PrintEnd::Newline)
+        TRY(stream->write_until_depleted("\n"sv));
+
+    return {};
+}
+
+static ErrorOr<void> print_all_arguments(JS::VM const& vm, PrintTarget target = PrintTarget::StandardOutput, PrintEnd end = PrintEnd::Newline)
+{
+    auto stream = TRY(flushed_print_stream(target));
 
     for (size_t i = 0; i < vm.argument_count(); i++) {
-        TRY(print(vm.argument(i), *stream));
+        TRY(print_inline(vm.argument(i), *stream));
 
         if (i < vm.argument_count() - 1) {
             TRY(stream->write_until_depleted(" "sv));
         }
     }
+
+    if (end == PrintEnd::Newline)
+        TRY(stream->write_until_depleted("\n"sv));
 
     return {};
 }
@@ -204,7 +229,6 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
     auto handle_exception = [&](JS::Value thrown_value) -> ErrorOr<void> {
         warnln("Uncaught exception: ");
         TRY(print(thrown_value, PrintTarget::StandardError));
-        warnln();
 
         if (!thrown_value.is_object() || !is<JS::Error>(thrown_value.as_object()))
             return {};
@@ -222,7 +246,6 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
 
     if (s_print_last_result) {
         TRY(print(result.value()));
-        warnln();
     }
 
     return true;
@@ -350,8 +373,6 @@ JS_DEFINE_NATIVE_FUNCTION(ReplObject::print)
     if (result.is_error())
         return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value(s): {}", result.error())));
 
-    outln();
-
     return JS::js_undefined();
 }
 
@@ -381,8 +402,6 @@ JS_DEFINE_NATIVE_FUNCTION(ScriptObject::print)
     auto result = print_all_arguments(vm);
     if (result.is_error())
         return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value(s): {}", result.error())));
-
-    outln();
 
     return JS::js_undefined();
 }
@@ -828,13 +847,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         g_vm->on_promise_unhandled_rejection = [](auto& promise) {
             warn("WARNING: A promise was rejected without any handlers");
             warn(" (result: ");
-            (void)print(promise.result(), PrintTarget::StandardError);
+            (void)print(promise.result(), PrintTarget::StandardError, PrintEnd::None);
             warnln(")");
         };
         g_vm->on_promise_rejection_handled = [](auto& promise) {
             warn("WARNING: A handler was added to an already rejected promise");
             warn(" (result: ");
-            (void)print(promise.result(), PrintTarget::StandardError);
+            (void)print(promise.result(), PrintTarget::StandardError, PrintEnd::None);
             warnln(")");
         };
     }
