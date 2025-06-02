@@ -67,6 +67,21 @@ describe("correct behavior", () => {
         });
         expect(result).toBe(-1);
     });
+
+    test("sub-minute time zone offset", () => {
+        const duration1 = new Temporal.Duration(0, 0, 0, 31);
+        const duration2 = new Temporal.Duration(0, 1);
+
+        let result = Temporal.Duration.compare(duration1, duration2, {
+            relativeTo: "1970-01-01T00:00:00-00:45[Africa/Monrovia]",
+        });
+        expect(result).toBe(0);
+
+        result = Temporal.Duration.compare(duration1, duration2, {
+            relativeTo: "1970-01-01T00:00:00-00:44:30[Africa/Monrovia]",
+        });
+        expect(result).toBe(0);
+    });
 });
 
 describe("errors", () => {
@@ -130,6 +145,29 @@ describe("errors", () => {
         }).toThrowWithMessage(
             RangeError,
             "A starting point is required for comparing calendar units"
+        );
+    });
+
+    test("sub-minute time zone offset mismatch", () => {
+        const duration1 = new Temporal.Duration(0, 0, 0, 31);
+        const duration2 = new Temporal.Duration(0, 1);
+
+        expect(() => {
+            Temporal.Duration.compare(duration1, duration2, {
+                relativeTo: "1970-01-01T00:00:00-00:44:40[Africa/Monrovia]",
+            });
+        }).toThrowWithMessage(
+            RangeError,
+            "Invalid offset for the provided date and time in the current time zone"
+        );
+
+        expect(() => {
+            Temporal.Duration.compare(duration1, duration2, {
+                relativeTo: "1970-01-01T00:00:00-00:45:00[Africa/Monrovia]",
+            });
+        }).toThrowWithMessage(
+            RangeError,
+            "Invalid offset for the provided date and time in the current time zone"
         );
     });
 });

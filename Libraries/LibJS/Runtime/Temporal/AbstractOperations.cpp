@@ -630,6 +630,19 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
 
             // iv. Set matchBehaviour to MATCH-MINUTES.
             match_behavior = MatchBehavior::MatchMinutes;
+
+            // v. If offsetString is not EMPTY, then
+            if (offset_string.has_value()) {
+                // 1. Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
+                auto offset_parse_result = parse_utc_offset(*offset_string, SubMinutePrecision::Yes);
+
+                // 2. Assert: offsetParseResult is a Parse Node.
+                VERIFY(offset_parse_result.has_value());
+
+                // 3. If offsetParseResult contains more than one MinuteSecond Parse Node, set matchBehaviour to MATCH-EXACTLY.
+                if (offset_parse_result->seconds.has_value())
+                    match_behavior = MatchBehavior::MatchExactly;
+            }
         }
 
         // g. Let calendar be result.[[Calendar]].
