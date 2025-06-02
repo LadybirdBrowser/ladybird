@@ -971,6 +971,7 @@ namespace Web::SVG {
 
 class SVGAnimatedEnumeration;
 class SVGAnimatedLength;
+class SVGAnimationElement;
 class SVGAnimatedRect;
 class SVGCircleElement;
 class SVGClipPathElement;
