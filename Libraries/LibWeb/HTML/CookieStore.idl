@@ -52,17 +52,17 @@ typedef sequence<CookieListItem> CookieList;
 
 [Exposed=(ServiceWorker,Window), SecureContext]
 interface CookieStore : EventTarget {
-    [FIXME] Promise<CookieListItem?> get(USVString name);
-    [FIXME] Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
+    Promise<CookieListItem?> get(USVString name);
+    Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
 
-    [FIXME] Promise<CookieList> getAll(USVString name);
-    [FIXME] Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
+    Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
+    Promise<CookieList> getAll(USVString name);
 
-    [FIXME] Promise<undefined> set(USVString name, USVString value);
-    [FIXME] Promise<undefined> set(CookieInit options);
+    Promise<undefined> set(USVString name, USVString value);
+    Promise<undefined> set(CookieInit options);
 
-    [FIXME] Promise<undefined> delete(USVString name);
-    [FIXME] Promise<undefined> delete(CookieStoreDeleteOptions options);
+    Promise<undefined> delete(USVString name);
+    Promise<undefined> delete(CookieStoreDeleteOptions options);
 
     [FIXME, Exposed=Window]
     attribute EventHandler onchange;

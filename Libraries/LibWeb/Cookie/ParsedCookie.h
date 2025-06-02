@@ -25,6 +25,7 @@ struct ParsedCookie {
     Optional<String> path {};
     bool secure_attribute_present { false };
     bool http_only_attribute_present { false };
+    bool partitioned { false };
 };
 
 Optional<ParsedCookie> parse_cookie(URL::URL const&, StringView cookie_string);
