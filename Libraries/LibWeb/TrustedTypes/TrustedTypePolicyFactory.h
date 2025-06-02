@@ -21,11 +21,23 @@ public:
 
     virtual ~TrustedTypePolicyFactory() override { }
 
+    Optional<String> get_attribute_type(String const& tag_name, String& attribute, Optional<String> element_ns, Optional<String> attr_ns);
+
 private:
     explicit TrustedTypePolicyFactory(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
 
     Vector<String> m_created_policy_names;
 };
+
+struct TrustedTypeData {
+    String element;
+    Optional<String> attribute_ns;
+    String attribute_local_name;
+    String trusted_type;
+    String sink;
+};
+
+Optional<TrustedTypeData> get_trusted_type_data_for_attribute(String const&, String const&, Optional<String> const&);
 
 }
