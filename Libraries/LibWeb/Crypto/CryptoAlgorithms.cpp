@@ -1564,12 +1564,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
             if (!meets_requirements)
                 return WebIDL::DataError::create(m_realm, "Invalid JWK private key"_string);
 
-            // FIXME: Spec error, it should say 'the RSA private key identified by interpreting jwk according to section 6.3.2'
-            // 2. Let privateKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
+            // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
             auto private_key = TRY(parse_jwk_rsa_private_key(realm, jwk));
 
-            // FIXME: Spec error, it should say 'not to be a valid RSA private key'
-            // 3. If privateKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
+            // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
             auto maybe_valid = private_key.is_valid();
             if (maybe_valid.is_error())
                 return WebIDL::DataError::create(m_realm, "Failed to verify key"_string);
