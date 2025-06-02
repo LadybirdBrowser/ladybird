@@ -8,7 +8,7 @@ interface TrustedTypePolicyFactory {
     [FIXME] boolean isScriptURL(any value);
     [FIXME] readonly attribute TrustedHTML emptyHTML;
     [FIXME] readonly attribute TrustedScript emptyScript;
-    [FIXME] DOMString? getAttributeType(
+    DOMString? getAttributeType(
         DOMString tagName,
         DOMString attribute,
         optional DOMString? elementNs = "",
