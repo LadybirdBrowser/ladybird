@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import enum
+import os
 import platform
 import sys
 
@@ -45,6 +46,11 @@ class Platform:
             sys.exit(1)
 
     def default_compiler(self) -> tuple[str, str]:
+        cc = os.environ.get("CC", None)
+        cxx = os.environ.get("CXX", None)
+
+        if cc and cxx:
+            return (cc, cxx)
         if self.host_system == HostSystem.Windows:
             return ("clang-cl", "clang-cl")
         return ("cc", "c++")
