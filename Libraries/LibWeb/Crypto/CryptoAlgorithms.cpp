@@ -1088,7 +1088,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
             [](auto) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
@@ -1115,8 +1114,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
             [](auto) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
-
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
@@ -1188,7 +1185,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
             [](auto) -> ErrorOr<void> {
                 VERIFY_NOT_REACHED();
             });
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         TRY_OR_THROW_OOM(vm, maybe_error);
 
         // 13. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -1680,7 +1676,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
             [](auto) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
@@ -1707,8 +1702,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
             [](auto) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
-
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
@@ -1781,7 +1774,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
             [](auto) -> ErrorOr<void> {
                 VERIFY_NOT_REACHED();
             });
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         TRY_OR_THROW_OOM(vm, maybe_error);
 
         // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -2265,7 +2257,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
             [](auto) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
@@ -2292,8 +2283,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
             [](auto) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
-
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
@@ -2366,7 +2355,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
             [](auto) -> ErrorOr<void> {
                 VERIFY_NOT_REACHED();
             });
-        // FIXME: clang-format butchers the visit if we do the TRY inline
         TRY_OR_THROW_OOM(vm, maybe_error);
 
         // 7. Set the key_ops attribute of jwk to the usages attribute of key.
