@@ -254,6 +254,15 @@ function(lagom_test source)
     endif()
     add_executable(${LAGOM_TEST_NAME} ${source})
     target_link_libraries(${LAGOM_TEST_NAME} PRIVATE AK LibCore LibFileSystem LibTest ${LAGOM_TEST_CUSTOM_MAIN} ${LAGOM_TEST_LIBS})
+
+    if (WIN32)
+        target_include_directories(${LAGOM_TEST_NAME} PRIVATE ${PTHREAD_INCLUDE_DIR})
+        target_link_libraries(${LAGOM_TEST_NAME} PRIVATE ${PTHREAD_LIBRARY})
+
+        target_include_directories(${LAGOM_TEST_NAME} PRIVATE ${MMAN_INCLUDE_DIR})
+        target_link_libraries(${LAGOM_TEST_NAME} PRIVATE ${MMAN_LIBRARY})
+    endif()
+
     add_test(
         NAME ${LAGOM_TEST_NAME}
         COMMAND ${LAGOM_TEST_NAME}
