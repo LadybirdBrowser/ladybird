@@ -116,30 +116,16 @@ ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger integer)
     // octet), which is "AA".
 
     auto bytes = TRY(ByteBuffer::create_uninitialized(integer.byte_length()));
-
     auto data_size = integer.export_data(bytes.span());
-
     auto data_slice_be = bytes.bytes().slice(bytes.size() - data_size, data_size);
-
-    auto encoded = TRY(encode_base64url(data_slice_be));
-
-    // FIXME: create a version of encode_base64url that omits padding bytes
-    if (auto first_padding_byte = encoded.find_byte_offset('='); first_padding_byte.has_value())
-        return encoded.substring_from_byte_offset(0, first_padding_byte.value());
-    return encoded;
+    return TRY(encode_base64url(data_slice_be, AK::OmitPadding::Yes));
 }
 
 WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm& realm, String const& base64_url_string)
 {
     auto& vm = realm.vm();
 
-    // FIXME: Create a version of decode_base64url that ignores padding inconsistencies
-    auto padded_string = base64_url_string;
-    if (padded_string.byte_count() % 4 != 0) {
-        padded_string = TRY_OR_THROW_OOM(vm, String::formatted("{}{}", padded_string, TRY_OR_THROW_OOM(vm, String::repeated('=', 4 - (padded_string.byte_count() % 4)))));
-    }
-
-    auto base64_bytes_or_error = decode_base64url(padded_string);
+    auto base64_bytes_or_error = decode_base64url(base64_url_string, AK::LastChunkHandling::Loose);
     if (base64_bytes_or_error.is_error()) {
         if (base64_bytes_or_error.error().code() == ENOMEM)
             return vm.throw_completion<JS::InternalError>(vm.error_message(::JS::VM::ErrorMessage::OutOfMemory));
