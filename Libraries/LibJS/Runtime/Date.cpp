@@ -403,13 +403,15 @@ Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringVie
     auto local_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
     auto local_time = UnixDateTime::from_nanoseconds_since_epoch(clip_bigint_to_sane_time(local_nanoseconds));
 
-    // FIXME: LibUnicode does not behave exactly as the spec expects. It does not consider repeated or skipped time points.
-    auto offset = Unicode::time_zone_offset(time_zone_identifier, local_time);
+    auto offsets = Unicode::disambiguated_time_zone_offsets(time_zone_identifier, local_time);
 
-    // Can only fail if the time zone identifier is invalid, which cannot be the case here.
-    VERIFY(offset.has_value());
+    Vector<Crypto::SignedBigInteger> result;
+    result.ensure_capacity(offsets.size());
 
-    return { local_nanoseconds.minus(Crypto::SignedBigInteger { offset->offset.to_nanoseconds() }) };
+    for (auto const& offset : offsets)
+        result.unchecked_append(local_nanoseconds.minus(Crypto::SignedBigInteger { offset.offset.to_nanoseconds() }));
+
+    return result;
 }
 
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds

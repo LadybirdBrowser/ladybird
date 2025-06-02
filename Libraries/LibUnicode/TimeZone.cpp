@@ -10,6 +10,7 @@
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/TimeZone.h>
 
+#include <unicode/basictz.h>
 #include <unicode/timezone.h>
 #include <unicode/ucal.h>
 
@@ -139,6 +140,15 @@ Optional<String> resolve_primary_time_zone(StringView time_zone)
     return icu_string_to_string(iana_id);
 }
 
+static UDate to_icu_time(UnixDateTime time)
+{
+    // We must clamp the time we provide to ICU such that the result of converting milliseconds to days fits in an i32.
+    // Further, that conversion must still be valid after applying DST offsets to the time we provide.
+    static constexpr auto min_time = (static_cast<UDate>(AK::NumericLimits<i32>::min()) + U_MILLIS_PER_DAY) * U_MILLIS_PER_DAY;
+    static constexpr auto max_time = (static_cast<UDate>(AK::NumericLimits<i32>::max()) - U_MILLIS_PER_DAY) * U_MILLIS_PER_DAY;
+    return clamp(static_cast<UDate>(time.milliseconds_since_epoch()), min_time, max_time);
+}
+
 Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime time)
 {
     UErrorCode status = U_ZERO_ERROR;
@@ -150,11 +160,7 @@ Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime tim
     i32 raw_offset = 0;
     i32 dst_offset = 0;
 
-    // We must clamp the time we provide to ICU such that the result of converting milliseconds to days fits in an i32.
-    // Further, that conversion must still be valid after applying DST offsets to the time we provide.
-    static constexpr auto min_time = (static_cast<UDate>(AK::NumericLimits<i32>::min()) + U_MILLIS_PER_DAY) * U_MILLIS_PER_DAY;
-    static constexpr auto max_time = (static_cast<UDate>(AK::NumericLimits<i32>::max()) - U_MILLIS_PER_DAY) * U_MILLIS_PER_DAY;
-    auto icu_time = clamp(static_cast<UDate>(time.milliseconds_since_epoch()), min_time, max_time);
+    auto icu_time = to_icu_time(time);
 
     time_zone_data->time_zone().getOffset(icu_time, 0, raw_offset, dst_offset, status);
     if (icu_failure(status))
@@ -164,6 +170,43 @@ Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime tim
         .offset = AK::Duration::from_milliseconds(raw_offset + dst_offset),
         .in_dst = dst_offset == 0 ? TimeZoneOffset::InDST::No : TimeZoneOffset::InDST::Yes,
     };
+}
+
+Vector<TimeZoneOffset> disambiguated_time_zone_offsets(StringView time_zone, UnixDateTime time)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto time_zone_data = TimeZoneData::for_time_zone(time_zone);
+    if (!time_zone_data.has_value())
+        return {};
+
+    auto& basic_time_zone = as<icu::BasicTimeZone>(time_zone_data->time_zone());
+    auto icu_time = to_icu_time(time);
+
+    auto get_offset = [&](auto disambiguation_option) -> Optional<TimeZoneOffset> {
+        i32 raw_offset = 0;
+        i32 dst_offset = 0;
+
+        basic_time_zone.getOffsetFromLocal(icu_time, disambiguation_option, disambiguation_option, raw_offset, dst_offset, status);
+        if (icu_failure(status))
+            return {};
+
+        return TimeZoneOffset {
+            .offset = AK::Duration::from_milliseconds(raw_offset + dst_offset),
+            .in_dst = dst_offset == 0 ? TimeZoneOffset::InDST::No : TimeZoneOffset::InDST::Yes,
+        };
+    };
+
+    auto former = get_offset(UCAL_TZ_LOCAL_FORMER);
+    auto latter = get_offset(UCAL_TZ_LOCAL_LATTER);
+
+    Vector<TimeZoneOffset> offsets;
+    if (former.has_value())
+        offsets.append(*former);
+    if (latter.has_value() && latter->offset != former->offset)
+        offsets.append(*latter);
+
+    return offsets;
 }
 
 }
