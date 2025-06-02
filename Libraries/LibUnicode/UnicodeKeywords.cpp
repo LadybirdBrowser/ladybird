@@ -153,7 +153,7 @@ Vector<String> const& available_number_systems()
         if (icu_failure(status))
             return {};
 
-        auto number_systems = icu_string_enumeration_to_list(move(keywords), "nu", [&](char const* keyword) {
+        auto number_systems = icu_string_enumeration_to_list(move(keywords), "nu", [&](char const* keyword, size_t) {
             auto system = adopt_own_if_nonnull(icu::NumberingSystem::createInstanceByName(keyword, status));
             if (icu_failure(status))
                 return false;

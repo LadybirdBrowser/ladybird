@@ -118,7 +118,7 @@ Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enu
         if (icu_failure(status) || value == nullptr)
             break;
 
-        if (!filter(value))
+        if (!filter(value, static_cast<size_t>(length)))
             continue;
 
         if (bcp47_keyword) {
@@ -134,7 +134,7 @@ Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enu
 
 ALWAYS_INLINE Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration, char const* bcp47_keyword)
 {
-    return icu_string_enumeration_to_list(move(enumeration), bcp47_keyword, [](char const*) { return true; });
+    return icu_string_enumeration_to_list(move(enumeration), bcp47_keyword, [](char const*, size_t) { return true; });
 }
 
 }
