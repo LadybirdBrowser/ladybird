@@ -90,12 +90,15 @@ public:
         return ValueAndAttributes { m_packed_elements.data()[index], default_attributes };
     }
 
+    bool has_empty_elements() const { return m_number_of_empty_elements.value() > 0; }
+
 private:
     friend GenericIndexedPropertyStorage;
 
     void grow_storage_if_needed();
 
     size_t m_array_size { 0 };
+    Checked<size_t> m_number_of_empty_elements { 0 };
     Vector<Value> m_packed_elements;
 };
 
