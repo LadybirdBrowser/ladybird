@@ -124,6 +124,21 @@
       }
     },
     {
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits": [
+        "Windows_Experimental"
+      ],
+      "displayName": "Windows Sanitizer Config",
+      "binaryDir": "${fileDir}/Build/sanitizers",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "OFF",
+        "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
+      }
+    },
+    {
       "hidden": true,
       "name": "vcpkg_ci",
       "description": "FIXME: Use the GitHub Actions vcpkg cache"
@@ -144,7 +159,10 @@
     {
       "hidden": false,
       "name": "Windows_CI",
-      "inherits": "windows_base",
+      "inherits":  [
+        "vcpkg_ci",
+        "windows_base"
+      ],
       "displayName": "Windows CI Config",
       "binaryDir": "${fileDir}/Build/release",
       "cacheVariables": {
@@ -168,6 +186,20 @@
         "Sanitizer"
       ],
       "displayName": "Sanitizer CI Config"
+    },
+    {
+      "name": "Windows_Sanitizer_CI",
+      "inherits": [
+        "Windows_CI"
+      ],
+      "displayName": "Windows Sanitizer CI Config",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "ON",
+        "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
+      }
     },
     {
       "name": "Fuzzers",
@@ -249,11 +281,25 @@
       "description": "Build the project with Sanitizers"
     },
     {
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Sanitizer_Experimental",
+      "displayName": "Build with Sanitizers",
+      "description": "Build the project with Sanitizers"
+    },
+    {
       "name": "Windows_CI",
       "inherits": "windows_base",
       "configurePreset": "Windows_CI",
-      "displayName": "Build",
-      "description": "Build the project"
+      "displayName": "Windows_CI Build",
+      "description": "Build the project for Windows CI"
+    },
+    {
+      "name": "Windows_Sanitizer_CI",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Sanitizer_CI",
+      "displayName": "Windows_Sanitizer_CI Build",
+      "description": "Build the project with sanitizers for Windows CI"
     }
   ],
   "testPresets": [
@@ -323,9 +369,19 @@
       }
     },
     {
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Sanitizer_Experimental"
+    },
+    {
       "name": "Windows_CI",
       "inherits": "windows_base",
       "configurePreset": "Windows_CI"
+    },
+    {
+      "name": "Windows_Sanitizer_CI",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Sanitizer_CI"
     }
   ]
 }

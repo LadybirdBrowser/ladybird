@@ -254,6 +254,7 @@ def configure_build_env(preset: str) -> tuple[Path, Path]:
         "Distribution": build_root_dir / "distribution",
         "Sanitizer": build_root_dir / "sanitizers",
         "Windows_CI": build_root_dir / "release",
+        "Windows_Sanitizer_CI": build_root_dir / "sanitizers",
     }
 
     build_preset_dir = known_presets.get(preset, None)
