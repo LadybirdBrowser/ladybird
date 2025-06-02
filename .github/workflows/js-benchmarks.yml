@@ -44,7 +44,7 @@ jobs:
 
       - name: 'Download JS repl artifact'
         id: download-artifact
-        uses: dawidd6/action-download-artifact@v9
+        uses: dawidd6/action-download-artifact@v10
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: ladybird-js-${{ matrix.package_type }}
