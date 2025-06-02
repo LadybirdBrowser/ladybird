@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-952 Pass
-829 Fail
+958 Pass
+823 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1632,12 +1632,12 @@ Fail	TimeEvent interface: existence and properties of interface prototype object
 Fail	TimeEvent interface: attribute view
 Fail	TimeEvent interface: attribute detail
 Fail	TimeEvent interface: operation initTimeEvent(DOMString, Window?, long)
-Fail	SVGAnimationElement interface: existence and properties of interface object
-Fail	SVGAnimationElement interface object length
-Fail	SVGAnimationElement interface object name
-Fail	SVGAnimationElement interface: existence and properties of interface prototype object
-Fail	SVGAnimationElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAnimationElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimationElement interface: existence and properties of interface object
+Pass	SVGAnimationElement interface object length
+Pass	SVGAnimationElement interface object name
+Pass	SVGAnimationElement interface: existence and properties of interface prototype object
+Pass	SVGAnimationElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimationElement interface: existence and properties of interface prototype object's @@unscopables property
 Fail	SVGAnimationElement interface: attribute targetElement
 Fail	SVGAnimationElement interface: attribute onbegin
 Fail	SVGAnimationElement interface: attribute onend

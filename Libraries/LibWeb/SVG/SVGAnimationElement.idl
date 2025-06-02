@@ -1,0 +1,23 @@
+#import <SVG/SVGElement.idl>
+
+// https://svgwg.org/specs/animations/#InterfaceSVGAnimationElement
+[Exposed=Window]
+interface SVGAnimationElement : SVGElement {
+
+    [FIXME] readonly attribute SVGElement? targetElement;
+
+    [FIXME] attribute EventHandler onbegin;
+    [FIXME] attribute EventHandler onend;
+    [FIXME] attribute EventHandler onrepeat;
+
+    [FIXME] float getStartTime();
+    [FIXME] float getCurrentTime();
+    [FIXME] float getSimpleDuration();
+
+    [FIXME] undefined beginElement();
+    [FIXME] undefined beginElementAt(float offset);
+    [FIXME] undefined endElement();
+    [FIXME] undefined endElementAt(float offset);
+};
+
+//SVGAnimationElement includes SVGTests;

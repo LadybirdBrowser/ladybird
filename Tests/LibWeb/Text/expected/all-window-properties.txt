@@ -334,6 +334,7 @@ SVGAnimatedNumber
 SVGAnimatedRect
 SVGAnimatedString
 SVGAnimatedTransformList
+SVGAnimationElement
 SVGCircleElement
 SVGClipPathElement
 SVGDefsElement
