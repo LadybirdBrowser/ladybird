@@ -948,10 +948,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
         }
         //    -> Otherwise:
         else {
-            // FIXME: Support 'other applicable specifications'
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(m_realm, "Invalid alg field"_string);
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // 9.  If hash is not undefined:
@@ -1155,11 +1154,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
         else if (hash == "SHA-512"sv) {
             jwk.alg = "RSA-OAEP-512"_string;
         } else {
-            // FIXME: Support 'other applicable specifications'
             // - Perform any key export steps defined by other applicable specifications,
             //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
             // - Set the alg attribute of jwk to alg.
-            return WebIDL::NotSupportedError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted("Unsupported hash algorithm '{}'", hash)));
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // 10. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
@@ -1540,10 +1538,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
         }
         //    -> Otherwise:
         else {
-            // FIXME: Support 'other applicable specifications'
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(m_realm, "Invalid alg field"_string);
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // 8. If hash is not undefined:
@@ -1749,11 +1746,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
         else if (hash == "SHA-512"sv) {
             jwk.alg = "PS512"_string;
         } else {
-            // FIXME: Support 'other applicable specifications'
             // - Perform any key export steps defined by other applicable specifications,
             //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
             // - Set the alg attribute of jwk to alg.
-            return WebIDL::NotSupportedError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted("Unsupported hash algorithm '{}'", hash)));
+            return WebIDL::DataError::create(realm, "Invalid algorithm"_string);
         }
 
         // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
@@ -2129,10 +2125,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
         }
         //    -> Otherwise:
         else {
-            // FIXME: Support 'other applicable specifications'
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(m_realm, "Invalid alg field"_string);
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // 8. If hash is not undefined:
@@ -2336,11 +2331,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
         else if (hash == "SHA-512"sv) {
             jwk.alg = "RS512"_string;
         } else {
-            // FIXME: Support 'other applicable specifications'
             // - Perform any key export steps defined by other applicable specifications,
             //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
             // - Set the alg attribute of jwk to alg.
-            return WebIDL::NotSupportedError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted("Unsupported hash algorithm '{}'", hash)));
+            return WebIDL::DataError::create(realm, "Invalid algorithm"_string);
         }
 
         // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
@@ -3889,8 +3883,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
         VERIFY(s_bytes.size() <= coord_size);
         result.overwrite(coord_size, s_bytes.data(), s_bytes.size());
     } else {
-        // FIXME: Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
-        // FIXME: Perform the ECDSA signature steps specified in that specification, passing in M, params and d and resulting in result.
+        // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
+        // Perform the ECDSA signature steps specified in that specification, passing in M, params and d and resulting in result.
+        return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
     }
 
     // NOTE: The spec jumps to 9 here for some reason
@@ -3971,8 +3966,9 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 
         result = maybe_result.release_value();
     } else {
-        // FIXME: Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
-        // FIXME: Perform the ECDSA verification steps specified in that specification passing in M, signature, params and Q and resulting in an indication of whether or not the purported signature is valid.
+        // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
+        // Perform the ECDSA verification steps specified in that specification passing in M, signature, params and Q and resulting in an indication of whether or not the purported signature is valid.
+        return realm.vm().throw_completion<WebIDL::NotSupportedError>("Invalid algorithm"_string);
     }
 
     // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
@@ -4050,8 +4046,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
         } else {
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
-            // TODO: support 'applicable specifications'
-
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -4168,8 +4162,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
         } else {
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
-            // TODO: support 'applicable specifications'
-
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -4372,8 +4364,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
             }
         } else {
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining key.
-            // TODO: support 'applicable specifications'
-
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -4450,9 +4440,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
         } else {
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
-            // TODO: support 'applicable specifications'
-
-            // 2. If an error occured or there are no applicable specifications, throw a DataError.
+            // 2. If an error occurred or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
@@ -4546,7 +4534,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             // Otherwise:
             // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
             //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
-            // TODO: support 'applicable specifications'
             // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -4612,7 +4599,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             // Otherwise:
             // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
             //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
-            // TODO: support 'applicable specifications'
             // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -4715,10 +4701,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             // 1. Perform any key export steps defined by other applicable specifications,
             //    passing format and the namedCurve attribute of the [[algorithm]] internal slot
             //    of key and obtaining namedCurve and a new value of jwk.
-            // TODO: support 'applicable specifications'
-
             // 2. Set the crv attribute of jwk to namedCurve.
-            jwk.crv = algorithm.named_curve();
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // 4. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -4762,7 +4746,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
         } else {
             // Perform any key export steps defined by other applicable specifications, passing format and
             // the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and data.
-            // TODO: support 'applicable specifications'
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
@@ -4961,9 +4944,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
         // in an applicable specification that specifies the use of that value with ECDH:
         // Perform the ECDH derivation steps specified in that specification,
         // passing in key and publicKey and resulting in secret.
-        // TODO: support 'applicable specification'
-
-        return WebIDL::NotSupportedError::create(realm, "Only 'P-256', 'P-384' and 'P-521' is supported"_string);
+        return WebIDL::DataError::create(realm, "Invalid algorithm"_string);
     }
 
     // 8. If length is null: Return secret
@@ -5053,8 +5034,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         } else {
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
-            // TODO: support 'applicable specifications'
-
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -5171,8 +5150,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         } else {
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
-            // TODO: support 'applicable specifications'
-
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -5344,8 +5321,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
             }
         } else {
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining key.
-            // TODO: support 'applicable specifications'
-
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -5419,8 +5394,6 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         } else {
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
-            // TODO: support 'applicable specifications'
-
             // 2. If an error occured or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -5509,7 +5482,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             // Otherwise:
             // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
             //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
-            // TODO: support 'applicable specifications'
             // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -5575,7 +5547,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             // Otherwise:
             // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
             //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
-            // TODO: support 'applicable specifications'
             // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
@@ -5678,10 +5649,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             // 1. Perform any key export steps defined by other applicable specifications,
             //    passing format and the namedCurve attribute of the [[algorithm]] internal slot
             //    of key and obtaining namedCurve and a new value of jwk.
-            // TODO: support 'applicable specifications'
-
             // 2. Set the crv attribute of jwk to namedCurve.
-            jwk.crv = algorithm.named_curve();
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // 4. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -5725,7 +5694,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
         } else {
             // Perform any key export steps defined by other applicable specifications, passing format and
             // the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and data.
-            // TODO: support 'applicable specifications'
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
@@ -8135,11 +8103,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
                 return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
-        // FIXME: Otherwise, if the name attribute of hash is defined in another applicable specification:
+        // Otherwise, if the name attribute of hash is defined in another applicable specification:
         else {
-            // FIXME: Perform any key import steps defined by other applicable specifications, passing format,
-            //        jwk and hash and obtaining hash.
-            dbgln("Hash algorithm '{}' not supported", hash_name);
+            // Perform any key import steps defined by other applicable specifications, passing format,
+            // jwk and hash and obtaining hash.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
@@ -8278,13 +8245,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat fo
             jwk.alg = "HS512"_string;
         }
 
-        // FIXME: Otherwise, the name attribute of hash is defined in another applicable
-        //        specification:
+        // Otherwise, the name attribute of hash is defined in another applicable
+        // specification:
         else {
-            // FIXME: Perform any key export steps defined by other applicable specifications,
-            //        passing format and key and obtaining alg.
-            // FIXME: Set the alg attribute of jwk to alg.
-            dbgln("Hash algorithm '{}' not supported", hash_name);
+            // Perform any key export steps defined by other applicable specifications,
+            // passing format and key and obtaining alg.
+            // Set the alg attribute of jwk to alg.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
