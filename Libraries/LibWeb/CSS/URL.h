@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
@@ -35,6 +36,7 @@ public:
 private:
     using Value = Variant<CrossOriginModifierValue, ReferrerPolicyModifierValue, FlyString>;
     RequestURLModifier(Type, Value);
+
     Type m_type;
     Value m_value;
 };
