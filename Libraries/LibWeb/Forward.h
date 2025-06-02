@@ -489,6 +489,7 @@ class ClassicScript;
 class CloseEvent;
 class CloseWatcher;
 class CloseWatcherManager;
+class CookieStore;
 class CustomElementDefinition;
 class CustomElementRegistry;
 class DataTransfer;

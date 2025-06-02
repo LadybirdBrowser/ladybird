@@ -5,6 +5,7 @@
 #import <DOM/EventHandler.idl>
 #import <DOM/EventTarget.idl>
 #import <HTML/AnimationFrameProvider.idl>
+#import <HTML/CookieStore.idl>
 #import <HTML/CustomElements/CustomElementRegistry.idl>
 #import <HTML/History.idl>
 #import <HTML/Navigation.idl>
@@ -126,6 +127,7 @@ Window includes AnimationFrameProvider;
 Window includes GlobalEventHandlers;
 Window includes UniversalGlobalScope;
 Window includes WindowEventHandlers;
+Window includes WindowOrWorkerCookieStore;
 Window includes WindowLocalStorage;
 Window includes WindowSessionStorage;
 Window includes WindowOrWorkerGlobalScope;

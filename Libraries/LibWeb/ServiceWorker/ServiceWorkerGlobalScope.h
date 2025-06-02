@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibJS/Heap/Cell.h>
+#include <LibWeb/HTML/CookieStore.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
 namespace Web::ServiceWorker {
@@ -33,8 +35,15 @@ public:
     void set_onmessageerror(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onmessageerror();
 
+    GC::Ref<HTML::CookieStore> cookie_store();
+
 protected:
     explicit ServiceWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
+
+private:
+    virtual void visit_edges(Cell::Visitor& visitor) override;
+    // https://wicg.github.io/cookie-store/#serviceworkerglobalscope-associated-cookiestore
+    GC::Ptr<HTML::CookieStore> m_cookie_store;
 };
 
 }

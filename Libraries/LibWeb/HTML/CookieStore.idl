@@ -1,0 +1,106 @@
+#import <DOM/Event.idl>
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
+
+// https://wicg.github.io/cookie-store/
+dictionary CookieStoreGetOptions {
+    USVString name;
+    USVString url;
+};
+
+enum CookieSameSite {
+    "strict",
+    "lax",
+    "none"
+};
+
+dictionary CookieInit {
+    required USVString name;
+    required USVString value;
+    DOMHighResTimeStamp? expires = null;
+    USVString? domain = null;
+    USVString path = "/";
+    CookieSameSite sameSite = "strict";
+    boolean partitioned = false;
+};
+
+dictionary CookieChangeEventInit : EventInit {
+    CookieList changed;
+    CookieList deleted;
+};
+
+dictionary CookieStoreDeleteOptions {
+    required USVString name;
+    USVString? domain = null;
+    USVString path = "/";
+    boolean partitioned = false;
+};
+
+dictionary CookieListItem {
+    USVString name;
+    USVString value;
+    USVString? domain;
+    USVString path;
+    DOMHighResTimeStamp? expires;
+    boolean secure;
+    CookieSameSite sameSite;
+    boolean partitioned;
+};
+
+typedef sequence<CookieListItem> CookieList;
+
+[Exposed=(ServiceWorker,Window), SecureContext]
+interface CookieStore : EventTarget {
+    [FIXME] Promise<CookieListItem?> get(USVString name);
+    [FIXME] Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
+
+    [FIXME] Promise<CookieList> getAll(USVString name);
+    [FIXME] Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
+
+    [FIXME] Promise<undefined> set(USVString name, USVString value);
+    [FIXME] Promise<undefined> set(CookieInit options);
+
+    [FIXME] Promise<undefined> delete(USVString name);
+    [FIXME] Promise<undefined> delete(CookieStoreDeleteOptions options);
+
+    [FIXME, Exposed=Window]
+    attribute EventHandler onchange;
+};
+
+//[Exposed=(ServiceWorker,Window), SecureContext]
+//interface CookieStoreManager {
+//  Promise<undefined> subscribe(sequence<CookieStoreGetOptions> subscriptions);
+//  Promise<sequence<CookieStoreGetOptions>> getSubscriptions();
+//  Promise<undefined> unsubscribe(sequence<CookieStoreGetOptions> subscriptions);
+//};
+
+//[Exposed=(ServiceWorker,Window)]
+//partial interface ServiceWorkerRegistration {
+//  [SameObject] readonly attribute CookieStoreManager cookies;
+//};
+
+//[Exposed=Window,SecureContext]
+//interface CookieChangeEvent : Event {
+//  constructor(DOMString type, optional CookieChangeEventInit eventInitDict = {});
+//  [SameObject] readonly attribute FrozenArray<CookieListItem> changed;
+//  [SameObject] readonly attribute FrozenArray<CookieListItem> deleted;
+//};
+
+//[Exposed=ServiceWorker]
+//interface ExtendableCookieChangeEvent : ExtendableEvent {
+//  constructor(DOMString type, optional ExtendableCookieChangeEventInit eventInitDict = {});
+//  [SameObject] readonly attribute FrozenArray<CookieListItem> changed;
+//  [SameObject] readonly attribute FrozenArray<CookieListItem> deleted;
+//};
+
+//dictionary ExtendableCookieChangeEventInit : ExtendableEventInit {
+//  CookieList changed;
+//  CookieList deleted;
+//};
+
+// FIXME: This is a partial interface not an interface mixin
+[SecureContext]
+interface mixin WindowOrWorkerCookieStore {
+    [SameObject] readonly attribute CookieStore cookieStore;
+};
