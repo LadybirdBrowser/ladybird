@@ -26,7 +26,7 @@ describe("normal behavior", () => {
         const values = Intl.supportedValuesOf("collation");
         expect(isSorted(values)).toBeTrue();
 
-        expect(values.indexOf("default")).not.toBe(-1);
+        expect(values.indexOf("emoji")).not.toBe(-1);
     });
 
     test("currency", () => {
