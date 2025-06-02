@@ -50,6 +50,16 @@ test("basic functionality", () => {
     expect((() => this).apply("foo")).toBe(globalThis);
 });
 
+test("array with holes", () => {
+    function target(a, b, c) {
+        return a + b + c;
+    }
+
+    const args = [1, , 3];
+    const result = target.apply(null, args);
+    expect(result).toBe(NaN);
+});
+
 describe("errors", () => {
     test("does not accept non-function values", () => {
         expect(() => {
