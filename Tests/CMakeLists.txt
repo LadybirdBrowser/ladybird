@@ -5,7 +5,10 @@ add_subdirectory(LibDiff)
 add_subdirectory(LibGC)
 add_subdirectory(LibJS)
 add_subdirectory(LibRegex)
+add_subdirectory(LibTest)
+add_subdirectory(LibTextCodec)
 add_subdirectory(LibThreading)
+add_subdirectory(LibUnicode)
 add_subdirectory(LibURL)
 
 # FIXME: Increase support for building targets on Windows
@@ -15,10 +18,7 @@ endif()
 
 add_subdirectory(LibCore)
 add_subdirectory(LibDNS)
-add_subdirectory(LibTest)
-add_subdirectory(LibTextCodec)
 add_subdirectory(LibTLS)
-add_subdirectory(LibUnicode)
 add_subdirectory(LibWasm)
 add_subdirectory(LibXML)
 
