@@ -600,7 +600,7 @@ void PaintableBox::paint_background(DisplayListRecordingContext& context) const
     if (layout_node_with_style_and_box_metrics().is_body() && document().html_element()->should_use_body_background_properties())
         return;
 
-    Painting::paint_background(context, *this, computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
+    Painting::paint_background(context, *this, computed_values().image_rendering(), computed_values().image_orientation(), m_resolved_background, normalized_border_radii_data());
 }
 
 void PaintableBox::paint_box_shadow(DisplayListRecordingContext& context) const

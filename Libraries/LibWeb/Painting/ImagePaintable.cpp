@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
@@ -74,11 +75,14 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                 context.display_list_recorder().draw_text(enclosing_rect, m_alt_text, *Platform::FontPlugin::the().default_font(12), Gfx::TextAlignment::Center, computed_values().color());
             }
         } else if (auto bitmap = m_image_provider.current_image_bitmap(image_rect_device_pixels.size().to_type<int>())) {
+            auto const image_orientation = computed_values().image_orientation();
+
             ScopedCornerRadiusClip corner_clip { context, image_rect_device_pixels, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
             auto image_int_rect_device_pixels = image_rect_device_pixels.to_type<int>();
-            auto bitmap_rect = bitmap->rect();
+            auto bitmap_rect = bitmap->rect(Gfx::ImageOrientation::FromDecoded);
+            auto exif_bitmap_rect = bitmap->rect(image_orientation);
             auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), bitmap_rect, image_int_rect_device_pixels);
-            auto bitmap_aspect_ratio = (float)bitmap_rect.height() / bitmap_rect.width();
+            auto bitmap_aspect_ratio = (float)exif_bitmap_rect.height() / exif_bitmap_rect.width();
             auto image_aspect_ratio = (float)image_rect.height() / (float)image_rect.width();
 
             auto scale_x = 0.0f;
@@ -87,7 +91,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
             // https://drafts.csswg.org/css-images/#the-object-fit
             auto object_fit = m_is_svg_image ? CSS::ObjectFit::Contain : computed_values().object_fit();
             if (object_fit == CSS::ObjectFit::ScaleDown) {
-                if (bitmap_rect.width() > image_rect.width() || bitmap_rect.height() > image_rect.height()) {
+                if (exif_bitmap_rect.width() > image_rect.width() || exif_bitmap_rect.height() > image_rect.height()) {
                     object_fit = CSS::ObjectFit::Contain;
                 } else {
                     object_fit = CSS::ObjectFit::None;
@@ -96,24 +100,24 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
             switch (object_fit) {
             case CSS::ObjectFit::Fill:
-                scale_x = (float)image_rect.width() / bitmap_rect.width();
-                scale_y = (float)image_rect.height() / bitmap_rect.height();
+                scale_x = (float)image_rect.width() / exif_bitmap_rect.width();
+                scale_y = (float)image_rect.height() / exif_bitmap_rect.height();
                 break;
             case CSS::ObjectFit::Contain:
                 if (bitmap_aspect_ratio >= image_aspect_ratio) {
-                    scale_x = (float)image_rect.height() / bitmap_rect.height();
+                    scale_x = (float)image_rect.height() / exif_bitmap_rect.height();
                     scale_y = scale_x;
                 } else {
-                    scale_x = (float)image_rect.width() / bitmap_rect.width();
+                    scale_x = (float)image_rect.width() / exif_bitmap_rect.width();
                     scale_y = scale_x;
                 }
                 break;
             case CSS::ObjectFit::Cover:
                 if (bitmap_aspect_ratio >= image_aspect_ratio) {
-                    scale_x = (float)image_rect.width() / bitmap_rect.width();
+                    scale_x = (float)image_rect.width() / exif_bitmap_rect.width();
                     scale_y = scale_x;
                 } else {
-                    scale_x = (float)image_rect.height() / bitmap_rect.height();
+                    scale_x = (float)image_rect.height() / exif_bitmap_rect.height();
                     scale_y = scale_x;
                 }
                 break;
@@ -124,8 +128,8 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                 scale_y = 1;
             }
 
-            auto scaled_bitmap_width = CSSPixels::nearest_value_for(bitmap_rect.width() * scale_x);
-            auto scaled_bitmap_height = CSSPixels::nearest_value_for(bitmap_rect.height() * scale_y);
+            auto scaled_bitmap_width = CSSPixels::nearest_value_for(exif_bitmap_rect.width() * scale_x);
+            auto scaled_bitmap_height = CSSPixels::nearest_value_for(exif_bitmap_rect.height() * scale_y);
 
             auto residual_horizontal = image_rect.width() - scaled_bitmap_width;
             auto residual_vertical = image_rect.height() - scaled_bitmap_height;
@@ -153,8 +157,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                 context.rounded_device_pixels(scaled_bitmap_width).value(),
                 context.rounded_device_pixels(scaled_bitmap_height).value()
             };
-
-            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect, image_int_rect_device_pixels, *bitmap, scaling_mode);
+            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect, image_int_rect_device_pixels, *bitmap, scaling_mode, image_orientation);
         }
     }
 }

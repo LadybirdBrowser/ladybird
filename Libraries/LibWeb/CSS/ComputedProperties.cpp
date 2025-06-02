@@ -36,6 +36,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -1844,6 +1845,12 @@ Optional<FlyString> ComputedProperties::view_transition_name() const
     if (value.is_custom_ident())
         return value.as_custom_ident().custom_ident();
     return {};
+}
+
+Gfx::ImageOrientation ComputedProperties::image_orientation() const
+{
+    auto const& value = property(PropertyID::ImageOrientation);
+    return to_gfx_image_orientation(keyword_to_image_orientation(value.to_keyword()).release_value());
 }
 
 MaskType ComputedProperties::mask_type() const

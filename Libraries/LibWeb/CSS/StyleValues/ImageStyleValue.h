@@ -51,8 +51,12 @@ public:
     Optional<CSSPixels> natural_height() const override;
     Optional<CSSPixelFraction> natural_aspect_ratio() const override;
 
+    Optional<CSSPixels> intrinsic_width(Gfx::ImageOrientation image_orientation) const override;
+    Optional<CSSPixels> intrinsic_height(Gfx::ImageOrientation image_orientation) const override;
+    Optional<CSSPixelFraction> intrinsic_aspect_ratio(Gfx::ImageOrientation image_orientation) const override;
+
     virtual bool is_paintable() const override;
-    void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
+    void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, Gfx::ImageOrientation image_orientation) const override;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
     Gfx::ImmutableBitmap const* current_frame_bitmap(DevicePixelRect const& dest_rect) const;

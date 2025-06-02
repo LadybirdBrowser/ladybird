@@ -44,8 +44,17 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
     auto device_rect = context.enclosing_device_rect(marker_rect);
 
     if (auto const* list_style_image = layout_box().list_style_image()) {
-        list_style_image->resolve_for_size(layout_box(), marker_rect.size());
-        list_style_image->paint(context, device_rect, computed_values().image_rendering());
+        auto const image_orientation = computed_values().image_orientation();
+        CSSPixelRect image_rect {
+            0, 0,
+            list_style_image->natural_width().value_or(marker_rect.width()),
+            list_style_image->natural_height().value_or(marker_rect.height())
+        };
+        image_rect.center_within(marker_rect);
+
+        auto device_image_rect = context.enclosing_device_rect(image_rect);
+        list_style_image->resolve_for_size(layout_box(), image_rect.size());
+        list_style_image->paint(context, device_image_rect, computed_values().image_rendering(), image_orientation);
         return;
     }
 

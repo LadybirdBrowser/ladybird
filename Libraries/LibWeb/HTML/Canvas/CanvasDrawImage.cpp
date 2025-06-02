@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 
 namespace Web::HTML {
@@ -15,8 +17,8 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
     image.visit(
         [&source_width, &source_height](GC::Root<HTMLImageElement> const& source) {
             if (source->immutable_bitmap()) {
-                source_width = source->immutable_bitmap()->width();
-                source_height = source->immutable_bitmap()->height();
+                source_width = source->immutable_bitmap()->width(Gfx::ImageOrientation::FromDecoded);
+                source_height = source->immutable_bitmap()->height(Gfx::ImageOrientation::FromDecoded);
             } else {
                 // FIXME: This is very janky and not correct.
                 source_width = source->width();
@@ -25,8 +27,8 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
         },
         [&source_width, &source_height](GC::Root<SVG::SVGImageElement> const& source) {
             if (source->current_image_bitmap()) {
-                source_width = source->current_image_bitmap()->width();
-                source_height = source->current_image_bitmap()->height();
+                source_width = source->current_image_bitmap()->width(Gfx::ImageOrientation::FromDecoded);
+                source_height = source->current_image_bitmap()->height(Gfx::ImageOrientation::FromDecoded);
             } else {
                 // FIXME: This is very janky and not correct.
                 source_width = source->width()->anim_val()->value();
@@ -35,8 +37,8 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
         },
         [&source_width, &source_height](GC::Root<HTML::HTMLVideoElement> const& source) {
             if (auto const bitmap = source->bitmap(); bitmap) {
-                source_width = bitmap->width();
-                source_height = bitmap->height();
+                source_width = bitmap->width(Gfx::ImageOrientation::FromDecoded);
+                source_height = bitmap->height(Gfx::ImageOrientation::FromDecoded);
             } else {
                 source_width = source->video_width();
                 source_height = source->video_height();
@@ -71,6 +73,19 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
                 source_height = source->height();
             }
         });
+}
+
+Gfx::ImageOrientation get_image_orientation_from_canvas_source(CanvasImageSource const& source)
+{
+    return source.visit(
+        [](auto const& src) -> Gfx::ImageOrientation {
+            auto const& computed_properties = src->computed_properties();
+            return computed_properties
+                ? computed_properties->image_orientation()
+                : Gfx::ImageOrientation::FromDecoded;
+        },
+        [](GC::Root<OffscreenCanvas> const &) -> Gfx::ImageOrientation { return Gfx::ImageOrientation::FromDecoded; },
+        [](GC::Root<ImageBitmap> const&) -> Gfx::ImageOrientation { return Gfx::ImageOrientation::FromDecoded; });
 }
 
 WebIDL::ExceptionOr<void> CanvasDrawImage::draw_image(Web::HTML::CanvasImageSource const& image, float destination_x, float destination_y)

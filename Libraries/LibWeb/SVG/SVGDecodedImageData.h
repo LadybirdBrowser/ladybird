@@ -23,9 +23,9 @@ public:
 
     virtual RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize) const override;
 
-    virtual Optional<CSSPixels> intrinsic_width() const override;
-    virtual Optional<CSSPixels> intrinsic_height() const override;
-    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
+    virtual Optional<CSSPixels> intrinsic_width(Gfx::ImageOrientation orientation) const override;
+    virtual Optional<CSSPixels> intrinsic_height(Gfx::ImageOrientation orientation) const override;
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio(Gfx::ImageOrientation orientation) const override;
 
     // FIXME: Support SVG animations. :^)
     virtual int frame_duration(size_t) const override { return 0; }

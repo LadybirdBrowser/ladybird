@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <LibGfx/ImageOrientation.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -33,11 +35,31 @@ public:
         return {};
     }
 
+    [[nodiscard]]
+    virtual Optional<CSSPixels> intrinsic_width(Gfx::ImageOrientation) const
+    {
+        return {};
+    }
+    [[nodiscard]]
+    virtual Optional<CSSPixels> intrinsic_height(Gfx::ImageOrientation) const
+    {
+        return {};
+    }
+
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio(Gfx::ImageOrientation image_orientation) const
+    {
+        auto const width = intrinsic_width(image_orientation);
+        auto const height = intrinsic_height(image_orientation);
+        if (width.has_value() && height.has_value())
+            return *width / *height;
+        return {};
+    }
+
     virtual void load_any_resources(DOM::Document&) { }
     virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { }
 
     virtual bool is_paintable() const = 0;
-    virtual void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
+    virtual void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, ImageRendering, Gfx::ImageOrientation) const = 0;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const { return {}; }
 };

@@ -56,7 +56,7 @@ void ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node
     m_resolved->position = m_properties.position->resolved(node, CSSPixelRect { { 0, 0 }, size });
 }
 
-void ConicGradientStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
+void ConicGradientStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering, Gfx::ImageOrientation) const
 {
     VERIFY(m_resolved.has_value());
     auto destination_rect = dest_rect.to_type<int>();

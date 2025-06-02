@@ -468,6 +468,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'gridTemplateRows': 'none'
 'grid-template-rows': 'none'
 'height': '0px'
+'imageOrientation': 'from-image'
+'image-orientation': 'from-image'
 'imageRendering': 'auto'
 'image-rendering': 'auto'
 'inlineSize': '284px'

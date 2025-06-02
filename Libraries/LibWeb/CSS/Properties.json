@@ -2025,6 +2025,15 @@
       "unitless-length"
     ]
   },
+  "image-orientation": {
+    "animation-type": "discrete",
+    "affects-layout": true,
+    "inherited": true,
+    "initial": "from-image",
+    "valid-types": [
+      "image-orientation"
+    ]
+  },
   "image-rendering": {
     "animation-type": "discrete",
     "affects-layout": false,

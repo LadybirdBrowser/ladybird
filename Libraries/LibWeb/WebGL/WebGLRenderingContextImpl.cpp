@@ -178,8 +178,19 @@ static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(Te
     if (!bitmap)
         return OptionalNone {};
 
-    int width = destination_width.value_or(bitmap->width());
-    int height = destination_height.value_or(bitmap->height());
+    auto const image_orientation = source.visit(
+        [](auto const& source) -> Gfx::ImageOrientation {
+            auto const &computed_properties = source->computed_properties();
+            return computed_properties
+                ? computed_properties->image_orientation()
+                : Gfx::ImageOrientation::FromDecoded;
+        },
+        [](GC::Root<OffscreenCanvas> const &) -> Gfx::ImageOrientation { return Gfx::ImageOrientation::FromDecoded; },
+        [](GC::Root<ImageBitmap> const&) -> Gfx::ImageOrientation { return Gfx::ImageOrientation::FromDecoded; },
+        [](GC::Root<ImageData> const&) -> Gfx::ImageOrientation { return Gfx::ImageOrientation::FromDecoded; }
+    );
+    int width = destination_width.value_or(bitmap->width(image_orientation));
+    int height = destination_height.value_or(bitmap->height(image_orientation));
 
     Checked<size_t> buffer_pitch = width;
 

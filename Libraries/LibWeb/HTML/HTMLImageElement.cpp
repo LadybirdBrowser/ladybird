@@ -187,22 +187,40 @@ bool HTMLImageElement::is_image_available() const
 
 Optional<CSSPixels> HTMLImageElement::intrinsic_width() const
 {
-    if (auto image_data = m_current_request->image_data())
-        return image_data->intrinsic_width();
+    if (auto image_data = m_current_request->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? computed_properties()->image_orientation()
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_width(image_orientation);
+    }
+
     return {};
 }
 
 Optional<CSSPixels> HTMLImageElement::intrinsic_height() const
 {
-    if (auto image_data = m_current_request->image_data())
-        return image_data->intrinsic_height();
+    if (auto const image_data = m_current_request->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? computed_properties()->image_orientation()
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_height(image_orientation);
+    }
+
     return {};
 }
 
 Optional<CSSPixelFraction> HTMLImageElement::intrinsic_aspect_ratio() const
 {
-    if (auto image_data = m_current_request->image_data())
-        return image_data->intrinsic_aspect_ratio();
+    if (auto const image_data = m_current_request->image_data()) {
+        auto const image_orientation = computed_properties()
+            ? computed_properties()->image_orientation()
+            : Gfx::ImageOrientation::FromExif;
+
+        return image_data->intrinsic_aspect_ratio(image_orientation);
+    }
+
     return {};
 }
 
@@ -235,8 +253,13 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
 
     // ...or else the density-corrected intrinsic width and height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto bitmap = current_image_bitmap())
-        return bitmap->width();
+    if (auto const bitmap = current_image_bitmap()) {
+        auto const image_orientation = computed_properties()
+            ? computed_properties()->image_orientation()
+            : Gfx::ImageOrientation::FromExif;
+
+        return bitmap->width(image_orientation);
+    }
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
@@ -266,8 +289,13 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
 
     // ...or else the density-corrected intrinsic height and height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto bitmap = current_image_bitmap())
-        return bitmap->height();
+    if (auto const bitmap = current_image_bitmap()) {
+        auto const image_orientation = computed_properties()
+            ? computed_properties()->image_orientation()
+            : Gfx::ImageOrientation::FromExif;
+
+        return bitmap->height(image_orientation);
+    }
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
@@ -285,9 +313,13 @@ unsigned HTMLImageElement::natural_width() const
 {
     // Return the density-corrected intrinsic width of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available.
-    if (auto bitmap = current_image_bitmap())
-        return bitmap->width();
+    if (auto const bitmap = current_image_bitmap()) {
+        auto const image_orientation = computed_properties()
+            ? computed_properties()->image_orientation()
+            : Gfx::ImageOrientation::FromExif;
 
+        return bitmap->width(image_orientation);
+    }
     // ...or else 0.
     return 0;
 }
@@ -297,8 +329,13 @@ unsigned HTMLImageElement::natural_height() const
 {
     // Return the density-corrected intrinsic height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available.
-    if (auto bitmap = current_image_bitmap())
-        return bitmap->height();
+    if (auto bitmap = current_image_bitmap()) {
+        auto const image_orientation = computed_properties()
+            ? computed_properties()->image_orientation()
+            : Gfx::ImageOrientation::FromExif;
+
+        return bitmap->height(image_orientation);
+    }
 
     // ...or else 0.
     return 0;

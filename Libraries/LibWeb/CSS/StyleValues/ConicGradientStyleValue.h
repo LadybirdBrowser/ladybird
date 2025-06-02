@@ -26,7 +26,7 @@ public:
 
     virtual String to_string(SerializationMode) const override;
 
-    void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
+    void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering, Gfx::ImageOrientation) const override;
 
     virtual bool equals(StyleValue const& other) const override;
 

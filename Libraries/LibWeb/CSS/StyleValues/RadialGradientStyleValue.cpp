@@ -246,7 +246,7 @@ bool RadialGradientStyleValue::equals(StyleValue const& other) const
     return m_properties == other_gradient.m_properties;
 }
 
-void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
+void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering, Gfx::ImageOrientation) const
 {
     VERIFY(m_resolved.has_value());
     auto center = context.rounded_device_point(m_resolved->center).to_type<int>();

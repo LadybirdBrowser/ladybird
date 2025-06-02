@@ -5,6 +5,7 @@
  */
 
 #include "SVGFEImageElement.h"
+#include "LibGfx/ImageOrientation.h"
 #include <LibCore/Timer.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/SVGFEImageElementPrototype.h>
@@ -99,11 +100,11 @@ Optional<Gfx::IntRect> SVGFEImageElement::content_rect() const
         return {};
     auto width = layout_node->computed_values().width().to_px(*layout_node, 0);
     if (width == 0)
-        width = bitmap->width();
+        width = bitmap->width(Gfx::ImageOrientation::FromDecoded);
 
     auto height = layout_node->computed_values().height().to_px(*layout_node, 0);
     if (height == 0)
-        height = bitmap->height();
+        height = bitmap->height(Gfx::ImageOrientation::FromDecoded);
 
     auto x = layout_node->computed_values().x().to_px(*layout_node, 0);
     auto y = layout_node->computed_values().y().to_px(*layout_node, 0);

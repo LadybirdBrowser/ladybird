@@ -24,24 +24,27 @@ struct BackingStore {
     size_t size_in_bytes { 0 };
 };
 
-IntRect Bitmap::rect() const
+IntRect Bitmap::rect(ImageOrientation orientation) const
 {
-    return { {}, size() };
+    return { {}, size(orientation) };
 }
 
-IntSize Bitmap::size() const
+IntSize Bitmap::size(ImageOrientation orientation) const
 {
+    if (orientation == ImageOrientation::FromDecoded)
+        return m_size;
+
     return exif_oriented_size(m_size, m_exif_orientation);
 }
 
-int Bitmap::width() const
+int Bitmap::width(ImageOrientation orientation) const
 {
-    return size().width();
+    return size(orientation).width();
 }
 
-int Bitmap::height() const
+int Bitmap::height(ImageOrientation orientation) const
 {
-    return size().height();
+    return size(orientation).height();
 }
 
 size_t Bitmap::minimum_pitch(size_t width, BitmapFormat format)

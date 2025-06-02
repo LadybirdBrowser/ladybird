@@ -418,6 +418,10 @@
     "increasing",
     "decreasing"
   ],
+  "image-orientation": [
+    "from-image",
+    "none"
+  ],
   "image-rendering": [
     "auto",
     "crisp-edges",

@@ -13,6 +13,11 @@
 
 namespace Gfx {
 
+enum class ImageOrientation : u8 {
+    FromExif,
+    FromDecoded,
+};
+
 enum class ExifOrientation : u8 {
     Default = 1,
     FlipHorizontally = 2,
@@ -95,6 +100,6 @@ template<typename T>
     VERIFY_NOT_REACHED();
 }
 
-[[nodiscard]] bool exif_orientation_affects_image_size(Gfx::ExifOrientation orientation);
+[[nodiscard]] bool exif_orientation_affects_image_size(Gfx::ImageOrientation image_orientation, Gfx::ExifOrientation orientation);
 
 }

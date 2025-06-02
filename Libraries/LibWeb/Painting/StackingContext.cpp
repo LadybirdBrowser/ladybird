@@ -360,7 +360,8 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         DisplayListRecorder display_list_recorder(*mask_display_list);
         auto mask_painting_context = context.clone(display_list_recorder);
         auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
-        mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto);
+        auto const image_orientation = computed_values.image_orientation();
+        mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto, image_orientation);
         context.display_list_recorder().add_mask(mask_display_list, mask_rect_in_device_pixels.to_type<int>());
     }
 
