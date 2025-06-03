@@ -1634,8 +1634,19 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
                 break;
             ancestor->m_child_needs_layout_tree_update = true;
         }
-        if (auto layout_node = this->layout_node())
+        if (auto layout_node = this->layout_node()) {
             layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
+
+            // If the layout node has an anonymous parent, rebuild from the nearest non-anonymous ancestor.
+            // FIXME: This is not optimal, and we should figure out how to rebuild a smaller part of the tree.
+            if (layout_node->parent() && layout_node->parent()->is_anonymous()) {
+                GC::Ptr<Layout::Node> ancestor = layout_node->parent();
+                while (ancestor && ancestor->is_anonymous())
+                    ancestor = ancestor->parent();
+                if (ancestor)
+                    ancestor->dom_node()->set_needs_layout_tree_update(true, reason);
+            }
+        }
     }
 }
 
