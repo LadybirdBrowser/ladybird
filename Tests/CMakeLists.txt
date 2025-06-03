@@ -15,6 +15,8 @@ add_subdirectory(LibWasm)
 if (ENABLE_WEBGPUNATIVE_TESTS)
     add_subdirectory(LibWebGPUNative)
 endif()
+add_subdirectory(LibWGSL)
+
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibGfx)
 endif()
