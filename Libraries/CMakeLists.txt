@@ -19,6 +19,7 @@ add_subdirectory(LibWasm)
 add_subdirectory(LibWebGPUNative)
 add_subdirectory(LibWebSocket)
 add_subdirectory(LibXML)
+add_subdirectory(LibWGSL)
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibGfx)
