@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Parser.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -180,6 +181,35 @@ void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     Base::set_style_sheet(style_sheet);
     m_style_sheet = style_sheet;
+}
+
+ValueComparingNonnullRefPtr<CSSStyleValue const> ImageStyleValue::absolutized(CSSPixelRect const&, Length::FontMetrics const&, Length::FontMetrics const&) const
+{
+    if (m_url.url().is_empty())
+        return *this;
+
+    // FIXME: The spec has been updated to handle this better. The computation of the base URL here is roughly based on:
+    //        https://drafts.csswg.org/css-values-4/#style-resource-base-url
+    //        https://github.com/w3c/csswg-drafts/pull/12261
+    auto base_url = [&]() -> Optional<::URL::URL> {
+        if (m_style_sheet) {
+            return m_style_sheet->base_url()
+                .value_or_lazy_evaluated_optional([&]() { return m_style_sheet->location(); })
+                .value_or_lazy_evaluated_optional([&]() { return HTML::relevant_settings_object(*m_style_sheet).api_base_url(); });
+        }
+
+        if (m_document)
+            return m_document->base_url();
+
+        return {};
+    }();
+
+    if (base_url.has_value()) {
+        if (auto resolved_url = ::URL::Parser::basic_parse(m_url.url(), *base_url); resolved_url.has_value())
+            return ImageStyleValue::create(*resolved_url);
+    }
+
+    return *this;
 }
 
 }
