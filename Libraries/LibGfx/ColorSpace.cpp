@@ -101,7 +101,20 @@ ErrorOr<ColorSpace> ColorSpace::load_from_icc_bytes(ReadonlyBytes icc_bytes)
         if (!skcms_Parse(icc_bytes.data(), icc_bytes.size(), &icc_profile))
             return Error::from_string_literal("Failed to parse the ICC profile");
 
-        return ColorSpace { make<Details::ColorSpaceImpl>(SkColorSpace::Make(icc_profile)) };
+        auto color_space_result = SkColorSpace::Make(icc_profile);
+
+        if (!color_space_result) {
+            if (icc_profile.has_trc && icc_profile.has_toXYZD50) {
+                skcms_TransferFunction transfer_function;
+                float max_error;
+
+                if (skcms_ApproximateCurve(&icc_profile.trc[0], &transfer_function, &max_error)) {
+                    color_space_result = SkColorSpace::MakeRGB(transfer_function, icc_profile.toXYZD50);
+                }
+            }
+        }
+
+        return ColorSpace { make<Details::ColorSpaceImpl>(color_space_result) };
     }
     return ColorSpace {};
 }
