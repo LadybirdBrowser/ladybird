@@ -174,7 +174,7 @@ All supported properties and their default values exposed from CSSStylePropertie
 'aspect-ratio': 'auto'
 'backdropFilter': 'none'
 'backdrop-filter': 'none'
-'background': 'rgba(0, 0, 0, 0) none 0% 0% auto auto repeat scroll padding-box border-box'
+'background': 'none'
 'backgroundAttachment': 'scroll'
 'background-attachment': 'scroll'
 'backgroundBlendMode': 'normal'
