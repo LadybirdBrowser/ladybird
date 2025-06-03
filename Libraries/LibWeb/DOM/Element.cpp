@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2023, San Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -3738,7 +3739,7 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
     return {};
 }
 
-Optional<CSS::CountersSet const&> Element::counters_set()
+Optional<CSS::CountersSet&> Element::counters_set()
 {
     if (!m_counters_set)
         return {};
@@ -3770,7 +3771,10 @@ void Element::resolve_counters(CSS::ComputedProperties& style)
     // 2. New counters are instantiated (counter-reset).
     auto counter_reset = style.counter_data(CSS::PropertyID::CounterReset);
     for (auto const& counter : counter_reset)
-        ensure_counters_set().instantiate_a_counter(counter.name, unique_id(), counter.is_reversed, counter.value);
+        // NOTE: The spec is ambiguous about initial values for reversed counters: https://github.com/w3c/csswg-drafts/issues/6231
+        //       - Chromium (136) does not support reversed counters.
+        //       - Firefox (138) treats a reversed counter with a value as if `reversed=false`. We do the same below.
+        ensure_counters_set().instantiate_a_counter(counter.name, unique_id(), counter.is_reversed && !counter.value.has_value(), counter.value);
 
     // FIXME: Take style containment into account
     // https://drafts.csswg.org/css-contain-2/#containment-style
@@ -3787,6 +3791,24 @@ void Element::resolve_counters(CSS::ComputedProperties& style)
     auto counter_set = style.counter_data(CSS::PropertyID::CounterSet);
     for (auto const& counter : counter_set)
         ensure_counters_set().set_a_counter(counter.name, unique_id(), *counter.value);
+
+    // Ad-hoc: maybe update initial value for incremented reversed counters.
+    for (auto const& counter : counter_increment) {
+        auto existing_counter = ensure_counters_set().last_counter_with_name(counter.name);
+        if (!existing_counter->value.has_value())
+            continue;
+
+        if (!existing_counter->reversed)
+            continue;
+
+        if (existing_counter->is_explicitly_set_reversed_counter)
+            continue; // Counters which are explicitly set do not need to update the initial counter value if incremented.
+
+        auto* originating_node = DOM::Node::from_unique_id(existing_counter->originating_element_id);
+        VERIFY(originating_node->is_element());
+        auto* originating_element = static_cast<DOM::Element*>(originating_node);
+        originating_element->update_initial_value_for_reversed_counter__after_increment(counter.name, counter.value.value().value());
+    }
 
     // 5. Counter values are used (counter()/counters()).
     // NOTE: This happens when we process the `content` property.
@@ -3840,14 +3862,57 @@ void Element::inherit_counters()
             auto& value_source = previous->counters_set().release_value();
             for (auto const& source_counter : value_source.counters()) {
                 auto maybe_existing_counter = element_counters->counter_with_same_name_and_creator(source_counter.name, source_counter.originating_element_id);
-                if (maybe_existing_counter.has_value())
+                if (maybe_existing_counter.has_value()) {
                     maybe_existing_counter->value = source_counter.value;
+                    maybe_existing_counter->is_explicitly_set_reversed_counter = source_counter.is_explicitly_set_reversed_counter;
+                }
             }
         }
     }
 
     VERIFY(!element_counters || !element_counters->is_empty());
     m_counters_set = move(element_counters);
+}
+
+// https://drafts.csswg.org/css-lists-3/#instantiating-counters
+void Element::update_initial_value_for_reversed_counter__after_increment(FlyString const& name, int amount)
+{
+    auto counter = counters_set()->last_counter_with_name(name);
+
+    VERIFY(counter.has_value());
+    // Note: Only reversed counters can be instantiated without an initial value.
+    VERIFY(counter.value().reversed);
+
+    // https://drafts.csswg.org/css-lists-3/#instantiating-counters
+    // For each element or pseudo-element el that increments or sets the same counter in the same scope:
+    // 1. Let incrementNegated be el’s counter-increment integer value for this counter, multiplied by -1.
+    auto const increment_negated = -amount;
+
+    // 2. If first is true, then add incrementNegated to num and set first to false.
+    if (!counter->value.has_value())
+        counter->value = increment_negated;
+
+    // 3. If el sets this counter with counter-set, then [...] break this loop. See below for the rest..
+    if (counter->is_explicitly_set_reversed_counter)
+        return;
+
+    // 4. Add incrementNegated to num.
+    counter->value->saturating_add(increment_negated);
+}
+
+// https://drafts.csswg.org/css-lists-3/#instantiating-counters
+void Element::update_initial_value_for_reversed_counter__after_set(FlyString const& name, int amount)
+{
+    auto counter = counters_set()->last_counter_with_name(name);
+
+    VERIFY(counter.has_value());
+    // Note: Only reversed counters can be instantiated without an initial value.
+    VERIFY(counter->reversed);
+
+    // For each element or pseudo-element el that increments or sets the same counter in the same scope:
+
+    // 3. If el sets this counter with counter-set, then add that integer value to num and [...]
+    counter->value->saturating_add(amount);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-lang-and-xml:lang-attributes
