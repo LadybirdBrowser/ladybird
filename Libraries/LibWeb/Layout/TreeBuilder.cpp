@@ -4,6 +4,7 @@
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2025, Aziz B. Yesilyurt <abyesilyurt@gmail.com>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -189,7 +190,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
         return;
 
     auto initial_quote_nesting_level = m_quote_nesting_level;
-    auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_style->content(element, initial_quote_nesting_level);
+    auto [pseudo_element_content, final_quote_nesting_level, has_reversed_counters] = pseudo_element_style->content(element, initial_quote_nesting_level);
     m_quote_nesting_level = final_quote_nesting_level;
     auto pseudo_element_display = pseudo_element_style->display();
     // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
@@ -232,6 +233,9 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
         push_parent(*pseudo_element_node);
         insert_node_into_inline_or_block_ancestor(*text_node, text_node->display(), AppendOrPrepend::Append);
         pop_parent();
+
+        if (has_reversed_counters)
+            ensure_content_with_reverse_counter_fixup_queue()->append({ element, pseudo_element, text, initial_quote_nesting_level });
     } else {
         TODO();
     }
@@ -767,7 +771,29 @@ GC::Ptr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
     if (auto* root = dom_node.document().layout_node())
         fixup_tables(*root);
 
+    if (m_content_with_reversed_counters_fixup_queue)
+        fixup_reversed_counters_content();
+
     return m_layout_root;
+}
+
+// Fixup pseudo-elements with content containing reversed counters.
+// The final value for an uninitialized reversed counter cannot be calculated
+// in one pass, since it depends on the number of counter-increment occurrences.
+// Before this call, values of reversed counters will be incorrect (exception: values after a counter-set).
+// We recalculate the correct value for with all those occurrences.
+void TreeBuilder::fixup_reversed_counters_content()
+{
+    VERIFY(!m_content_with_reversed_counters_fixup_queue->is_empty());
+
+    for (auto const& item : *m_content_with_reversed_counters_fixup_queue) {
+        auto pseudo_element_style = item.element->pseudo_element_computed_properties(item.pseudo_element);
+        auto [pseudo_element_content, final_quote_nesting_level, has_reversed_counters] = pseudo_element_style->content(*item.element, item.intial_quote_nesting_level); // Will eventually resolve all reversed counters used in content.
+
+        auto pseudo_element_node = item.element->get_pseudo_element_node(item.pseudo_element);
+        pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content); // Set the content of the pseudo-element.
+        item.text->set_data(pseudo_element_content.data);                                   // Set the text of the generated text element.
+    }
 }
 
 template<CSS::DisplayInternal internal, typename Callback>
