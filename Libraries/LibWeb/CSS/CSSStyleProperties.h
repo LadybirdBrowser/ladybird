@@ -63,6 +63,7 @@ public:
 
 private:
     CSSStyleProperties(JS::Realm&, Computed, Readonly, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::ElementReference>);
+    static Vector<StyleProperty> convert_declarations_to_specified_order(Vector<StyleProperty>&);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
