@@ -1184,9 +1184,7 @@ String CSSStyleProperties::serialized() const
             continue;
 
         // 3. If property maps to one or more shorthand properties, let shorthands be an array of those shorthand properties, in preferred order.
-        // FIXME: We don't properly support nested shorthands (e.g. background)
         if (property_maps_to_shorthand(property)) {
-            // FIXME: Sort in the preferred order. https://www.w3.org/TR/cssom/#concept-shorthands-preferred-order
             auto shorthands = shorthands_for_longhand(property);
 
             // 4. Shorthand loop: For each shorthand in shorthands, follow these substeps:
@@ -1204,7 +1202,7 @@ String CSSStyleProperties::serialized() const
                 }
 
                 // 2. If not all properties that map to shorthand are present in longhands, continue with the steps labeled shorthand loop.
-                if (any_of(longhands_for_shorthand(shorthand), [&](auto longhand_id) { return !any_of(longhands, [&](auto const& longhand_declaration) { return longhand_declaration.property_id == longhand_id; }); }))
+                if (any_of(expanded_longhands_for_shorthand(shorthand), [&](auto longhand_id) { return !any_of(longhands, [&](auto const& longhand_declaration) { return longhand_declaration.property_id == longhand_id; }); }))
                     continue;
 
                 // 3. Let current longhands be an empty array.
@@ -1316,9 +1314,8 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
         return String {};
 
     // 1. Let shorthand be the first shorthand property, in preferred order, that exactly maps to all of the longhand properties in list.
-    // FIXME: Sort in the preferred order. https://www.w3.org/TR/cssom/#concept-shorthands-preferred-order
     Optional<PropertyID> shorthand = shorthands_for_longhand(list.first().property_id).first_matching([&](PropertyID shorthand) {
-        auto longhands_for_potential_shorthand = longhands_for_shorthand(shorthand);
+        auto longhands_for_potential_shorthand = expanded_longhands_for_shorthand(shorthand);
 
         // The potential shorthand exactly maps to all of the longhand properties in list if:
         // a. The number of longhand properties in the list is equal to the number of longhand properties that the potential shorthand maps to.
@@ -1334,16 +1331,22 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
         return String {};
 
     // 3. Otherwise, serialize a CSS value from a hypothetical declaration of the property shorthand with its value representing the combined values of the declarations in list.
+    Function<ValueComparingNonnullRefPtr<ShorthandStyleValue const>(PropertyID)> make_shorthand_value = [&](PropertyID shorthand_id) {
+        auto longhand_ids = longhands_for_shorthand(shorthand_id);
+        Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> longhand_values;
+
+        for (auto longhand_id : longhand_ids) {
+            if (property_is_shorthand(longhand_id))
+                longhand_values.append(make_shorthand_value(longhand_id));
+            else
+                longhand_values.append(list.first_matching([&](auto declaration) { return declaration.property_id == longhand_id; })->value);
+        }
+
+        return ShorthandStyleValue::create(shorthand_id, longhand_ids, longhand_values);
+    };
+
     // FIXME: Not all shorthands are represented by ShorthandStyleValue, we still need to add support for those that don't.
-    Vector<PropertyID> longhand_ids;
-    Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> longhand_values;
-
-    for (auto const& longhand : list) {
-        longhand_ids.append(longhand.property_id);
-        longhand_values.append(longhand.value);
-    }
-
-    return ShorthandStyleValue::create(shorthand.value(), longhand_ids, longhand_values)->to_string(SerializationMode::Normal);
+    return make_shorthand_value(shorthand.value())->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext

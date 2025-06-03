@@ -8,6 +8,7 @@
 #include "GeneratorUtil.h"
 #include <AK/CharacterTypes.h>
 #include <AK/GenericShorthands.h>
+#include <AK/QuickSort.h>
 #include <AK/SourceGenerator.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
@@ -268,6 +269,7 @@ bool property_accepts_time(PropertyID, Time const&);
 
 bool property_is_shorthand(PropertyID);
 Vector<PropertyID> longhands_for_shorthand(PropertyID);
+Vector<PropertyID> expanded_longhands_for_shorthand(PropertyID);
 bool property_maps_to_shorthand(PropertyID);
 Vector<PropertyID> shorthands_for_longhand(PropertyID);
 
@@ -1063,26 +1065,35 @@ Vector<PropertyID> longhands_for_shorthand(PropertyID property_id)
 {
     switch (property_id) {
 )~~~");
+    Function<Vector<String>(String const&)> get_longhands = [&](String const& property_id) {
+        auto object = properties.get_object(property_id);
+        VERIFY(object.has_value());
+
+        auto longhands_json_array = object.value().get_array("longhands"sv);
+        VERIFY(longhands_json_array.has_value());
+
+        Vector<String> longhands;
+
+        longhands_json_array.value().for_each([&](auto longhand_value) {
+            longhands.append(longhand_value.as_string());
+        });
+
+        return longhands;
+    };
+
     properties.for_each_member([&](auto& name, auto& value) {
         if (is_legacy_alias(value.as_object()))
             return;
 
         if (value.as_object().has("longhands"sv)) {
-            auto longhands = value.as_object().get("longhands"sv);
-            VERIFY(longhands.has_value() && longhands->is_array());
-            auto longhand_values = longhands->as_array();
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
             StringBuilder builder;
-            bool first = true;
-            longhand_values.for_each([&](auto& longhand) {
-                if (first)
-                    first = false;
-                else
+            for (auto longhand : get_longhands(name)) {
+                if (!builder.is_empty())
                     builder.append(", "sv);
-                builder.appendff("PropertyID::{}", title_casify(longhand.as_string()));
-                return IterationDecision::Continue;
-            });
+                builder.appendff("PropertyID::{}", title_casify(longhand));
+            }
             property_generator.set("longhands", builder.to_byte_string());
             property_generator.append(R"~~~(
         case PropertyID::@name:titlecase@:
@@ -1095,6 +1106,58 @@ Vector<PropertyID> longhands_for_shorthand(PropertyID property_id)
         default:
                 return { };
         }
+}
+)~~~");
+
+    generator.append(R"~~~(
+Vector<PropertyID> expanded_longhands_for_shorthand(PropertyID property_id)
+{
+    switch (property_id) {
+)~~~");
+
+    Function<Vector<String>(String const&)> get_expanded_longhands = [&](String const& property_id) {
+        Vector<String> expanded_longhands;
+
+        for (auto const& longhand_id : get_longhands(property_id)) {
+
+            auto property = properties.get_object(longhand_id);
+
+            VERIFY(property.has_value());
+
+            if (property->has_array("longhands"sv))
+                expanded_longhands.extend(get_expanded_longhands(longhand_id));
+            else
+                expanded_longhands.append(longhand_id);
+        }
+
+        return expanded_longhands;
+    };
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        if (is_legacy_alias(value.as_object()))
+            return;
+
+        if (value.as_object().has("longhands"sv)) {
+            auto property_generator = generator.fork();
+            property_generator.set("name:titlecase", title_casify(name));
+            StringBuilder builder;
+            for (auto longhand : get_expanded_longhands(name)) {
+                if (!builder.is_empty())
+                    builder.append(", "sv);
+                builder.appendff("PropertyID::{}", title_casify(longhand));
+            }
+            property_generator.set("longhands", builder.to_byte_string());
+            property_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@:
+        return { @longhands@ };
+)~~~");
+        }
+    });
+
+    generator.append(R"~~~(
+    default:
+        return { };
+    }
 }
 )~~~");
 
@@ -1143,16 +1206,47 @@ Vector<PropertyID> shorthands_for_longhand(PropertyID property_id)
     switch (property_id) {
 )~~~");
 
+    Function<Vector<String>(String)> get_shorthands_for_longhand = [&](auto const& longhand) {
+        Vector<String> shorthands;
+
+        for (auto const& immediate_shorthand : shorthands_for_longhand_map.get(longhand).value()) {
+            shorthands.append(immediate_shorthand);
+
+            if (shorthands_for_longhand_map.get(immediate_shorthand).has_value())
+                shorthands.extend(get_shorthands_for_longhand(immediate_shorthand));
+        }
+
+        // https://www.w3.org/TR/cssom/#concept-shorthands-preferred-order
+        // NOTE: The steps are performed in a order different to the spec in order to complete this in a single sort.
+        AK::quick_sort(shorthands, [&](String a, String b) {
+            auto shorthand_a_longhands = get_expanded_longhands(a);
+            auto shorthand_b_longhands = get_expanded_longhands(b);
+
+            // 4. Order shorthands by the number of longhand properties that map to it, with the greatest number first.
+            if (shorthand_a_longhands.size() != shorthand_b_longhands.size())
+                return shorthand_a_longhands.size() > shorthand_b_longhands.size();
+
+            // 2. Move all items in shorthands that begin with "-" (U+002D) last in the list, retaining their relative order.
+            if (a.starts_with_bytes("-"sv) != b.starts_with_bytes("-"sv))
+                return b.starts_with_bytes("-"sv);
+
+            // 3. Move all items in shorthands that begin with "-" (U+002D) but do not begin with "-webkit-" last in the list, retaining their relative order.
+            if (a.starts_with_bytes("-webkit-"sv) != b.starts_with_bytes("-webkit-"sv))
+                return a.starts_with_bytes("-webkit-"sv);
+
+            // 1. Order shorthands lexicographically.
+            return a < b;
+        });
+
+        return shorthands;
+    };
+
     for (auto const& longhand : shorthands_for_longhand_map.keys()) {
         auto property_generator = generator.fork();
         property_generator.set("name:titlecase", title_casify(longhand));
-        auto& shorthands = shorthands_for_longhand_map.get(longhand).value();
         StringBuilder builder;
-        bool first = true;
-        for (auto& shorthand : shorthands) {
-            if (first)
-                first = false;
-            else
+        for (auto& shorthand : get_shorthands_for_longhand(longhand)) {
+            if (!builder.is_empty())
                 builder.append(", "sv);
             builder.appendff("PropertyID::{}", title_casify(shorthand));
         }
@@ -1164,9 +1258,9 @@ Vector<PropertyID> shorthands_for_longhand(PropertyID property_id)
     }
 
     generator.append(R"~~~(
-        default:
-            return { };
-        }
+    default:
+        return { };
+    }
 }
 )~~~");
 
