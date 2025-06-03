@@ -91,7 +91,8 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
     }
 
     DisplayListRecorderStateSaver state { display_list_recorder };
-    if (resolved_background.needs_text_clip) {
+    bool is_root_element = paintable_box.layout_node().is_root_element();
+    if (resolved_background.needs_text_clip && !is_root_element) {
         auto display_list = compute_text_clip_paths(context, paintable_box, resolved_background.background_rect.location());
         auto rect = context.rounded_device_rect(resolved_background.background_rect);
         display_list_recorder.add_mask(move(display_list), rect.to_type<int>());
@@ -104,13 +105,19 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
 
     auto const& color_box = resolved_background.color_box;
 
-    display_list_recorder.fill_rect_with_rounded_corners(
-        context.rounded_device_rect(color_box.rect).to_type<int>(),
-        resolved_background.color,
-        color_box.radii.top_left.as_corner(context),
-        color_box.radii.top_right.as_corner(context),
-        color_box.radii.bottom_right.as_corner(context),
-        color_box.radii.bottom_left.as_corner(context));
+    if (is_root_element) {
+        display_list_recorder.fill_rect(
+            context.enclosing_device_rect(color_box.rect).to_type<int>(),
+            resolved_background.color);
+    } else {
+        display_list_recorder.fill_rect_with_rounded_corners(
+            context.rounded_device_rect(color_box.rect).to_type<int>(),
+            resolved_background.color,
+            color_box.radii.top_left.as_corner(context),
+            color_box.radii.top_right.as_corner(context),
+            color_box.radii.bottom_right.as_corner(context),
+            color_box.radii.bottom_left.as_corner(context));
+    }
 
     struct {
         DevicePixels top { 0 };
@@ -141,13 +148,15 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
 
         CSSPixelRect const& css_clip_rect = clip_box.rect;
         auto clip_rect = context.rounded_device_rect(css_clip_rect);
-        display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
-        ScopedCornerRadiusClip corner_clip { context, context.rounded_device_rect(css_clip_rect), clip_box.radii };
+        ScopedCornerRadiusClip corner_clip { context, context.rounded_device_rect(css_clip_rect), clip_box.radii, CornerClip::Outside, !is_root_element };
+        if (!is_root_element) {
+            display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
 
-        if (layer.clip == CSS::BackgroundBox::BorderBox) {
-            // Shrink the effective clip rect if to account for the bits the borders will definitely paint over
-            // (if they all have alpha == 255).
-            clip_rect.shrink(clip_shrink.top, clip_shrink.right, clip_shrink.bottom, clip_shrink.left);
+            if (layer.clip == CSS::BackgroundBox::BorderBox) {
+                // Shrink the effective clip rect if to account for the bits the borders will definitely paint over
+                // (if they all have alpha == 255).
+                clip_rect.shrink(clip_shrink.top, clip_shrink.right, clip_shrink.bottom, clip_shrink.left);
+            }
         }
 
         auto const& image = *layer.background_image;
