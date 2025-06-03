@@ -258,6 +258,20 @@
     "right",
     "oblique"
   ],
+  "font-tech": [
+    "avar2",
+    "color-cbdt",
+    "color-colrv0",
+    "color-colrv1",
+    "color-sbix",
+    "color-svg",
+    "features-aat",
+    "features-graphite",
+    "features-opentype",
+    "incremental",
+    "palettes",
+    "variations"
+  ],
   "font-variant-alternates": [
     "normal",
     "historical-forms"

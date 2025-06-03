@@ -534,35 +534,47 @@ bool font_format_is_supported(FlyString const& name)
     return false;
 }
 
-bool font_tech_is_supported(FlyString const& name)
+bool font_tech_is_supported(FontTech font_tech)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-tech-definitions
     // FIXME: Determine this automatically somehow?
-    if (name.equals_ignoring_ascii_case("features-opentype"sv))
+    switch (font_tech) {
+    case FontTech::FeaturesOpentype:
         return true;
-    if (name.equals_ignoring_ascii_case("features-aat"sv))
+    case FontTech::FeaturesAat:
         return false;
-    if (name.equals_ignoring_ascii_case("features-graphite"sv))
+    case FontTech::FeaturesGraphite:
         return false;
-    if (name.equals_ignoring_ascii_case("variations"sv))
+    case FontTech::Variations:
         return true;
-    if (name.equals_ignoring_ascii_case("color-colrv0"sv))
+    case FontTech::ColorColrv0:
         return true;
-    if (name.equals_ignoring_ascii_case("color-colrv1"sv))
+    case FontTech::ColorColrv1:
         return true;
-    if (name.equals_ignoring_ascii_case("color-svg"sv))
+    case FontTech::ColorSvg:
         return false;
-    if (name.equals_ignoring_ascii_case("color-sbix"sv))
+    case FontTech::ColorSbix:
         return false;
-    if (name.equals_ignoring_ascii_case("color-cbdt"sv))
+    case FontTech::ColorCbdt:
         return false;
-    if (name.equals_ignoring_ascii_case("palettes"sv))
+    case FontTech::Palettes:
         return false;
-    if (name.equals_ignoring_ascii_case("incremental"sv))
+    case FontTech::Incremental:
         return false;
     // https://drafts.csswg.org/css-fonts-5/#font-tech-definitions
-    if (name.equals_ignoring_ascii_case("avar2"sv))
+    case FontTech::Avar2:
         return false;
+    }
+    return false;
+}
+
+bool font_tech_is_supported(FlyString const& name)
+{
+    if (auto keyword = keyword_from_string(name); keyword.has_value()) {
+        if (auto font_tech = keyword_to_font_tech(*keyword); font_tech.has_value()) {
+            return font_tech_is_supported(*font_tech);
+        }
+    }
     return false;
 }
 
