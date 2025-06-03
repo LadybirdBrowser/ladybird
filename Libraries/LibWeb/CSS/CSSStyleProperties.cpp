@@ -41,7 +41,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create(JS::Realm& realm, Vector<
     //     declarations: The declared declarations in the rule, in specified order.
     //     parent CSS rule: The context object.
     //     owner node: Null.
-    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, move(properties), move(custom_properties), OptionalNone {});
+    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), OptionalNone {});
 }
 
 GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(DOM::ElementReference element_reference)
@@ -64,7 +64,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM:
     // The style attribute must return a CSS declaration block object whose readonly flag is unset, whose parent CSS
     // rule is null, and whose owner node is the context object.
     auto& realm = element_reference.element().realm();
-    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, move(properties), move(custom_properties), move(element_reference));
+    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), move(element_reference));
 }
 
 CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Readonly readonly, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::ElementReference> owner_node)
@@ -73,6 +73,37 @@ CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Read
     , m_custom_properties(move(custom_properties))
 {
     set_owner_node(move(owner_node));
+}
+
+// https://drafts.csswg.org/cssom/#concept-declarations-specified-order
+Vector<StyleProperty> CSSStyleProperties::convert_declarations_to_specified_order(Vector<StyleProperty>& declarations)
+{
+    // The specified order for declarations is the same as specified, but with shorthand properties expanded into their
+    // longhand properties, in canonical order. If a property is specified more than once (after shorthand expansion), only
+    // the one with greatest cascading order must be represented, at the same relative position as it was specified.
+    Vector<StyleProperty> specified_order_declarations;
+
+    for (auto declaration : declarations) {
+        StyleComputer::for_each_property_expanding_shorthands(declaration.property_id, declaration.value, [&](CSS::PropertyID longhand_id, CSS::CSSStyleValue const& longhand_property_value) {
+            auto existing_entry_index = specified_order_declarations.find_first_index_if([&](StyleProperty const& existing_declaration) { return existing_declaration.property_id == longhand_id; });
+
+            if (existing_entry_index.has_value()) {
+                // If there is an existing entry for this property and it is a higher cascading order than the current entry, skip the current entry.
+                if (specified_order_declarations[existing_entry_index.value()].important == Important::Yes && declaration.important == Important::No)
+                    return;
+
+                // Otherwise the existing entry has a lower cascading order and is removed.
+                specified_order_declarations.remove(existing_entry_index.value());
+            }
+
+            specified_order_declarations.append(StyleProperty {
+                .important = declaration.important,
+                .property_id = longhand_id,
+                .value = longhand_property_value });
+        });
+    }
+
+    return specified_order_declarations;
 }
 
 void CSSStyleProperties::initialize(JS::Realm& realm)
@@ -1412,7 +1443,7 @@ void CSSStyleProperties::empty_the_declarations()
 
 void CSSStyleProperties::set_the_declarations(Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
-    m_properties = move(properties);
+    m_properties = convert_declarations_to_specified_order(properties);
     m_custom_properties = move(custom_properties);
 }
 

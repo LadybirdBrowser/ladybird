@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 201 tests
+Found 203 tests
 
-191 Pass
-10 Fail
+199 Pass
+4 Fail
 Pass	accent-color
 Pass	border-collapse
 Pass	border-spacing
@@ -58,8 +58,10 @@ Pass	text-indent
 Pass	text-justify
 Pass	text-shadow
 Pass	text-transform
+Pass	text-wrap-mode
 Pass	text-wrap-style
 Pass	visibility
+Pass	white-space-collapse
 Pass	word-break
 Pass	word-spacing
 Pass	word-wrap
@@ -82,9 +84,26 @@ Pass	background-blend-mode
 Pass	background-clip
 Pass	background-color
 Pass	background-origin
+Pass	background-position-x
+Pass	background-position-y
 Pass	background-repeat
 Pass	background-size
-Fail	block-size
+Pass	border-bottom-color
+Pass	border-bottom-left-radius
+Pass	border-bottom-right-radius
+Pass	border-bottom-style
+Pass	border-bottom-width
+Pass	border-left-color
+Pass	border-left-style
+Pass	border-left-width
+Pass	border-right-color
+Pass	border-right-style
+Pass	border-right-width
+Pass	border-top-color
+Pass	border-top-left-radius
+Pass	border-top-right-radius
+Pass	border-top-style
+Pass	border-top-width
 Pass	bottom
 Pass	box-shadow
 Pass	box-sizing
@@ -121,33 +140,20 @@ Pass	grid-template-areas
 Pass	grid-template-columns
 Pass	grid-template-rows
 Fail	height
-Fail	inline-size
-Pass	inset-block-end
-Pass	inset-block-start
-Pass	inset-inline-end
-Pass	inset-inline-start
 Pass	isolation
 Pass	justify-content
 Pass	justify-items
 Pass	justify-self
 Pass	left
-Pass	margin-block-end
-Pass	margin-block-start
 Pass	margin-bottom
-Pass	margin-inline-end
-Pass	margin-inline-start
 Pass	margin-left
 Pass	margin-right
 Pass	margin-top
 Pass	mask-image
 Pass	mask-type
-Fail	max-block-size
 Pass	max-height
-Fail	max-inline-size
 Pass	max-width
-Fail	min-block-size
 Pass	min-height
-Fail	min-inline-size
 Pass	min-width
 Pass	mix-blend-mode
 Pass	object-fit
@@ -160,11 +166,7 @@ Pass	outline-style
 Pass	outline-width
 Pass	overflow-x
 Pass	overflow-y
-Pass	padding-block-end
-Pass	padding-block-start
 Pass	padding-bottom
-Pass	padding-inline-end
-Pass	padding-inline-start
 Pass	padding-left
 Pass	padding-right
 Pass	padding-top

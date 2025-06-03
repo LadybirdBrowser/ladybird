@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 121 tests
 
-35 Pass
-86 Fail
+47 Pass
+74 Fail
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid-template-areas
 Pass	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid
@@ -17,24 +17,24 @@ Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contai
 Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-rows: auto;' in its serialization
 Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-columns: auto;' in its serialization
 Pass	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-flow: column;' in its serialization
-Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: 20px should set grid
-Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: 20px should set grid-template
-Fail	cssText ('grid: auto-flow / 10px; grid-template-rows: 20px') must contain 'grid: 20px / 10px;' in its serialization
-Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) should set grid
-Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) should set grid-template-rows
-Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) repeat(3, 30px) should set grid
-Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) repeat(3, 30px) should set grid-template-rows
+Pass	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: 20px should set grid
+Pass	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: 20px should set grid-template
+Pass	cssText ('grid: auto-flow / 10px; grid-template-rows: 20px') must contain 'grid: 20px / 10px;' in its serialization
+Pass	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) should set grid
+Pass	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) should set grid-template-rows
+Pass	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) repeat(3, 30px) should set grid
+Pass	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) repeat(3, 30px) should set grid-template-rows
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(auto-fill, 20px) should set grid
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(auto-fill, 20px) should set grid-template-rows
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(auto-fit, 20px) should set grid
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(auto-fit, 20px) should set grid-template-rows
-Fail	e.style.cssText = grid: 10px / auto; grid-template-columns: 20px should set grid
-Fail	e.style.cssText = grid: 10px / auto; grid-template-columns: 20px should set grid-template
-Fail	cssText ('grid: 10px / auto; grid-template-columns: 20px') must contain 'grid: 10px / 20px;' in its serialization
+Pass	e.style.cssText = grid: 10px / auto; grid-template-columns: 20px should set grid
+Pass	e.style.cssText = grid: 10px / auto; grid-template-columns: 20px should set grid-template
+Pass	cssText ('grid: 10px / auto; grid-template-columns: 20px') must contain 'grid: 10px / 20px;' in its serialization
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) should set grid
-Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) should set grid-template-columns
+Pass	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) should set grid-template-columns
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) repeat(3, 30px) should set grid
-Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) repeat(3, 30px) should set grid-template-columns
+Pass	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) repeat(3, 30px) should set grid-template-columns
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fill, 20px) should set grid
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fill, 20px) should set grid-template-columns
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fit, 20px) should set grid
