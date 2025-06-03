@@ -1192,7 +1192,7 @@ String CSSStyleProperties::serialized() const
             // 4. Shorthand loop: For each shorthand in shorthands, follow these substeps:
             for (auto shorthand : shorthands) {
                 // 1. Let longhands be an array consisting of all CSS declarations in declaration block’s declarations
-                //    that that are not in already serialized and have a property name that maps to one of the shorthand
+                //    that are not in already serialized and have a property name that maps to one of the shorthand
                 //    properties in shorthands.
                 Vector<StyleProperty> longhands;
 
@@ -1203,8 +1203,8 @@ String CSSStyleProperties::serialized() const
                         longhands.append(longhand_declaration);
                 }
 
-                // 2. If all properties that map to shorthand are not present in longhands, continue with the steps labeled shorthand loop.
-                if (longhands.is_empty())
+                // 2. If not all properties that map to shorthand are present in longhands, continue with the steps labeled shorthand loop.
+                if (any_of(longhands_for_shorthand(shorthand), [&](auto longhand_id) { return !any_of(longhands, [&](auto const& longhand_declaration) { return longhand_declaration.property_id == longhand_id; }); }))
                     continue;
 
                 // 3. Let current longhands be an empty array.
@@ -1216,7 +1216,7 @@ String CSSStyleProperties::serialized() const
                         current_longhands.append(longhand);
                 }
 
-                // 5. If there is one or more CSS declarations in current longhands have their important flag set and
+                // 5. If there are one or more CSS declarations in current longhands have their important flag set and
                 //    one or more with it unset, continue with the steps labeled shorthand loop.
                 auto all_declarations_have_same_important_flag = true;
 
@@ -1230,12 +1230,12 @@ String CSSStyleProperties::serialized() const
                 if (!all_declarations_have_same_important_flag)
                     continue;
 
-                // FIXME: 6. If there’s any declaration in declaration block in between the first and the last longhand
+                // FIXME: 6. If there is any declaration in declaration block in between the first and the last longhand
                 //           in current longhands which belongs to the same logical property group, but has a different
                 //           mapping logic as any of the longhands in current longhands, and is not in current
                 //           longhands, continue with the steps labeled shorthand loop.
 
-                // 7. Let value be the result of invoking serialize a CSS value of current longhands.
+                // 7. Let value be the result of invoking serialize a CSS value with current longhands.
                 auto value = serialize_a_css_value(current_longhands);
 
                 // 8. If value is the empty string, continue with the steps labeled shorthand loop.
