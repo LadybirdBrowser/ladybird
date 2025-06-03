@@ -393,6 +393,19 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
     return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
 }
 
+// NON-STANDARD: Fast path to quickly check if an indexed property exists in array without holes
+ThrowCompletionOr<bool> Array::internal_has_property(PropertyKey const& property_key) const
+{
+    auto const* storage = indexed_properties().storage();
+    if (property_key.is_number() && !m_is_proxy_target && storage && storage->is_simple_storage()) {
+        auto const& simple_storage = static_cast<SimpleIndexedPropertyStorage const&>(*storage);
+        if (!simple_storage.has_empty_elements() && property_key.as_number() < simple_storage.array_like_size()) {
+            return true;
+        }
+    }
+    return Object::internal_has_property(property_key);
+}
+
 // NON-STANDARD: Used to reject deletes to ephemeral (non-configurable) length property
 ThrowCompletionOr<bool> Array::internal_delete(PropertyKey const& property_key)
 {
