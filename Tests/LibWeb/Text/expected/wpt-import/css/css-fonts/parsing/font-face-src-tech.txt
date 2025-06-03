@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 39 tests
 
-34 Pass
-5 Fail
+39 Pass
 Pass	Check that src: url("foo.ttf") is valid
 Pass	Check that src: url("foo.ttf") tech() is invalid
 Pass	Check that src: url("foo.ttf") tech(features-opentype) is valid
-Fail	Check that src: url("foo.ttf") tech(features-aat) is valid
+Pass	Check that src: url("foo.ttf") tech(features-aat) is valid
 Pass	Check that src: url("foo.ttf") tech(color-COLRv0) is valid
 Pass	Check that src: url("foo.ttf") tech(color-COLRv1) is valid
-Fail	Check that src: url("foo.ttf") tech(color-sbix) is valid
-Fail	Check that src: url("foo.ttf") tech(color-CBDT) is valid
+Pass	Check that src: url("foo.ttf") tech(color-sbix) is valid
+Pass	Check that src: url("foo.ttf") tech(color-CBDT) is valid
 Pass	Check that src: url("foo.ttf") tech(variations) is valid
-Fail	Check that src: url("foo.ttf") tech(palettes) is valid
+Pass	Check that src: url("foo.ttf") tech(palettes) is valid
 Pass	Check that src: url("foo.ttf") tech("features-opentype") is invalid
 Pass	Check that src: url("foo.ttf") tech("color-COLRv0") is invalid
 Pass	Check that src: url("foo.ttf") tech("variations") is invalid
-Fail	Check that src: url("foo.ttf") tech(features-opentype, color-COLRv0, variations, palettes) is valid
+Pass	Check that src: url("foo.ttf") tech(features-opentype, color-COLRv0, variations, palettes) is valid
 Pass	Check that src: url("foo.ttf") tech(features-opentype color-COLRv0 variations palettes) is invalid
 Pass	Check that src: url("foo.ttf") tech(feature-opentype) is invalid
 Pass	Check that src: url("foo.ttf") tech(feature-aat) is invalid
