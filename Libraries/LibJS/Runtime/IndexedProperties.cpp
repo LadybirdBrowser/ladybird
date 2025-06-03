@@ -48,6 +48,7 @@ void SimpleIndexedPropertyStorage::put(u32 index, Value value, PropertyAttribute
     VERIFY(attributes == default_attributes);
 
     if (index >= m_array_size) {
+        m_number_of_empty_elements += index - m_array_size;
         m_array_size = index + 1;
         grow_storage_if_needed();
     } else {
