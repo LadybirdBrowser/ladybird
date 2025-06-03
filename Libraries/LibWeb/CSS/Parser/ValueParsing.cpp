@@ -3917,16 +3917,46 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
         if (format_name_token.is(Token::Type::Ident)) {
             format_name = format_name_token.token().ident();
         } else if (format_name_token.is(Token::Type::String)) {
-            format_name = format_name_token.token().string();
+            auto& name_string = format_name_token.token().string();
+            // There's a fixed set of strings allowed here, which we'll assume are case-insensitive:
+            // format("woff2")                 -> format(woff2)
+            // format("woff")                  -> format(woff)
+            // format("truetype")              -> format(truetype)
+            // format("opentype")              -> format(opentype)
+            // format("collection")            -> format(collection)
+            // format("woff2-variations")      -> format(woff2) tech(variations)
+            // format("woff-variations")       -> format(woff) tech(variations)
+            // format("truetype-variations")   -> format(truetype) tech(variations)
+            // format("opentype-variations")   -> format(opentype) tech(variations)
+            if (name_string.equals_ignoring_ascii_case("woff2"sv)) {
+                format_name = "woff2"_fly_string;
+            } else if (name_string.equals_ignoring_ascii_case("woff"sv)) {
+                format_name = "woff"_fly_string;
+            } else if (name_string.equals_ignoring_ascii_case("truetype"sv)) {
+                format_name = "truetype"_fly_string;
+            } else if (name_string.equals_ignoring_ascii_case("opentype"sv)) {
+                format_name = "opentype"_fly_string;
+            } else if (name_string.equals_ignoring_ascii_case("collection"sv)) {
+                format_name = "collection"_fly_string;
+            } else if (name_string.equals_ignoring_ascii_case("woff2-variations"sv)) {
+                format_name = "woff2"_fly_string;
+                tech.append(FontTech::Variations);
+            } else if (name_string.equals_ignoring_ascii_case("woff-variations"sv)) {
+                format_name = "woff"_fly_string;
+                tech.append(FontTech::Variations);
+            } else if (name_string.equals_ignoring_ascii_case("truetype-variations"sv)) {
+                format_name = "truetype"_fly_string;
+                tech.append(FontTech::Variations);
+            } else if (name_string.equals_ignoring_ascii_case("opentype-variations"sv)) {
+                format_name = "opentype"_fly_string;
+                tech.append(FontTech::Variations);
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`format()` parameter \"{}\" is not in the set of valid strings); skipping.", name_string);
+                return nullptr;
+            }
         } else {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`format()` parameter not an ident or string; is: {}); discarding.", format_name_token.to_debug_string());
             return nullptr;
-        }
-
-        // NOTE: Some of the formats support an optional "-variations" suffix that's really supposed to map to tech(variations).
-        if (format_name.is_one_of("woff2-variations"sv, "woff-variations"sv, "truetype-variations"sv, "opentype-variations"sv)) {
-            format_name = MUST(format_name.to_string().substring_from_byte_offset(0, format_name.bytes().size() - strlen("-variations")));
-            tech.append(FontTech::Variations);
         }
 
         if (!font_format_is_supported(format_name)) {
