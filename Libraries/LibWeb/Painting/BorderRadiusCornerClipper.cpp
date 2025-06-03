@@ -10,9 +10,12 @@
 
 namespace Web::Painting {
 
-ScopedCornerRadiusClip::ScopedCornerRadiusClip(PaintContext& context, DevicePixelRect const& border_rect, BorderRadiiData const& border_radii, CornerClip corner_clip)
+ScopedCornerRadiusClip::ScopedCornerRadiusClip(PaintContext& context, DevicePixelRect const& border_rect, BorderRadiiData const& border_radii, CornerClip corner_clip, bool do_apply)
     : m_context(context)
 {
+    m_do_apply = do_apply;
+    if (!do_apply)
+        return;
     CornerRadii const corner_radii {
         .top_left = border_radii.top_left.as_corner(context),
         .top_right = border_radii.top_right.as_corner(context),
@@ -28,7 +31,7 @@ ScopedCornerRadiusClip::ScopedCornerRadiusClip(PaintContext& context, DevicePixe
 
 ScopedCornerRadiusClip::~ScopedCornerRadiusClip()
 {
-    if (!m_has_radius)
+    if (!m_has_radius && m_do_apply)
         return;
     m_context.display_list_recorder().restore();
 }
