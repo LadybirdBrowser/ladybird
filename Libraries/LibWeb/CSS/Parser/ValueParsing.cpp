@@ -3888,17 +3888,20 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
         TokenStream function_tokens { function.value };
         if (auto family_name = parse_family_name_value(function_tokens)) {
             transaction.commit();
-            return FontSourceStyleValue::create(FontSourceStyleValue::Local { family_name.release_nonnull() }, {});
+            return FontSourceStyleValue::create(FontSourceStyleValue::Local { family_name.release_nonnull() }, {}, {});
         }
         return nullptr;
     }
 
     // <url> [ format(<font-format>)]? [ tech( <font-tech>#)]?
+
+    // <url>
     auto url = parse_url_function(tokens);
     if (!url.has_value())
         return nullptr;
 
     Optional<FlyString> format;
+    Vector<FontTech> tech;
 
     tokens.discard_whitespace();
 
@@ -3920,10 +3923,10 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
             return nullptr;
         }
 
-        // FIXME: Some of the formats support an optional "-variations" suffix that's really supposed to map to tech(variations).
-        //        Once we support tech(*), we should ensure this propagates correctly.
+        // NOTE: Some of the formats support an optional "-variations" suffix that's really supposed to map to tech(variations).
         if (format_name.is_one_of("woff2-variations"sv, "woff-variations"sv, "truetype-variations"sv, "opentype-variations"sv)) {
             format_name = MUST(format_name.to_string().substring_from_byte_offset(0, format_name.bytes().size() - strlen("-variations")));
+            tech.append(FontTech::Variations);
         }
 
         if (!font_format_is_supported(format_name)) {
@@ -3942,10 +3945,53 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
 
     tokens.discard_whitespace();
 
-    // FIXME: [ tech( <font-tech>#)]?
+    // [ tech( <font-tech>#)]?
+    if (tokens.next_token().is_function("tech"sv)) {
+        auto const& function = tokens.consume_a_token().function();
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
+
+        TokenStream function_tokens { function.value };
+        auto tech_items = parse_a_comma_separated_list_of_component_values(function_tokens);
+        if (tech_items.is_empty()) {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`tech()` has no arguments); discarding.");
+            return nullptr;
+        }
+
+        for (auto const& tech_item : tech_items) {
+            TokenStream tech_tokens { tech_item };
+            tech_tokens.discard_whitespace();
+            auto& ident_token = tech_tokens.consume_a_token();
+            if (!ident_token.is(Token::Type::Ident)) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`tech()` parameters must be idents, got: {}); discarding.", ident_token.to_debug_string());
+                return nullptr;
+            }
+            tech_tokens.discard_whitespace();
+            if (tech_tokens.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`tech()` has trailing tokens); discarding.");
+                return nullptr;
+            }
+
+            auto& font_tech_name = ident_token.token().ident();
+            if (auto keyword = keyword_from_string(font_tech_name); keyword.has_value()) {
+                if (auto font_tech = keyword_to_font_tech(*keyword); font_tech.has_value()) {
+
+                    if (!font_tech_is_supported(*font_tech)) {
+                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source tech({}) not supported; skipping.", font_tech_name);
+                        return nullptr;
+                    }
+
+                    tech.append(font_tech.release_value());
+                    continue;
+                }
+            }
+
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: font source invalid (`{}` is not a supported value in `tech()`); discarding.", font_tech_name);
+            return nullptr;
+        }
+    }
 
     transaction.commit();
-    return FontSourceStyleValue::create(url.release_value(), move(format));
+    return FontSourceStyleValue::create(url.release_value(), move(format), move(tech));
 }
 
 NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)

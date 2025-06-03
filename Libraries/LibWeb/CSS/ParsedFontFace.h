@@ -20,8 +20,8 @@ class ParsedFontFace {
 public:
     struct Source {
         Variant<FlyString, URL> local_or_url;
-        // FIXME: Do we need to keep this around, or is it only needed to discard unwanted formats during parsing?
         Optional<FlyString> format;
+        Vector<FontTech> tech;
     };
 
     static Vector<Source> sources_from_style_value(CSSStyleValue const&);

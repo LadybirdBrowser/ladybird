@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 39 tests
 
-28 Pass
-11 Fail
+34 Pass
+5 Fail
 Pass	Check that src: url("foo.ttf") is valid
 Pass	Check that src: url("foo.ttf") tech() is invalid
-Fail	Check that src: url("foo.ttf") tech(features-opentype) is valid
+Pass	Check that src: url("foo.ttf") tech(features-opentype) is valid
 Fail	Check that src: url("foo.ttf") tech(features-aat) is valid
-Fail	Check that src: url("foo.ttf") tech(color-COLRv0) is valid
-Fail	Check that src: url("foo.ttf") tech(color-COLRv1) is valid
+Pass	Check that src: url("foo.ttf") tech(color-COLRv0) is valid
+Pass	Check that src: url("foo.ttf") tech(color-COLRv1) is valid
 Fail	Check that src: url("foo.ttf") tech(color-sbix) is valid
 Fail	Check that src: url("foo.ttf") tech(color-CBDT) is valid
-Fail	Check that src: url("foo.ttf") tech(variations) is valid
+Pass	Check that src: url("foo.ttf") tech(variations) is valid
 Fail	Check that src: url("foo.ttf") tech(palettes) is valid
 Pass	Check that src: url("foo.ttf") tech("features-opentype") is invalid
 Pass	Check that src: url("foo.ttf") tech("color-COLRv0") is invalid
@@ -31,7 +31,7 @@ Pass	Check that src: url("foo.ttf") tech(normal) is invalid
 Pass	Check that src: url("foo.ttf") tech(xyzzy) is invalid
 Pass	Check that src: url("foo.ttf") tech(xyzzy, features-opentype) is invalid
 Pass	Check that src: url("foo.ttf") tech(features-opentype, xyzzy) is invalid
-Fail	Check that src: url("foo.ttf") format(opentype) tech(features-opentype) is valid
+Pass	Check that src: url("foo.ttf") format(opentype) tech(features-opentype) is valid
 Pass	Check that src: url("foo.ttf") tech(features-opentype) format(opentype) is invalid
 Pass	Check that src: url("foo.ttf") tech(incremental), url("bar.html") is valid
 Pass	Check that src: url("foo.ttf") tech(incremental, color-SVG, features-graphite, features-aat), url("bar.html") is valid
@@ -41,5 +41,5 @@ Pass	Check that src: url("foo.ttf") tech(features-graphite), url("bar.html") is 
 Pass	Check that src: url("foo.ttf") dummy("opentype") tech(variations) is invalid
 Pass	Check that src: url("foo.ttf") dummy("opentype") dummy(variations) is invalid
 Pass	Check that src: url("foo.ttf") format(opentype) tech(features-opentype) dummy(something) is invalid
-Fail	Check that src: url("foo.ttf") format(dummy), url("foo.ttf") tech(variations) is valid
+Pass	Check that src: url("foo.ttf") format(dummy), url("foo.ttf") tech(variations) is valid
 Pass	Check that src: url("foo.ttf") tech(color), url("bar.html") is valid
