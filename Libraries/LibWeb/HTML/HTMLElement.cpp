@@ -693,10 +693,10 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
 
         // 3. If element's popover visibility state is in the showing state
         //    and oldValue and value are in different states,
-        //    then run the hide popover algorithm given element, true, true, false, and true.
+        //    then run the hide popover algorithm given element, true, true, false, true, and null.
         if (m_popover_visibility_state == PopoverVisibilityState::Showing
             && popover_value_to_state(old_value) != popover_value_to_state(value))
-            MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::Yes));
+            MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
     }();
 }
 
@@ -1211,12 +1211,12 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             m_popover_showing_or_hiding = false;
     };
 
-    // 9. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", and the newState attribute initialized to "open" at element is false, then run cleanupShowingFlag and return.
+    // 9. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", the newState attribute initialized to "open" at element, and the source attribute initialized to invoker is false, then run cleanupShowingFlag and return.
     ToggleEventInit event_init {};
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
     event_init.cancelable = true;
-    if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)))) {
+    if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init), invoker))) {
         cleanup_showing_flag();
         return {};
     }
@@ -1354,10 +1354,10 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         m_popover_close_watcher = CloseWatcher::establish(*document.window());
         // - cancelAction being to return true.
         // We simply don't add an event listener for the cancel action.
-        // - closeAction being to hide a popover given element, true, true, and false.
+        // - closeAction being to hide a popover given element, true, true, false, and null.
         auto close_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
-                MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No));
+                MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, nullptr));
 
                 return JS::js_undefined();
             },
@@ -1378,8 +1378,8 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     // FIXME: 24. Set element's implicit anchor element to invoker.
     // FIXME: 25. Run the popover focusing steps given element.
     // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the no popover state, then set element's previously focused element to originallyFocusedElement.
-    // 27. Queue a popover toggle event task given element, "closed", and "open".
-    queue_a_popover_toggle_event_task("closed"_string, "open"_string);
+    // 27. Queue a popover toggle event task given element, "closed", "open", and invoker.
+    queue_a_popover_toggle_event_task("closed"_string, "open"_string, invoker);
     // 28. Run cleanupShowingFlag.
     cleanup_showing_flag();
 
@@ -1390,13 +1390,13 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
 // https://whatpr.org/html/9457/popover.html#dom-hidepopover
 WebIDL::ExceptionOr<void> HTMLElement::hide_popover_for_bindings()
 {
-    // The hidePopover() method steps are to run the hide popover algorithm given this, true, true, true, and false.
-    return hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes, IgnoreDomState::No);
+    // The hidePopover() method steps are to run the hide popover algorithm given this, true, true, true, false, and null.
+    return hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes, IgnoreDomState::No, nullptr);
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#hide-popover-algorithm
 // https://whatpr.org/html/9457/popover.html#hide-popover-algorithm
-WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state)
+WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state, GC::Ptr<HTMLElement> source)
 {
     // 1. If the result of running check popover validity given element, true, throwExceptions, null and ignoreDomState is false, then return.
     if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr, ignore_dom_state)))
@@ -1446,11 +1446,11 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
 
     // 9. If fireEvents is true:
     if (fire_events == FireEvents::Yes) {
-        // 9.1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open" and the newState attribute initialized to "closed" at element.
+        // 9.1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open", the newState attribute initialized to "closed", and the source attribute set to source at element.
         ToggleEventInit event_init {};
         event_init.old_state = "open"_string;
         event_init.new_state = "closed"_string;
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
+        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init), source));
 
         // 9.2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not element, then run hide all popovers until given element, focusPreviousElement, and false.
         if (auto_popover_list_contains_element && (showing_popovers.is_empty() || showing_popovers.last() != this))
@@ -1502,9 +1502,9 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     // 13. Set element's popover visibility state to hidden.
     m_popover_visibility_state = PopoverVisibilityState::Hidden;
 
-    // 14. If fireEvents is true, then queue a popover toggle event task given element, "open", and "closed".
+    // 14. If fireEvents is true, then queue a popover toggle event task given element, "open", "closed", and source.
     if (fire_events == FireEvents::Yes)
-        queue_a_popover_toggle_event_task("open"_string, "closed"_string);
+        queue_a_popover_toggle_event_task("open"_string, "closed"_string, source);
 
     // FIXME: 15. Let previouslyFocusedElement be element's previously focused element.
 
@@ -1538,9 +1538,9 @@ WebIDL::ExceptionOr<bool> HTMLElement::toggle_popover(TogglePopoverOptionsOrForc
             invoker = options.source;
         });
 
-    // 5. If this's popover visibility state is showing, and force is null or false, then run the hide popover algorithm given this, true, true, true, and false.
+    // 5. If this's popover visibility state is showing, and force is null or false, then run the hide popover algorithm given this, true, true, true, false, and null.
     if (popover_visibility_state() == PopoverVisibilityState::Showing && (!force.has_value() || !force.value()))
-        TRY(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes, IgnoreDomState::No));
+        TRY(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes, IgnoreDomState::No, nullptr));
     // 6. Otherwise, if force is not present or true, then run show popover given this true, and invoker.
     else if (!force.has_value() || force.value())
         TRY(show_popover(ThrowExceptions::Yes, invoker));
@@ -1644,8 +1644,8 @@ void HTMLElement::hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& p
             // 1. Assert: popoverList is not empty.
             VERIFY(!popover_list.is_empty());
 
-            // 2. Run the hide popover algorithm given the last item in popoverList, focusPreviousElement, fireEvents, and false.
-            MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No));
+            // 2. Run the hide popover algorithm given the last item in popoverList, focusPreviousElement, fireEvents, false, and null.
+            MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No, nullptr));
         }
 
         // 5. Assert: repeatingHide is false or popoverList's last item is endpoint.
@@ -1670,8 +1670,8 @@ void HTMLElement::close_entire_popover_list(Vector<GC::Ref<HTMLElement>> const& 
     // FIXME: If an event handler opens a new popover then this could be an infinite loop.
     // 1. While popoverList is not empty:
     while (!popover_list.is_empty()) {
-        // 1. Run the hide popover algorithm given popoverList's last item, focusPreviousElement, fireEvents, and false.
-        MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No));
+        // 1. Run the hide popover algorithm given popoverList's last item, focusPreviousElement, fireEvents, false, and null.
+        MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No, nullptr));
     }
 }
 
@@ -1829,7 +1829,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover_for_invoker()
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#queue-a-popover-toggle-event-task
-void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new_state)
+void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new_state, GC::Ptr<HTMLElement> source)
 {
     // 1. If element's popover toggle task tracker is not null, then:
     if (m_popover_toggle_task_tracker.has_value()) {
@@ -1846,14 +1846,14 @@ void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new
     }
 
     // 2. Queue an element task given the DOM manipulation task source and element to run the following steps:
-    auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state)]() mutable {
+    auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state), source]() mutable {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
-        //    oldState and the newState attribute initialized to newState.
+        //    oldState, the newState attribute initialized to newState, and the source attribute initialized to source.
         ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
 
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init)));
+        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init), source));
 
         // 2. Set element's popover toggle task tracker to null.
         m_popover_toggle_task_tracker = {};
@@ -2002,9 +2002,9 @@ void HTMLElement::removed_from(Node* old_parent, Node& old_root)
     Element::removed_from(old_parent, old_root);
 
     // https://whatpr.org/html/9457/infrastructure.html#dom-trees:concept-node-remove-ext
-    // If removedNode's popover attribute is not in the no popover state, then run the hide popover algorithm given removedNode, false, false, false, and true.
+    // If removedNode's popover attribute is not in the no popover state, then run the hide popover algorithm given removedNode, false, false, false, true, and null.
     if (popover().has_value())
-        MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes));
+        MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
 
     if (old_parent) {
         auto* parent_html_element = as_if<HTMLElement>(old_parent);
