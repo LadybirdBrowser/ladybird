@@ -76,6 +76,8 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(startOffset, "startOffset")                 \
     __ENUMERATE_SVG_ATTRIBUTE(stdDeviation, "stdDeviation")               \
     __ENUMERATE_SVG_ATTRIBUTE(stitchTiles, "stitchTiles")                 \
+    __ENUMERATE_SVG_ATTRIBUTE(stopColor, "stop-color")                    \
+    __ENUMERATE_SVG_ATTRIBUTE(stopOpacity, "stop-opacity")                \
     __ENUMERATE_SVG_ATTRIBUTE(surfaceScale, "surfaceScale")               \
     __ENUMERATE_SVG_ATTRIBUTE(systemLanguage, "systemLanguage")           \
     __ENUMERATE_SVG_ATTRIBUTE(tableValues, "tableValues")                 \

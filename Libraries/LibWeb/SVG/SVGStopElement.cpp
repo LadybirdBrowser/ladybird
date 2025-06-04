@@ -35,9 +35,7 @@ bool SVGStopElement::is_presentational_hint(FlyString const& name) const
     if (Base::is_presentational_hint(name))
         return true;
 
-    return first_is_one_of(name,
-        "stop-color"sv,
-        "stop-opacity"sv);
+    return first_is_one_of(name, SVG::AttributeNames::stopColor, SVG::AttributeNames::stopOpacity);
 }
 
 void SVGStopElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
@@ -45,11 +43,11 @@ void SVGStopElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties>
     CSS::Parser::ParsingParams parsing_context { document() };
     for_each_attribute([&](auto& name, auto& value) {
         CSS::Parser::ParsingParams parsing_context { document() };
-        if (name.equals_ignoring_ascii_case("stop-color"sv)) {
+        if (name == SVG::AttributeNames::stopColor) {
             if (auto stop_color = parse_css_value(parsing_context, value, CSS::PropertyID::StopColor)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::StopColor, stop_color.release_nonnull());
             }
-        } else if (name.equals_ignoring_ascii_case("stop-opacity"sv)) {
+        } else if (name == SVG::AttributeNames::stopOpacity) {
             if (auto stop_opacity = parse_css_value(parsing_context, value, CSS::PropertyID::StopOpacity)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::StopOpacity, stop_opacity.release_nonnull());
             }
