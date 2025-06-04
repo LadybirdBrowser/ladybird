@@ -276,6 +276,22 @@ ThrowCompletionOr<double> compare_array_elements(VM& vm, Value x, Value y, Funct
 // NON-STANDARD: Used to return the value of the ephemeral length property
 ThrowCompletionOr<Optional<PropertyDescriptor>> Array::internal_get_own_property(PropertyKey const& property_key) const
 {
+    // OPTIMIZATION: Fast path for arrays with simple indexed properties storage.
+    auto const* storage = indexed_properties().storage();
+    if (property_key.is_number() && storage && storage->is_simple_storage()) {
+        auto const& simple_storage = static_cast<SimpleIndexedPropertyStorage const&>(*storage);
+        auto value_and_attributes = simple_storage.get(property_key.as_number());
+        if (value_and_attributes.has_value()) {
+            PropertyDescriptor descriptor;
+            descriptor.value = value_and_attributes->value;
+            descriptor.writable = true;
+            descriptor.enumerable = true;
+            descriptor.configurable = true;
+            return descriptor;
+        }
+        return Optional<PropertyDescriptor> {};
+    }
+
     auto& vm = this->vm();
     if (property_key.is_string() && property_key.as_string() == vm.names.length.as_string())
         return PropertyDescriptor { .value = Value(indexed_properties().array_like_size()), .writable = m_length_writable, .enumerable = false, .configurable = false };
