@@ -324,6 +324,15 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
             (void)parser->m_stack_of_open_elements.pop();
     }
 
+    // AD-HOC: Skip remaining steps when there's no browsing context.
+    // This happens when parsing HTML via DOMParser or similar mechanisms.
+    // Note: This diverges from the spec, which expects more steps to follow.
+    if (!document->browsing_context()) {
+        // Parsed via DOMParser, no need to wait for load events.
+        document->update_readiness(HTML::DocumentReadyState::Complete);
+        return;
+    }
+
     // 5. While the list of scripts that will execute when the document has finished parsing is not empty:
     while (!document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
         // 1. Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing

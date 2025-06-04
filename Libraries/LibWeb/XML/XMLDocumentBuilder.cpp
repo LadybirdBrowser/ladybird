@@ -275,6 +275,12 @@ void XMLDocumentBuilder::document_end()
     // Pop all the nodes off the stack of open elements.
     // NOTE: Noop.
 
+    if (!m_document->browsing_context()) {
+        // Parsed via DOMParser, no need to wait for load events.
+        m_document->update_readiness(HTML::DocumentReadyState::Complete);
+        return;
+    }
+
     // While the list of scripts that will execute when the document has finished parsing is not empty:
     while (!m_document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
         // Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing has its "ready to be parser-executed" flag set
