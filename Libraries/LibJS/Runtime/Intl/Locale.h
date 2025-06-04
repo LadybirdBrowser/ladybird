@@ -91,6 +91,8 @@ struct WeekInfo {
     Vector<u8> weekend;    // [[Weekend]]
 };
 
+Optional<String> get_locale_variants(Unicode::LocaleID const&);
+
 GC::Ref<Array> calendars_of_locale(VM&, Locale const&);
 GC::Ref<Array> collations_of_locale(VM&, Locale const& locale);
 GC::Ref<Array> hour_cycles_of_locale(VM&, Locale const& locale);
