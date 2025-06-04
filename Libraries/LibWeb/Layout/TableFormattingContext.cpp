@@ -862,7 +862,7 @@ void TableFormattingContext::compute_table_height()
         cell_state.padding_left = cell.box->computed_values().padding().left().to_px(cell.box, width_of_containing_block);
         cell_state.padding_right = cell.box->computed_values().padding().right().to_px(cell.box, width_of_containing_block);
 
-        if (cell.box->computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
+        if (table_box().computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
             cell_state.border_top = cell.box->computed_values().border_top().width;
             cell_state.border_bottom = cell.box->computed_values().border_bottom().width;
             cell_state.border_left = cell.box->computed_values().border_left().width;
@@ -1286,7 +1286,7 @@ void TableFormattingContext::border_conflict_resolution()
                 .column_index = cell.column_index,
                 .row_span = cell.row_span,
                 .column_span = cell.column_span });
-        if (cell.box->computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
+        if (table_box().computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
             continue;
         }
         Painting::PaintableBox::BordersDataWithElementKind override_borders_data;
