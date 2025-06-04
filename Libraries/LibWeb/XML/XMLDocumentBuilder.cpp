@@ -272,6 +272,12 @@ void XMLDocumentBuilder::document_end()
     // Update the current document readiness to "interactive".
     m_document->update_readiness(HTML::DocumentReadyState::Interactive);
 
+    if (!m_document->browsing_context()) {
+        // Parsed via DOMParser, no need to wait for load events.
+        m_document->update_readiness(HTML::DocumentReadyState::Complete);
+        return;
+    }
+
     // Pop all the nodes off the stack of open elements.
     // NOTE: Noop.
 
