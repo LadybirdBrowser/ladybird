@@ -422,10 +422,12 @@ String HTMLElement::get_the_text_steps()
     // 6. Replace each remaining run of consecutive required line break count items
     //    with a string consisting of as many U+000A LF code points as the maximum of the values
     //    in the required line break count items.
+    StringBuilder builder;
     for (size_t i = 0; i < results.size(); ++i) {
-        if (!results[i].has<RequiredLineBreakCount>())
+        if (auto* string = results[i].get_pointer<String>()) {
+            builder.append(*string);
             continue;
-
+        }
         int max_line_breaks = results[i].get<RequiredLineBreakCount>().count;
         size_t j = i + 1;
         while (j < results.size() && results[j].has<RequiredLineBreakCount>()) {
@@ -433,17 +435,13 @@ String HTMLElement::get_the_text_steps()
             ++j;
         }
 
-        results.remove(i, j - i);
-        results.insert(i, MUST(String::repeated('\n', max_line_breaks)));
+        // Skip over the run of required line break counts.
+        i = j - 1;
+
+        builder.append_repeated('\n', max_line_breaks);
     }
 
     // 7. Return the concatenation of the string items in results.
-    StringBuilder builder;
-    for (auto& item : results) {
-        item.visit(
-            [&](String const& string) { builder.append(string); },
-            [&](RequiredLineBreakCount const&) {});
-    }
     return builder.to_string_without_validation();
 }
 
