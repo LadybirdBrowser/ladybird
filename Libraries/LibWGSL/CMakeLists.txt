@@ -1,4 +1,5 @@
 set(SOURCES
+    Lexer.cpp
     Preprocessor.cpp
 )
 
