@@ -14,7 +14,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibUnicode/Forward.h>
+#include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
@@ -36,6 +36,8 @@ public:
     }
 
     virtual ~Locale() override = default;
+
+    Unicode::LocaleID const& locale_id() const;
 
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }
@@ -78,6 +80,8 @@ private:
     Optional<String> m_hour_cycle;        // [[HourCycle]]
     Optional<String> m_numbering_system;  // [[NumberingSystem]]
     bool m_numeric { false };             // [[Numeric]]
+
+    mutable Optional<Unicode::LocaleID> m_cached_locale_id;
 };
 
 // Table 1: WeekInfo Record Fields, https://tc39.es/proposal-intl-locale-info/#table-locale-weekinfo-record
@@ -91,8 +95,7 @@ GC::Ref<Array> calendars_of_locale(VM&, Locale const&);
 GC::Ref<Array> collations_of_locale(VM&, Locale const& locale);
 GC::Ref<Array> hour_cycles_of_locale(VM&, Locale const& locale);
 GC::Ref<Array> numbering_systems_of_locale(VM&, Locale const&);
-GC::Ref<Array> time_zones_of_locale(VM&, StringView region);
-StringView character_direction_of_locale(Locale const&);
+GC::Ref<Array> time_zones_of_locale(VM&, Locale const&);
 StringView weekday_to_string(StringView weekday);
 Optional<u8> string_to_weekday_value(StringView weekday);
 WeekInfo week_info_of_locale(Locale const&);

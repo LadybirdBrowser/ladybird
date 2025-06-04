@@ -6,10 +6,8 @@
 
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Locale.h>
 #include <LibUnicode/DateTimeFormat.h>
-#include <LibUnicode/Locale.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibUnicode/UnicodeKeywords.h>
 
@@ -38,6 +36,13 @@ Locale::Locale(Object& prototype)
 {
 }
 
+Unicode::LocaleID const& Locale::locale_id() const
+{
+    if (!m_cached_locale_id.has_value())
+        m_cached_locale_id = Unicode::parse_unicode_locale_id(locale());
+    return *m_cached_locale_id;
+}
+
 // 1.1.1 CreateArrayFromListOrRestricted ( list , restricted )
 static GC::Ref<Array> create_array_from_list_or_restricted(VM& vm, Vector<String> list, Optional<String> restricted)
 {
@@ -49,7 +54,7 @@ static GC::Ref<Array> create_array_from_list_or_restricted(VM& vm, Vector<String
         list = { restricted.release_value() };
     }
 
-    // 2. Return ! CreateArrayFromList( list ).
+    // 2. Return CreateArrayFromList( list ).
     return Array::create_from<String>(realm, list, [&vm](auto value) {
         return PrimitiveString::create(vm, move(value));
     });
@@ -64,13 +69,11 @@ GC::Ref<Array> calendars_of_locale(VM& vm, Locale const& locale_object)
     // 2. Let locale be loc.[[Locale]].
     auto const& locale = locale_object.locale();
 
-    // 3. Assert: locale matches the unicode_locale_id production.
-    VERIFY(Unicode::parse_unicode_locale_id(locale).has_value());
-
-    // 4. Let list be a List of 1 or more unique canonical calendar identifiers, which must be lower case String values conforming to the type sequence from UTS 35 Unicode Locale Identifier, section 3.2, sorted in descending preference of those in common use for date and time formatting in locale.
+    // 3. Let list be a List of one or more unique calendar types in canonical form (10), sorted in descending preference
+    //    of those in common use for date and time formatting in locale.
     auto list = Unicode::available_calendars(locale);
 
-    // 5. Return ! CreateArrayFromListOrRestricted( list, restricted ).
+    // 4. Return CreateArrayFromListOrRestricted( list, restricted ).
     return create_array_from_list_or_restricted(vm, move(list), move(restricted));
 }
 
@@ -83,13 +86,12 @@ GC::Ref<Array> collations_of_locale(VM& vm, Locale const& locale_object)
     // 2. Let locale be loc.[[Locale]].
     auto const& locale = locale_object.locale();
 
-    // 3. Assert: locale matches the unicode_locale_id production.
-    VERIFY(Unicode::parse_unicode_locale_id(locale).has_value());
-
-    // 4. Let list be a List of 1 or more unique canonical collation identifiers, which must be lower case String values conforming to the type sequence from UTS 35 Unicode Locale Identifier, section 3.2, ordered as if an Array of the same values had been sorted, using %Array.prototype.sort% using undefined as comparefn, of those in common use for string comparison in locale. The values "standard" and "search" must be excluded from list.
+    // 3. Let list be a List of one or more unique collation types in canonical form (9), of those in common use for
+    //    string comparison in locale. The values "standard" and "search" must be excluded from list. The list is sorted
+    //    according to lexicographic code unit order.
     auto list = Unicode::available_collations(locale);
 
-    // 5. Return ! CreateArrayFromListOrRestricted( list, restricted ).
+    // 4. Return CreateArrayFromListOrRestricted( list, restricted ).
     return create_array_from_list_or_restricted(vm, move(list), move(restricted));
 }
 
@@ -102,13 +104,12 @@ GC::Ref<Array> hour_cycles_of_locale(VM& vm, Locale const& locale_object)
     // 2. Let locale be loc.[[Locale]].
     auto const& locale = locale_object.locale();
 
-    // 3. Assert: locale matches the unicode_locale_id production.
-    VERIFY(Unicode::parse_unicode_locale_id(locale).has_value());
-
-    // 4. Let list be a List of 1 or more unique hour cycle identifiers, which must be lower case String values indicating either the 12-hour format ("h11", "h12") or the 24-hour format ("h23", "h24"), sorted in descending preference of those in common use for date and time formatting in locale.
+    // 3. Let list be a List of one or more unique hour cycle identifiers, which must be lower case String values
+    //    indicating either the 12-hour format ("h11", "h12") or the 24-hour format ("h23", "h24"), sorted in descending
+    //    preference of those in common use for date and time formatting in locale.
     auto list = Unicode::available_hour_cycles(locale);
 
-    // 5. Return ! CreateArrayFromListOrRestricted( list, restricted ).
+    // 4. Return CreateArrayFromListOrRestricted( list, restricted ).
     return create_array_from_list_or_restricted(vm, move(list), move(restricted));
 }
 
@@ -121,50 +122,34 @@ GC::Ref<Array> numbering_systems_of_locale(VM& vm, Locale const& locale_object)
     // 2. Let locale be loc.[[Locale]].
     auto const& locale = locale_object.locale();
 
-    // 3. Assert: locale matches the unicode_locale_id production.
-    VERIFY(Unicode::parse_unicode_locale_id(locale).has_value());
-
-    // 4. Let list be a List of 1 or more unique canonical numbering system identifiers, which must be lower case String values conforming to the type sequence from UTS 35 Unicode Locale Identifier, section 3.2, sorted in descending preference of those in common use for formatting numeric values in locale.
+    // 3. Let list be a List of one or more unique numbering system identifiers in canonical form (8), sorted in
+    //    descending preference of those in common use for formatting numeric values in locale.
     auto list = Unicode::available_number_systems(locale);
 
-    // 5. Return ! CreateArrayFromListOrRestricted( list, restricted ).
+    // 4. Return CreateArrayFromListOrRestricted( list, restricted ).
     return create_array_from_list_or_restricted(vm, move(list), move(restricted));
 }
 
 // 1.1.6 TimeZonesOfLocale ( loc ), https://tc39.es/proposal-intl-locale-info/#sec-time-zones-of-locale
-// NOTE: Our implementation takes a region rather than a Locale object to avoid needlessly parsing the locale twice.
-GC::Ref<Array> time_zones_of_locale(VM& vm, StringView region)
+GC::Ref<Array> time_zones_of_locale(VM& vm, Locale const& locale_object)
 {
     auto& realm = *vm.current_realm();
 
-    // 1. Let locale be loc.[[Locale]].
-    // 2. Assert: locale matches the unicode_locale_id production.
-    // 3. Let region be the substring of locale corresponding to the unicode_region_subtag production of the unicode_language_id.
+    // 1. Let region be GetLocaleRegion(loc.[[Locale]]).
+    auto const& region = locale_object.locale_id().language_id.region;
 
-    // 4. Let list be a List of unique canonical time zone identifiers, which must be String values indicating a canonical Zone name of the IANA Time Zone Database, ordered as if an Array of the same values had been sorted using %Array.prototype.sort% using undefined as comparefn, of those in common use in region. If no time zones are commonly used in region, let list be a new empty List.
-    auto list = Unicode::available_time_zones_in_region(region);
+    // 2. Assert: region is not undefined.
+    VERIFY(region.has_value());
 
-    // 5. Return ! CreateArrayFromList( list ).
+    // 3. Let list be a List of unique canonical time zone identifiers, which must be String values indicating a
+    //    canonical Zone name of the IANA Time Zone Database, of those in common use in region. The list is empty if no
+    //    time zones are commonly used in region. The list is sorted according to lexicographic code unit order.
+    auto list = Unicode::available_time_zones_in_region(*region);
+
+    // 4. Return CreateArrayFromList( list ).
     return Array::create_from<String>(realm, list, [&vm](auto value) {
-        return PrimitiveString::create(vm, value);
+        return PrimitiveString::create(vm, move(value));
     });
-}
-
-// 1.1.7 CharacterDirectionOfLocale ( loc ), https://tc39.es/proposal-intl-locale-info/#sec-character-direction-of-locale
-StringView character_direction_of_locale(Locale const& locale_object)
-{
-    // 1. Let locale be loc.[[Locale]].
-    auto const& locale = locale_object.locale();
-
-    // 2. Assert: locale matches the unicode_locale_id production.
-    VERIFY(Unicode::parse_unicode_locale_id(locale).has_value());
-
-    // 3. If the default general ordering of characters (characterOrder) within a line in locale is right-to-left, return "rtl".
-    if (Unicode::is_locale_character_ordering_right_to_left(locale))
-        return "rtl"sv;
-
-    // 4. Return "ltr".
-    return "ltr"sv;
 }
 
 struct FirstDayStringAndValue {
@@ -190,8 +175,8 @@ StringView weekday_to_string(StringView weekday)
 {
     // 1. For each row of Table 1, except the header row, in table order, do
     for (auto const& row : first_day_string_and_value_table) {
-        // a. Let w be the name given in the Weekday column of the row.
-        // b. Let s be the name given in the String column of the row.
+        // a. Let w be the name given in the Weekday column of the current row.
+        // b. Let s be the name given in the String column of the current row.
         // c. If fw is equal to w, return s.
         if (weekday == row.weekday)
             return row.string;
@@ -206,8 +191,8 @@ Optional<u8> string_to_weekday_value(StringView weekday)
 {
     // 1. For each row of Table 1, except the header row, in table order, do
     for (auto const& row : first_day_string_and_value_table) {
-        // a. Let s be the name given in the String column of the row.
-        // b. Let v be the name given in the Value column of the row.
+        // a. Let s be the name given in the String column of the current row.
+        // b. Let v be the name given in the Value column of the current row.
         // c. If fw is equal to s, return v.
         if (weekday == row.string)
             return row.value;
@@ -258,10 +243,7 @@ WeekInfo week_info_of_locale(Locale const& locale_object)
     // 1. Let locale be loc.[[Locale]].
     auto const& locale = locale_object.locale();
 
-    // 2. Assert: locale matches the unicode_locale_id production.
-    VERIFY(Unicode::parse_unicode_locale_id(locale).has_value());
-
-    // 3. Let r be a record whose fields are defined by Table 2, with values based on locale.
+    // 2. Let r be a record whose fields are defined by Table 2, with values based on locale.
     auto locale_week_info = Unicode::week_info_of_locale(locale);
 
     WeekInfo week_info {};
@@ -272,20 +254,20 @@ WeekInfo week_info_of_locale(Locale const& locale_object)
     Optional<u8> first_day_of_week;
 
     if (locale_object.has_first_day_of_week()) {
-        // 4. Let fws be loc.[[FirstDayOfWeek]].
+        // 3. Let fws be loc.[[FirstDayOfWeek]].
         auto const& first_day_of_week_string = locale_object.first_day_of_week();
 
-        // 5. Let fw be !StringToWeekdayValue(fws).
+        // 4. Let fw be StringToWeekdayValue(fws).
         first_day_of_week = string_to_weekday_value(first_day_of_week_string);
     }
 
-    // 6. If fw is not undefined, then
+    // 5. If fw is not undefined, then
     if (first_day_of_week.has_value()) {
         // a. Set r.[[FirstDay]] to fw.
         week_info.first_day = *first_day_of_week;
     }
 
-    // 7. Return r.
+    // 6. Return r.
     return week_info;
 }
 
