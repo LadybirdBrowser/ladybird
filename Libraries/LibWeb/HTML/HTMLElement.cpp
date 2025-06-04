@@ -422,28 +422,28 @@ String HTMLElement::get_the_text_steps()
     // 6. Replace each remaining run of consecutive required line break count items
     //    with a string consisting of as many U+000A LF code points as the maximum of the values
     //    in the required line break count items.
+    StringBuilder builder;
     for (size_t i = 0; i < results.size(); ++i) {
-        if (!results[i].has<RequiredLineBreakCount>())
-            continue;
+        results[i].visit(
+            [&](String const& string) {
+                builder.append(string);
+            },
+            [&](RequiredLineBreakCount const& line_break_count) {
+                int max_line_breaks = line_break_count.count;
+                size_t j = i + 1;
+                while (j < results.size() && results[j].has<RequiredLineBreakCount>()) {
+                    max_line_breaks = max(max_line_breaks, results[j].get<RequiredLineBreakCount>().count);
+                    ++j;
+                }
 
-        int max_line_breaks = results[i].get<RequiredLineBreakCount>().count;
-        size_t j = i + 1;
-        while (j < results.size() && results[j].has<RequiredLineBreakCount>()) {
-            max_line_breaks = max(max_line_breaks, results[j].get<RequiredLineBreakCount>().count);
-            ++j;
-        }
+                // Skip over the run of required line break counts.
+                i = j - 1;
 
-        results.remove(i, j - i);
-        results.insert(i, MUST(String::repeated('\n', max_line_breaks)));
+                builder.append_repeated('\n', max_line_breaks);
+            });
     }
 
     // 7. Return the concatenation of the string items in results.
-    StringBuilder builder;
-    for (auto& item : results) {
-        item.visit(
-            [&](String const& string) { builder.append(string); },
-            [&](RequiredLineBreakCount const&) {});
-    }
     return builder.to_string_without_validation();
 }
 
