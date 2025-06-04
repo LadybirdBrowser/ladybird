@@ -289,9 +289,10 @@ String HTMLButtonElement::command() const
     // show-popover             Show Popover   Shows the targeted popover element.
     // hide-popover             Hide Popover   Hides the targeted popover element.
     // close                    Close          Closes the targeted dialog element.
+    // request-close            Request Close  Requests to close the targeted dialog element.
     // show-modal               Show Modal     Opens the targeted dialog element as modal.
     // A custom command keyword Custom         Only dispatches the command event on the targeted element.
-    Array valid_values { "toggle-popover"_string, "show-popover"_string, "hide-popover"_string, "close"_string, "show-modal"_string };
+    Array valid_values { "toggle-popover"_string, "show-popover"_string, "hide-popover"_string, "close"_string, "request-close"_string, "show-modal"_string };
 
     // 2. If command is in the Custom state, then return command's value.
     //    A custom command keyword is a string that starts with "--".

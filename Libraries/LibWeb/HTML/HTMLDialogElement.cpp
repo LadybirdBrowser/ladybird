@@ -285,11 +285,14 @@ void HTMLDialogElement::close(Optional<String> return_value)
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-requestclose
 void HTMLDialogElement::request_close(Optional<String> return_value)
 {
-    // AD-HOC: This method is an amalgamation of the requestClose() and "request to close" algorithms from the spec.
-    // FIXME: Once the "request-close" command is implemented, this will need to be split into two methods.
-    //        For now this implementation is only used for the requestClose() method, which sets source to null.
-    auto source = nullptr;
+    // 1. If returnValue is not given, then set it to null.
+    // 2. Request to close the dialog this with returnValue and null.
+    request_close_the_dialog(move(return_value), nullptr);
+}
 
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-request-close
+void HTMLDialogElement::request_close_the_dialog(Optional<String> return_value, GC::Ptr<DOM::Element> source)
+{
     // 1. If this does not have an open attribute, then return.
     if (!has_attribute(AttributeNames::open))
         return;
@@ -470,8 +473,8 @@ void HTMLDialogElement::set_is_modal(bool is_modal)
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:is-valid-invoker-command-steps
 bool HTMLDialogElement::is_valid_invoker_command(String& command)
 {
-    // 1. If command is in the Close state or in the Show Modal state, then return true.
-    if (command == "close" || command == "show-modal")
+    // 1. If command is in the Close state, the Request Close state, or the Show Modal state, then return true.
+    if (command == "close" || command == "request-close" || command == "show-modal")
         return true;
 
     // 2. Return false.
@@ -494,7 +497,15 @@ void HTMLDialogElement::invoker_command_steps(DOM::Element& invoker, String& com
         close_the_dialog(optional_value, invoker);
     }
 
-    // 3. If command is the Show Modal state and element does not have an open attribute, then show a modal dialog given element and invoker.
+    // 3. If command is in the Request Close state and element has an open attribute,
+    //    then request to close the dialog element with invoker's optional value and invoker.
+    if (command == "request-close" && has_attribute(AttributeNames::open)) {
+        // FIXME: This assumes invoker is a button.
+        auto optional_value = invoker.get_attribute(AttributeNames::value);
+        request_close_the_dialog(optional_value, invoker);
+    }
+
+    // 4. If command is the Show Modal state and element does not have an open attribute, then show a modal dialog given element and invoker.
     if (command == "show-modal" && !has_attribute(AttributeNames::open)) {
         MUST(show_a_modal_dialog(*this, invoker));
     }
