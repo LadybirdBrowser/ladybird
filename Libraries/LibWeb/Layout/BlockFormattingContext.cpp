@@ -208,12 +208,14 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
 
     auto zero_value = CSS::Length::make_px(0);
 
-    auto margin_left = CSS::Length::make_auto();
-    auto margin_right = CSS::Length::make_auto();
+    auto margin_left = computed_values.margin().left().resolved(box, width_of_containing_block);
+    auto margin_right = computed_values.margin().right().resolved(box, width_of_containing_block);
     auto const padding_left = computed_values.padding().left().resolved(box, width_of_containing_block).to_px(box);
     auto const padding_right = computed_values.padding().right().resolved(box, width_of_containing_block).to_px(box);
 
     auto& box_state = m_state.get_mutable(box);
+    box_state.margin_left = margin_left.to_px(box);
+    box_state.margin_right = margin_right.to_px(box);
     box_state.border_left = computed_values.border_left().width;
     box_state.border_right = computed_values.border_right().width;
     box_state.padding_left = padding_left;
