@@ -390,7 +390,21 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
             return false;
 
         // h. Let succeeded be ! OrdinaryDefineOwnProperty(A, P, Desc).
-        auto succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property));
+        bool succeeded = true;
+        auto* storage = indexed_properties().storage();
+        auto attributes = property_descriptor.attributes();
+        // OPTIMIZATION: Fast path for arrays with simple indexed properties storage.
+        if (property_descriptor.is_data_descriptor() && attributes == default_attributes && storage && storage->is_simple_storage()) {
+            if (!m_is_extensible) {
+                auto existing_descriptor = TRY(internal_get_own_property(property_key));
+                if (!existing_descriptor.has_value())
+                    return false;
+            }
+
+            storage->put(property_key.as_number(), property_descriptor.value.value());
+        } else {
+            succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property));
+        }
 
         // i. If succeeded is false, return false.
         if (!succeeded)
