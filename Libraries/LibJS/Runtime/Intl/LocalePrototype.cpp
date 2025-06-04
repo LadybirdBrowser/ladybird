@@ -39,7 +39,7 @@ void LocalePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.getTextInfo, get_text_info, 0, attr);
     define_native_function(realm, vm.names.getWeekInfo, get_week_info, 0, attr);
 
-    // 15.3.15 Intl.Locale.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-intl.locale.prototype-%symbol.tostringtag%
+    // 15.3.16 Intl.Locale.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-intl.locale.prototype-%symbol.tostringtag%
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.Locale"_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.baseName, base_name, {}, Attribute::Configurable);
@@ -53,6 +53,7 @@ void LocalePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.numeric, numeric, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.region, region, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.script, script, {}, Attribute::Configurable);
+    define_native_accessor(realm, vm.names.variants, variants, {}, Attribute::Configurable);
 }
 
 // 15.3.2 get Intl.Locale.prototype.baseName, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.baseName
@@ -180,6 +181,19 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::to_string)
 
     // 3. Return loc.[[Locale]].
     return PrimitiveString::create(vm, locale_object->locale());
+}
+
+// 15.3.15 get Intl.Locale.prototype.variants, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.variants
+JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::variants)
+{
+    // 1. Let loc be the this value.
+    // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
+    auto locale_object = TRY(typed_this_object(vm));
+
+    // 3. Return GetLocaleVariants(loc.[[Locale]]).
+    if (auto variants = get_locale_variants(locale_object->locale_id()); variants.has_value())
+        return PrimitiveString::create(vm, variants.release_value());
+    return js_undefined();
 }
 
 #define JS_ENUMERATE_LOCALE_INFO_PROPERTIES \

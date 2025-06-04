@@ -37,6 +37,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(numeric);
     JS_DECLARE_NATIVE_FUNCTION(region);
     JS_DECLARE_NATIVE_FUNCTION(script);
+    JS_DECLARE_NATIVE_FUNCTION(variants);
     JS_DECLARE_NATIVE_FUNCTION(get_calendars);
     JS_DECLARE_NATIVE_FUNCTION(get_collations);
     JS_DECLARE_NATIVE_FUNCTION(get_hour_cycles);

@@ -43,6 +43,24 @@ Unicode::LocaleID const& Locale::locale_id() const
     return *m_cached_locale_id;
 }
 
+// 15.5.5 GetLocaleVariants ( locale ), https://tc39.es/ecma402/#sec-getlocalevariants
+Optional<String> get_locale_variants(Unicode::LocaleID const& locale)
+{
+    // 1. Let baseName be GetLocaleBaseName(locale).
+    auto const& base_name = locale.language_id;
+
+    // 2. NOTE: Each subtag in baseName that is preceded by "-" is either a unicode_script_subtag, unicode_region_subtag,
+    //    or unicode_variant_subtag, but any substring matched by unicode_variant_subtag is strictly longer than any
+    //    prefix thereof which could also be matched by one of the other productions.
+
+    // 3. Let variants be the longest suffix of baseName that starts with a "-" followed by a substring that is matched
+    //    by the unicode_variant_subtag Unicode locale nonterminal. If there is no such suffix, return undefined.
+    // 4. Return the substring of variants from 1.
+    if (base_name.variants.is_empty())
+        return {};
+    return MUST(String::join("-"sv, base_name.variants));
+}
+
 // 1.1.1 CreateArrayFromListOrRestricted ( list , restricted )
 static GC::Ref<Array> create_array_from_list_or_restricted(VM& vm, Vector<String> list, Optional<String> restricted)
 {

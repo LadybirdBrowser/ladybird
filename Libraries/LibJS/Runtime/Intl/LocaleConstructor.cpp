@@ -66,25 +66,61 @@ static ThrowCompletionOr<String> update_language_id(VM& vm, StringView tag, Obje
     //     a. If region cannot be matched by the unicode_region_subtag Unicode locale nonterminal, throw a RangeError exception.
     auto region = TRY(get_string_option(vm, options, vm.names.region, Unicode::is_unicode_region_subtag, {}, base_name.region));
 
-    // 8. Let allExtensions be the suffix of tag following baseName.
+    // 8. Let variants be ? GetOption(options, "variants", STRING, EMPTY, GetLocaleVariants(baseName)).
+    auto variants = TRY(get_string_option(vm, options, vm.names.variants, nullptr, {}, get_locale_variants(*locale_id)));
+    Vector<String> variant_subtags;
+
+    // 9. If variants is not undefined, then
+    if (variants.has_value()) {
+        // a. If variants is the empty String, throw a RangeError exception.
+        if (variants->is_empty())
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, *variants, vm.names.variants);
+
+        // b. Let lowerVariants be the ASCII-lowercase of variants.
+        auto lower_variants = variants->to_ascii_lowercase();
+
+        // c. Let variantSubtags be StringSplitToList(lowerVariants, "-").
+        variant_subtags = MUST(lower_variants.split('-', SplitBehavior::KeepEmpty));
+
+        HashTable<String> seen_variants;
+        bool has_duplicate_variant = false;
+
+        // d. For each element variant of variantSubtags, do
+        for (auto const& variant : variant_subtags) {
+            has_duplicate_variant |= seen_variants.set(variant) != HashSetResult::InsertedNewEntry;
+
+            // i. If variant cannot be matched by the unicode_variant_subtag Unicode locale nonterminal, throw a RangeError exception.
+            if (!Unicode::is_unicode_variant_subtag(variant))
+                return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, *variants, vm.names.variants);
+        }
+
+        // e. If variantSubtags contains any duplicate elements, throw a RangeError exception.
+        if (has_duplicate_variant)
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, *variants, vm.names.variants);
+    }
+
+    // 10. Let allExtensions be the suffix of tag following baseName.
     auto& extensions = locale_id->extensions;
     auto& private_use_extensions = locale_id->private_use_extensions;
 
-    // 9. Let newTag be language.
+    // 11. Let newTag be language.
     Unicode::LocaleID new_tag;
     new_tag.language_id.language = move(language);
 
-    // 10. If script is not undefined, set newTag to the string-concatenation of newTag, "-", and script.
+    // 12. If script is not undefined, set newTag to the string-concatenation of newTag, "-", and script.
     new_tag.language_id.script = move(script);
 
-    // 11. If region is not undefined, set newTag to the string-concatenation of newTag, "-", and region.
+    // 13. If region is not undefined, set newTag to the string-concatenation of newTag, "-", and region.
     new_tag.language_id.region = move(region);
 
-    // 12. Set newTag to the string-concatenation of newTag and allExtensions.
+    // 14. If variants is not undefined, set newTag to the string-concatenation of newTag, "-", and variants.
+    new_tag.language_id.variants = move(variant_subtags);
+
+    // 15. Set newTag to the string-concatenation of newTag and allExtensions.
     new_tag.extensions = move(extensions);
     new_tag.private_use_extensions = move(private_use_extensions);
 
-    // 13. Return newTag.
+    // 16. Return newTag.
     return new_tag.to_string();
 }
 
