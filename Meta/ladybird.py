@@ -2,6 +2,7 @@
 
 # Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
 # Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+# Copyright (c) 2025, Nicolas Danelon <nicolasdanelon@gmail.com>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -83,8 +84,12 @@ def main():
         "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
     )
 
-    subparsers.add_parser(
+    install_parser = subparsers.add_parser(
         "install", help="Installs the target binary", parents=[preset_parser, compiler_parser, target_parser]
+    )
+
+    install_parser.add_argument(
+        "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
     )
 
     subparsers.add_parser("vcpkg", help="Ensure that dependencies are available", parents=[preset_parser])
