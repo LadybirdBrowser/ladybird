@@ -29,6 +29,7 @@ public:
     static WebIDL::ExceptionOr<void> show_a_modal_dialog(HTMLDialogElement&, GC::Ptr<DOM::Element> source);
 
     void close_the_dialog(Optional<String> result, GC::Ptr<DOM::Element> source);
+    void request_close_the_dialog(Optional<String> return_value, GC::Ptr<DOM::Element> source);
 
     WebIDL::ExceptionOr<void> show();
     WebIDL::ExceptionOr<void> show_modal();
