@@ -475,9 +475,9 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
     }
 }
 
-Messages::WebContentClient::DidRequestAllCookiesResponse WebContentClient::did_request_all_cookies(URL::URL url)
+Messages::WebContentClient::DidRequestAllCookiesResponse WebContentClient::did_request_all_cookies(URL::URL url, Web::Cookie::Source source)
 {
-    return Application::cookie_jar().get_all_cookies(url);
+    return Application::cookie_jar().get_all_cookies(url, source);
 }
 
 Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)

@@ -150,7 +150,7 @@ private:
     virtual void page_did_request_accept_dialog() override;
     virtual void page_did_request_dismiss_dialog() override;
     virtual void page_did_change_favicon(Gfx::Bitmap const&) override;
-    virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies(URL::URL const&) override;
+    virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies(URL::URL const&, Web::Cookie::Source) override;
     virtual Optional<Web::Cookie::Cookie> page_did_request_named_cookie(URL::URL const&, String const&) override;
     virtual String page_did_request_cookie(URL::URL const&, Web::Cookie::Source) override;
     virtual void page_did_set_cookie(URL::URL const&, Web::Cookie::ParsedCookie const&, Web::Cookie::Source) override;

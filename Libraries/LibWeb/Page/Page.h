@@ -369,7 +369,7 @@ public:
     virtual void page_did_request_set_prompt_text(String const&) { }
     virtual void page_did_request_accept_dialog() { }
     virtual void page_did_request_dismiss_dialog() { }
-    virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies(URL::URL const&) { return {}; }
+    virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies(URL::URL const&, Cookie::Source) { return {}; }
     virtual Optional<Web::Cookie::Cookie> page_did_request_named_cookie(URL::URL const&, String const&) { return {}; }
     virtual String page_did_request_cookie(URL::URL const&, Cookie::Source) { return {}; }
     virtual void page_did_set_cookie(URL::URL const&, Cookie::ParsedCookie const&, Cookie::Source) { }
