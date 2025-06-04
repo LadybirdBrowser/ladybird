@@ -377,7 +377,7 @@ void paint_table_borders(PaintContext& context, PaintableBox const& table_painta
     }
     auto cell_coordinates_to_device_rect = snap_cells_to_device_coordinates(cell_coordinates_to_box, row_count, column_count, context);
     for (auto const& cell_box : cell_boxes) {
-        if (cell_box.computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
+        if (table_paintable.computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
             paint_separate_cell_borders(cell_box, cell_coordinates_to_device_rect, context);
             continue;
         }
