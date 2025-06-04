@@ -26,7 +26,9 @@ public:
     String return_value() const;
     void set_return_value(String);
 
-    static WebIDL::ExceptionOr<void> show_a_modal_dialog(HTMLDialogElement&);
+    static WebIDL::ExceptionOr<void> show_a_modal_dialog(HTMLDialogElement&, GC::Ptr<DOM::Element> source);
+
+    void close_the_dialog(Optional<String> result, GC::Ptr<DOM::Element> source);
 
     WebIDL::ExceptionOr<void> show();
     WebIDL::ExceptionOr<void> show_modal();
@@ -50,9 +52,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void queue_a_dialog_toggle_event_task(String old_state, String new_state);
-
-    void close_the_dialog(Optional<String> result);
+    void queue_a_dialog_toggle_event_task(String old_state, String new_state, GC::Ptr<DOM::Element> source);
 
     void run_dialog_focusing_steps();
 
@@ -63,6 +63,7 @@ private:
     String m_return_value;
     bool m_is_modal { false };
     Optional<String> m_request_close_return_value;
+    GC::Ptr<DOM::Element> m_request_close_source_element;
     GC::Ptr<CloseWatcher> m_close_watcher;
 
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-toggle-task-tracker

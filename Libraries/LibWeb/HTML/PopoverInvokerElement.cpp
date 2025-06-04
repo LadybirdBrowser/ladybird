@@ -61,9 +61,9 @@ void PopoverInvokerElement::popover_target_activation_behaviour(GC::Ref<DOM::Nod
         && popover->popover_visibility_state() == HTMLElement::PopoverVisibilityState::Hidden)
         return;
 
-    // 6. If popover's popover visibility state is showing, then run the hide popover algorithm given popover, true, true, false, and false.
+    // 6. If popover's popover visibility state is showing, then run the hide popover algorithm given popover, true, true, false, false, and node.
     if (popover->popover_visibility_state() == HTMLElement::PopoverVisibilityState::Showing) {
-        MUST(popover->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No));
+        MUST(popover->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, as<HTMLElement>(*node)));
     }
 
     // 7. Otherwise, if popover's popover visibility state is hidden and the result of running check popover validity given popover, false, false, null, and false is true, then run show popover given popover, false, and node.

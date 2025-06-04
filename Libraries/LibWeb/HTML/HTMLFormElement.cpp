@@ -220,8 +220,8 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
         if (!result.has_value())
             result = submitter->get_attribute_value(AttributeNames::value);
 
-        // 6. Close the dialog subject with result.
-        subject->close(move(result));
+        // 6. Close the dialog subject with result and null.
+        subject->close_the_dialog(move(result), nullptr);
 
         // 7. Return.
         return {};

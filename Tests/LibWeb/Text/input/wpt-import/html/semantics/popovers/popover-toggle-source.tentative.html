@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/html/issues/9111">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/toggle-event-source-test.js"></script>
+
+<button id=popoversource popovertarget=popover>popovertarget source</button>
+<button id=commandsource commandfor=popover command=show-popover>command source</button>
+<div id=popover popover=auto>
+  popover
+  <button id=popoversourcehide popovertarget=popover>popovertarget source</button>
+  <button id=commandsourcehide commandfor=popover command=hide-popover>command source</button>
+</div>
+
+<script>
+const popoversource = document.getElementById('popoversource');
+const popoversourcehide = document.getElementById('popoversourcehide');
+const commandsource = document.getElementById('commandsource');
+const commandsourcehide = document.getElementById('commandsourcehide');
+const popover = document.getElementById('popover');
+
+let beforetoggleEvent = null;
+let toggleEvent = null;
+popover.addEventListener('beforetoggle', event => beforetoggleEvent = event);
+popover.addEventListener('toggle', event => toggleEvent = event);
+
+createToggleEventSourceTest({
+  description: 'ToggleEvent.source on popover elements: showPopover() without source.',
+  target: popover,
+  openFunc: async () => popover.showPopover(),
+  closeFunc: async () => popover.hidePopover(),
+  openSource: null,
+  closeSource: null
+});
+
+createToggleEventSourceTest({
+  description: 'ToggleEvent.source on popover elements: showPopover() with source.',
+  target: popover,
+  openFunc: async () => popover.showPopover({source: popoversource}),
+  closeFunc: async () => popover.hidePopover(),
+  openSource: popoversource,
+  closeSource: null
+});
+
+createToggleEventSourceTest({
+  description: 'ToggleEvent.source on popover elements: Calling click() on a popovertarget button.',
+  target: popover,
+  openFunc: async () => popoversource.click(),
+  closeFunc: async () => popoversourcehide.click(),
+  openSource: popoversource,
+  closeSource: popoversourcehide
+});
+
+createToggleEventSourceTest({
+  description: 'ToggleEvent.source on popover elements: Calling click() on a command button.',
+  target: popover,
+  openFunc: async () => commandsource.click(),
+  closeFunc: async () => commandsourcehide.click(),
+  openSource: commandsource,
+  closeSource: commandsourcehide
+});
+
+createToggleEventSourceTest({
+  description: 'ToggleEvent.source on popover elements: showPopover() then popovertarget button.',
+  target: popover,
+  openFunc: async () => popover.showPopover(),
+  closeFunc: async () => popoversourcehide.click(),
+  openSource: null,
+  closeSource: popoversourcehide
+});
+
+createToggleEventSourceTest({
+  description: 'ToggleEvent.source on popover elements: showPopover(invoker) then popovertarget button.',
+  target: popover,
+  openFunc: async () => popover.showPopover({source: popoversource}),
+  closeFunc: async () => popoversourcehide.click(),
+  openSource: popoversource,
+  closeSource: popoversourcehide
+});
+
+createToggleEventSourceTest({
+  description: 'ToggleEvent.source on popover elements: popovertarget button then hidePopover().',
+  target: popover,
+  openFunc: async () => popoversource.click(),
+  closeFunc: async () => popover.hidePopover(),
+  openSource: popoversource,
+  closeSource: null
+});
+</script>
