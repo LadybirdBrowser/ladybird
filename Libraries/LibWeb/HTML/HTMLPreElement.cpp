@@ -41,7 +41,7 @@ void HTMLPreElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties>
     HTMLElement::apply_presentational_hints(cascaded_properties);
 
     for_each_attribute([&](auto const& name, auto const&) {
-        if (name.equals_ignoring_ascii_case(HTML::AttributeNames::wrap)) {
+        if (name == HTML::AttributeNames::wrap) {
             cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextWrapMode, CSS::CSSKeywordValue::create(CSS::Keyword::Wrap));
         }
     });
