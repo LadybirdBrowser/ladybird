@@ -34,7 +34,7 @@ jobs:
             build_preset: 'Sanitizer_CI'
             toolchain: 'Clang'
             clang_plugins: false
-            runner_labels: '["macos-15"]'
+            runner_labels: '["macos-15", "self-hosted"]'
 
           - os_name: 'Linux'
             arch: 'x86_64'

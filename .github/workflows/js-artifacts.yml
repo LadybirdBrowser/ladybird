@@ -25,7 +25,7 @@ jobs:
           - os_name: 'macOS'
             arch: 'arm64'
             package_type: 'macOS-arm64'
-            runner_labels: '["macos-15"]'
+            runner_labels: '["macos-15", "self-hosted"]'
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
