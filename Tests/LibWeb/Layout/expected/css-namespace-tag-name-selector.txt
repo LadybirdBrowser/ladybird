@@ -1,39 +1,42 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x204 children: not-inline
-      BlockContainer <(anonymous)> at (8,8) content-size 784x156 children: inline
+    BlockContainer <body> at (8,8) content-size 784x274 children: not-inline
+      BlockContainer <(anonymous)> at (8,8) content-size 784x226 children: inline
         frag 0 from SVGSVGBox start: 0, length: 0, rect: [9,9 300x150] baseline: 152
         frag 1 from TextNode start: 0, length: 1, rect: [310,146 8x18] baseline: 13.796875
             " "
-        frag 2 from BlockContainer start: 0, length: 0, rect: [319,51 0x108] baseline: 110
+        frag 2 from BlockContainer start: 0, length: 0, rect: [319,123 102x110] baseline: 38
         SVGSVGBox <svg> at (9,9) content-size 300x150 [SVG] children: not-inline
           SVGGraphicsBox <a> at (33.765625,32.4375) content-size 188.71875x60.15625 children: not-inline
             SVGTextBox <text> at (33.765625,32.4375) content-size 188.71875x60.15625 children: inline
               TextNode <#text>
         TextNode <#text>
-        BlockContainer <math> at (319,51) content-size 0x108 children: not-inline
-          BlockContainer <a> at (319,51) content-size 100x100 children: inline
+        BlockContainer <math> at (319,123) content-size 102x110 [BFC] children: not-inline
+          BlockContainer <a> at (320,124) content-size 100x100 [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 5, rect: [320,124 99.484375x46] baseline: 35
+                "Hello"
             TextNode <#text>
         TextNode <#text>
-      BlockContainer <div> at (9,165) content-size 782x46 children: inline
+      BlockContainer <div> at (9,235) content-size 782x46 children: inline
         InlineNode <a>
-          frag 0 from TextNode start: 0, length: 5, rect: [10,165 99.484375x46] baseline: 35
+          frag 0 from TextNode start: 0, length: 5, rect: [10,235 99.484375x46] baseline: 35
               "Hello"
           TextNode <#text>
-      BlockContainer <(anonymous)> at (8,212) content-size 784x0 children: inline
+      BlockContainer <(anonymous)> at (8,282) content-size 784x0 children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x204]
-      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x156]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x274]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x226]
         SVGSVGPaintable (SVGSVGBox<svg>) [8,8 302x152]
           SVGGraphicsPaintable (SVGGraphicsBox<a>) [33.765625,32.4375 188.71875x60.15625]
             SVGPathPaintable (SVGTextBox<text>) [33.765625,32.4375 188.71875x60.15625]
         TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<math>) [318,50 2x110] overflow: [319,51 100x100]
-          PaintableWithLines (BlockContainer<a>) [319,51 100x100]
-      PaintableWithLines (BlockContainer<DIV>) [8,164 784x48]
+        PaintableWithLines (BlockContainer<math>) [318,122 104x112]
+          PaintableWithLines (BlockContainer<a>) [319,123 102x102]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>) [8,234 784x48]
         PaintableWithLines (InlineNode<A>)
           TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [8,212 784x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,282 784x0]
