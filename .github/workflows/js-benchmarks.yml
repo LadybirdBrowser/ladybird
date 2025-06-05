@@ -10,6 +10,8 @@ jobs:
   js-benchmarks:
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
     if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+
     strategy:
       fail-fast: false
       matrix:
