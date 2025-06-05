@@ -137,6 +137,7 @@ FontFaceSet
 FormData
 FormDataEvent
 Function
+GPU
 GainNode
 Geolocation
 GeolocationCoordinates
