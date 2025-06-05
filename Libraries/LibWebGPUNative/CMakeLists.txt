@@ -8,7 +8,17 @@ serenity_lib(LibWebGPUNative webgpunative EXPLICIT_SYMBOL_EXPORT)
 target_compile_definitions(LibWebGPUNative PRIVATE $<$<CONFIG:Debug>:WEBGPUNATIVE_DEBUG>)
 target_link_libraries(LibWebGPUNative PRIVATE AK)
 
-if (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
+if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
+    target_sources(LibWebGPUNative
+        PRIVATE
+            Metal/Instance.cpp
+    )
+    target_link_libraries(LibWebGPUNative PRIVATE
+        "-framework Foundation"
+        "-framework Metal"
+        "-framework MetalKit"
+    )
+elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
     target_sources(LibWebGPUNative
         PRIVATE
             Vulkan/Instance.cpp
