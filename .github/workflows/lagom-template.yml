@@ -22,7 +22,6 @@ on:
         required: false
         type: boolean
         default: false
-
 env:
   # runner.workspace = /home/runner/work/ladybird
   # github.workspace = /home/runner/work/ladybird/ladybird
@@ -137,6 +136,18 @@ jobs:
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
+
+      - name: Setup Vulkan SDK (Windows)
+        if: ${{ inputs.os_name == 'Windows' }}
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          vulkan_version: 1.4.304.1
+          install_runtime: true
+          cache: true
+          stripdown: true
+          # FIXME: Get SwiftShader working so CI can run WebGPU tests with the Vulkan backend
+          #install_swiftshader: true
+          #swiftshader_destination: '${{ inputs.installPath }}/swiftshader'
 
       - name: Create Build Environment (Windows)
         if: ${{ inputs.os_name == 'Windows' }}
