@@ -10,6 +10,7 @@ on:
 jobs:
   stale:
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    if: github.repository == 'LadybirdBrowser/ladybird'
     permissions:
       actions: write  # required for cache management (see https://github.com/actions/stale/issues/1133)
       pull-requests: write
