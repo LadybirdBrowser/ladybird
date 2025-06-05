@@ -13,6 +13,8 @@ jobs:
   build-and-package:
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
     if: github.repository == 'LadybirdBrowser/ladybird'
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+
     strategy:
       fail-fast: false
       matrix:
