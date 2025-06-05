@@ -8,7 +8,16 @@ ladybird_lib(LibWebGPUNative webgpunative EXPLICIT_SYMBOL_EXPORT)
 target_compile_definitions(LibWebGPUNative PRIVATE $<$<CONFIG:Debug>:WEBGPUNATIVE_DEBUG>)
 target_link_libraries(LibWebGPUNative PRIVATE AK)
 
-if (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
+if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
+    target_sources(LibWebGPUNative
+        PRIVATE
+            Metal/Instance.cpp
+    )
+    find_library(METAL_FRAMEWORK Metal REQUIRED)
+    find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+    target_link_libraries(LibWebGPUNative PRIVATE ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK})
+    target_compile_definitions(LibWebGPUNative PUBLIC WEBGPUNATIVE_METAL)
+elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
     target_sources(LibWebGPUNative
         PRIVATE
             Vulkan/Instance.cpp
