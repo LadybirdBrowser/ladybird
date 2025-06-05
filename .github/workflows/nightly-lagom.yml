@@ -22,7 +22,7 @@ jobs:
         build_preset: ['Sanitizer_CI']
         toolchain: ['Clang']
         clang_plugins: [false]
-        runner: ['blacksmith-8vcpu-ubuntu-2404-arm']
+        runner_labels: ['["blacksmith-8vcpu-ubuntu-2404-arm"]']
 
         include:
           - os_name: 'Linux'
@@ -30,41 +30,41 @@ jobs:
             build_preset: 'Distribution_CI'
             toolchain: 'GNU'
             clang_plugins: false
-            runner: 'blacksmith-8vcpu-ubuntu-2404'
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404"]'
 
           - os_name: 'macOS'
             arch: 'arm64'
             build_preset: 'Distribution_CI'
             toolchain: 'Clang'
             clang_plugins: false
-            runner: 'macos-15'
+            runner_labels: '["macos-15"]'
 
           - os_name: 'Linux'
             arch: 'arm64'
             build_preset: 'Distribution_CI'
             toolchain: 'Clang'
             clang_plugins: false
-            runner: 'blacksmith-8vcpu-ubuntu-2404-arm'
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
 
           - os_name: 'Linux'
             arch: 'x86_64'
             build_preset: 'Sanitizer_CI'
             toolchain: 'Swift'
             clang_plugins: false
-            runner: 'blacksmith-8vcpu-ubuntu-2404'
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404"]'
 
           - os_name: 'macOS'
             arch: 'arm64'
             build_preset: 'Sanitizer_CI'
             toolchain: 'Swift'
             clang_plugins: false
-            runner: 'macos-15'
+            runner_labels: '["macos-15"]'
 
     uses: ./.github/workflows/lagom-template.yml
     with:
       toolchain: ${{ matrix.toolchain }}
       os_name: ${{ matrix.os_name }}
-      runner: ${{ matrix.runner }}
+      runner_labels: ${{ matrix.runner_labels }}
       arch: ${{ matrix.arch }}
       build_preset: ${{ matrix.build_preset }}
       clang_plugins: ${{ matrix.clang_plugins }}

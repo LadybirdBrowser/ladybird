@@ -77,7 +77,7 @@ jobs:
       - name: Restore Caches
         uses: ./.github/actions/cache-restore
         with:
-          runner_label: test262-runner
+          runner_labels: '["test262-runner"]'
           os: 'Linux'
           arch: 'Lagom'
           download_cache_path: ${{ github.workspace }}/libjs-test262/Build/caches
