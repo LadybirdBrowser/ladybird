@@ -123,6 +123,14 @@
       "platform": "!android"
     },
     {
+      "name": "vk-bootstrap",
+      "platform": "!android"
+    },
+    {
+      "name": "vulkan-utility-libraries",
+      "platform": "!android"
+    },
+    {
       "name": "tiff",
       "features": [
         "zstd"
