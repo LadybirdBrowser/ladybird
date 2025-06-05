@@ -43,8 +43,10 @@ serenity_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets suppor
 
 if (NOT APPLE)
     serenity_option(ENABLE_WEBGPUNATIVE_VULKAN_IMPL ON CACHE BOOL "Enable the Vulkan backend for LibWebGPUNative")
+else()
+    serenity_option(ENABLE_WEBGPUNATIVE_METAL_IMPL ON CACHE BOOL "Enable the Metal backend for LibWebGPUNative")
 endif()
-set(ENABLE_WEBGPUNATIVE ${ENABLE_WEBGPUNATIVE_VULKAN_IMPL})
+set(ENABLE_WEBGPUNATIVE ${ENABLE_WEBGPUNATIVE_VULKAN_IMPL} OR ${ENABLE_WEBGPUNATIVE_METAL_IMPL})
 
 if (ENABLE_FUZZERS_LIBFUZZER)
     # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
