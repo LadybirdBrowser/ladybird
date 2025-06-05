@@ -99,23 +99,6 @@ struct PseudoElementMetadata {
 };
 PseudoElementMetadata pseudo_element_metadata(PseudoElement);
 
-enum class GeneratedPseudoElement : @generated_pseudo_element_underlying_type@ {
-)~~~");
-    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
-        auto& pseudo_element = value.as_object();
-        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
-            return;
-
-        auto member_generator = generator.fork();
-        member_generator.set("name:titlecase", title_casify(name));
-        member_generator.appendln("    @name:titlecase@,");
-    });
-    generator.append(R"~~~(
-};
-
-Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement);
-PseudoElement to_pseudo_element(GeneratedPseudoElement);
-
 }
 )~~~");
 
@@ -561,57 +544,6 @@ PseudoElementMetadata pseudo_element_metadata(PseudoElement pseudo_element)
         };
     case PseudoElement::KnownPseudoElementCount:
         break;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement pseudo_element)
-{
-    switch (pseudo_element) {
-)~~~");
-
-    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
-        auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
-            return;
-        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
-            return;
-
-        auto member_generator = generator.fork();
-        member_generator.set("name:titlecase", title_casify(name));
-        member_generator.append(R"~~~(
-    case PseudoElement::@name:titlecase@:
-        return GeneratedPseudoElement::@name:titlecase@;
-)~~~");
-    });
-
-    generator.append(R"~~~(
-    default:
-        return {};
-    }
-}
-
-PseudoElement to_pseudo_element(GeneratedPseudoElement generated_pseudo_element)
-{
-    switch (generated_pseudo_element) {
-)~~~");
-
-    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
-        auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
-            return;
-        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
-            return;
-
-        auto member_generator = generator.fork();
-        member_generator.set("name:titlecase", title_casify(name));
-        member_generator.append(R"~~~(
-    case GeneratedPseudoElement::@name:titlecase@:
-        return PseudoElement::@name:titlecase@;
-)~~~");
-    });
-
-    generator.append(R"~~~(
     }
     VERIFY_NOT_REACHED();
 }

@@ -219,15 +219,14 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
         pseudo_element_node->prepend_child(*list_item_marker);
     }
 
-    auto generated_for = CSS::to_generated_pseudo_element(pseudo_element).release_value();
-    pseudo_element_node->set_generated_for(generated_for, element);
+    pseudo_element_node->set_generated_for(pseudo_element, element);
     pseudo_element_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
 
     // FIXME: Handle images, and multiple values
     if (pseudo_element_content.type == CSS::ContentData::Type::String) {
         auto text = document.realm().create<DOM::Text>(document, pseudo_element_content.data);
         auto text_node = document.heap().allocate<Layout::TextNode>(document, *text);
-        text_node->set_generated_for(generated_for, element);
+        text_node->set_generated_for(pseudo_element, element);
 
         push_parent(*pseudo_element_node);
         insert_node_into_inline_or_block_ancestor(*text_node, text_node->display(), AppendOrPrepend::Append);
@@ -583,7 +582,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                                 return;
 
                             top_layer_element->set_pseudo_element_node({}, CSS::PseudoElement::Backdrop, pseudo_element_node);
-                            pseudo_element_node->set_generated_for(CSS::GeneratedPseudoElement::Backdrop, top_layer_element);
+                            pseudo_element_node->set_generated_for(CSS::PseudoElement::Backdrop, top_layer_element);
                             insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, AppendOrPrepend::Append);
                         }();
                         update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
