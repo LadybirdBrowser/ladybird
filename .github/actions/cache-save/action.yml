@@ -3,8 +3,8 @@ description: 'Saves caches of build artifacts.'
 author: 'Andrew Kaster <akaster@serenityos.org>'
 
 inputs:
-  runner_label:
-    description: 'Name of runner instance'
+  runner_labels:
+    description: 'Runner selection labels'
     required: true
   arch:
     description: 'Target Architecture to restore caches for'
@@ -28,7 +28,7 @@ inputs:
     default: ''
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - name: 'Prune obsolete ccache files'
       shell: bash
@@ -38,14 +38,14 @@ runs:
 
     - name: 'Compiler Cache (blacksmith)'
       uses: useblacksmith/cache/save@v5
-      if: ${{ inputs.ccache_path != '' && startsWith(inputs.runner_label, 'blacksmith') }}
+      if: ${{ inputs.ccache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
       with:
         path: ${{ inputs.ccache_path }}
         key: ${{ inputs.ccache_primary_key }}
 
     - name: 'Compiler Cache (GitHub runner)'
       uses: actions/cache/save@v4
-      if: ${{ inputs.ccache_path != '' && !startsWith(inputs.runner_label, 'blacksmith') }}
+      if: ${{ inputs.ccache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
       with:
         path: ${{ inputs.ccache_path }}
         key: ${{ inputs.ccache_primary_key }}
@@ -58,14 +58,14 @@ runs:
 
     - name: 'vcpkg binary cache (blacksmith)'
       uses: useblacksmith/cache/save@v5
-      if: ${{ inputs.vcpkg_cache_path != '' && startsWith(inputs.runner_label, 'blacksmith') }}
+      if: ${{ inputs.vcpkg_cache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
       with:
         path: ${{ inputs.vcpkg_cache_path }}
         key: ${{ inputs.vcpkg_cache_primary_key }}
 
     - name: 'vcpkg binary cache (GitHub runner)'
       uses: actions/cache/save@v4
-      if: ${{ inputs.vcpkg_cache_path != '' && !startsWith(inputs.runner_label, 'blacksmith') }}
+      if: ${{ inputs.vcpkg_cache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
       with:
         path: ${{ inputs.vcpkg_cache_path }}
         key: ${{ inputs.vcpkg_cache_primary_key }}

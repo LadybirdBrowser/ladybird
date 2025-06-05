@@ -3,8 +3,8 @@ description: 'Restores caches of downloaded files and build artifacts.'
 author: 'Andrew Kaster <akaster@serenityos.org>'
 
 inputs:
-  runner_label:
-    description: 'Name of runner instance'
+  runner_labels:
+    description: 'Runner selection labels'
     required: true
   os:
     description: 'Operating System to restore caches for'
@@ -59,7 +59,7 @@ runs:
     - name: 'Compiler Cache (blacksmith)'
       uses: useblacksmith/cache/restore@v5
       id: 'ccache-blacksmith'
-      if: ${{ inputs.ccache_path != '' && startsWith(inputs.runner_label, 'blacksmith') }}
+      if: ${{ inputs.ccache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
       with:
         path: ${{ inputs.ccache_path }}
         key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
@@ -70,7 +70,7 @@ runs:
     - name: 'Compiler Cache (GitHub runner)'
       uses: actions/cache/restore@v4
       id: 'ccache-gh'
-      if: ${{ inputs.ccache_path != '' && !startsWith(inputs.runner_label, 'blacksmith') }}
+      if: ${{ inputs.ccache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
       with:
         path: ${{ inputs.ccache_path }}
         key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
@@ -92,7 +92,7 @@ runs:
 
     - name: 'Restore vcpkg cache (blacksmith)'
       uses: useblacksmith/cache/restore@v5
-      if: ${{ inputs.vcpkg_cache_path != '' && startsWith(inputs.runner_label, 'blacksmith') }}
+      if: ${{ inputs.vcpkg_cache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
       id: 'vcpkg-blacksmith'
       with:
         path: ${{ inputs.vcpkg_cache_path }}
@@ -103,7 +103,7 @@ runs:
 
     - name: 'Restore vcpkg cache (GitHub runner)'
       uses: actions/cache/restore@v4
-      if: ${{ inputs.ccache_path != '' && !startsWith(inputs.runner_label, 'blacksmith') }}
+      if: ${{ inputs.ccache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
       id: 'vcpkg-gh'
       with:
         path: ${{ inputs.vcpkg_cache_path }}
@@ -118,7 +118,7 @@ runs:
       id: 'cache-outputs'
       shell: bash
       run: |
-        if ${{ startsWith(inputs.runner_label, 'blacksmith') }} ; then
+        if ${{ contains(inputs.runner_labels, 'blacksmith') }} ; then
           echo "ccache_primary_key=${{ steps.ccache-blacksmith.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
           echo "vcpkg_cache_primary_key=${{ steps.vcpkg-blacksmith.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
         else
