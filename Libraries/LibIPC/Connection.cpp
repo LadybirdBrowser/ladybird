@@ -21,8 +21,10 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Transport> t
 {
     m_transport->set_up_read_hook([this] {
         NonnullRefPtr protect = *this;
-        // FIXME: Do something about errors.
-        (void)drain_messages_from_peer();
+
+        if (auto result = drain_messages_from_peer(); result.is_error())
+            dbgln("Read hook error while draining messages: {}", result.error());
+
         handle_messages();
     });
 }
@@ -70,6 +72,9 @@ void ConnectionBase::handle_messages()
         if (message->endpoint_magic() != m_local_endpoint_magic)
             continue;
 
+        if (!is_open())
+            dbgln("Handling message while connection closed: {}", message->message_name());
+
         auto handler_result = m_local_stub.handle(move(message));
         if (handler_result.is_error()) {
             dbgln("IPC::ConnectionBase::handle_messages: {}", handler_result.error());
@@ -106,7 +111,9 @@ ErrorOr<void> ConnectionBase::drain_messages_from_peer()
         deferred_invoke([this] {
             handle_messages();
         });
-    } else if (schedule_shutdown == Transport::ShouldShutdown::Yes) {
+    }
+
+    if (schedule_shutdown == Transport::ShouldShutdown::Yes) {
         deferred_invoke([this] {
             shutdown();
         });
@@ -136,6 +143,23 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
         if (drain_messages_from_peer().is_error())
             break;
     }
+
+    dbgln("Failed to receive message_id: {}", message_id);
+
+    if (!m_unprocessed_messages.is_empty()) {
+        m_transport->close();
+
+        dbgln("Transport shutdown with unprocessed messages left: {}", m_unprocessed_messages.size());
+        for (size_t i = 0; i < m_unprocessed_messages.size(); ++i) {
+            auto& message = m_unprocessed_messages[i];
+            dbgln(" Message {:03} is: {:2}-{}", i, message->message_id(), message->message_name());
+        }
+
+        dbgln("Handling remaining messages before returning to caller");
+        handle_messages();
+        dbgln("Messages handled, returning to caller");
+    }
+
     return {};
 }
 
