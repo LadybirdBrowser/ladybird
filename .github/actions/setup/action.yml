@@ -119,6 +119,26 @@ runs:
         brew update
         brew install autoconf autoconf-archive automake bash ccache coreutils llvm@20 nasm ninja pkg-config qt unzip wabt
 
+    - name: Install Vulkan SDK (macOS)
+      if: ${{ inputs.os == 'macOS' }}
+      shell: bash
+      run: |
+        set -e
+        brew update
+        brew install molten-vk
+
+    - name: Install Vulkan SDK (Windows)
+      if: ${{ inputs.os == 'Windows' }}
+      uses: jakoch/install-vulkan-sdk-action@v1
+      with:
+        vulkan_version: 1.4.304.1
+        install_runtime: true
+        cache: true
+        stripdown: true
+        # FIXME: Get SwiftShader working so CI can run WebGPU tests with the Vulkan backend
+        #install_swiftshader: true
+        #swiftshader_destination: '${{ inputs.installPath }}/swiftshader'
+
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
       uses: actions/github-script@v7
