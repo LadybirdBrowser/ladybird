@@ -61,6 +61,7 @@ CSSStyleRule
 CSSStyleSheet
 CSSSupportsRule
 CSSTransition
+CacheStorage
 CanvasGradient
 CanvasPattern
 CanvasRenderingContext2D

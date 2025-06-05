@@ -44,6 +44,7 @@ static bool is_platform_object(Type const& type)
         "AudioTrack"sv,
         "BaseAudioContext"sv,
         "Blob"sv,
+        "CacheStorage"sv,
         "CanvasGradient"sv,
         "CanvasPattern"sv,
         "CanvasRenderingContext2D"sv,
