@@ -362,8 +362,6 @@ void StackingContext::paint(PaintContext& context) const
     }
 
     if (auto masking_area = paintable_box().get_masking_area(); masking_area.has_value()) {
-        if (masking_area->is_empty())
-            return;
         auto mask_bitmap = paintable_box().calculate_mask(context, *masking_area);
         if (mask_bitmap) {
             auto masking_area_rect = context.enclosing_device_rect(*masking_area).to_type<int>();
