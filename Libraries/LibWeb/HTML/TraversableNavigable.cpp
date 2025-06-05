@@ -61,9 +61,11 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
         skia_player = make<Painting::DisplayListPlayerSkia>();
     }
 
-    m_rendering_thread.set_skia_player(move(skia_player));
-    m_rendering_thread.set_skia_backend_context(m_skia_backend_context);
-    m_rendering_thread.start(display_list_player_type);
+    if (!page->client().is_svg_page_client()) {
+        m_rendering_thread.set_skia_player(move(skia_player));
+        m_rendering_thread.set_skia_backend_context(m_skia_backend_context);
+        m_rendering_thread.start(display_list_player_type);
+    }
 }
 
 TraversableNavigable::~TraversableNavigable() = default;

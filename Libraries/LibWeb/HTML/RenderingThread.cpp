@@ -28,7 +28,9 @@ RenderingThread::~RenderingThread()
 {
     // Note: Promise rejection is expected to signal the thread to exit.
     m_main_thread_exit_promise->reject(Error::from_errno(ECANCELED));
-    (void)m_thread->join();
+    if (m_thread) {
+        (void)m_thread->join();
+    }
 }
 
 void RenderingThread::start(DisplayListPlayerType display_list_player_type)
