@@ -40,6 +40,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
+#include <LibWeb/ServiceWorker/CacheStorage.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
 #include <LibWeb/UserTiming/PerformanceMeasure.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -77,6 +78,7 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
         entry.value.visit_edges(visitor);
     visitor.visit(m_registered_event_sources);
     visitor.visit(m_crypto);
+    visitor.visit(m_cache_storage);
     visitor.visit(m_resource_timing_secondary_buffer);
 }
 
@@ -1018,6 +1020,17 @@ GC::Ref<Crypto::Crypto> WindowOrWorkerGlobalScopeMixin::crypto()
     if (!m_crypto)
         m_crypto = realm.create<Crypto::Crypto>(realm);
     return GC::Ref { *m_crypto };
+}
+
+// https://w3c.github.io/ServiceWorker/#cache-storage-interface
+GC::Ref<ServiceWorker::CacheStorage> WindowOrWorkerGlobalScopeMixin::caches()
+{
+    auto& platform_object = this_impl();
+    auto& realm = platform_object.realm();
+
+    if (!m_cache_storage)
+        m_cache_storage = realm.create<ServiceWorker::CacheStorage>(realm);
+    return GC::Ref { *m_cache_storage };
 }
 
 }

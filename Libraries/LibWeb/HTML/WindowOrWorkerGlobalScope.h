@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntryTuple.h>
+#include <LibWeb/ServiceWorker/CacheStorage.h>
 #include <LibWeb/WebSockets/WebSocket.h>
 
 namespace Web::HTML {
@@ -100,6 +101,8 @@ public:
 
     [[nodiscard]] GC::Ref<Crypto::Crypto> crypto();
 
+    [[nodiscard]] GC::Ref<ServiceWorker::CacheStorage> caches();
+
 protected:
     void initialize(JS::Realm&);
     void visit_edges(JS::Cell::Visitor&);
@@ -145,6 +148,8 @@ private:
     mutable GC::Ptr<JS::Object> m_supported_entry_types_array;
 
     GC::Ptr<Crypto::Crypto> m_crypto;
+
+    GC::Ptr<ServiceWorker::CacheStorage> m_cache_storage;
 
     bool m_error_reporting_mode { false };
 
