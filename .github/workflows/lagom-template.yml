@@ -137,7 +137,7 @@ jobs:
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
-      - name: Setup Vulkan SDK (Windows)
+      - name: Install Vulkan SDK (Windows)
         if: ${{ inputs.os_name == 'Windows' }}
         uses: jakoch/install-vulkan-sdk-action@v1
         with:
