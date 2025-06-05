@@ -48,6 +48,9 @@ ladybird_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets suppor
 ladybird_option(ENABLE_WEBGPUNATIVE_VULKAN_IMPL ON CACHE BOOL "Enable the Vulkan backend for LibWebGPUNative")
 set(ENABLE_WEBGPUNATIVE ${ENABLE_WEBGPUNATIVE_VULKAN_IMPL})
 
+# FIXME: Get SwiftShader working so CI can run WebGPU tests with the Vulkan backend
+ladybird_option(ENABLE_WEBGPUNATIVE_TESTS OFF CACHE BOOL "Enable building and running LibWebGPUNative test targets")
+
 if (ENABLE_FUZZERS_LIBFUZZER)
     # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING "Type of target to use for try_compile()" FORCE)

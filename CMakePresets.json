@@ -79,7 +79,8 @@
       "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets",
+        "ENABLE_WEBGPUNATIVE_TESTS": "ON"
       }
     },
     {
@@ -91,7 +92,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets",
-        "ENABLE_WINDOWS_CI": "OFF"
+        "ENABLE_WINDOWS_CI": "OFF",
+        "ENABLE_WEBGPUNATIVE_TESTS": "ON"
       }
     },
     {
