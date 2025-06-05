@@ -30,16 +30,13 @@
     "alias-for": "slider-thumb"
   },
   "after": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-after",
-    "is-generated": true
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-after"
   },
   "backdrop": {
-    "spec": "https://drafts.csswg.org/css-position-4/#selectordef-backdrop",
-    "is-generated": true
+    "spec": "https://drafts.csswg.org/css-position-4/#selectordef-backdrop"
   },
   "before": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-before",
-    "is-generated": true
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-before"
   },
   "details-content": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-details-content"

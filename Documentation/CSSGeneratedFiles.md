@@ -169,7 +169,6 @@ Each entry has the following properties:
 |----------------------|----------|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `alias-for`          | No       | Nothing        | Use to specify that this should be treated as an alias for the named pseudo-element.                                                                                   |
 | `function-syntax`    | No       | Nothing        | Syntax for the function arguments if this is a function-type pseudo-element. Copied directly from the spec.                                                            |
-| `is-generated`       | No       | `false`        | Whether this is a [generated pseudo-element](https://drafts.csswg.org/css-pseudo-4/#generated-content).                                                                |
 | `is-allowed-in-has`  | No       | `false`        | Whether this is a [`:has`-allowed pseudo-element](https://drafts.csswg.org/selectors/#has-allowed-pseudo-element).                                                     |
 | `is-pseudo-root`     | No       | `false` | Whether this is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root).                                                                  |
 | `property-whitelist` | No       | Nothing        | Some pseudo-elements only permit certain properties. If so, name them in an array here. Some special values are allowed here for categories of properties - see below. |
@@ -184,9 +183,6 @@ The generated code provides:
 - `bool is_has_allowed_pseudo_element(PseudoElement)` returns whether the pseudo-element is valid inside `:has()`
 - `bool is_pseudo_element_root(PseudoElement)` returns whether the pseudo-element is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root)
 - `bool pseudo_element_supports_property(PseudoElement, PropertyID)` returns whether the property can be applied to this pseudo-element
-- A `GeneratedPseudoElement` enum listing only the pseudo-elements that are [generated content](https://drafts.csswg.org/css-pseudo-4/#generated-content)
-- `Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement)` for converting from `PseudoElement` to `GeneratedPseudoElement`. Returns nothing if it's not a generated pseudo-element
-- `PseudoElement to_pseudo_element(GeneratedPseudoElement)` does the opposite conversion
 
 ### `property-whitelist`
 
