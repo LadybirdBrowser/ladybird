@@ -87,6 +87,8 @@ set(AK_TEST_SOURCES
 #  it's own platform-specific tests to avoid if-def soup in the Unix-based tests.
 if(NOT WIN32)
     list(APPEND AK_TEST_SOURCES TestLexicalPath.cpp)
+else()
+    list(APPEND AK_TEST_SOURCES TestDelayLoadWindows.cpp)
 endif()
 
 foreach(source IN LISTS AK_TEST_SOURCES)
