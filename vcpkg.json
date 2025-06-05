@@ -140,6 +140,14 @@
       "name": "vulkan-headers",
       "platform": "!android"
     },
+    {
+      "name": "spirv-tools",
+      "platform": "!android"
+    },
+    {
+      "name": "spirv-cross",
+      "platform": "!android"
+    },
     "woff2",
     "zlib"
   ],
