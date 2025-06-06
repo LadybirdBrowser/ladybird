@@ -1,0 +1,4 @@
+// https://www.w3.org/TR/webgpu/#gpu-interface
+[Exposed=(Window,Worker), SecureContext]
+interface GPU {
+};
