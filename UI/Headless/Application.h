@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,14 +8,10 @@
 
 #include <AK/ByteString.h>
 #include <AK/Error.h>
-#include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWebView/Application.h>
 
 namespace Ladybird {
-
-class HeadlessWebView;
 
 class Application : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
@@ -32,17 +28,6 @@ public:
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions&) override;
 
     ErrorOr<void> launch_test_fixtures();
-
-    HeadlessWebView& create_web_view(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
-    HeadlessWebView& create_child_web_view(HeadlessWebView&, u64 page_index);
-    void destroy_web_views();
-
-    template<typename Callback>
-    void for_each_web_view(Callback&& callback)
-    {
-        for (auto& web_view : m_web_views)
-            callback(*web_view);
-    }
 
     static constexpr u8 VERBOSITY_LEVEL_LOG_TEST_DURATION = 1;
     static constexpr u8 VERBOSITY_LEVEL_LOG_SLOWEST_TESTS = 2;
@@ -66,9 +51,6 @@ public:
     int per_test_timeout_in_seconds { 30 };
     int width { 800 };
     int height { 600 };
-
-private:
-    Vector<NonnullOwnPtr<HeadlessWebView>> m_web_views;
 };
 
 }

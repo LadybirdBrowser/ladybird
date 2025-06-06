@@ -54,6 +54,8 @@ private:
 
     // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
     Optional<Web::Clipboard::SystemClipboardItem> m_clipboard;
+
+    Vector<NonnullOwnPtr<HeadlessWebView>> m_child_web_views;
 };
 
 }
