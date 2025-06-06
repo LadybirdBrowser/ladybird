@@ -115,6 +115,7 @@ JsonObject FrameActor::serialize_target() const
 
     JsonObject target;
     target.set("actor"sv, name());
+    target.set("targetType"sv, "frame"sv);
 
     if (auto tab_actor = m_tab.strong_ref()) {
         target.set("title"sv, tab_actor->description().title);

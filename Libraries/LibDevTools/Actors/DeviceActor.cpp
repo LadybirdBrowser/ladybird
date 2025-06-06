@@ -42,7 +42,7 @@ void DeviceActor::handle_message(Message const& message)
         value.set("version"sv, browser_version);
         value.set("appbuildid"sv, build_id);
         value.set("platformbuildid"sv, build_id);
-        value.set("platformversion"sv, "135.0"sv);
+        value.set("platformversion"sv, "139.0"sv);
         value.set("useragent"sv, Web::default_user_agent);
         value.set("os"sv, platform_name);
         value.set("arch"sv, arch);
