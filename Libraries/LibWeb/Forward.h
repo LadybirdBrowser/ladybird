@@ -1094,6 +1094,12 @@ class WebGLVertexArrayObjectOES;
 
 }
 
+namespace Web::WebGPU {
+
+class GPU;
+
+}
+
 namespace Web::WebIDL {
 
 class ArrayBufferView;
