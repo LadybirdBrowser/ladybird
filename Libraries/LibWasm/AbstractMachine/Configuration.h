@@ -21,6 +21,8 @@ public:
     {
         Label label(frame.arity(), frame.expression().instructions().size(), m_value_stack.size());
         frame.label_index() = m_label_stack.size();
+        if (auto hint = frame.expression().stack_usage_hint(); hint.has_value())
+            m_value_stack.ensure_capacity(*hint);
         m_frame_stack.append(move(frame));
         m_label_stack.append(label);
     }
