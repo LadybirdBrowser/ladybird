@@ -1,0 +1,6 @@
+// https://www.w3.org/TR/webgpu/#gpusupportedfeatures
+[Exposed=(Window, Worker), SecureContext]
+interface GPUSupportedFeatures {
+    // FIXME: Add IDL support for `readonly setlike<T>;`
+    setlike<DOMString>;
+};

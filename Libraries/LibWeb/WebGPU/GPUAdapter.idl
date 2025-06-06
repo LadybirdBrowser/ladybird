@@ -1,0 +1,27 @@
+#import <WebGPU/GPUAdapterInfo.idl>
+#import <WebGPU/GPUSupportedFeatures.idl>
+#import <WebGPU/GPUSupportedLimits.idl>
+
+// https://www.w3.org/TR/webgpu/#enumdef-gpupowerpreference
+enum GPUPowerPreference {
+    "low-power",
+    "high-performance",
+};
+
+// https://www.w3.org/TR/webgpu/#dictdef-gpurequestadapteroptions
+dictionary GPURequestAdapterOptions {
+    DOMString featureLevel = "core";
+    GPUPowerPreference powerPreference;
+    boolean forceFallbackAdapter = false;
+    [FIXME] boolean xrCompatible = false;
+};
+
+// https://www.w3.org/TR/webgpu/#gpuadapter
+[Exposed=(Window,Worker), SecureContext]
+interface GPUAdapter {
+    [SameObject] readonly attribute GPUSupportedFeatures features;
+    [SameObject] readonly attribute GPUSupportedLimits limits;
+    [SameObject] readonly attribute GPUAdapterInfo info;
+
+    [FIXME] Promise<GPUDevice> requestDevice(optional GPUDeviceDescriptor descriptor = {});
+};
