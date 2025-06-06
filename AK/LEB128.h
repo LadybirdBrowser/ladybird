@@ -28,7 +28,18 @@ public:
     requires(Unsigned<ValueType>)
     {
         // First byte is unrolled for speed
-        auto byte = TRY(stream.read_value<u8>());
+        u8 byte;
+        do {
+            auto result = stream.read_some({ &byte, 1 });
+            if (result.is_error() && result.error().is_errno() && (result.error().code() == EAGAIN || result.error().code() == EINTR))
+                continue;
+            if (result.is_error())
+                return result.release_error();
+            if (result.value().size() != 1)
+                return Error::from_string_literal("EOF reached before expected end");
+            break;
+        } while (true);
+
         if ((byte & 0x80) == 0)
             return LEB128<ValueType> { byte };
 
