@@ -175,13 +175,13 @@ TEST_CASE(attributes)
 
         Vector<WGSL::Token> const expected = {
             { WGSL::SyntacticToken { WGSL::SyntacticToken::Value::At }, 0, 1, 1 },
-            { WGSL::AttributeToken { WGSL::BuiltinAttribute { WGSL::BuiltinAttribute::Flags::Position } }, 1, 1, 2 },
+            { WGSL::AttributeToken { WGSL::BuiltinAttributeToken { WGSL::BuiltinAttributeToken::Flags::Position } }, 1, 1, 2 },
             { WGSL::SyntacticToken { WGSL::SyntacticToken::Value::At }, 19, 1, 20 },
-            { WGSL::AttributeToken { WGSL::LocationAttribute { 0 } }, 20, 1, 21 },
+            { WGSL::AttributeToken { WGSL::LocationAttributeToken { 0 } }, 20, 1, 21 },
             { WGSL::SyntacticToken { WGSL::SyntacticToken::Value::At }, 32, 1, 33 },
-            { WGSL::AttributeToken { WGSL::VertexAttribute {} }, 33, 1, 34 },
+            { WGSL::AttributeToken { WGSL::VertexAttributeToken {} }, 33, 1, 34 },
             { WGSL::SyntacticToken { WGSL::SyntacticToken::Value::At }, 40, 1, 41 },
-            { WGSL::AttributeToken { WGSL::FragmentAttribute {} }, 41, 1, 42 },
+            { WGSL::AttributeToken { WGSL::FragmentAttributeToken {} }, 41, 1, 42 },
             { WGSL::EndOfFileToken {}, 49, 1, 50 },
         };
 
@@ -400,23 +400,23 @@ fn fragment_main(fragData: VertexOut) -> @location(0) vec4f {
         using WGSL::IdentifierToken;
         using WGSL::SyntacticToken;
         using WGSL::AttributeToken;
-        using WGSL::BuiltinAttribute;
-        using WGSL::FragmentAttribute;
-        using WGSL::VertexAttribute;
-        using WGSL::LocationAttribute;
+        using WGSL::BuiltinAttributeToken;
+        using WGSL::FragmentAttributeToken;
+        using WGSL::VertexAttributeToken;
+        using WGSL::LocationAttributeToken;
         using WGSL::EndOfFileToken;
         Vector<WGSL::Token> const expected = {
             { KeywordToken { KeywordToken::Value::Struct }, 1, 2, 1 },
             { IdentifierToken { "VertexIn"_string }, 8, 2, 8 },
             { SyntacticToken { SyntacticToken::Value::OpenBrace }, 17, 2, 17 },
             { SyntacticToken { SyntacticToken::Value::At }, 21, 3, 3 },
-            { AttributeToken { LocationAttribute { 0 } }, 22, 3, 4 },
+            { AttributeToken { LocationAttributeToken { 0 } }, 22, 3, 4 },
             { IdentifierToken { "position"_string }, 34, 3, 16 },
             { SyntacticToken { SyntacticToken::Value::Colon }, 42, 3, 24 },
             { TypeToken { TypeToken::Value::vec4f }, 44, 3, 26 },
             { SyntacticToken { SyntacticToken::Value::Comma }, 49, 3, 31 },
             { SyntacticToken { SyntacticToken::Value::At }, 53, 4, 3 },
-            { AttributeToken { LocationAttribute { 1 } }, 54, 4, 4 },
+            { AttributeToken { LocationAttributeToken { 1 } }, 54, 4, 4 },
             { IdentifierToken { "color"_string }, 66, 4, 16 },
             { SyntacticToken { SyntacticToken::Value::Colon }, 71, 4, 21 },
             { TypeToken { TypeToken::Value::vec4f }, 73, 4, 23 },
@@ -427,19 +427,19 @@ fn fragment_main(fragData: VertexOut) -> @location(0) vec4f {
             { IdentifierToken { "VertexOut"_string }, 91, 7, 8 },
             { SyntacticToken { SyntacticToken::Value::OpenBrace }, 101, 7, 18 },
             { SyntacticToken { SyntacticToken::Value::At }, 105, 8, 3 },
-            { AttributeToken { BuiltinAttribute { BuiltinAttribute::Flags::Position } }, 106, 8, 4 },
+            { AttributeToken { BuiltinAttributeToken { BuiltinAttributeToken::Flags::Position } }, 106, 8, 4 },
             { IdentifierToken { "position"_string }, 124, 8, 22 },
             { SyntacticToken { SyntacticToken::Value::Colon }, 133, 8, 31 },
             { TypeToken { TypeToken::Value::vec4f }, 135, 8, 33 },
             { SyntacticToken { SyntacticToken::Value::Comma }, 140, 8, 38 },
             { SyntacticToken { SyntacticToken::Value::At }, 144, 9, 3 },
-            { AttributeToken { LocationAttribute { 0 } }, 145, 9, 4 },
+            { AttributeToken { LocationAttributeToken { 0 } }, 145, 9, 4 },
             { IdentifierToken { "color"_string }, 157, 9, 16 },
             { SyntacticToken { SyntacticToken::Value::Colon }, 163, 9, 22 },
             { TypeToken { TypeToken::Value::vec4f }, 165, 9, 24 },
             { SyntacticToken { SyntacticToken::Value::CloseBrace }, 171, 10, 1 },
             { SyntacticToken { SyntacticToken::Value::At }, 174, 12, 1 },
-            { AttributeToken { VertexAttribute {} }, 175, 12, 2 },
+            { AttributeToken { VertexAttributeToken {} }, 175, 12, 2 },
             { KeywordToken { KeywordToken::Value::Fn }, 182, 13, 1 },
             { IdentifierToken { "vertex_main"_string }, 185, 13, 4 },
             { SyntacticToken { SyntacticToken::Value::OpenParen }, 196, 13, 15 },
@@ -476,7 +476,7 @@ fn fragment_main(fragData: VertexOut) -> @location(0) vec4f {
             { SyntacticToken { SyntacticToken::Value::Semicolon }, 336, 17, 16 },
             { SyntacticToken { SyntacticToken::Value::CloseBrace }, 338, 18, 1 },
             { SyntacticToken { SyntacticToken::Value::At }, 341, 20, 1 },
-            { AttributeToken { FragmentAttribute {} }, 342, 20, 2 },
+            { AttributeToken { FragmentAttributeToken {} }, 342, 20, 2 },
             { KeywordToken { KeywordToken::Value::Fn }, 351, 21, 1 },
             { IdentifierToken { "fragment_main"_string }, 354, 21, 4 },
             { SyntacticToken { SyntacticToken::Value::OpenParen }, 367, 21, 17 },
@@ -486,7 +486,7 @@ fn fragment_main(fragData: VertexOut) -> @location(0) vec4f {
             { SyntacticToken { SyntacticToken::Value::CloseParen }, 387, 21, 37 },
             { SyntacticToken { SyntacticToken::Value::Arrow }, 389, 21, 39 },
             { SyntacticToken { SyntacticToken::Value::At }, 392, 21, 42 },
-            { AttributeToken { LocationAttribute { 0 } }, 393, 21, 43 },
+            { AttributeToken { LocationAttributeToken { 0 } }, 393, 21, 43 },
             { TypeToken { TypeToken::Value::vec4f }, 405, 21, 55 },
             { SyntacticToken { SyntacticToken::Value::OpenBrace }, 411, 21, 61 },
             { KeywordToken { KeywordToken::Value::Return }, 415, 22, 3 },

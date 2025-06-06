@@ -242,7 +242,7 @@ Token Lexer::tokenize_attribute(StringView const name, size_t const start_pos, s
 
         if (name == "builtin") {
             if (arg == "position") {
-                return Token { AttributeToken { BuiltinAttribute { BuiltinAttribute::Flags::Position } }, start_pos, start_line, start_column };
+                return Token { AttributeToken { BuiltinAttributeToken { BuiltinAttributeToken::Flags::Position } }, start_pos, start_line, start_column };
             }
             return Token { InvalidToken { "Invalid builtin attribute argument"sv }, start_pos, start_line, start_column };
         }
@@ -251,16 +251,16 @@ Token Lexer::tokenize_attribute(StringView const name, size_t const start_pos, s
             if (!maybe_value.has_value()) {
                 return Token { InvalidToken { "Invalid location attribute argument"sv }, start_pos, start_line, start_column };
             }
-            return Token { AttributeToken { LocationAttribute { maybe_value.value() } }, start_pos, start_line, start_column };
+            return Token { AttributeToken { LocationAttributeToken { maybe_value.value() } }, start_pos, start_line, start_column };
         }
         return Token { InvalidToken { "Invalid attribute with arguments"sv }, start_pos, start_line, start_column };
     }
 
     if (name == "vertex") {
-        return Token { AttributeToken { VertexAttribute {} }, start_pos, start_line, start_column };
+        return Token { AttributeToken { VertexAttributeToken {} }, start_pos, start_line, start_column };
     }
     if (name == "fragment") {
-        return Token { AttributeToken { FragmentAttribute {} }, start_pos, start_line, start_column };
+        return Token { AttributeToken { FragmentAttributeToken {} }, start_pos, start_line, start_column };
     }
 
     return Token { InvalidToken { "Invalid attribute name"sv }, start_pos, start_line, start_column };
@@ -359,22 +359,22 @@ String Token::to_string() const
         },
         [&](AttributeToken const& token) {
             token.visit(
-                [&](BuiltinAttribute const& attr) {
+                [&](BuiltinAttributeToken const& attr) {
                     String value;
                     switch (attr.value) {
-                    case BuiltinAttribute::Flags::Position:
+                    case BuiltinAttributeToken::Flags::Position:
                         value = "Position"_string;
                         break;
                     }
                     builder.appendff("Attribute:Builtin[{}]", value);
                 },
-                [&](LocationAttribute const& attr) {
+                [&](LocationAttributeToken const& attr) {
                     builder.appendff("Attribute:Location[{}]", attr.value);
                 },
-                [&](VertexAttribute const&) {
+                [&](VertexAttributeToken const&) {
                     builder.append("Attribute:Vertex"_string);
                 },
-                [&](FragmentAttribute const&) {
+                [&](FragmentAttributeToken const&) {
                     builder.append("Attribute:Fragment"_string);
                 });
         });
