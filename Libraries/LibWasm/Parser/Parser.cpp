@@ -228,10 +228,13 @@ ParseResult<BlockType> BlockType::parse(Stream& stream)
     return BlockType { TypeIndex(index_value) };
 }
 
-ParseResult<Instruction> Instruction::parse(Stream& stream)
+ParseResult<Instruction> Instruction::parse(Stream& in_stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Instruction"sv);
-    auto byte = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+    auto& stream = as<ConstrainedStream>(in_stream);
+    u8 byte;
+    if (auto result = stream.read_some({ &byte, 1 }); result.is_error() || result.value().size() != 1)
+        return ParseError::ExpectedKindTag;
 
     OpCode opcode { byte };
 
@@ -862,22 +865,21 @@ ParseResult<CustomSection> CustomSection::parse(Stream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("CustomSection"sv);
     auto name = TRY(parse_name(stream));
-
-    ByteBuffer data_buffer;
-    if (data_buffer.try_resize(64).is_error())
+    auto& concrete_stream = as<ConstrainedStream>(stream);
+    auto remaining = concrete_stream.remaining();
+    auto maybe_data_buffer = ByteBuffer::create_uninitialized(remaining);
+    if (maybe_data_buffer.is_error())
         return ParseError::OutOfMemory;
+    auto data_buffer = maybe_data_buffer.release_value();
 
-    while (!stream.is_eof()) {
-        char buf[16];
-        auto span_or_error = stream.read_some({ buf, 16 });
-        if (span_or_error.is_error())
-            break;
-        auto size = span_or_error.release_value().size();
-        if (size == 0)
-            break;
-        if (data_buffer.try_append(buf, size).is_error())
-            return ParseError::HugeAllocationRequested;
-    }
+    size_t nread = 0;
+    do {
+        auto read = MUST(concrete_stream.read_some(data_buffer.bytes().slice(nread)));
+        nread += read.size();
+    } while (nread != remaining && !concrete_stream.is_eof());
+
+    if (nread != remaining)
+        return ParseError::UnexpectedEof;
 
     return CustomSection(name, move(data_buffer));
 }
