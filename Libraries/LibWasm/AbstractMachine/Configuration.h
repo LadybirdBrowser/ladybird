@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/DoublyLinkedList.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 
 namespace Wasm {
@@ -68,8 +69,8 @@ public:
 private:
     Store& m_store;
     Vector<Value> m_value_stack;
-    Vector<Label> m_label_stack;
-    Vector<Frame> m_frame_stack;
+    DoublyLinkedList<Label, 32> m_label_stack;
+    DoublyLinkedList<Frame, 32> m_frame_stack;
     size_t m_depth { 0 };
     InstructionPointer m_ip;
     bool m_should_limit_instruction_count { false };
