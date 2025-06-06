@@ -4,23 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/ArgsParser.h>
-#include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
-#include <LibWebView/EventLoop/EventLoopImplementationQt.h>
-#include <LibWebView/HelperProcess.h>
-#include <LibWebView/ProcessManager.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Settings.h>
-#include <UI/Qt/WebContentView.h>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #    include <QStyleHints>
@@ -71,40 +64,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-    Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
-
     auto app = Ladybird::Application::create(arguments);
 
-    static_cast<WebView::EventLoopImplementationQt&>(Core::EventLoop::current().impl()).set_main_loop();
     TRY(handle_attached_debugger());
 
     WebView::platform_init();
-
-    WebView::BrowserProcess browser_process;
-
-    if (app->browser_options().force_new_process == WebView::ForceNewProcess::No) {
-        auto disposition = TRY(browser_process.connect(app->browser_options().raw_urls, app->browser_options().new_window));
-
-        if (disposition == WebView::BrowserProcess::ProcessDisposition::ExitProcess) {
-            outln("Opening in existing process");
-            return 0;
-        }
-    }
-
-    browser_process.on_new_tab = [&](auto const& urls) {
-        auto& window = app->active_window();
-        for (size_t i = 0; i < urls.size(); ++i) {
-            window.new_tab_from_url(urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);
-        }
-        window.show();
-        window.activateWindow();
-        window.raise();
-    };
-
-    app->on_open_file = [&](auto file_url) {
-        auto& window = app->active_window();
-        window.view().load(file_url);
-    };
+    WebView::copy_default_config_files(Ladybird::Settings::the()->directory());
 
 #if defined(AK_OS_MACOS)
     auto mach_port_server = make<WebView::MachPortServer>();
@@ -119,27 +84,52 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     };
 #endif
 
-    WebView::copy_default_config_files(Ladybird::Settings::the()->directory());
-
+    WebView::BrowserProcess browser_process;
     TRY(app->launch_services());
 
-    browser_process.on_new_window = [&](auto const& urls) {
-        app->new_window(urls);
-    };
+    if (auto const& browser_options = Ladybird::Application::browser_options(); !browser_options.headless_mode.has_value()) {
+        if (browser_options.force_new_process == WebView::ForceNewProcess::No) {
+            auto disposition = TRY(browser_process.connect(browser_options.raw_urls, browser_options.new_window));
 
-    auto& window = app->new_window(app->browser_options().urls);
-    window.setWindowTitle("Ladybird");
+            if (disposition == WebView::BrowserProcess::ProcessDisposition::ExitProcess) {
+                outln("Opening in existing process");
+                return 0;
+            }
+        }
 
-    if (Ladybird::Settings::the()->is_maximized()) {
-        window.showMaximized();
-    } else {
-        auto last_position = Ladybird::Settings::the()->last_position();
-        if (last_position.has_value())
-            window.move(last_position.value());
-        window.resize(Ladybird::Settings::the()->last_size());
+        app->on_open_file = [&](auto const& file_url) {
+            auto& window = app->active_window();
+            window.view().load(file_url);
+        };
+
+        browser_process.on_new_tab = [&](auto const& urls) {
+            auto& window = app->active_window();
+            for (size_t i = 0; i < urls.size(); ++i) {
+                window.new_tab_from_url(urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);
+            }
+            window.show();
+            window.activateWindow();
+            window.raise();
+        };
+
+        browser_process.on_new_window = [&](auto const& urls) {
+            app->new_window(urls);
+        };
+
+        auto& window = app->new_window(browser_options.urls);
+        window.setWindowTitle("Ladybird");
+
+        if (Ladybird::Settings::the()->is_maximized()) {
+            window.showMaximized();
+        } else {
+            auto last_position = Ladybird::Settings::the()->last_position();
+            if (last_position.has_value())
+                window.move(last_position.value());
+            window.resize(Ladybird::Settings::the()->last_size());
+        }
+
+        window.show();
     }
-
-    window.show();
 
     return app->execute();
 }

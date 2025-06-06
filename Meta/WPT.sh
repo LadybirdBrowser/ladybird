@@ -79,7 +79,9 @@ WPT_CERTIFICATES=(
     "tools/certs/cacert.pem"
     "${BUILD_DIR}/Lagom/cacert.pem"
 )
-WPT_ARGS=( "--webdriver-binary=${WEBDRIVER_BINARY}"
+WPT_ARGS=(
+    "--binary=${LADYBIRD_BINARY}"
+    "--webdriver-binary=${WEBDRIVER_BINARY}"
     "--install-webdriver"
     "--webdriver-arg=--force-cpu-painting"
     "--no-pause-after-test"
@@ -207,10 +209,7 @@ while [[ "$ARG" =~ ^(--show-window|--debug-process|--parallel-instances|(--log(-
 done
 
 if [ $headless -eq 1 ]; then
-    WPT_ARGS+=( "--binary=${HEADLESS_BROWSER_BINARY}" )
     WPT_ARGS+=( "--webdriver-arg=--headless" )
-else
-    WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
 fi
 
 exit_if_running_as_root "Do not run WPT.sh as root"

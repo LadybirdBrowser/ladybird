@@ -34,7 +34,7 @@ class Application : public DevTools::DevToolsDelegate {
 public:
     virtual ~Application();
 
-    int execute();
+    ErrorOr<int> execute();
 
     static Application& the() { return *s_the; }
 
@@ -49,8 +49,6 @@ public:
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
 
     static ProcessManager& process_manager() { return the().m_process_manager; }
-
-    Core::EventLoop& event_loop() { return m_event_loop; }
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
     ErrorOr<void> launch_services();
@@ -88,6 +86,7 @@ protected:
 
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(BrowserOptions&, WebContentOptions&) { }
+    virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
 
@@ -149,7 +148,7 @@ private:
 
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
-    Core::EventLoop m_event_loop;
+    OwnPtr<Core::EventLoop> m_event_loop;
     ProcessManager m_process_manager;
     bool m_in_shutdown { false };
 

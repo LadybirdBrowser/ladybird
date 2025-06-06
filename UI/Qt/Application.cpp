@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/ArgsParser.h>
+#include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/Settings.h>
@@ -20,12 +21,23 @@ Application::Application(Badge<WebView::Application>, Main::Arguments& arguments
 {
 }
 
+Application::~Application() = default;
+
 void Application::create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions& web_content_options)
 {
     web_content_options.config_path = Settings::the()->directory();
 }
 
-Application::~Application() = default;
+NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
+{
+    Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
+    auto event_loop = WebView::Application::create_platform_event_loop();
+
+    if (!browser_options().headless_mode.has_value())
+        static_cast<WebView::EventLoopImplementationQt&>(event_loop->impl()).set_main_loop();
+
+    return event_loop;
+}
 
 bool Application::event(QEvent* event)
 {
