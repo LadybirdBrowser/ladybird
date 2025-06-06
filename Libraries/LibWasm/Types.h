@@ -708,8 +708,12 @@ public:
 
     static ParseResult<Expression> parse(ConstrainedStream& stream, Optional<size_t> size_hint = {});
 
+    void set_stack_usage_hint(size_t value) const { m_stack_usage_hint = value; }
+    auto stack_usage_hint() const { return m_stack_usage_hint; }
+
 private:
     Vector<Instruction> m_instructions;
+    mutable Optional<size_t> m_stack_usage_hint;
 };
 
 class GlobalSection {
