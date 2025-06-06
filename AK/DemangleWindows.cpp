@@ -23,7 +23,7 @@ ByteString demangle(StringView name)
     // Unfortunately, there is no way to know the exact size needed beforehand.
     // Also calling UnDecorateSymbolName with a too small buffer will not return
     // an error, it will just truncate the result.
-    char buffer[128] = {};
+    char buffer[4096] = {};
 
     // UNDNAME_COMPLETE asks for the full decoration (equivalent to g++’s default
     // demangle)

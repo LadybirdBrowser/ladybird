@@ -8,7 +8,7 @@
 
 #include <AK/Demangle.h>
 
-#include <Windows.h>
+#include <AK/Windows.h>
 #include <psapi.h>
 
 static bool is_dll_loaded(wchar_t const* dll_name)
