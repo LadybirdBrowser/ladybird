@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<style>
+li { list-style-type:none; }
+
+li#i3::before { content: "3. "}
+li#i2::before { content: "2. "}
+li#i2_1::before { content: "2.1. "}
+li#i2_2::before { content: "2.2. "}
+
+li#i2_2_10::before { content: "2.2.10. "}
+li#i2_2_9::before  { content: "2.2.9. "}
+li#i2_2_8::before  { content: "2.2.8. "}
+li#i2_2_7::before  { content: "2.2.7. "}
+li#i2_2_4::before  { content: "2.2.4. "}
+li#i2_2_3::before  { content: "2.2.3. "}
+
+li#i2_8::before { content: "2.8. "}
+li#i2_9::before { content: "2.9. "}
+li#i1::before { content: "1. "}
+</style>
+<ol>
+  <li id="i3">Three
+  <li id="i2">Two
+    <ol>
+      <li id="i2_1">Two-One
+      <li id="i2_2">Two-Two
+        <ol>
+          <li id="i2_2_10">Two-Two-Ten
+          <li id="i2_2_9">Two-Two-Nine
+          <li id="i2_2_8">Two-Two-Eight
+          <li id="i2_2_7">Two-Two-Seven
+          <li id="i2_2_4">Two-Two-Four
+          <li id="i2_2_3">Two-Two-Three
+        </ol>
+      <li id="i2_8">Two-Eight
+      <li id="i2_9">Two-Nine
+    </ol>
+  <li id="i1">One
+</ol>
+</html>

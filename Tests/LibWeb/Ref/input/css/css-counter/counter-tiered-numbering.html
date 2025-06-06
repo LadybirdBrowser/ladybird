@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<link rel="match" href="../../../expected/css/css-counter/counter-tiered-numbering-ref.html" />
+<!---
+    This test should also cover the full functionality of the reversed counters.
+    FIXME: At this time, ::marker pseudo-elements do not support `content`, so tiered numbering
+    cannot be included in li::marker, yet.
+-->
+<style>
+ol {
+    counter-reset: list-item;
+}
+li {
+    counter-increment: list-item 1;
+    list-style-type:none;
+}
+.Set8 { counter-set: list-item 8; }
+.Set4 { counter-set: list-item 4; }
+
+ol[reversed] { counter-reset: reversed(list-item);}
+ol[reversed] > li { counter-increment: list-item -1; }
+li::before { content: counters(list-item, '.') '. ';}
+
+</style>
+
+<ol id="o1" reversed>
+    <li id="i3">Three
+    <li id="i2">Two
+    <ol id="o2">
+        <li id="i2_1">Two-One
+        <li id="i2_2">Two-Two
+        <ol id="o3" reversed>
+            <li id="i2_2_10">Two-Two-Ten
+            <li id="i2_2_9">Two-Two-Nine
+            <li id="i2_2_8" class=Set8>Two-Two-Eight
+            <li id="i2_2_7">Two-Two-Seven
+            <li id="i2_2_4" class=Set4>Two-Two-Four
+            <li id="i2_2_3">Two-Two-Three
+        </ol>
+        <li id="i2_8" class="Set8">Two-Eight
+        <li id="i2_9">Two-Nine
+    </ol>
+    <li id="i1">One
+</ol>
+
+</html>
