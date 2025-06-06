@@ -3736,6 +3736,8 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
     m_frames.take_last();
     VERIFY(m_frames.is_empty());
 
+    expression.set_stack_usage_hint(stack.max_known_size());
+
     return ExpressionTypeResult { stack.release_vector(), is_constant_expression };
 }
 
