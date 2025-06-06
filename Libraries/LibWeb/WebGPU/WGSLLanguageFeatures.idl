@@ -1,0 +1,6 @@
+// https://www.w3.org/TR/webgpu/#gpuwgsllanguagefeatures
+[Exposed=(Window, Worker), SecureContext]
+interface WGSLLanguageFeatures {
+    // FIXME: Add IDL support for `readonly setlike<T>;`
+    setlike<DOMString>;
+};
