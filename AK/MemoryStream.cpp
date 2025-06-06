@@ -44,13 +44,6 @@ ErrorOr<void> FixedMemoryStream::truncate(size_t)
     return Error::from_errno(EBADF);
 }
 
-ErrorOr<Bytes> FixedMemoryStream::read_some(Bytes bytes)
-{
-    auto read = m_bytes.slice(m_offset).copy_trimmed_to(bytes);
-    m_offset += read;
-    return bytes.trim(read);
-}
-
 ErrorOr<void> FixedMemoryStream::read_until_filled(AK::Bytes bytes)
 {
     if (remaining() < bytes.size())
