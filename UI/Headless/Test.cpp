@@ -490,7 +490,7 @@ static void set_ui_callbacks_for_tests(HeadlessWebView& view)
     };
 }
 
-ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
+ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
 {
     auto& app = Application::the();
     TRY(load_test_config(app.test_root_path));
@@ -527,7 +527,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
         for (auto const& [i, test] : enumerate(tests))
             outln("{}/{}: {}", i + 1, tests.size(), test.relative_path);
 
-        return {};
+        return 0;
     }
 
     if (tests.is_empty()) {
@@ -560,7 +560,6 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     size_t timeout_count = 0;
     size_t crashed_count = 0;
     size_t skipped_count = 0;
-    bool all_tests_ok = true;
 
     // Keep clearing and reusing the same line if stdout is a TTY.
     bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
@@ -613,15 +612,12 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
                 ++pass_count;
                 break;
             case TestResult::Fail:
-                all_tests_ok = false;
                 ++fail_count;
                 break;
             case TestResult::Timeout:
-                all_tests_ok = false;
                 ++timeout_count;
                 break;
             case TestResult::Crashed:
-                all_tests_ok = false;
                 ++crashed_count;
                 break;
             case TestResult::Skipped:
@@ -685,10 +681,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
         }
     }
 
-    if (all_tests_ok)
-        return {};
-
-    return Error::from_string_literal("Failed LibWeb tests");
+    return fail_count + timeout_count + crashed_count;
 }
 
 }

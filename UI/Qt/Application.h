@@ -35,6 +35,7 @@ public:
 
 private:
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions&) override;
+    virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
 
     virtual Optional<ByteString> ask_user_for_download_folder() const override;
 
