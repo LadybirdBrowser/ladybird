@@ -6,7 +6,6 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <UI/Headless/Application.h>
 #include <UI/Headless/HeadlessWebView.h>
 
 namespace Ladybird {
@@ -19,13 +18,12 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     , m_test_promise(TestPromise::construct())
 {
     on_new_web_view = [this](auto, auto, Optional<u64> page_index) {
-        if (page_index.has_value()) {
-            auto& web_view = Application::the().create_child_web_view(*this, *page_index);
-            return web_view.handle();
-        }
+        auto web_view = page_index.has_value()
+            ? HeadlessWebView::create_child(*this, *page_index)
+            : HeadlessWebView::create(m_theme, m_viewport_size);
 
-        auto& web_view = Application::the().create_web_view(m_theme, m_viewport_size);
-        return web_view.handle();
+        m_child_web_views.append(move(web_view));
+        return m_child_web_views.last()->handle();
     };
 
     on_reposition_window = [this](auto position) {
