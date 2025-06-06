@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -539,9 +539,14 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     auto concurrency = min(app.test_concurrency, tests.size());
     size_t loaded_web_views = 0;
 
+    Vector<NonnullOwnPtr<HeadlessWebView>> views;
+    views.ensure_capacity(concurrency);
+
     for (size_t i = 0; i < concurrency; ++i) {
-        auto& view = app.create_web_view(theme, window_size);
-        view.on_load_finish = [&](auto const&) { ++loaded_web_views; };
+        auto view = HeadlessWebView::create(theme, window_size);
+        view->on_load_finish = [&](auto const&) { ++loaded_web_views; };
+
+        views.unchecked_append(move(view));
     }
 
     // We need to wait for the initial about:blank load to complete before starting the tests, otherwise we may load the
@@ -567,9 +572,9 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 
     Vector<TestCompletion> non_passing_tests;
 
-    app.for_each_web_view([&](auto& view) {
-        set_ui_callbacks_for_tests(view);
-        view.clear_content_filters();
+    for (auto& view : views) {
+        set_ui_callbacks_for_tests(*view);
+        view->clear_content_filters();
 
         auto run_next_test = [&]() {
             auto index = current_test++;
@@ -589,13 +594,13 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 
             Core::deferred_invoke([&]() mutable {
                 if (s_skipped_tests.contains_slow(test.input_path))
-                    view.on_test_complete({ test, TestResult::Skipped });
+                    view->on_test_complete({ test, TestResult::Skipped });
                 else
-                    run_test(view, test, app);
+                    run_test(*view, test, app);
             });
         };
 
-        view.test_promise().when_resolved([&, run_next_test](auto result) {
+        view->test_promise().when_resolved([&, run_next_test](auto result) {
             result.test.end_time = UnixDateTime::now();
 
             if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
@@ -636,7 +641,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
         Core::deferred_invoke([run_next_test]() {
             run_next_test();
         });
-    });
+    }
 
     MUST(all_tests_complete->await());
 
@@ -672,15 +677,13 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     }
 
     if (app.dump_gc_graph) {
-        app.for_each_web_view([&](auto& view) {
-            if (auto path = view.dump_gc_graph(); path.is_error())
+        for (auto& view : views) {
+            if (auto path = view->dump_gc_graph(); path.is_error())
                 warnln("Failed to dump GC graph: {}", path.error());
             else
                 outln("GC graph dumped to {}", path.value());
-        });
+        }
     }
-
-    app.destroy_web_views();
 
     if (all_tests_ok)
         return {};

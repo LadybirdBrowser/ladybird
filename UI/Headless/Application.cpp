@@ -1,18 +1,15 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
 #include <LibCore/System.h>
-#include <LibWebView/HelperProcess.h>
 #include <LibWebView/Utilities.h>
 #include <UI/Headless/Application.h>
 #include <UI/Headless/Fixture.h>
-#include <UI/Headless/HeadlessWebView.h>
 
 namespace Ladybird {
 
@@ -125,27 +122,6 @@ ErrorOr<void> Application::launch_test_fixtures()
     }
 
     return {};
-}
-
-HeadlessWebView& Application::create_web_view(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
-{
-    auto web_view = HeadlessWebView::create(move(theme), window_size);
-    m_web_views.append(move(web_view));
-
-    return *m_web_views.last();
-}
-
-HeadlessWebView& Application::create_child_web_view(HeadlessWebView& parent, u64 page_index)
-{
-    auto web_view = HeadlessWebView::create_child(parent, page_index);
-    m_web_views.append(move(web_view));
-
-    return *m_web_views.last();
-}
-
-void Application::destroy_web_views()
-{
-    m_web_views.clear();
 }
 
 }

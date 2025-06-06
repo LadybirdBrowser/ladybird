@@ -78,22 +78,22 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         return 0;
     }
 
-    auto& view = app->create_web_view(move(theme), window_size);
+    auto view = Ladybird::HeadlessWebView::create(move(theme), window_size);
 
     VERIFY(!WebView::Application::browser_options().urls.is_empty());
     auto const& url = WebView::Application::browser_options().urls.first();
 
     if (app->dump_layout_tree || app->dump_text) {
         Ladybird::Test test { app->dump_layout_tree ? Ladybird::TestMode::Layout : Ladybird::TestMode::Text };
-        Ladybird::run_dump_test(view, test, url, app->per_test_timeout_in_seconds * 1000);
+        Ladybird::run_dump_test(*view, test, url, app->per_test_timeout_in_seconds * 1000);
 
-        auto completion = MUST(view.test_promise().await());
+        auto completion = MUST(view->test_promise().await());
         return completion.result == Ladybird::TestResult::Pass ? 0 : 1;
     }
 
     RefPtr<Core::Timer> timer;
     if (!WebView::Application::browser_options().webdriver_content_ipc_path.has_value())
-        timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), view, url, app->screenshot_timeout, app->screenshot_path));
+        timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), *view, url, app->screenshot_timeout, app->screenshot_path));
 
     return app->execute();
 }
