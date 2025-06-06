@@ -23,12 +23,14 @@ class WebUI;
 
 struct Attribute;
 struct AutocompleteEngine;
+struct BrowserOptions;
 struct ConsoleOutput;
 struct CookieStorageKey;
 struct DOMNodeProperties;
 struct Mutation;
 struct ProcessHandle;
 struct SearchEngine;
+struct WebContentOptions;
 
 }
 
