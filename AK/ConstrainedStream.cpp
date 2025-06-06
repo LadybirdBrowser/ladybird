@@ -17,13 +17,8 @@ ConstrainedStream::ConstrainedStream(MaybeOwned<Stream> stream, u64 limit)
 
 ErrorOr<Bytes> ConstrainedStream::read_some(Bytes bytes)
 {
-    if (bytes.size() >= m_limit)
-        bytes = bytes.trim(m_limit);
-
-    auto result = TRY(m_stream->read_some(bytes));
-
+    auto result = TRY(m_stream->read_some(bytes.trim(m_limit)));
     m_limit -= result.size();
-
     return result;
 }
 
