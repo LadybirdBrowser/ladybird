@@ -35,7 +35,7 @@ ParseError with_eof_check(Stream const& stream, ParseError error_if_not_eof)
 }
 
 template<typename T>
-static auto parse_vector(Stream& stream)
+static auto parse_vector(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger;
     if constexpr (requires { T::parse(stream); }) {
@@ -88,7 +88,7 @@ static auto parse_vector(Stream& stream)
     }
 }
 
-static ParseResult<ByteString> parse_name(Stream& stream)
+static ParseResult<ByteString> parse_name(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger;
     auto data = TRY(parse_vector<u8>(stream));
@@ -123,14 +123,14 @@ ParseResult<ValueType> ValueType::parse(Stream& stream)
     }
 }
 
-ParseResult<ResultType> ResultType::parse(Stream& stream)
+ParseResult<ResultType> ResultType::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("ResultType"sv);
     auto types = TRY(parse_vector<ValueType>(stream));
     return ResultType { types };
 }
 
-ParseResult<FunctionType> FunctionType::parse(Stream& stream)
+ParseResult<FunctionType> FunctionType::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("FunctionType"sv);
     auto tag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
@@ -146,7 +146,7 @@ ParseResult<FunctionType> FunctionType::parse(Stream& stream)
     return FunctionType { parameters_result, results_result };
 }
 
-ParseResult<Limits> Limits::parse(Stream& stream)
+ParseResult<Limits> Limits::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Limits"sv);
     auto flag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
@@ -170,14 +170,14 @@ ParseResult<Limits> Limits::parse(Stream& stream)
     return Limits { static_cast<u32>(min), move(max) };
 }
 
-ParseResult<MemoryType> MemoryType::parse(Stream& stream)
+ParseResult<MemoryType> MemoryType::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("MemoryType"sv);
     auto limits_result = TRY(Limits::parse(stream));
     return MemoryType { limits_result };
 }
 
-ParseResult<TableType> TableType::parse(Stream& stream)
+ParseResult<TableType> TableType::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("TableType"sv);
     auto type_result = TRY(ValueType::parse(stream));
@@ -187,7 +187,7 @@ ParseResult<TableType> TableType::parse(Stream& stream)
     return TableType { type_result, limits_result };
 }
 
-ParseResult<GlobalType> GlobalType::parse(Stream& stream)
+ParseResult<GlobalType> GlobalType::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("GlobalType"sv);
     auto type_result = TRY(ValueType::parse(stream));
@@ -199,7 +199,7 @@ ParseResult<GlobalType> GlobalType::parse(Stream& stream)
     return GlobalType { type_result, mutable_ == 0x01 };
 }
 
-ParseResult<BlockType> BlockType::parse(Stream& stream)
+ParseResult<BlockType> BlockType::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("BlockType"sv);
     auto kind = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
@@ -228,10 +228,12 @@ ParseResult<BlockType> BlockType::parse(Stream& stream)
     return BlockType { TypeIndex(index_value) };
 }
 
-ParseResult<Instruction> Instruction::parse(Stream& stream)
+ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Instruction"sv);
-    auto byte = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+    u8 byte;
+    if (auto result = stream.read_some({ &byte, 1 }); result.is_error() || result.value().size() != 1)
+        return ParseError::ExpectedKindTag;
 
     OpCode opcode { byte };
 
@@ -858,38 +860,36 @@ ParseResult<Instruction> Instruction::parse(Stream& stream)
     return ParseError::UnknownInstruction;
 }
 
-ParseResult<CustomSection> CustomSection::parse(Stream& stream)
+ParseResult<CustomSection> CustomSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("CustomSection"sv);
     auto name = TRY(parse_name(stream));
-
-    ByteBuffer data_buffer;
-    if (data_buffer.try_resize(64).is_error())
+    auto remaining = stream.remaining();
+    auto maybe_data_buffer = ByteBuffer::create_uninitialized(remaining);
+    if (maybe_data_buffer.is_error())
         return ParseError::OutOfMemory;
+    auto data_buffer = maybe_data_buffer.release_value();
 
-    while (!stream.is_eof()) {
-        char buf[16];
-        auto span_or_error = stream.read_some({ buf, 16 });
-        if (span_or_error.is_error())
-            break;
-        auto size = span_or_error.release_value().size();
-        if (size == 0)
-            break;
-        if (data_buffer.try_append(buf, size).is_error())
-            return ParseError::HugeAllocationRequested;
-    }
+    size_t nread = 0;
+    do {
+        auto read = MUST(stream.read_some(data_buffer.bytes().slice(nread)));
+        nread += read.size();
+    } while (nread != remaining && !stream.is_eof());
+
+    if (nread != remaining)
+        return ParseError::UnexpectedEof;
 
     return CustomSection(name, move(data_buffer));
 }
 
-ParseResult<TypeSection> TypeSection::parse(Stream& stream)
+ParseResult<TypeSection> TypeSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("TypeSection"sv);
     auto types = TRY(parse_vector<FunctionType>(stream));
     return TypeSection { types };
 }
 
-ParseResult<ImportSection::Import> ImportSection::Import::parse(Stream& stream)
+ParseResult<ImportSection::Import> ImportSection::Import::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Import"sv);
     auto module = TRY(parse_name(stream));
@@ -912,14 +912,14 @@ ParseResult<ImportSection::Import> ImportSection::Import::parse(Stream& stream)
     }
 }
 
-ParseResult<ImportSection> ImportSection::parse(Stream& stream)
+ParseResult<ImportSection> ImportSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("ImportSection"sv);
     auto imports = TRY(parse_vector<Import>(stream));
     return ImportSection { imports };
 }
 
-ParseResult<FunctionSection> FunctionSection::parse(Stream& stream)
+ParseResult<FunctionSection> FunctionSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("FunctionSection"sv);
     auto indices = TRY(parse_vector<u32>(stream));
@@ -932,35 +932,35 @@ ParseResult<FunctionSection> FunctionSection::parse(Stream& stream)
     return FunctionSection { move(typed_indices) };
 }
 
-ParseResult<TableSection::Table> TableSection::Table::parse(Stream& stream)
+ParseResult<TableSection::Table> TableSection::Table::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Table"sv);
     auto type = TRY(TableType::parse(stream));
     return Table { type };
 }
 
-ParseResult<TableSection> TableSection::parse(Stream& stream)
+ParseResult<TableSection> TableSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("TableSection"sv);
     auto tables = TRY(parse_vector<Table>(stream));
     return TableSection { tables };
 }
 
-ParseResult<MemorySection::Memory> MemorySection::Memory::parse(Stream& stream)
+ParseResult<MemorySection::Memory> MemorySection::Memory::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Memory"sv);
     auto type = TRY(MemoryType::parse(stream));
     return Memory { type };
 }
 
-ParseResult<MemorySection> MemorySection::parse(Stream& stream)
+ParseResult<MemorySection> MemorySection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("MemorySection"sv);
     auto memories = TRY(parse_vector<Memory>(stream));
     return MemorySection { memories };
 }
 
-ParseResult<Expression> Expression::parse(Stream& stream, Optional<size_t> size_hint)
+ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<size_t> size_hint)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Expression"sv);
 
@@ -1002,7 +1002,7 @@ ParseResult<Expression> Expression::parse(Stream& stream, Optional<size_t> size_
     return Expression { move(instructions) };
 }
 
-ParseResult<GlobalSection::Global> GlobalSection::Global::parse(Stream& stream)
+ParseResult<GlobalSection::Global> GlobalSection::Global::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Global"sv);
     auto type = TRY(GlobalType::parse(stream));
@@ -1010,14 +1010,14 @@ ParseResult<GlobalSection::Global> GlobalSection::Global::parse(Stream& stream)
     return Global { type, exprs };
 }
 
-ParseResult<GlobalSection> GlobalSection::parse(Stream& stream)
+ParseResult<GlobalSection> GlobalSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("GlobalSection"sv);
     auto result = TRY(parse_vector<Global>(stream));
     return GlobalSection { result };
 }
 
-ParseResult<ExportSection::Export> ExportSection::Export::parse(Stream& stream)
+ParseResult<ExportSection::Export> ExportSection::Export::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Export"sv);
     auto name = TRY(parse_name(stream));
@@ -1039,28 +1039,28 @@ ParseResult<ExportSection::Export> ExportSection::Export::parse(Stream& stream)
     }
 }
 
-ParseResult<ExportSection> ExportSection::parse(Stream& stream)
+ParseResult<ExportSection> ExportSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("ExportSection"sv);
     auto result = TRY(parse_vector<Export>(stream));
     return ExportSection { result };
 }
 
-ParseResult<StartSection::StartFunction> StartSection::StartFunction::parse(Stream& stream)
+ParseResult<StartSection::StartFunction> StartSection::StartFunction::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("StartFunction"sv);
     auto index = TRY(GenericIndexParser<FunctionIndex>::parse(stream));
     return StartFunction { index };
 }
 
-ParseResult<StartSection> StartSection::parse(Stream& stream)
+ParseResult<StartSection> StartSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("StartSection"sv);
     auto result = TRY(StartFunction::parse(stream));
     return StartSection { result };
 }
 
-ParseResult<ElementSection::Element> ElementSection::Element::parse(Stream& stream)
+ParseResult<ElementSection::Element> ElementSection::Element::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Element"sv);
     auto tag = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedKindTag);
@@ -1116,14 +1116,14 @@ ParseResult<ElementSection::Element> ElementSection::Element::parse(Stream& stre
     return Element { type, move(items), move(mode) };
 }
 
-ParseResult<ElementSection> ElementSection::parse(Stream& stream)
+ParseResult<ElementSection> ElementSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("ElementSection"sv);
     auto result = TRY(parse_vector<Element>(stream));
     return ElementSection { result };
 }
 
-ParseResult<Locals> Locals::parse(Stream& stream)
+ParseResult<Locals> Locals::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Locals"sv);
     auto count = TRY_READ(stream, LEB128<u32>, ParseError::InvalidSize);
@@ -1136,7 +1136,7 @@ ParseResult<Locals> Locals::parse(Stream& stream)
     return Locals { count, type };
 }
 
-ParseResult<CodeSection::Func> CodeSection::Func::parse(Stream& stream, size_t size_hint)
+ParseResult<CodeSection::Func> CodeSection::Func::parse(ConstrainedStream& stream, size_t size_hint)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Func"sv);
     auto locals = TRY(parse_vector<Locals>(stream));
@@ -1144,7 +1144,7 @@ ParseResult<CodeSection::Func> CodeSection::Func::parse(Stream& stream, size_t s
     return Func { move(locals), move(body) };
 }
 
-ParseResult<CodeSection::Code> CodeSection::Code::parse(Stream& stream)
+ParseResult<CodeSection::Code> CodeSection::Code::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Code"sv);
     auto size = TRY_READ(stream, LEB128<u32>, ParseError::InvalidSize);
@@ -1156,14 +1156,14 @@ ParseResult<CodeSection::Code> CodeSection::Code::parse(Stream& stream)
     return Code { size, move(func) };
 }
 
-ParseResult<CodeSection> CodeSection::parse(Stream& stream)
+ParseResult<CodeSection> CodeSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("CodeSection"sv);
     auto result = TRY(parse_vector<Code>(stream));
     return CodeSection { move(result) };
 }
 
-ParseResult<DataSection::Data> DataSection::Data::parse(Stream& stream)
+ParseResult<DataSection::Data> DataSection::Data::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Data"sv);
     auto tag = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedKindTag);
@@ -1189,14 +1189,14 @@ ParseResult<DataSection::Data> DataSection::Data::parse(Stream& stream)
     VERIFY_NOT_REACHED();
 }
 
-ParseResult<DataSection> DataSection::parse(Stream& stream)
+ParseResult<DataSection> DataSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("DataSection"sv);
     auto data = TRY(parse_vector<Data>(stream));
     return DataSection { data };
 }
 
-ParseResult<DataCountSection> DataCountSection::parse([[maybe_unused]] Stream& stream)
+ParseResult<DataCountSection> DataCountSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("DataCountSection"sv);
     auto value_or_error = stream.read_value<LEB128<u32>>();
