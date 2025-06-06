@@ -77,25 +77,25 @@ struct SyntacticToken {
 // https://www.w3.org/TR/WGSL/#context-dependent-name
 
 // https://www.w3.org/TR/WGSL/#attributes
-struct BuiltinAttribute {
-    DECLARE_EQUALITY_OPERATOR(BuiltinAttribute);
+struct BuiltinAttributeToken {
+    DECLARE_EQUALITY_OPERATOR(BuiltinAttributeToken);
     enum class Flags : u32 {
         Position = 0,
     };
     Flags value;
 };
-AK_ENUM_BITWISE_OPERATORS(BuiltinAttribute::Flags)
-struct LocationAttribute {
-    DECLARE_EQUALITY_OPERATOR(LocationAttribute);
+AK_ENUM_BITWISE_OPERATORS(BuiltinAttributeToken::Flags)
+struct LocationAttributeToken {
+    DECLARE_EQUALITY_OPERATOR(LocationAttributeToken);
     u32 value;
 };
-struct VertexAttribute {
-    DECLARE_EQUALITY_OPERATOR(VertexAttribute);
+struct VertexAttributeToken {
+    DECLARE_EQUALITY_OPERATOR(VertexAttributeToken);
 };
-struct FragmentAttribute {
-    DECLARE_EQUALITY_OPERATOR(FragmentAttribute);
+struct FragmentAttributeToken {
+    DECLARE_EQUALITY_OPERATOR(FragmentAttributeToken);
 };
-using AttributeToken = Variant<BuiltinAttribute, LocationAttribute, VertexAttribute, FragmentAttribute>;
+using AttributeToken = Variant<BuiltinAttributeToken, LocationAttributeToken, VertexAttributeToken, FragmentAttributeToken>;
 
 struct EndOfFileToken {
     DECLARE_EQUALITY_OPERATOR(EndOfFileToken);
