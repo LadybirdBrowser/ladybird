@@ -217,7 +217,7 @@ public:
 
     auto const& types() const { return m_types; }
 
-    static ParseResult<ResultType> parse(Stream& stream);
+    static ParseResult<ResultType> parse(ConstrainedStream& stream);
 
 private:
     Vector<ValueType> m_types;
@@ -235,7 +235,7 @@ public:
     auto& parameters() const { return m_parameters; }
     auto& results() const { return m_results; }
 
-    static ParseResult<FunctionType> parse(Stream& stream);
+    static ParseResult<FunctionType> parse(ConstrainedStream& stream);
 
 private:
     Vector<ValueType> m_parameters;
@@ -259,7 +259,7 @@ public:
             && (!other.max().has_value() || (m_max.has_value() && *m_max <= *other.max()));
     }
 
-    static ParseResult<Limits> parse(Stream& stream);
+    static ParseResult<Limits> parse(ConstrainedStream& stream);
 
 private:
     u32 m_min { 0 };
@@ -276,7 +276,7 @@ public:
 
     auto& limits() const { return m_limits; }
 
-    static ParseResult<MemoryType> parse(Stream& stream);
+    static ParseResult<MemoryType> parse(ConstrainedStream& stream);
 
 private:
     Limits m_limits;
@@ -295,7 +295,7 @@ public:
     auto& limits() const { return m_limits; }
     auto& element_type() const { return m_element_type; }
 
-    static ParseResult<TableType> parse(Stream& stream);
+    static ParseResult<TableType> parse(ConstrainedStream& stream);
 
 private:
     ValueType m_element_type;
@@ -314,7 +314,7 @@ public:
     auto& type() const { return m_type; }
     auto is_mutable() const { return m_is_mutable; }
 
-    static ParseResult<GlobalType> parse(Stream& stream);
+    static ParseResult<GlobalType> parse(ConstrainedStream& stream);
 
 private:
     ValueType m_type;
@@ -360,7 +360,7 @@ public:
         return m_type_index;
     }
 
-    static ParseResult<BlockType> parse(Stream& stream);
+    static ParseResult<BlockType> parse(ConstrainedStream& stream);
 
 private:
     Kind m_kind { Empty };
@@ -461,7 +461,7 @@ public:
     {
     }
 
-    static ParseResult<Instruction> parse(Stream& stream);
+    static ParseResult<Instruction> parse(ConstrainedStream& stream);
 
     auto& opcode() const { return m_opcode; }
     auto& arguments() const { return m_arguments; }
@@ -543,7 +543,7 @@ public:
     auto& name() const { return m_name; }
     auto& contents() const { return m_contents; }
 
-    static ParseResult<CustomSection> parse(Stream& stream);
+    static ParseResult<CustomSection> parse(ConstrainedStream& stream);
 
 private:
     ByteString m_name;
@@ -561,7 +561,7 @@ public:
 
     auto& types() const { return m_types; }
 
-    static ParseResult<TypeSection> parse(Stream& stream);
+    static ParseResult<TypeSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<FunctionType> m_types;
@@ -583,7 +583,7 @@ public:
         auto& name() const { return m_name; }
         auto& description() const { return m_description; }
 
-        static ParseResult<Import> parse(Stream& stream);
+        static ParseResult<Import> parse(ConstrainedStream& stream);
 
     private:
         template<typename T>
@@ -608,7 +608,7 @@ public:
 
     auto& imports() const { return m_imports; }
 
-    static ParseResult<ImportSection> parse(Stream& stream);
+    static ParseResult<ImportSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<Import> m_imports;
@@ -625,7 +625,7 @@ public:
 
     auto& types() const { return m_types; }
 
-    static ParseResult<FunctionSection> parse(Stream& stream);
+    static ParseResult<FunctionSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<TypeIndex> m_types;
@@ -642,7 +642,7 @@ public:
 
         auto& type() const { return m_type; }
 
-        static ParseResult<Table> parse(Stream& stream);
+        static ParseResult<Table> parse(ConstrainedStream& stream);
 
     private:
         TableType m_type;
@@ -658,7 +658,7 @@ public:
 
     auto& tables() const { return m_tables; }
 
-    static ParseResult<TableSection> parse(Stream& stream);
+    static ParseResult<TableSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<Table> m_tables;
@@ -675,7 +675,7 @@ public:
 
         auto& type() const { return m_type; }
 
-        static ParseResult<Memory> parse(Stream& stream);
+        static ParseResult<Memory> parse(ConstrainedStream& stream);
 
     private:
         MemoryType m_type;
@@ -691,7 +691,7 @@ public:
 
     auto& memories() const { return m_memories; }
 
-    static ParseResult<MemorySection> parse(Stream& stream);
+    static ParseResult<MemorySection> parse(ConstrainedStream& stream);
 
 private:
     Vector<Memory> m_memories;
@@ -706,7 +706,7 @@ public:
 
     auto& instructions() const { return m_instructions; }
 
-    static ParseResult<Expression> parse(Stream& stream, Optional<size_t> size_hint = {});
+    static ParseResult<Expression> parse(ConstrainedStream& stream, Optional<size_t> size_hint = {});
 
 private:
     Vector<Instruction> m_instructions;
@@ -725,7 +725,7 @@ public:
         auto& type() const { return m_type; }
         auto& expression() const { return m_expression; }
 
-        static ParseResult<Global> parse(Stream& stream);
+        static ParseResult<Global> parse(ConstrainedStream& stream);
 
     private:
         GlobalType m_type;
@@ -742,7 +742,7 @@ public:
 
     auto& entries() const { return m_entries; }
 
-    static ParseResult<GlobalSection> parse(Stream& stream);
+    static ParseResult<GlobalSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<Global> m_entries;
@@ -764,7 +764,7 @@ public:
         auto& name() const { return m_name; }
         auto& description() const { return m_description; }
 
-        static ParseResult<Export> parse(Stream& stream);
+        static ParseResult<Export> parse(ConstrainedStream& stream);
 
     private:
         ByteString m_name;
@@ -780,7 +780,7 @@ public:
 
     auto& entries() const { return m_entries; }
 
-    static ParseResult<ExportSection> parse(Stream& stream);
+    static ParseResult<ExportSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<Export> m_entries;
@@ -797,7 +797,7 @@ public:
 
         auto& index() const { return m_index; }
 
-        static ParseResult<StartFunction> parse(Stream& stream);
+        static ParseResult<StartFunction> parse(ConstrainedStream& stream);
 
     private:
         FunctionIndex m_index;
@@ -812,7 +812,7 @@ public:
 
     auto& function() const { return m_function; }
 
-    static ParseResult<StartSection> parse(Stream& stream);
+    static ParseResult<StartSection> parse(ConstrainedStream& stream);
 
 private:
     Optional<StartFunction> m_function;
@@ -830,7 +830,7 @@ public:
     };
 
     struct Element {
-        static ParseResult<Element> parse(Stream&);
+        static ParseResult<Element> parse(ConstrainedStream&);
 
         ValueType type;
         Vector<Expression> init;
@@ -846,7 +846,7 @@ public:
 
     auto& segments() const { return m_segments; }
 
-    static ParseResult<ElementSection> parse(Stream& stream);
+    static ParseResult<ElementSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<Element> m_segments;
@@ -864,7 +864,7 @@ public:
     auto n() const { return m_n; }
     auto& type() const { return m_type; }
 
-    static ParseResult<Locals> parse(Stream& stream);
+    static ParseResult<Locals> parse(ConstrainedStream& stream);
 
 private:
     u32 m_n { 0 };
@@ -885,7 +885,7 @@ public:
         auto& locals() const { return m_locals; }
         auto& body() const { return m_body; }
 
-        static ParseResult<Func> parse(Stream& stream, size_t size_hint);
+        static ParseResult<Func> parse(ConstrainedStream& stream, size_t size_hint);
 
     private:
         Vector<Locals> m_locals;
@@ -902,7 +902,7 @@ public:
         auto size() const { return m_size; }
         auto& func() const { return m_func; }
 
-        static ParseResult<Code> parse(Stream& stream);
+        static ParseResult<Code> parse(ConstrainedStream& stream);
 
     private:
         u32 m_size { 0 };
@@ -918,7 +918,7 @@ public:
 
     auto& functions() const { return m_functions; }
 
-    static ParseResult<CodeSection> parse(Stream& stream);
+    static ParseResult<CodeSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<Code> m_functions;
@@ -945,7 +945,7 @@ public:
 
         auto& value() const { return m_value; }
 
-        static ParseResult<Data> parse(Stream& stream);
+        static ParseResult<Data> parse(ConstrainedStream& stream);
 
     private:
         Value m_value;
@@ -960,7 +960,7 @@ public:
 
     auto& data() const { return m_data; }
 
-    static ParseResult<DataSection> parse(Stream& stream);
+    static ParseResult<DataSection> parse(ConstrainedStream& stream);
 
 private:
     Vector<Data> m_data;
@@ -977,7 +977,7 @@ public:
 
     auto& count() const { return m_count; }
 
-    static ParseResult<DataCountSection> parse(Stream& stream);
+    static ParseResult<DataCountSection> parse(ConstrainedStream& stream);
 
 private:
     Optional<u32> m_count;
