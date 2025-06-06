@@ -131,6 +131,10 @@
       "platform": "!android"
     },
     {
+      "name": "directx12-agility",
+      "platform": "windows"
+    },
+    {
       "name": "tiff",
       "features": [
         "zstd"

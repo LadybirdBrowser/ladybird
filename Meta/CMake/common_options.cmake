@@ -46,7 +46,10 @@ if (NOT APPLE)
 else()
     serenity_option(ENABLE_WEBGPUNATIVE_METAL_IMPL ON CACHE BOOL "Enable the Metal backend for LibWebGPUNative")
 endif()
-set(ENABLE_WEBGPUNATIVE ${ENABLE_WEBGPUNATIVE_VULKAN_IMPL} OR ${ENABLE_WEBGPUNATIVE_METAL_IMPL})
+if (WIN32)
+    serenity_option(ENABLE_WEBGPUNATIVE_DIRECTX_IMPL ON CACHE BOOL "Enable the DirectX backend for LibWebGPUNative")
+endif()
+set(ENABLE_WEBGPUNATIVE ${ENABLE_WEBGPUNATIVE_VULKAN_IMPL} OR ${ENABLE_WEBGPUNATIVE_METAL_IMPL} OR ${ENABLE_WEBGPUNATIVE_DIRECTX_IMPL})
 
 if (ENABLE_FUZZERS_LIBFUZZER)
     # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
