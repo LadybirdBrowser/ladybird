@@ -32,6 +32,7 @@ set(SOURCES
     Utf16View.cpp
     Utf32View.cpp
     Utf8View.cpp
+    Utf8GenericLexer.cpp
     kmalloc.cpp
 )
 
