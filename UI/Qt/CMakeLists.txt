@@ -1,4 +1,4 @@
-qt_add_executable(ladybird ${LADYBIRD_SOURCES})
+qt_add_executable(ladybird main.cpp)
 target_sources(ladybird PRIVATE
     Application.cpp
     Autocomplete.cpp
@@ -13,7 +13,6 @@ target_sources(ladybird PRIVATE
     StringUtils.cpp
     WebContentView.cpp
     ladybird.qrc
-    main.cpp
 )
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 create_ladybird_bundle(ladybird)
