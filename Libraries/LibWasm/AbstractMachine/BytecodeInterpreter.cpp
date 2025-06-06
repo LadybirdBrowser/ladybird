@@ -370,35 +370,25 @@ void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruct
 template<typename T>
 T BytecodeInterpreter::read_value(ReadonlyBytes data)
 {
-    FixedMemoryStream stream { data };
-    auto value_or_error = stream.read_value<LittleEndian<T>>();
-    if (value_or_error.is_error()) {
-        dbgln("Read from {} failed", data.data());
-        m_trap = Trap::from_string("Read from memory failed");
+    VERIFY(sizeof(T) <= data.size());
+    if (bit_cast<FlatPtr>(data.data()) % alignof(T)) {
+        alignas(T) u8 buf[sizeof(T)];
+        memcpy(buf, data.data(), sizeof(T));
+        return bit_cast<LittleEndian<T>>(buf);
     }
-    return value_or_error.release_value();
+    return *bit_cast<LittleEndian<T> const*>(data.data());
 }
 
 template<>
 float BytecodeInterpreter::read_value<float>(ReadonlyBytes data)
 {
-    FixedMemoryStream stream { data };
-    auto raw_value_or_error = stream.read_value<LittleEndian<u32>>();
-    if (raw_value_or_error.is_error())
-        m_trap = Trap::from_string("Read from memory failed");
-    auto raw_value = raw_value_or_error.release_value();
-    return bit_cast<float>(static_cast<u32>(raw_value));
+    return bit_cast<float>(read_value<u32>(data));
 }
 
 template<>
 double BytecodeInterpreter::read_value<double>(ReadonlyBytes data)
 {
-    FixedMemoryStream stream { data };
-    auto raw_value_or_error = stream.read_value<LittleEndian<u64>>();
-    if (raw_value_or_error.is_error())
-        m_trap = Trap::from_string("Read from memory failed");
-    auto raw_value = raw_value_or_error.release_value();
-    return bit_cast<double>(static_cast<u64>(raw_value));
+    return bit_cast<double>(read_value<u64>(data));
 }
 
 ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& configuration, InstructionPointer& ip, Instruction const& instruction)
