@@ -13,7 +13,7 @@ namespace Wasm {
 
 void Configuration::unwind(Badge<CallFrameHandle>, CallFrameHandle const& frame_handle)
 {
-    auto frame = m_frame_stack.take_last();
+    m_frame_stack.take_last();
     m_depth--;
     m_ip = frame_handle.ip;
 }
