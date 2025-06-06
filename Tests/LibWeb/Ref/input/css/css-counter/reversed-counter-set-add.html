@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/reversed-counter-set-add-ref.html" />
+<style>
+body { counter-reset: reversed(item); }
+div::before { content: counter(item) ': '; }
+.Inc1 { counter-increment: item -1; }
+.Set8 { counter-set: item 8; }
+</style>
+
+<div class='Inc1'>Nine</div>
+<div class='Inc1' id='add'>Eight</div>
+<div class='Inc1'>Seven</div>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('add').classList.remove('Inc1');
+        document.getElementById('add').classList.add('Set8');
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>
