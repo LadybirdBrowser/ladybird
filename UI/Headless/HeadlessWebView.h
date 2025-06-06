@@ -11,17 +11,15 @@
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
-#include <LibWebView/ViewImplementation.h>
+#include <LibWebView/HeadlessWebView.h>
 #include <UI/Headless/Test.h>
 
 namespace Ladybird {
 
-class HeadlessWebView final : public WebView::ViewImplementation {
+class HeadlessWebView final : public WebView::HeadlessWebView {
 public:
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
-    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, u64 page_index);
 
     void clear_content_filters();
 
@@ -33,29 +31,11 @@ public:
 private:
     HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
-    void update_zoom() override;
-    void initialize_client(CreateNewClient) override;
-
-    virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
-    virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
-    virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override { return content_position; }
-
     virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
-
-    Core::AnonymousBuffer m_theme;
-    Web::DevicePixelSize m_viewport_size;
 
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> m_pending_screenshot;
 
     NonnullRefPtr<TestPromise> m_test_promise;
-
-    Web::Page::PendingDialog m_pending_dialog { Web::Page::PendingDialog::None };
-    Optional<String> m_pending_prompt_text;
-
-    // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
-    Optional<Web::Clipboard::SystemClipboardItem> m_clipboard;
-
-    Vector<NonnullOwnPtr<HeadlessWebView>> m_child_web_views;
 };
 
 }

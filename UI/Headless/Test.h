@@ -88,7 +88,7 @@ struct TestCompletion {
 
 using TestPromise = Core::Promise<TestCompletion>;
 
-ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size);
+ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size);
 void run_dump_test(HeadlessWebView&, Test&, URL::URL const&, int timeout_in_milliseconds);
 
 }

@@ -141,10 +141,14 @@ For Text or Layout tests, you can "rebaseline" the tests to regenerate the expec
 ```
 
 For Ref and Screenshot tests, you will need to supply the equivalently rendering HTML manually. Though for Screenshot
-tests, you can generate the reference screenshot itself by running headless-browser in test mode:
+tests, you can generate the reference screenshot itself by running Ladybird in headless mode:
 
 ```bash
-./Meta/ladybird.py run headless-browser --layout-test-mode Tests/LibWeb/Screenshot/input/your-new-test-name.html --screenshot-path Tests/LibWeb/Screenshot/images/your-new-test-name.png
+./Meta/ladybird.py run ladybird --headless --layout-test-mode Tests/LibWeb/Screenshot/input/your-new-test-name.html
+
+# This will log something like: "Saved screenshot to: ~/Downloads/screenshot-2025-06-07-08-37-45.png"
+
+mv ~/Downloads/screenshot-2025-06-07-08-37-45.png Tests/LibWeb/Screenshot/images/your-new-test-name.png
 ```
 
 ### Text tests

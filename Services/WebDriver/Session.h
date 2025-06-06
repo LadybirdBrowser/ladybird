@@ -20,12 +20,11 @@
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/Response.h>
+#include <WebDriver/Client.h>
 #include <WebDriver/WebContentConnection.h>
 #include <unistd.h>
 
 namespace WebDriver {
-
-struct LaunchBrowserCallbacks;
 
 class Session : public RefCounted<Session> {
 public:
@@ -87,7 +86,7 @@ public:
 private:
     Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, Web::WebDriver::SessionFlags flags);
 
-    ErrorOr<void> start(LaunchBrowserCallbacks const&);
+    ErrorOr<void> start(LaunchBrowserCallback const&);
 
     using ServerPromise = Core::Promise<ErrorOr<void>>;
     ErrorOr<NonnullRefPtr<Core::LocalServer>> create_server(NonnullRefPtr<ServerPromise> promise);

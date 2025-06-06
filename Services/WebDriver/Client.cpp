@@ -21,18 +21,18 @@
 
 namespace WebDriver {
 
-ErrorOr<NonnullRefPtr<Client>> Client::try_create(NonnullOwnPtr<Core::BufferedTCPSocket> socket, LaunchBrowserCallbacks callbacks, Core::EventReceiver* parent)
+ErrorOr<NonnullRefPtr<Client>> Client::try_create(NonnullOwnPtr<Core::BufferedTCPSocket> socket, LaunchBrowserCallback launch_browser_callback, Core::EventReceiver* parent)
 {
-    if (!callbacks.launch_browser || !callbacks.launch_headless_browser)
-        return Error::from_string_literal("All callbacks to launch a browser must be provided");
+    if (!launch_browser_callback)
+        return Error::from_string_literal("The callback to launch the browser must be provided");
 
     TRY(socket->set_blocking(true));
-    return adopt_nonnull_ref_or_enomem(new (nothrow) Client(move(socket), move(callbacks), parent));
+    return adopt_nonnull_ref_or_enomem(new (nothrow) Client(move(socket), move(launch_browser_callback), parent));
 }
 
-Client::Client(NonnullOwnPtr<Core::BufferedTCPSocket> socket, LaunchBrowserCallbacks callbacks, Core::EventReceiver* parent)
+Client::Client(NonnullOwnPtr<Core::BufferedTCPSocket> socket, LaunchBrowserCallback launch_browser_callback, Core::EventReceiver* parent)
     : Web::WebDriver::Client(move(socket), parent)
-    , m_callbacks(move(callbacks))
+    , m_launch_browser_callback(move(launch_browser_callback))
 {
 }
 
