@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-1 Pass
-4 Fail
+2 Pass
+3 Fail
 Pass	Single value flex with CSS-wide keyword should serialize correctly.
 Fail	Single value flex with non-CSS-wide value should serialize correctly.
-Fail	Multiple values flex with CSS-wide keyword should serialize correctly.
+Pass	Multiple values flex with CSS-wide keyword should serialize correctly.
 Fail	Multiple values flex with CSS-wide keywords and non-CSS-wide value should serialize correctly.
 Fail	Multiple values flex with CSS-wide and two non-CSS-wide-keyword values should serialize correctly.

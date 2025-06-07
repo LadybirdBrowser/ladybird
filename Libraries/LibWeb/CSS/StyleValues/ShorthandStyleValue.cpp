@@ -107,6 +107,31 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto origin = longhand(PropertyID::BackgroundOrigin);
         auto clip = longhand(PropertyID::BackgroundClip);
 
+        auto serialize_layer = [mode](Optional<String> color_value_string, String image_value_string, String position_x_value_string, String position_y_value_string, String size_value_string, String repeat_value_string, String attachment_value_string, String origin_value_string, String clip_value_string) {
+            StringBuilder builder;
+
+            Vector<PropertyID> property_ids = { PropertyID::BackgroundColor, PropertyID::BackgroundImage, PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY, PropertyID::BackgroundSize, PropertyID::BackgroundRepeat, PropertyID::BackgroundAttachment, PropertyID::BackgroundOrigin, PropertyID::BackgroundClip };
+            Vector<Optional<String>> property_value_strings = { move(color_value_string), move(image_value_string), move(position_x_value_string), move(position_y_value_string), move(size_value_string), move(repeat_value_string), move(attachment_value_string), move(origin_value_string), move(clip_value_string) };
+
+            for (size_t i = 0; i < property_ids.size(); i++) {
+                if (!property_value_strings[i].has_value())
+                    continue;
+
+                auto intial_property_string_value = property_initial_value(property_ids[i])->to_string(mode);
+
+                if (property_value_strings[i].value() != intial_property_string_value) {
+                    if (!builder.is_empty())
+                        builder.append(" "sv);
+                    builder.append(property_value_strings[i].value());
+                }
+            }
+
+            if (builder.is_empty())
+                return "none"_string;
+
+            return builder.to_string_without_validation();
+        };
+
         auto get_layer_count = [](auto style_value) -> size_t {
             return style_value->is_value_list() ? style_value->as_value_list().size() : 1;
         };
@@ -114,7 +139,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto layer_count = max(get_layer_count(image), max(get_layer_count(position_x), max(get_layer_count(position_y), max(get_layer_count(size), max(get_layer_count(repeat), max(get_layer_count(attachment), max(get_layer_count(origin), get_layer_count(clip))))))));
 
         if (layer_count == 1) {
-            return MUST(String::formatted("{} {} {} {} {} {} {} {} {}", color->to_string(mode), image->to_string(mode), position_x->to_string(mode), position_y->to_string(mode), size->to_string(mode), repeat->to_string(mode), attachment->to_string(mode), origin->to_string(mode), clip->to_string(mode)));
+            return serialize_layer(color->to_string(mode), image->to_string(mode), position_x->to_string(mode), position_y->to_string(mode), size->to_string(mode), repeat->to_string(mode), attachment->to_string(mode), origin->to_string(mode), clip->to_string(mode));
         }
 
         auto get_layer_value_string = [mode](ValueComparingRefPtr<CSSStyleValue const> const& style_value, size_t index) {
@@ -127,9 +152,12 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         for (size_t i = 0; i < layer_count; i++) {
             if (i)
                 builder.append(", "sv);
+
+            Optional<String> maybe_color_value_string;
             if (i == layer_count - 1)
-                builder.appendff("{} ", color->to_string(mode));
-            builder.appendff("{} {} {} {} {} {} {} {}", get_layer_value_string(image, i), get_layer_value_string(position_x, i), get_layer_value_string(position_y, i), get_layer_value_string(size, i), get_layer_value_string(repeat, i), get_layer_value_string(attachment, i), get_layer_value_string(origin, i), get_layer_value_string(clip, i));
+                maybe_color_value_string = color->to_string(mode);
+
+            builder.append(serialize_layer(maybe_color_value_string, get_layer_value_string(image, i), get_layer_value_string(position_x, i), get_layer_value_string(position_y, i), get_layer_value_string(size, i), get_layer_value_string(repeat, i), get_layer_value_string(attachment, i), get_layer_value_string(origin, i), get_layer_value_string(clip, i)));
         }
 
         return MUST(builder.to_string());

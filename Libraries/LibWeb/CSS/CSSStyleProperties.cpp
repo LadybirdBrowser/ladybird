@@ -41,7 +41,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create(JS::Realm& realm, Vector<
     //     declarations: The declared declarations in the rule, in specified order.
     //     parent CSS rule: The context object.
     //     owner node: Null.
-    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, move(properties), move(custom_properties), OptionalNone {});
+    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), OptionalNone {});
 }
 
 GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(DOM::ElementReference element_reference)
@@ -64,7 +64,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM:
     // The style attribute must return a CSS declaration block object whose readonly flag is unset, whose parent CSS
     // rule is null, and whose owner node is the context object.
     auto& realm = element_reference.element().realm();
-    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, move(properties), move(custom_properties), move(element_reference));
+    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), move(element_reference));
 }
 
 CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Readonly readonly, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::ElementReference> owner_node)
@@ -73,6 +73,37 @@ CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Read
     , m_custom_properties(move(custom_properties))
 {
     set_owner_node(move(owner_node));
+}
+
+// https://drafts.csswg.org/cssom/#concept-declarations-specified-order
+Vector<StyleProperty> CSSStyleProperties::convert_declarations_to_specified_order(Vector<StyleProperty>& declarations)
+{
+    // The specified order for declarations is the same as specified, but with shorthand properties expanded into their
+    // longhand properties, in canonical order. If a property is specified more than once (after shorthand expansion), only
+    // the one with greatest cascading order must be represented, at the same relative position as it was specified.
+    Vector<StyleProperty> specified_order_declarations;
+
+    for (auto declaration : declarations) {
+        StyleComputer::for_each_property_expanding_shorthands(declaration.property_id, declaration.value, [&](CSS::PropertyID longhand_id, CSS::CSSStyleValue const& longhand_property_value) {
+            auto existing_entry_index = specified_order_declarations.find_first_index_if([&](StyleProperty const& existing_declaration) { return existing_declaration.property_id == longhand_id; });
+
+            if (existing_entry_index.has_value()) {
+                // If there is an existing entry for this property and it is a higher cascading order than the current entry, skip the current entry.
+                if (specified_order_declarations[existing_entry_index.value()].important == Important::Yes && declaration.important == Important::No)
+                    return;
+
+                // Otherwise the existing entry has a lower cascading order and is removed.
+                specified_order_declarations.remove(existing_entry_index.value());
+            }
+
+            specified_order_declarations.append(StyleProperty {
+                .important = declaration.important,
+                .property_id = longhand_id,
+                .value = longhand_property_value });
+        });
+    }
+
+    return specified_order_declarations;
 }
 
 void CSSStyleProperties::initialize(JS::Realm& realm)
@@ -1184,15 +1215,13 @@ String CSSStyleProperties::serialized() const
             continue;
 
         // 3. If property maps to one or more shorthand properties, let shorthands be an array of those shorthand properties, in preferred order.
-        // FIXME: We don't properly support nested shorthands (e.g. background)
         if (property_maps_to_shorthand(property)) {
-            // FIXME: Sort in the preferred order. https://www.w3.org/TR/cssom/#concept-shorthands-preferred-order
             auto shorthands = shorthands_for_longhand(property);
 
             // 4. Shorthand loop: For each shorthand in shorthands, follow these substeps:
             for (auto shorthand : shorthands) {
                 // 1. Let longhands be an array consisting of all CSS declarations in declaration block’s declarations
-                //    that that are not in already serialized and have a property name that maps to one of the shorthand
+                //    that are not in already serialized and have a property name that maps to one of the shorthand
                 //    properties in shorthands.
                 Vector<StyleProperty> longhands;
 
@@ -1203,8 +1232,8 @@ String CSSStyleProperties::serialized() const
                         longhands.append(longhand_declaration);
                 }
 
-                // 2. If all properties that map to shorthand are not present in longhands, continue with the steps labeled shorthand loop.
-                if (longhands.is_empty())
+                // 2. If not all properties that map to shorthand are present in longhands, continue with the steps labeled shorthand loop.
+                if (any_of(expanded_longhands_for_shorthand(shorthand), [&](auto longhand_id) { return !any_of(longhands, [&](auto const& longhand_declaration) { return longhand_declaration.property_id == longhand_id; }); }))
                     continue;
 
                 // 3. Let current longhands be an empty array.
@@ -1216,7 +1245,7 @@ String CSSStyleProperties::serialized() const
                         current_longhands.append(longhand);
                 }
 
-                // 5. If there is one or more CSS declarations in current longhands have their important flag set and
+                // 5. If there are one or more CSS declarations in current longhands have their important flag set and
                 //    one or more with it unset, continue with the steps labeled shorthand loop.
                 auto all_declarations_have_same_important_flag = true;
 
@@ -1230,12 +1259,12 @@ String CSSStyleProperties::serialized() const
                 if (!all_declarations_have_same_important_flag)
                     continue;
 
-                // FIXME: 6. If there’s any declaration in declaration block in between the first and the last longhand
+                // FIXME: 6. If there is any declaration in declaration block in between the first and the last longhand
                 //           in current longhands which belongs to the same logical property group, but has a different
                 //           mapping logic as any of the longhands in current longhands, and is not in current
                 //           longhands, continue with the steps labeled shorthand loop.
 
-                // 7. Let value be the result of invoking serialize a CSS value of current longhands.
+                // 7. Let value be the result of invoking serialize a CSS value with current longhands.
                 auto value = serialize_a_css_value(current_longhands);
 
                 // 8. If value is the empty string, continue with the steps labeled shorthand loop.
@@ -1316,9 +1345,8 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
         return String {};
 
     // 1. Let shorthand be the first shorthand property, in preferred order, that exactly maps to all of the longhand properties in list.
-    // FIXME: Sort in the preferred order. https://www.w3.org/TR/cssom/#concept-shorthands-preferred-order
     Optional<PropertyID> shorthand = shorthands_for_longhand(list.first().property_id).first_matching([&](PropertyID shorthand) {
-        auto longhands_for_potential_shorthand = longhands_for_shorthand(shorthand);
+        auto longhands_for_potential_shorthand = expanded_longhands_for_shorthand(shorthand);
 
         // The potential shorthand exactly maps to all of the longhand properties in list if:
         // a. The number of longhand properties in the list is equal to the number of longhand properties that the potential shorthand maps to.
@@ -1334,16 +1362,22 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
         return String {};
 
     // 3. Otherwise, serialize a CSS value from a hypothetical declaration of the property shorthand with its value representing the combined values of the declarations in list.
+    Function<ValueComparingNonnullRefPtr<ShorthandStyleValue const>(PropertyID)> make_shorthand_value = [&](PropertyID shorthand_id) {
+        auto longhand_ids = longhands_for_shorthand(shorthand_id);
+        Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> longhand_values;
+
+        for (auto longhand_id : longhand_ids) {
+            if (property_is_shorthand(longhand_id))
+                longhand_values.append(make_shorthand_value(longhand_id));
+            else
+                longhand_values.append(list.first_matching([&](auto declaration) { return declaration.property_id == longhand_id; })->value);
+        }
+
+        return ShorthandStyleValue::create(shorthand_id, longhand_ids, longhand_values);
+    };
+
     // FIXME: Not all shorthands are represented by ShorthandStyleValue, we still need to add support for those that don't.
-    Vector<PropertyID> longhand_ids;
-    Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> longhand_values;
-
-    for (auto const& longhand : list) {
-        longhand_ids.append(longhand.property_id);
-        longhand_values.append(longhand.value);
-    }
-
-    return ShorthandStyleValue::create(shorthand.value(), longhand_ids, longhand_values)->to_string(SerializationMode::Normal);
+    return make_shorthand_value(shorthand.value())->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext
@@ -1409,7 +1443,7 @@ void CSSStyleProperties::empty_the_declarations()
 
 void CSSStyleProperties::set_the_declarations(Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
-    m_properties = move(properties);
+    m_properties = convert_declarations_to_specified_order(properties);
     m_custom_properties = move(custom_properties);
 }
 

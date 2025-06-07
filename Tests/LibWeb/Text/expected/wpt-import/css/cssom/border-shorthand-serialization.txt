@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
-Pass	Declaration with border longhands is not serialized to a border shorthand declaration.
-Pass	Declaration with border longhands and border-image is not serialized to a border shorthand declaration.
-Fail	Border shorthand is serialized correctly if all border-image-* are set to their initial specified values.
+1 Pass
+2 Fail
+Fail	Declaration with border longhands is not serialized to a border shorthand declaration.
+Fail	Declaration with border longhands and border-image is not serialized to a border shorthand declaration.
+Pass	Border shorthand is serialized correctly if all border-image-* are set to their initial specified values.
