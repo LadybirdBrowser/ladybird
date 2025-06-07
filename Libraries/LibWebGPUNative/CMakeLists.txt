@@ -33,6 +33,8 @@ if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
 elseif (ENABLE_WEBGPUNATIVE_DIRECTX_IMPL)
     target_sources(LibWebGPUNative
         PRIVATE
+            DirectX/Adapter.cpp
+            DirectX/AdapterImpl.cpp
             DirectX/Instance.cpp
     )
     find_package(directx-headers CONFIG REQUIRED)
