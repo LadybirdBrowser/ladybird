@@ -5,6 +5,7 @@
  */
 
 #include <LibTest/TestCase.h>
+#include <LibWebGPUNative/Adapter.h>
 #include <LibWebGPUNative/Instance.h>
 
 // FIXME: Complete enough of the implementation to test a "clear value" render pass into to a Gfx::Bitmap for headless/offscreen verification
@@ -12,4 +13,13 @@ TEST_CASE(clear)
 {
     WebGPUNative::Instance instance;
     TRY_OR_FAIL(instance.initialize());
+
+    Core::EventLoop loop;
+    WebGPUNative::Adapter adapter = instance.adapter();
+    NonnullRefPtr const adapter_promise = instance.request_adapter();
+    loop.deferred_invoke([=, &adapter] {
+        TRY_OR_FAIL(adapter.initialize());
+        adapter_promise->resolve(std::move(adapter));
+    });
+    adapter = TRY_OR_FAIL(adapter_promise->await());
 }
