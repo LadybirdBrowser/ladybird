@@ -70,7 +70,7 @@ endpoint WebContentClient
     did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, String info) =|
 
     did_change_favicon(u64 page_id, Gfx::ShareableBitmap favicon) =|
-    did_request_all_cookies(URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)
+    did_request_all_cookies(URL::URL url, Web::Cookie::Source source) => (Vector<Web::Cookie::Cookie> cookies)
     did_request_named_cookie(URL::URL url, String name) => (Optional<Web::Cookie::Cookie> cookie)
     did_request_cookie(URL::URL url, Web::Cookie::Source source) => (String cookie)
     did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source) => ()

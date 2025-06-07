@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
+#include <LibWeb/HTML/CookieStore.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/EventHandler.h>
@@ -122,6 +123,7 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_screen);
     visitor.visit(m_location);
     visitor.visit(m_navigator);
+    visitor.visit(m_cookie_store);
     visitor.visit(m_navigation);
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_animation_frame_callback_driver);
@@ -1722,6 +1724,17 @@ GC::Ref<Navigation> Window::navigation()
 
     // The navigation getter steps are to return this's navigation API.
     return *m_navigation;
+}
+
+// https://wicg.github.io/cookie-store/#dom-window-cookiestore
+GC::Ref<CookieStore> Window::cookie_store()
+{
+    auto& realm = this->realm();
+
+    if (!m_cookie_store)
+        m_cookie_store = realm.create<CookieStore>(realm, page());
+
+    return GC::Ref { *m_cookie_store };
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-window-customelements
