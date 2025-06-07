@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>XML Dom Parse readyState Test</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+    test(function () {
+        assert_equals(
+            (new DOMParser()).parseFromString("<html></html>", "text/xml").readyState,
+            "complete"
+        );
+    });
+</script>
