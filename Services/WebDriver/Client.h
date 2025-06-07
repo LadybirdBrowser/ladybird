@@ -17,22 +17,19 @@
 
 namespace WebDriver {
 
-struct LaunchBrowserCallbacks {
-    Function<ErrorOr<Core::Process>(ByteString const&)> launch_browser;
-    Function<ErrorOr<Core::Process>(ByteString const&)> launch_headless_browser;
-};
+using LaunchBrowserCallback = Function<ErrorOr<Core::Process>(ByteString const& socket_path, bool headless)>;
 
 class Client final : public Web::WebDriver::Client {
     C_OBJECT_ABSTRACT(Client);
 
 public:
-    static ErrorOr<NonnullRefPtr<Client>> try_create(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallbacks, Core::EventReceiver* parent);
+    static ErrorOr<NonnullRefPtr<Client>> try_create(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallback, Core::EventReceiver* parent);
     virtual ~Client() override;
 
-    LaunchBrowserCallbacks const& launch_browser_callbacks() const { return m_callbacks; }
+    LaunchBrowserCallback const& launch_browser_callback() const { return m_launch_browser_callback; }
 
 private:
-    Client(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallbacks, Core::EventReceiver* parent);
+    Client(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallback, Core::EventReceiver* parent);
 
     virtual Web::WebDriver::Response new_session(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response delete_session(Web::WebDriver::Parameters parameters, JsonValue payload) override;
@@ -97,7 +94,7 @@ private:
     virtual Web::WebDriver::Response take_element_screenshot(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response print_page(Web::WebDriver::Parameters parameters, JsonValue payload) override;
 
-    LaunchBrowserCallbacks m_callbacks;
+    LaunchBrowserCallback m_launch_browser_callback;
 };
 
 }

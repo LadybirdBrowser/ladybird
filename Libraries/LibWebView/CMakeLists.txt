@@ -9,6 +9,7 @@ set(SOURCES
     CookieJar.cpp
     Database.cpp
     DOMNodeProperties.cpp
+    HeadlessWebView.cpp
     HelperProcess.cpp
     Mutation.cpp
     Plugins/FontPlugin.cpp

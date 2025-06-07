@@ -8,8 +8,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Session.h"
-#include "Client.h"
 #include <AK/HashMap.h>
 #include <AK/JsonObject.h>
 #include <LibCore/LocalServer.h>
@@ -19,6 +17,7 @@
 #include <LibWeb/WebDriver/Proxy.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
+#include <WebDriver/Session.h>
 #include <unistd.h>
 
 namespace WebDriver {
@@ -34,7 +33,7 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
 
     // 2. Let session be a new session with session ID session id, and HTTP flag flags contains "http".
     auto session = adopt_ref(*new Session(client, capabilities, move(session_id), flags));
-    TRY(session->start(client->launch_browser_callbacks()));
+    TRY(session->start(client->launch_browser_callback()));
 
     // 3. Let proxy be the result of getting property "proxy" from capabilities and run the substeps of the first matching statement:
     // -> proxy is a proxy configuration object
@@ -251,17 +250,14 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
     return server;
 }
 
-ErrorOr<void> Session::start(LaunchBrowserCallbacks const& callbacks)
+ErrorOr<void> Session::start(LaunchBrowserCallback const& launch_browser_callback)
 {
     auto promise = TRY(ServerPromise::try_create());
 
     m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), getpid(), m_session_id);
     m_web_content_server = TRY(create_server(promise));
 
-    if (m_options.headless)
-        m_browser_process = TRY(callbacks.launch_headless_browser(*m_web_content_socket_path));
-    else
-        m_browser_process = TRY(callbacks.launch_browser(*m_web_content_socket_path));
+    m_browser_process = TRY(launch_browser_callback(*m_web_content_socket_path, m_options.headless));
 
     // FIXME: Allow this to be more asynchronous. For now, this at least allows us to propagate
     //        errors received while accepting the Browser and WebContent sockets.

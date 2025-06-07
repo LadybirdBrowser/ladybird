@@ -11,8 +11,9 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibWebView/Forward.h>
 
-namespace Ladybird {
+namespace TestWeb {
 
 class Fixture {
 public:

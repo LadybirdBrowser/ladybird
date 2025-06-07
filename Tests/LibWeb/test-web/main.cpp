@@ -1,11 +1,17 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022, Dex♪ <dexes.ttp@gmail.com>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "Application.h"
+#include "TestWeb.h"
+#include "TestWebView.h"
+
 #include <AK/ByteBuffer.h>
-#include <AK/ByteString.h>
 #include <AK/Enumerate.h>
 #include <AK/LexicalPath.h>
 #include <AK/QuickSort.h>
@@ -21,15 +27,31 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
+#include <LibGfx/SystemTheme.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
-#include <UI/Headless/Application.h>
-#include <UI/Headless/HeadlessWebView.h>
-#include <UI/Headless/Test.h>
+#include <LibWebView/Utilities.h>
 
-namespace Ladybird {
+namespace TestWeb {
 
 static Vector<ByteString> s_skipped_tests;
+
+static constexpr StringView test_result_to_string(TestResult result)
+{
+    switch (result) {
+    case TestResult::Pass:
+        return "Pass"sv;
+    case TestResult::Fail:
+        return "Fail"sv;
+    case TestResult::Skipped:
+        return "Skipped"sv;
+    case TestResult::Timeout:
+        return "Timeout"sv;
+    case TestResult::Crashed:
+        return "Crashed"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
 
 static ErrorOr<void> load_test_config(StringView test_root_path)
 {
@@ -127,14 +149,14 @@ static ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& t
     return {};
 }
 
-static void clear_test_callbacks(HeadlessWebView& view)
+static void clear_test_callbacks(TestWebView& view)
 {
     view.on_load_finish = {};
     view.on_test_finish = {};
     view.on_web_content_crashed = {};
 }
 
-void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
+static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_load_finish = {};
@@ -307,7 +329,7 @@ if (!hasReftestWaitClass()) {
 }
 )"_string;
 
-static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
+static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_load_finish = {};
@@ -404,7 +426,7 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
     timer->start();
 }
 
-static void run_test(HeadlessWebView& view, Test& test, Application& app)
+static void run_test(TestWebView& view, Test& test, Application& app)
 {
     // Clear the current document.
     // FIXME: Implement a debug-request to do this more thoroughly.
@@ -441,7 +463,7 @@ static void run_test(HeadlessWebView& view, Test& test, Application& app)
     view.load(URL::about_blank());
 }
 
-static void set_ui_callbacks_for_tests(HeadlessWebView& view)
+static void set_ui_callbacks_for_tests(TestWebView& view)
 {
     view.on_request_file_picker = [&](auto const& accepted_file_types, auto allow_multiple_files) {
         // Create some dummy files for tests.
@@ -490,7 +512,7 @@ static void set_ui_callbacks_for_tests(HeadlessWebView& view)
     };
 }
 
-ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
+static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
 {
     auto& app = Application::the();
     TRY(load_test_config(app.test_root_path));
@@ -527,7 +549,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
         for (auto const& [i, test] : enumerate(tests))
             outln("{}/{}: {}", i + 1, tests.size(), test.relative_path);
 
-        return {};
+        return 0;
     }
 
     if (tests.is_empty()) {
@@ -539,9 +561,14 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     auto concurrency = min(app.test_concurrency, tests.size());
     size_t loaded_web_views = 0;
 
+    Vector<NonnullOwnPtr<TestWebView>> views;
+    views.ensure_capacity(concurrency);
+
     for (size_t i = 0; i < concurrency; ++i) {
-        auto& view = app.create_web_view(theme, window_size);
-        view.on_load_finish = [&](auto const&) { ++loaded_web_views; };
+        auto view = TestWebView::create(theme, window_size);
+        view->on_load_finish = [&](auto const&) { ++loaded_web_views; };
+
+        views.unchecked_append(move(view));
     }
 
     // We need to wait for the initial about:blank load to complete before starting the tests, otherwise we may load the
@@ -555,7 +582,6 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     size_t timeout_count = 0;
     size_t crashed_count = 0;
     size_t skipped_count = 0;
-    bool all_tests_ok = true;
 
     // Keep clearing and reusing the same line if stdout is a TTY.
     bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
@@ -567,9 +593,9 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 
     Vector<TestCompletion> non_passing_tests;
 
-    app.for_each_web_view([&](auto& view) {
-        set_ui_callbacks_for_tests(view);
-        view.clear_content_filters();
+    for (auto& view : views) {
+        set_ui_callbacks_for_tests(*view);
+        view->clear_content_filters();
 
         auto run_next_test = [&]() {
             auto index = current_test++;
@@ -589,13 +615,13 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 
             Core::deferred_invoke([&]() mutable {
                 if (s_skipped_tests.contains_slow(test.input_path))
-                    view.on_test_complete({ test, TestResult::Skipped });
+                    view->on_test_complete({ test, TestResult::Skipped });
                 else
-                    run_test(view, test, app);
+                    run_test(*view, test, app);
             });
         };
 
-        view.test_promise().when_resolved([&, run_next_test](auto result) {
+        view->test_promise().when_resolved([&, run_next_test](auto result) {
             result.test.end_time = UnixDateTime::now();
 
             if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
@@ -608,15 +634,12 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
                 ++pass_count;
                 break;
             case TestResult::Fail:
-                all_tests_ok = false;
                 ++fail_count;
                 break;
             case TestResult::Timeout:
-                all_tests_ok = false;
                 ++timeout_count;
                 break;
             case TestResult::Crashed:
-                all_tests_ok = false;
                 ++crashed_count;
                 break;
             case TestResult::Skipped:
@@ -636,7 +659,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
         Core::deferred_invoke([run_next_test]() {
             run_next_test();
         });
-    });
+    }
 
     MUST(all_tests_complete->await());
 
@@ -672,20 +695,40 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     }
 
     if (app.dump_gc_graph) {
-        app.for_each_web_view([&](auto& view) {
-            if (auto path = view.dump_gc_graph(); path.is_error())
+        for (auto& view : views) {
+            if (auto path = view->dump_gc_graph(); path.is_error())
                 warnln("Failed to dump GC graph: {}", path.error());
             else
                 outln("GC graph dumped to {}", path.value());
-        });
+        }
     }
 
-    app.destroy_web_views();
-
-    if (all_tests_ok)
-        return {};
-
-    return Error::from_string_literal("Failed LibWeb tests");
+    return fail_count + timeout_count + crashed_count;
 }
 
+}
+
+ErrorOr<int> serenity_main(Main::Arguments arguments)
+{
+#if defined(LADYBIRD_BINARY_PATH)
+    WebView::platform_init(LADYBIRD_BINARY_PATH);
+#else
+    WebView::platform_init();
+#endif
+
+    auto app = TestWeb::Application::create(arguments);
+    TRY(app->launch_services());
+
+    auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
+    auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
+
+    auto const& browser_options = TestWeb::Application::browser_options();
+    Web::DevicePixelSize window_size { browser_options.window_width, browser_options.window_height };
+
+    VERIFY(!app->test_root_path.is_empty());
+
+    app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
+    TRY(app->launch_test_fixtures());
+
+    return TestWeb::run_tests(theme, window_size);
 }

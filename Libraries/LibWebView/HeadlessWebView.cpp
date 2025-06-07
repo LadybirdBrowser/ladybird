@@ -4,28 +4,42 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Bitmap.h>
-#include <LibGfx/ShareableBitmap.h>
-#include <UI/Headless/Application.h>
-#include <UI/Headless/HeadlessWebView.h>
+#include <LibWebView/HeadlessWebView.h>
 
-namespace Ladybird {
+namespace WebView {
 
 static Web::DevicePixelRect const screen_rect { 0, 0, 1920, 1080 };
+
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
+{
+    auto view = adopt_own(*new HeadlessWebView(move(theme), window_size));
+    view->initialize_client(CreateNewClient::Yes);
+
+    return view;
+}
+
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, u64 page_index)
+{
+    auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size));
+
+    view->m_client_state.client = parent.client();
+    view->m_client_state.page_index = page_index;
+    view->initialize_client(CreateNewClient::No);
+
+    return view;
+}
 
 HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size)
     : m_theme(move(theme))
     , m_viewport_size(viewport_size)
-    , m_test_promise(TestPromise::construct())
 {
     on_new_web_view = [this](auto, auto, Optional<u64> page_index) {
-        if (page_index.has_value()) {
-            auto& web_view = Application::the().create_child_web_view(*this, *page_index);
-            return web_view.handle();
-        }
+        auto web_view = page_index.has_value()
+            ? HeadlessWebView::create_child(*this, *page_index)
+            : HeadlessWebView::create(m_theme, m_viewport_size);
 
-        auto& web_view = Application::the().create_web_view(m_theme, m_viewport_size);
-        return web_view.handle();
+        m_child_web_views.append(move(web_view));
+        return m_child_web_views.last()->handle();
     };
 
     on_reposition_window = [this](auto position) {
@@ -144,25 +158,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     m_system_visibility_state = Web::HTML::VisibilityState::Visible;
 }
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
-{
-    auto view = adopt_own(*new HeadlessWebView(move(theme), window_size));
-    view->initialize_client(CreateNewClient::Yes);
-
-    return view;
-}
-
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, u64 page_index)
-{
-    auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size));
-
-    view->m_client_state.client = parent.client();
-    view->m_client_state.page_index = page_index;
-    view->initialize_client(CreateNewClient::No);
-
-    return view;
-}
-
 void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
 {
     ViewImplementation::initialize_client(create_new_client);
@@ -171,38 +166,6 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
     client().async_set_viewport_size(m_client_state.page_index, viewport_size());
     client().async_set_window_size(m_client_state.page_index, viewport_size());
     client().async_update_screen_rects(m_client_state.page_index, { { screen_rect } }, 0);
-}
-
-void HeadlessWebView::clear_content_filters()
-{
-    client().async_set_content_filters(m_client_state.page_index, {});
-}
-
-NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> HeadlessWebView::take_screenshot()
-{
-    VERIFY(!m_pending_screenshot);
-
-    m_pending_screenshot = Core::Promise<RefPtr<Gfx::Bitmap const>>::construct();
-    client().async_take_document_screenshot(0);
-
-    return *m_pending_screenshot;
-}
-
-void HeadlessWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot)
-{
-    VERIFY(m_pending_screenshot);
-
-    auto pending_screenshot = move(m_pending_screenshot);
-    pending_screenshot->resolve(screenshot.bitmap());
-}
-
-void HeadlessWebView::on_test_complete(TestCompletion completion)
-{
-    m_pending_screenshot.clear();
-    m_pending_dialog = Web::Page::PendingDialog::None;
-    m_pending_prompt_text.clear();
-
-    m_test_promise->resolve(move(completion));
 }
 
 void HeadlessWebView::update_zoom()

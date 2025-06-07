@@ -85,6 +85,7 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
     Optional<IPC::File> request_server_socket,
     ClientArguments&&... client_arguments)
 {
+    auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
 
     Vector<ByteString> arguments {
@@ -93,6 +94,9 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         "--executable-path"sv,
         web_content_options.executable_path.to_byte_string(),
     };
+
+    if (browser_options.headless_mode.has_value())
+        arguments.append("--headless"sv);
 
     if (web_content_options.config_path.has_value()) {
         arguments.append("--config-path"sv);
@@ -116,8 +120,6 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--force-fontconfig"sv);
     if (web_content_options.collect_garbage_on_every_allocation == WebView::CollectGarbageOnEveryAllocation::Yes)
         arguments.append("--collect-garbage-on-every-allocation"sv);
-    if (web_content_options.is_headless == WebView::IsHeadless::Yes)
-        arguments.append("--headless"sv);
     if (web_content_options.paint_viewport_scrollbars == PaintViewportScrollbars::No)
         arguments.append("--disable-scrollbar-painting"sv);
 

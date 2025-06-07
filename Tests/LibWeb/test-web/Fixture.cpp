@@ -4,14 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "Fixture.h"
+#include "Application.h"
+
 #include <AK/ByteBuffer.h>
 #include <AK/LexicalPath.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
-#include <UI/Headless/Application.h>
-#include <UI/Headless/Fixture.h>
 
-namespace Ladybird {
+namespace TestWeb {
 
 static ByteString s_fixtures_path;
 
@@ -45,22 +46,24 @@ private:
     Optional<Core::Process> m_process;
 };
 
-#ifdef AK_OS_WINDOWS
-// FIXME: Implement Ladybird::HttpEchoServerFixture::setup on Windows
+#if defined(AK_OS_WINDOWS)
+
 ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions&)
 {
-    VERIFY(0 && "Ladybird::HttpEchoServerFixture::setup is not implemented");
+    VERIFY(0 && "HttpEchoServerFixture::setup is not implemented");
 }
-// FIXME: Implement Ladybird::HttpEchoServerFixture::teardown_impl on Windows
+
 void HttpEchoServerFixture::teardown_impl()
 {
-    VERIFY(0 && "Ladybird::HttpEchoServerFixture::teardown_impl is not implemented");
+    VERIFY(0 && "HttpEchoServerFixture::teardown_impl is not implemented");
 }
+
 #else
+
 ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_content_options)
 {
     auto const script_path = LexicalPath::join(s_fixtures_path, m_script_path);
-    auto const arguments = Vector { script_path.string(), "--directory", Ladybird::Application::the().test_root_path };
+    auto const arguments = Vector { script_path.string(), "--directory", Application::the().test_root_path };
 
     // FIXME: Pick a more reasonable log path that is more observable
     auto const log_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "http-test-server.log"sv).string();
@@ -68,7 +71,7 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
     auto stdout_fds = TRY(Core::System::pipe2(0));
 
     auto const process_options = Core::ProcessSpawnOptions {
-        .executable = Ladybird::Application::the().python_executable_path,
+        .executable = Application::the().python_executable_path,
         .search_for_executable_in_path = true,
         .arguments = arguments,
         .file_actions = {
@@ -111,11 +114,12 @@ void HttpEchoServerFixture::teardown_impl()
 
     m_process = {};
 }
+
 #endif
 
 void Fixture::initialize_fixtures()
 {
-    s_fixtures_path = LexicalPath::join(Ladybird::Application::the().test_root_path, "Fixtures"sv).string();
+    s_fixtures_path = LexicalPath::join(Application::the().test_root_path, "Fixtures"sv).string();
 
     auto& registry = all();
     registry.append(make<HttpEchoServerFixture>());
