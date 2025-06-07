@@ -19,7 +19,7 @@ jobs:
   CI:
     if: github.repository == 'LadybirdBrowser/ladybird'
 
-    runs-on: windows-2022
+    runs-on: windows-2025
 
     steps:
       - uses: actions/checkout@v4
@@ -41,34 +41,34 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: 'cache-restore'
         with:
-          runner_labels: '["windows-2022"]'
+          runner_labels: '["windows-2025"]'
           os: Windows
           arch: x86_64
           toolchain: ClangCL
-          cache_key_extra: windows_ci_ninja
+          cache_key_extra: Windows_Sanitizer_CI
           download_cache_path: ${{ github.workspace }}/Build/caches
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Create Build Environment
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --preset windows_ci_ninja
+          cmake --preset Windows_Sanitizer_CI
 
       - name: Build
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --build --preset windows_ci_ninja
+          cmake --build --preset Windows_Sanitizer_CI
 
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
-          runner_labels: '["windows-2022"]'
+          runner_labels: '["windows-2025"]'
           arch: x86_64
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       - name: Test
         working-directory: ${{ github.workspace }}
-        run: ctest --preset windows_ci_ninja --timeout 1800
+        run: ctest --preset Windows_Sanitizer_CI --timeout 1800
         env:
           TESTS_ONLY: 1
