@@ -68,6 +68,7 @@ static bool is_platform_object(Type const& type)
         "FontFace"sv,
         "FormData"sv,
         "GPU"sv,
+        "GPUAdapter"sv,
         "HTMLCollection"sv,
         "IDBCursor"sv,
         "IDBCursorWithValue"sv,
