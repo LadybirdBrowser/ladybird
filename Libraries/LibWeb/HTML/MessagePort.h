@@ -47,6 +47,7 @@ public:
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
     WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const& options);
 
+    void enable();
     void start();
 
     void close();
@@ -91,6 +92,8 @@ private:
     OwnPtr<IPC::Transport> m_transport;
 
     GC::Ptr<DOM::EventTarget> m_worker_event_target;
+
+    bool m_enabled { false };
 };
 
 }

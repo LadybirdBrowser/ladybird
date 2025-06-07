@@ -219,7 +219,8 @@ void set_up_cross_realm_transform_readable(JS::Realm& realm, ReadableStream& str
             port.disentangle();
         });
 
-    // FIXME: 5. Enable port’s port message queue.
+    // 5. Enable port’s port message queue.
+    port.enable();
 
     // 6. Let startAlgorithm be an algorithm that returns undefined.
     auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> {
@@ -333,7 +334,8 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
             port.disentangle();
         });
 
-    // FIXME: 6. Enable port’s port message queue.
+    // 6. Enable port’s port message queue.
+    port.enable();
 
     // 7. Let startAlgorithm be an algorithm that returns undefined.
     auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> {

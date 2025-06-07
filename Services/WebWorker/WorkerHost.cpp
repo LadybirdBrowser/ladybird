@@ -208,7 +208,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHolder mess
 
         // 12. If is shared is false, enable the port message queue of the worker's implicit port.
         if (!is_shared) {
-            inside_port->start();
+            inside_port->enable();
         }
 
         // 13. If is shared is true, then queue a global task on DOM manipulation task source given worker
