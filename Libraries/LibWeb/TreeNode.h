@@ -72,8 +72,57 @@ public:
         return index;
     }
 
+    // // https://dom.spec.whatwg.org/#concept-tree-root
+    T& root()
+    {
+        // The root of an object is itself, if its parent is null, or else it is the root of its parent.
+        // The root of a tree is any object participating in that tree whose parent is null.
+        T* root = static_cast<T*>(this);
+        while (root->parent())
+            root = root->parent();
+        return *root;
+    }
+    T const& root() const { return const_cast<TreeNode*>(this)->root(); }
+
     bool is_ancestor_of(TreeNode const&) const;
     bool is_inclusive_ancestor_of(TreeNode const&) const;
+    bool contains(GC::Ptr<T>) const;
+    bool is_descendant_of(TreeNode const&) const;
+    bool is_inclusive_descendant_of(TreeNode const&) const;
+
+    bool is_following(TreeNode const&) const;
+    bool is_before(TreeNode const&) const;
+
+    // https://dom.spec.whatwg.org/#concept-tree-preceding (Object A is 'typename U' and Object B is 'this')
+    template<typename U>
+    bool has_preceding_node_of_type_in_tree_order() const
+    {
+        for (auto* node = previous_in_pre_order(); node; node = node->previous_in_pre_order()) {
+            if (is<U>(node))
+                return true;
+        }
+        return false;
+    }
+
+    // https://dom.spec.whatwg.org/#concept-tree-following (Object A is 'typename U' and Object B is 'this')
+    template<typename U>
+    bool has_following_node_of_type_in_tree_order() const
+    {
+        for (auto* node = next_in_pre_order(); node; node = node->next_in_pre_order()) {
+            if (is<U>(node))
+                return true;
+        }
+        return false;
+    }
+
+    bool is_parent_of(TreeNode const& other) const
+    {
+        for (auto* child = first_child(); child; child = child->next_sibling()) {
+            if (&other == child)
+                return true;
+        }
+        return false;
+    }
 
     void append_child(GC::Ref<T> node);
     void prepend_child(GC::Ref<T> node);
@@ -85,6 +134,30 @@ public:
     {
         VERIFY(m_parent);
         m_parent->remove_child(*static_cast<T*>(this));
+    }
+
+    size_t child_count() const
+    {
+        size_t count = 0;
+        for (auto* child = first_child(); child; child = child->next_sibling())
+            ++count;
+        return count;
+    }
+
+    T* child_at_index(int index)
+    {
+        int count = 0;
+        for (auto* child = first_child(); child; child = child->next_sibling()) {
+            if (count == index)
+                return child;
+            ++count;
+        }
+        return nullptr;
+    }
+
+    T const* child_at_index(int index) const
+    {
+        return const_cast<TreeNode*>(this)->child_at_index(index);
     }
 
     T* next_in_pre_order()
@@ -281,6 +354,12 @@ public:
     }
 
     template<typename U>
+    bool has_child_of_type() const
+    {
+        return first_child_of_type<U>() != nullptr;
+    }
+
+    template<typename U>
     U const* first_child_of_type() const
     {
         return const_cast<TreeNode*>(this)->template first_child_of_type<U>();
@@ -326,6 +405,36 @@ public:
                 return ancestor_of_type;
         }
         return nullptr;
+    }
+
+    template<typename Callback>
+    void for_each_ancestor(Callback callback) const
+    {
+        return const_cast<TreeNode*>(this)->for_each_ancestor(move(callback));
+    }
+
+    template<typename Callback>
+    void for_each_ancestor(Callback callback)
+    {
+        for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+            if (callback(static_cast<T&>(*ancestor)) == IterationDecision::Break)
+                break;
+        }
+    }
+
+    template<typename Callback>
+    void for_each_inclusive_ancestor(Callback callback) const
+    {
+        return const_cast<TreeNode*>(this)->for_each_inclusive_ancestor(move(callback));
+    }
+
+    template<typename Callback>
+    void for_each_inclusive_ancestor(Callback callback)
+    {
+        for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
+            if (callback(static_cast<T&>(*ancestor)) == IterationDecision::Break)
+                break;
+        }
     }
 
     ~TreeNode() = default;
@@ -462,6 +571,51 @@ template<typename T>
 inline bool TreeNode<T>::is_inclusive_ancestor_of(TreeNode<T> const& other) const
 {
     return &other == this || is_ancestor_of(other);
+}
+
+// https://dom.spec.whatwg.org/#dom-node-contains
+template<typename T>
+inline bool TreeNode<T>::contains(GC::Ptr<T> other) const
+{
+    // The contains(other) method steps are to return true if other is an inclusive descendant of this; otherwise false (including when other is null).
+    return other && other->is_inclusive_descendant_of(*this);
+}
+
+template<typename T>
+inline bool TreeNode<T>::is_descendant_of(TreeNode<T> const& other) const
+{
+    return other.is_ancestor_of(*this);
+}
+
+template<typename T>
+inline bool TreeNode<T>::is_inclusive_descendant_of(TreeNode<T> const& other) const
+{
+    return other.is_inclusive_ancestor_of(*this);
+}
+
+// https://dom.spec.whatwg.org/#concept-tree-following
+template<typename T>
+inline bool TreeNode<T>::is_following(TreeNode const& other) const
+{
+    // An object A is following an object B if A and B are in the same tree and A comes after B in tree order.
+    for (auto* node = previous_in_pre_order(); node; node = node->previous_in_pre_order()) {
+        if (node == &other)
+            return true;
+    }
+
+    return false;
+}
+
+template<typename T>
+inline bool TreeNode<T>::is_before(TreeNode const& other) const
+{
+    if (this == &other)
+        return false;
+    for (auto* node = this; node; node = node->next_in_pre_order()) {
+        if (node == &other)
+            return true;
+    }
+    return false;
 }
 
 }

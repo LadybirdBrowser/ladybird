@@ -280,12 +280,6 @@ public:
 
     String child_text_content() const;
 
-    Node& root();
-    Node const& root() const
-    {
-        return const_cast<Node*>(this)->root();
-    }
-
     Node& shadow_including_root();
     Node const& shadow_including_root() const
     {
@@ -376,8 +370,6 @@ public:
     bool is_scripting_enabled() const;
     bool is_scripting_disabled() const;
 
-    bool contains(GC::Ptr<Node>) const;
-
     // Used for dumping the DOM Tree
     void serialize_tree_as_json(JsonObjectSerializer<StringBuilder>&) const;
 
@@ -424,98 +416,6 @@ public:
 
     Slottable as_slottable();
 
-    size_t child_count() const
-    {
-        size_t count = 0;
-        for (auto* child = first_child(); child; child = child->next_sibling())
-            ++count;
-        return count;
-    }
-
-    Node* child_at_index(int index)
-    {
-        int count = 0;
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (count == index)
-                return child;
-            ++count;
-        }
-        return nullptr;
-    }
-
-    Node const* child_at_index(int index) const
-    {
-        return const_cast<Node*>(this)->child_at_index(index);
-    }
-
-    bool is_descendant_of(Node const&) const;
-    bool is_inclusive_descendant_of(Node const&) const;
-
-    bool is_following(Node const&) const;
-
-    bool is_before(Node const& other) const
-    {
-        if (this == &other)
-            return false;
-        for (auto* node = this; node; node = node->next_in_pre_order()) {
-            if (node == &other)
-                return true;
-        }
-        return false;
-    }
-
-    // https://dom.spec.whatwg.org/#concept-tree-preceding (Object A is 'typename U' and Object B is 'this')
-    template<typename U>
-    bool has_preceding_node_of_type_in_tree_order() const
-    {
-        for (auto* node = previous_in_pre_order(); node; node = node->previous_in_pre_order()) {
-            if (is<U>(node))
-                return true;
-        }
-        return false;
-    }
-
-    // https://dom.spec.whatwg.org/#concept-tree-following (Object A is 'typename U' and Object B is 'this')
-    template<typename U>
-    bool has_following_node_of_type_in_tree_order() const
-    {
-        for (auto* node = next_in_pre_order(); node; node = node->next_in_pre_order()) {
-            if (is<U>(node))
-                return true;
-        }
-        return false;
-    }
-
-    template<typename Callback>
-    void for_each_ancestor(Callback callback) const
-    {
-        return const_cast<Node*>(this)->for_each_ancestor(move(callback));
-    }
-
-    template<typename Callback>
-    void for_each_ancestor(Callback callback)
-    {
-        for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-            if (callback(*ancestor) == IterationDecision::Break)
-                break;
-        }
-    }
-
-    template<typename Callback>
-    void for_each_inclusive_ancestor(Callback callback) const
-    {
-        return const_cast<Node*>(this)->for_each_inclusive_ancestor(move(callback));
-    }
-
-    template<typename Callback>
-    void for_each_inclusive_ancestor(Callback callback)
-    {
-        for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
-            if (callback(*ancestor) == IterationDecision::Break)
-                break;
-        }
-    }
-
     template<typename U, typename Callback>
     WebIDL::ExceptionOr<void> for_each_child_of_type_fallible(Callback callback)
     {
@@ -527,13 +427,6 @@ public:
         }
         return {};
     }
-
-    template<typename U>
-    bool has_child_of_type() const
-    {
-        return first_child_of_type<U>() != nullptr;
-    }
-
     template<typename U>
     U const* shadow_including_first_ancestor_of_type() const
     {
@@ -542,15 +435,6 @@ public:
 
     template<typename U>
     U* shadow_including_first_ancestor_of_type();
-
-    bool is_parent_of(Node const& other) const
-    {
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (&other == child)
-                return true;
-        }
-        return false;
-    }
 
     ErrorOr<String> accessible_name(Document const&, ShouldComputeRole = ShouldComputeRole::Yes) const;
     ErrorOr<String> accessible_description(Document const&) const;
