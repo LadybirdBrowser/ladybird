@@ -28,6 +28,7 @@ static constexpr auto libexec_path = "libexec"sv;
 #endif
 
 ByteString s_ladybird_resource_root;
+static Optional<ByteString> s_ladybird_binary_path;
 
 Optional<ByteString> s_mach_server_name;
 
@@ -43,8 +44,11 @@ void set_mach_server_name(ByteString name)
     s_mach_server_name = move(name);
 }
 
-ErrorOr<ByteString> application_directory()
+static ErrorOr<ByteString> application_directory()
 {
+    if (s_ladybird_binary_path.has_value())
+        return *s_ladybird_binary_path;
+
     auto current_executable_path = TRY(Core::System::current_executable_path());
     return LexicalPath::dirname(current_executable_path);
 }
@@ -61,8 +65,10 @@ static LexicalPath find_prefix(LexicalPath const& application_directory)
     return application_directory.parent();
 }
 
-void platform_init()
+void platform_init(Optional<ByteString> ladybird_binary_path)
 {
+    s_ladybird_binary_path = move(ladybird_binary_path);
+
     s_ladybird_resource_root = [] {
         auto home = Core::Environment::get("XDG_CONFIG_HOME"sv)
                         .value_or_lazy_evaluated_optional([]() { return Core::Environment::get("HOME"sv); });
@@ -78,6 +84,7 @@ void platform_init()
         return find_prefix(LexicalPath(app_dir)).append("share/Lagom"sv).string();
 #endif
     }();
+
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_byte_string(s_ladybird_resource_root))));
 }
 

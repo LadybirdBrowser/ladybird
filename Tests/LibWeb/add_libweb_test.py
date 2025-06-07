@@ -87,8 +87,7 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
         elif test_type == "Layout":
             input_boilerplate = generic_boilerplate
             expected_boilerplate = f"""run
- ./Meta/ladybird.py run headless-browser --run-tests
- "${{LADYBIRD_SOURCE_DIR}}/Tests/LibWeb" --rebaseline -f {input_file}
+ ./Meta/ladybird.py run test-web --rebaseline -f {input_file}
 to produce the expected output for this test
 """
             print("Delete <!DOCTYPE html> and replace it with <!--Quirks mode--> if test should run in quirks mode")

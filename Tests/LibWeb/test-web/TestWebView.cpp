@@ -4,32 +4,33 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "TestWebView.h"
+
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <UI/Headless/HeadlessWebView.h>
 
-namespace Ladybird {
+namespace TestWeb {
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
+NonnullOwnPtr<TestWebView> TestWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
 {
-    auto view = adopt_own(*new HeadlessWebView(move(theme), window_size));
+    auto view = adopt_own(*new TestWebView(move(theme), window_size));
     view->initialize_client(CreateNewClient::Yes);
 
     return view;
 }
 
-HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size)
+TestWebView::TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size)
     : WebView::HeadlessWebView(move(theme), viewport_size)
     , m_test_promise(TestPromise::construct())
 {
 }
 
-void HeadlessWebView::clear_content_filters()
+void TestWebView::clear_content_filters()
 {
     client().async_set_content_filters(m_client_state.page_index, {});
 }
 
-NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> HeadlessWebView::take_screenshot()
+NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screenshot()
 {
     VERIFY(!m_pending_screenshot);
 
@@ -39,7 +40,7 @@ NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> HeadlessWebView::take_sc
     return *m_pending_screenshot;
 }
 
-void HeadlessWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot)
+void TestWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot)
 {
     VERIFY(m_pending_screenshot);
 
@@ -47,7 +48,7 @@ void HeadlessWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, G
     pending_screenshot->resolve(screenshot.bitmap());
 }
 
-void HeadlessWebView::on_test_complete(TestCompletion completion)
+void TestWebView::on_test_complete(TestCompletion completion)
 {
     m_pending_screenshot.clear();
     m_pending_dialog = Web::Page::PendingDialog::None;

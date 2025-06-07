@@ -200,8 +200,8 @@ BUILD_PRESET=Debug ./Meta/ladybird.py run
 
 Note that debug symbols are available in both Release and Debug builds.
 
-If you want to run other applications, such as the headless-browser, the JS REPL, or the WebAssembly REPL, specify an
-executable with `./Meta/ladybird.py run <executable_name>`.
+If you want to run other applications, such as the the JS REPL or the WebAssembly REPL, specify an executable with
+`./Meta/ladybird.py run <executable_name>`.
 
 ### The User Interfaces
 

@@ -73,7 +73,7 @@ ensure_run_dir() {
 
 LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/Ladybird"}
 WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
-HEADLESS_BROWSER_BINARY=${HEADLESS_BROWSER_BINARY:-"$(default_binary_path)/headless-browser"}
+TEST_WEB_BINARY=${TEST_WEB_BINARY:-"${BUILD_DIR}/bin/test-web"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
     "tools/certs/cacert.pem"
@@ -596,14 +596,14 @@ import_wpt()
     done < <(printf "%s\n" "${RAW_TESTS[@]}" | sort -u)
 
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
-        ./Meta/ladybird.py build headless-browser
+        ./Meta/ladybird.py build test-web
         set +e
         for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
             if ! ./Meta/import-wpt-test.py https://wpt.live/"${path}"; then
                 continue
             fi
-            "${HEADLESS_BROWSER_BINARY}" --run-tests ./Tests/LibWeb --rebaseline -f "$path"
+            "${TEST_WEB_BINARY}" --rebaseline -f "$path"
         done
         set -e
     popd > /dev/null
