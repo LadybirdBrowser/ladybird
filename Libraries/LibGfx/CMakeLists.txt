@@ -118,8 +118,17 @@ find_package(LIBAVIF REQUIRED)
 find_package(WebP REQUIRED)
 pkg_check_modules(harfbuzz REQUIRED IMPORTED_TARGET harfbuzz)
 
-target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
+if (HAS_FONTCONFIG)
+    pkg_check_modules(fontconfig REQUIRED IMPORTED_TARGET fontconfig)
+endif()
+
+if (HAS_FONTCONFIG)
+    target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
+            WebP::webpdemux WebP::libwebpmux skia harfbuzz fontconfig)
+else()
+    target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
             WebP::webpdemux WebP::libwebpmux skia harfbuzz)
+endif()
 
 set(CMAKE_REQUIRED_LIBRARIES PNG::PNG)
 check_c_source_compiles([=[
