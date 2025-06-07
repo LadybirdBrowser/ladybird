@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+
+<style>
+  body {
+    width: 100px;
+    height: 100px;
+  }
+
+  .link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 100%;
+  }
+</style>
+
+
+<body>
+  <a class="link" href="#" onclick="this.textContent = 'PASS'">FAIL</a>
+</body>
+
+<script>
+    test(() => {
+        internals.click(50, 60);
+        
+        let linkText = document.querySelector(".link").textContent;
+
+        println(linkText);    
+    });
+</script>
