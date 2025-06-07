@@ -70,7 +70,9 @@ static DOM::Node* input_control_associated_with_ancestor_label_element(Painting:
 static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, Layout::Node*& layout_node)
 {
     layout_node = &paintable.layout_node();
-    if (layout_node->is_generated_for_backdrop_pseudo_element()) {
+    if (layout_node->is_generated_for_backdrop_pseudo_element()
+        || layout_node->is_generated_for_after_pseudo_element()
+        || layout_node->is_generated_for_before_pseudo_element()) {
         node = layout_node->pseudo_element_generator();
         layout_node = node->layout_node();
     }
