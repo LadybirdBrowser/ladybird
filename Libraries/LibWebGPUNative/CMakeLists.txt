@@ -6,7 +6,7 @@ endif()
 set(SOURCES)
 ladybird_lib(LibWebGPUNative webgpunative EXPLICIT_SYMBOL_EXPORT)
 target_compile_definitions(LibWebGPUNative PRIVATE $<$<CONFIG:Debug>:WEBGPUNATIVE_DEBUG>)
-target_link_libraries(LibWebGPUNative PRIVATE AK)
+target_link_libraries(LibWebGPUNative PRIVATE AK LibCore)
 
 if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
     target_sources(LibWebGPUNative
@@ -20,6 +20,8 @@ if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
 elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
     target_sources(LibWebGPUNative
         PRIVATE
+            Vulkan/Adapter.cpp
+            Vulkan/AdapterImpl.cpp
             Vulkan/Instance.cpp
             Vulkan/InstanceImpl.cpp
     )
