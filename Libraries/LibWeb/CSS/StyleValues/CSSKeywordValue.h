@@ -15,7 +15,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
-class CSSKeywordValue : public StyleValueWithDefaultOperators<CSSKeywordValue> {
+class CSSKeywordValue final : public StyleValueWithDefaultOperators<CSSKeywordValue> {
 public:
     static ValueComparingNonnullRefPtr<CSSKeywordValue const> create(Keyword keyword)
     {

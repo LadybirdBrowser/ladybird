@@ -34,7 +34,7 @@ class TIFFLoadingContext;
 
 }
 
-class TIFFImageDecoderPlugin : public ImageDecoderPlugin {
+class TIFFImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);

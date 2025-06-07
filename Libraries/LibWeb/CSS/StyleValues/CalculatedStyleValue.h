@@ -37,7 +37,7 @@ struct CalculationResolutionContext {
     Optional<Length::ResolutionContext> length_resolution_context;
 };
 
-class CalculatedStyleValue : public CSSStyleValue {
+class CalculatedStyleValue final : public CSSStyleValue {
 public:
     class CalculationResult {
     public:

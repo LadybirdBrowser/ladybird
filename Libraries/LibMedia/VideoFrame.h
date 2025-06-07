@@ -55,7 +55,7 @@ protected:
     CodingIndependentCodePoints m_cicp;
 };
 
-class SubsampledYUVFrame : public VideoFrame {
+class SubsampledYUVFrame final : public VideoFrame {
 
 public:
     static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create(

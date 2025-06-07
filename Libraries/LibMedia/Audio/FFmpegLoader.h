@@ -18,7 +18,7 @@ extern "C" {
 
 namespace Audio {
 
-class FFmpegLoaderPlugin : public LoaderPlugin {
+class FFmpegLoaderPlugin final : public LoaderPlugin {
 public:
     explicit FFmpegLoaderPlugin(NonnullOwnPtr<SeekableStream>, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>);
     virtual ~FFmpegLoaderPlugin();

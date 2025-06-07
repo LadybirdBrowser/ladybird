@@ -161,6 +161,8 @@ static bool ignore_punctuation_for_collator(icu::Collator const& collator)
     return attribute == UCOL_SHIFTED;
 }
 
+namespace {
+
 class CollatorImpl : public Collator {
 public:
     explicit CollatorImpl(NonnullOwnPtr<icu::Collator> collator)
@@ -200,6 +202,8 @@ public:
 private:
     NonnullOwnPtr<icu::Collator> m_collator;
 };
+
+}
 
 NonnullOwnPtr<Collator> Collator::create(
     StringView locale,

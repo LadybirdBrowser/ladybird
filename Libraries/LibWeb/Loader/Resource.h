@@ -32,7 +32,7 @@ public:
     };
 
     static NonnullRefPtr<Resource> create(Badge<ResourceLoader>, Type, LoadRequest const&);
-    virtual ~Resource();
+    ~Resource();
 
     Type type() const { return m_type; }
 

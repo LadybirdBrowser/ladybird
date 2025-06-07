@@ -41,6 +41,8 @@ StringView segmenter_granularity_to_string(SegmenterGranularity segmenter_granul
     VERIFY_NOT_REACHED();
 }
 
+namespace {
+
 class SegmenterImpl : public Segmenter {
 public:
     SegmenterImpl(NonnullOwnPtr<icu::BreakIterator> segmenter, SegmenterGranularity segmenter_granularity)
@@ -212,6 +214,8 @@ private:
     NonnullOwnPtr<icu::BreakIterator> m_segmenter;
     Variant<Empty, String, icu::UnicodeString> m_segmented_text;
 };
+
+}
 
 NonnullOwnPtr<Segmenter> Segmenter::create(SegmenterGranularity segmenter_granularity)
 {
