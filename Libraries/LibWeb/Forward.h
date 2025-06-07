@@ -1117,6 +1117,7 @@ class WebGLVertexArrayObjectOES;
 namespace Web::WebGPU {
 
 class GPU;
+class GPUAdapter;
 
 }
 

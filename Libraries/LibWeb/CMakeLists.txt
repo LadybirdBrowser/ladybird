@@ -965,6 +965,7 @@ set(SOURCES
     WebGL/WebGLUniformLocation.cpp
     WebGL/WebGLVertexArrayObject.cpp
     WebGPU/GPU.cpp
+    WebGPU/GPUAdapter.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp
     WebIDL/Buffers.cpp
