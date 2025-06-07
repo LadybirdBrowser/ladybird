@@ -10,10 +10,6 @@
 #include <LibWeb/Bindings/WorkerGlobalScopePrototype.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
-#define ENUMERATE_DEDICATED_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(E) \
-    E(onmessage, HTML::EventNames::message)                       \
-    E(onmessageerror, HTML::EventNames::messageerror)
-
 namespace Web::HTML {
 
 class DedicatedWorkerGlobalScope
@@ -30,12 +26,11 @@ public:
 
     void close();
 
-#undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)       \
-    void set_##attribute_name(WebIDL::CallbackType*); \
-    WebIDL::CallbackType* attribute_name();
-    ENUMERATE_DEDICATED_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(__ENUMERATE)
-#undef __ENUMERATE
+    WebIDL::CallbackType* onmessage();
+    void set_onmessage(WebIDL::CallbackType* callback);
+
+    WebIDL::CallbackType* onmessageerror();
+    void set_onmessageerror(WebIDL::CallbackType* callback);
 
     virtual void finalize() override;
 

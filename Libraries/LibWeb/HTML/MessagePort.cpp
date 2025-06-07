@@ -135,7 +135,8 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
         m_transport = make<IPC::Transport>(MUST(Core::LocalSocket::adopt_fd(fd.take_fd())));
 
         m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
-            strong_this->read_from_transport();
+            if (strong_this->m_enabled)
+                strong_this->read_from_transport();
         });
     } else if (fd_tag != 0) {
         dbgln("Unexpected byte {:x} in MessagePort transfer data", fd_tag);
@@ -200,11 +201,13 @@ void MessagePort::entangle_with(MessagePort& remote_port)
     m_remote_port->m_transport = make<IPC::Transport>(move(sockets[1]));
 
     m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
-        strong_this->read_from_transport();
+        if (strong_this->m_enabled)
+            strong_this->read_from_transport();
     });
 
     m_remote_port->m_transport->set_up_read_hook([remote_port = GC::make_root(m_remote_port)]() {
-        remote_port->read_from_transport();
+        if (remote_port->m_enabled)
+            remote_port->read_from_transport();
     });
 }
 
@@ -297,6 +300,8 @@ void MessagePort::post_port_message(SerializedTransferRecord serialize_with_tran
 
 void MessagePort::read_from_transport()
 {
+    VERIFY(m_enabled);
+
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& raw_message) {
         FixedMemoryStream stream { raw_message.bytes.span(), FixedMemoryStream::Mode::ReadOnly };
         IPC::Decoder decoder { stream, raw_message.fds };
@@ -317,6 +322,8 @@ void MessagePort::read_from_transport()
 
 void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_with_transfer_result)
 {
+    VERIFY(m_enabled);
+
     // 1. Let finalTargetPort be the MessagePort in whose port message queue the task now finds itself.
     // NOTE: This can be different from targetPort, if targetPort itself was transferred and thus all its tasks moved along with it.
     auto* final_target_port = this;
@@ -368,6 +375,14 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     message_event_target->dispatch_event(event);
 }
 
+void MessagePort::enable()
+{
+    if (!m_enabled) {
+        m_enabled = true;
+        read_from_transport();
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-start
 void MessagePort::start()
 {
@@ -376,7 +391,8 @@ void MessagePort::start()
 
     VERIFY(m_transport);
 
-    // TODO: The start() method steps are to enable this's port message queue, if it is not already enabled.
+    // The start() method steps are to enable this's port message queue, if it is not already enabled.
+    enable();
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-close
