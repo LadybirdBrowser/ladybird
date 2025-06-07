@@ -385,7 +385,7 @@ static i64 clip_double_to_sane_time(double value)
     static constexpr auto min_double = static_cast<double>(NumericLimits<i64>::min());
     static constexpr auto max_double = static_cast<double>(NumericLimits<i64>::max());
 
-    // The provided epoch millseconds value is potentially out of range for AK::Duration and subsequently
+    // The provided epoch milliseconds value is potentially out of range for AK::Duration and subsequently
     // get_time_zone_offset(). We can safely assume that the TZDB has no useful information that far
     // into the past and future anyway, so clamp it to the i64 range.
     if (value < min_double)
