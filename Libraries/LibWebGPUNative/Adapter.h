@@ -7,27 +7,20 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
-#include <LibCore/Promise.h>
 #include <LibWebGPUNative/Forward.h>
 
 namespace WebGPUNative {
 
-class Adapter;
+class Instance;
 
-class WEBGPUNATIVE_API Instance {
+class WEBGPUNATIVE_API Adapter {
 public:
-    friend class Adapter;
-
-    explicit Instance();
-    Instance(Instance&&) noexcept;
-    Instance& operator=(Instance&&) noexcept;
-    ~Instance();
+    explicit Adapter(Instance const&);
+    Adapter(Adapter&&) noexcept;
+    Adapter& operator=(Adapter&&) noexcept;
+    ~Adapter();
 
     ErrorOr<void> initialize();
-
-    Adapter adapter() const;
-
-    NonnullRefPtr<Core::Promise<Adapter>> request_adapter();
 
 private:
     struct Impl;
