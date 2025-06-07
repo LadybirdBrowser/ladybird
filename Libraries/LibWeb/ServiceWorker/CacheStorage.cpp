@@ -30,4 +30,11 @@ GC::Ref<WebIDL::Promise> CacheStorage::open(String const&)
     return WebIDL::create_rejected_promise(realm(), WebIDL::NotSupportedError::create(realm(), "CacheStorage.open() is not yet implemented"_string));
 }
 
+// https://w3c.github.io/ServiceWorker/#cache-storage-has
+GC::Ref<WebIDL::Promise> CacheStorage::has(String const&)
+{
+    dbgln("FIXME: CacheStorage::has() is not implemented yet");
+    return WebIDL::create_rejected_promise(realm(), JS::Value(false));
+}
+
 }

@@ -17,6 +17,7 @@ class CacheStorage : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CacheStorage);
 
 public:
+    GC::Ref<WebIDL::Promise> has(String const& cache_name);
     GC::Ref<WebIDL::Promise> open(String const& cache_name);
 
 private:
