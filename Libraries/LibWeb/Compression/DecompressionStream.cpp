@@ -153,13 +153,13 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_flush_and_enqueue()
         return TRY(decompressor->read_until_eof());
     });
     if (maybe_buffer.is_error())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to compress flush: {}", maybe_buffer.error())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to decompress flush: {}", maybe_buffer.error())) };
 
     auto buffer = maybe_buffer.release_value();
 
+    // Note: LibCompress already throws an error if we call read_until_eof and no more progress can be made
     // 2. If the end of the compressed input has not been reached, then throw a TypeError.
-    if (m_decompressor.visit([](auto const& decompressor) { return !decompressor->is_eof(); }))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "End of compressed input has not been reached"sv };
+    VERIFY(m_decompressor.visit([](auto const& decompressor) { return decompressor->is_eof(); }));
 
     // 3. If buffer is empty, return.
     if (buffer.is_empty())

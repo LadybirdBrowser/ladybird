@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	the unchanged input for 'deflate' should decompress successfully
+Pass	truncating the input for 'deflate' should give an error
+Pass	trailing junk for 'deflate' should give an error
+Pass	format 'deflate' field CMF should be error for 0
+Pass	format 'deflate' field FLG should be success for 218
+Pass	format 'deflate' field FLG should be success for 1
+Pass	format 'deflate' field FLG should be success for 94
+Pass	format 'deflate' field FLG should be error for 157
+Pass	format 'deflate' field DATA should be success for 4
+Pass	format 'deflate' field DATA should be error for 5
+Pass	format 'deflate' field ADLER should be error for 255
+Pass	the unchanged input for 'gzip' should decompress successfully
+Pass	truncating the input for 'gzip' should give an error
+Pass	trailing junk for 'gzip' should give an error
+Pass	format 'gzip' field ID should be error for 255
+Pass	format 'gzip' field CM should be error for 0
+Pass	format 'gzip' field FLG should be success for 1
+Pass	format 'gzip' field FLG should be error for 2
+Pass	format 'gzip' field MTIME should be success for 255
+Pass	format 'gzip' field XFL should be success for 255
+Pass	format 'gzip' field OS should be success for 128
+Pass	format 'gzip' field DATA should be error for 3
+Pass	format 'gzip' field DATA should be success for 4
+Pass	format 'gzip' field CRC should be error for 0
+Pass	format 'gzip' field ISIZE should be error for 1
+Pass	the deflate input compressed with dictionary should give an error
