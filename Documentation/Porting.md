@@ -13,11 +13,10 @@ There are two types of ports that can be made to Ladybird:
 
 ### UI Ports
 
-There are currently three supported UI ports:
+There are currently two supported UI ports:
 
 - Qt6: The generic UI port.
 - AppKit/Cocoa: The macOS native port, which uses the AppKit framework.
-- Headless: A headless port that does not have a UI, used for testing.
 
 ### Platform Ports
 

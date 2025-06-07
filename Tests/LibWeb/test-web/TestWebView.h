@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "TestWeb.h"
+
 #include <AK/Badge.h>
 #include <AK/RefPtr.h>
 #include <LibCore/Forward.h>
@@ -13,13 +15,12 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/HeadlessWebView.h>
-#include <UI/Headless/Test.h>
 
-namespace Ladybird {
+namespace TestWeb {
 
-class HeadlessWebView final : public WebView::HeadlessWebView {
+class TestWebView final : public WebView::HeadlessWebView {
 public:
-    static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
+    static NonnullOwnPtr<TestWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
 
     void clear_content_filters();
 
@@ -29,7 +30,7 @@ public:
     void on_test_complete(TestCompletion);
 
 private:
-    HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
+    TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
     virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
 
