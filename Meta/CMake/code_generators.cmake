@@ -79,3 +79,33 @@ function(compile_ipc source output)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${output} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${current_source_dir_relative}" OPTIONAL)
     endif()
 endfunction()
+
+function(generate_encoding_indices generated_sources)
+    set(LIBTEXTCODEC_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(LIBTEXTCODEC_GENERATED_HEADERS
+        "${CMAKE_CURRENT_BINARY_DIR}/LookupTables.h"
+    )
+    set(LIBTEXTCODEC_GENERATED_SOURCES
+        "${CMAKE_CURRENT_BINARY_DIR}/LookupTables.cpp"
+    )
+    set(GENERATOR_SCRIPT "${SerenityOS_SOURCE_DIR}/Meta/generate_encoding_indices.py")
+
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_custom_command(
+            OUTPUT ${LIBTEXTCODEC_GENERATED_HEADERS} ${LIBTEXTCODEC_GENERATED_SOURCES}
+            COMMAND ${Python3_EXECUTABLE} "${GENERATOR_SCRIPT}"
+            --generated-header-path "${CMAKE_CURRENT_BINARY_DIR}/LookupTables.h"
+            --generated-implementation-path "${CMAKE_CURRENT_BINARY_DIR}/LookupTables.cpp"
+            # indexes.json can be found at https://encoding.spec.whatwg.org/indexes.json
+            --json-path "${LIBTEXTCODEC_INPUT_FOLDER}/indexes.json"
+            DEPENDS "${LIBTEXTCODEC_INPUT_FOLDER}/indexes.json" "${GENERATOR_SCRIPT}"
+            COMMENT "Generating encoding lookup tables"
+    )
+    set_source_files_properties(${LIBTEXTCODEC_GENERATED_SOURCES} PROPERTIES GENERATED TRUE)
+    set(${generated_sources} ${LIBTEXTCODEC_GENERATED_SOURCES} PARENT_SCOPE)
+
+    if(ENABLE_INSTALL_HEADERS)
+        install(FILES ${LIBTEXTCODEC_GENERATED_HEADERS}
+                DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibTextCodec/")
+    endif()
+endfunction()
