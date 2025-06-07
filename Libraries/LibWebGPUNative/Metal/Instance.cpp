@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWebGPUNative/Adapter.h>
 #include <LibWebGPUNative/Instance.h>
 
 namespace WebGPUNative {
@@ -24,6 +25,16 @@ Instance::~Instance() = default;
 ErrorOr<void> Instance::initialize()
 {
     return m_impl->initialize();
+}
+
+Adapter Instance::adapter() const
+{
+    return Adapter(*this);
+}
+
+NonnullRefPtr<Core::Promise<Adapter>> Instance::request_adapter()
+{
+    return MUST(Core::Promise<Adapter>::try_create());
 }
 
 }

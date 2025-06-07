@@ -48,6 +48,9 @@ ladybird_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets suppor
 if (NOT APPLE)
     ladybird_option(ENABLE_WEBGPUNATIVE_VULKAN_IMPL ON CACHE BOOL "Enable the Vulkan backend for LibWebGPUNative")
 else()
+    # NOTE: CMAKE_OSX_DEPLOYMENT_TARGET must be 15.0 for LibCore+Swift's event loop implementation
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 15.0)
+    include(${CMAKE_CURRENT_LIST_DIR}/Swift/swift-settings.cmake)
     ladybird_option(ENABLE_WEBGPUNATIVE_METAL_IMPL ON CACHE BOOL "Enable the Metal backend for LibWebGPUNative")
 endif()
 set(ENABLE_WEBGPUNATIVE ${ENABLE_WEBGPUNATIVE_VULKAN_IMPL} OR ${ENABLE_WEBGPUNATIVE_METAL_IMPL})

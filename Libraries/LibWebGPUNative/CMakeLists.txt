@@ -9,14 +9,28 @@ target_compile_definitions(LibWebGPUNative PRIVATE $<$<CONFIG:Debug>:WEBGPUNATIV
 target_link_libraries(LibWebGPUNative PRIVATE AK LibCore)
 
 if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
+    set(WEBGPUNATIVE_METAL_BRIDGE_SOURCES
+        Metal/AdapterImpl.mm
+    )
     target_sources(LibWebGPUNative
         PRIVATE
+            Metal/Adapter.cpp
+            Metal/AdapterImpl.swift
             Metal/Instance.cpp
+            ${WEBGPUNATIVE_METAL_BRIDGE_SOURCES}
     )
     find_library(METAL_FRAMEWORK Metal REQUIRED)
     find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
     target_link_libraries(LibWebGPUNative PRIVATE ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK})
     target_compile_definitions(LibWebGPUNative PUBLIC WEBGPUNATIVE_METAL)
+    # NOTE: Required for (__bridge_transfer NSString *) call in generated swift bindings header, otherwise build fails due to -Warc-bridge-casts-disallowed-in-nonarc
+    set_source_files_properties(${WEBGPUNATIVE_METAL_BRIDGE_SOURCES}
+        PROPERTIES
+            COMPILE_FLAGS
+                "-Wno-arc-bridge-casts-disallowed-in-nonarc"
+    )
+    add_swift_target_properties(LibWebGPUNative LAGOM_LIBRARIES AK LibCore)
+    generate_clang_module_map(LibWebGPUNative)
 elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
     target_sources(LibWebGPUNative
         PRIVATE
