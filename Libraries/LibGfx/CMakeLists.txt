@@ -116,7 +116,7 @@ find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(LIBAVIF REQUIRED)
 find_package(WebP REQUIRED)
-find_package(harfbuzz REQUIRED)
+pkg_check_modules(harfbuzz REQUIRED IMPORTED_TARGET harfbuzz)
 
 target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
             WebP::webpdemux WebP::libwebpmux skia harfbuzz)
