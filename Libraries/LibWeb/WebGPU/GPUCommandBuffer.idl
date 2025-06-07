@@ -1,0 +1,10 @@
+// https://www.w3.org/TR/webgpu/#dictdef-gpucommandbufferdescriptor
+dictionary GPUCommandBufferDescriptor {
+
+};
+
+// https://www.w3.org/TR/webgpu/#gpucommandbuffer
+[Exposed=(Window, Worker), SecureContext]
+interface GPUCommandBuffer {
+
+};
