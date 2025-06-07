@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
@@ -120,7 +121,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(Ima
     return create_image_bitmap_impl(image, sx, sy, sw, sh, options);
 }
 
-GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
+GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, [[maybe_unused]] Optional<WebIDL::Long> sx, [[maybe_unused]] Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
 {
     auto& realm = this_impl().realm();
 
@@ -192,26 +193,76 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // If this is an animated image, imageBitmap's bitmap data must only be taken from the default image
                     // of the animation (the one that the format defines is to be used when animation is not supported
                     // or is disabled), or, if there is no such image, the first frame of the animation.
+                    // FIXME: Actually crop the image to the source rectangle with formatting: https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
                     image_bitmap->set_bitmap(result.frames.take_first().bitmap);
 
                     auto& realm = relevant_realm(p->promise());
 
-                    // 5. Resolve p with imageBitmap.
-                    TemporaryExecutionContext context { relevant_realm(*image_bitmap), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::resolve_promise(realm, *p, image_bitmap);
+                    // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+                    queue_global_task(Task::Source::BitmapTask, *image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(*image_bitmap);
+                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                        WebIDL::resolve_promise(realm, *p, image_bitmap);
+                    }));
                     return {};
                 };
 
                 (void)Web::Platform::ImageCodecPlugin::the().decode_image(image_data, move(on_successful_decode), move(on_failed_decode));
             }));
         },
-        [&](auto&) {
-            dbgln("(STUBBED) createImageBitmap() for non-blob types");
-            (void)sx;
-            (void)sy;
-            auto error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for non-blob types"sv);
-            TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
-            WebIDL::reject_promise(realm, *p, error);
+        [&](GC::Root<ImageData> const& image_data) -> void {
+            // 1. Let buffer be image's data attribute value's [[ViewedArrayBuffer]] internal slot.
+            auto const buffer = image_data->data()->viewed_array_buffer();
+
+            // 2. If IsDetachedBuffer(buffer) is true, then return a promise rejected with an "InvalidStateError" DOMException.
+            if (buffer->is_detached()) {
+                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_string));
+                return;
+            }
+
+            // 3. Set imageBitmap's bitmap data to image's image data, cropped to the source rectangle with formatting.
+            // FIXME: Actually crop the image to the source rectangle with formatting: https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
+            image_bitmap->set_bitmap(image_data->bitmap());
+
+            // 4. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+            queue_global_task(Task::Source::BitmapTask, image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
+                auto& realm = relevant_realm(image_bitmap);
+                TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::resolve_promise(realm, *p, image_bitmap);
+            }));
+        },
+        [&](CanvasImageSource const& image_source) {
+            image_source.visit(
+                [&](GC::Root<HTMLImageElement> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for HTMLImageElement");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLImageElement"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                [&](GC::Root<SVG::SVGImageElement> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for SVGImageElement");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for SVGImageElement"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                [&](GC::Root<HTMLCanvasElement> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for HTMLCanvasElement");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLCanvasElement"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                [&](GC::Root<ImageBitmap> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for ImageBitmap");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for ImageBitmap"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                },
+                [&](GC::Root<HTMLVideoElement> const&) {
+                    dbgln("(STUBBED) createImageBitmap() for HTMLVideoElement");
+                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLVideoElement"sv);
+                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, error);
+                });
         });
 
     // 7. Return p.
