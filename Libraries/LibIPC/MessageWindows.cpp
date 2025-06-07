@@ -17,7 +17,6 @@ using MessageSizeType = u32;
 
 MessageBuffer::MessageBuffer()
 {
-    m_data.resize(sizeof(MessageSizeType));
 }
 
 ErrorOr<void> MessageBuffer::extend_data_capacity(size_t capacity)
@@ -59,15 +58,10 @@ ErrorOr<void> MessageBuffer::append_file_descriptor(int handle)
 ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
 {
     Checked<MessageSizeType> checked_message_size { m_data.size() };
-    checked_message_size -= sizeof(MessageSizeType);
-
     if (checked_message_size.has_overflow())
         return Error::from_string_literal("Message is too large for IPC encoding");
 
-    MessageSizeType const message_size = checked_message_size.value();
-    m_data.span().overwrite(0, reinterpret_cast<u8 const*>(&message_size), sizeof(message_size));
-
-    TRY(transport.transfer(m_data.span(), m_handle_offsets));
+    TRY(transport.transfer_message(m_data, m_handle_offsets));
     return {};
 }
 
