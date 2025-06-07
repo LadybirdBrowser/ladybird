@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
+#include <LibGfx/ImageOrientation.h>
 #include <LibGfx/Size.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/PixelUnits.h>
@@ -27,9 +28,9 @@ public:
     virtual size_t loop_count() const = 0;
     virtual bool is_animated() const = 0;
 
-    virtual Optional<CSSPixels> intrinsic_width() const = 0;
-    virtual Optional<CSSPixels> intrinsic_height() const = 0;
-    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const = 0;
+    virtual Optional<CSSPixels> intrinsic_width(Gfx::ImageOrientation orientation) const = 0;
+    virtual Optional<CSSPixels> intrinsic_height(Gfx::ImageOrientation orientation) const = 0;
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio(Gfx::ImageOrientation orientation) const = 0;
 
 protected:
     DecodedImageData();

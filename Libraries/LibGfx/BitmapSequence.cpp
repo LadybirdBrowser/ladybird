@@ -16,7 +16,7 @@ namespace Gfx {
 
 static BitmapMetadata get_metadata(Bitmap const& bitmap)
 {
-    return BitmapMetadata { .format = bitmap.format(), .alpha_type = bitmap.alpha_type(), .size = bitmap.size(), .size_in_bytes = bitmap.size_in_bytes() };
+    return BitmapMetadata { .format = bitmap.format(), .alpha_type = bitmap.alpha_type(), .size = bitmap.size(), .exif_orientation = bitmap.exif_orientation(), .size_in_bytes = bitmap.size_in_bytes() };
 }
 
 }
@@ -30,6 +30,7 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapMetadata const& metadata)
     TRY(encoder.encode(static_cast<u32>(metadata.alpha_type)));
     TRY(encoder.encode(metadata.size_in_bytes));
     TRY(encoder.encode(metadata.size));
+    TRY(encoder.encode(static_cast<u32>(metadata.exif_orientation)));
 
     return {};
 }
@@ -49,8 +50,12 @@ ErrorOr<Gfx::BitmapMetadata> decode(Decoder& decoder)
 
     auto size_in_bytes = TRY(decoder.decode<size_t>());
     auto size = TRY(decoder.decode<Gfx::IntSize>());
+    auto raw_exif_orientation = TRY(decoder.decode<u32>());
+    if (!Gfx::is_valid_exif_orientation(raw_exif_orientation))
+        return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence exif orientation");
+    auto exif_orientation = static_cast<Gfx::ExifOrientation>(raw_exif_orientation);
 
-    return Gfx::BitmapMetadata { format, alpha_type, size, size_in_bytes };
+    return Gfx::BitmapMetadata { format, alpha_type, size, exif_orientation, size_in_bytes };
 }
 
 template<>
@@ -135,7 +140,7 @@ ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
 
             bytes_read += size_in_bytes;
 
-            bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(metadata.format, metadata.alpha_type, move(buffer), metadata.size));
+            bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(metadata.format, metadata.alpha_type, move(buffer), metadata.size, metadata.exif_orientation));
         }
 
         bitmaps.append(bitmap);
