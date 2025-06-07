@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,7 +12,7 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-lists-3/#instantiate-counter
-Counter& CountersSet::instantiate_a_counter(FlyString name, UniqueNodeID originating_element_id, bool reversed, Optional<CounterValue> value)
+Counter& CountersSet::instantiate_a_counter(FlyString const& name, UniqueNodeID originating_element_id, bool reversed, Optional<CounterValue> value)
 {
     // 1. Let counters be element’s CSS counters set.
     auto* element = DOM::Node::from_unique_id(originating_element_id);
@@ -23,10 +24,10 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, UniqueNodeID origina
     if (innermost_counter.has_value()) {
         auto* originating_node = DOM::Node::from_unique_id(innermost_counter->originating_element_id);
         VERIFY(originating_node);
-        auto& innermost_element = as<DOM::Element>(*originating_node);
+        auto& originating_element = as<DOM::Element>(*originating_node);
 
-        if (&innermost_element == element
-            || (innermost_element.parent() == element->parent() && innermost_element.is_before(*element))) {
+        if (&originating_element == element
+            || (originating_element.parent() == element->parent() && originating_element.is_before(*element))) {
 
             m_counters.remove_first_matching([&innermost_counter](auto& it) {
                 return it.name == innermost_counter->name
@@ -48,35 +49,51 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, UniqueNodeID origina
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-set
-void CountersSet::set_a_counter(FlyString name, UniqueNodeID originating_element_id, CounterValue value)
+void CountersSet::set_a_counter(FlyString const& name, UniqueNodeID originating_element_id, CounterValue value)
 {
-    if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
-        existing_counter->value = value;
+    auto existing_counter = last_counter_with_name(name);
+
+    if (!existing_counter.has_value()) {
+        // If there is not currently a counter of the given name on the element, the element instantiates
+        // a new counter of the given name with a starting value of 0 before setting or incrementing its value.
+        // https://drafts.csswg.org/css-lists-3/#valdef-counter-set-counter-name-integer
+        auto& counter = instantiate_a_counter(name, originating_element_id, false, 0);
+        VERIFY(!counter.reversed); // Reversed counters cannot be instantiated by a counter-set instruction.
+        counter.value = value;
         return;
     }
 
-    // If there is not currently a counter of the given name on the element, the element instantiates
-    // a new counter of the given name with a starting value of 0 before setting or incrementing its value.
-    // https://drafts.csswg.org/css-lists-3/#valdef-counter-set-counter-name-integer
-    auto& counter = instantiate_a_counter(name, originating_element_id, false, 0);
-    counter.value = value;
+    existing_counter->value = value;
+
+    if (existing_counter->reversed) {
+        if (!existing_counter->is_explicitly_set_reversed_counter) {
+            auto& originating_element = as<DOM::Element>(*DOM::Node::from_unique_id(existing_counter->originating_element_id));
+            originating_element.update_initial_value_for_reversed_counter__after_set(name, value.value());
+        }
+
+        existing_counter->is_explicitly_set_reversed_counter = true;
+    }
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
-void CountersSet::increment_a_counter(FlyString name, UniqueNodeID originating_element_id, CounterValue amount)
+void CountersSet::increment_a_counter(FlyString const& name, UniqueNodeID originating_element_id, CounterValue amount)
 {
-    if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
-        // FIXME: How should we handle existing counters with no value? Can that happen?
-        VERIFY(existing_counter->value.has_value());
-        existing_counter->value->saturating_add(amount.value());
+    auto existing_counter = last_counter_with_name(name);
+
+    if (!existing_counter.has_value()) {
+        // If there is not currently a counter of the given name on the element, the element instantiates
+        // a new counter of the given name with a starting value of 0 before setting or incrementing its value.
+        // https://drafts.csswg.org/css-lists-3/#valdef-counter-set-counter-name-integer
+        auto& counter = instantiate_a_counter(name, originating_element_id, false, 0);
+        VERIFY(!counter.reversed); // Reversed counters cannot be instantiated by a counter-increment instruction.
+        counter.value->saturating_add(amount.value());
         return;
     }
 
-    // If there is not currently a counter of the given name on the element, the element instantiates
-    // a new counter of the given name with a starting value of 0 before setting or incrementing its value.
-    // https://drafts.csswg.org/css-lists-3/#valdef-counter-set-counter-name-integer
-    auto& counter = instantiate_a_counter(name, originating_element_id, false, 0);
-    counter.value->saturating_add(amount.value());
+    if (!existing_counter.value().value.has_value())
+        existing_counter.value().value = 0;
+
+    existing_counter.value().value.value().saturating_add(amount.value());
 }
 
 Optional<Counter&> CountersSet::last_counter_with_name(FlyString const& name)
