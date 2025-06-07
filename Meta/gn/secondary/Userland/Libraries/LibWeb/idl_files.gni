@@ -324,6 +324,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/SVG/SVGMaskElement.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGMetadataElement.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGPathElement.idl",
+  "//Userland/Libraries/LibWeb/SVG/SVGPatternElement.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGPolygonElement.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGPolylineElement.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGRadialGradientElement.idl",
