@@ -14,7 +14,6 @@
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/RSA.h>
-#include <LibCrypto/SecureRandom.h>
 
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
@@ -121,7 +120,7 @@ ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private,
     }
 }
 
-ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, IntegerType e)
+ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, UnsignedBigInteger e)
 {
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr)));
 
@@ -173,7 +172,7 @@ ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, IntegerType e)
         OPENSSL_TRY(OSSL_PARAM_BLD_push_BN(params_bld, openssl_name, param##_bn.ptr())); \
     }
 
-ErrorOr<OpenSSL_PKEY> RSA::public_key_to_openssl_pkey(PublicKeyType const& public_key)
+static ErrorOr<OpenSSL_PKEY> public_key_to_openssl_pkey(RSAPublicKey const& public_key)
 {
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr)));
 
@@ -194,7 +193,7 @@ ErrorOr<OpenSSL_PKEY> RSA::public_key_to_openssl_pkey(PublicKeyType const& publi
     return key;
 }
 
-ErrorOr<OpenSSL_PKEY> RSA::private_key_to_openssl_pkey(PrivateKeyType const& private_key)
+static ErrorOr<OpenSSL_PKEY> private_key_to_openssl_pkey(RSAPrivateKey const& private_key)
 {
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr)));
 
@@ -222,6 +221,125 @@ ErrorOr<OpenSSL_PKEY> RSA::private_key_to_openssl_pkey(PrivateKeyType const& pri
 }
 
 #undef OPENSSL_SET_KEY_PARAM_NOT_ZERO
+
+// https://www.rfc-editor.org/rfc/rfc3447.html#section-3.1
+ErrorOr<bool> RSAPublicKey::is_valid() const
+{
+    // In a valid RSA public key, the RSA modulus n is a product of u
+    // distinct odd primes r_i, i = 1, 2, ..., u, where u >= 2, and the RSA
+    // public exponent e is an integer between 3 and n - 1 satisfying GCD(e,
+    // \lambda(n)) = 1, where \lambda(n) = LCM(r_1 - 1, ..., r_u - 1).
+
+    if (!m_public_exponent.is_odd())
+        return false;
+
+    if (m_public_exponent < 3 || m_public_exponent >= m_modulus)
+        return false;
+
+    return true;
+}
+
+// https://www.rfc-editor.org/rfc/rfc3447.html#section-3.2
+ErrorOr<bool> RSAPrivateKey::is_valid() const
+{
+    if (!m_public_exponent.is_odd())
+        return false;
+
+    if (m_public_exponent < 3 || m_public_exponent >= m_modulus)
+        return false;
+
+    if (!m_prime_1.is_zero() && !m_prime_2.is_zero() && !m_exponent_1.is_zero() && !m_exponent_2.is_zero() && !m_coefficient.is_zero()) {
+        // In a valid RSA private key with the second representation, the two
+        // factors p and q are the first two prime factors of the RSA modulus n
+        // (i.e., r_1 and r_2), the CRT exponents dP and dQ are positive
+        // integers less than p and q respectively satisfying
+        //   e * dP == 1 (mod (p-1))
+        //   e * dQ == 1 (mod (q-1)) ,
+        // and the CRT coefficient qInv is a positive integer less than p
+        // satisfying
+        //   q * qInv == 1 (mod p).
+        // If u > 2, the representation will include one or more triplets (r_i,
+        // d_i, t_i), i = 3, ..., u.  The factors r_i are the additional prime
+        // factors of the RSA modulus n.  Each CRT exponent d_i (i = 3, ..., u)
+        // satisfies
+        //   e * d_i == 1 (mod (r_i - 1)).
+        // Each CRT coefficient t_i (i = 3, ..., u) is a positive integer less
+        // than r_i satisfying
+        //   R_i * t_i == 1 (mod r_i) ,
+        // where R_i = r_1 * r_2 * ... * r_(i-1).
+
+        if (m_exponent_1 >= m_prime_1 || m_exponent_2 >= m_prime_2 || m_coefficient >= m_prime_1)
+            return false;
+
+        if (m_prime_1.multiplied_by(m_prime_2) != m_modulus)
+            return false;
+
+        auto tmp_bn = TRY(OpenSSL_BN::create());
+
+        auto e = TRY(unsigned_big_integer_to_openssl_bignum(m_public_exponent)),
+             p = TRY(unsigned_big_integer_to_openssl_bignum(m_prime_1)),
+             q = TRY(unsigned_big_integer_to_openssl_bignum(m_prime_2));
+
+        auto dp = TRY(unsigned_big_integer_to_openssl_bignum(m_exponent_1)),
+             dq = TRY(unsigned_big_integer_to_openssl_bignum(m_exponent_2));
+
+        auto* bn_ctx = OPENSSL_TRY_PTR(BN_CTX_new());
+        ScopeGuard const free_bn_ctx = [&] { BN_CTX_free(bn_ctx); };
+
+        auto p1 = TRY(OpenSSL_BN::create());
+        OPENSSL_TRY(BN_sub(p1.ptr(), p.ptr(), BN_value_one()));
+
+        OPENSSL_TRY(BN_mod_mul(tmp_bn.ptr(), e.ptr(), dp.ptr(), p1.ptr(), bn_ctx));
+        if (!BN_is_one(tmp_bn.ptr()))
+            return false;
+
+        auto q1 = TRY(OpenSSL_BN::create());
+        OPENSSL_TRY(BN_sub(q1.ptr(), q.ptr(), BN_value_one()));
+
+        OPENSSL_TRY(BN_mod_mul(tmp_bn.ptr(), e.ptr(), dq.ptr(), q1.ptr(), bn_ctx));
+        if (!BN_is_one(tmp_bn.ptr()))
+            return false;
+
+        auto q_inv = TRY(unsigned_big_integer_to_openssl_bignum(m_coefficient));
+        OPENSSL_TRY(BN_mod_mul(tmp_bn.ptr(), q.ptr(), q_inv.ptr(), p.ptr(), bn_ctx));
+        if (!BN_is_one(tmp_bn.ptr()))
+            return false;
+
+        if (!m_private_exponent.is_zero()) {
+            if (m_private_exponent >= m_modulus)
+                return false;
+
+            auto lambda = TRY(m_prime_1.minus(1)).lcm(TRY(m_prime_2.minus(1)));
+            auto lambda_bn = TRY(unsigned_big_integer_to_openssl_bignum(lambda));
+
+            auto d = TRY(unsigned_big_integer_to_openssl_bignum(m_private_exponent));
+
+            OPENSSL_TRY(BN_mod_mul(tmp_bn.ptr(), d.ptr(), e.ptr(), lambda_bn.ptr(), bn_ctx));
+            if (!BN_is_one(tmp_bn.ptr()))
+                return false;
+        }
+
+        return true;
+    }
+
+    if (!m_modulus.is_zero() && !m_private_exponent.is_zero()) {
+        // In a valid RSA private key with the first representation, the RSA
+        // modulus n is the same as in the corresponding RSA public key and is
+        // the product of u distinct odd primes r_i, i = 1, 2, ..., u, where u
+        // >= 2.  The RSA private exponent d is a positive integer less than n
+        // satisfying
+        //   e * d == 1 (mod \lambda(n)),
+        // where e is the corresponding RSA public exponent and \lambda(n) is
+        // defined as in Section 3.1.
+
+        if (m_private_exponent >= m_modulus)
+            return false;
+
+        return true;
+    }
+
+    return false;
+}
 
 ErrorOr<void> RSA::configure(OpenSSL_PKEY_CTX& ctx)
 {

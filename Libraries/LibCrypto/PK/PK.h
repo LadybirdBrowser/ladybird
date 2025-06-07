@@ -217,7 +217,6 @@ requires requires(ExportableKey k) {
     return encoder.finish();
 }
 
-// FIXME: Fixing name up for grabs
 template<typename PrivKeyT, typename PubKeyT>
 class PKSystem {
 public:
