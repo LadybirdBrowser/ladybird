@@ -22,6 +22,8 @@ public:
 
     ~GPU() override;
 
+    GC::Ref<WebIDL::Promise> request_adapter();
+
 private:
     explicit GPU(JS::Realm&);
 
