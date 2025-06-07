@@ -209,7 +209,7 @@ JsonValue Settings::serialize_json() const
 
     settings.set(do_not_track_key, m_do_not_track == DoNotTrack::Yes);
 
-    // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool }
+    // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
     JsonObject dns_settings;
     m_dns_settings.visit(
         [&](SystemDNS) {
@@ -220,6 +220,7 @@ JsonValue Settings::serialize_json() const
             dns_settings.set("server"sv, dot.server_address.view());
             dns_settings.set("port"sv, dot.port);
             dns_settings.set("type"sv, "tls"sv);
+            dns_settings.set("dnssec"sv, dot.validate_dnssec_locally);
             dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
         },
         [&](DNSOverUDP const& dns) {
@@ -227,6 +228,7 @@ JsonValue Settings::serialize_json() const
             dns_settings.set("server"sv, dns.server_address.view());
             dns_settings.set("port"sv, dns.port);
             dns_settings.set("type"sv, "udp"sv);
+            dns_settings.set("dnssec"sv, dns.validate_dnssec_locally);
             dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
         });
     settings.set(dns_settings_key, move(dns_settings));
@@ -441,12 +443,13 @@ DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)
             auto server = dns_settings_object.get_string("server"sv);
             auto port = dns_settings_object.get_u16("port"sv);
             auto type = dns_settings_object.get_string("type"sv);
+            auto validate_dnssec_locally = dns_settings_object.get_bool("dnssec"sv);
 
             if (server.has_value() && port.has_value() && type.has_value()) {
                 if (*type == "tls"sv)
-                    return DNSOverTLS { .server_address = server->to_byte_string(), .port = *port };
+                    return DNSOverTLS { .server_address = server->to_byte_string(), .port = *port, .validate_dnssec_locally = validate_dnssec_locally.value_or(false) };
                 if (*type == "udp"sv)
-                    return DNSOverUDP { .server_address = server->to_byte_string(), .port = *port };
+                    return DNSOverUDP { .server_address = server->to_byte_string(), .port = *port, .validate_dnssec_locally = validate_dnssec_locally.value_or(false) };
             }
         }
     }

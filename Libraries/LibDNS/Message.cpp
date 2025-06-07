@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteReader.h>
 #include <AK/CountingStream.h>
 #include <AK/MemoryStream.h>
 #include <AK/Stream.h>
@@ -662,11 +663,17 @@ ErrorOr<DomainName> DomainName::from_raw(ParseContext& ctx)
         constexpr static u8 OffsetMarkerMask = 0b11000000;
         if ((length & OffsetMarkerMask) == OffsetMarkerMask) {
             // This is a pointer to a prior domain name.
-            u16 const offset = static_cast<u16>(length & ~OffsetMarkerMask) << 8 | TRY(ctx.stream.read_value<u8>());
+            u16 offset = static_cast<u16>(length & ~OffsetMarkerMask) << 8 | TRY(ctx.stream.read_value<u8>());
             if (auto it = ctx.pointers->find_largest_not_above_iterator(offset); !it.is_end()) {
                 auto labels = it->labels;
-                for (auto& entry : labels)
-                    name.labels.append(entry);
+                size_t start_index = 0;
+                size_t start_entry_offset = offset - it.key();
+                while (start_entry_offset > 0 && start_index < labels.size()) {
+                    start_entry_offset -= labels[start_index].length() + 1; // +1 for the length byte
+                    start_index++;
+                }
+                for (size_t i = start_index; i < labels.size(); ++i)
+                    name.labels.append(labels[i].substring_view(i == start_index ? start_entry_offset : 0));
                 break;
             }
             dbgln("Invalid domain name pointer in label, no prior domain name found around offset {}", offset);
@@ -702,9 +709,32 @@ ErrorOr<void> DomainName::to_raw(ByteBuffer& out) const
 
 String DomainName::to_string() const
 {
+    if (labels.is_empty())
+        return "."_string;
+
     StringBuilder builder;
     for (size_t i = 0; i < labels.size(); ++i) {
         builder.append(labels[i]);
+        builder.append('.');
+    }
+
+    return MUST(builder.to_string());
+}
+
+String DomainName::to_canonical_string() const
+{
+    if (labels.is_empty())
+        return "."_string;
+
+    StringBuilder builder;
+    for (size_t i = 0; i < labels.size(); ++i) {
+        auto& label = labels[i];
+        for (size_t j = 0; j < label.length(); ++j) {
+            auto ch = label[j];
+            if (ch >= 'A' && ch <= 'Z')
+                ch = to_ascii_lowercase(ch);
+            builder.append(ch);
+        }
         builder.append('.');
     }
 
@@ -762,9 +792,10 @@ ErrorOr<ResourceRecord> ResourceRecord::from_raw(ParseContext& ctx)
     ResourceType type;
     Class class_;
     u32 ttl;
+    size_t original_offset = ctx.stream.read_bytes();
     {
         RecordingStream rr_stream { ctx.stream };
-        CountingStream rr_counting_stream { MaybeOwned<Stream>(rr_stream) };
+        CountingStream rr_counting_stream { MaybeOwned<Stream>(rr_stream), original_offset };
         ParseContext rr_ctx { rr_counting_stream, move(ctx.pointers) };
         ScopeGuard guard([&] { ctx.pointers = move(rr_ctx.pointers); });
 
@@ -785,13 +816,14 @@ ErrorOr<ResourceRecord> ResourceRecord::from_raw(ParseContext& ctx)
         class_ = static_cast<Class>(static_cast<u16>(TRY(rr_ctx.stream.read_value<NetworkOrdered<u16>>())));
         ttl = static_cast<u32>(TRY(rr_ctx.stream.read_value<NetworkOrdered<u32>>()));
         auto rd_length = static_cast<u16>(TRY(rr_ctx.stream.read_value<NetworkOrdered<u16>>()));
+        original_offset = rr_ctx.stream.read_bytes();
         TRY(rr_ctx.stream.read_until_filled(TRY(rdata.get_bytes_for_writing(rd_length))));
 
         rr_raw_data = move(rr_stream).take_recorded_data();
     }
 
     FixedMemoryStream stream { rdata.bytes() };
-    CountingStream rdata_stream { MaybeOwned<Stream>(stream) };
+    CountingStream rdata_stream { MaybeOwned<Stream>(stream), original_offset };
     ParseContext rdata_ctx { rdata_stream, move(ctx.pointers) };
     ScopeGuard guard([&] { ctx.pointers = move(rdata_ctx.pointers); });
 
@@ -887,9 +919,11 @@ ErrorOr<void> ResourceRecord::to_raw(ByteBuffer& buffer) const
 ErrorOr<String> ResourceRecord::to_string() const
 {
     StringBuilder builder;
+    builder.appendff("[{} {} ", Messages::to_string(class_), Messages::to_string(type));
     record.visit(
         [&](auto const& record) { builder.appendff("{}", MUST(record.to_string())); },
         [&](ByteBuffer const& raw) { builder.appendff("{:hex-dump}", raw.bytes()); });
+    builder.appendff(" | ttl={}, name={}]", ttl, name.to_string());
     return builder.to_string();
 }
 
@@ -902,6 +936,15 @@ ErrorOr<Records::A> Records::A::from_raw(ParseContext& ctx)
     return Records::A { IPv4Address { address } };
 }
 
+ErrorOr<void> Records::A::to_raw(ByteBuffer& buffer) const
+{
+    auto const address = this->address.to_u32();
+    auto const net_address = bit_cast<NetworkOrdered<u32>>(address);
+    auto bytes = TRY(buffer.get_bytes_for_writing(sizeof(net_address)));
+    bytes.overwrite(0, &net_address, sizeof(net_address));
+    return {};
+}
+
 ErrorOr<Records::AAAA> Records::AAAA::from_raw(ParseContext& ctx)
 {
     // RFC 3596, 2.2. AAAA RDATA format.
@@ -909,6 +952,18 @@ ErrorOr<Records::AAAA> Records::AAAA::from_raw(ParseContext& ctx)
 
     u128 const address = TRY(ctx.stream.read_value<LittleEndian<u128>>());
     return Records::AAAA { IPv6Address { bit_cast<Array<u8, 16>>(address) } };
+}
+
+ErrorOr<void> Records::AAAA::to_raw(ByteBuffer& buffer) const
+{
+    auto const* const address_bytes = this->address.to_in6_addr_t();
+    u128 address {};
+    memcpy(&address, address_bytes, sizeof(address));
+
+    auto const net_address = bit_cast<NetworkOrdered<u128>>(address);
+    auto bytes = TRY(buffer.get_bytes_for_writing(sizeof(net_address)));
+    bytes.overwrite(0, &net_address, sizeof(net_address));
+    return {};
 }
 
 ErrorOr<Records::TXT> Records::TXT::from_raw(ParseContext& ctx)
@@ -922,6 +977,18 @@ ErrorOr<Records::TXT> Records::TXT::from_raw(ParseContext& ctx)
     return Records::TXT { ByteString::copy(content) };
 }
 
+ErrorOr<void> Records::TXT::to_raw(ByteBuffer& buffer) const
+{
+    auto const length = static_cast<u8>(content.length());
+    auto length_bytes = TRY(buffer.get_bytes_for_writing(1));
+    memcpy(length_bytes.data(), &length, 1);
+
+    auto content_bytes = TRY(buffer.get_bytes_for_writing(length));
+    memcpy(content_bytes.data(), content.characters(), length);
+
+    return {};
+}
+
 ErrorOr<Records::CNAME> Records::CNAME::from_raw(ParseContext& ctx)
 {
     // RFC 1035, 3.3.1. CNAME RDATA format.
@@ -929,6 +996,11 @@ ErrorOr<Records::CNAME> Records::CNAME::from_raw(ParseContext& ctx)
 
     auto name = TRY(DomainName::from_raw(ctx));
     return Records::CNAME { move(name) };
+}
+
+ErrorOr<void> Records::CNAME::to_raw(ByteBuffer& buffer) const
+{
+    return names.to_raw(buffer);
 }
 
 ErrorOr<Records::NS> Records::NS::from_raw(ParseContext& ctx)
@@ -960,6 +1032,23 @@ ErrorOr<Records::SOA> Records::SOA::from_raw(ParseContext& ctx)
     auto minimum = static_cast<u32>(TRY(ctx.stream.read_value<NetworkOrdered<u32>>()));
 
     return Records::SOA { move(mname), move(rname), serial, refresh, retry, expire, minimum };
+}
+
+ErrorOr<void> Records::SOA::to_raw(ByteBuffer& buffer) const
+{
+    TRY(mname.to_raw(buffer));
+    TRY(rname.to_raw(buffer));
+
+    auto const output_size = 5 * sizeof(u32);
+    FixedMemoryStream stream { TRY(buffer.get_bytes_for_writing(output_size)) };
+
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(serial)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(refresh)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(retry)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(expire)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(minimum)));
+
+    return {};
 }
 
 ErrorOr<Records::MX> Records::MX::from_raw(ParseContext& ctx)
@@ -1005,11 +1094,36 @@ ErrorOr<Records::DNSKEY> Records::DNSKEY::from_raw(ParseContext& ctx)
     // | ALGORITHM| an 8-bit value that identifies the public key's cryptographic algorithm.
     // | PUBLICKEY| the public key material.
 
+    u32 key_tag = 0;
     auto flags = static_cast<u16>(TRY(ctx.stream.read_value<NetworkOrdered<u16>>()));
+    key_tag += (bit_cast<u16>(NetworkOrdered<u16>(flags)) & 0xff) << 8;
+    key_tag += (bit_cast<u16>(NetworkOrdered<u16>(flags)) >> 8) & 0xff;
     auto protocol = TRY(ctx.stream.read_value<u8>());
+    key_tag += static_cast<u16>(protocol) << 8;
     auto algorithm = static_cast<DNSSEC::Algorithm>(static_cast<u8>(TRY(ctx.stream.read_value<u8>())));
+    key_tag += static_cast<u16>(algorithm);
     auto public_key = TRY(ctx.stream.read_until_eof());
-    return Records::DNSKEY { flags, protocol, algorithm, move(public_key) };
+    for (size_t i = 0; i < public_key.size(); ++i) {
+        key_tag += (i & 1) ? static_cast<u16>(public_key[i]) : static_cast<u16>(public_key[i]) << 8;
+    }
+    key_tag += (key_tag >> 16) & 0xffff;
+
+    if (public_key.is_empty())
+        return Error::from_string_literal("Empty public key in DNSKEY record");
+
+    return Records::DNSKEY { flags, protocol, algorithm, move(public_key), static_cast<u16>(key_tag & 0xffff) };
+}
+
+ErrorOr<void> Records::DNSKEY::to_raw(ByteBuffer& buffer) const
+{
+    auto const output_size = 2 + 1 + 1 + public_key.size();
+    FixedMemoryStream stream { TRY(buffer.get_bytes_for_writing(output_size)) };
+
+    TRY(stream.write_value(static_cast<u16>(bit_cast<NetworkOrdered<u16>>(flags))));
+    TRY(stream.write_value(protocol));
+    TRY(stream.write_value(to_underlying(algorithm)));
+    TRY(stream.write_until_depleted(public_key.bytes()));
+    return {};
 }
 
 ErrorOr<Records::DS> Records::DS::from_raw(ParseContext& ctx)
@@ -1051,6 +1165,19 @@ ErrorOr<Records::DS> Records::DS::from_raw(ParseContext& ctx)
     return Records::DS { key_tag, algorithm, digest_type, move(digest) };
 }
 
+ErrorOr<void> Records::DS::to_raw(ByteBuffer& buffer) const
+{
+    auto const output_size = 2 + 1 + 1 + digest.size();
+    FixedMemoryStream stream { TRY(buffer.get_bytes_for_writing(output_size)) };
+
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(key_tag)));
+    TRY(stream.write_value(static_cast<u8>(algorithm)));
+    TRY(stream.write_value(static_cast<u8>(digest_type)));
+    TRY(stream.write_until_depleted(digest.bytes()));
+
+    return {};
+}
+
 ErrorOr<Records::SIG> Records::SIG::from_raw(ParseContext& ctx)
 {
     // RFC 4034, 2.2. The SIG Resource Record.
@@ -1075,6 +1202,29 @@ ErrorOr<Records::SIG> Records::SIG::from_raw(ParseContext& ctx)
     auto signature = TRY(ctx.stream.read_until_eof());
 
     return Records::SIG { type_covered, algorithm, labels, original_ttl, UnixDateTime::from_seconds_since_epoch(signature_expiration), UnixDateTime::from_seconds_since_epoch(signature_inception), key_tag, move(signer_name), move(signature) };
+}
+
+ErrorOr<void> Records::SIG::to_raw_excluding_signature(ByteBuffer& buffer) const
+{
+    AllocatingMemoryStream stream;
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(to_underlying(type_covered))));
+    TRY(stream.write_value(static_cast<u8>(algorithm)));
+    TRY(stream.write_value(label_count));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(original_ttl)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(expiration.seconds_since_epoch())));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(inception.seconds_since_epoch())));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(key_tag)));
+
+    TRY(stream.read_until_filled(TRY(buffer.get_bytes_for_writing(stream.used_buffer_size()))));
+    TRY(signers_name.to_raw(buffer));
+    return {};
+}
+
+ErrorOr<void> Records::SIG::to_raw(ByteBuffer& buffer) const
+{
+    TRY(to_raw_excluding_signature(buffer));
+    TRY(buffer.try_append(signature));
+    return {};
 }
 
 ErrorOr<String> Records::SIG::to_string() const
@@ -1108,6 +1258,18 @@ ErrorOr<Records::HINFO> Records::HINFO::from_raw(ParseContext& ctx)
     ByteBuffer os;
     TRY(ctx.stream.read_until_filled(TRY(os.get_bytes_for_writing(os_length))));
     return Records::HINFO { ByteString::copy(cpu), ByteString::copy(os) };
+}
+
+ErrorOr<void> Records::HINFO::to_raw(ByteBuffer& buffer) const
+{
+    auto allocated_length = cpu.length() + os.length() + 2;
+    auto bytes = TRY(buffer.get_bytes_for_writing(allocated_length));
+    FixedMemoryStream stream { bytes };
+    TRY(stream.write_value(static_cast<u8>(cpu.length())));
+    TRY(stream.write_until_depleted(cpu.bytes()));
+    TRY(stream.write_value(static_cast<u8>(os.length())));
+    TRY(stream.write_until_depleted(os.bytes()));
+    return {};
 }
 
 ErrorOr<Records::OPT> Records::OPT::from_raw(ParseContext& ctx)

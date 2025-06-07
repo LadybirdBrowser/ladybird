@@ -34,12 +34,12 @@ struct ApplicationSettingsObserver : public SettingsObserver {
                 Application::request_server_client().async_set_use_system_dns();
             },
             [](DNSOverTLS const& dns_over_tls) {
-                dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
-                Application::request_server_client().async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
+                dbgln("Setting DNS server to {}:{} with TLS ({} local dnssec)", dns_over_tls.server_address, dns_over_tls.port, dns_over_tls.validate_dnssec_locally ? "with" : "without");
+                Application::request_server_client().async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
             },
             [](DNSOverUDP const& dns_over_udp) {
-                dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
-                Application::request_server_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
+                dbgln("Setting DNS server to {}:{} ({} local dnssec)", dns_over_udp.server_address, dns_over_udp.port, dns_over_udp.validate_dnssec_locally ? "with" : "without");
+                Application::request_server_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
             });
     }
 };
@@ -104,6 +104,7 @@ void Application::initialize(Main::Arguments const& arguments)
     Optional<StringView> dns_server_address;
     Optional<u16> dns_server_port;
     bool use_dns_over_tls = false;
+    bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
     bool disable_site_isolation = false;
     bool enable_idl_tracing = false;
@@ -141,6 +142,7 @@ void Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(dns_server_address, "Set the DNS server address", "dns-server", 0, "host|address");
     args_parser.add_option(dns_server_port, "Set the DNS server port", "dns-port", 0, "port (default: 53 or 853 if --dot)");
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
+    args_parser.add_option(validate_dnssec_locally, "Validate DNSSEC locally", "dnssec");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Name of the User-Agent preset to use in place of the default User-Agent",
@@ -188,8 +190,8 @@ void Application::initialize(Main::Arguments const& arguments)
         .profile_helper_process = move(profile_process_type),
         .dns_settings = (dns_server_address.has_value()
                 ? Optional<DNSSettings> { use_dns_over_tls
-                          ? DNSSettings(DNSOverTLS(dns_server_address.release_value(), *dns_server_port))
-                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port)) }
+                          ? DNSSettings(DNSOverTLS(dns_server_address.release_value(), *dns_server_port, validate_dnssec_locally))
+                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port, validate_dnssec_locally)) }
                 : OptionalNone()),
         .devtools_port = devtools_port,
     };

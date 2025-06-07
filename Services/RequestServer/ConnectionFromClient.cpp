@@ -39,6 +39,7 @@ static struct {
     Optional<ByteString> server_hostname;
     u16 port;
     bool use_dns_over_tls = true;
+    bool validate_dnssec_locally = false;
 } g_dns_info;
 
 static WeakPtr<Resolver> s_resolver {};
@@ -375,9 +376,9 @@ Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_su
     return protocol == "http"sv || protocol == "https"sv;
 }
 
-void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls)
+void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally)
 {
-    if (host_or_address == g_dns_info.server_hostname && port == g_dns_info.port && use_tls == g_dns_info.use_dns_over_tls)
+    if (host_or_address == g_dns_info.server_hostname && port == g_dns_info.port && use_tls == g_dns_info.use_dns_over_tls && validate_dnssec_locally == g_dns_info.validate_dnssec_locally)
         return;
 
     auto result = [&] -> ErrorOr<void> {
@@ -393,6 +394,7 @@ void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, 
         g_dns_info.server_hostname = host_or_address;
         g_dns_info.port = port;
         g_dns_info.use_dns_over_tls = use_tls;
+        g_dns_info.validate_dnssec_locally = validate_dnssec_locally;
         return {};
     }();
 
@@ -419,7 +421,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
 {
     auto host = url.serialized_host().to_byte_string();
 
-    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally })
         ->when_rejected([this, request_id](auto const& error) {
             dbgln("StartRequest: DNS lookup failed: {}", error);
             // FIXME: Implement timing info for DNS lookup failure.
@@ -753,7 +755,7 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
     }
 
     if (cache_level == CacheLevel::ResolveOnly) {
-        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().to_byte_string(), DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA });
+        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().to_byte_string(), DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally });
         if constexpr (REQUESTSERVER_DEBUG) {
             Core::ElapsedTimer timer;
             timer.start();

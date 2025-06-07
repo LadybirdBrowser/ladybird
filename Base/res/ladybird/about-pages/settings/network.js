@@ -5,6 +5,7 @@ const dnsUpstream = document.querySelector("#dns-upstream");
 const dnsType = document.querySelector("#dns-type");
 const dnsServer = document.querySelector("#dns-server");
 const dnsPort = document.querySelector("#dns-port");
+const dnssecToggle = document.querySelector("#dnssec-toggle");
 
 let DNS_SETTINGS = {};
 
@@ -20,12 +21,14 @@ function loadDnsSettings() {
         dnsType.value = DNS_SETTINGS.type;
         dnsServer.value = DNS_SETTINGS.server;
         dnsPort.value = DNS_SETTINGS.port;
+        dnssecToggle.checked = DNS_SETTINGS.dnssec;
 
         customDnsSettings.classList.remove("hidden");
     } else {
         dnsType.value = "udp";
         dnsServer.value = "";
         dnsPort.value = "53";
+        dnssecToggle.checked = false;
 
         customDnsSettings.classList.add("hidden");
     }
@@ -37,6 +40,7 @@ function loadDnsSettings() {
         dnsType.disabled = true;
         dnsServer.disabled = true;
         dnsPort.disabled = true;
+        dnssecToggle.disabled = true;
     } else {
         dnsForciblyEnabled.classList.add("hidden");
 
@@ -44,6 +48,7 @@ function loadDnsSettings() {
         dnsType.disabled = false;
         dnsServer.disabled = false;
         dnsPort.disabled = false;
+        dnssecToggle.disabled = false;
     }
 }
 
@@ -76,12 +81,14 @@ function updateDnsSettings() {
         type: dnsType.value,
         server: dnsServer.value,
         port: dnsPort.value | 0,
+        dnssec: dnssecToggle.checked,
     });
 }
 
 dnsServer.addEventListener("change", updateDnsSettings);
 dnsPort.addEventListener("change", updateDnsSettings);
 dnsType.addEventListener("change", updateDnsSettings);
+dnssecToggle.addEventListener("change", updateDnsSettings);
 
 document.addEventListener("WebUIMessage", event => {
     if (event.detail.name === "loadSettings") {
