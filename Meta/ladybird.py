@@ -342,7 +342,6 @@ def run_main(host_system: HostSystem, build_dir: Path, target: str, args: list[s
     run_args = []
 
     if host_system == HostSystem.macOS and target in (
-        "headless-browser",
         "ImageDecoder",
         "Ladybird",
         "RequestServer",

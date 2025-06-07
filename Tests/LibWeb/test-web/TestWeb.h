@@ -1,27 +1,19 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Assertions.h>
 #include <AK/ByteString.h>
-#include <AK/Error.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
-#include <AK/StringView.h>
 #include <AK/Time.h>
-#include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
-#include <LibURL/Forward.h>
-#include <LibWeb/PixelUnits.h>
 
-namespace Ladybird {
-
-class HeadlessWebView;
+namespace TestWeb {
 
 enum class TestMode {
     Layout,
@@ -42,23 +34,6 @@ enum class RefTestExpectationType {
     Match,
     Mismatch,
 };
-
-static constexpr StringView test_result_to_string(TestResult result)
-{
-    switch (result) {
-    case TestResult::Pass:
-        return "Pass"sv;
-    case TestResult::Fail:
-        return "Fail"sv;
-    case TestResult::Skipped:
-        return "Skipped"sv;
-    case TestResult::Timeout:
-        return "Timeout"sv;
-    case TestResult::Crashed:
-        return "Crashed"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
 
 struct Test {
     TestMode mode;
@@ -87,8 +62,5 @@ struct TestCompletion {
 };
 
 using TestPromise = Core::Promise<TestCompletion>;
-
-ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size);
-void run_dump_test(HeadlessWebView&, Test&, URL::URL const&, int timeout_in_milliseconds);
 
 }

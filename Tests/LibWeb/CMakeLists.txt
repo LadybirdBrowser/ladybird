@@ -1,8 +1,8 @@
 set(TEST_SOURCES
     TestCSSIDSpeed.cpp
+    TestCSSInheritedProperty.cpp
     TestCSSPixels.cpp
     TestCSSTokenStream.cpp
-    TestCSSInheritedProperty.cpp
     TestFetchInfrastructure.cpp
     TestFetchURL.cpp
     TestHTMLTokenizer.cpp
@@ -33,3 +33,5 @@ if (ENABLE_SWIFT)
     target_link_libraries(TestLibWebSwift PRIVATE AK LibWeb LibGC SwiftTesting::SwiftTesting)
     add_test(NAME TestLibWebSwift COMMAND TestLibWebSwift)
 endif()
+
+add_subdirectory("test-web")

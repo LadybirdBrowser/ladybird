@@ -104,17 +104,14 @@ else()
     )
 endif()
 
-add_subdirectory(Headless)
-
 set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
 
 add_dependencies(ladybird ${ladybird_helper_processes})
-add_dependencies(headless-browser ${ladybird_helper_processes} ladybird_build_resource_files)
 add_dependencies(WebDriver ladybird)
 
 set_helper_process_properties(${ladybird_helper_processes})
 if (APPLE)
-    set_helper_process_properties(headless-browser WebDriver)
+    set_helper_process_properties(WebDriver)
 endif()
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)
