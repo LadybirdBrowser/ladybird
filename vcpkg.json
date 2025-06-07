@@ -120,6 +120,18 @@
       "platform": "!android"
     },
     {
+      "name": "vk-bootstrap",
+      "platform": "!android"
+    },
+    {
+      "name": "vulkan-utility-libraries",
+      "platform": "!android"
+    },
+    {
+      "name": "directx12-agility",
+      "platform": "windows"
+    },
+    {
       "name": "tiff",
       "features": [
         "zstd"

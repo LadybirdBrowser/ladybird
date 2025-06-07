@@ -41,6 +41,18 @@ serenity_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
 serenity_option(ENABLE_STD_STACKTRACE OFF CACHE BOOL "Force use of std::stacktrace instead of libbacktrace. If it is not supported the build will fail")
 serenity_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets supported on Windows for CI")
 
+if (NOT APPLE)
+    serenity_option(ENABLE_WEBGPUNATIVE_VULKAN_IMPL ON CACHE BOOL "Enable the Vulkan backend for LibWebGPUNative")
+else()
+    serenity_option(ENABLE_WEBGPUNATIVE_METAL_IMPL ON CACHE BOOL "Enable the Metal backend for LibWebGPUNative")
+endif()
+if (WIN32)
+    serenity_option(ENABLE_WEBGPUNATIVE_DIRECTX_IMPL ON CACHE BOOL "Enable the DirectX backend for LibWebGPUNative")
+endif()
+set(ENABLE_WEBGPUNATIVE ${ENABLE_WEBGPUNATIVE_VULKAN_IMPL} OR ${ENABLE_WEBGPUNATIVE_METAL_IMPL} OR ${ENABLE_WEBGPUNATIVE_DIRECTX_IMPL})
+
+serenity_option(ENABLE_WEBGPUNATIVE_TESTS OFF CACHE BOOL "Enable building and running LibWebGPUNative test targets")
+
 if (ENABLE_FUZZERS_LIBFUZZER)
     # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING "Type of target to use for try_compile()" FORCE)

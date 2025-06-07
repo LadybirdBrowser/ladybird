@@ -65,6 +65,7 @@ static bool is_platform_object(Type const& type)
         "FileList"sv,
         "FontFace"sv,
         "FormData"sv,
+        "GPU"sv,
         "HTMLCollection"sv,
         "IDBCursor"sv,
         "IDBCursorWithValue"sv,
@@ -4746,6 +4747,7 @@ using namespace Web::WebAssembly;
 using namespace Web::WebAudio;
 using namespace Web::WebGL;
 using namespace Web::WebGL::Extensions;
+using namespace Web::WebGPU;
 using namespace Web::WebIDL;
 using namespace Web::WebVTT;
 using namespace Web::XHR;
