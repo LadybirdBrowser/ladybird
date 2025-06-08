@@ -73,4 +73,36 @@ MetalCommandQueueHandle& MetalCommandQueueHandle::operator=(MetalCommandQueueHan
     return *this;
 }
 
+MetalCommandBufferHandle::MetalCommandBufferHandle(id command_buffer)
+    : m_command_buffer(command_buffer)
+{
+    [m_command_buffer retain];
+}
+
+MetalCommandBufferHandle::~MetalCommandBufferHandle()
+{
+    if (m_command_buffer) {
+        [m_command_buffer release];
+        m_command_buffer = nullptr;
+    }
+}
+
+MetalCommandBufferHandle::MetalCommandBufferHandle(MetalCommandBufferHandle&& other) noexcept
+    : m_command_buffer(other.m_command_buffer)
+{
+    other.m_command_buffer = nullptr;
+}
+
+MetalCommandBufferHandle& MetalCommandBufferHandle::operator=(MetalCommandBufferHandle&& other) noexcept
+{
+    if (this != &other) {
+        if (m_command_buffer) {
+            [m_command_buffer release];
+        }
+        m_command_buffer = other.m_command_buffer;
+        other.m_command_buffer = nullptr;
+    }
+    return *this;
+}
+
 }
