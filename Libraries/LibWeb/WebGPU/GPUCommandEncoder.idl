@@ -1,3 +1,6 @@
+#import <WebGPU/GPUCommandBuffer.idl>
+#import <WebGPU/GPURenderPassEncoder.idl>
+
 // https://www.w3.org/TR/webgpu/#dictdef-gpucommandencoderdescriptor
 dictionary GPUCommandEncoderDescriptor {
 
@@ -6,4 +9,6 @@ dictionary GPUCommandEncoderDescriptor {
 // https://www.w3.org/TR/webgpu/#gpucommandencoder
 [Exposed=(Window, Worker), SecureContext]
 interface GPUCommandEncoder {
+    GPURenderPassEncoder beginRenderPass(GPURenderPassDescriptor descriptor);
+    GPUCommandBuffer finish(optional GPUCommandBufferDescriptor descriptor = {});
 };
