@@ -31,6 +31,13 @@ void GPUDevice::on_queue_submitted(Function<void()> callback)
     m_queue->on_submitted(std::move(callback));
 }
 
+GC::Ref<GPUTexture> GPUDevice::texture(Gfx::IntSize const size) const
+{
+    auto native_gpu_texture = m_native_gpu_device.texture(size);
+    MUST(native_gpu_texture.initialize());
+    return MUST(GPUTexture::create(realm(), std::move(native_gpu_texture)));
+}
+
 // FIXME: Add spec comments
 //  https://www.w3.org/TR/webgpu/#dom-gpudevice-createcommandencoder
 GC::Root<GPUCommandEncoder> GPUDevice::create_command_encoder(GPUCommandEncoderDescriptor const&) const

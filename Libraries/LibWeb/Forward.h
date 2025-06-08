@@ -1084,6 +1084,7 @@ class GPUCommandEncoder;
 class GPUDevice;
 class GPUQueue;
 class GPUTexture;
+class GPUTextureView;
 
 }
 
