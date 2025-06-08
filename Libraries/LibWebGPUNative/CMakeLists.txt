@@ -36,6 +36,8 @@ elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
         PRIVATE
             Vulkan/Adapter.cpp
             Vulkan/AdapterImpl.cpp
+            Vulkan/Device.cpp
+            Vulkan/DeviceImpl.cpp
             Vulkan/Instance.cpp
             Vulkan/InstanceImpl.cpp
     )
