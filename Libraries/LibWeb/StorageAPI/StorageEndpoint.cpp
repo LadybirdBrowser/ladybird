@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,11 +13,11 @@ ReadonlySpan<StorageEndpoint> StorageEndpoint::registered_endpoints()
 {
     // https://storage.spec.whatwg.org/#registered-storage-endpoints
     static auto const endpoints = to_array<StorageEndpoint>({
-        { "caches"_string, StorageType::Local, {} },
-        { "indexedDB"_string, StorageType::Local, {} },
-        { "localStorage"_string, StorageType::Local, 5 * MiB },
-        { "serviceWorkerRegistrations"_string, StorageType::Local, {} },
-        { "sessionStorage"_string, StorageType::Session, 5 * MiB },
+        { StorageEndpointType::Caches, StorageType::Local, {} },
+        { StorageEndpointType::IndexedDB, StorageType::Local, {} },
+        { StorageEndpointType::LocalStorage, StorageType::Local, LOCAL_STORAGE_QUOTA },
+        { StorageEndpointType::ServiceWorkerRegistrations, StorageType::Local, {} },
+        { StorageEndpointType::SessionStorage, StorageType::Session, SESSION_STORAGE_QUOTA },
     });
     return endpoints;
 }

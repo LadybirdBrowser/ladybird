@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -33,12 +32,10 @@ public:
 
     size_t length() const;
     Optional<String> key(size_t index);
-    Optional<String> get_item(StringView key) const;
+    Optional<String> get_item(String const& key) const;
     WebIDL::ExceptionOr<void> set_item(String const& key, String const& value);
     void remove_item(String const& key);
     void clear();
-    auto const& map() const { return m_storage_bottle->map; }
-    auto& map() { return m_storage_bottle->map; }
     Type type() const { return m_type; }
 
     void dump() const;
@@ -63,7 +60,6 @@ private:
 
     Type m_type {};
     GC::Ref<StorageAPI::StorageBottle> m_storage_bottle;
-    u64 m_stored_bytes { 0 };
 };
 
 }

@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/Page/EventResult.h>
+#include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
@@ -106,6 +107,11 @@ private:
     virtual void did_set_cookie(URL::URL, Web::Cookie::ParsedCookie, Web::Cookie::Source) override;
     virtual void did_update_cookie(Web::Cookie::Cookie) override;
     virtual void did_expire_cookies_with_time_offset(AK::Duration) override;
+    virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) override;
+    virtual Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value) override;
+    virtual void did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) override;
+    virtual Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) override;
+    virtual void did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) override;
     virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64> page_index) override;
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;

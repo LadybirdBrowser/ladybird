@@ -505,6 +505,31 @@ void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
     Application::cookie_jar().expire_cookies_with_time_offset(offset);
 }
 
+Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)
+{
+    return Application::storage_jar().get_item(storage_endpoint, storage_key, bottle_key);
+}
+
+Messages::WebContentClient::DidSetStorageItemResponse WebContentClient::did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value)
+{
+    return Application::storage_jar().set_item(storage_endpoint, storage_key, bottle_key, value);
+}
+
+void WebContentClient::did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)
+{
+    Application::storage_jar().remove_item(storage_endpoint, storage_key, bottle_key);
+}
+
+Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+{
+    return Application::storage_jar().get_all_keys(storage_endpoint, storage_key);
+}
+
+void WebContentClient::did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+{
+    Application::storage_jar().clear_storage_key(storage_endpoint, storage_key);
+}
+
 Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

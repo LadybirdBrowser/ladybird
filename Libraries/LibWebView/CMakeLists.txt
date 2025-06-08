@@ -21,6 +21,7 @@ set(SOURCES
     Settings.cpp
     SiteIsolation.cpp
     SourceHighlighter.cpp
+    StorageJar.cpp
     URL.cpp
     UserAgent.cpp
     Utilities.cpp

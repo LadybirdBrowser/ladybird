@@ -20,6 +20,11 @@ struct StorageKey {
     // NOTE: This is expected to change; see Client-Side Storage Partitioning https://privacycg.github.io/storage-partitioning/.
     URL::Origin origin;
 
+    String to_string() const
+    {
+        return origin.serialize();
+    }
+
     friend bool operator==(StorageKey const& a, StorageKey const& b)
     {
         // To determine whether a storage key A equals storage key B, run these steps:
