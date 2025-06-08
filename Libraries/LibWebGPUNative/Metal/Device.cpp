@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWebGPUNative/CommandEncoder.h>
 #include <LibWebGPUNative/Device.h>
 #include <LibWebGPUNative/Metal/DeviceImpl.h>
 #include <LibWebGPUNative/Queue.h>
+#include <LibWebGPUNative/Texture.h>
 
 namespace WebGPUNative {
 
@@ -27,6 +29,11 @@ ErrorOr<void> Device::initialize()
 Queue Device::queue() const
 {
     return Queue(*this);
+}
+
+Texture Device::texture(Gfx::IntSize const size) const
+{
+    return Texture(*this, size);
 }
 
 CommandEncoder Device::command_encoder() const

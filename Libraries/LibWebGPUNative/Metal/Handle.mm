@@ -105,4 +105,68 @@ MetalCommandBufferHandle& MetalCommandBufferHandle::operator=(MetalCommandBuffer
     return *this;
 }
 
+MetalTextureHandle::MetalTextureHandle(id texture)
+    : m_texture(texture)
+{
+    [m_texture retain];
+}
+
+MetalTextureHandle::~MetalTextureHandle()
+{
+    if (m_texture) {
+        [m_texture release];
+        m_texture = nullptr;
+    }
+}
+
+MetalTextureHandle::MetalTextureHandle(MetalTextureHandle&& other) noexcept
+    : m_texture(other.m_texture)
+{
+    other.m_texture = nullptr;
+}
+
+MetalTextureHandle& MetalTextureHandle::operator=(MetalTextureHandle&& other) noexcept
+{
+    if (this != &other) {
+        if (m_texture) {
+            [m_texture release];
+        }
+        m_texture = other.m_texture;
+        other.m_texture = nullptr;
+    }
+    return *this;
+}
+
+MetalBufferHandle::MetalBufferHandle(id buffer)
+    : m_buffer(buffer)
+{
+    [m_buffer retain];
+}
+
+MetalBufferHandle::~MetalBufferHandle()
+{
+    if (m_buffer) {
+        [m_buffer release];
+        m_buffer = nullptr;
+    }
+}
+
+MetalBufferHandle::MetalBufferHandle(MetalBufferHandle&& other) noexcept
+    : m_buffer(other.m_buffer)
+{
+    other.m_buffer = nullptr;
+}
+
+MetalBufferHandle& MetalBufferHandle::operator=(MetalBufferHandle&& other) noexcept
+{
+    if (this != &other) {
+        if (m_buffer) {
+            [m_buffer release];
+        }
+        m_buffer = other.m_buffer;
+        other.m_buffer = nullptr;
+    }
+    return *this;
+}
+
 }
