@@ -169,4 +169,36 @@ MetalBufferHandle& MetalBufferHandle::operator=(MetalBufferHandle&& other) noexc
     return *this;
 }
 
+MetalRenderCommandEncoderHandle::MetalRenderCommandEncoderHandle(id render_command_encoder)
+    : m_render_command_encoder(render_command_encoder)
+{
+    [m_render_command_encoder retain];
+}
+
+MetalRenderCommandEncoderHandle::~MetalRenderCommandEncoderHandle()
+{
+    if (m_render_command_encoder) {
+        [m_render_command_encoder release];
+        m_render_command_encoder = nullptr;
+    }
+}
+
+MetalRenderCommandEncoderHandle::MetalRenderCommandEncoderHandle(MetalRenderCommandEncoderHandle&& other) noexcept
+    : m_render_command_encoder(other.m_render_command_encoder)
+{
+    other.m_render_command_encoder = nullptr;
+}
+
+MetalRenderCommandEncoderHandle& MetalRenderCommandEncoderHandle::operator=(MetalRenderCommandEncoderHandle&& other) noexcept
+{
+    if (this != &other) {
+        if (m_render_command_encoder) {
+            [m_render_command_encoder release];
+        }
+        m_render_command_encoder = other.m_render_command_encoder;
+        other.m_render_command_encoder = nullptr;
+    }
+    return *this;
+}
+
 }
