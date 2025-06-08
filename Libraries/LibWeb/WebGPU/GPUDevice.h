@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebGPU/GPUCommandEncoder.h>
 #include <LibWeb/WebGPU/GPUQueue.h>
+#include <LibWeb/WebGPU/GPUTexture.h>
 #include <LibWebGPUNative/Device.h>
 
 namespace Web::WebGPU {
@@ -24,6 +25,8 @@ class GPUDevice final : public DOM::EventTarget {
     GC::Ref<GPUQueue> queue() const { return *m_queue; }
 
     void on_queue_submitted(Function<void()> callback);
+
+    GC::Ref<GPUTexture> texture(Gfx::IntSize) const;
 
     GC::Root<GPUCommandEncoder> create_command_encoder(GPUCommandEncoderDescriptor const&) const;
 
