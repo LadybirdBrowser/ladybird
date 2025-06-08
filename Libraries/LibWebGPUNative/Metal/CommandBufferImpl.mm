@@ -5,6 +5,7 @@
  */
 
 #include <LibWebGPUNative/Metal/CommandBufferImpl.h>
+#include <LibWebGPUNative/Metal/CommandEncoderImpl.h>
 #import <Metal/Metal.h>
 
 namespace WebGPUNative {

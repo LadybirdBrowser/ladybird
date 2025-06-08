@@ -19,6 +19,8 @@ if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
             Metal/AdapterImpl.swift
             Metal/CommandBuffer.cpp
             Metal/CommandBufferImpl.mm
+            Metal/CommandEncoder.cpp
+            Metal/CommandEncoderImpl.mm
             Metal/Device.cpp
             Metal/DeviceImpl.swift
             Metal/Handle.mm
