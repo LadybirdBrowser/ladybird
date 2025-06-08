@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 #include <LibWebGPUNative/Adapter.h>
+#include <LibWebGPUNative/CommandEncoder.h>
 #include <LibWebGPUNative/Device.h>
 #include <LibWebGPUNative/Instance.h>
 #include <LibWebGPUNative/Queue.h>
@@ -33,4 +34,7 @@ TEST_CASE(clear)
     });
     device = TRY_OR_FAIL(device_promise->await());
     [[maybe_unused]] WebGPUNative::Queue queue = device.queue();
+
+    WebGPUNative::CommandEncoder command_encoder = device.command_encoder();
+    TRY_OR_FAIL(command_encoder.initialize());
 }
