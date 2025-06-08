@@ -27,6 +27,8 @@ if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
             Metal/Instance.cpp
             Metal/Queue.cpp
             Metal/QueueImpl.mm
+            Metal/RenderPassEncoder.cpp
+            Metal/RenderPassEncoderImpl.mm
             Metal/Texture.cpp
             Metal/TextureImpl.mm
             Metal/TextureView.cpp
