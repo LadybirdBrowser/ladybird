@@ -139,6 +139,7 @@ Function
 GPU
 GPUAdapter
 GPUCommandBuffer
+GPUCommandEncoder
 GPUDevice
 GPUQueue
 GainNode
