@@ -47,6 +47,8 @@ elseif (ENABLE_WEBGPUNATIVE_DIRECTX_IMPL)
             DirectX/AdapterImpl.cpp
             DirectX/CommandBuffer.cpp
             DirectX/CommandBufferImpl.cpp
+            DirectX/CommandEncoder.cpp
+            DirectX/CommandEncoderImpl.cpp
             DirectX/Device.cpp
             DirectX/DeviceImpl.cpp
             DirectX/Instance.cpp

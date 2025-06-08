@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWebGPUNative/CommandEncoder.h>
 #include <LibWebGPUNative/Device.h>
 #include <LibWebGPUNative/DirectX/DeviceImpl.h>
 #include <LibWebGPUNative/Queue.h>
@@ -27,6 +28,11 @@ ErrorOr<void> Device::initialize()
 Queue Device::queue() const
 {
     return Queue(*this);
+}
+
+CommandEncoder Device::command_encoder() const
+{
+    return CommandEncoder(*this);
 }
 
 }

@@ -23,6 +23,8 @@ ErrorOr<void> Device::Impl::initialize()
     if (HRESULT const result = m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_command_queue)); FAILED(result))
         return make_error(result, "Unable to create command queue");
 
+    if (HRESULT const result = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_command_allocator)); FAILED(result))
+        return make_error(result, "Unable to create command allocator");
     return {};
 }
 
