@@ -1083,6 +1083,7 @@ class GPUCommandBuffer;
 class GPUCommandEncoder;
 class GPUDevice;
 class GPUQueue;
+class GPURenderPassEncoder;
 class GPUTexture;
 class GPUTextureView;
 
