@@ -144,6 +144,7 @@ GPUCommandEncoder
 GPUDevice
 GPUQueue
 GPUTexture
+GPUTextureView
 GainNode
 Geolocation
 GeolocationCoordinates
