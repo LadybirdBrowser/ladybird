@@ -15,6 +15,8 @@ if (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
             Vulkan/AdapterImpl.cpp
             Vulkan/CommandBuffer.cpp
             Vulkan/CommandBufferImpl.cpp
+            Vulkan/CommandEncoder.cpp
+            Vulkan/CommandEncoderImpl.cpp
             Vulkan/Device.cpp
             Vulkan/DeviceImpl.cpp
             Vulkan/Instance.cpp

@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWebGPUNative/Vulkan/CommandBufferImpl.h>
 #include <LibWebGPUNative/Vulkan/DeviceImpl.h>
+#include <LibWebGPUNative/Vulkan/Error.h>
 #include <LibWebGPUNative/Vulkan/QueueImpl.h>
 
 namespace WebGPUNative {

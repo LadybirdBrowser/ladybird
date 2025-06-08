@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Vector.h>
 #include <LibWebGPUNative/Queue.h>
 #include <vulkan/vulkan_core.h>
 

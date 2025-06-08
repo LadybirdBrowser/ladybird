@@ -5,6 +5,7 @@
  */
 
 #include <LibWebGPUNative/Adapter.h>
+#include <LibWebGPUNative/CommandEncoder.h>
 #include <LibWebGPUNative/Device.h>
 #include <LibWebGPUNative/Queue.h>
 #include <LibWebGPUNative/Vulkan/DeviceImpl.h>
@@ -28,6 +29,11 @@ ErrorOr<void> Device::initialize()
 Queue Device::queue() const
 {
     return Queue(*this);
+}
+
+CommandEncoder Device::command_encoder() const
+{
+    return CommandEncoder(*this);
 }
 
 }
