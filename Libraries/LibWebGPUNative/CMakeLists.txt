@@ -11,11 +11,15 @@ target_link_libraries(LibWebGPUNative PRIVATE AK LibCore)
 if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
     set(WEBGPUNATIVE_METAL_BRIDGE_SOURCES
         Metal/AdapterImpl.mm
+        Metal/DeviceImpl.mm
     )
     target_sources(LibWebGPUNative
         PRIVATE
             Metal/Adapter.cpp
             Metal/AdapterImpl.swift
+            Metal/Device.cpp
+            Metal/DeviceImpl.swift
+            Metal/Handle.mm
             Metal/Instance.cpp
             ${WEBGPUNATIVE_METAL_BRIDGE_SOURCES}
     )
