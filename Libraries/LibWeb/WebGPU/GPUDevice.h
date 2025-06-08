@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/GPUDevicePrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebGPU/GPUCommandEncoder.h>
 #include <LibWeb/WebGPU/GPUQueue.h>
 #include <LibWebGPUNative/Device.h>
 
@@ -21,6 +22,10 @@ class GPUDevice final : public DOM::EventTarget {
     static JS::ThrowCompletionOr<GC::Ref<GPUDevice>> create(JS::Realm&, WebGPUNative::Device);
 
     GC::Ref<GPUQueue> queue() const { return *m_queue; }
+
+    void on_queue_submitted(Function<void()> callback);
+
+    GC::Root<GPUCommandEncoder> create_command_encoder(GPUCommandEncoderDescriptor const&) const;
 
 private:
     explicit GPUDevice(JS::Realm&, WebGPUNative::Device);

@@ -26,6 +26,20 @@ JS::ThrowCompletionOr<GC::Ref<GPUDevice>> GPUDevice::create(JS::Realm& realm, We
     return realm.create<GPUDevice>(realm, std::move(device));
 }
 
+void GPUDevice::on_queue_submitted(Function<void()> callback)
+{
+    m_queue->on_submitted(std::move(callback));
+}
+
+// FIXME: Add spec comments
+//  https://www.w3.org/TR/webgpu/#dom-gpudevice-createcommandencoder
+GC::Root<GPUCommandEncoder> GPUDevice::create_command_encoder(GPUCommandEncoderDescriptor const&) const
+{
+    auto native_gpu_command_encoder = m_native_gpu_device.command_encoder();
+    MUST(native_gpu_command_encoder.initialize());
+    return MUST(GPUCommandEncoder::create(realm(), std::move(native_gpu_command_encoder)));
+}
+
 void GPUDevice::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(GPUDevice);

@@ -1,8 +1,11 @@
 #import <DOM/EventTarget.idl>
 #import <WebGPU/GPUQueue.idl>
+#import <WebGPU/GPUCommandEncoder.idl>
 
 // https://www.w3.org/TR/webgpu/#gpudevice
 [Exposed=(Window,Worker), SecureContext]
 interface GPUDevice : EventTarget {
     [SameObject] readonly attribute GPUQueue queue;
+
+    GPUCommandEncoder createCommandEncoder(optional GPUCommandEncoderDescriptor descriptor = {});
 };
