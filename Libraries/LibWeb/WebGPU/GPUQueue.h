@@ -18,6 +18,10 @@ class GPUQueue final : public Bindings::PlatformObject {
 
     static JS::ThrowCompletionOr<GC::Ref<GPUQueue>> create(JS::Realm&, WebGPUNative::Queue);
 
+    void submit(Vector<GC::Root<GPUCommandBuffer>> const& command_buffers);
+
+    void on_submitted(Function<void()> callback);
+
 private:
     explicit GPUQueue(JS::Realm&, WebGPUNative::Queue);
 

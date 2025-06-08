@@ -140,6 +140,7 @@ FormDataEvent
 Function
 GPU
 GPUAdapter
+GPUCommandBuffer
 GPUDevice
 GPUQueue
 GainNode

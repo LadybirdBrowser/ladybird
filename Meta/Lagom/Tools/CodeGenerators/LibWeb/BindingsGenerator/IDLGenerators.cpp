@@ -69,6 +69,7 @@ static bool is_platform_object(Type const& type)
         "FormData"sv,
         "GPU"sv,
         "GPUAdapter"sv,
+        "GPUCommandBuffer"sv,
         "GPUDevice"sv,
         "GPUQueue"sv,
         "HTMLCollection"sv,

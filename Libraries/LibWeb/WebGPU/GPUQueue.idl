@@ -1,4 +1,7 @@
+#import <WebGPU/GPUCommandBuffer.idl>
+
 // https://www.w3.org/TR/webgpu/#gpuqueue
 [Exposed=(Window,Worker), SecureContext]
 interface GPUQueue {
+    undefined submit(sequence<GPUCommandBuffer> commandBuffers);
 };
