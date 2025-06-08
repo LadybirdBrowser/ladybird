@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 #include <LibWebGPUNative/Adapter.h>
+#include <LibWebGPUNative/CommandEncoder.h>
 #include <LibWebGPUNative/Device.h>
 #include <LibWebGPUNative/Instance.h>
 #include <LibWebGPUNative/Queue.h>
@@ -45,5 +46,12 @@ TEST_CASE(clear)
         return;
     }
     device = std::move(device_result.value());
-    [[maybe_unused]] WebGPUNative::Queue queue = device.queue();
+
+    WebGPUNative::CommandEncoder command_encoder = device.command_encoder();
+    auto command_encoder_result = command_encoder.initialize();
+    if (command_encoder_result.is_error()) {
+        FAIL("Command encoder initialization failed");
+        return;
+    }
+
 }
