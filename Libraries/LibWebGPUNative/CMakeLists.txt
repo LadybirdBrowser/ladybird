@@ -43,6 +43,8 @@ elseif (ENABLE_WEBGPUNATIVE_DIRECTX_IMPL)
         PRIVATE
             DirectX/Adapter.cpp
             DirectX/AdapterImpl.cpp
+            DirectX/CommandBuffer.cpp
+            DirectX/CommandBufferImpl.cpp
             DirectX/Device.cpp
             DirectX/DeviceImpl.cpp
             DirectX/Instance.cpp

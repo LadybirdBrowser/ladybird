@@ -21,6 +21,7 @@ struct Device::Impl {
 
     ErrorOr<void> initialize();
 
+    ComPtr<ID3D12Device> device() const { return m_device; }
     ComPtr<ID3D12CommandQueue> command_queue() const { return m_command_queue; }
 
 private:
