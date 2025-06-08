@@ -39,6 +39,8 @@ elseif (ENABLE_WEBGPUNATIVE_DIRECTX_IMPL)
         PRIVATE
             DirectX/Adapter.cpp
             DirectX/AdapterImpl.cpp
+            DirectX/Device.cpp
+            DirectX/DeviceImpl.cpp
             DirectX/Instance.cpp
     )
     find_package(directx-headers CONFIG REQUIRED)

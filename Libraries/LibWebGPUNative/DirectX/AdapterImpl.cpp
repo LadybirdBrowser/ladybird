@@ -29,9 +29,11 @@ ErrorOr<void> Adapter::Impl::initialize()
             break;
         } else {
             m_adapter.Reset();
-            return make_error(result, "Unable to create D3D12 device");
+            return make_error(result, "Unable to create device");
         }
     }
+    if (!m_adapter)
+        return make_error("Unable to create adapter");
 
     return {};
 }
