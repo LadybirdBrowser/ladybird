@@ -5,6 +5,7 @@
  */
 
 #include <LibWebGPUNative/Texture.h>
+#include <LibWebGPUNative/TextureView.h>
 #include <LibWebGPUNative/Vulkan/TextureImpl.h>
 
 namespace WebGPUNative {
@@ -33,5 +34,9 @@ ErrorOr<NonnullOwnPtr<MappedTextureBuffer>> Texture::map_buffer()
     return m_impl->map_buffer();
 }
 
+TextureView Texture::texture_view() const
+{
+    return TextureView(*this);
+}
 
 }
