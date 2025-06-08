@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/GPUDevicePrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebGPU/GPUQueue.h>
 #include <LibWebGPUNative/Device.h>
 
 namespace Web::WebGPU {
@@ -19,6 +20,8 @@ class GPUDevice final : public DOM::EventTarget {
 
     static JS::ThrowCompletionOr<GC::Ref<GPUDevice>> create(JS::Realm&, WebGPUNative::Device);
 
+    GC::Ref<GPUQueue> queue() const { return *m_queue; }
+
 private:
     explicit GPUDevice(JS::Realm&, WebGPUNative::Device);
 
@@ -27,6 +30,7 @@ private:
     void visit_edges(Visitor&) override;
 
     WebGPUNative::Device m_native_gpu_device;
+    GC::Ref<GPUQueue> m_queue;
 };
 
 }

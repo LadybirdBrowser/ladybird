@@ -141,6 +141,7 @@ Function
 GPU
 GPUAdapter
 GPUDevice
+GPUQueue
 GainNode
 Geolocation
 GeolocationCoordinates

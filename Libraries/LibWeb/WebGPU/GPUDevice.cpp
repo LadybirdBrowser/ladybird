@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/WebGPU/GPUDevice.h>
+#include <LibWeb/WebGPU/GPUQueue.h>
 
 namespace Web::WebGPU {
 
@@ -16,6 +17,7 @@ GC_DEFINE_ALLOCATOR(GPUDevice);
 GPUDevice::GPUDevice(JS::Realm& realm, WebGPUNative::Device device)
     : EventTarget(realm)
     , m_native_gpu_device(std::move(device))
+    , m_queue(MUST(GPUQueue::create(realm, m_native_gpu_device.queue())))
 {
 }
 
@@ -33,6 +35,7 @@ void GPUDevice::initialize(JS::Realm& realm)
 void GPUDevice::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_queue);
 }
 
 }
