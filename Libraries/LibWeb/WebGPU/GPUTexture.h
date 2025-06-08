@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/GPUTexturePrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebGPU/GPUTextureView.h>
 #include <LibWebGPUNative/Texture.h>
 
 namespace Web::WebGPU {
@@ -21,6 +22,8 @@ class GPUTexture final : public Bindings::PlatformObject {
     static JS::ThrowCompletionOr<GC::Ref<GPUTexture>> create(JS::Realm&, WebGPUNative::Texture);
 
     ErrorOr<NonnullOwnPtr<WebGPUNative::MappedTextureBuffer>> map_buffer();
+
+    GC::Root<GPUTextureView> create_view(GPUTextureViewDescriptor const&) const;
 
 private:
     explicit GPUTexture(JS::Realm&, WebGPUNative::Texture);

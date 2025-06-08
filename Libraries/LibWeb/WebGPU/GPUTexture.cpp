@@ -28,6 +28,15 @@ ErrorOr<NonnullOwnPtr<WebGPUNative::MappedTextureBuffer>> GPUTexture::map_buffer
     return TRY(m_native_gpu_texture.map_buffer());
 }
 
+// FIXME: Add spec comments
+//  https://www.w3.org/TR/webgpu/#dom-gputexture-createview
+GC::Root<GPUTextureView> GPUTexture::create_view(GPUTextureViewDescriptor const&) const
+{
+    auto native_gpu_texture_view = m_native_gpu_texture.texture_view();
+    MUST(native_gpu_texture_view.initialize());
+    return MUST(GPUTextureView::create(realm(), std::move(native_gpu_texture_view)));
+}
+
 void GPUTexture::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(GPUTexture);
