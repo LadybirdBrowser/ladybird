@@ -23,6 +23,8 @@ if (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
             Vulkan/InstanceImpl.cpp
             Vulkan/Queue.cpp
             Vulkan/QueueImpl.cpp
+            Vulkan/RenderPassEncoder.cpp
+            Vulkan/RenderPassEncoderImpl.cpp
             Vulkan/Texture.cpp
             Vulkan/TextureImpl.cpp
             Vulkan/TextureView.cpp

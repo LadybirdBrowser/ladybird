@@ -22,10 +22,15 @@ struct CommandEncoder::Impl {
 
     VkCommandBuffer command_buffer() const { return m_command_buffer; }
 
+    ErrorOr<void> begin_render_pass(RenderPassEncoder const& render_pass_encoder);
+
+    ErrorOr<void> finish();
+
 private:
     VkDevice m_logical_device = { VK_NULL_HANDLE };
     VkCommandPool m_command_pool = { VK_NULL_HANDLE };
     VkCommandBuffer m_command_buffer = { VK_NULL_HANDLE };
+    VkFramebuffer m_frame_buffer = { VK_NULL_HANDLE };
 };
 
 }
