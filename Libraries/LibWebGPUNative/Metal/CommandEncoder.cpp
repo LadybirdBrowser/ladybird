@@ -7,6 +7,7 @@
 #include <LibWebGPUNative/CommandBuffer.h>
 #include <LibWebGPUNative/CommandEncoder.h>
 #include <LibWebGPUNative/Metal/CommandEncoderImpl.h>
+#include <LibWebGPUNative/RenderPassEncoder.h>
 
 namespace WebGPUNative {
 
@@ -22,6 +23,19 @@ CommandEncoder::~CommandEncoder() = default;
 ErrorOr<void> CommandEncoder::initialize()
 {
     return m_impl->initialize();
+}
+
+ErrorOr<RenderPassEncoder> CommandEncoder::begin_render_pass(RenderPassDescriptor const& render_pass_descriptor) const
+{
+    auto render_pass_encoder = RenderPassEncoder(*this, render_pass_descriptor);
+    TRY(m_impl->begin_render_pass(render_pass_encoder));
+    return render_pass_encoder;
+}
+
+ErrorOr<CommandBuffer> CommandEncoder::finish()
+{
+    TRY(m_impl->finish());
+    return CommandBuffer(*this);
 }
 
 }
