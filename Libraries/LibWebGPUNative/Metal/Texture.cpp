@@ -34,4 +34,9 @@ ErrorOr<NonnullOwnPtr<MappedTextureBuffer>> Texture::map_buffer()
     return m_impl->map_buffer();
 }
 
+TextureView Texture::texture_view() const
+{
+    return TextureView(*this);
+}
+
 }

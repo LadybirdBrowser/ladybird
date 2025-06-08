@@ -29,6 +29,8 @@ if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
             Metal/QueueImpl.mm
             Metal/Texture.cpp
             Metal/TextureImpl.mm
+            Metal/TextureView.cpp
+            Metal/TextureViewImpl.mm
             ${WEBGPUNATIVE_METAL_BRIDGE_SOURCES}
     )
     find_library(METAL_FRAMEWORK Metal REQUIRED)
