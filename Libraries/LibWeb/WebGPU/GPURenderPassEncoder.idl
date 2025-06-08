@@ -1,0 +1,30 @@
+#import <WebGPU/GPUTextureView.idl>
+
+// https://www.w3.org/TR/webgpu/#typedefdef-gpucolor
+
+dictionary GPUColorDict {
+    required double r;
+    required double g;
+    required double b;
+    required double a;
+};
+typedef (sequence<double> or GPUColorDict) GPUColor;
+
+// https://www.w3.org/TR/webgpu/#dictdef-gpurenderpasscolorattachment
+dictionary GPURenderPassColorAttachment {
+    required GPUTextureView view;
+
+    GPUColor clearValue;
+};
+
+// https://www.w3.org/TR/webgpu/#dictdef-gpurenderpassdescriptor
+dictionary GPURenderPassDescriptor {
+    // FIXME: Make the element a ? type
+    required sequence<GPURenderPassColorAttachment> colorAttachments;
+};
+
+// https://www.w3.org/TR/webgpu/#gpurenderpassencoder
+[Exposed=(Window, Worker), SecureContext]
+interface GPURenderPassEncoder {
+    undefined end();
+};

@@ -8,6 +8,8 @@
 
 #include <LibWeb/Bindings/GPUCommandEncoderPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebGPU/GPUCommandBuffer.h>
+#include <LibWeb/WebGPU/GPURenderPassEncoder.h>
 #include <LibWebGPUNative/CommandEncoder.h>
 
 namespace Web::WebGPU {
@@ -19,6 +21,10 @@ class GPUCommandEncoder final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(GPUCommandEncoder);
 
     static JS::ThrowCompletionOr<GC::Ref<GPUCommandEncoder>> create(JS::Realm&, WebGPUNative::CommandEncoder);
+
+    GC::Root<GPURenderPassEncoder> begin_render_pass(GPURenderPassDescriptor const&);
+
+    GC::Root<GPUCommandBuffer> finish(GPUCommandBufferDescriptor const&);
 
 private:
     explicit GPUCommandEncoder(JS::Realm&, WebGPUNative::CommandEncoder);
