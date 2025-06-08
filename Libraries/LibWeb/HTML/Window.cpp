@@ -66,6 +66,7 @@
 #include <LibWeb/RequestIdleCallback/IdleDeadline.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
+#include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::HTML {
@@ -464,7 +465,11 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
         return GC::Ref { *storage };
 
     // 2. Let map be the result of running obtain a local storage bottle map with this's relevant settings object and "localStorage".
-    auto map = StorageAPI::obtain_a_local_storage_bottle_map(relevant_settings_object(*this), "localStorage"sv);
+    GC::Ptr<StorageAPI::LocalStorageBottle> map;
+    auto storage_key = StorageAPI::obtain_a_storage_key(relevant_settings_object(*this));
+    if (storage_key.has_value()) {
+        map = StorageAPI::LocalStorageBottle::create(heap(), page(), storage_key.value(), StorageAPI::StorageEndpoint::LOCAL_STORAGE_QUOTA);
+    }
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
     if (!map)
@@ -491,7 +496,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
         return GC::Ref { *storage };
 
     // 2. Let map be the result of running obtain a session storage bottle map with this's relevant settings object and "sessionStorage".
-    auto map = StorageAPI::obtain_a_session_storage_bottle_map(relevant_settings_object(*this), "sessionStorage"sv);
+    auto map = StorageAPI::obtain_a_session_storage_bottle_map(relevant_settings_object(*this), StorageAPI::StorageEndpointType::SessionStorage);
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
     if (!map)

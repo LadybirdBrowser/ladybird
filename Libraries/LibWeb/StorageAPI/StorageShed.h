@@ -24,7 +24,7 @@ class StorageShed : public GC::Cell {
 public:
     static GC::Ref<StorageShed> create(GC::Heap& heap) { return heap.allocate<StorageShed>(); }
 
-    GC::Ptr<StorageShelf> obtain_a_storage_shelf(HTML::EnvironmentSettingsObject const&, StorageType);
+    GC::Ptr<StorageShelf> obtain_a_storage_shelf(HTML::EnvironmentSettingsObject&, StorageType);
 
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
@@ -33,7 +33,5 @@ private:
 
     OrderedHashMap<StorageKey, GC::Ref<StorageShelf>> m_data;
 };
-
-GC::Ref<StorageShed> user_agent_storage_shed(GC::Heap&);
 
 }

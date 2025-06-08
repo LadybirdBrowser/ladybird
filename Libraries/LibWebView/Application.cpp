@@ -326,8 +326,10 @@ ErrorOr<void> Application::launch_services()
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         m_database = Database::create().release_value_but_fixme_should_propagate_errors();
         m_cookie_jar = CookieJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
+        m_storage_jar = StorageJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
     } else {
         m_cookie_jar = CookieJar::create();
+        m_storage_jar = StorageJar::create();
     }
 
     // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.

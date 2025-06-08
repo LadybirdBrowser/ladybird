@@ -22,6 +22,7 @@
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/StorageJar.h>
 
 namespace WebView {
 
@@ -46,6 +47,7 @@ public:
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
+    static StorageJar& storage_jar() { return *the().m_storage_jar; }
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
 
@@ -138,6 +140,7 @@ private:
 
     RefPtr<Database> m_database;
     OwnPtr<CookieJar> m_cookie_jar;
+    OwnPtr<StorageJar> m_storage_jar;
 
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
