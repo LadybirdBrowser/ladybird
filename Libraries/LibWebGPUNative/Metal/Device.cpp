@@ -6,6 +6,7 @@
 
 #include <LibWebGPUNative/Device.h>
 #include <LibWebGPUNative/Metal/DeviceImpl.h>
+#include <LibWebGPUNative/Queue.h>
 
 namespace WebGPUNative {
 
@@ -21,6 +22,11 @@ Device::~Device() = default;
 ErrorOr<void> Device::initialize()
 {
     return m_impl->initialize();
+}
+
+Queue Device::queue() const
+{
+    return Queue(*this);
 }
 
 }
