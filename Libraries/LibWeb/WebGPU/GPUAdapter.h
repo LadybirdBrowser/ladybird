@@ -18,6 +18,8 @@ class GPUAdapter final : public Bindings::PlatformObject {
 
     static JS::ThrowCompletionOr<GC::Ref<GPUAdapter>> create(JS::Realm&, WebGPUNative::Adapter);
 
+    GC::Ref<WebIDL::Promise> request_device();
+
 private:
     explicit GPUAdapter(JS::Realm&, WebGPUNative::Adapter);
 

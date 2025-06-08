@@ -1,0 +1,6 @@
+#import <DOM/EventTarget.idl>
+
+// https://www.w3.org/TR/webgpu/#gpudevice
+[Exposed=(Window,Worker), SecureContext]
+interface GPUDevice : EventTarget {
+};
