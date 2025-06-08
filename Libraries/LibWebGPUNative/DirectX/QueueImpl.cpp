@@ -33,6 +33,8 @@ ErrorOr<void> Queue::Impl::submit(Vector<NonnullRawPtr<CommandBuffer>> const& gp
     // FIXME: Queue submission should be asynchronous
     //  https://www.w3.org/TR/webgpu/#dom-gpuqueue-onsubmittedworkdone
     HANDLE fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!fence_event)
+        return make_error("Unable to create fence event for command buffer submission");
     if (HRESULT const result = m_command_queue->Signal(fence.Get(), 1); FAILED(result))
         return make_error(result, "Unable to signal fence");
 
