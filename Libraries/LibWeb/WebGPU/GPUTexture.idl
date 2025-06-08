@@ -1,3 +1,5 @@
+#import <WebGPU/GPUTextureView.idl>
+
 // https://www.w3.org/TR/webgpu/#dictdef-gputextureviewdescriptor
 dictionary GPUTextureViewDescriptor {
 
@@ -6,4 +8,5 @@ dictionary GPUTextureViewDescriptor {
 // https://www.w3.org/TR/webgpu/#gputexture
 [Exposed=(Window, Worker), SecureContext]
 interface GPUTexture {
+    GPUTextureView createView(optional GPUTextureViewDescriptor descriptor = {});
 };
