@@ -142,6 +142,7 @@ GPUCommandBuffer
 GPUCommandEncoder
 GPUDevice
 GPUQueue
+GPUTexture
 GainNode
 Geolocation
 GeolocationCoordinates

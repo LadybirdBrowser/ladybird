@@ -930,6 +930,7 @@ set(SOURCES
     WebGPU/GPUCommandEncoder.cpp
     WebGPU/GPUDevice.cpp
     WebGPU/GPUQueue.cpp
+    WebGPU/GPUTexture.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp
     WebIDL/Buffers.cpp
