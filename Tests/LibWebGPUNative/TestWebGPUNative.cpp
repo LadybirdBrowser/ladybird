@@ -8,6 +8,7 @@
 #include <LibWebGPUNative/Adapter.h>
 #include <LibWebGPUNative/Device.h>
 #include <LibWebGPUNative/Instance.h>
+#include <LibWebGPUNative/Queue.h>
 
 // FIXME: Complete enough of the implementation to test a "clear value" render pass into to a Gfx::Bitmap for headless/offscreen verification
 TEST_CASE(clear)
@@ -31,4 +32,5 @@ TEST_CASE(clear)
         device_promise->resolve(std::move(device));
     });
     device = TRY_OR_FAIL(device_promise->await());
+    [[maybe_unused]] WebGPUNative::Queue queue = device.queue();
 }
