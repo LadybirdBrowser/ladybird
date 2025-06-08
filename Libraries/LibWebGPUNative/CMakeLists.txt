@@ -23,6 +23,8 @@ if (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
             Vulkan/InstanceImpl.cpp
             Vulkan/Queue.cpp
             Vulkan/QueueImpl.cpp
+            Vulkan/Texture.cpp
+            Vulkan/TextureImpl.cpp
     )
     find_package(Vulkan REQUIRED)
     find_package(VulkanUtilityLibraries CONFIG REQUIRED)
