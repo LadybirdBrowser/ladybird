@@ -21,6 +21,7 @@ struct Texture::Impl {
 
     Gfx::IntSize size() const { return m_size; }
 
+    ComPtr<ID3D12Device> device() const { return m_device; }
     ComPtr<ID3D12Resource> texture() const { return m_texture; }
 
     ErrorOr<NonnullOwnPtr<MappedTextureBuffer>> map_buffer();

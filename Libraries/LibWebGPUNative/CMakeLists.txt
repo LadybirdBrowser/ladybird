@@ -60,6 +60,8 @@ elseif (ENABLE_WEBGPUNATIVE_DIRECTX_IMPL)
             DirectX/QueueImpl.cpp
             DirectX/Texture.cpp
             DirectX/TextureImpl.cpp
+            DirectX/TextureView.cpp
+            DirectX/TextureViewImpl.cpp
     )
     find_package(directx-headers CONFIG REQUIRED)
     find_package(directx12-agility CONFIG REQUIRED)

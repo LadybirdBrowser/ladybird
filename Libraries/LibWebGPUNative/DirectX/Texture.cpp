@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWebGPUNative/Texture.h>
 #include <LibWebGPUNative/DirectX/TextureImpl.h>
+#include <LibWebGPUNative/Texture.h>
+#include <LibWebGPUNative/TextureView.h>
 
 namespace WebGPUNative {
 
@@ -33,5 +34,9 @@ ErrorOr<NonnullOwnPtr<MappedTextureBuffer>> Texture::map_buffer()
     return m_impl->map_buffer();
 }
 
+TextureView Texture::texture_view() const
+{
+    return TextureView(*this);
+}
 
 }
