@@ -19,6 +19,7 @@ namespace WebGPUNative {
 class Device;
 class MappedTextureBuffer;
 class Texture;
+class TextureView;
 
 class WEBGPUNATIVE_API Texture {
 public:
@@ -36,6 +37,8 @@ public:
     Gfx::IntSize size() const;
 
     ErrorOr<NonnullOwnPtr<MappedTextureBuffer>> map_buffer();
+
+    TextureView texture_view() const;
 
 private:
     struct Impl;
