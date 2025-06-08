@@ -12,6 +12,7 @@
 #include <LibWebGPUNative/Instance.h>
 #include <LibWebGPUNative/Queue.h>
 #include <LibWebGPUNative/Texture.h>
+#include <LibWebGPUNative/TextureView.h>
 
 // FIXME: Complete enough of the implementation to test a "clear value" render pass into to a Gfx::Bitmap for headless/offscreen verification
 TEST_CASE(clear)
@@ -82,5 +83,12 @@ TEST_CASE(clear)
                 return;
             }
         }
+    }
+
+    WebGPUNative::TextureView texture_view = texture.texture_view();
+    auto texture_view_result = texture_view.initialize();
+    if (texture_view_result.is_error()) {
+        FAIL("Texture view initialization failed");
+        return;
     }
 }
