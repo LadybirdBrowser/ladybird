@@ -32,6 +32,7 @@ ErrorOr<void> Queue::Impl::submit(Vector<NonnullRawPtr<CommandBuffer>> const& gp
         }
 
         if (m_submitted_callback) {
+            // TODO: Consult spec for the recommended method of notifying the GPUCanvasContext that it needs to update its HTMLCanvasElement surface
             [metal_command_buffer addCompletedHandler:^(id<MTLCommandBuffer>) {
                 m_submitted_callback();
             }];
@@ -42,11 +43,6 @@ ErrorOr<void> Queue::Impl::submit(Vector<NonnullRawPtr<CommandBuffer>> const& gp
         // TODO: Make queue submission asynchronous
         // https://www.w3.org/TR/webgpu/#dom-gpuqueue-onsubmittedworkdone
         [metal_command_buffer waitUntilCompleted];
-    }
-
-    // TODO: Consult spec for the recommended method of notifying the GPUCanvasContext that it needs to update its HTMLCanvasElement surface
-    if (m_submitted_callback) {
-        m_submitted_callback();
     }
 
     return {};
