@@ -143,6 +143,7 @@ GPUCommandBuffer
 GPUCommandEncoder
 GPUDevice
 GPUQueue
+GPURenderPassEncoder
 GPUTexture
 GPUTextureView
 GainNode
