@@ -13,6 +13,7 @@
 namespace WebGPUNative {
 
 class Device;
+class CommandBuffer;
 
 class WEBGPUNATIVE_API Queue {
 public:
@@ -20,6 +21,9 @@ public:
     Queue(Queue&&) noexcept;
     Queue& operator=(Queue&&) noexcept;
     ~Queue();
+
+    ErrorOr<void> submit(Vector<NonnullRawPtr<CommandBuffer>> const&);
+    void on_submitted(Function<void()> callback);
 
 private:
     struct Impl;

@@ -13,6 +13,8 @@ if (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
         PRIVATE
             Vulkan/Adapter.cpp
             Vulkan/AdapterImpl.cpp
+            Vulkan/CommandBuffer.cpp
+            Vulkan/CommandBufferImpl.cpp
             Vulkan/Device.cpp
             Vulkan/DeviceImpl.cpp
             Vulkan/Instance.cpp
