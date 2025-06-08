@@ -138,6 +138,7 @@ FormDataEvent
 Function
 GPU
 GPUAdapter
+GPUDevice
 GainNode
 Geolocation
 GeolocationCoordinates

@@ -1079,6 +1079,7 @@ namespace Web::WebGPU {
 
 class GPU;
 class GPUAdapter;
+class GPUDevice;
 
 }
 
