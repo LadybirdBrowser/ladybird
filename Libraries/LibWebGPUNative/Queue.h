@@ -7,25 +7,19 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRawPtr.h>
 #include <LibWebGPUNative/Forward.h>
 
 namespace WebGPUNative {
 
-class Adapter;
-class Queue;
+class Device;
 
-class WEBGPUNATIVE_API Device {
+class WEBGPUNATIVE_API Queue {
 public:
-    friend class Queue;
-
-    explicit Device(Adapter const&);
-    Device(Device&&) noexcept;
-    Device& operator=(Device&&) noexcept;
-    ~Device();
-
-    ErrorOr<void> initialize();
-
-    Queue queue() const;
+    explicit Queue(Device const&);
+    Queue(Queue&&) noexcept;
+    Queue& operator=(Queue&&) noexcept;
+    ~Queue();
 
 private:
     struct Impl;
