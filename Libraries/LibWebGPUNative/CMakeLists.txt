@@ -21,6 +21,8 @@ if (ENABLE_WEBGPUNATIVE_METAL_IMPL)
             Metal/DeviceImpl.swift
             Metal/Handle.mm
             Metal/Instance.cpp
+            Metal/Queue.cpp
+            Metal/QueueImpl.mm
             ${WEBGPUNATIVE_METAL_BRIDGE_SOURCES}
     )
     find_library(METAL_FRAMEWORK Metal REQUIRED)
