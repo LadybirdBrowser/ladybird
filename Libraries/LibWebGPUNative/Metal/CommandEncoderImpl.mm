@@ -13,7 +13,7 @@ namespace WebGPUNative {
 
 CommandEncoder::Impl::Impl(Device const& gpu_device)
 {
-    id command_queue = gpu_device.m_impl->command_queue();
+    id command_queue = gpu_device.m_impl->mtl_command_queue();
     if (command_queue) {
         m_command_queue = make<MetalCommandQueueHandle>(command_queue);
     }
