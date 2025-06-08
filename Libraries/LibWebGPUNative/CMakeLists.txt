@@ -60,6 +60,8 @@ elseif (ENABLE_WEBGPUNATIVE_DIRECTX_IMPL)
             DirectX/Instance.cpp
             DirectX/Queue.cpp
             DirectX/QueueImpl.cpp
+            DirectX/RenderPassEncoder.cpp
+            DirectX/RenderPassEncoderImpl.cpp
             DirectX/Texture.cpp
             DirectX/TextureImpl.cpp
             DirectX/TextureView.cpp

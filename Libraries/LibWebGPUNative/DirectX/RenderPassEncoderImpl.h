@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWebGPUNative/CommandEncoder.h>
+#include <LibWebGPUNative/RenderPassEncoder.h>
 #include <d3d12.h>
 #include <wrl.h>
 
@@ -14,21 +14,20 @@ using namespace Microsoft::WRL;
 
 namespace WebGPUNative {
 
-struct CommandEncoder::Impl {
-    explicit Impl(Device const& gpu_device);
+struct RenderPassEncoder::Impl {
+    explicit Impl(CommandEncoder const& gpu_command_encoder, RenderPassDescriptor const&);
 
     ErrorOr<void> initialize();
 
     ComPtr<ID3D12GraphicsCommandList> command_list() const { return m_command_list; }
 
-    ErrorOr<void> begin_render_pass(RenderPassEncoder const& render_pass_encoder);
+    RenderPassDescriptor const& render_pass_descriptor() const { return m_render_pass_descriptor; }
 
-    ErrorOr<void> finish();
+    void end();
 
 private:
-    ComPtr<ID3D12Device> m_device;
-    ComPtr<ID3D12CommandAllocator> m_command_allocator;
     ComPtr<ID3D12GraphicsCommandList> m_command_list;
+    RenderPassDescriptor m_render_pass_descriptor;
 };
 
 }
