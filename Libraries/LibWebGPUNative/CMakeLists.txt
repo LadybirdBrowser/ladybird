@@ -85,6 +85,8 @@ elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
             Vulkan/QueueImpl.cpp
             Vulkan/Texture.cpp
             Vulkan/TextureImpl.cpp
+            Vulkan/TextureView.cpp
+            Vulkan/TextureViewImpl.cpp
     )
     find_package(Vulkan REQUIRED)
     find_package(VulkanUtilityLibraries CONFIG REQUIRED)
