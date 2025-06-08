@@ -44,6 +44,8 @@ elseif (ENABLE_WEBGPUNATIVE_VULKAN_IMPL)
             Vulkan/DeviceImpl.cpp
             Vulkan/Instance.cpp
             Vulkan/InstanceImpl.cpp
+            Vulkan/Queue.cpp
+            Vulkan/QueueImpl.cpp
     )
     find_package(Vulkan REQUIRED)
     find_package(VulkanUtilityLibraries CONFIG REQUIRED)

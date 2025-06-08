@@ -6,6 +6,7 @@
 
 #include <LibWebGPUNative/Adapter.h>
 #include <LibWebGPUNative/Device.h>
+#include <LibWebGPUNative/Queue.h>
 #include <LibWebGPUNative/Vulkan/DeviceImpl.h>
 
 namespace WebGPUNative {
@@ -22,6 +23,11 @@ Device::~Device() = default;
 ErrorOr<void> Device::initialize()
 {
     return m_impl->initialize();
+}
+
+Queue Device::queue() const
+{
+    return Queue(*this);
 }
 
 }
