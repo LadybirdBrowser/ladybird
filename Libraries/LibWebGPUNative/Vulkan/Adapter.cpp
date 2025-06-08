@@ -5,6 +5,7 @@
  */
 
 #include <LibWebGPUNative/Adapter.h>
+#include <LibWebGPUNative/Device.h>
 #include <LibWebGPUNative/Vulkan/AdapterImpl.h>
 
 namespace WebGPUNative {
@@ -21,6 +22,16 @@ Adapter::~Adapter() = default;
 ErrorOr<void> Adapter::initialize()
 {
     return m_impl->initialize();
+}
+
+Device Adapter::device() const
+{
+    return Device(*this);
+}
+
+NonnullRefPtr<Core::Promise<Device>> Adapter::request_device()
+{
+    return MUST(Core::Promise<Device>::try_create());
 }
 
 }
