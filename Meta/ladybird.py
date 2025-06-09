@@ -8,7 +8,6 @@
 
 import argparse
 import os
-import platform
 import re
 import shutil
 import sys
