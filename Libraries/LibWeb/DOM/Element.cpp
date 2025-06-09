@@ -3637,20 +3637,13 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         if (m_class_list)
             m_class_list->associated_attribute_changed(value_or_empty);
     } else if (local_name == HTML::AttributeNames::style) {
-        if (!value.has_value()) {
-            if (m_inline_style) {
-                m_inline_style = nullptr;
-                set_needs_style_update(true);
-            }
-        } else {
-            // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
-            if (m_inline_style && m_inline_style->is_updating())
-                return;
-            if (!m_inline_style)
-                m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
-            m_inline_style->set_declarations_from_text(*value);
-            set_needs_style_update(true);
-        }
+        // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
+        if (m_inline_style && m_inline_style->is_updating())
+            return;
+        if (!m_inline_style)
+            m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
+        m_inline_style->set_declarations_from_text(value.value_or(""_string));
+        set_needs_style_update(true);
     } else if (local_name == HTML::AttributeNames::dir) {
         // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
         if (value_or_empty.equals_ignoring_ascii_case("ltr"sv))
