@@ -10,8 +10,9 @@
 
 namespace Web::CSS {
 
-URL::URL(String url, Vector<RequestURLModifier> request_url_modifiers)
-    : m_url(move(url))
+URL::URL(String url, Type type, Vector<RequestURLModifier> request_url_modifiers)
+    : m_type(type)
+    , m_url(move(url))
     , m_request_url_modifiers(move(request_url_modifiers))
 {
 }
@@ -19,9 +20,18 @@ URL::URL(String url, Vector<RequestURLModifier> request_url_modifiers)
 // https://drafts.csswg.org/cssom-1/#serialize-a-url
 String URL::to_string() const
 {
-    // To serialize a URL means to create a string represented by "url(", followed by the serialization of the URL as a string, followed by ")".
+    // To serialize a URL means to create a string represented by "url(", followed by the serialization of the URL as a
+    // string, followed by ")".
+    // AD-HOC: Serialize as src() if it was declared as that.
     StringBuilder builder;
-    builder.append("url("sv);
+    switch (m_type) {
+    case Type::Url:
+        builder.append("url("sv);
+        break;
+    case Type::Src:
+        builder.append("src("sv);
+        break;
+    }
     serialize_a_string(builder, m_url);
 
     // AD-HOC: Serialize the RequestURLModifiers

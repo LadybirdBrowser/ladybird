@@ -2710,7 +2710,6 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
     // <url> = <url()> | <src()>
     // <url()> = url( <string> <url-modifier>* ) | <url-token>
     // <src()> = src( <string> <url-modifier>* )
-    // FIXME: Also parse src() function
     auto transaction = tokens.begin_transaction();
     auto const& component_value = tokens.consume_a_token();
 
@@ -2721,7 +2720,17 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
     }
 
     // <url()> = url( <string> <url-modifier>* )
-    if (component_value.is_function("url"sv)) {
+    // <src()> = src( <string> <url-modifier>* )
+    if (component_value.is_function()) {
+        URL::Type function_type;
+        if (component_value.is_function("url"sv)) {
+            function_type = URL::Type::Url;
+        } else if (component_value.is_function("src"sv)) {
+            function_type = URL::Type::Src;
+        } else {
+            return {};
+        }
+
         auto const& function_values = component_value.function().value;
         TokenStream url_tokens { function_values };
 
@@ -2802,7 +2811,7 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
         });
 
         transaction.commit();
-        return URL { url_string.token().string().to_string(), move(request_url_modifiers) };
+        return URL { url_string.token().string().to_string(), function_type, move(request_url_modifiers) };
     }
 
     return {};
