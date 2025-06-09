@@ -4,6 +4,7 @@ This script will create a new test file and expectations in the Tests/LibWeb dir
 """
 
 import argparse
+
 from pathlib import Path
 
 TEST_DIR = Path(__file__).resolve().parent

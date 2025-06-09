@@ -5,7 +5,6 @@ import re
 import subprocess
 import sys
 
-
 RE_RELEVANT_FILE_EXTENSION = re.compile("\\.(cpp|h|mm|swift|gml|html|js|css|sh|py|json|txt|cmake|gn|gni)$")
 
 

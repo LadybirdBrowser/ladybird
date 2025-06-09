@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 
+import os
+import re
+import sys
+
 from collections import namedtuple
 from dataclasses import dataclass
 from enum import Enum
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
+from urllib.parse import urlparse
 from urllib.request import urlopen
-import re
-import os
-import sys
 
 wpt_base_url = "https://wpt.live/"
 

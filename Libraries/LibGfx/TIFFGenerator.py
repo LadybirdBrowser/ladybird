@@ -6,10 +6,13 @@
 
 import argparse
 import re
-from enum import Enum
+
 from collections import namedtuple
+from enum import Enum
 from pathlib import Path
-from typing import Any, List, Type
+from typing import Any
+from typing import List
+from typing import Type
 
 
 class EnumWithExportName(Enum):

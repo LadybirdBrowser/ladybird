@@ -32,6 +32,7 @@
 # For more information, please refer to <http://unlicense.org/>
 
 import os
+
 import ycm_core
 
 DIR_OF_THIS_SCRIPT = os.path.abspath(os.path.dirname(__file__))
