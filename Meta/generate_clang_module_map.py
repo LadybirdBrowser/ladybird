@@ -5,8 +5,9 @@ Generates a clang module map for a given directory
 
 import argparse
 import pathlib
-import yaml
 import sys
+
+import yaml
 
 
 def write_file_if_not_same(file_path, content):

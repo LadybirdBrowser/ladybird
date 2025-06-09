@@ -7,9 +7,9 @@ It's intended to be used for files that are cached between runs.
 
 import argparse
 import pathlib
+import sys
 import tarfile
 import zipfile
-import sys
 
 
 def extract_member(file, destination, path):

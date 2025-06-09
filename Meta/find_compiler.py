@@ -18,7 +18,6 @@ from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
 from Meta.utils import run_command
 
-
 CLANG_MINIMUM_VERSION = 17
 GCC_MINIMUM_VERSION = 13
 XCODE_MINIMUM_VERSION = ("14.3", 14030022)
