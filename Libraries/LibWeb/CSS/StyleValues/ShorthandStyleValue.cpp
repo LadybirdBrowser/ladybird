@@ -95,6 +95,11 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
     // Then special cases
     switch (m_properties.shorthand_property) {
+    case PropertyID::All: {
+        // NOTE: 'all' can only be serialized in the case all sub-properties share the same CSS-wide keyword, this is
+        //       handled above, thus, if we get to here that mustn't be the case and we should return the empty string.
+        return ""_string;
+    }
     case PropertyID::Background: {
         auto color = longhand(PropertyID::BackgroundColor);
         auto image = longhand(PropertyID::BackgroundImage);

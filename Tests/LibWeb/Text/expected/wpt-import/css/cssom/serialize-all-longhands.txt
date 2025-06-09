@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	Specified style
+2 Pass
+Pass	Specified style
 Pass	Computed style

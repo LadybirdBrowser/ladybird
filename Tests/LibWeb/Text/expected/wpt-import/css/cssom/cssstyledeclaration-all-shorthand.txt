@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	getPropertyValue('all') returns empty string
+Pass	getPropertyValue('all') returns css-wide keyword if possible
+Pass	getPropertyValue('all') returns empty string when single property overriden
+Pass	setProperty('all') sets all property values
+Pass	removeProperty('all') removes all declarations affected by 'all'
+Pass	removeProperty('all') removes an 'all' declaration

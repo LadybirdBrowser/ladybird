@@ -129,14 +129,6 @@ class FontLoader;
 class StyleComputer {
 public:
     static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
-    static void set_property_expanding_shorthands(
-        CascadedProperties&,
-        PropertyID,
-        CSSStyleValue const&,
-        GC::Ptr<CSSStyleDeclaration const>,
-        CascadeOrigin,
-        Important,
-        Optional<FlyString> layer_name);
     static NonnullRefPtr<CSSStyleValue const> get_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::PseudoElement> = {});
 
     static Optional<String> user_agent_style_sheet_source(StringView name);
@@ -221,17 +213,6 @@ private:
     void transform_box_type_if_needed(ComputedProperties&, DOM::Element const&, Optional<CSS::PseudoElement>) const;
 
     void compute_defaulted_property_value(ComputedProperties&, DOM::Element const*, CSS::PropertyID, Optional<CSS::PseudoElement>) const;
-
-    void set_all_properties(
-        CascadedProperties&,
-        DOM::Element&,
-        Optional<PseudoElement>,
-        CSSStyleValue const&,
-        DOM::Document&,
-        GC::Ptr<CSSStyleDeclaration const>,
-        CascadeOrigin,
-        Important,
-        Optional<FlyString> layer_name) const;
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;

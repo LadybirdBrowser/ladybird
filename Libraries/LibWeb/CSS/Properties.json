@@ -183,6 +183,14 @@
       "align-self"
     ]
   },
+  "all": {
+    "affects-layout": true,
+    "affects-stacking-context": true,
+    "inherited": false,
+    "initial": "initial",
+    "longhands": [],
+    "_comment": "The 'longhands' array is populated in the code generator to avoid having to maintain it manually"
+  },
   "animation": {
     "affects-layout": false,
     "inherited": false,
