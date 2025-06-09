@@ -368,55 +368,64 @@ GC::Ref<Promise> invoke_promise_callback(CallbackType& callback, Optional<JS::Va
     });
 }
 
-JS::Completion construct(CallbackType& callback, ReadonlySpan<JS::Value> args)
+// https://webidl.spec.whatwg.org/#construct-a-callback-function
+// https://whatpr.org/webidl/1437.html#construct-a-callback-function
+JS::Completion construct(CallbackType& callable, ReadonlySpan<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
 
-    // 2. Let F be the ECMAScript object corresponding to callable.
-    auto& function_object = callback.callback;
-
-    // 4. Let relevant realm be F’s associated Realm.
-    auto& relevant_realm = function_object->shape().realm();
+    // 2. Let F be the JavaScript object corresponding to callable.
+    auto& function_object = callable.callback;
 
     // 3. If IsConstructor(F) is false, throw a TypeError exception.
+    // 4. Let relevant realm be F’s associated realm.
+    auto& relevant_realm = function_object->shape().realm();
     if (!JS::Value(function_object).is_constructor())
         return relevant_realm.vm().template throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, JS::Value(function_object).to_string_without_side_effects());
 
-    // 4. Let stored realm be callable’s callback context.
-    auto& stored_realm = callback.callback_context;
+    // 5. Let stored realm be callable’s callback context.
+    auto& stored_realm = callable.callback_context;
 
-    // 5. Prepare to run script with relevant realm.
+    // 6. Prepare to run script with relevant realm.
     HTML::prepare_to_run_script(relevant_realm);
 
-    // 6. Prepare to run a callback with stored realm.
+    // 7. Prepare to run a callback with stored realm.
     HTML::prepare_to_run_callback(stored_realm);
 
-    // FIXME: 7. Let esArgs be the result of converting args to an ECMAScript arguments list. If this throws an exception, set completion to the completion value representing the thrown exception and jump to the step labeled return.
+    // FIXME: 8. Let jsArgs be the result of converting args to a JavaScript arguments list. If this throws an exception, set completion to the completion value representing the thrown exception and jump to the step labeled return.
     //        For simplicity, we currently make the caller do this. However, this means we can't throw exceptions at this point like the spec wants us to.
 
-    // 8. Let callResult be Completion(Construct(F, esArgs)).
+    // 9. Let callResult be Completion(Construct(F, jsArgs)).
     auto call_result = JS::construct(function_object->vm(), as<JS::FunctionObject>(*function_object), args);
 
-    // 9. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
+    // 10. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
     if (call_result.is_throw_completion()) {
         completion = call_result.throw_completion();
     }
-    // 10. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as the operation’s return type.
+    // 11. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as
+    //     callable’s return type.
+    //     If this throws an exception, set completion to the completion value representing the thrown exception.
     else {
         // FIXME: This does no conversion.
         completion = JS::Value(call_result.value());
     }
 
-    // 11. Return: at this point completion will be set to an ECMAScript completion value.
-    // 1. Clean up after running a callback with stored realm.
-    HTML::clean_up_after_running_callback(stored_realm);
+    // 12. Return: at this point completion will be set to an IDL value or an abrupt completion.
+    {
+        // 1. Clean up after running a callback with stored realm.
+        HTML::clean_up_after_running_callback(stored_realm);
 
-    // 2. Clean up after running script with relevant realm.
-    HTML::clean_up_after_running_script(relevant_realm);
+        // 2. Clean up after running script with relevant realm.
+        HTML::clean_up_after_running_script(relevant_realm);
 
-    // 3. Return completion.
-    return completion;
+        // 3. If completion is an abrupt completion, throw completion.[[Value]].
+        if (completion.is_abrupt())
+            return JS::throw_completion(completion.value());
+
+        // 4. Return completion.
+        return completion;
+    }
 }
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-integerpart
