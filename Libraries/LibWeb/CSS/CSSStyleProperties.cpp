@@ -125,8 +125,11 @@ size_t CSSStyleProperties::length() const
     // The length attribute must return the number of CSS declarations in the declarations.
     // FIXME: Include the number of custom properties.
 
-    if (is_computed())
+    if (is_computed()) {
+        if (!owner_node().has_value())
+            return 0;
         return to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1;
+    }
 
     return m_properties.size();
 }
@@ -150,6 +153,9 @@ String CSSStyleProperties::item(size_t index) const
 Optional<StyleProperty> CSSStyleProperties::property(PropertyID property_id) const
 {
     if (is_computed()) {
+        if (!owner_node().has_value())
+            return {};
+
         auto& element = owner_node()->element();
         auto pseudo_element = owner_node()->pseudo_element();
 
@@ -211,6 +217,9 @@ Optional<StyleProperty> CSSStyleProperties::property(PropertyID property_id) con
 Optional<StyleProperty const&> CSSStyleProperties::custom_property(FlyString const& custom_property_name) const
 {
     if (is_computed()) {
+        if (!owner_node().has_value())
+            return {};
+
         auto& element = owner_node()->element();
         auto pseudo_element = owner_node()->pseudo_element();
 
@@ -676,6 +685,11 @@ static RefPtr<CSSStyleValue const> resolve_color_style_value(CSSStyleValue const
 
 RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const
 {
+    if (!owner_node().has_value()) {
+        dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for CSSStyleProperties without owner node was requested");
+        return nullptr;
+    }
+
     auto used_value_for_property = [&layout_node, property_id](Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
         auto const& display = layout_node.computed_values().display();
         if (!display.is_none() && !display.is_contents() && layout_node.first_paintable()) {
