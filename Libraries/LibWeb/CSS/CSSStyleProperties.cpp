@@ -44,7 +44,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create(JS::Realm& realm, Vector<
     return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, move(properties), move(custom_properties), OptionalNone {});
 }
 
-GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(DOM::ElementReference element_reference)
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(JS::Realm& realm, Optional<DOM::ElementReference> element_reference)
 {
     // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
     // 6.  Return a live CSSStyleProperties object with the following properties:
@@ -54,7 +54,6 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(DOM::Eleme
     //     parent CSS rule: Null.
     //     owner node: obj.
     // AD-HOC: Rather than instantiate with a list of decls, they're generated on demand.
-    auto& realm = element_reference.element().realm();
     return realm.create<CSSStyleProperties>(realm, Computed::Yes, Readonly::Yes, Vector<StyleProperty> {}, HashMap<FlyString, StyleProperty> {}, move(element_reference));
 }
 

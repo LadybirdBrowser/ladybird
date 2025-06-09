@@ -1273,7 +1273,7 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
     // 1. Let doc be elt’s node document.
 
     // 2. Let obj be elt.
-    DOM::ElementReference object { element };
+    Optional<DOM::ElementReference> object { element };
 
     // 3. If pseudoElt is provided, is not the empty string, and starts with a colon, then:
     if (pseudo_element.has_value() && pseudo_element.value().starts_with(':')) {
@@ -1281,8 +1281,8 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
         auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value());
 
         // 2. If type is failure, or is a ::slotted() or ::part() pseudo-element, let obj be null.
-        // FIXME: We can't pass a null element to CSSStyleProperties::create_resolved_style()
         if (!type.has_value()) {
+            object = {};
         }
         // 3. Otherwise let obj be the given pseudo-element of elt.
         else {
@@ -1311,7 +1311,7 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
     //        Null.
     //    owner node
     //        obj.
-    return CSS::CSSStyleProperties::create_resolved_style(move(object));
+    return CSS::CSSStyleProperties::create_resolved_style(element.realm(), move(object));
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-window-matchmedia
