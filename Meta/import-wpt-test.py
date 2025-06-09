@@ -163,7 +163,7 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
             page_source = f.read()
 
         # Iterate all scripts and overwrite the src attribute
-        for i, resource in enumerate(map(lambda r: r.resource, resources)):
+        for resource in map(lambda r: r.resource, resources):
             if resource.startswith("/"):
                 new_src_value = parent_folder_path + resource[1::]
                 page_source = page_source.replace(resource, new_src_value)
