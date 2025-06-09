@@ -336,7 +336,7 @@ def generate_getter(tag: Tag) -> str:
         unpacked_if_needed = Rf"""
         {container_initialization}
         for (u32 i = 0; i < possible_value->size(); ++i)
-            tmp[i] = {extracted_value_template.format('i')};
+            tmp[i] = {extracted_value_template.format("i")};
 
         return tmp;"""
 
