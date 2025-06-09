@@ -2,9 +2,11 @@
 line-length = 120
 
 [tool.ruff.lint]
-# On top of the defaults (`E4`, E7`, `E9`, and `F`), enable flake8-bugbear (`B`) and isort (`i`).
 # https://docs.astral.sh/ruff/rules/
-select = ["E4", "E7", "E9", "F", "B", "I"]
+extend-select = [
+    "B", # flake8-bugbear
+    "I", # isort
+]
 
 [tool.ruff.lint.isort]
 force-single-line = true
