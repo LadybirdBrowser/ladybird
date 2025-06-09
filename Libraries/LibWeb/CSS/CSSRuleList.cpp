@@ -92,7 +92,9 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
 
     // FIXME: 6. If new rule cannot be inserted into list at the zero-index position index due to constraints specified by CSS, then throw a HierarchyRequestError exception. [CSS21]
 
-    // FIXME: 7. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
+    // 7. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
+    if (new_rule->type() == CSSRule::Type::Namespace && any_of(m_rules, [](auto existing_rule) { return existing_rule->type() != CSSRule::Type::Import && existing_rule->type() != CSSRule::Type::Namespace; }))
+        return WebIDL::InvalidStateError::create(realm(), "Cannot insert @namespace rule into a stylesheet with non-namespace/import rules"_string);
 
     // 8. Insert new rule into list at the zero-indexed position index.
     m_rules.insert(index, *new_rule);
