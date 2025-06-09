@@ -152,6 +152,7 @@ All supported properties and their default values exposed from CSSStylePropertie
 'align-items': 'normal'
 'alignSelf': 'auto'
 'align-self': 'auto'
+'all': ''
 'animation': 'none'
 'animationDelay': '0s'
 'animation-delay': '0s'

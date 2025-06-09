@@ -408,6 +408,11 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
 
     // Special-case property handling
     switch (property_id) {
+    case PropertyID::All:
+        // NOTE: The 'all' property, unlike some other shorthands, doesn't support directly listing sub-property
+        //       values, only the CSS-wide keywords - this is handled above, and thus, if we have gotten to here, there
+        //       is an invalid value which is a syntax error.
+        return ParseError::SyntaxError;
     case PropertyID::AspectRatio:
         if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();

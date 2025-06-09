@@ -15,6 +15,7 @@
 #include <LibMain/Main.h>
 
 void replace_logical_aliases(JsonObject& properties);
+void populate_all_property_longhands(JsonObject& properties);
 ErrorOr<void> generate_header_file(JsonObject& properties, Core::File& file);
 ErrorOr<void> generate_implementation_file(JsonObject& properties, Core::File& file);
 void generate_bounds_checking_function(JsonObject& properties, SourceGenerator& parent_generator, StringView css_type_name, StringView type_name, Optional<StringView> default_unit_name = {}, Optional<StringView> value_getter = {});
@@ -81,6 +82,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     });
 
     replace_logical_aliases(properties);
+    populate_all_property_longhands(properties);
 
     auto generated_header_file = TRY(Core::File::open(generated_header_path, Core::File::OpenMode::Write));
     auto generated_implementation_file = TRY(Core::File::open(generated_implementation_path, Core::File::OpenMode::Write));
@@ -123,6 +125,20 @@ void replace_logical_aliases(JsonObject& properties)
     }
 }
 
+void populate_all_property_longhands(JsonObject& properties)
+{
+    auto all_entry = properties.get_object("all"sv);
+
+    VERIFY(all_entry.has_value());
+
+    properties.for_each_member([&](auto name, auto value) {
+        if (value.as_object().has_array("longhands"sv) || value.as_object().has_array("logical-alias-for"sv) || value.as_object().has_string("legacy-alias-for"sv) || name == "direction" || name == "unicode-bidi")
+            return;
+
+        MUST(all_entry->get_array("longhands"sv)->append(JsonValue { name }));
+    });
+}
+
 ErrorOr<void> generate_header_file(JsonObject& properties, Core::File& file)
 {
     StringBuilder builder;
@@ -142,7 +158,6 @@ namespace Web::CSS {
 enum class PropertyID : @property_id_underlying_type@ {
     Invalid,
     Custom,
-    All,
 )~~~");
 
     Vector<String> inherited_shorthand_property_ids;
@@ -448,8 +463,6 @@ Optional<PropertyID> property_id_from_string(StringView string)
     if (is_a_custom_property_name_string(string))
         return PropertyID::Custom;
 
-    if (string.equals_ignoring_ascii_case("all"sv))
-        return PropertyID::All;
 )~~~");
 
     properties.for_each_member([&](auto& name, auto& value) {

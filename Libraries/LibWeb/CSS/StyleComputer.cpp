@@ -996,57 +996,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     set_longhand_property(property_id, value);
 }
 
-void StyleComputer::set_property_expanding_shorthands(
-    CascadedProperties& cascaded_properties,
-    PropertyID property_id,
-    CSSStyleValue const& value,
-    GC::Ptr<CSSStyleDeclaration const> declaration,
-    CascadeOrigin cascade_origin,
-    Important important,
-    Optional<FlyString> layer_name)
-{
-    for_each_property_expanding_shorthands(property_id, value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
-        if (longhand_value.is_revert()) {
-            cascaded_properties.revert_property(longhand_id, important, cascade_origin);
-        } else if (longhand_value.is_revert_layer()) {
-            cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
-        } else {
-            cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration);
-        }
-    });
-}
-
-void StyleComputer::set_all_properties(
-    CascadedProperties& cascaded_properties,
-    DOM::Element& element,
-    Optional<PseudoElement> pseudo_element,
-    CSSStyleValue const& value,
-    DOM::Document& document,
-    GC::Ptr<CSSStyleDeclaration const> declaration,
-    CascadeOrigin cascade_origin,
-    Important important,
-    Optional<FlyString> layer_name) const
-{
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = (CSS::PropertyID)i;
-
-        if (value.is_revert()) {
-            cascaded_properties.revert_property(property_id, important, cascade_origin);
-            continue;
-        }
-
-        if (value.is_revert_layer()) {
-            cascaded_properties.revert_layer_property(property_id, important, layer_name);
-            continue;
-        }
-
-        NonnullRefPtr<CSSStyleValue const> property_value = value;
-        if (property_value->is_unresolved())
-            property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, pseudo_element, property_id, property_value->as_unresolved());
-        set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
-    }
-}
-
 void StyleComputer::cascade_declarations(
     CascadedProperties& cascaded_properties,
     DOM::Element& element,
@@ -1091,12 +1040,6 @@ void StyleComputer::cascade_declarations(
                 }
             }
 
-            if (property.property_id == PropertyID::All) {
-                set_all_properties(cascaded_properties, element, pseudo_element, property_value, m_document, &declaration, cascade_origin, important, layer_name);
-                continue;
-            }
-
-            // NOTE: This is a duplicate of set_property_expanding_shorthands() with some extra checks.
             for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
                 // If we're a PSV that's already been seen, that should mean that our shorthand already got
                 // resolved and gave us a value, so we don't want to overwrite it with a PSV.
