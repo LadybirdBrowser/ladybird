@@ -4741,7 +4741,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::No
         return {};
 
     // Retrieve resolved style value
-    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style({ static_cast<DOM::Element&>(*element) });
+    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(element->realm(), DOM::ElementReference { static_cast<DOM::Element&>(*element) });
     auto optional_style_property = resolved_css_style_declaration->property(property_id);
     if (!optional_style_property.has_value())
         return {};

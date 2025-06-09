@@ -22,7 +22,7 @@ class CSSStyleProperties
 public:
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create(JS::Realm&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
 
-    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_resolved_style(DOM::ElementReference);
+    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_resolved_style(JS::Realm&, Optional<DOM::ElementReference>);
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::ElementReference, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
 
     virtual ~CSSStyleProperties() override = default;
