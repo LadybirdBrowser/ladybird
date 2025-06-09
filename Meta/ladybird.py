@@ -303,7 +303,7 @@ def ensure_ladybird_source_dir() -> Path:
     return ladybird_source_dir
 
 
-def build_main(build_dir: Path, jobs: str | None, target: Optional[str] = None, args: list[str] = []):
+def build_main(build_dir: Path, jobs: str | None, target: Optional[str] = None, args: Optional[list[str]] = None):
     build_args = ["ninja", "-C", str(build_dir)]
 
     if not jobs:
