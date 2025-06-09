@@ -36,7 +36,7 @@ JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_
 
 GC::Ref<Promise> invoke_promise_callback(CallbackType& callback, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args);
 
-JS::Completion construct(CallbackType& callback, ReadonlySpan<JS::Value> args);
+JS::Completion construct(CallbackType& callable, ReadonlySpan<JS::Value> args);
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-integerpart
 double integer_part(double n);
