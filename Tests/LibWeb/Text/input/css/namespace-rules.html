@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style id="a">
+    @namespace my_namespace_1 url("http://www.w3.org/1999/xhtml");
+    @import url("nonexist.css");
+</style>
+<style id="b">
+    div {
+        color: green;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            a.sheet.insertRule('@namespace my_namespace_3 url("http://www.w3.org/1999/xhtml")', 0);
+            println("Can insert namespace rule into sheet with only @namespace and @import rules: PASS");
+        } catch {
+            println("Can insert namespace rule into sheet with only @namespace and @import rules: FAIL");
+        }
+
+        try {
+            s.sheet.insertRule('@namespace my_namespace_3 url("http://www.w3.org/1999/xhtml")', 0);
+            println("Cannot insert namespace rule into sheet with existing rules: FAIL");
+        } catch {
+            println("Cannot insert namespace rule into sheet with existing rules: PASS");
+        }
+    });
+</script>
