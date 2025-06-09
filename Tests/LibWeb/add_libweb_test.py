@@ -57,9 +57,9 @@ def create_test(test_name: str, test_type: str, is_async: bool = False) -> None:
             input_boilerplate = Rf"""<!DOCTYPE html>
 <script src="{path_to_include_js}"></script>
 <script>
-    {f"asyncTest(async (done)" if is_async else "test(()"} => {{
+    {"asyncTest(async (done)" if is_async else "test(()"} => {{
         println("Expected println() output");
-    {f"    done();" if is_async else ""}
+    {"    done();" if is_async else ""}
     }});
 </script>
 """
