@@ -48,10 +48,7 @@ public:
     }
 };
 
-Application::Application(Badge<WebView::Application>)
-{
-}
-
+Application::Application() = default;
 Application::~Application() = default;
 
 void Application::create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions& web_content_options)

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Badge.h>
 #include <AK/ByteString.h>
 #include <AK/LexicalPath.h>
 #include <AK/Optional.h>
@@ -71,16 +70,9 @@ public:
     void refresh_tab_list();
 
 protected:
-    template<DerivedFrom<Application> ApplicationType>
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments const& arguments)
-    {
-        auto app = adopt_own(*new ApplicationType { {} });
-        app->initialize(arguments);
-
-        return app;
-    }
-
     Application();
+
+    void initialize(Main::Arguments const&);
 
     virtual void process_did_exit(Process&&);
 
@@ -93,8 +85,6 @@ protected:
     Main::Arguments& arguments() { return m_arguments; }
 
 private:
-    void initialize(Main::Arguments const& arguments);
-
     void launch_spare_web_content_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
@@ -160,16 +150,17 @@ private:
 
 }
 
-#define WEB_VIEW_APPLICATION(ApplicationType)                                      \
-public:                                                                            \
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments const& arguments) \
-    {                                                                              \
-        return WebView::Application::create<ApplicationType>(arguments);           \
-    }                                                                              \
-                                                                                   \
-    static ApplicationType& the()                                                  \
-    {                                                                              \
-        return static_cast<ApplicationType&>(WebView::Application::the());         \
-    }                                                                              \
-                                                                                   \
-    ApplicationType(Badge<WebView::Application>);
+#define WEB_VIEW_APPLICATION(ApplicationType)                                                                                       \
+public:                                                                                                                             \
+    template<typename... ApplicationArguments>                                                                                      \
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments const& arguments, ApplicationArguments&&... application_arguments) \
+    {                                                                                                                               \
+        auto app = adopt_own(*new ApplicationType { forward<ApplicationArguments>(application_arguments)... });                     \
+        app->initialize(arguments);                                                                                                 \
+        return app;                                                                                                                 \
+    }                                                                                                                               \
+                                                                                                                                    \
+    static ApplicationType& the()                                                                                                   \
+    {                                                                                                                               \
+        return static_cast<ApplicationType&>(WebView::Application::the());                                                          \
+    }

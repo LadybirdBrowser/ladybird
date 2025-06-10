@@ -14,7 +14,7 @@
 
 namespace TestWeb {
 
-Application::Application(Badge<WebView::Application>)
+Application::Application()
     : test_concurrency(Core::System::hardware_concurrency())
     , python_executable_path("python3")
 {

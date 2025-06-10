@@ -29,6 +29,8 @@ public:
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
 
 private:
+    explicit Application();
+
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions&) override;
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
 

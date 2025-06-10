@@ -16,6 +16,8 @@ class Application final : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
 
 private:
+    explicit Application();
+
     virtual Optional<ByteString> ask_user_for_download_folder() const override;
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
 };

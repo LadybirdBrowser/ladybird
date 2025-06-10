@@ -17,6 +17,7 @@ class Application : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
 
 public:
+    explicit Application();
     ~Application();
 
     virtual void create_platform_arguments(Core::ArgsParser&) override;
