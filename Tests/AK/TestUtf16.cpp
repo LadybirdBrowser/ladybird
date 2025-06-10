@@ -367,3 +367,36 @@ TEST_CASE(starts_with)
     EXPECT(!emoji.starts_with(u"a"));
     EXPECT(!emoji.starts_with(u"🙃"));
 }
+
+TEST_CASE(find_code_unit_offset)
+{
+    auto conversion_result = MUST(AK::utf8_to_utf16("😀foo😀bar"sv));
+    Utf16View const view { conversion_result };
+
+    EXPECT_EQ(0u, view.find_code_unit_offset(u"").value());
+    EXPECT_EQ(4u, view.find_code_unit_offset(u"", 4).value());
+    EXPECT(!view.find_code_unit_offset(u"", 16).has_value());
+
+    EXPECT_EQ(0u, view.find_code_unit_offset(u"😀").value());
+    EXPECT_EQ(5u, view.find_code_unit_offset(u"😀", 1).value());
+    EXPECT_EQ(2u, view.find_code_unit_offset(u"foo").value());
+    EXPECT_EQ(7u, view.find_code_unit_offset(u"bar").value());
+
+    EXPECT(!view.find_code_unit_offset(u"baz").has_value());
+}
+
+TEST_CASE(find_code_unit_offset_ignoring_case)
+{
+    auto conversion_result = MUST(AK::utf8_to_utf16("😀Foo😀Bar"sv));
+    Utf16View const view { conversion_result };
+
+    EXPECT_EQ(0u, view.find_code_unit_offset_ignoring_case(u"").value());
+    EXPECT_EQ(4u, view.find_code_unit_offset_ignoring_case(u"", 4).value());
+    EXPECT(!view.find_code_unit_offset_ignoring_case(u"", 16).has_value());
+
+    EXPECT_EQ(0u, view.find_code_unit_offset_ignoring_case(u"😀").value());
+    EXPECT_EQ(5u, view.find_code_unit_offset_ignoring_case(u"😀", 1).value());
+    EXPECT_EQ(2u, view.find_code_unit_offset_ignoring_case(u"foO").value());
+    EXPECT_EQ(7u, view.find_code_unit_offset_ignoring_case(u"baR").value());
+    EXPECT(!view.find_code_unit_offset_ignoring_case(u"baz").has_value());
+}
