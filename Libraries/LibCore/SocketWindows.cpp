@@ -29,25 +29,19 @@ ErrorOr<Bytes> PosixSocketHelper::read(Bytes buffer, int flags)
         return Error::from_errno(ENOTCONN);
 
     // FIXME: also take into account if PosixSocketHelper is blocking/non-blocking (see set_blocking)
-    bool blocking = !(flags & MSG_DONTWAIT);
+    bool non_blocking = flags & MSG_DONTWAIT;
+
+    if (non_blocking && !TRY(can_read_without_blocking(0)))
+        return Error::from_errno(EWOULDBLOCK);
+
     WSABUF buf = make_wsa_buf(buffer);
     DWORD nread = 0;
     DWORD fl = 0;
-    OVERLAPPED ov = {};
 
-    if (WSARecv(m_fd, &buf, 1, &nread, &fl, blocking ? NULL : &ov, NULL) == SOCKET_ERROR) {
-
-        auto error = GetLastError();
-
-        if (error == WSA_IO_PENDING) {
-            CancelIo(to_handle(m_fd));
-            return Error::from_errno(EWOULDBLOCK);
-        }
-
-        if (error == WSAECONNRESET)
+    if (WSARecv(m_fd, &buf, 1, &nread, &fl, NULL, NULL) == SOCKET_ERROR) {
+        if (GetLastError() == WSAECONNRESET)
             return Error::from_errno(ECONNRESET);
-
-        return Error::from_windows_error(error);
+        return Error::from_windows_error();
     }
 
     if (nread == 0)
