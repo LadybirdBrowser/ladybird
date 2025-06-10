@@ -105,6 +105,7 @@ All properties associated with getComputedStyle(document.body):
     "border-bottom-width",
     "border-end-end-radius",
     "border-end-start-radius",
+    "border-image-outset",
     "border-image-slice",
     "border-image-source",
     "border-image-width",

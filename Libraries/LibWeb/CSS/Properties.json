@@ -705,6 +705,17 @@
     ],
     "max-values": 1
   },
+  "border-image-outset": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "max-values": 4,
+    "valid-types": [
+      "length [0,∞]",
+      "number [0,∞]"
+    ]
+  },
   "border-image-slice": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
