@@ -187,21 +187,30 @@ so be sure to clear them out if you change the default home/bin directories.
 
 ### Build with Swift
 
-The simplest way to enable swift is to pass extra arguments to a build preset. Note however that if your IDE has loaded
-the build presets from disk, you may need to create a customized build preset in your IDE settings to avoid the IDE
-overriding your settings with its own, causing unnecessary rebuilds.
+The simplest way to enable swift is to use the `Swift_Release` preset and `ladybird.py`.
 
-```
-# Refer to .github/actions/setup/action.yml for the snapshot version tested in CI
-swiftly install --use main-snapshot
-
-cmake --preset default \
-   -DENABLE_SWIFT=ON \
-   -DCMAKE_C_COMPILER=$(swiftly use --print-location)/usr/bin/clang \
-   -DCMAKE_CXX_COMPILER=$(swiftly use --print-location)/usr/bin/clang++
+```bash
+./Meta/ladybird.py build --preset Swift_Release
 ```
 
-Note that trying to use just `clang` or `$SWIFTLY_BIN_DIR/clang` will both fail, due to https://github.com/swiftlang/swiftly/issues/272.
+Note that because building with Swift support requires use of `clang` and `clang++` from a Swift toolchain, a standard
+install of clang or gcc will not work. Additional IDE settings are be required to ensure that the IDE uses the correct
+compiler paths. Trying to use just `clang` or `$SWIFTLY_BIN_DIR/clang` will both fail, due to https://github.com/swiftlang/swiftly/issues/272.
+
+The full paths that must be configured for the C and C++ compilers in your IDE are
+`$(swiftly use --print-location)/usr/bin/clang` and `$(swiftly use --print-location)/usr/bin/clang++`. These paths
+will change depending on the version of the swift toolchain specified in `.swift-version`.
 
 As another note, the main-snapshot toolchains from swift.org are `+assertion` builds. This means that both clang and
 swiftc are built with extra assertions that will cause compile-times to be longer than a standard release build.
+
+To configure the build preset manually, you must first install the specified Swift toolchain, and then set the C and C++
+compiler paths manually.
+
+```bash
+swiftly install
+
+cmake --preset Swift_Release \
+   -DCMAKE_C_COMPILER=$(swiftly use --print-location)/usr/bin/clang \
+   -DCMAKE_CXX_COMPILER=$(swiftly use --print-location)/usr/bin/clang++
+```
