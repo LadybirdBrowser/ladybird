@@ -316,6 +316,7 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
                 append_property("border-bottom-style"sv);
                 append_property("border-bottom-width"sv);
                 append_property("border-color"sv);
+                append_property("border-image-source"sv);
                 append_property("border-inline-end"sv);
                 append_property("border-inline-end-color"sv);
                 append_property("border-inline-end-style"sv);
