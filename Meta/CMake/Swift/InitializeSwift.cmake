@@ -104,9 +104,6 @@ function(_setup_swift_paths)
               NO_DEFAULT_PATH)
     add_link_options("$<$<LINK_LANGUAGE:Swift>:${SWIFT_SWIFTRT_FILE}>")
   endif()
-
-  # FIXME: Re-enable SIL verification after https://github.com/swiftlang/swift/issues/80065 is fixed
-  add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Xfrontend -sil-verify-none>")
 endfunction()
 
 _setup_swift_paths()
