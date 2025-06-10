@@ -186,6 +186,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
     if (supported_extension_iterator == supported_extensions->end())
         return nullptr;
 
+#ifndef AK_OS_ANDROID
     if (name.equals_ignoring_ascii_case("ANGLE_instanced_arrays"sv)) {
         if (!m_angle_instanced_arrays_extension) {
             m_angle_instanced_arrays_extension = MUST(Extensions::ANGLEInstancedArrays::create(realm(), *this));
@@ -194,6 +195,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         VERIFY(m_angle_instanced_arrays_extension);
         return m_angle_instanced_arrays_extension;
     }
+#endif
 
     if (name.equals_ignoring_ascii_case("EXT_blend_minmax"sv)) {
         if (!m_ext_blend_min_max_extension) {
@@ -222,6 +224,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         return m_webgl_compressed_texture_s3tc_extension;
     }
 
+#ifndef AK_OS_ANDROID
     if (name.equals_ignoring_ascii_case("WEBGL_draw_buffers"sv)) {
         if (!m_webgl_draw_buffers_extension) {
             m_webgl_draw_buffers_extension = MUST(Extensions::WebGLDrawBuffers::create(realm(), *this));
@@ -230,6 +233,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         VERIFY(m_webgl_draw_buffers_extension);
         return m_webgl_draw_buffers_extension;
     }
+#endif
 
     return nullptr;
 }

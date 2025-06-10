@@ -890,12 +890,10 @@ set(SOURCES
     WebDriver/TimeoutsConfiguration.cpp
     WebDriver/UserPrompt.cpp
     WebGL/EventNames.cpp
-    WebGL/Extensions/ANGLEInstancedArrays.cpp
     WebGL/Extensions/EXTBlendMinMax.cpp
     WebGL/Extensions/EXTColorBufferFloat.cpp
     WebGL/Extensions/OESVertexArrayObject.cpp
     WebGL/Extensions/WebGLCompressedTextureS3tc.cpp
-    WebGL/Extensions/WebGLDrawBuffers.cpp
     WebGL/Extensions/WebGLVertexArrayObjectOES.cpp
     WebGL/OpenGLContext.cpp
     WebGL/WebGL2RenderingContext.cpp
@@ -940,6 +938,13 @@ set(SOURCES
     XLink/AttributeNames.cpp
     XML/XMLDocumentBuilder.cpp
 )
+
+if (NOT ANDROID)
+    list(APPEND SOURCES
+            WebGL/Extensions/ANGLEInstancedArrays.cpp
+            WebGL/Extensions/WebGLDrawBuffers.cpp
+    )
+endif()
 
 compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)
 compile_ipc(Worker/WebWorkerServer.ipc Worker/WebWorkerServerEndpoint.h)
@@ -1011,6 +1016,10 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP
 
 if (APPLE)
     target_link_libraries(LibWeb PRIVATE unofficial::angle::libEGL unofficial::angle::libGLESv2)
+endif()
+
+if (ANDROID)
+    target_link_libraries(LibWeb PRIVATE GLESv2 GLESv3)
 endif()
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
