@@ -61,6 +61,7 @@ set(SOURCES
 )
 
 set(SWIFT_EXCLUDE_HEADERS
+    FilterImpl.h
     GlobalFontConfig.h
     MetalContext.h
     VulkanContext.h
