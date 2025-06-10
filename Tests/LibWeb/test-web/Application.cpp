@@ -59,6 +59,8 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
 void Application::create_platform_options(WebView::BrowserOptions& browser_options, WebView::WebContentOptions& web_content_options)
 {
     browser_options.headless_mode = WebView::HeadlessMode::Test;
+    browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
+
     web_content_options.is_layout_test_mode = WebView::IsLayoutTestMode::Yes;
 
     // Allow window.open() to succeed for tests.
