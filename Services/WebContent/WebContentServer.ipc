@@ -104,9 +104,6 @@ endpoint WebContentServer
     set_window_size(u64 page_id, Web::DevicePixelSize size) =|
     did_update_window_rect(u64 page_id) =|
 
-    get_local_storage_entries(u64 page_id) => (OrderedHashMap<String, String> entries)
-    get_session_storage_entries(u64 page_id) => (OrderedHashMap<String, String> entries)
-
     handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) =|
 
     set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state) =|

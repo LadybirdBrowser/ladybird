@@ -1152,28 +1152,6 @@ void ConnectionFromClient::did_update_window_rect(u64 page_id)
         page->page().did_update_window_rect();
 }
 
-Messages::WebContentServer::GetLocalStorageEntriesResponse ConnectionFromClient::get_local_storage_entries(u64 page_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return OrderedHashMap<String, String> {};
-
-    auto* document = page->page().top_level_browsing_context().active_document();
-    auto local_storage = document->window()->local_storage().release_value_but_fixme_should_propagate_errors();
-    return local_storage->map();
-}
-
-Messages::WebContentServer::GetSessionStorageEntriesResponse ConnectionFromClient::get_session_storage_entries(u64 page_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return OrderedHashMap<String, String> {};
-
-    auto* document = page->page().top_level_browsing_context().active_document();
-    auto session_storage = document->window()->session_storage().release_value_but_fixme_should_propagate_errors();
-    return session_storage->map();
-}
-
 void ConnectionFromClient::handle_file_return(u64, i32 error, Optional<IPC::File> file, i32 request_id)
 {
     auto file_request = m_requested_files.take(request_id);
