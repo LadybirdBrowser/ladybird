@@ -164,4 +164,9 @@ public:                                                                      \
         return WebView::Application::create<ApplicationType>(arguments);     \
     }                                                                        \
                                                                              \
+    static ApplicationType& the()                                            \
+    {                                                                        \
+        return static_cast<ApplicationType&>(WebView::Application::the());   \
+    }                                                                        \
+                                                                             \
     ApplicationType(Badge<WebView::Application>, Main::Arguments&);
