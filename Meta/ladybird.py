@@ -18,6 +18,7 @@ from typing import Optional
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Meta.find_compiler import pick_host_compiler
+from Meta.find_compiler import pick_swift_compilers
 from Meta.host_platform import HostArchitecture
 from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
@@ -183,7 +184,10 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         return build_preset_dir
 
     validate_cmake_version()
-    (cc, cxx) = pick_host_compiler(platform, cc, cxx)
+    if "Swift" in preset:
+        (cc, cxx, swiftc) = pick_swift_compilers(platform, ladybird_source_dir)
+    else:
+        (cc, cxx) = pick_host_compiler(platform, cc, cxx)
 
     config_args = [
         "cmake",
@@ -196,6 +200,9 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         f"-DCMAKE_C_COMPILER={cc}",
         f"-DCMAKE_CXX_COMPILER={cxx}",
     ]
+
+    if "Swift" in preset:
+        config_args.append(f"-DCMAKE_Swift_COMPILER={swiftc}")
 
     if platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
         config_args.extend(configure_skia_jemalloc())
@@ -251,6 +258,7 @@ def configure_build_env(preset: str) -> tuple[Path, Path]:
         "Distribution": build_root_dir / "distribution",
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
+        "Swift_Release": build_root_dir / "swift",
         "Windows_CI": build_root_dir / "release",
         "Windows_Experimental": build_root_dir / "debug",
     }
