@@ -89,6 +89,12 @@
     "separate",
     "collapse"
   ],
+  "border-image-repeat": [
+    "stretch",
+    "repeat",
+    "round",
+    "space"
+  ],
   "box-sizing": [
     "border-box",
     "content-box"

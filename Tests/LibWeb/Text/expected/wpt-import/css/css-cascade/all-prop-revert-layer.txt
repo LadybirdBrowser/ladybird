@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 244 tests
+Found 245 tests
 
-238 Pass
+239 Pass
 6 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -106,6 +106,7 @@ Pass	border-bottom-width
 Pass	border-end-end-radius
 Pass	border-end-start-radius
 Pass	border-image-outset
+Pass	border-image-repeat
 Pass	border-image-slice
 Pass	border-image-width
 Pass	border-inline-end-color

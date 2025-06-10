@@ -245,6 +245,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'border-end-start-radius': '0px'
 'borderImageOutset': '0'
 'border-image-outset': '0'
+'borderImageRepeat': 'stretch'
+'border-image-repeat': 'stretch'
 'borderImageSlice': '100%'
 'border-image-slice': '100%'
 'borderImageSource': 'none'
