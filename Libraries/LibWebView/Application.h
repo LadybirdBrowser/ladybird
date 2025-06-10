@@ -163,4 +163,6 @@ public:                                                                         
     static ApplicationType& the()                                                                                                   \
     {                                                                                                                               \
         return static_cast<ApplicationType&>(WebView::Application::the());                                                          \
-    }
+    }                                                                                                                               \
+                                                                                                                                    \
+private:
