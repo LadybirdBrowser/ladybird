@@ -24,7 +24,7 @@ public:
         size_t start_offset { 0 };
     };
     struct TextBlock {
-        String text;
+        AK::Utf16ConversionResult text;
         Vector<TextPosition> positions;
     };
     Vector<TextBlock> const& text_blocks();

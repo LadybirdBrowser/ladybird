@@ -814,7 +814,7 @@ public:
     // Does document represent an embedded svg img
     [[nodiscard]] bool is_decoded_svg() const;
 
-    Vector<GC::Root<DOM::Range>> find_matching_text(String const&, CaseSensitivity);
+    Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
 
     void parse_html_from_a_string(StringView);
     static GC::Ref<Document> parse_html_unsafe(JS::VM&, StringView);
