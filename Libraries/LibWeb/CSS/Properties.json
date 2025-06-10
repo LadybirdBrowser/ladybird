@@ -716,6 +716,16 @@
       "number [0,∞]"
     ]
   },
+  "border-image-repeat": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "stretch",
+    "max-values": 2,
+    "valid-types": [
+      "border-image-repeat"
+    ]
+  },
   "border-image-slice": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
