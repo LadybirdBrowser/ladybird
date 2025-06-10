@@ -307,6 +307,21 @@ TEST_CASE(decode_invalid_utf16)
     }
 }
 
+TEST_CASE(equals_ignoring_case)
+{
+    auto string1 = MUST(AK::utf8_to_utf16("foobar"sv));
+    auto string2 = MUST(AK::utf8_to_utf16("FooBar"sv));
+    EXPECT(Utf16View { string1 }.equals_ignoring_case(Utf16View { string2 }));
+
+    string1 = MUST(AK::utf8_to_utf16(""sv));
+    string2 = MUST(AK::utf8_to_utf16(""sv));
+    EXPECT(Utf16View { string1 }.equals_ignoring_case(Utf16View { string2 }));
+
+    string1 = MUST(AK::utf8_to_utf16(""sv));
+    string2 = MUST(AK::utf8_to_utf16("FooBar"sv));
+    EXPECT(!Utf16View { string1 }.equals_ignoring_case(Utf16View { string2 }));
+}
+
 TEST_CASE(substring_view)
 {
     auto string = MUST(AK::utf8_to_utf16("Привет 😀"sv));
