@@ -711,13 +711,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
 #if defined(LADYBIRD_BINARY_PATH)
-    WebView::platform_init(LADYBIRD_BINARY_PATH);
+    auto app = TRY(TestWeb::Application::create(arguments, LADYBIRD_BINARY_PATH));
 #else
-    WebView::platform_init();
+    auto app = TRY(TestWeb::Application::create(arguments, OptionalNone {}));
 #endif
-
-    auto app = TestWeb::Application::create(arguments);
-    TRY(app->launch_services());
 
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));

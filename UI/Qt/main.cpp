@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/Process.h>
-#include <LibCore/System.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
@@ -17,10 +15,6 @@
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #    include <QStyleHints>
-#endif
-
-#if defined(AK_OS_MACOS)
-#    include <LibWebView/MachPortServer.h>
 #endif
 
 namespace Ladybird {
@@ -45,47 +39,14 @@ bool is_using_dark_system_theme(QWidget& widget)
 
 }
 
-static ErrorOr<void> handle_attached_debugger()
-{
-#ifdef AK_OS_LINUX
-    // Let's ignore SIGINT if we're being debugged because GDB
-    // incorrectly forwards the signal to us even when it's set to
-    // "nopass". See https://sourceware.org/bugzilla/show_bug.cgi?id=9425
-    // for details.
-    if (TRY(Core::Process::is_being_debugged())) {
-        dbgln("Debugger is attached, ignoring SIGINT");
-        TRY(Core::System::signal(SIGINT, SIG_IGN));
-    }
-#endif
-    return {};
-}
-
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-    auto app = Ladybird::Application::create(arguments);
-
-    TRY(handle_attached_debugger());
-
-    WebView::platform_init();
-    WebView::copy_default_config_files(Ladybird::Settings::the()->directory());
-
-#if defined(AK_OS_MACOS)
-    auto mach_port_server = make<WebView::MachPortServer>();
-    WebView::set_mach_server_name(mach_port_server->server_port_name());
-
-    mach_port_server->on_receive_child_mach_port = [&app](auto pid, auto port) {
-        app->set_process_mach_port(pid, move(port));
-    };
-    mach_port_server->on_receive_backing_stores = [](WebView::MachPortServer::BackingStoresMessage message) {
-        if (auto view = WebView::WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
-            view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
-    };
-#endif
-
+    auto app = TRY(Ladybird::Application::create(arguments));
     WebView::BrowserProcess browser_process;
-    TRY(app->launch_services());
+
+    WebView::copy_default_config_files(Ladybird::Settings::the()->directory());
 
     if (auto const& browser_options = Ladybird::Application::browser_options(); !browser_options.headless_mode.has_value()) {
         if (browser_options.force_new_process == WebView::ForceNewProcess::No) {

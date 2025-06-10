@@ -10,12 +10,12 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
 #include <LibCore/System.h>
-#include <LibWebView/Utilities.h>
 
 namespace TestWeb {
 
-Application::Application()
-    : test_concurrency(Core::System::hardware_concurrency())
+Application::Application(Optional<ByteString> ladybird_binary_path)
+    : WebView::Application(move(ladybird_binary_path))
+    , test_concurrency(Core::System::hardware_concurrency())
     , python_executable_path("python3")
 {
     if (auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); ladybird_source_dir.has_value())
