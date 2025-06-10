@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['border-image-width'] = "1px" should set the property value
+Pass	e.style['border-image-width'] = "2%" should set the property value
+Pass	e.style['border-image-width'] = "3" should set the property value
+Pass	e.style['border-image-width'] = "auto" should set the property value
+Pass	e.style['border-image-width'] = "1px 2% 3 auto" should set the property value

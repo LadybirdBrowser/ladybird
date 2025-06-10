@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -527,6 +528,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
     case PropertyID::BorderRight:
     case PropertyID::BorderTop:
         if (auto parsed_value = parse_border_value(property_id, tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::BorderImageSlice:
+        if (auto parsed_value = parse_border_image_slice_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BorderTopLeftRadius:
@@ -1651,6 +1656,91 @@ RefPtr<CSSStyleValue const> Parser::parse_border_value(PropertyID property_id, T
     return ShorthandStyleValue::create(property_id,
         { width_property, style_property, color_property },
         { border_width.release_nonnull(), border_style.release_nonnull(), border_color.release_nonnull() });
+}
+
+// https://drafts.csswg.org/css-backgrounds/#border-image-slice
+RefPtr<CSSStyleValue const> Parser::parse_border_image_slice_value(TokenStream<ComponentValue>& tokens)
+{
+    // [<number [0,∞]> | <percentage [0,∞]>]{1,4} && fill?
+    auto transaction = tokens.begin_transaction();
+    auto fill = false;
+    RefPtr<CSSStyleValue const> top;
+    RefPtr<CSSStyleValue const> right;
+    RefPtr<CSSStyleValue const> bottom;
+    RefPtr<CSSStyleValue const> left;
+
+    auto parse_fill = [&](TokenStream<ComponentValue>& fill_tokens) -> Optional<bool> {
+        if (auto keyword = parse_keyword_value(fill_tokens)) {
+            if (fill || keyword->to_keyword() != Keyword::Fill)
+                return {};
+            return true;
+        }
+        return false;
+    };
+
+    auto maybe_fill_value = parse_fill(tokens);
+    if (!maybe_fill_value.has_value())
+        return nullptr;
+    if (*maybe_fill_value)
+        fill = true;
+
+    Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> number_percentages;
+    while (number_percentages.size() <= 4 && tokens.has_next_token()) {
+        auto number_percentage = parse_number_percentage_value(tokens);
+        if (!number_percentage)
+            break;
+
+        if (number_percentage->is_number() && !property_accepts_number(PropertyID::BorderImageSlice, number_percentage->as_number().number()))
+            return nullptr;
+        if (number_percentage->is_percentage() && !property_accepts_percentage(PropertyID::BorderImageSlice, number_percentage->as_percentage().percentage()))
+            return nullptr;
+        number_percentages.append(number_percentage.release_nonnull());
+    }
+
+    switch (number_percentages.size()) {
+    case 1:
+        top = number_percentages[0];
+        right = number_percentages[0];
+        bottom = number_percentages[0];
+        left = number_percentages[0];
+        break;
+    case 2:
+        top = number_percentages[0];
+        bottom = number_percentages[0];
+        right = number_percentages[1];
+        left = number_percentages[1];
+        break;
+    case 3:
+        top = number_percentages[0];
+        right = number_percentages[1];
+        left = number_percentages[1];
+        bottom = number_percentages[2];
+        break;
+    case 4:
+        top = number_percentages[0];
+        right = number_percentages[1];
+        bottom = number_percentages[2];
+        left = number_percentages[3];
+        break;
+    default:
+        return nullptr;
+    }
+
+    if (tokens.has_next_token()) {
+        maybe_fill_value = parse_fill(tokens);
+        if (!maybe_fill_value.has_value())
+            return nullptr;
+        if (*maybe_fill_value)
+            fill = true;
+    }
+
+    transaction.commit();
+    return BorderImageSliceStyleValue::create(
+        top.release_nonnull(),
+        right.release_nonnull(),
+        bottom.release_nonnull(),
+        left.release_nonnull(),
+        fill);
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_border_radius_value(TokenStream<ComponentValue>& tokens)
