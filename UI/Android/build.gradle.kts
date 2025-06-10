@@ -23,6 +23,7 @@ tasks.named("prepareKotlinBuildScriptModel").dependsOn("buildLagomTools")
 android {
     namespace = "org.serenityos.ladybird"
     compileSdk = 34
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId = "org.serenityos.ladybird"
@@ -34,8 +35,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                // FIXME: Use -std=c++23 once the Android NDK's clang supports that.
-                cppFlags += "-std=c++2b"
+                cppFlags += "-std=c++23"
                 arguments += listOf(
                     "-DLagomTools_DIR=$buildDir/lagom-tools-install/share/LagomTools",
                     "-DANDROID_STL=c++_shared",
