@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/reversed-counter-deep-increment-remove-ref.html" />
+<style>
+ol { counter-reset: reversed(item); }
+li {
+    list-style-type:none;
+}
+li::before { content: counter(item) ': ';}
+.Inc {
+    counter-increment: item -1;
+}
+
+</style>
+</html>
+
+<ol id="ol">
+    <div id="parent">
+        <li class="Inc" id="two">Two
+        <li class="Inc" id="remove">Remove
+        <li class="Inc" id="one">One
+    </div>
+</ol>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('remove').remove();
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>

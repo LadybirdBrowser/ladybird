@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/reversed-counter-deep-increment-insert-before-ref.html" />
+<style>
+ol { counter-reset: reversed(item); }
+li {
+    list-style-type:none;
+}
+li::before { content: counter(item) ': ';}
+.Inc {
+    counter-increment: item -1;
+}
+
+</style>
+</html>
+
+<ol id="ol">
+    <div id="parent">
+        <li class="Inc" id="four">Four
+        <li class="Inc" id="two">Two
+        <li class="Inc" id="one">One
+    </div>
+</ol>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const parent = document.getElementById('parent');
+        const two = document.getElementById('two');
+
+        const three = document.createElement('li');
+        three.id = 'three';
+        three.innerHTML = 'Three';
+        three.classList.add('Inc');
+        parent.insertBefore( three, two );
+
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>
