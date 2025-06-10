@@ -17,9 +17,7 @@
 
 namespace Ladybird {
 
-Application::Application(Badge<WebView::Application>)
-{
-}
+Application::Application() = default;
 
 Optional<ByteString> Application::ask_user_for_download_folder() const
 {
