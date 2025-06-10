@@ -180,6 +180,23 @@
       ],
       "displayName": "Fuzzers CI Config",
       "description": "Fuzzers build with GitHub Actions cache"
+    },
+    {
+      "name": "Swift_Release",
+      "inherits": "unix_base",
+      "displayName": "Swift Release Config",
+      "description": "Swift release build using Ninja generator",
+      "binaryDir": "${fileDir}/Build/swift",
+      "cacheVariables": {
+        "ENABLE_SWIFT": "ON",
+        "CMAKE_C_COMPILER": "MustBeSetManually",
+        "CMAKE_CXX_COMPILER": "MustBeSetManually++"
+      },
+      "vendor": {
+        "jetbrains.com/clion": {
+          "toolchain": "Swift"
+        }
+      }
     }
   ],
   "buildPresets": [
@@ -253,6 +270,13 @@
       "configurePreset": "Windows_CI",
       "displayName": "Build",
       "description": "Build the project"
+    },
+    {
+      "name": "Swift_Release",
+      "inherits": "unix_base",
+      "configurePreset": "Swift_Release",
+      "displayName": "Build Swift Release",
+      "description": "Build the project for Swift release"
     }
   ],
   "testPresets": [
@@ -325,6 +349,11 @@
       "name": "Windows_CI",
       "inherits": "windows_base",
       "configurePreset": "Windows_CI"
+    },
+    {
+      "name": "Swift_Release",
+      "inherits": "unix_base",
+      "configurePreset": "Swift_Release"
     }
   ]
 }
