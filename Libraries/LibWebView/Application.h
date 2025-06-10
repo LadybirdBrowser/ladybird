@@ -72,9 +72,9 @@ public:
 
 protected:
     template<DerivedFrom<Application> ApplicationType>
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments)
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments const& arguments)
     {
-        auto app = adopt_own(*new ApplicationType { {}, arguments });
+        auto app = adopt_own(*new ApplicationType { {} });
         app->initialize(arguments);
 
         return app;
@@ -89,6 +89,8 @@ protected:
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
+
+    Main::Arguments& arguments() { return m_arguments; }
 
 private:
     void initialize(Main::Arguments const& arguments);
@@ -134,6 +136,7 @@ private:
     Settings m_settings;
     OwnPtr<ApplicationSettingsObserver> m_settings_observer;
 
+    Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
     WebContentOptions m_web_content_options;
 
@@ -157,16 +160,16 @@ private:
 
 }
 
-#define WEB_VIEW_APPLICATION(ApplicationType)                                \
-public:                                                                      \
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments) \
-    {                                                                        \
-        return WebView::Application::create<ApplicationType>(arguments);     \
-    }                                                                        \
-                                                                             \
-    static ApplicationType& the()                                            \
-    {                                                                        \
-        return static_cast<ApplicationType&>(WebView::Application::the());   \
-    }                                                                        \
-                                                                             \
-    ApplicationType(Badge<WebView::Application>, Main::Arguments&);
+#define WEB_VIEW_APPLICATION(ApplicationType)                                      \
+public:                                                                            \
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments const& arguments) \
+    {                                                                              \
+        return WebView::Application::create<ApplicationType>(arguments);           \
+    }                                                                              \
+                                                                                   \
+    static ApplicationType& the()                                                  \
+    {                                                                              \
+        return static_cast<ApplicationType&>(WebView::Application::the());         \
+    }                                                                              \
+                                                                                   \
+    ApplicationType(Badge<WebView::Application>);

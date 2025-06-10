@@ -17,7 +17,7 @@
 
 namespace Ladybird {
 
-Application::Application(Badge<WebView::Application>, Main::Arguments&)
+Application::Application(Badge<WebView::Application>)
 {
 }
 
