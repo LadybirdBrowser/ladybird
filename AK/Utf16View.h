@@ -134,6 +134,9 @@ public:
     Utf16View unicode_substring_view(size_t code_point_offset, size_t code_point_length) const;
     Utf16View unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length_in_code_points() - code_point_offset); }
 
+    Optional<size_t> find_code_unit_offset(Utf16View const& needle, size_t start_offset = 0) const;
+    Optional<size_t> find_code_unit_offset_ignoring_case(Utf16View const& needle, size_t start_offset = 0) const;
+
     bool starts_with(Utf16View const&) const;
     bool is_code_unit_less_than(Utf16View const& other) const;
 

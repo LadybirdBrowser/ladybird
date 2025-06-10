@@ -281,6 +281,32 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
     VERIFY_NOT_REACHED();
 }
 
+Optional<size_t> Utf16View::find_code_unit_offset(Utf16View const& needle, size_t start_offset) const
+{
+    return m_code_units.index_of(needle.m_code_units, start_offset);
+}
+
+Optional<size_t> Utf16View::find_code_unit_offset_ignoring_case(Utf16View const& needle, size_t start_offset) const
+{
+    Checked maximum_offset { start_offset };
+    maximum_offset += needle.length_in_code_units();
+    if (maximum_offset.has_overflow() || maximum_offset.value() > length_in_code_units())
+        return {};
+
+    if (needle.is_empty())
+        return start_offset;
+
+    size_t index = start_offset;
+    while (index <= length_in_code_units() - needle.length_in_code_units()) {
+        Utf16View const slice { m_code_units.slice(index, needle.length_in_code_units()) };
+        if (slice.equals_ignoring_case(needle))
+            return index;
+        index += slice.begin().length_in_code_units();
+    }
+
+    return {};
+}
+
 bool Utf16View::starts_with(Utf16View const& needle) const
 {
     if (needle.is_empty())
