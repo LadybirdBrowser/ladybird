@@ -19,11 +19,6 @@ class Application : public WebView::Application {
 public:
     ~Application();
 
-    static Application& the()
-    {
-        return static_cast<Application&>(WebView::Application::the());
-    }
-
     virtual void create_platform_arguments(Core::ArgsParser&) override;
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions&) override;
 

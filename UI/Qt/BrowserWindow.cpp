@@ -26,7 +26,6 @@
 
 #include <QAction>
 #include <QActionGroup>
-#include <QApplication>
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QInputDialog>
@@ -615,7 +614,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         tab.focus_location_editor();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
-        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window({});
+        (void)Application::the().new_window({});
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
     QObject::connect(m_tabs_container, &QTabWidget::currentChanged, [this](int index) {
@@ -797,7 +796,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
-            auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, IsPopupWindow::Yes, tab, AK::move(page_index));
+            auto& window = Application::the().new_window({}, IsPopupWindow::Yes, tab, AK::move(page_index));
             window.set_window_rect(hints.screen_x, hints.screen_y, hints.width, hints.height);
             return window.current_tab()->view().handle();
         }
@@ -1168,7 +1167,7 @@ bool BrowserWindow::event(QEvent* event)
 #endif
 
     if (event->type() == QEvent::WindowActivate)
-        static_cast<Ladybird::Application*>(QApplication::instance())->set_active_window(*this);
+        Application::the().set_active_window(*this);
 
     return QMainWindow::event(event);
 }
