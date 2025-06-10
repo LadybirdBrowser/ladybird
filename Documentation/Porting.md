@@ -33,7 +33,6 @@ Contributions to restore or improve compatibility are welcome!
 There is currently one in progress platform port:
 
 - Android: The Android platform port, using the Android SDK/NDK directly.
-  The removal of `LibArchive` and the `DeprecatedPainter` from the repository has left gaps, as the port previously depended on these components.
 
 ## Porting Steps
 

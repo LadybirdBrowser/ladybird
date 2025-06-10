@@ -1,6 +1,3 @@
-> [!NOTE]
-> The Android port is currently [broken](https://github.com/LadybirdBrowser/ladybird/issues/2774) and won't build.
-
 ## Android Studio Project Configuration
 
 The Android port of Ladybird has straightforward integration with the Android Studio IDE.
