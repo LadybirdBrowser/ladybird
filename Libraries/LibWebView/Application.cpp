@@ -24,6 +24,10 @@
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 
+#if defined(AK_OS_MACOS)
+#    include <LibWebView/MachPortServer.h>
+#endif
+
 namespace WebView {
 
 Application* Application::s_the = nullptr;
@@ -46,7 +50,7 @@ struct ApplicationSettingsObserver : public SettingsObserver {
     }
 };
 
-Application::Application()
+Application::Application(Optional<ByteString> ladybird_binary_path)
     : m_settings(Settings::create({}))
 {
     VERIFY(!s_the);
@@ -73,6 +77,8 @@ Application::Application()
     m_process_manager.on_process_exited = [this](Process&& process) {
         process_did_exit(move(process));
     };
+
+    platform_init(move(ladybird_binary_path));
 }
 
 Application::~Application()
@@ -83,14 +89,28 @@ Application::~Application()
     s_the = nullptr;
 }
 
-void Application::initialize(Main::Arguments const& arguments)
+ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 {
+    TRY(handle_attached_debugger());
     m_arguments = arguments;
 
-#ifndef AK_OS_WINDOWS
+#if !defined(AK_OS_WINDOWS)
     // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
     if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
         warnln("Unable to increase open file limit: {}", result.error());
+#endif
+
+#if defined(AK_OS_MACOS)
+    m_mach_port_server = make<MachPortServer>();
+    set_mach_server_name(m_mach_port_server->server_port_name());
+
+    m_mach_port_server->on_receive_child_mach_port = [this](auto pid, auto port) {
+        set_process_mach_port(pid, move(port));
+    };
+    m_mach_port_server->on_receive_backing_stores = [](MachPortServer::BackingStoresMessage message) {
+        if (auto view = WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
+            view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
+    };
 #endif
 
     Vector<ByteString> raw_urls;
@@ -256,6 +276,9 @@ void Application::initialize(Main::Arguments const& arguments)
     create_platform_options(m_browser_options, m_web_content_options);
 
     m_event_loop = create_platform_event_loop();
+    TRY(launch_services());
+
+    return {};
 }
 
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)

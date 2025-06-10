@@ -9,6 +9,7 @@
 #include <AK/Platform.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
+#include <LibCore/Process.h>
 #include <LibCore/Resource.h>
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/System.h>
@@ -120,6 +121,20 @@ ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name
     TRY(paths.try_append(ByteString::formatted("./{}", process_name)));
     // NOTE: Add platform-specific paths here
     return paths;
+}
+
+ErrorOr<void> handle_attached_debugger()
+{
+#if defined(AK_OS_LINUX)
+    // Let's ignore SIGINT if we're being debugged because GDB incorrectly forwards the signal to us even when it's set
+    // to "nopass". See https://sourceware.org/bugzilla/show_bug.cgi?id=9425 for details.
+    if (TRY(Core::Process::is_being_debugged())) {
+        dbgln("Debugger is attached, ignoring SIGINT");
+        TRY(Core::System::signal(SIGINT, SIG_IGN));
+    }
+#endif
+
+    return {};
 }
 
 }

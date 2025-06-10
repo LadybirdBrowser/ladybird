@@ -8,11 +8,7 @@
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
-#include <LibWebView/MachPortServer.h>
 #include <LibWebView/URL.h>
-#include <LibWebView/Utilities.h>
-#include <LibWebView/ViewImplementation.h>
-#include <LibWebView/WebContentClient.h>
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
@@ -43,22 +39,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-    auto app = Ladybird::Application::create(arguments);
-    WebView::platform_init();
-
-    auto mach_port_server = make<WebView::MachPortServer>();
-    WebView::set_mach_server_name(mach_port_server->server_port_name());
-
-    mach_port_server->on_receive_child_mach_port = [&](auto pid, auto port) {
-        app->set_process_mach_port(pid, move(port));
-    };
-    mach_port_server->on_receive_backing_stores = [](WebView::MachPortServer::BackingStoresMessage message) {
-        if (auto view = WebView::WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
-            view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
-    };
-
+    auto app = TRY(Ladybird::Application::create(arguments));
     WebView::BrowserProcess browser_process;
-    TRY(app->launch_services());
 
     if (auto const& browser_options = WebView::Application::browser_options(); !browser_options.headless_mode.has_value()) {
         if (browser_options.force_new_process == WebView::ForceNewProcess::No) {

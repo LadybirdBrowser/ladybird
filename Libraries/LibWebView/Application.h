@@ -50,7 +50,6 @@ public:
     static ProcessManager& process_manager() { return the().m_process_manager; }
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
-    ErrorOr<void> launch_services();
 
     void add_child_process(Process&&);
 
@@ -70,9 +69,9 @@ public:
     void refresh_tab_list();
 
 protected:
-    Application();
+    explicit Application(Optional<ByteString> ladybird_binary_path = {});
 
-    void initialize(Main::Arguments const&);
+    ErrorOr<void> initialize(Main::Arguments const&);
 
     virtual void process_did_exit(Process&&);
 
@@ -85,6 +84,7 @@ protected:
     Main::Arguments& arguments() { return m_arguments; }
 
 private:
+    ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
@@ -145,24 +145,28 @@ private:
     ProcessManager m_process_manager;
     bool m_in_shutdown { false };
 
+#if defined(AK_OS_MACOS)
+    OwnPtr<MachPortServer> m_mach_port_server;
+#endif
+
     OwnPtr<DevTools::DevToolsServer> m_devtools;
 } SWIFT_IMMORTAL_REFERENCE;
 
 }
 
-#define WEB_VIEW_APPLICATION(ApplicationType)                                                                                       \
-public:                                                                                                                             \
-    template<typename... ApplicationArguments>                                                                                      \
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments const& arguments, ApplicationArguments&&... application_arguments) \
-    {                                                                                                                               \
-        auto app = adopt_own(*new ApplicationType { forward<ApplicationArguments>(application_arguments)... });                     \
-        app->initialize(arguments);                                                                                                 \
-        return app;                                                                                                                 \
-    }                                                                                                                               \
-                                                                                                                                    \
-    static ApplicationType& the()                                                                                                   \
-    {                                                                                                                               \
-        return static_cast<ApplicationType&>(WebView::Application::the());                                                          \
-    }                                                                                                                               \
-                                                                                                                                    \
+#define WEB_VIEW_APPLICATION(ApplicationType)                                                                                                \
+public:                                                                                                                                      \
+    template<typename... ApplicationArguments>                                                                                               \
+    static ErrorOr<NonnullOwnPtr<ApplicationType>> create(Main::Arguments const& arguments, ApplicationArguments&&... application_arguments) \
+    {                                                                                                                                        \
+        auto app = adopt_own(*new ApplicationType { forward<ApplicationArguments>(application_arguments)... });                              \
+        TRY(app->initialize(arguments));                                                                                                     \
+        return app;                                                                                                                          \
+    }                                                                                                                                        \
+                                                                                                                                             \
+    static ApplicationType& the()                                                                                                            \
+    {                                                                                                                                        \
+        return static_cast<ApplicationType&>(WebView::Application::the());                                                                   \
+    }                                                                                                                                        \
+                                                                                                                                             \
 private:

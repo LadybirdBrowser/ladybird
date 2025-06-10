@@ -22,4 +22,6 @@ extern ByteString s_ladybird_resource_root;
 Optional<ByteString const&> mach_server_name();
 void set_mach_server_name(ByteString name);
 
+ErrorOr<void> handle_attached_debugger();
+
 }
