@@ -802,7 +802,32 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     //       an ordinal value (default from constructor).
     // FIXME: This will not work if the child or the parent is not an element. Is insert_before even possible in this situation?
 
+    // AD-HOC: update reversed counters if necessary
+    if (child) // If inserting a node before a child, look at the child's reversed counters.
+        child->maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element();
+    else // If appending a node, look at the parent's reversed counters.
+        maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element();
+
     document().bump_dom_tree_version();
+}
+
+void Node::maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element()
+{
+    if (!is_element())
+        return;
+
+    auto* element = static_cast<DOM::Element*>(this);
+    if (!element->has_non_empty_counters_set())
+        return;
+
+    for (auto& counter : element->counters_set()->counters()) {
+        if (!counter.reversed)
+            continue;
+
+        // Will propagate to the parent of originating_element and cover all of the occurrences of the counter.
+        Element& originating_element = counter.originating_element.element();
+        originating_element.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ReversedCounterRecalculation);
+    }
 }
 
 // https://dom.spec.whatwg.org/#concept-node-pre-insert
@@ -1024,6 +1049,7 @@ void Node::remove(bool suppress_observers)
     // 17. Run the children changed steps for parent.
     parent->children_changed(nullptr);
 
+    maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element(); // Ad-hoc: update reversed counters if necessary
     document().bump_dom_tree_version();
 }
 
