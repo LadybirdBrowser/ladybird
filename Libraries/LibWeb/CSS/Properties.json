@@ -705,6 +705,19 @@
     ],
     "max-values": 1
   },
+  "border-image-slice": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "100%",
+    "valid-identifiers": [
+      "fill"
+    ],
+    "valid-types": [
+      "number [0,∞]",
+      "percentage [0,∞]"
+    ]
+  },
   "border-image-source": {
     "affects-layout": false,
     "animation-type": "discrete",
@@ -715,6 +728,21 @@
     ],
     "valid-identifiers": [
       "none"
+    ]
+  },
+  "border-image-width": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "1",
+    "max-values": 4,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "number [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
     ]
   },
   "border-inline-color": {

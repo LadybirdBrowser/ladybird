@@ -177,6 +177,7 @@ class AngleStyleValue;
 class BackgroundRepeatStyleValue;
 class BackgroundSizeStyleValue;
 class BasicShapeStyleValue;
+class BorderImageSliceStyleValue;
 class BorderRadiusStyleValue;
 class CalculatedStyleValue;
 class Clip;
