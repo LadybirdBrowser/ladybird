@@ -85,6 +85,8 @@ Application::~Application()
 
 void Application::initialize(Main::Arguments const& arguments)
 {
+    m_arguments = arguments;
+
 #ifndef AK_OS_WINDOWS
     // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
     if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
@@ -184,7 +186,7 @@ void Application::initialize(Main::Arguments const& arguments)
     });
 
     create_platform_arguments(args_parser);
-    args_parser.parse(arguments);
+    args_parser.parse(m_arguments);
 
     // Our persisted SQL storage assumes it runs in a singleton process. If we have multiple UI processes accessing
     // the same underlying database, one of them is likely to fail.
@@ -235,7 +237,7 @@ void Application::initialize(Main::Arguments const& arguments)
         m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
 
     m_web_content_options = {
-        .command_line = MUST(String::join(' ', arguments.strings)),
+        .command_line = MUST(String::join(' ', m_arguments.strings)),
         .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
         .user_agent_preset = move(user_agent_preset),
         .is_layout_test_mode = layout_test_mode ? IsLayoutTestMode::Yes : IsLayoutTestMode::No,

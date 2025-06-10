@@ -16,8 +16,39 @@
 
 namespace Ladybird {
 
-Application::Application(Badge<WebView::Application>, Main::Arguments& arguments)
-    : QApplication(arguments.argc, arguments.argv)
+class LadybirdQApplication : public QApplication {
+public:
+    explicit LadybirdQApplication(Main::Arguments& arguments)
+        : QApplication(arguments.argc, arguments.argv)
+    {
+    }
+
+    virtual bool event(QEvent* event) override
+    {
+        auto& application = static_cast<Application&>(WebView::Application::the());
+
+        switch (event->type()) {
+        case QEvent::FileOpen: {
+            if (!application.on_open_file)
+                break;
+
+            auto const& open_event = *static_cast<QFileOpenEvent const*>(event);
+            auto file = ak_string_from_qstring(open_event.file());
+
+            if (auto file_url = WebView::sanitize_url(file); file_url.has_value())
+                application.on_open_file(file_url.release_value());
+            break;
+        }
+
+        default:
+            break;
+        }
+
+        return QApplication::event(event);
+    }
+};
+
+Application::Application(Badge<WebView::Application>)
 {
 }
 
@@ -30,34 +61,17 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Web
 
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 {
-    Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
+    if (!browser_options().headless_mode.has_value()) {
+        m_application = make<LadybirdQApplication>(arguments());
+        Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
+    }
+
     auto event_loop = WebView::Application::create_platform_event_loop();
 
     if (!browser_options().headless_mode.has_value())
         static_cast<WebView::EventLoopImplementationQt&>(event_loop->impl()).set_main_loop();
 
     return event_loop;
-}
-
-bool Application::event(QEvent* event)
-{
-    switch (event->type()) {
-    case QEvent::FileOpen: {
-        if (!on_open_file)
-            break;
-
-        auto const& open_event = *static_cast<QFileOpenEvent const*>(event);
-        auto file = ak_string_from_qstring(open_event.file());
-
-        if (auto file_url = WebView::sanitize_url(file); file_url.has_value())
-            on_open_file(file_url.release_value());
-        break;
-    }
-    default:
-        break;
-    }
-
-    return QApplication::event(event);
 }
 
 BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, BrowserWindow::IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
