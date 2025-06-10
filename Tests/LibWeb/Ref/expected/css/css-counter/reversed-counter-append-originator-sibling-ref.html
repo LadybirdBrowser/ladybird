@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+li {
+    list-style-type:none;
+}
+
+li#one::before { content: '1: '; }
+li#two::before { content: '2: '; }
+li#three::before { content: '3: '; }
+li#four::before { content: '4: '; }
+</style>
+<div id="parent">
+    <div>None</div>
+    <li id="two">Two
+    <li id="one">One
+</div>
+</html>
