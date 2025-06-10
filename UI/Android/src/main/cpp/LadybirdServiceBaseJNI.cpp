@@ -8,7 +8,7 @@
 #include <AK/Atomic.h>
 #include <AK/Format.h>
 #include <LibCore/ResourceImplementationFile.h>
-#include <UI/Utilities.h>
+#include <LibWebView/Utilities.h>
 #include <jni.h>
 
 JavaVM* global_vm;
@@ -42,10 +42,11 @@ Java_org_serenityos_ladybird_LadybirdServiceBase_initNativeCode(JNIEnv* env, job
     env->GetJavaVM(&global_vm);
 
     char const* raw_resource_dir = env->GetStringUTFChars(resource_dir, nullptr);
-    s_ladybird_resource_root = raw_resource_dir;
+    // FIXME: Don't set s_ladybird_resource_root on every service in order not to link with LibWebView.
+    WebView::s_ladybird_resource_root = raw_resource_dir;
     env->ReleaseStringUTFChars(resource_dir, raw_resource_dir);
     // FIXME: Use a custom Android version that uses AssetManager to load files.
-    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::formatted("{}/res", s_ladybird_resource_root))));
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::formatted("{}/res", WebView::s_ladybird_resource_root))));
 
     char const* raw_tag_name = env->GetStringUTFChars(tag_name, nullptr);
     AK::set_log_tag_name(raw_tag_name);

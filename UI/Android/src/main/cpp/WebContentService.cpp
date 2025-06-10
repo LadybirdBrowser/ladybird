@@ -24,11 +24,11 @@
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
-#include <LibWebView/RequestServerAdapter.h>
-#include <UI/FontPlugin.h>
-#include <UI/HelperProcess.h>
-#include <UI/ImageCodecPlugin.h>
-#include <UI/Utilities.h>
+#include <LibWebView/HelperProcess.h>
+#include <LibWebView/Plugins/FontPlugin.h>
+#include <LibWebView/Plugins/ImageCodecPlugin.h>
+#include <LibWebView/SiteIsolation.h>
+#include <LibWebView/Utilities.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageHost.h>
 
@@ -53,21 +53,26 @@ ErrorOr<int> service_main(int ipc_socket)
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
 
     auto image_decoder_client = TRY(bind_image_decoder_service());
-    Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin(move(image_decoder_client)));
+    Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(image_decoder_client)));
 
     Web::Platform::AudioCodecPlugin::install_creation_hook([](auto loader) {
         return Web::Platform::AudioCodecPluginAgnostic::create(move(loader));
     });
 
+    Web::Bindings::initialize_main_thread_vm(Web::Bindings::AgentType::SimilarOriginWindow);
+
     auto request_server_client = TRY(bind_request_server_service());
-    Web::ResourceLoader::initialize(TRY(WebView::RequestServerAdapter::try_create(move(request_server_client))));
+    Web::ResourceLoader::initialize(Web::Bindings::main_thread_vm().heap(), move(request_server_client));
 
     bool is_layout_test_mode = false;
 
     Web::HTML::Window::set_internals_object_exposed(is_layout_test_mode);
-    Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode));
+    Web::Platform::FontPlugin::install(*new WebView::FontPlugin(is_layout_test_mode));
 
-    TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
+    // Currently site isolation doesn't work on Android since everything is running
+    // in the same process. It would require an entire redesign of this port
+    // in order to make it work. For now, it's better to just disable it.
+    WebView::disable_site_isolation();
 
     auto maybe_content_filter_error = load_content_filters();
     if (maybe_content_filter_error.is_error())
@@ -78,7 +83,7 @@ ErrorOr<int> service_main(int ipc_socket)
         dbgln("Failed to load autoplay allowlist: {}", maybe_autoplay_allowlist_error.error());
 
     auto webcontent_socket = TRY(Core::LocalSocket::adopt_fd(ipc_socket));
-    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(move(webcontent_socket)));
+    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(make<IPC::Transport>(move(webcontent_socket))));
 
     return event_loop.exec();
 }
@@ -98,14 +103,14 @@ ErrorOr<NonnullRefPtr<Client>> bind_service(void (*bind_method)(int))
     auto socket = TRY(Core::LocalSocket::adopt_fd(ui_fd));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<Client>(move(socket)));
+    auto new_client = TRY(try_make_ref_counted<Client>(make<IPC::Transport>(move(socket))));
 
     return new_client;
 }
 
 static ErrorOr<void> load_content_filters()
 {
-    auto file_or_error = Core::File::open(ByteString::formatted("{}/res/ladybird/default-config/BrowserContentFilters.txt", s_ladybird_resource_root), Core::File::OpenMode::Read);
+    auto file_or_error = Core::File::open(ByteString::formatted("{}/res/ladybird/default-config/BrowserContentFilters.txt", WebView::s_ladybird_resource_root), Core::File::OpenMode::Read);
     if (file_or_error.is_error())
         return file_or_error.release_error();
 
@@ -132,7 +137,7 @@ static ErrorOr<void> load_content_filters()
 
 static ErrorOr<void> load_autoplay_allowlist()
 {
-    auto file_or_error = Core::File::open(TRY(String::formatted("{}/res/ladybird/default-config/BrowserAutoplayAllowlist.txt", s_ladybird_resource_root)), Core::File::OpenMode::Read);
+    auto file_or_error = Core::File::open(TRY(String::formatted("{}/res/ladybird/default-config/BrowserAutoplayAllowlist.txt", WebView::s_ladybird_resource_root)), Core::File::OpenMode::Read);
     if (file_or_error.is_error())
         return file_or_error.release_error();
 
@@ -152,7 +157,7 @@ static ErrorOr<void> load_autoplay_allowlist()
     }
 
     auto& autoplay_allowlist = Web::PermissionsPolicy::AutoplayAllowlist::the();
-    TRY(autoplay_allowlist.enable_for_origins(origins));
+    autoplay_allowlist.enable_for_origins(origins);
 
     return {};
 }
