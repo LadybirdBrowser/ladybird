@@ -6,6 +6,7 @@ import signal
 import subprocess
 import sys
 
+from pathlib import Path
 from typing import Optional
 from typing import Union
 
@@ -15,13 +16,14 @@ def run_command(
     input: Union[str, None] = None,
     return_output: bool = False,
     exit_on_failure: bool = False,
+    cwd: Union[Path, None] = None,
 ) -> Optional[str]:
     stdin = subprocess.PIPE if type(input) is str else None
     stdout = subprocess.PIPE if return_output else None
 
     try:
         # FIXME: For Windows, set the working directory so DLLs are found.
-        with subprocess.Popen(command, stdin=stdin, stdout=stdout, text=True) as process:
+        with subprocess.Popen(command, stdin=stdin, stdout=stdout, text=True, cwd=cwd) as process:
             (output, _) = process.communicate(input=input)
 
             if process.returncode != 0:
