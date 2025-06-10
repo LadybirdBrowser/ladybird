@@ -133,6 +133,7 @@ enum class SetNeedsLayoutReason {
     X(NodeRemove)                                         \
     X(NodeSetTextContent)                                 \
     X(None)                                               \
+    X(ReversedCounterRecalculation)                       \
     X(SVGGraphicsElementTransformChange)                  \
     X(SVGViewBoxChange)                                   \
     X(StyleChange)
@@ -380,6 +381,8 @@ public:
 
     [[nodiscard]] bool entire_subtree_needs_style_update() const { return m_entire_subtree_needs_style_update; }
     void set_entire_subtree_needs_style_update(bool b) { m_entire_subtree_needs_style_update = b; }
+
+    void maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element();
 
     void invalidate_style(StyleInvalidationReason);
     struct StyleInvalidationOptions {
