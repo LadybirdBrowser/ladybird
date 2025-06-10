@@ -54,7 +54,7 @@ class WebContentService : LadybirdServiceBase("WebContentService") {
 
     companion object {
         init {
-            System.loadLibrary("webcontent")
+            System.loadLibrary("webcontentservice")
         }
     }
 }
