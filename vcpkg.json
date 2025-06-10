@@ -74,7 +74,10 @@
         "apng"
       ]
     },
-    "libproxy",
+    {
+      "name": "libproxy",
+      "platform": "!android"
+    },
     {
       "name": "libavif",
       "features": [
