@@ -344,8 +344,6 @@ size_t Utf16View::calculate_length_in_code_points() const
 
 bool Utf16View::equals_ignoring_case(Utf16View const& other) const
 {
-    if (length_in_code_units() == 0)
-        return other.length_in_code_units() == 0;
     if (length_in_code_units() != other.length_in_code_units())
         return false;
 
