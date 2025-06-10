@@ -705,6 +705,18 @@
     ],
     "max-values": 1
   },
+  "border-image-source": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "image"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "border-inline-color": {
     "inherited": false,
     "initial": "currentcolor",
