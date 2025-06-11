@@ -249,7 +249,6 @@ size_t Utf16View::code_unit_offset_of(Utf16CodePointIterator const& it) const
 Utf16View Utf16View::substring_view(size_t code_unit_offset, size_t code_unit_length) const
 {
     VERIFY(!Checked<size_t>::addition_would_overflow(code_unit_offset, code_unit_length));
-    VERIFY(code_unit_offset + code_unit_length <= length_in_code_units());
 
     return Utf16View { m_code_units.slice(code_unit_offset, code_unit_length) };
 }
