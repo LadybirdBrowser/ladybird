@@ -204,7 +204,7 @@ u32 Utf16View::code_point_at(size_t index) const
 
 size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
 {
-    if (m_length_in_code_points == m_code_units.size()) // Fast path: all code points are one code unit.
+    if (length_in_code_points() == length_in_code_units()) // Fast path: all code points are one code unit.
         return code_unit_offset;
 
     size_t code_point_offset = 0;
@@ -222,7 +222,7 @@ size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
 
 size_t Utf16View::code_unit_offset_of(size_t code_point_offset) const
 {
-    if (m_length_in_code_points == m_code_units.size()) // Fast path: all code points are one code unit.
+    if (length_in_code_points() == length_in_code_units()) // Fast path: all code points are one code unit.
         return code_point_offset;
 
     size_t code_unit_offset = 0;
@@ -259,7 +259,7 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
     if (code_point_length == 0)
         return {};
 
-    if (m_length_in_code_points == m_code_units.size()) // Fast path: all code points are one code unit.
+    if (length_in_code_points() == length_in_code_units()) // Fast path: all code points are one code unit.
         return substring_view(code_point_offset, code_point_length);
 
     auto code_unit_offset_of = [&](Utf16CodePointIterator const& it) { return it.m_ptr - begin_ptr(); };
