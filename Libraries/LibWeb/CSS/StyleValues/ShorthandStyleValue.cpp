@@ -61,8 +61,12 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         }
     });
 
-    if (all_same_keyword && built_in_keyword.has_value())
-        return MUST(String::from_utf8(string_from_keyword(built_in_keyword.value())));
+    if (built_in_keyword.has_value()) {
+        if (all_same_keyword)
+            return MUST(String::from_utf8(string_from_keyword(built_in_keyword.value())));
+
+        return ""_string;
+    }
 
     auto default_to_string = [&]() {
         auto all_properties_same_value = true;
