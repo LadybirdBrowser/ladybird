@@ -530,6 +530,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_border_value(property_id, tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::BorderImage:
+        if (auto parsed_value = parse_border_image_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::BorderImageSlice:
         if (auto parsed_value = parse_border_image_slice_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -1656,6 +1660,133 @@ RefPtr<CSSStyleValue const> Parser::parse_border_value(PropertyID property_id, T
     return ShorthandStyleValue::create(property_id,
         { width_property, style_property, color_property },
         { border_width.release_nonnull(), border_style.release_nonnull(), border_color.release_nonnull() });
+}
+
+// https://drafts.csswg.org/css-backgrounds/#border-image
+RefPtr<CSSStyleValue const> Parser::parse_border_image_value(TokenStream<ComponentValue>& tokens)
+{
+    // <'border-image-source'> || <'border-image-slice'> [ / <'border-image-width'> | / <'border-image-width'>? / <'border-image-outset'> ]? || <'border-image-repeat'>
+    auto transaction = tokens.begin_transaction();
+
+    RefPtr<CSSStyleValue const> source_value;
+    RefPtr<CSSStyleValue const> slice_value;
+    RefPtr<CSSStyleValue const> width_value;
+    RefPtr<CSSStyleValue const> outset_value;
+    RefPtr<CSSStyleValue const> repeat_value;
+
+    auto make_border_image_shorthand = [&]() {
+        transaction.commit();
+        if (!source_value)
+            source_value = property_initial_value(PropertyID::BorderImageSource);
+        if (!slice_value)
+            slice_value = property_initial_value(PropertyID::BorderImageSlice);
+        if (!width_value)
+            width_value = property_initial_value(PropertyID::BorderImageWidth);
+        if (!outset_value)
+            outset_value = property_initial_value(PropertyID::BorderImageOutset);
+        if (!repeat_value)
+            repeat_value = property_initial_value(PropertyID::BorderImageRepeat);
+
+        return ShorthandStyleValue::create(PropertyID::BorderImage,
+            { PropertyID::BorderImageSource, PropertyID::BorderImageSlice, PropertyID::BorderImageWidth, PropertyID::BorderImageOutset, PropertyID::BorderImageRepeat },
+            { source_value.release_nonnull(), slice_value.release_nonnull(), width_value.release_nonnull(), outset_value.release_nonnull(), repeat_value.release_nonnull() });
+    };
+
+    auto parse_value_list = [&](PropertyID property_id, TokenStream<ComponentValue>& inner_tokens, Optional<char> delimiter = {}) -> RefPtr<CSSStyleValue const> {
+        auto inner_transaction = inner_tokens.begin_transaction();
+
+        auto remaining_values = property_maximum_value_count(property_id);
+        StyleValueVector values;
+        while (inner_tokens.has_next_token() && remaining_values > 0) {
+            if (delimiter.has_value() && inner_tokens.next_token().is_delim(*delimiter))
+                break;
+            auto value = parse_css_value_for_property(property_id, inner_tokens);
+            if (!value)
+                break;
+            values.append(*value);
+            --remaining_values;
+        }
+        if (values.is_empty())
+            return nullptr;
+
+        inner_transaction.commit();
+        if (values.size() == 1)
+            return values[0];
+
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    };
+
+    auto parse_slice_portion = [&]() {
+        // <'border-image-slice'> [ / <'border-image-width'> | / <'border-image-width'>? / <'border-image-outset'> ]?
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+        if (auto value = parse_border_image_slice_value(tokens)) {
+            slice_value = move(value);
+        } else {
+            return false;
+        }
+        tokens.discard_whitespace();
+        if (tokens.next_token().is_delim('/')) {
+            tokens.discard_a_token();
+            tokens.discard_whitespace();
+            if (auto width = parse_value_list(PropertyID::BorderImageWidth, tokens)) {
+                width_value = move(width);
+                tokens.discard_whitespace();
+                if (!tokens.next_token().is_delim('/')) {
+                    transaction.commit();
+                    return true;
+                }
+            }
+
+            if (!tokens.next_token().is_delim('/'))
+                return false;
+
+            tokens.discard_a_token();
+            tokens.discard_whitespace();
+            if (auto outset = parse_value_list(PropertyID::BorderImageOutset, tokens)) {
+                outset_value = move(outset);
+                tokens.discard_whitespace();
+            } else {
+                return false;
+            }
+        }
+
+        tokens.discard_whitespace();
+        transaction.commit();
+        return true;
+    };
+
+    auto has_source = false;
+    auto has_repeat = false;
+    auto has_slice_portion = false;
+    while (tokens.has_next_token()) {
+        if (auto source = parse_css_value_for_property(PropertyID::BorderImageSource, tokens)) {
+            if (has_source)
+                return nullptr;
+
+            has_source = true;
+            source_value = move(source);
+            continue;
+        }
+        if (auto repeat = parse_value_list(PropertyID::BorderImageRepeat, tokens)) {
+            if (has_repeat)
+                return nullptr;
+
+            has_repeat = true;
+            repeat_value = move(repeat);
+            continue;
+        }
+        if (parse_slice_portion()) {
+            if (has_slice_portion)
+                return nullptr;
+
+            has_slice_portion = true;
+            continue;
+        }
+        return nullptr;
+    }
+
+    return make_border_image_shorthand();
 }
 
 // https://drafts.csswg.org/css-backgrounds/#border-image-slice

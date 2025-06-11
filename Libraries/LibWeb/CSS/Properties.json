@@ -705,6 +705,17 @@
     ],
     "max-values": 1
   },
+  "border-image": {
+    "inherited": false,
+    "initial": "none 100% 1 0 stretch",
+    "longhands": [
+      "border-image-source",
+      "border-image-slice",
+      "border-image-width",
+      "border-image-outset",
+      "border-image-repeat"
+    ]
+  },
   "border-image-outset": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
