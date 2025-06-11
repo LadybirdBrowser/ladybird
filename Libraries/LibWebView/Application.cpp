@@ -56,28 +56,6 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
     VERIFY(!s_the);
     s_the = this;
 
-    m_settings_observer = make<ApplicationSettingsObserver>();
-
-    // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
-    if (!Core::Environment::has("TZ"sv)) {
-        if (auto time_zone_watcher = Core::TimeZoneWatcher::create(); time_zone_watcher.is_error()) {
-            warnln("Unable to monitor system time zone: {}", time_zone_watcher.error());
-        } else {
-            m_time_zone_watcher = time_zone_watcher.release_value();
-
-            m_time_zone_watcher->on_time_zone_changed = []() {
-                WebContentClient::for_each_client([&](WebView::WebContentClient& client) {
-                    client.async_system_time_zone_changed();
-                    return IterationDecision::Continue;
-                });
-            };
-        }
-    }
-
-    m_process_manager.on_process_exited = [this](Process&& process) {
-        process_did_exit(move(process));
-    };
-
     platform_init(move(ladybird_binary_path));
 }
 
@@ -336,11 +314,34 @@ void Application::launch_spare_web_content_process()
 
 ErrorOr<void> Application::launch_services()
 {
+    m_settings_observer = make<ApplicationSettingsObserver>();
+
+    m_process_manager = make<ProcessManager>();
+    m_process_manager->on_process_exited = [this](Process&& process) {
+        process_did_exit(move(process));
+    };
+
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         m_database = Database::create().release_value_but_fixme_should_propagate_errors();
         m_cookie_jar = CookieJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
     } else {
         m_cookie_jar = CookieJar::create();
+    }
+
+    // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
+    if (!Core::Environment::has("TZ"sv)) {
+        if (auto time_zone_watcher = Core::TimeZoneWatcher::create(); time_zone_watcher.is_error()) {
+            warnln("Unable to monitor system time zone: {}", time_zone_watcher.error());
+        } else {
+            m_time_zone_watcher = time_zone_watcher.release_value();
+
+            m_time_zone_watcher->on_time_zone_changed = []() {
+                WebContentClient::for_each_client([&](WebView::WebContentClient& client) {
+                    client.async_system_time_zone_changed();
+                    return IterationDecision::Continue;
+                });
+            };
+        }
     }
 
     TRY(launch_request_server());
@@ -476,19 +477,19 @@ NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 
 void Application::add_child_process(WebView::Process&& process)
 {
-    m_process_manager.add_process(move(process));
+    m_process_manager->add_process(move(process));
 }
 
 #if defined(AK_OS_MACH)
 void Application::set_process_mach_port(pid_t pid, Core::MachPort&& port)
 {
-    m_process_manager.set_process_mach_port(pid, move(port));
+    m_process_manager->set_process_mach_port(pid, move(port));
 }
 #endif
 
 Optional<Process&> Application::find_process(pid_t pid)
 {
-    return m_process_manager.find_process(pid);
+    return m_process_manager->find_process(pid);
 }
 
 void Application::process_did_exit(Process&& process)

@@ -59,8 +59,8 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Web
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 {
     if (!browser_options().headless_mode.has_value()) {
-        m_application = make<LadybirdQApplication>(arguments());
         Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
+        m_application = make<LadybirdQApplication>(arguments());
     }
 
     auto event_loop = WebView::Application::create_platform_event_loop();

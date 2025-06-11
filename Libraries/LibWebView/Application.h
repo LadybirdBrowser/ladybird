@@ -47,7 +47,7 @@ public:
 
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
 
-    static ProcessManager& process_manager() { return the().m_process_manager; }
+    static ProcessManager& process_manager() { return *the().m_process_manager; }
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
 
@@ -142,7 +142,7 @@ private:
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     OwnPtr<Core::EventLoop> m_event_loop;
-    ProcessManager m_process_manager;
+    OwnPtr<ProcessManager> m_process_manager;
     bool m_in_shutdown { false };
 
 #if defined(AK_OS_MACOS)
