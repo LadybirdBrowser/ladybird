@@ -28,7 +28,7 @@ enum class PaintPhase {
 
 struct HitTestResult {
     GC::Root<Paintable> paintable;
-    int index_in_node { 0 };
+    size_t index_in_node { 0 };
     Optional<CSSPixels> vertical_distance {};
     Optional<CSSPixels> horizontal_distance {};
 

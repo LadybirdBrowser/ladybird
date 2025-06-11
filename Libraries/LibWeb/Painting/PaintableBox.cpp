@@ -24,6 +24,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
+#include <LibWeb/Painting/ShadowPainting.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/TableBordersPainting.h>
 #include <LibWeb/Painting/TextPaintable.h>
