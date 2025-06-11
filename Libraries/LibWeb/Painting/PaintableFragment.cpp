@@ -36,7 +36,7 @@ CSSPixelRect const PaintableFragment::absolute_rect() const
     return rect;
 }
 
-int PaintableFragment::text_index_at(CSSPixelPoint position) const
+size_t PaintableFragment::text_index_at(CSSPixelPoint position) const
 {
     if (!is<TextPaintable>(paintable()))
         return 0;
@@ -79,9 +79,8 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset, size_t end_offse
     if (paintable().selection_state() == Paintable::SelectionState::Full)
         return absolute_rect();
 
-    // FIXME: m_start and m_length should be unsigned and then we won't need these casts.
-    auto const start_index = static_cast<unsigned>(m_start);
-    auto const end_index = static_cast<unsigned>(m_start) + static_cast<unsigned>(m_length);
+    auto const start_index = m_start;
+    auto const end_index = m_start + m_length;
 
     auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
     auto text = string_view();
@@ -149,7 +148,7 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset, size_t end_offse
             return {};
 
         auto selection_start_in_this_fragment = 0;
-        auto selection_end_in_this_fragment = min(end_offset - m_start, m_length);
+        auto selection_end_in_this_fragment = min<int>(end_offset - m_start, m_length);
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 

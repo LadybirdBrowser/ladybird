@@ -14,13 +14,11 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BorderPainting.h>
-#include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/ClippableAndScrollable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
-#include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
 

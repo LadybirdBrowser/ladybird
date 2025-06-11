@@ -22,8 +22,8 @@ public:
     Layout::Node const& layout_node() const { return m_layout_node; }
     Paintable const& paintable() const { return *m_layout_node->first_paintable(); }
 
-    int start() const { return m_start; }
-    int length() const { return m_length; }
+    size_t start() const { return m_start; }
+    size_t length() const { return m_length; }
 
     CSSPixels baseline() const { return m_baseline; }
     CSSPixelPoint offset() const { return m_offset; }
@@ -44,7 +44,7 @@ public:
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }
 
-    int text_index_at(CSSPixelPoint) const;
+    size_t text_index_at(CSSPixelPoint) const;
 
     StringView string_view() const;
 
@@ -56,8 +56,8 @@ private:
     CSSPixelPoint m_offset;
     CSSPixelSize m_size;
     CSSPixels m_baseline;
-    int m_start;
-    int m_length;
+    size_t m_start;
+    size_t m_length;
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
