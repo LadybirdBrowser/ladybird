@@ -205,6 +205,19 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         return MUST(builder.to_string());
     }
+    case PropertyID::BorderImage: {
+        auto source = longhand(PropertyID::BorderImageSource);
+        auto slice = longhand(PropertyID::BorderImageSlice);
+        auto width = longhand(PropertyID::BorderImageWidth);
+        auto outset = longhand(PropertyID::BorderImageOutset);
+        auto repeat = longhand(PropertyID::BorderImageRepeat);
+        return MUST(String::formatted("{} {} / {} / {} {}",
+            source->to_string(mode),
+            slice->to_string(mode),
+            width->to_string(mode),
+            outset->to_string(mode),
+            repeat->to_string(mode)));
+    }
     case PropertyID::BorderRadius: {
         auto top_left = longhand(PropertyID::BorderTopLeftRadius);
         auto top_right = longhand(PropertyID::BorderTopRightRadius);
