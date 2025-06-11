@@ -333,3 +333,16 @@ TEST_CASE(for_each_split_view)
     EXPECT_EQ(gather(SplitBehavior::KeepEmpty | SplitBehavior::KeepTrailingSeparator),
         Vector({ "."sv, "."sv, "."sv, "Well."sv, "."sv, "hello."sv, "friends!."sv, "."sv, "."sv, ""sv }));
 }
+
+TEST_CASE(code_point_offset_of)
+{
+    Utf8View view { "😭foo"sv };
+
+    EXPECT_EQ(0u, view.code_point_offset_of(0));
+    EXPECT_EQ(0u, view.code_point_offset_of(1));
+    EXPECT_EQ(0u, view.code_point_offset_of(2));
+    EXPECT_EQ(0u, view.code_point_offset_of(3));
+    EXPECT_EQ(1u, view.code_point_offset_of(4));
+    EXPECT_EQ(2u, view.code_point_offset_of(5));
+    EXPECT_EQ(3u, view.code_point_offset_of(6));
+}
