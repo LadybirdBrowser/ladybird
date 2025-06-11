@@ -30,6 +30,18 @@ Utf8CodePointIterator Utf8View::iterator_at_byte_offset_without_validation(size_
     return Utf8CodePointIterator { reinterpret_cast<u8 const*>(m_string.characters_without_null_termination()) + byte_offset, m_string.length() - byte_offset };
 }
 
+size_t Utf8View::code_point_offset_of(size_t byte_offset) const
+{
+    VERIFY(byte_offset < byte_length());
+    size_t code_point_offset = 0;
+    for (auto it = begin(); !it.done(); ++it) {
+        if (it.m_ptr > begin_ptr() + byte_offset)
+            break;
+        ++code_point_offset;
+    }
+    return code_point_offset - 1;
+}
+
 size_t Utf8View::byte_offset_of(size_t code_point_offset) const
 {
     size_t byte_offset = 0;

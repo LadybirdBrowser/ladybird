@@ -96,6 +96,8 @@ public:
     unsigned char const* bytes() const { return begin_ptr(); }
     size_t byte_length() const { return m_string.length(); }
 
+    size_t code_point_offset_of(size_t code_unit_offset) const;
+
     [[nodiscard]] size_t byte_offset_of(Utf8CodePointIterator const& it) const
     {
         VERIFY(it.m_ptr >= begin_ptr());
