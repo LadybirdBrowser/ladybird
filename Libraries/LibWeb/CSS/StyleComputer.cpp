@@ -2232,7 +2232,8 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
 Gfx::Font const& StyleComputer::initial_font() const
 {
     // FIXME: This is not correct.
-    return ComputedProperties::font_fallback(false, false, 12);
+    static auto font = ComputedProperties::font_fallback(false, false, 12);
+    return font;
 }
 
 void StyleComputer::absolutize_values(ComputedProperties& style, GC::Ptr<DOM::Element const> element) const
