@@ -50,6 +50,7 @@ static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
 
 TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
     : Navigable(page)
+    , m_storage_shed(StorageAPI::StorageShed::create(page->heap()))
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
     if (!page->client().is_svg_page_client()) {
@@ -75,6 +76,7 @@ void TraversableNavigable::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_session_history_entries);
     visitor.visit(m_session_history_traversal_queue);
+    visitor.visit(m_storage_shed);
 }
 
 static OrderedHashTable<TraversableNavigable*>& user_agent_top_level_traversable_set()

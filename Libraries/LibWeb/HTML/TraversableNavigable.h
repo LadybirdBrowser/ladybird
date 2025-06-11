@@ -164,7 +164,7 @@ private:
 
     // https://storage.spec.whatwg.org/#traversable-navigable-storage-shed
     // A traversable navigable holds a storage shed, which is a storage shed. A traversable navigable’s storage shed holds all session storage data.
-    StorageAPI::StorageShed m_storage_shed;
+    GC::Ref<StorageAPI::StorageShed> m_storage_shed;
 
     GC::Ref<SessionHistoryTraversalQueue> m_session_history_traversal_queue;
 
