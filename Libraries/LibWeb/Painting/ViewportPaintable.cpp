@@ -395,6 +395,7 @@ void ViewportPaintable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(clip_state);
+    visitor.visit(m_paintable_boxes_with_auto_content_visibility);
 }
 
 }
