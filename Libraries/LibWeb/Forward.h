@@ -917,13 +917,13 @@ struct UnderlyingSource;
 namespace Web::StorageAPI {
 
 class NavigatorStorage;
+class StorageBottle;
+class StorageBucket;
 class StorageManager;
 class StorageShed;
+class StorageShelf;
 
-struct StorageBottle;
-struct StorageBucket;
 struct StorageEndpoint;
-struct StorageShelf;
 
 }
 

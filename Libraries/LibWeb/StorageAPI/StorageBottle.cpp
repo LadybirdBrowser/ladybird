@@ -13,6 +13,15 @@
 
 namespace Web::StorageAPI {
 
+GC_DEFINE_ALLOCATOR(StorageBottle);
+GC_DEFINE_ALLOCATOR(StorageBucket);
+
+void StorageBucket::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_bottle_map);
+}
+
 StorageBucket::StorageBucket(StorageType type)
 {
     // 1. Let bucket be null.
@@ -24,21 +33,21 @@ StorageBucket::StorageBucket(StorageType type)
     // 4. For each endpoint of registered storage endpoints whose types contain type, set bucket’s bottle map[endpoint’s identifier] to a new storage bottle whose quota is endpoint’s quota.
     for (auto const& endpoint : StorageEndpoint::registered_endpoints()) {
         if (endpoint.type == type)
-            bottle_map.set(endpoint.identifier, StorageBottle::create(endpoint.quota));
+            m_bottle_map.set(endpoint.identifier, StorageBottle::create(heap(), endpoint.quota));
     }
 
     // 5. Return bucket.
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-storage-bottle-map
-RefPtr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::EnvironmentSettingsObject& environment, StringView identifier)
+GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::EnvironmentSettingsObject& environment, StringView identifier)
 {
     // 1. Let shed be null.
-    StorageShed* shed = nullptr;
+    GC::Ptr<StorageShed> shed = nullptr;
 
     // 2. If type is "local", then set shed to the user agent’s storage shed.
     if (type == StorageType::Local) {
-        shed = &user_agent_storage_shed();
+        shed = user_agent_storage_shed(environment.heap());
     }
     // 3. Otherwise:
     else {
@@ -54,14 +63,14 @@ RefPtr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Enviro
     auto shelf = shed->obtain_a_storage_shelf(environment, type);
 
     // 5. If shelf is failure, then return failure.
-    if (!shelf.has_value())
+    if (!shelf)
         return {};
 
     // 6. Let bucket be shelf’s bucket map["default"].
-    auto& bucket = shelf->bucket_map.get("default"sv).value();
+    auto& bucket = shelf->bucket_map().get("default"sv).value();
 
     // 7. Let bottle be bucket’s bottle map[identifier].
-    auto bottle = bucket.bottle_map.get(identifier).value();
+    auto bottle = bucket->bottle_map().get(identifier).value();
 
     // 8. Let proxyMap be a new storage proxy map whose backing map is bottle’s map.
     // 9. Append proxyMap to bottle’s proxy map reference set.
@@ -70,7 +79,7 @@ RefPtr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Enviro
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-session-storage-bottle-map
-RefPtr<StorageBottle> obtain_a_session_storage_bottle_map(HTML::EnvironmentSettingsObject& environment, StringView identifier)
+GC::Ptr<StorageBottle> obtain_a_session_storage_bottle_map(HTML::EnvironmentSettingsObject& environment, StringView identifier)
 {
     // To obtain a session storage bottle map, given an environment settings object environment and storage identifier identifier,
     // return the result of running obtain a storage bottle map with "session", environment, and identifier.
@@ -78,7 +87,7 @@ RefPtr<StorageBottle> obtain_a_session_storage_bottle_map(HTML::EnvironmentSetti
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-local-storage-bottle-map
-RefPtr<StorageBottle> obtain_a_local_storage_bottle_map(HTML::EnvironmentSettingsObject& environment, StringView identifier)
+GC::Ptr<StorageBottle> obtain_a_local_storage_bottle_map(HTML::EnvironmentSettingsObject& environment, StringView identifier)
 {
     // To obtain a local storage bottle map, given an environment settings object environment and storage identifier identifier,
     // return the result of running obtain a storage bottle map with "local", environment, and identifier.

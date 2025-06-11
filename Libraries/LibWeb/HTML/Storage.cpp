@@ -25,12 +25,12 @@ static HashTable<GC::RawRef<Storage>>& all_storages()
     return storages;
 }
 
-GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, NonnullRefPtr<StorageAPI::StorageBottle> storage_bottle)
+GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
 {
     return realm.create<Storage>(realm, type, move(storage_bottle));
 }
 
-Storage::Storage(JS::Realm& realm, Type type, NonnullRefPtr<StorageAPI::StorageBottle> storage_bottle)
+Storage::Storage(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
     : Bindings::PlatformObject(realm)
     , m_type(type)
     , m_storage_bottle(move(storage_bottle))
@@ -63,6 +63,12 @@ void Storage::initialize(JS::Realm& realm)
 void Storage::finalize()
 {
     all_storages().remove(*this);
+}
+
+void Storage::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_storage_bottle);
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-length

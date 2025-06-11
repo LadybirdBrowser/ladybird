@@ -27,7 +27,7 @@ public:
         Session,
     };
 
-    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&, Type, NonnullRefPtr<StorageAPI::StorageBottle>);
+    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&, Type, GC::Ref<StorageAPI::StorageBottle>);
 
     ~Storage();
 
@@ -44,10 +44,11 @@ public:
     void dump() const;
 
 private:
-    Storage(JS::Realm&, Type, NonnullRefPtr<StorageAPI::StorageBottle>);
+    Storage(JS::Realm&, Type, GC::Ref<StorageAPI::StorageBottle>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void finalize() override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // ^PlatformObject
     virtual Optional<JS::Value> item_value(size_t index) const override;
@@ -61,7 +62,7 @@ private:
     void broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value);
 
     Type m_type {};
-    NonnullRefPtr<StorageAPI::StorageBottle> m_storage_bottle;
+    GC::Ref<StorageAPI::StorageBottle> m_storage_bottle;
     u64 m_stored_bytes { 0 };
 };
 
