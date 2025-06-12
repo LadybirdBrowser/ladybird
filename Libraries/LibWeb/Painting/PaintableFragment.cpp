@@ -41,34 +41,30 @@ size_t PaintableFragment::text_index_at(CSSPixelPoint position) const
     if (!is<TextPaintable>(paintable()))
         return 0;
 
-    CSSPixels relative_inline_offset = [&]() {
+    auto relative_inline_offset = [&] {
         switch (orientation()) {
-        case Gfx::Orientation::Horizontal:
-            return position.x() - absolute_rect().x();
-        case Gfx::Orientation::Vertical:
-            return position.y() - absolute_rect().y();
-        default:
-            VERIFY_NOT_REACHED();
+        case Orientation::Horizontal:
+            return (position.x() - absolute_rect().x()).to_float();
+        case Orientation::Vertical:
+            return (position.y() - absolute_rect().y()).to_float();
         }
+        VERIFY_NOT_REACHED();
     }();
-
     if (relative_inline_offset < 0)
         return 0;
 
     auto const& glyphs = m_glyph_run->glyphs();
+    auto smallest_distance = AK::NumericLimits<float>::max();
     for (size_t i = 0; i < glyphs.size(); ++i) {
-        auto glyph_position = CSSPixels::nearest_value_for(glyphs[i].position.x());
-        if (i + 1 < glyphs.size()) {
-            auto next_glyph_position = CSSPixels::nearest_value_for(glyphs[i + 1].position.x());
-            if (relative_inline_offset >= glyph_position && relative_inline_offset < next_glyph_position)
-                return m_start + i;
-        } else {
-            if (relative_inline_offset >= glyph_position)
-                return m_start + i;
-        }
+        auto distance_to_position = AK::abs(glyphs[i].position.x() - relative_inline_offset);
+
+        // The last distance was smaller than this new distance, so we've found the closest glyph.
+        if (distance_to_position > smallest_distance)
+            return m_start + i - 1;
+        smallest_distance = distance_to_position;
     }
 
-    return m_start + m_length;
+    return m_start + m_length - 1;
 }
 
 CSSPixelRect PaintableFragment::range_rect(size_t start_offset, size_t end_offset) const
