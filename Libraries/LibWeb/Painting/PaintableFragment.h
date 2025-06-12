@@ -39,14 +39,16 @@ public:
     Gfx::Orientation orientation() const;
 
     CSSPixelRect selection_rect() const;
-    CSSPixelRect range_rect(size_t start_offset, size_t end_offset) const;
+    CSSPixelRect range_rect(size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
 
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }
 
-    size_t text_index_at(CSSPixelPoint) const;
+    size_t index_in_node_for_byte_offset(size_t) const;
+    size_t index_in_node_for_point(CSSPixelPoint) const;
 
-    StringView string_view() const;
+    Utf8View utf8_view() const;
+    Utf16View utf16_view() const;
 
     CSSPixels text_decoration_thickness() const { return m_text_decoration_thickness; }
     void set_text_decoration_thickness(CSSPixels thickness) { m_text_decoration_thickness = thickness; }
@@ -62,6 +64,7 @@ private:
     CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
     CSSPixels m_text_decoration_thickness { 0 };
+    mutable Optional<AK::Utf16ConversionResult> m_text_in_utf16;
 };
 
 }
