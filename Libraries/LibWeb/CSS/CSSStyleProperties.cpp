@@ -479,6 +479,9 @@ static Optional<StyleProperty> style_property_for_sided_shorthand(PropertyID pro
     bool const top_and_bottom_same = top_value == bottom_value;
     bool const left_and_right_same = left_value == right_value;
 
+    if ((top_value->is_css_wide_keyword() || right_value->is_css_wide_keyword() || bottom_value->is_css_wide_keyword() || left_value->is_css_wide_keyword()) && (!top_and_bottom_same || !left_and_right_same || top_value != left_value))
+        return {};
+
     RefPtr<CSSStyleValue const> value;
 
     if (top_and_bottom_same && left_and_right_same && top_value == left_value) {
