@@ -543,6 +543,7 @@ set(SOURCES
     HTML/TextTrackCue.cpp
     HTML/TextTrackCueList.cpp
     HTML/TextTrackList.cpp
+    HTML/TextTrackObserver.cpp
     HTML/Timer.cpp
     HTML/TimeRanges.cpp
     HTML/ToggleEvent.cpp

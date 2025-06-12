@@ -626,6 +626,7 @@ class TextTrack;
 class TextTrackCue;
 class TextTrackCueList;
 class TextTrackList;
+class TextTrackObserver;
 class Timer;
 class TimeRanges;
 class ToggleEvent;

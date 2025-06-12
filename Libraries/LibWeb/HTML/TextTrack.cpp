@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/TextTrack.h>
+#include <LibWeb/HTML/TextTrackObserver.h>
 
 namespace Web::HTML {
 
@@ -29,6 +30,12 @@ void TextTrack::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TextTrack);
     Base::initialize(realm);
+}
+
+void TextTrack::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_observers);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-kind
@@ -96,6 +103,28 @@ void TextTrack::set_oncuechange(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* TextTrack::oncuechange()
 {
     return event_handler_attribute(HTML::EventNames::cuechange);
+}
+
+void TextTrack::set_readiness_state(ReadinessState readiness_state)
+{
+    m_readiness_state = readiness_state;
+
+    for (auto observer : m_observers) {
+        if (auto callback = observer->track_readiness_observer())
+            callback->function()(m_readiness_state);
+    }
+}
+
+void TextTrack::register_observer(Badge<TextTrackObserver>, TextTrackObserver& observer)
+{
+    auto result = m_observers.set(observer);
+    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+}
+
+void TextTrack::unregister_observer(Badge<TextTrackObserver>, TextTrackObserver& observer)
+{
+    bool was_removed = m_observers.remove(observer);
+    VERIFY(was_removed);
 }
 
 Bindings::TextTrackKind text_track_kind_from_string(String value)
