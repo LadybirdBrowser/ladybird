@@ -133,6 +133,12 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
     return builder.to_string();
 }
 
+bool Utf16View::is_ascii() const
+{
+    // FIXME: Petition simdutf to add an ASCII validator for UTF-16.
+    return all_of(span(), [&](char16_t code_unit) { return AK::is_ascii(code_unit); });
+}
+
 size_t Utf16View::length_in_code_points() const
 {
     if (m_length_in_code_points == NumericLimits<size_t>::max())

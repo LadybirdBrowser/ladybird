@@ -109,6 +109,8 @@ public:
 
     bool is_null() const { return m_code_units.is_null(); }
     bool is_empty() const { return m_code_units.is_empty(); }
+    bool is_ascii() const;
+
     size_t length_in_code_units() const { return m_code_units.size(); }
     size_t length_in_code_points() const;
 
