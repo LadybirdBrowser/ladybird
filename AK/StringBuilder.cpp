@@ -283,7 +283,7 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 12) & 0x0f) | 0xe0);
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 6) & 0x3f) | 0x80);
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 0) & 0x3f) | 0x80);
-        } while (first_invalid_code_unit < remaining_view.length_in_code_units() && Utf16View::is_low_surrogate(remaining_view.data()[first_invalid_code_unit]));
+        } while (first_invalid_code_unit < remaining_view.length_in_code_units() && UnicodeUtils::is_utf16_low_surrogate(remaining_view.data()[first_invalid_code_unit]));
 
         // Code unit might no longer be invalid, retry on the remaining data.
         m_buffer.set_size(m_buffer.size() + bytes_just_written);
