@@ -8,6 +8,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/FlyString.h>
 #include <AK/StringBuilder.h>
+#include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -308,7 +309,7 @@ void RopeString::resolve(EncodingPreference preference) const
         auto high_surrogate = *Utf8View(previous_string_as_utf8.substring_view(previous_string_as_utf8.length() - 3)).begin();
         auto low_surrogate = *Utf8View(current_string_as_utf8).begin();
 
-        if (!Utf16View::is_high_surrogate(high_surrogate) || !Utf16View::is_low_surrogate(low_surrogate)) {
+        if (!AK::UnicodeUtils::is_utf16_high_surrogate(high_surrogate) || !AK::UnicodeUtils::is_utf16_low_surrogate(low_surrogate)) {
             builder.append(current_string_as_utf8);
             previous = current;
             continue;
@@ -316,7 +317,7 @@ void RopeString::resolve(EncodingPreference preference) const
 
         // Remove 3 bytes from the builder and replace them with the UTF-8 encoded code point.
         builder.trim(3);
-        builder.append_code_point(Utf16View::decode_surrogate_pair(high_surrogate, low_surrogate));
+        builder.append_code_point(AK::UnicodeUtils::decode_utf16_surrogate_pair(high_surrogate, low_surrogate));
 
         // Append the remaining part of the current string.
         builder.append(current_string_as_utf8.substring_view(3));

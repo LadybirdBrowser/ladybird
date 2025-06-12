@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,13 +15,6 @@
 #include <simdutf.h>
 
 namespace AK {
-
-static constexpr u16 high_surrogate_min = 0xd800;
-static constexpr u16 high_surrogate_max = 0xdbff;
-static constexpr u16 low_surrogate_min = 0xdc00;
-static constexpr u16 low_surrogate_max = 0xdfff;
-static constexpr u32 replacement_code_point = 0xfffd;
-static constexpr u32 first_supplementary_plane_code_point = 0x10000;
 
 static constexpr u16 host_code_unit(u16 code_unit, Endianness endianness)
 {
@@ -44,7 +37,11 @@ static ErrorOr<Utf16ConversionResult> to_utf16_slow(UtfViewType const& view, End
 
     size_t code_point_count = 0;
     for (auto code_point : view) {
-        TRY(code_point_to_utf16(utf16_data, code_point, endianness));
+        TRY(UnicodeUtils::try_code_point_to_utf16(code_point, [&](auto code_unit) -> ErrorOr<void> {
+            TRY(utf16_data.try_append(host_code_unit(code_unit, endianness)));
+            return {};
+        }));
+
         code_point_count++;
     }
 
@@ -116,46 +113,9 @@ ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const& utf32_view, Endia
     return Utf16ConversionResult { utf16_data, length };
 }
 
-ErrorOr<void> code_point_to_utf16(Utf16Data& string, u32 code_point, Endianness endianness)
-{
-    VERIFY(is_unicode(code_point));
-
-    if (code_point < first_supplementary_plane_code_point) {
-        TRY(string.try_append(host_code_unit(static_cast<u16>(code_point), endianness)));
-    } else {
-        code_point -= first_supplementary_plane_code_point;
-
-        auto code_unit = static_cast<u16>(high_surrogate_min | (code_point >> 10));
-        TRY(string.try_append(host_code_unit(code_unit, endianness)));
-
-        code_unit = static_cast<u16>(low_surrogate_min | (code_point & 0x3ff));
-        TRY(string.try_append(host_code_unit(code_unit, endianness)));
-    }
-
-    return {};
-}
-
 size_t utf16_code_unit_length_from_utf8(StringView string)
 {
     return simdutf::utf16_length_from_utf8(string.characters_without_null_termination(), string.length());
-}
-
-bool Utf16View::is_high_surrogate(u16 code_unit)
-{
-    return (code_unit >= high_surrogate_min) && (code_unit <= high_surrogate_max);
-}
-
-bool Utf16View::is_low_surrogate(u16 code_unit)
-{
-    return (code_unit >= low_surrogate_min) && (code_unit <= low_surrogate_max);
-}
-
-u32 Utf16View::decode_surrogate_pair(u16 high_surrogate, u16 low_surrogate)
-{
-    VERIFY(is_high_surrogate(high_surrogate));
-    VERIFY(is_low_surrogate(low_surrogate));
-
-    return ((high_surrogate - high_surrogate_min) << 10) + (low_surrogate - low_surrogate_min) + first_supplementary_plane_code_point;
 }
 
 ErrorOr<ByteString> Utf16View::to_byte_string(AllowInvalidCodeUnits allow_invalid_code_units) const
@@ -191,16 +151,16 @@ u32 Utf16View::code_point_at(size_t index) const
     VERIFY(index < length_in_code_units());
 
     u32 code_point = code_unit_at(index);
-    if (!is_high_surrogate(code_point) && !is_low_surrogate(code_point))
+    if (!UnicodeUtils::is_utf16_high_surrogate(code_point) && !UnicodeUtils::is_utf16_low_surrogate(code_point))
         return code_point;
-    if (is_low_surrogate(code_point) || (index + 1 == length_in_code_units()))
+    if (UnicodeUtils::is_utf16_low_surrogate(code_point) || (index + 1 == length_in_code_units()))
         return code_point;
 
     auto second = code_unit_at(index + 1);
-    if (!is_low_surrogate(second))
+    if (!UnicodeUtils::is_utf16_low_surrogate(second))
         return code_point;
 
-    return decode_surrogate_pair(code_point, second);
+    return UnicodeUtils::decode_utf16_surrogate_pair(code_point, second);
 }
 
 size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
@@ -418,26 +378,21 @@ u32 Utf16CodePointIterator::operator*() const
 
     auto code_unit = host_code_unit(*m_ptr, Endianness::Host);
 
-    if (Utf16View::is_high_surrogate(code_unit)) {
+    if (UnicodeUtils::is_utf16_high_surrogate(code_unit)) {
         if (m_remaining_code_units > 1) {
             auto next_code_unit = host_code_unit(*(m_ptr + 1), Endianness::Host);
 
-            if (Utf16View::is_low_surrogate(next_code_unit))
-                return Utf16View::decode_surrogate_pair(code_unit, next_code_unit);
+            if (UnicodeUtils::is_utf16_low_surrogate(next_code_unit))
+                return UnicodeUtils::decode_utf16_surrogate_pair(code_unit, next_code_unit);
         }
 
-        return replacement_code_point;
+        return UnicodeUtils::REPLACEMENT_CODE_POINT;
     }
 
-    if (Utf16View::is_low_surrogate(code_unit))
-        return replacement_code_point;
+    if (UnicodeUtils::is_utf16_low_surrogate(code_unit))
+        return UnicodeUtils::REPLACEMENT_CODE_POINT;
 
     return static_cast<u32>(code_unit);
-}
-
-size_t Utf16CodePointIterator::length_in_code_units() const
-{
-    return *(*this) < first_supplementary_plane_code_point ? 1 : 2;
 }
 
 bool validate_utf16_le(ReadonlyBytes bytes)

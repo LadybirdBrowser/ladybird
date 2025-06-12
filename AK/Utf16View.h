@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,6 +15,7 @@
 #include <AK/Span.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/UnicodeUtils.h>
 #include <AK/Vector.h>
 
 namespace AK {
@@ -28,7 +29,6 @@ struct Utf16ConversionResult {
 ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView, Endianness = Endianness::Host);
 ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const&, Endianness = Endianness::Host);
 ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const&, Endianness = Endianness::Host);
-ErrorOr<void> code_point_to_utf16(Utf16Data&, u32, Endianness = Endianness::Host);
 
 [[nodiscard]] bool validate_utf16_le(ReadonlyBytes);
 [[nodiscard]] bool validate_utf16_be(ReadonlyBytes);
@@ -52,7 +52,10 @@ public:
     Utf16CodePointIterator& operator++();
     u32 operator*() const;
 
-    size_t length_in_code_units() const;
+    size_t length_in_code_units() const
+    {
+        return UnicodeUtils::code_unit_length_for_code_point(**this);
+    }
 
 private:
     Utf16CodePointIterator(u16 const* ptr, size_t length)
@@ -68,10 +71,6 @@ private:
 class Utf16View {
 public:
     using Iterator = Utf16CodePointIterator;
-
-    static bool is_high_surrogate(u16);
-    static bool is_low_surrogate(u16);
-    static u32 decode_surrogate_pair(u16 high_surrogate, u16 low_surrogate);
 
     Utf16View() = default;
     ~Utf16View() = default;

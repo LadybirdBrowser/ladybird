@@ -9,13 +9,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Parser.h"
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/HashTable.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TemporaryChange.h>
+#include <AK/UnicodeUtils.h>
+#include <LibJS/Parser.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibRegex/Regex.h>
 
@@ -4601,7 +4602,7 @@ FlyString Parser::consume_string_value()
     Utf8View view { value.bytes_as_string_view().substring_view(value.bytes().size() - 3) };
     VERIFY(view.length() <= 3);
     auto codepoint = *view.begin();
-    if (Utf16View::is_high_surrogate(codepoint)) {
+    if (AK::UnicodeUtils::is_utf16_high_surrogate(codepoint)) {
         syntax_error("StringValue ending with unpaired high surrogate"_string);
         VERIFY(view.length() == 1);
     }
