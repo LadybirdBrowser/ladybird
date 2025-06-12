@@ -616,6 +616,22 @@ private:
                 if (result->is_dnssec_validated())
                     return validate_dnssec(move(message), *lookup, *result);
 
+                if constexpr (DNS_DEBUG) {
+                    switch (message.header.options.response_code()) {
+                    case Messages::Options::ResponseCode::FormatError:
+                        dbgln("DNS: Received FormatError response code");
+                        break;
+                    case Messages::Options::ResponseCode::ServerFailure:
+                        dbgln("DNS: Received ServerFailure response code");
+                        break;
+                    case Messages::Options::ResponseCode::NameError:
+                        dbgln("DNS: Received NameError response code");
+                        break;
+                    default:
+                        break;
+                    }
+                }
+
                 for (auto& record : message.answers)
                     result->add_record(move(record));
 
