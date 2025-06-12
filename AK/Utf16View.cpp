@@ -99,15 +99,19 @@ ErrorOr<String> Utf16View::to_utf8(AllowLonelySurrogates allow_lonely_surrogates
 {
     if (is_empty())
         return String {};
+    if (has_ascii_storage())
+        return String::from_utf8_without_validation(bytes());
+
     if (!validate(allow_lonely_surrogates))
         return Error::from_string_literal("Input was not valid UTF-16");
 
     if (allow_lonely_surrogates == AllowLonelySurrogates::No) {
         String result;
-        auto utf8_length = simdutf::utf8_length_from_utf16(m_string, length_in_code_units());
+
+        auto utf8_length = simdutf::utf8_length_from_utf16(m_string.utf16, length_in_code_units());
 
         TRY(result.replace_with_new_string(Badge<Utf16View> {}, utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
-            [[maybe_unused]] auto result = simdutf::convert_utf16_to_utf8(m_string, length_in_code_units(), reinterpret_cast<char*>(buffer.data()));
+            [[maybe_unused]] auto result = simdutf::convert_utf16_to_utf8(m_string.utf16, length_in_code_units(), reinterpret_cast<char*>(buffer.data()));
             ASSERT(result == buffer.size());
             return {};
         }));
@@ -127,17 +131,25 @@ ErrorOr<ByteString> Utf16View::to_byte_string(AllowLonelySurrogates allow_lonely
 
 bool Utf16View::is_ascii() const
 {
+    if (has_ascii_storage())
+        return true;
+
     // FIXME: Petition simdutf to implement an ASCII validator for UTF-16.
-    return all_of(span(), AK::is_ascii);
+    return all_of(utf16_span(), AK::is_ascii);
 }
 
 bool Utf16View::validate(size_t& valid_code_units, AllowLonelySurrogates allow_lonely_surrogates) const
 {
+    if (has_ascii_storage()) {
+        valid_code_units = length_in_code_units();
+        return true;
+    }
+
     auto view = *this;
     valid_code_units = 0;
 
     while (!view.is_empty()) {
-        auto result = simdutf::validate_utf16_with_errors(view.m_string, view.length_in_code_units());
+        auto result = simdutf::validate_utf16_with_errors(view.m_string.utf16, view.length_in_code_units());
         valid_code_units += result.count;
 
         if (result.error == simdutf::SUCCESS)
@@ -197,7 +209,9 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
         return substring_view(code_point_offset, code_point_length);
 
     auto code_unit_offset_of = [&](Utf16CodePointIterator const& it) {
-        return it.m_iterator - m_string;
+        if (has_ascii_storage())
+            return it.m_iterator.ascii - m_string.ascii;
+        return it.m_iterator.utf16 - m_string.utf16;
     };
 
     size_t code_point_index = 0;
@@ -220,9 +234,11 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
 
 size_t Utf16View::calculate_length_in_code_points() const
 {
+    ASSERT(!has_ascii_storage());
+
     // simdutf's code point length method assumes valid UTF-16, whereas we allow lonely surrogates.
     if (validate(AllowLonelySurrogates::No)) [[likely]]
-        return simdutf::count_utf16(m_string, length_in_code_units());
+        return simdutf::count_utf16(m_string.utf16, length_in_code_units());
 
     size_t code_points = 0;
     for ([[maybe_unused]] auto code_point : *this)

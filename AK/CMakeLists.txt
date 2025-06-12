@@ -29,6 +29,8 @@ set(SOURCES
     StringUtils.cpp
     StringView.cpp
     Time.cpp
+    Utf16String.cpp
+    Utf16StringData.cpp
     Utf16View.cpp
     Utf32View.cpp
     Utf8View.cpp
