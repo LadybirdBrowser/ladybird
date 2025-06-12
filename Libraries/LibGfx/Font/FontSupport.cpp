@@ -53,7 +53,8 @@ bool font_tech_is_supported(FontTech const font_tech)
 #endif
     case FontTech::Variations:
         // avar, cvar, fvar, gvar, HVAR, MVAR, STAT, and VVAR, supported by HarfBuzz
-        return true;
+        // FIXME: This does not actually seem to work and causes issues with the font weight on https://ladybird.org
+        return false;
     case FontTech::ColorColrv0:
     case FontTech::ColorColrv1:
         // COLR, supported by HarfBuzz
