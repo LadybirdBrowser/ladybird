@@ -21,7 +21,7 @@ public:
 
     WebIDL::UnsignedShort ready_state();
 
-    GC::Root<TextTrack> track() { return m_track; }
+    GC::Ref<TextTrack> track() { return *m_track; }
 
 private:
     HTMLTrackElement(DOM::Document&, DOM::QualifiedName);

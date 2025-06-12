@@ -27,7 +27,6 @@ GC_DEFINE_ALLOCATOR(HTMLTrackElement);
 HTMLTrackElement::HTMLTrackElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
-    m_track = TextTrack::create(document.realm());
 }
 
 HTMLTrackElement::~HTMLTrackElement() = default;
@@ -36,6 +35,8 @@ void HTMLTrackElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTrackElement);
     Base::initialize(realm);
+
+    m_track = TextTrack::create(realm);
 }
 
 void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)
