@@ -155,10 +155,11 @@ void HTMLTrackElement::start_the_track_processing_model()
     if (!is<HTMLMediaElement>(parent_element().ptr()))
         return;
 
+    m_loading = true;
+
     // 4. Run the remainder of these steps in parallel, allowing whatever caused these steps to run to continue.
     auto& realm = this->realm();
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm] {
-        m_loading = true;
         start_the_track_processing_model_parallel_steps(realm);
     }));
 }
