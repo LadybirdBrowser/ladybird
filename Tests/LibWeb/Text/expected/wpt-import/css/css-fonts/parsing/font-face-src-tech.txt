@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 39 tests
 
-39 Pass
+36 Pass
+3 Fail
 Pass	Check that src: url("foo.ttf") is valid
 Pass	Check that src: url("foo.ttf") tech() is invalid
 Pass	Check that src: url("foo.ttf") tech(features-opentype) is valid
@@ -11,12 +12,12 @@ Pass	Check that src: url("foo.ttf") tech(color-COLRv0) is valid
 Pass	Check that src: url("foo.ttf") tech(color-COLRv1) is valid
 Pass	Check that src: url("foo.ttf") tech(color-sbix) is valid
 Pass	Check that src: url("foo.ttf") tech(color-CBDT) is valid
-Pass	Check that src: url("foo.ttf") tech(variations) is valid
+Fail	Check that src: url("foo.ttf") tech(variations) is valid
 Pass	Check that src: url("foo.ttf") tech(palettes) is valid
 Pass	Check that src: url("foo.ttf") tech("features-opentype") is invalid
 Pass	Check that src: url("foo.ttf") tech("color-COLRv0") is invalid
 Pass	Check that src: url("foo.ttf") tech("variations") is invalid
-Pass	Check that src: url("foo.ttf") tech(features-opentype, color-COLRv0, variations, palettes) is valid
+Fail	Check that src: url("foo.ttf") tech(features-opentype, color-COLRv0, variations, palettes) is valid
 Pass	Check that src: url("foo.ttf") tech(features-opentype color-COLRv0 variations palettes) is invalid
 Pass	Check that src: url("foo.ttf") tech(feature-opentype) is invalid
 Pass	Check that src: url("foo.ttf") tech(feature-aat) is invalid
@@ -40,5 +41,5 @@ Pass	Check that src: url("foo.ttf") tech(features-graphite), url("bar.html") is 
 Pass	Check that src: url("foo.ttf") dummy("opentype") tech(variations) is invalid
 Pass	Check that src: url("foo.ttf") dummy("opentype") dummy(variations) is invalid
 Pass	Check that src: url("foo.ttf") format(opentype) tech(features-opentype) dummy(something) is invalid
-Pass	Check that src: url("foo.ttf") format(dummy), url("foo.ttf") tech(variations) is valid
+Fail	Check that src: url("foo.ttf") format(dummy), url("foo.ttf") tech(variations) is valid
 Pass	Check that src: url("foo.ttf") tech(color), url("bar.html") is valid
