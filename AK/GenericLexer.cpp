@@ -10,7 +10,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf16View.h>
+#include <AK/UnicodeUtils.h>
 
 namespace AK {
 
@@ -266,7 +266,7 @@ auto GenericLexer::decode_single_or_paired_surrogate(bool combine_surrogate_pair
     auto high_surrogate = decode_one_surrogate();
     if (!high_surrogate.has_value())
         return UnicodeEscapeError::MalformedUnicodeEscape;
-    if (!Utf16View::is_high_surrogate(*high_surrogate))
+    if (!UnicodeUtils::is_utf16_high_surrogate(*high_surrogate))
         return *high_surrogate;
     if (!combine_surrogate_pairs || !consume_specific("\\u"sv))
         return *high_surrogate;
@@ -274,8 +274,8 @@ auto GenericLexer::decode_single_or_paired_surrogate(bool combine_surrogate_pair
     auto low_surrogate = decode_one_surrogate();
     if (!low_surrogate.has_value())
         return UnicodeEscapeError::MalformedUnicodeEscape;
-    if (Utf16View::is_low_surrogate(*low_surrogate))
-        return Utf16View::decode_surrogate_pair(*high_surrogate, *low_surrogate);
+    if (UnicodeUtils::is_utf16_low_surrogate(*low_surrogate))
+        return UnicodeUtils::decode_utf16_surrogate_pair(*high_surrogate, *low_surrogate);
 
     retreat(6);
     return *high_surrogate;
