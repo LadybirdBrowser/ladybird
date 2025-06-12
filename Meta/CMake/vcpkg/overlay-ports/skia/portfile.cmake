@@ -89,12 +89,21 @@ declare_external_from_pkgconfig(zlib)
 
 declare_external_from_vcpkg(vulkan_headers PATH third_party/externals/vulkan-headers)
 
-set(known_cpus x86 x64 arm arm64 wasm)
+set(known_cpus
+    x86
+    x64
+    arm
+    arm64
+    wasm
+)
 if(NOT VCPKG_TARGET_ARCHITECTURE IN_LIST known_cpus)
     message(WARNING "Unknown target cpu '${VCPKG_TARGET_ARCHITECTURE}'.")
 endif()
 
-string(JOIN " " OPTIONS
+string(
+    JOIN
+    " "
+    OPTIONS
     "target_cpu=\"${VCPKG_TARGET_ARCHITECTURE}\""
     skia_enable_android_utils=false
     skia_enable_spirv_validation=false
@@ -184,19 +193,12 @@ if("metal" IN_LIST FEATURES)
 endif()
 
 if("vulkan" IN_LIST FEATURES)
-    list(APPEND required_externals
-        vulkan_headers
-    )
+    list(APPEND required_externals vulkan_headers)
     string(APPEND OPTIONS " skia_use_vulkan=true skia_vulkan_memory_allocator_dir=\"${CURRENT_INSTALLED_DIR}\"")
 endif()
 
 if("direct3d" IN_LIST FEATURES)
-    list(APPEND required_externals
-        spirv-cross
-        spirv-headers
-        spirv-tools
-        d3d12allocator
-    )
+    list(APPEND required_externals spirv-cross spirv-headers spirv-tools d3d12allocator)
     string(APPEND OPTIONS " skia_use_direct3d=true")
 endif()
 
@@ -205,9 +207,10 @@ if("graphite" IN_LIST FEATURES)
 endif()
 
 if("dawn" IN_LIST FEATURES)
-    if (VCPKG_TARGET_IS_LINUX)
-        message(WARNING
-[[
+    if(VCPKG_TARGET_IS_LINUX)
+        message(
+            WARNING
+            [[
 dawn support requires the following libraries from the system package manager:
 
     libx11-xcb-dev mesa-common-dev
@@ -219,20 +222,25 @@ They can be installed on Debian based systems via
         )
     endif()
 
-    list(APPEND required_externals
+    list(
+        APPEND
+        required_externals
         spirv-cross
         spirv-headers
         spirv-tools
         jinja2
         markupsafe
         vulkan_headers
-## Remove
+        ## Remove
         abseil-cpp
-## REMOVE ^
+        ## REMOVE ^
         dawn
     )
     file(REMOVE_RECURSE "${SOURCE_PATH}/third_party/externals/opengl-registry")
-    file(INSTALL "${CURRENT_INSTALLED_DIR}/share/opengl/" DESTINATION "${SOURCE_PATH}/third_party/externals/opengl-registry/xml")
+    file(
+        INSTALL "${CURRENT_INSTALLED_DIR}/share/opengl/"
+        DESTINATION "${SOURCE_PATH}/third_party/externals/opengl-registry/xml"
+    )
     # cf. external dawn/src/dawn/native/BUILD.gn
     string(APPEND OPTIONS " skia_use_dawn=true dawn_use_swiftshader=false")
     if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
@@ -252,7 +260,8 @@ if("icu" IN_LIST FEATURES)
     vcpkg_replace_string("${SOURCE_PATH}/third_party/icu/BUILD.gn"
         [[config("vcpkg_icu") {]]
         [[import("icu.gni")
-config("vcpkg_icu")  {]])
+config("vcpkg_icu")  {]]
+    )
 endif()
 
 vcpkg_find_acquire_program(PYTHON3)
@@ -269,17 +278,21 @@ if(VCPKG_TARGET_IS_WINDOWS)
 elseif(VCPKG_TARGET_IS_ANDROID)
     string(APPEND OPTIONS " ndk=\"${VCPKG_DETECTED_CMAKE_ANDROID_NDK}\" ndk_api=${VCPKG_DETECTED_CMAKE_SYSTEM_VERSION}")
 else()
-    string(APPEND OPTIONS " \
+    string(
+        APPEND
+        OPTIONS
+        " \
         cc=\"${VCPKG_DETECTED_CMAKE_C_COMPILER}\" \
-        cxx=\"${VCPKG_DETECTED_CMAKE_CXX_COMPILER}\"")
+        cxx=\"${VCPKG_DETECTED_CMAKE_CXX_COMPILER}\""
+    )
 endif()
 
 set(SKIA_CXX_FLAGS_DBG "${VCPKG_COMBINED_CXX_FLAGS_DEBUG}")
 set(SKIA_CXX_FLAGS_REL "${VCPKG_COMBINED_CXX_FLAGS_RELEASE}")
 
 if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
-    foreach (str IN ITEMS SKIA_CXX_FLAGS_DBG SKIA_CXX_FLAGS_REL)
-        if (VCPKG_TARGET_IS_WINDOWS)
+    foreach(str IN ITEMS SKIA_CXX_FLAGS_DBG SKIA_CXX_FLAGS_REL)
+        if(VCPKG_TARGET_IS_WINDOWS)
             string(APPEND ${str} " -DSKCMS_API=__declspec(dllexport)")
         else()
             string(APPEND ${str} " -DSKCMS_API=[[gnu::visibility(\\\\\\\"default\\\\\\\")]]")
@@ -289,14 +302,22 @@ endif()
 
 string_to_gn_list(SKIA_C_FLAGS_DBG "${VCPKG_COMBINED_C_FLAGS_DEBUG}")
 string_to_gn_list(SKIA_CXX_FLAGS_DBG "${SKIA_CXX_FLAGS_DBG}")
-string(APPEND OPTIONS_DBG " \
+string(
+    APPEND
+    OPTIONS_DBG
+    " \
     extra_cflags_c=${SKIA_C_FLAGS_DBG} \
-    extra_cflags_cc=${SKIA_CXX_FLAGS_DBG}")
+    extra_cflags_cc=${SKIA_CXX_FLAGS_DBG}"
+)
 string_to_gn_list(SKIA_C_FLAGS_REL "${VCPKG_COMBINED_C_FLAGS_RELEASE}")
 string_to_gn_list(SKIA_CXX_FLAGS_REL "${SKIA_CXX_FLAGS_REL}")
-string(APPEND OPTIONS_REL " \
+string(
+    APPEND
+    OPTIONS_REL
+    " \
     extra_cflags_c=${SKIA_C_FLAGS_REL} \
-    extra_cflags_cc=${SKIA_CXX_FLAGS_REL}")
+    extra_cflags_cc=${SKIA_CXX_FLAGS_REL}"
+)
 if(VCPKG_TARGET_IS_UWP)
     string_to_gn_list(SKIA_LD_FLAGS "-APPCONTAINER WindowsApp.lib")
     string(APPEND OPTIONS " extra_ldflags=${SKIA_LD_FLAGS}")
@@ -315,11 +336,11 @@ skia_gn_install(
 )
 
 # Use skia repository layout in ${CURRENT_PACKAGES_DIR}/include/skia
-file(COPY "${SOURCE_PATH}/include"
-          "${SOURCE_PATH}/modules"
-          "${SOURCE_PATH}/src"
+file(
+    COPY "${SOURCE_PATH}/include" "${SOURCE_PATH}/modules" "${SOURCE_PATH}/src"
     DESTINATION "${CURRENT_PACKAGES_DIR}/include/skia"
-    FILES_MATCHING PATTERN "*.h"
+    FILES_MATCHING
+    PATTERN "*.h"
 )
 auto_clean("${CURRENT_PACKAGES_DIR}/include/skia")
 
@@ -329,15 +350,18 @@ file(COPY "${CURRENT_PACKAGES_DIR}/include/skia/include/" DESTINATION "${CURRENT
 # vcpkg legacy
 file(INSTALL "${CMAKE_CURRENT_LIST_DIR}/skiaConfig.cmake" DESTINATION "${CURRENT_PACKAGES_DIR}/share/skia")
 
-file(INSTALL
-    "${CMAKE_CURRENT_LIST_DIR}/example/CMakeLists.txt"
-    "${SOURCE_PATH}/tools/convert-to-nia.cpp"
+file(
+    INSTALL "${CMAKE_CURRENT_LIST_DIR}/example/CMakeLists.txt" "${SOURCE_PATH}/tools/convert-to-nia.cpp"
     DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}/example"
 )
-file(APPEND "${CURRENT_PACKAGES_DIR}/share/${PORT}/example/convert-to-nia.cpp" [[
+file(
+    APPEND
+    "${CURRENT_PACKAGES_DIR}/share/${PORT}/example/convert-to-nia.cpp"
+    [[
 // Test for https://github.com/microsoft/vcpkg/issues/27219
 #include "include/core/SkColorSpace.h"
-]])
+]]
+)
 
 file(INSTALL "${CMAKE_CURRENT_LIST_DIR}/usage" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")
 

@@ -1,4 +1,6 @@
-add_library(ladybird SHARED
+add_library(
+    ladybird
+    SHARED
     src/main/cpp/LadybirdActivity.cpp
     src/main/cpp/WebViewImplementationNative.cpp
     src/main/cpp/WebViewImplementationNativeJNI.cpp

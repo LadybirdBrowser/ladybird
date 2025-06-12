@@ -7,12 +7,18 @@ include(WebKitCommon-minimal)
 set(ANGLE_FRAMEWORK_HEADERS_DIR "${CMAKE_BINARY_DIR}/ANGLE/headers")
 
 set(USE_ANGLE_EGL ON)
-if (NOT WINDOWS_STORE AND NOT USE_METAL)
+if(NOT WINDOWS_STORE AND NOT USE_METAL)
     set(USE_OPENGL ON)
 endif()
 
 if(MSVC)
-    add_compile_options(/d2guard4 /Wv:18 /guard:cf /permissive /bigobj)
+    add_compile_options(
+        /d2guard4
+        /Wv:18
+        /guard:cf
+        /permissive
+        /bigobj
+    )
     add_link_options(/guard:cf)
 endif()
 
@@ -26,7 +32,7 @@ if(WIN32)
     set(CMAKE_SHARED_LIBRARY_PREFIX "")
 endif()
 
-if (WINDOWS_STORE)
+if(WINDOWS_STORE)
     set(WINRT_DEFINES -DANGLE_ENABLE_WINDOWS_UWP -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP)
 else()
     set(WINRT_DEFINES)
@@ -79,37 +85,37 @@ find_package(ZLIB REQUIRED)
 set_property(DIRECTORY . PROPERTY FOLDER "ANGLE")
 
 # VCPKG EDIT: modified block
-if (APPLE)
+if(APPLE)
     set(is_apple TRUE)
-    if (IOS)
+    if(IOS)
         set(is_ios TRUE)
-        if (USE_OPENGL)
+        if(USE_OPENGL)
             set(angle_enable_eagl TRUE)
         endif()
     else()
         set(is_mac TRUE)
     endif()
-    if (USE_OPENGL AND NOT angle_enable_eagl)
+    if(USE_OPENGL AND NOT angle_enable_eagl)
         set(angle_enable_cgl TRUE)
     endif()
-elseif (WIN32)
+elseif(WIN32)
     set(is_win TRUE)
-    if (NOT WINDOWS_STORE)
+    if(NOT WINDOWS_STORE)
         set(angle_is_winuwp FALSE)
     else()
         set(angle_is_winuwp TRUE)
         set(target_os "winuwp")
     endif()
-    if (NOT angle_is_winuwp)
+    if(NOT angle_is_winuwp)
         set(angle_enable_d3d9 TRUE)
     endif()
     set(angle_enable_d3d11 TRUE)
-elseif (UNIX)
+elseif(UNIX)
     set(is_linux TRUE)
     if(LINUX)
         set(angle_use_x11 TRUE)
     endif()
-endif ()
+endif()
 # VCPKG EDIT: end vcpkg modified block
 
 include(Compiler.cmake)
@@ -120,17 +126,9 @@ include(D3D.cmake)
 include(GL.cmake)
 include(Metal.cmake)
 
-set(no_gl_prototypes
-    GL_GLES_PROTOTYPES=0
-    EGL_EGL_PROTOTYPES=0
-)
+set(no_gl_prototypes GL_GLES_PROTOTYPES=0 EGL_EGL_PROTOTYPES=0)
 
-set(gl_prototypes
-    GL_GLES_PROTOTYPES=1
-    EGL_EGL_PROTOTYPES=1
-    GL_GLEXT_PROTOTYPES
-    EGL_EGLEXT_PROTOTYPES
-)
+set(gl_prototypes GL_GLES_PROTOTYPES=1 EGL_EGL_PROTOTYPES=1 GL_GLEXT_PROTOTYPES EGL_EGLEXT_PROTOTYPES)
 
 # Default library types for ANGLE
 # Override these in Platform*.cmake for your port as needed.
@@ -168,15 +166,14 @@ set(ANGLE_PRIVATE_INCLUDE_DIRECTORIES
     "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
 
-set(ANGLE_DEFINITIONS
-    ANGLE_ENABLE_ESSL
-    ANGLE_ENABLE_GLSL
-)
+set(ANGLE_DEFINITIONS ANGLE_ENABLE_ESSL ANGLE_ENABLE_GLSL)
 
 # VCPKG EDIT
 list(APPEND ANGLE_DEFINITIONS ANGLE_CAPTURE_ENABLED=0)
-if (NOT WIN32)
-    list(APPEND ANGLE_DEFINITIONS
+if(NOT WIN32)
+    list(
+        APPEND
+        ANGLE_DEFINITIONS
         "-DGL_API=__attribute__((visibility(\"default\")))"
         "-DGL_APICALL=__attribute__((visibility(\"default\")))"
     )
@@ -199,29 +196,26 @@ set(ANGLE_SOURCES
     src/libANGLE/capture/serialize_mock.cpp
 )
 
-if (WIN32)
+if(WIN32)
     # FIXME: DX11 support will not compile if this preprocessor definition is set
     # DirectX Documentation is setting that version to 0x700 but there is no
     # corresponding value in sdkddkver.h
     remove_definitions(-D_WIN32_WINNT=0x601 -DWINVER=0x601)
 
-    list(APPEND ANGLE_SOURCES
+    list(
+        APPEND
+        ANGLE_SOURCES
         "src/libANGLE/renderer/dxgi_format_map.h"
         "src/libANGLE/renderer/dxgi_format_map_autogen.cpp"
         "src/libANGLE/renderer/dxgi_support_table.h"
         "src/libANGLE/renderer/dxgi_support_table_autogen.cpp"
     )
-    if (NOT angle_is_winuwp)
-        list(APPEND ANGLE_SOURCES
-            "src/libANGLE/renderer/d3d_format.cpp"
-            "src/libANGLE/renderer/d3d_format.h"
-        )
+    if(NOT angle_is_winuwp)
+        list(APPEND ANGLE_SOURCES "src/libANGLE/renderer/d3d_format.cpp" "src/libANGLE/renderer/d3d_format.h")
     endif()
-endif ()
+endif()
 
-set(ANGLEGLESv2_LIBRARIES
-    ANGLE
-)
+set(ANGLEGLESv2_LIBRARIES ANGLE)
 
 set(zlib_wrapper_sources
     "third_party/zlib/google/compression_utils_portable.h"
@@ -235,15 +229,17 @@ set(angle_gl_enum_utils # VCPKG EDIT: Update paths
     "src/common/gl_enum_utils_autogen.h"
 )
 
-WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
+webkit_include_config_files_if_exists()
 
 add_subdirectory(include)
 
 add_library(ANGLEFramework INTERFACE)
 add_dependencies(ANGLEFramework GLSLANGHeaders ANGLEHeaders)
 
-if (USE_ANGLE_EGL OR ENABLE_WEBGL)
-    add_library(ANGLE ${ANGLE_LIBRARY_TYPE}
+if(USE_ANGLE_EGL OR ENABLE_WEBGL)
+    add_library(
+        ANGLE
+        ${ANGLE_LIBRARY_TYPE}
         ${ANGLE_SOURCES}
         ${libangle_sources}
         ${libangle_headers}
@@ -254,31 +250,23 @@ if (USE_ANGLE_EGL OR ENABLE_WEBGL)
         ${angle_gl_enum_utils}
     )
     target_include_directories(ANGLE PRIVATE ${ANGLE_PRIVATE_INCLUDE_DIRECTORIES})
-    target_compile_definitions(ANGLE PRIVATE
-        ${no_gl_prototypes}
-        LIBANGLE_IMPLEMENTATION
-    )
+    target_compile_definitions(ANGLE PRIVATE ${no_gl_prototypes} LIBANGLE_IMPLEMENTATION)
     target_compile_definitions(ANGLE PUBLIC ${ANGLE_DEFINITIONS})
     target_link_libraries(ANGLE PRIVATE ZLIB::ZLIB ${CMAKE_DL_LIBS})
 
     target_compile_definitions(ANGLEFramework INTERFACE ${gl_prototypes})
 
-    add_library(GLESv2 ${GLESv2_LIBRARY_TYPE}
-        ${libglesv2_sources}
-    )
+    add_library(GLESv2 ${GLESv2_LIBRARY_TYPE} ${libglesv2_sources})
     target_include_directories(GLESv2 PRIVATE ${ANGLE_PRIVATE_INCLUDE_DIRECTORIES})
-    target_compile_definitions(GLESv2 PRIVATE 
-        ${no_gl_prototypes}
-        LIBGLESV2_IMPLEMENTATION
-    )
+    target_compile_definitions(GLESv2 PRIVATE ${no_gl_prototypes} LIBGLESV2_IMPLEMENTATION)
 
     target_link_libraries(GLESv2 PRIVATE ${ANGLEGLESv2_LIBRARIES} ${CMAKE_DL_LIBS})
 
-    if (WIN32)
+    if(WIN32)
         # Output library name according to the .def
         target_sources(GLESv2 PRIVATE src/libGLESv2/libGLESv2_autogen.def)
         set_target_properties(GLESv2 PROPERTIES OUTPUT_NAME libGLESv2)
-    endif ()
+    endif()
     # Rename libs to avoid conflict with system OpenGL
     if(NOT VCPKG_TARGET_IS_WINDOWS)
         set_target_properties(GLESv2 PROPERTIES OUTPUT_NAME libGLESv2_angle)
@@ -290,25 +278,19 @@ if (USE_ANGLE_EGL OR ENABLE_WEBGL)
     target_compile_definitions(GLESv2Framework INTERFACE USE_SYSTEM_EGL)
     add_library(ANGLE::GLES ALIAS GLESv2Framework)
 
-    if (USE_ANGLE_EGL)
-        add_library(EGL ${EGL_LIBRARY_TYPE}
-            ${libegl_sources}
-        )
+    if(USE_ANGLE_EGL)
+        add_library(EGL ${EGL_LIBRARY_TYPE} ${libegl_sources})
         target_include_directories(EGL PRIVATE ${ANGLE_PRIVATE_INCLUDE_DIRECTORIES})
-        target_compile_definitions(EGL PRIVATE
-            ${ANGLE_DEFINITIONS}
-            ${gl_prototypes}
-            EGLAPI=
-        )
+        target_compile_definitions(EGL PRIVATE ${ANGLE_DEFINITIONS} ${gl_prototypes} EGLAPI=)
 
         target_link_libraries(EGL PRIVATE GLESv2 ${CMAKE_DL_LIBS})
 
         set_target_properties(EGL PROPERTIES LINKER_LANGUAGE CXX)
-        if (WIN32)
+        if(WIN32)
             # Output library names according to the .def
             target_sources(EGL PRIVATE src/libEGL/libEGL_autogen.def)
             set_target_properties(EGL PROPERTIES OUTPUT_NAME libEGL)
-        endif ()
+        endif()
         # Rename libs to avoid conflict with system OpenGL
         if(NOT VCPKG_TARGET_IS_WINDOWS)
             set_target_properties(EGL PROPERTIES OUTPUT_NAME libEGL_angle)
@@ -319,19 +301,15 @@ if (USE_ANGLE_EGL OR ENABLE_WEBGL)
         target_compile_definitions(EGLFramework INTERFACE ${gl_prototypes})
         target_link_libraries(EGLFramework INTERFACE EGL)
         add_library(ANGLE::EGL ALIAS EGLFramework)
-    endif ()
-else ()
+    endif()
+else()
     add_library(ANGLE ${ANGLE_LIBRARY_TYPE} ${ANGLE_SOURCES})
     target_include_directories(ANGLE PRIVATE ${ANGLE_PRIVATE_INCLUDE_DIRECTORIES})
     target_link_libraries(ANGLE PRIVATE ${CMAKE_DL_LIBS})
-    target_compile_definitions(ANGLE PRIVATE
-        ${ANGLE_DEFINITIONS}
-        ${no_gl_prototypes}
-        LIBANGLE_IMPLEMENTATION
-    )
-endif ()
+    target_compile_definitions(ANGLE PRIVATE ${ANGLE_DEFINITIONS} ${no_gl_prototypes} LIBANGLE_IMPLEMENTATION)
+endif()
 
-if (ENABLE_WEBGL)
+if(ENABLE_WEBGL)
     set(libglesv2_entry_points_headers
         src/libGLESv2/entry_points_egl_autogen.h
         src/libGLESv2/entry_points_egl_ext_autogen.h
@@ -340,44 +318,43 @@ if (ENABLE_WEBGL)
         src/libGLESv2/entry_points_gles_ext_autogen.h
     )
 
-    WEBKIT_COPY_FILES(LibGLESv2EntryPointsHeaders
+    webkit_copy_files(LibGLESv2EntryPointsHeaders
         DESTINATION ${ANGLE_FRAMEWORK_HEADERS_DIR}/ANGLE
         FILES ${libglesv2_entry_points_headers}
         FLATTENED
     )
-    if (WIN32 AND TARGET GLESv2)
+    if(WIN32 AND TARGET GLESv2)
         # GLESv2 needs to have a direct or indirect dependency to
         # LibGLESv2EntryPointsHeaders for CMake Visual Studio generator
         # to eliminate duplicated custom commands. Otherwise,
         # entry_points_*.h will be copied twice in both projects.
         add_dependencies(GLESv2 LibGLESv2EntryPointsHeaders)
-    endif ()
+    endif()
 
-    add_custom_target(ANGLE-webgl-headers
+    add_custom_target(
+        ANGLE-webgl-headers
         DEPENDS LibGLESv2EntryPointsHeaders ANGLEWebGLHeaders
-        COMMAND ${CMAKE_COMMAND} -E env
-            BUILT_PRODUCTS_DIR=${ANGLE_FRAMEWORK_HEADERS_DIR}
-            PUBLIC_HEADERS_FOLDER_PATH=/ANGLE
+        COMMAND
+            ${CMAKE_COMMAND} -E env BUILT_PRODUCTS_DIR=${ANGLE_FRAMEWORK_HEADERS_DIR} PUBLIC_HEADERS_FOLDER_PATH=/ANGLE
             ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/adjust-angle-include-paths.py
         VERBATIM
     )
     add_dependencies(GLESv2Framework ANGLE-webgl-headers)
-endif ()
+endif()
 
-if (COMPILER_IS_GCC_OR_CLANG)
-    foreach (angle_target ANGLE EGL GLESv2)
-        if (TARGET ${angle_target})
-            WEBKIT_ADD_TARGET_C_FLAGS(${angle_target} -w)
-            WEBKIT_ADD_TARGET_CXX_FLAGS(${angle_target} -w)
-        endif ()
-    endforeach ()
-endif ()
+if(COMPILER_IS_GCC_OR_CLANG)
+    foreach(angle_target ANGLE EGL GLESv2)
+        if(TARGET ${angle_target})
+            webkit_add_target_c_flags(${angle_target} -w)
+            webkit_add_target_cxx_flags(${angle_target} -w)
+        endif()
+    endforeach()
+endif()
 
 target_link_libraries(ANGLEFramework INTERFACE ANGLE)
 target_include_directories(ANGLEFramework INTERFACE ${ANGLE_FRAMEWORK_HEADERS_DIR})
 
 add_library(ANGLE::ANGLE ALIAS ANGLEFramework)
-
 
 ##################################################
 
@@ -385,7 +362,7 @@ add_library(ANGLE::ANGLE ALIAS ANGLEFramework)
 #### various vcpkg additions and install commands
 
 # X11 support
-if (angle_use_x11)
+if(angle_use_x11)
     find_package(X11 COMPONENTS Xext Xi REQUIRED)
     target_include_directories(ANGLE PRIVATE ${X11_INCLUDE_DIR})
     target_sources(ANGLE PRIVATE ${libangle_gpu_info_util_x11_sources})
@@ -410,13 +387,20 @@ foreach(_target IN LISTS _possibleTargets)
     endif()
 endforeach()
 
-install(TARGETS ${_installableTargets} EXPORT ANGLEExport
+install(
+    TARGETS ${_installableTargets}
+    EXPORT ANGLEExport
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
 )
 
-install(EXPORT ANGLEExport FILE unofficial-angle-targets.cmake NAMESPACE unofficial::angle:: DESTINATION share/unofficial-angle)
+install(
+    EXPORT ANGLEExport
+    FILE unofficial-angle-targets.cmake
+    NAMESPACE unofficial::angle::
+    DESTINATION share/unofficial-angle
+)
 install(FILES unofficial-angle-config.cmake DESTINATION share/unofficial-angle)
 
 install(

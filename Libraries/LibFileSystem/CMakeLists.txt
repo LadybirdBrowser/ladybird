@@ -1,6 +1,6 @@
-set (SOURCES FileSystem.cpp)
-if (NOT WIN32)
-   list(APPEND SOURCES TempFile.cpp)
+set(SOURCES FileSystem.cpp)
+if(NOT WIN32)
+    list(APPEND SOURCES TempFile.cpp)
 endif()
 
 serenity_lib(LibFileSystem filesystem)

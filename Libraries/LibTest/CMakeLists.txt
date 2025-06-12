@@ -2,9 +2,7 @@ add_library(LibTestMain OBJECT TestMain.cpp AssertionHandler.cpp)
 
 target_link_libraries(LibTestMain PUBLIC GenericClangPlugin)
 
-set(SOURCES
-    TestSuite.cpp
-)
+set(SOURCES TestSuite.cpp)
 
 add_library(LibTest ${SOURCES})
 lagom_generate_export_header(LibTest test)

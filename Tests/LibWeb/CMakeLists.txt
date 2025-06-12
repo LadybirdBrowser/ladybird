@@ -18,13 +18,10 @@ endforeach()
 
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 
-if (ENABLE_SWIFT)
+if(ENABLE_SWIFT)
     find_package(SwiftTesting REQUIRED)
 
-    add_executable(TestLibWebSwift
-        TestLibWebSwiftBindings.swift
-        TestHTMLTokenizerSwift.swift
-    )
+    add_executable(TestLibWebSwift TestLibWebSwiftBindings.swift TestHTMLTokenizerSwift.swift)
 
     # FIXME: Swift doesn't seem to like object libraries for @main
     target_sources(TestLibWebSwift PRIVATE ../Resources/SwiftTestMain.swift)

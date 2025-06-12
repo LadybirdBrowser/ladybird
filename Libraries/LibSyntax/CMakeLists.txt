@@ -1,7 +1,3 @@
-set(SOURCES
-    Document.cpp
-    Highlighter.cpp
-    Language.cpp
-)
+set(SOURCES Document.cpp Highlighter.cpp Language.cpp)
 
 serenity_lib(LibSyntax syntax)

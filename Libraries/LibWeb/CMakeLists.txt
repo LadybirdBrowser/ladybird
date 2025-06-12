@@ -2,7 +2,7 @@ include(libweb_generators)
 include(vulkan)
 include(skia)
 
-if (APPLE)
+if(APPLE)
     find_package(unofficial-angle REQUIRED CONFIG)
 endif()
 
@@ -1007,9 +1007,33 @@ set(GENERATED_SOURCES
 
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia)
+target_link_libraries(
+    LibWeb
+    PRIVATE
+        LibCore
+        LibCompress
+        LibCrypto
+        LibJS
+        LibHTTP
+        LibGfx
+        LibIPC
+        LibRegex
+        LibSyntax
+        LibTextCodec
+        LibUnicode
+        LibMedia
+        LibWasm
+        LibXML
+        LibIDL
+        LibURL
+        LibTLS
+        LibRequests
+        LibGC
+        LibThreading
+        skia
+)
 
-if (APPLE)
+if(APPLE)
     target_link_libraries(LibWeb PRIVATE unofficial::angle::libEGL unofficial::angle::libGLESv2)
 endif()
 
@@ -1018,7 +1042,7 @@ target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_
 
 generate_js_bindings(LibWeb)
 
-if (ENABLE_SWIFT)
+if(ENABLE_SWIFT)
     include(collections)
 
     set(generated_headers ${GENERATED_SOURCES})
@@ -1028,11 +1052,13 @@ if (ENABLE_SWIFT)
 
     generate_clang_module_map(LibWeb GENERATED_FILES ${LIBWEB_ALL_GENERATED_HEADERS})
 
-    target_sources(LibWeb PRIVATE
-        HTML/Parser/HTMLToken.swift
-        HTML/Parser/HTMLTokenizer.swift
-        HTML/Parser/HTMLTokenizerHelpers.cpp
-        HTML/Parser/SpeculativeHTMLParser.swift
+    target_sources(
+        LibWeb
+        PRIVATE
+            HTML/Parser/HTMLToken.swift
+            HTML/Parser/HTMLTokenizer.swift
+            HTML/Parser/HTMLTokenizerHelpers.cpp
+            HTML/Parser/SpeculativeHTMLParser.swift
     )
     target_link_libraries(LibWeb PRIVATE AK Collections)
     add_swift_target_properties(LibWeb LAGOM_LIBRARIES AK LibGfx LibGC)

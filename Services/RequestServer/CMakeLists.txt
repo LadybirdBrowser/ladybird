@@ -2,13 +2,12 @@ set(CMAKE_AUTOMOC OFF)
 set(CMAKE_AUTORCC OFF)
 set(CMAKE_AUTOUIC OFF)
 
-set(SOURCES
-    ConnectionFromClient.cpp
-    WebSocketImplCurl.cpp
-)
+set(SOURCES ConnectionFromClient.cpp WebSocketImplCurl.cpp)
 
-if (ANDROID)
-    add_library(requestserverservice SHARED
+if(ANDROID)
+    add_library(
+        requestserverservice
+        SHARED
         ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/RequestServerService.cpp
         ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
         ${SOURCES}
@@ -26,14 +25,31 @@ target_include_directories(requestserverservice PRIVATE ${CMAKE_CURRENT_BINARY_D
 target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(RequestServer PRIVATE requestserverservice)
-target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibMain LibCrypto LibFileSystem LibIPC LibMain LibTLS LibWebView LibWebSocket LibURL LibTextCodec LibThreading CURL::libcurl)
+target_link_libraries(
+    requestserverservice
+    PUBLIC
+        LibCore
+        LibDNS
+        LibMain
+        LibCrypto
+        LibFileSystem
+        LibIPC
+        LibMain
+        LibTLS
+        LibWebView
+        LibWebSocket
+        LibURL
+        LibTextCodec
+        LibThreading
+        CURL::libcurl
+)
 target_link_libraries(requestserverservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
+if(${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
     # Solaris has socket and networking related functions in two extra libraries
     target_link_libraries(requestserverservice PUBLIC nsl socket)
 endif()
-if (HAIKU)
+if(HAIKU)
     # Haiku has networking related functions in the network library
     target_link_libraries(RequestServer PRIVATE network)
 endif()

@@ -92,16 +92,16 @@ foreach(source IN LISTS AK_TEST_SOURCES)
     serenity_test("${source}" AK)
 endforeach()
 
-if (WIN32)
+if(WIN32)
     # FIXME: Windows on ARM
     target_link_libraries(TestUFixedBigInt PRIVATE clang_rt.builtins-x86_64.lib)
 endif()
 
-if (CXX_COMPILER_SUPPORTS_BLOCKS)
+if(CXX_COMPILER_SUPPORTS_BLOCKS)
     serenity_test(TestFunction.mm AK NAME TestFunction)
     target_link_libraries(TestFunction PRIVATE ${BLOCKS_REQUIRED_LIBRARIES})
 endif()
-if (CXX_COMPILER_SUPPORTS_OBJC_ARC)
+if(CXX_COMPILER_SUPPORTS_OBJC_ARC)
     serenity_test(TestFunction.mm AK NAME TestFunctionArc)
     target_compile_options(TestFunctionArc PRIVATE -fobjc-arc)
     target_link_libraries(TestFunction PRIVATE ${BLOCKS_REQUIRED_LIBRARIES})
@@ -109,8 +109,7 @@ endif()
 
 target_link_libraries(TestString PRIVATE LibUnicode)
 
-if (ENABLE_SWIFT)
-
+if(ENABLE_SWIFT)
     # FIXME: Convert to use swift-testing after resolving https://github.com/LadybirdBrowser/ladybird/issues/1201
     add_executable(TestAKBindings TestAKBindings.swift)
     target_link_libraries(TestAKBindings PRIVATE AK)

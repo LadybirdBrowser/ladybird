@@ -1,6 +1,6 @@
-cmake_minimum_required (VERSION 3.21)
+cmake_minimum_required(VERSION 3.21)
 
-if (APPLE AND NOT CMAKE_OSX_SYSROOT)
+if(APPLE AND NOT CMAKE_OSX_SYSROOT)
     set(CMAKE_OSX_SYSROOT macosx)
 endif()
 
@@ -12,10 +12,12 @@ project(
     LANGUAGES C CXX
 )
 
-if (${ENABLE_LAGOM_LADYBIRD} OR $CACHE{ENABLE_LAGOM_LADYBIRD})
-    message(FATAL_ERROR
+if(${ENABLE_LAGOM_LADYBIRD} OR $CACHE{ENABLE_LAGOM_LADYBIRD})
+    message(
+        FATAL_ERROR
         "The ENABLE_LAGOM_LADYBIRD option is no longer supported.\n"
-        "Please use the top-level CMakeLists.txt to enable Ladybird builds.\n")
+        "Please use the top-level CMakeLists.txt to enable Ladybird builds.\n"
+    )
 endif()
 
 # This is required for CMake (when invoked for a Lagom-only build) to
@@ -30,14 +32,11 @@ cmake_policy(SET CMP0056 NEW)
 
 # Ensure that when single-value arguments are passed to `cmake_parse_arguments()`
 # with no or empty string arguments, they are still defined.
-if (POLICY CMP0174)
+if(POLICY CMP0174)
     cmake_policy(SET CMP0174 NEW)
 endif()
 
-get_filename_component(
-    SERENITY_PROJECT_ROOT "${PROJECT_SOURCE_DIR}/../.."
-    ABSOLUTE CACHE
-)
+get_filename_component(SERENITY_PROJECT_ROOT "${PROJECT_SOURCE_DIR}/../.." ABSOLUTE CACHE)
 set(SerenityOS_SOURCE_DIR "${SERENITY_PROJECT_ROOT}" CACHE STRING "")
 
 list(APPEND CMAKE_MODULE_PATH "${SERENITY_PROJECT_ROOT}/Meta/CMake")
@@ -61,19 +60,19 @@ find_package(Threads REQUIRED)
 # from the Ladybird import. See https://github.com/SerenityOS/serenity/issues/16847
 link_libraries(Threads::Threads)
 
-if (ENABLE_LAGOM_CCACHE)
+if(ENABLE_LAGOM_CCACHE)
     include(setup_ccache)
 endif()
 
-if (ENABLE_FUZZERS_LIBFUZZER OR ENABLE_FUZZERS_OSSFUZZ)
-	set(ENABLE_FUZZERS ON)
+if(ENABLE_FUZZERS_LIBFUZZER OR ENABLE_FUZZERS_OSSFUZZ)
+    set(ENABLE_FUZZERS ON)
 endif()
 
 # We need to make sure not to build code generators for Fuzzer builds, as they already have their own main.cpp
 # Instead, we import them from a previous install of Lagom. This mandates a two-stage build for fuzzers.
 # The same concern goes for cross-compile builds, where we need the tools built for the host
 set(BUILD_LAGOM_TOOLS ON)
-if (ENABLE_FUZZERS OR CMAKE_CROSSCOMPILING)
+if(ENABLE_FUZZERS OR CMAKE_CROSSCOMPILING)
     find_package(LagomTools REQUIRED)
     set(BUILD_LAGOM_TOOLS OFF)
 endif()
@@ -83,48 +82,49 @@ include(lagom_compile_options)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if (EMSCRIPTEN)
+if(EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".js")
     add_cxx_compile_options(-gsource-map)
     add_cxx_link_options(--emrun "SHELL:-s ALLOW_MEMORY_GROWTH")
 endif()
 
-if (ENABLE_COMPILETIME_FORMAT_CHECK)
+if(ENABLE_COMPILETIME_FORMAT_CHECK)
     add_compile_definitions(ENABLE_COMPILETIME_FORMAT_CHECK)
 endif()
 
-if (HAIKU)
+if(HAIKU)
     # Haiku needs some extra compile definitions to make important stuff in its headers available.
     add_compile_definitions(_DEFAULT_SOURCE)
     add_compile_definitions(_GNU_SOURCE)
     add_compile_definitions(__USE_GNU)
 endif()
 
-if (ENABLE_FUZZERS)
+if(ENABLE_FUZZERS)
     add_cxx_compile_options(-fno-omit-frame-pointer)
 endif()
 
 add_library(JSClangPlugin INTERFACE)
 add_library(GenericClangPlugin INTERFACE)
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-    if (ENABLE_FUZZERS_LIBFUZZER)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
+    if(ENABLE_FUZZERS_LIBFUZZER)
         add_cxx_compile_options(-fsanitize=fuzzer)
         set(LINKER_FLAGS "${LINKER_FLAGS} -fsanitize=fuzzer")
     endif()
 
     # Vanilla host builds only for building the clang plugins
-    if (ENABLE_CLANG_PLUGINS AND NOT CROSS_COMPILING AND NOT ENABLE_FUZZERS AND NOT ENABLE_COMPILER_EXPLORER_BUILD)
+    if(ENABLE_CLANG_PLUGINS AND NOT CROSS_COMPILING AND NOT ENABLE_FUZZERS AND NOT ENABLE_COMPILER_EXPLORER_BUILD)
         add_subdirectory(ClangPlugins)
         depend_on_clang_plugin(JSClangPlugin LibJSGCClangPlugin)
         depend_on_clang_plugin(GenericClangPlugin LambdaCaptureClangPlugin)
     endif()
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    if (ENABLE_FUZZERS_LIBFUZZER)
-        message(FATAL_ERROR
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(ENABLE_FUZZERS_LIBFUZZER)
+        message(
+            FATAL_ERROR
             "Fuzzer Sanitizer (-fsanitize=fuzzer) is only supported for Fuzzer targets with LLVM. "
             "Reconfigure CMake with -DCMAKE_C_COMPILER and -DCMAKE_CXX_COMPILER pointing to a clang-based toolchain "
-	    "or build binaries without built-in fuzzing support by setting -DENABLE_FUZZERS instead."
+            "or build binaries without built-in fuzzing support by setting -DENABLE_FUZZERS instead."
         )
     endif()
 endif()
@@ -155,8 +155,11 @@ include(CMakePackageConfigHelpers)
 set(package Lagom CACHE STRING "")
 
 # Allow package maintainers to freely override the path for the configs
-set(Lagom_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/${package}"
-    CACHE PATH "CMake package config location relative to the install prefix")
+set(Lagom_INSTALL_CMAKEDIR
+    "${CMAKE_INSTALL_DATADIR}/${package}"
+    CACHE PATH
+    "CMake package config location relative to the install prefix"
+)
 mark_as_advanced(Lagom_INSTALL_CMAKEDIR)
 
 install(
@@ -166,14 +169,9 @@ install(
     COMPONENT Lagom_Development
 )
 
-install(
-    EXPORT LagomTargets
-    NAMESPACE Lagom::
-    DESTINATION "${Lagom_INSTALL_CMAKEDIR}"
-    COMPONENT Lagom_Development
-)
+install(EXPORT LagomTargets NAMESPACE Lagom:: DESTINATION "${Lagom_INSTALL_CMAKEDIR}" COMPONENT Lagom_Development)
 
-if (WIN32)
+if(WIN32)
     find_package(pthread REQUIRED)
     find_package(mman REQUIRED)
 endif()
@@ -182,7 +180,7 @@ function(lagom_generate_export_header name fs_name)
     # Temporary helper to allow libraries to opt-in to using X_API macros
     # to export symbols required by external consumers. This allows the codebase
     # to gradually slowly migrate instead of an all-or-nothing approach.
-    if (NOT WIN32)
+    if(NOT WIN32)
         target_compile_options(${name} PRIVATE -fvisibility=hidden)
     else()
         set_target_properties(${name} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS OFF)
@@ -195,25 +193,26 @@ endfunction()
 function(lagom_lib target_name fs_name)
     cmake_parse_arguments(LAGOM_LIBRARY "EXPLICIT_SYMBOL_EXPORT" "LIBRARY_TYPE" "SOURCES;LIBS" ${ARGN})
     string(REPLACE "Lib" "" library ${target_name})
-    if (NOT LAGOM_LIBRARY_LIBRARY_TYPE)
+    if(NOT LAGOM_LIBRARY_LIBRARY_TYPE)
         set(LAGOM_LIBRARY_LIBRARY_TYPE "")
     endif()
     add_library(${target_name} ${LAGOM_LIBRARY_LIBRARY_TYPE} ${LAGOM_LIBRARY_SOURCES})
     set_target_properties(
-        ${target_name} PROPERTIES
-        VERSION "${PROJECT_VERSION}"
-        SOVERSION "${PROJECT_VERSION_MAJOR}"
-        EXPORT_NAME ${library}
-        OUTPUT_NAME lagom-${fs_name}
+        ${target_name}
+        PROPERTIES
+            VERSION "${PROJECT_VERSION}"
+            SOVERSION "${PROJECT_VERSION_MAJOR}"
+            EXPORT_NAME ${library}
+            OUTPUT_NAME lagom-${fs_name}
     )
     target_link_libraries(${target_name} PRIVATE ${LAGOM_LIBRARY_LIBS})
     target_link_libraries(${target_name} PUBLIC GenericClangPlugin)
 
-    if (NOT "${target_name}" STREQUAL "AK")
+    if(NOT "${target_name}" STREQUAL "AK")
         target_link_libraries(${target_name} PRIVATE AK)
     endif()
 
-    if (WIN32)
+    if(WIN32)
         target_include_directories(${target_name} PRIVATE ${PTHREAD_INCLUDE_DIR})
         target_link_libraries(${target_name} PRIVATE ${PTHREAD_LIBRARY})
 
@@ -222,40 +221,46 @@ function(lagom_lib target_name fs_name)
     endif()
 
     # FIXME: Clean these up so that we don't need so many include dirs
-    if (ENABLE_INSTALL_HEADERS)
-        target_include_directories(${target_name} INTERFACE
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Libraries>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
+    if(ENABLE_INSTALL_HEADERS)
+        target_include_directories(
+            ${target_name}
+            INTERFACE
+                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
+                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Libraries>
+                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
         )
     endif()
     add_lagom_library_install_rules(${target_name} ALIAS_NAME ${library})
-    if (ENABLE_INSTALL_HEADERS)
+    if(ENABLE_INSTALL_HEADERS)
         install(
             DIRECTORY "${SERENITY_PROJECT_ROOT}/Libraries/Lib${library}"
             COMPONENT Lagom_Development
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-            FILES_MATCHING PATTERN "*.h"
+            FILES_MATCHING
+            PATTERN "*.h"
         )
     endif()
     serenity_generated_sources(${target_name})
-    if (LAGOM_LIBRARY_EXPLICIT_SYMBOL_EXPORT)
+    if(LAGOM_LIBRARY_EXPLICIT_SYMBOL_EXPORT)
         lagom_generate_export_header(${target_name} ${fs_name})
     endif()
 endfunction()
 
 function(lagom_test source)
     cmake_parse_arguments(PARSE_ARGV 1 LAGOM_TEST "" "CUSTOM_MAIN;NAME;WORKING_DIRECTORY" "LIBS")
-    if (NOT LAGOM_TEST_NAME)
+    if(NOT LAGOM_TEST_NAME)
         get_filename_component(LAGOM_TEST_NAME ${source} NAME_WE)
     endif()
-    if (NOT LAGOM_TEST_CUSTOM_MAIN)
+    if(NOT LAGOM_TEST_CUSTOM_MAIN)
         set(LAGOM_TEST_CUSTOM_MAIN "$<TARGET_OBJECTS:LibTestMain>")
     endif()
     add_executable(${LAGOM_TEST_NAME} ${source})
-    target_link_libraries(${LAGOM_TEST_NAME} PRIVATE AK LibCore LibFileSystem LibTest ${LAGOM_TEST_CUSTOM_MAIN} ${LAGOM_TEST_LIBS})
+    target_link_libraries(
+        ${LAGOM_TEST_NAME}
+        PRIVATE AK LibCore LibFileSystem LibTest ${LAGOM_TEST_CUSTOM_MAIN} ${LAGOM_TEST_LIBS}
+    )
 
-    if (WIN32)
+    if(WIN32)
         target_include_directories(${LAGOM_TEST_NAME} PRIVATE ${PTHREAD_INCLUDE_DIR})
         target_link_libraries(${LAGOM_TEST_NAME} PRIVATE ${PTHREAD_LIBRARY})
 
@@ -263,11 +268,7 @@ function(lagom_test source)
         target_link_libraries(${LAGOM_TEST_NAME} PRIVATE ${MMAN_LIBRARY})
     endif()
 
-    add_test(
-        NAME ${LAGOM_TEST_NAME}
-        COMMAND ${LAGOM_TEST_NAME}
-        WORKING_DIRECTORY ${LAGOM_TEST_WORKING_DIRECTORY}
-    )
+    add_test(NAME ${LAGOM_TEST_NAME} COMMAND ${LAGOM_TEST_NAME} WORKING_DIRECTORY ${LAGOM_TEST_WORKING_DIRECTORY})
 endfunction()
 
 function(lagom_utility name)
@@ -302,7 +303,8 @@ function(serenity_bin name)
         ARCHIVE #
             COMPONENT Lagom_Development
         INCLUDES #
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        DESTINATION
+            ${CMAKE_INSTALL_INCLUDEDIR}
     )
     serenity_generated_sources(${name})
 endfunction()
@@ -310,7 +312,7 @@ endfunction()
 function(serenity_lib name fs_name)
     cmake_parse_arguments(PARSE_ARGV 2 SERENITY_LIB "EXPLICIT_SYMBOL_EXPORT" "TYPE" "")
     set(EXPLICIT_SYMBOL_EXPORT "")
-    if (SERENITY_LIB_EXPLICIT_SYMBOL_EXPORT)
+    if(SERENITY_LIB_EXPLICIT_SYMBOL_EXPORT)
         set(EXPLICIT_SYMBOL_EXPORT "EXPLICIT_SYMBOL_EXPORT")
     endif()
     lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${SERENITY_LIB_TYPE} ${EXPLICIT_SYMBOL_EXPORT} SOURCES ${SOURCES} ${GENERATED_SOURCES})
@@ -320,7 +322,7 @@ macro(add_serenity_subdirectory path)
     add_subdirectory("${SERENITY_PROJECT_ROOT}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
 endmacro()
 
-if (NOT TARGET all_generated)
+if(NOT TARGET all_generated)
     # Meta target to run all code-gen steps in the build.
     add_custom_target(all_generated)
 endif()
@@ -352,11 +354,11 @@ add_serenity_subdirectory(Libraries/LibFileSystem)
 add_serenity_subdirectory(Libraries/LibIDL)
 
 # Code Generators and other host tools
-if (BUILD_LAGOM_TOOLS)
+if(BUILD_LAGOM_TOOLS)
     add_subdirectory(Tools)
 endif()
 
-if (LAGOM_TOOLS_ONLY)
+if(LAGOM_TOOLS_ONLY)
     return()
 endif()
 
@@ -374,12 +376,12 @@ compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIServer.ipc Service
 
 add_serenity_subdirectory(Libraries)
 
-if (ENABLE_FUZZERS)
+if(ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
 endif()
 
 # No utilities or tests in these configs
-if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
+if(ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
     return()
 endif()
 
@@ -388,6 +390,6 @@ add_serenity_subdirectory(Utilities)
 
 # Tests
 include(CTest)
-if (BUILD_TESTING)
+if(BUILD_TESTING)
     add_serenity_subdirectory(Tests)
 endif()

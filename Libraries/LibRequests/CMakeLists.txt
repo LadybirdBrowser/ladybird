@@ -1,9 +1,4 @@
-set(SOURCES
-    NetworkError.h
-    Request.cpp
-    RequestClient.cpp
-    WebSocket.cpp
-)
+set(SOURCES NetworkError.h Request.cpp RequestClient.cpp WebSocket.cpp)
 
 set(GENERATED_SOURCES
     ../../Services/RequestServer/RequestClientEndpoint.h

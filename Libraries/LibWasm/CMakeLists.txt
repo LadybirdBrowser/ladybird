@@ -7,7 +7,7 @@ set(SOURCES
     Printer/Printer.cpp
 )
 
-if (NOT WIN32)
+if(NOT WIN32)
     list(APPEND SOURCES WASI/Wasi.cpp)
 endif()
 

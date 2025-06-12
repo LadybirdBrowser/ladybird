@@ -15,7 +15,7 @@ add_subdirectory(LibURL)
 add_subdirectory(LibXML)
 
 # FIXME: Increase support for building targets on Windows
-if (WIN32 AND ENABLE_WINDOWS_CI)
+if(WIN32 AND ENABLE_WINDOWS_CI)
     return()
 endif()
 
@@ -27,7 +27,7 @@ add_subdirectory(LibTLS)
 add_subdirectory(LibWasm)
 add_subdirectory(LibWebSocket)
 
-if (ENABLE_GUI_TARGETS)
+if(ENABLE_GUI_TARGETS)
     add_subdirectory(LibDevTools)
     add_subdirectory(LibGfx)
     add_subdirectory(LibImageDecoderClient)

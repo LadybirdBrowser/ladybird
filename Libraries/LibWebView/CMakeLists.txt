@@ -31,22 +31,17 @@ set(SOURCES
     WebUI/SettingsUI.cpp
 )
 
-if (APPLE)
+if(APPLE)
     list(APPEND SOURCES MachPortServer.cpp)
 endif()
 
-if (ENABLE_QT)
-    list(APPEND SOURCES
-        EventLoop/EventLoopImplementationQt.cpp
-        EventLoop/EventLoopImplementationQtEventTarget.cpp
-    )
+if(ENABLE_QT)
+    list(APPEND SOURCES EventLoop/EventLoopImplementationQt.cpp EventLoop/EventLoopImplementationQtEventTarget.cpp)
 
     set(CMAKE_AUTOMOC ON)
     find_package(Qt6 REQUIRED COMPONENTS Core)
-elseif (APPLE)
-    list(APPEND SOURCES
-        EventLoop/EventLoopImplementationMacOS.mm
-    )
+elseif(APPLE)
+    list(APPEND SOURCES EventLoop/EventLoopImplementationMacOS.mm)
 endif()
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
@@ -62,8 +57,11 @@ embed_as_string(
 compile_ipc(UIProcessServer.ipc UIProcessServerEndpoint.h)
 compile_ipc(UIProcessClient.ipc UIProcessClientEndpoint.h)
 
-if (NOT APPLE AND NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
-    set_source_files_properties(Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
+if(NOT APPLE AND NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
+    set_source_files_properties(
+        Utilities.cpp
+        PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}"
+    )
 endif()
 
 set(GENERATED_SOURCES
@@ -82,9 +80,25 @@ set(GENERATED_SOURCES
 )
 
 serenity_lib(LibWebView webview)
-target_link_libraries(LibWebView PRIVATE LibCore LibDevTools LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax LibTextCodec)
+target_link_libraries(
+    LibWebView
+    PRIVATE
+        LibCore
+        LibDevTools
+        LibFileSystem
+        LibGfx
+        LibImageDecoderClient
+        LibIPC
+        LibRequests
+        LibJS
+        LibWeb
+        LibUnicode
+        LibURL
+        LibSyntax
+        LibTextCodec
+)
 
-if (APPLE)
+if(APPLE)
     target_link_libraries(LibWebView PRIVATE LibThreading)
 endif()
 
@@ -92,20 +106,20 @@ endif()
 find_package(SQLite3 REQUIRED)
 target_link_libraries(LibWebView PRIVATE SQLite::SQLite3)
 
-if (ENABLE_QT)
+if(ENABLE_QT)
     target_link_libraries(LibWebView PRIVATE Qt::Core)
-elseif (APPLE)
+elseif(APPLE)
     target_link_libraries(LibWebView PRIVATE "-framework Cocoa")
 endif()
 
-if (HAS_FONTCONFIG)
+if(HAS_FONTCONFIG)
     target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)
 endif()
 
-if (ENABLE_INSTALL_HEADERS)
+if(ENABLE_INSTALL_HEADERS)
     foreach(header ${GENERATED_SOURCES})
         get_filename_component(extension ${header} EXT)
-        if (NOT "${extension}" STREQUAL ".h")
+        if(NOT "${extension}" STREQUAL ".h")
             continue()
         endif()
 

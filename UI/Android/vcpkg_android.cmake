@@ -19,19 +19,18 @@
 # Note: VCPKG_TARGET_ANDROID is not an official vcpkg variable.
 # it is introduced for the need of this script
 
-if (VCPKG_TARGET_ANDROID)
-
+if(VCPKG_TARGET_ANDROID)
     #
     # 1. Check the presence of variable ANDROID_NDK
     #
-    if (NOT DEFINED ANDROID_NDK)
+    if(NOT DEFINED ANDROID_NDK)
         message(FATAL_ERROR "Please set CMake variable ANDROID_NDK")
     endif()
 
     #
     # 2. Check the presence of environment variable VCPKG_ROOT
     #
-    if (NOT DEFINED VCPKG_ROOT)
+    if(NOT DEFINED VCPKG_ROOT)
         message(FATAL_ERROR "Please set a CMake variable VCPKG_ROOT")
     endif()
 
@@ -50,7 +49,7 @@ if (VCPKG_TARGET_ANDROID)
     #
     # The variable must be stored in the cache in order to successfully the two toolchains.
     #
-    if (ANDROID_ABI MATCHES "arm64-v8a")
+    if(ANDROID_ABI MATCHES "arm64-v8a")
         set(VCPKG_TARGET_TRIPLET "arm64-android" CACHE STRING "" FORCE)
     elseif(ANDROID_ABI MATCHES "armeabi-v7a")
         set(VCPKG_TARGET_TRIPLET "arm-android" CACHE STRING "" FORCE)
@@ -59,13 +58,16 @@ if (VCPKG_TARGET_ANDROID)
     elseif(ANDROID_ABI MATCHES "x86")
         set(VCPKG_TARGET_TRIPLET "x86-android" CACHE STRING "" FORCE)
     else()
-        message(FATAL_ERROR "
+        message(
+            FATAL_ERROR
+            "
         Please specify ANDROID_ABI
         For example
         cmake ... -DANDROID_ABI=armeabi-v7a
 
         Possible ABIs are: arm64-v8a, armeabi-v7a, x64-android, x86-android
-        ")
+        "
+        )
     endif()
     message("vcpkg_android.cmake: VCPKG_TARGET_TRIPLET was set to ${VCPKG_TARGET_TRIPLET}")
 
@@ -92,5 +94,4 @@ if (VCPKG_TARGET_ANDROID)
     # FIXME: would be nice if vcpkg's android toolchain did not require this...
     set(ENV{ANDROID_NDK_HOME} ${ANDROID_NDK})
     set(ENV{VCPKG_ROOT} ${VCPKG_ROOT})
-
 endif(VCPKG_TARGET_ANDROID)

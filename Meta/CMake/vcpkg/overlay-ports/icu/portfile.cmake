@@ -1,5 +1,7 @@
 if(NOT VCPKG_TARGET_IS_WINDOWS)
-    message(WARNING "${PORT} currently requires the following programs from the system package manager:
+    message(
+        WARNING
+        "${PORT} currently requires the following programs from the system package manager:
     autoconf automake autoconf-archive
 On Debian and Ubuntu derivatives:
     sudo apt-get install autoconf automake autoconf-archive
@@ -10,7 +12,8 @@ On Arch Linux and derivatives:
 On Alpine:
     apk add autoconf automake autoconf-archive
 On macOS:
-    brew install autoconf automake autoconf-archive\n")
+    brew install autoconf automake autoconf-archive\n"
+    )
 endif()
 
 string(REGEX MATCH "^[0-9]*" ICU_VERSION_MAJOR "${VERSION}")
@@ -70,9 +73,9 @@ if(VCPKG_TARGET_IS_WINDOWS)
 endif()
 
 if("tools" IN_LIST FEATURES)
-  list(APPEND CONFIGURE_OPTIONS --enable-tools)
+    list(APPEND CONFIGURE_OPTIONS --enable-tools)
 else()
-  list(APPEND CONFIGURE_OPTIONS --disable-tools)
+    list(APPEND CONFIGURE_OPTIONS --disable-tools)
 endif()
 if(CMAKE_HOST_WIN32 AND VCPKG_TARGET_IS_MINGW AND NOT HOST_TRIPLET MATCHES "mingw")
     # Assuming no cross compiling because the host (windows) pkgdata tool doesn't
@@ -104,16 +107,16 @@ vcpkg_configure_make(
 )
 vcpkg_install_make(OPTIONS ${BUILD_OPTIONS})
 
-file(REMOVE_RECURSE
+file(
+    REMOVE_RECURSE
     "${CURRENT_PACKAGES_DIR}/share"
     "${CURRENT_PACKAGES_DIR}/debug/share"
     "${CURRENT_PACKAGES_DIR}/lib/icu"
     "${CURRENT_PACKAGES_DIR}/debug/lib/icu"
-    "${CURRENT_PACKAGES_DIR}/debug/lib/icud")
+    "${CURRENT_PACKAGES_DIR}/debug/lib/icud"
+)
 
-file(GLOB TEST_LIBS
-    "${CURRENT_PACKAGES_DIR}/lib/*test*"
-    "${CURRENT_PACKAGES_DIR}/debug/lib/*test*")
+file(GLOB TEST_LIBS "${CURRENT_PACKAGES_DIR}/lib/*test*" "${CURRENT_PACKAGES_DIR}/debug/lib/*test*")
 if(TEST_LIBS)
     file(REMOVE ${TEST_LIBS})
 endif()
@@ -134,9 +137,7 @@ if(VCPKG_TARGET_IS_LINUX OR VCPKG_TARGET_IS_OSX AND "tools" IN_LIST FEATURES)
     )
 endif()
 
-file(REMOVE_RECURSE
-    "${CURRENT_PACKAGES_DIR}/tools/icu/sbin"
-    "${CURRENT_PACKAGES_DIR}/tools/icu/debug")
+file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/tools/icu/sbin" "${CURRENT_PACKAGES_DIR}/tools/icu/debug")
 
 # To cross compile, we need some files at specific positions. So lets copy them
 file(GLOB CROSS_COMPILE_DEFS "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/config/icucross.*")

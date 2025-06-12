@@ -36,7 +36,7 @@ set(FUZZER_TARGETS
     ZlibDecompression
 )
 
-if (TARGET LibWeb)
+if(TARGET LibWeb)
     list(APPEND FUZZER_TARGETS CSSParser)
 endif()
 
