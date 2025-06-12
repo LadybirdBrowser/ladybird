@@ -1,5 +1,5 @@
 <#text>
-index: 1
+index: 2
 <BODY>
 ---
 <#text>
@@ -7,7 +7,7 @@ index: 1
 <B id="b1">
 ---
 <#text>
-index: 1
+index: 2
 <DIV id="d1">
 ---
 <#text>
