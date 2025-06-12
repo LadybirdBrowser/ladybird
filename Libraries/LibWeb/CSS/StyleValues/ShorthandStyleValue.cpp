@@ -378,6 +378,9 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto& rows = longhand(PropertyID::GridTemplateRows)->as_grid_track_size_list();
         auto& columns = longhand(PropertyID::GridTemplateColumns)->as_grid_track_size_list();
 
+        if (areas.grid_template_area().size() == 0 && rows.grid_track_size_list().track_list().size() == 0 && columns.grid_track_size_list().track_list().size() == 0)
+            return "none"_string;
+
         auto construct_rows_string = [&]() {
             StringBuilder builder;
             size_t idx = 0;
