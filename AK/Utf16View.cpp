@@ -133,6 +133,11 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
     return builder.to_string();
 }
 
+bool Utf16View::is_ascii() const
+{
+    return simdutf::validate_ascii(reinterpret_cast<char const*>(m_code_units.data()), length_in_code_units() * sizeof(char16_t));
+}
+
 size_t Utf16View::length_in_code_points() const
 {
     if (m_length_in_code_points == NumericLimits<size_t>::max())
