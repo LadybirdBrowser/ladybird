@@ -1451,7 +1451,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
         auto ref_length = ref.length_in_code_units();
 
         // k. Set result to the string-concatenation of result and refReplacement.
-        result.append(ref_replacement.span().data(), ref_replacement.length_in_code_units());
+        result.append(ref_replacement.utf16_span().data(), ref_replacement.length_in_code_units());
 
         // j. Set templateRemainder to the substring of templateRemainder from refLength.
         // NOTE: We do this step last because refReplacement may point to templateRemainder.
