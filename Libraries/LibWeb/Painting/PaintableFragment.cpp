@@ -19,8 +19,8 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
     , m_offset(fragment.offset())
     , m_size(fragment.size())
     , m_baseline(fragment.baseline())
-    , m_start(fragment.start())
-    , m_length(fragment.length())
+    , m_start_byte_offset(fragment.start())
+    , m_length_in_bytes(fragment.length())
     , m_glyph_run(fragment.glyph_run())
     , m_writing_mode(fragment.writing_mode())
 {
@@ -37,9 +37,9 @@ CSSPixelRect const PaintableFragment::absolute_rect() const
 
 size_t PaintableFragment::index_in_node_for_byte_offset(size_t byte_offset) const
 {
-    if (m_length == 0)
+    if (m_length_in_bytes == 0)
         return 0;
-    if (byte_offset >= m_start + m_length)
+    if (byte_offset >= m_start_byte_offset + m_length_in_bytes)
         return utf16_view().length_in_code_units();
     auto code_point_offset = utf8_view().code_point_offset_of(byte_offset);
     return utf16_view().code_unit_offset_of(code_point_offset);
@@ -63,7 +63,7 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
         return 0;
 
     // Find the code point offset of the glyph matching the position.
-    auto code_point_offset = utf8_view().code_point_offset_of(m_start);
+    auto code_point_offset = utf8_view().code_point_offset_of(m_start_byte_offset);
     auto const& glyphs = m_glyph_run->glyphs();
     auto smallest_distance = AK::NumericLimits<float>::max();
     for (size_t i = 0; i < glyphs.size(); ++i) {
@@ -97,25 +97,25 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset_in_code_units, si
     auto code_unit_to_byte_offset = [&](size_t offset_in_code_units) -> size_t {
         auto text_in_utf16 = utf16_view();
         if (offset_in_code_units >= text_in_utf16.length_in_code_units())
-            return m_length;
+            return m_length_in_bytes;
         auto offset_code_point = text_in_utf16.code_point_offset_of(offset_in_code_units);
         auto byte_offset = utf8_view().byte_offset_of(offset_code_point);
-        if (byte_offset <= m_start)
+        if (byte_offset <= m_start_byte_offset)
             return 0;
-        if (byte_offset > m_start + m_length)
-            return m_length;
-        return byte_offset - m_start;
+        if (byte_offset > m_start_byte_offset + m_length_in_bytes)
+            return m_length_in_bytes;
+        return byte_offset - m_start_byte_offset;
     };
 
     // We operate on the UTF-8 string that is part of this fragment.
-    auto text = utf8_view().substring_view(m_start, m_length);
+    auto text = utf8_view().substring_view(m_start_byte_offset, m_length_in_bytes);
 
     if (paintable().selection_state() == Paintable::SelectionState::StartAndEnd) {
         auto selection_start_in_this_fragment = code_unit_to_byte_offset(start_offset_in_code_units);
         auto selection_end_in_this_fragment = code_unit_to_byte_offset(end_offset_in_code_units);
 
         // we are in the start/end node (both the same)
-        if (selection_start_in_this_fragment >= m_length)
+        if (selection_start_in_this_fragment >= m_length_in_bytes)
             return {};
         if (selection_end_in_this_fragment == 0)
             return {};
@@ -143,10 +143,10 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset_in_code_units, si
     }
     if (paintable().selection_state() == Paintable::SelectionState::Start) {
         auto selection_start_in_this_fragment = code_unit_to_byte_offset(start_offset_in_code_units);
-        auto selection_end_in_this_fragment = m_length;
+        auto selection_end_in_this_fragment = m_length_in_bytes;
 
         // we are in the start node
-        if (selection_start_in_this_fragment >= m_length)
+        if (selection_start_in_this_fragment >= m_length_in_bytes)
             return {};
 
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
