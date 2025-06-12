@@ -89,9 +89,9 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     Utf16Data full_data;
     full_data.ensure_capacity(before_data.length_in_code_units() + inserted_data_result.data.size() + after_data.length_in_code_units());
-    full_data.append(before_data.span().data(), before_data.length_in_code_units());
+    full_data.append(before_data.utf16_span().data(), before_data.length_in_code_units());
     full_data.extend(inserted_data_result.data);
-    full_data.append(after_data.span().data(), after_data.length_in_code_units());
+    full_data.append(after_data.utf16_span().data(), after_data.length_in_code_units());
     Utf16View full_view { full_data };
 
     bool characters_are_the_same = utf16_view == full_view;

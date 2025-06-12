@@ -19,6 +19,7 @@ template<size_t inline_capacity>
 class ByteBuffer;
 
 class StringData;
+class Utf16StringData;
 
 }
 
@@ -52,6 +53,7 @@ class String;
 class StringBuilder;
 class StringView;
 class UnixDateTime;
+class Utf16String;
 class Utf16View;
 class Utf32CodePointIterator;
 class Utf32View;
@@ -198,6 +200,7 @@ using AK::StringView;
 using AK::TrailingCodePointTransformation;
 using AK::Traits;
 using AK::UnixDateTime;
+using AK::Utf16String;
 using AK::Utf16View;
 using AK::Utf32CodePointIterator;
 using AK::Utf32View;

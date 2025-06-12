@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/AllOf.h>
 #include <AK/Assertions.h>
+#include <AK/CharacterTypes.h>
 #include <AK/Checked.h>
 #include <AK/Format.h>
 #include <AK/Types.h>
@@ -98,6 +100,12 @@ public:
     bool is_empty() const { return m_length == 0; }
     bool is_null() const { return !m_code_points; }
     size_t length() const { return m_length; }
+
+    bool is_ascii() const
+    {
+        // FIXME: Petition simdutf to implement an ASCII validator for UTF-32.
+        return all_of(*this, AK::is_ascii);
+    }
 
     size_t iterator_offset(Utf32CodePointIterator const& it) const
     {

@@ -249,8 +249,10 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
 {
     if (utf16_view.is_empty())
         return {};
+    if (utf16_view.has_ascii_storage())
+        return try_append(utf16_view.bytes());
 
-    auto remaining_view = utf16_view.span();
+    auto remaining_view = utf16_view.utf16_span();
     auto maximum_utf8_length = UnicodeUtils::maximum_utf8_length_from_utf16(remaining_view);
 
     // Possibly over-allocate a little to ensure we don't have to allocate later.
