@@ -51,12 +51,16 @@ public:
     WebIDL::CallbackType* oncuechange();
 
     ReadinessState readiness_state() { return m_readiness_state; }
-    void set_readiness_state(ReadinessState readiness_state) { m_readiness_state = readiness_state; }
+    void set_readiness_state(ReadinessState readiness_state);
+
+    void register_observer(Badge<TextTrackObserver>, TextTrackObserver&);
+    void unregister_observer(Badge<TextTrackObserver>, TextTrackObserver&);
 
 private:
     TextTrack(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
     Bindings::TextTrackKind m_kind { Bindings::TextTrackKind::Subtitles };
     String m_label {};
@@ -67,6 +71,8 @@ private:
     Bindings::TextTrackMode m_mode { Bindings::TextTrackMode::Disabled };
 
     ReadinessState m_readiness_state { ReadinessState::NotLoaded };
+
+    HashTable<GC::Ref<TextTrackObserver>> m_observers;
 };
 
 Bindings::TextTrackKind text_track_kind_from_string(String);

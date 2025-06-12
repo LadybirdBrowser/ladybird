@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/HTMLTrackElement.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/TextTrack.h>
+#include <LibWeb/HTML/TextTrackObserver.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
@@ -37,12 +38,14 @@ void HTMLTrackElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 
     m_track = TextTrack::create(realm);
+    m_track_observer = realm.create<TextTrackObserver>(realm, *m_track);
 }
 
 void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_track);
+    visitor.visit(m_track_observer);
     visitor.visit(m_fetch_algorithms);
     visitor.visit(m_fetch_controller);
 }
@@ -132,16 +135,28 @@ void HTMLTrackElement::set_track_url(String track_url)
 
     m_track_url = move(track_url);
 
+    auto track_is_hidden_or_showing = first_is_one_of(m_track->mode(), Bindings::TextTrackMode::Hidden, Bindings::TextTrackMode::Showing);
+
     // https://html.spec.whatwg.org/multipage/media.html#start-the-track-processing-model
-    if (m_loading && m_fetch_controller && first_is_one_of(m_track->mode(), Bindings::TextTrackMode::Hidden, Bindings::TextTrackMode::Showing)) {
+    if (m_loading && m_fetch_controller && track_is_hidden_or_showing) {
         m_loading = false;
         m_fetch_controller->abort(realm(), {});
+    }
+
+    // https://html.spec.whatwg.org/multipage/media.html#start-the-track-processing-model
+    if (m_awaiting_track_url_change && track_is_hidden_or_showing) {
+        m_awaiting_track_url_change = false;
+
+        // 13. Jump to the step labeled top.
+        start_the_track_processing_model_parallel_steps();
     }
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#start-the-track-processing-model
 void HTMLTrackElement::start_the_track_processing_model()
 {
+    auto& realm = this->realm();
+
     // 1. If another occurrence of this algorithm is already running for this text track and its track element, return,
     //    letting that other algorithm take care of this element.
     if (m_loading)
@@ -158,14 +173,15 @@ void HTMLTrackElement::start_the_track_processing_model()
     m_loading = true;
 
     // 4. Run the remainder of these steps in parallel, allowing whatever caused these steps to run to continue.
-    auto& realm = this->realm();
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm] {
-        start_the_track_processing_model_parallel_steps(realm);
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this]() {
+        start_the_track_processing_model_parallel_steps();
     }));
 }
 
-void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm& realm)
+void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
 {
+    auto& realm = this->realm();
+
     // 5. Top: Await a stable state. The synchronous section consists of the following steps.
 
     // 6. ⌛ Set the text track readiness state to loading.
@@ -236,17 +252,22 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm
     }
 
     // 11. Wait until the text track readiness state is no longer set to loading.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.heap(), [this] {
-        return m_track->readiness_state() != TextTrack::ReadinessState::Loading;
-    }));
+    if (m_track->readiness_state() == TextTrack::ReadinessState::Loading) {
+        m_track_observer->set_track_readiness_observer([this, url = move(url)](TextTrack::ReadinessState) mutable {
+            if (m_track->readiness_state() != TextTrack::ReadinessState::Loading)
+                track_became_ready();
+        });
+    } else {
+        track_became_ready();
+    }
+}
+
+void HTMLTrackElement::track_became_ready()
+{
+    m_track_observer->set_track_readiness_observer({});
 
     // 12. Wait until the track URL is no longer equal to URL, at the same time as the text track mode is set to hidden or showing.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.heap(), [this, url = move(url)] {
-        return track_url() != url && first_is_one_of(m_track->mode(), Bindings::TextTrackMode::Hidden, Bindings::TextTrackMode::Showing);
-    }));
-
-    // 13. Jump to the step labeled top.
-    start_the_track_processing_model_parallel_steps(realm);
+    m_awaiting_track_url_change = true;
 }
 
 void HTMLTrackElement::track_failed_to_load()
