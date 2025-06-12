@@ -35,6 +35,8 @@ private:
     void start_the_track_processing_model();
     void start_the_track_processing_model_parallel_steps(JS::Realm& realm);
 
+    void track_failed_to_load();
+
     // ^DOM::Element
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual void inserted() override;
