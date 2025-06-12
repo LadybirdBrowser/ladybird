@@ -1,0 +1,44 @@
+test("basic functionality", () => {
+    expect(Math.clz32).toHaveLength(1);
+
+    expect(Math.clz32(0)).toBe(32);
+    expect(Math.clz32(1)).toBe(31);
+    expect(Math.clz32(2)).toBe(30);
+    expect(Math.clz32(3)).toBe(30);
+    expect(Math.clz32(4)).toBe(29);
+    expect(Math.clz32(5)).toBe(29);
+    expect(Math.clz32(-1)).toBe(0);
+    expect(Math.clz32(-10)).toBe(0);
+    expect(Math.clz32(-100)).toBe(0);
+    expect(Math.clz32(-1000)).toBe(0);
+    expect(Math.clz32(-0.123)).toBe(32);
+    expect(Math.clz32(0.123)).toBe(32);
+    expect(Math.clz32(1.23)).toBe(31);
+    expect(Math.clz32(12)).toBe(28);
+    expect(Math.clz32(123)).toBe(25);
+    expect(Math.clz32(1234)).toBe(21);
+    expect(Math.clz32(12345)).toBe(18);
+    expect(Math.clz32(123456)).toBe(15);
+    expect(Math.clz32(1234567)).toBe(11);
+    expect(Math.clz32(12345678)).toBe(8);
+    expect(Math.clz32(123456789)).toBe(5);
+    expect(Math.clz32(999999999)).toBe(2);
+    expect(Math.clz32(9999999999)).toBe(1);
+    expect(Math.clz32(99999999999)).toBe(1);
+    expect(Math.clz32(999999999999)).toBe(0);
+    expect(Math.clz32(9999999999999)).toBe(1);
+    expect(Math.clz32(99999999999999)).toBe(3);
+    expect(Math.clz32(999999999999999)).toBe(0);
+
+    expect(Math.clz32()).toBe(32);
+    expect(Math.clz32(NaN)).toBe(32);
+    expect(Math.clz32(Infinity)).toBe(32);
+    expect(Math.clz32(-Infinity)).toBe(32);
+    expect(Math.clz32(false)).toBe(32);
+    expect(Math.clz32(true)).toBe(31);
+    expect(Math.clz32(null)).toBe(32);
+    expect(Math.clz32(undefined)).toBe(32);
+    expect(Math.clz32([])).toBe(32);
+    expect(Math.clz32({})).toBe(32);
+    expect(Math.clz32("foo")).toBe(32);
+});

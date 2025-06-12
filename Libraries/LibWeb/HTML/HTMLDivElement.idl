@@ -1,0 +1,11 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmldivelement
+[Exposed=Window]
+interface HTMLDivElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute DOMString align;
+
+};

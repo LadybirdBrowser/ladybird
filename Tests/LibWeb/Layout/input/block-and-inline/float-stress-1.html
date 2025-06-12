@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>float horror show</title>
+    <style type="text/css">
+      html {
+        font: 16px/1 'SerenitySans';
+      }
+
+      .outer {
+        border: 1px solid black;
+        width: 300px;
+        height: 250px;
+      }
+
+      .one {
+        float: left;
+        height: 50px;
+        width: 200px;
+        margin: 0;
+        border: 1px solid black;
+        background-color: #fc0;
+      }
+      .two {
+        float: right;
+        height: 50px;
+        width: 200px;
+        margin: 0;
+        border: 1px solid black;
+        background-color: pink;
+      }
+      .lefty {
+        float: left;
+        height: 50px;
+        width: 50px;
+        margin: 0;
+        border: 1px solid black;
+        background-color: lime;
+      }
+      .righty {
+        float: right;
+        height: 30px;
+        width: 30px;
+        margin: 0;
+        border: 1px solid black;
+        background-color: magenta;
+      }
+</style></head><body>
+    <div class=outer>
+        foo bar baz foo bar baz
+        <div class=lefty></div>
+        <div class=one></div>
+        <div class=two></div>
+        foo bar baz foo bar baz
+        foo bar baz foo bar baz
+        <div class=righty></div>
+        foo bar baz foo bar baz
+        foo bar baz foo bar baz
+        foo bar baz foo bar baz
+        <div class="lefty shwifty"></div>
+        foo bar baz foo bar baz
+        <div class=righty></div>
+        foo bar baz foo bar baz
+        foo bar baz foo bar baz
+        foo bar baz foo bar baz
+        foo bar baz foo bar baz
+        foo bar baz foo bar baz
+        foo bar baz foo bar baz

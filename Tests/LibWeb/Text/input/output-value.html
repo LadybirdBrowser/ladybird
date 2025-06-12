@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Set output element value
+        testPart(() => {
+            const output = document.createElement('output');
+            output.value = 'PASS';
+            return output.textContent;
+        });
+
+        // 2. Set output element default value and reset
+        testPart(() => {
+            const form = document.createElement('form');
+            const output = document.createElement('output');
+            output.defaultValue = 'PASS';
+            output.value = 'FAIL';
+            form.appendChild(output);
+            form.reset();
+            return output.textContent;
+        });
+    });
+</script>

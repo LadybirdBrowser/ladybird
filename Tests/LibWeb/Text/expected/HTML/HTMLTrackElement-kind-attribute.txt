@@ -1,0 +1,7 @@
+kind initial value: 'subtitles'
+kind value after setting to "invalid": 'metadata'
+kind value after setting to "captions": 'captions'
+kind value after setting to null: 'metadata'
+kind value after setting to "CHAPTERS": 'chapters'
+kind value after setting to "": 'metadata'
+kind value after calling removeAttribute: 'subtitles'

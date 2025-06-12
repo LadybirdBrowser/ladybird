@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const elementName of ["link", "img", "script"]) {
+            const element = document.createElement(elementName);
+            println(`${elementName} fetchPriority initial value: ${element.fetchPriority}`);
+            element.fetchPriority = "invalid";
+            println(`${elementName} fetchPriority value after setting to "invalid": ${element.fetchPriority}`);
+            element.fetchPriority = "high";
+            println(`${elementName} fetchPriority value after setting to "high": ${element.fetchPriority}`);
+            element.fetchPriority = null;
+            println(`${elementName} fetchPriority value after setting to null: ${element.fetchPriority}`);
+            element.fetchPriority = "HIGH";
+            println(`${elementName} fetchPriority value after setting to "HIGH": ${element.fetchPriority}`);
+            element.fetchPriority = "";
+            println(`${elementName} fetchPriority value after setting to "": ${element.fetchPriority}`);
+            element.removeAttribute("fetchPriority");
+            println(`${elementName} fetchPriority value after calling removeAttribute: ${element.fetchPriority}`);
+        }
+    });
+</script>

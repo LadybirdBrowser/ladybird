@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: Shrink stretched child on relayout</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-flow-property">
+<meta name="assert" content="This ensures that flexbox shrinks stretched children after removing a sibling, in various writing-modes and flows.">
+<style>
+.flexbox {
+    display: flex;
+    background: papayawhip;
+    border: 1px solid midnightblue;
+    margin: 1em;
+    width: 50px;
+}
+
+.flexbox > div {
+    margin: 5px;
+    min-width: 10px;
+    min-height: 10px;
+    background-color: lawngreen;
+}
+
+.column {
+    flex-flow: column;
+}
+
+.horizontal-tb {
+    writing-mode: horizontal-tb;
+}
+.vertical-lr {
+    writing-mode: vertical-lr;
+}
+
+.largeitem {
+    height: 200px;
+    width: 200px;
+    margin: 5px;
+}
+</style>
+</head>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox">
+  <div data-expected-height=10 data-expected-width=10></div>
+  <div class="largeitem"></div>
+</div>
+<div class="flexbox column">
+  <div data-expected-height=10 data-expected-width=40></div>
+  <div class="largeitem"></div>
+</div>
+
+<div class="flexbox">
+  <div class="horizontal-tb" data-expected-height=10 data-expected-width=10></div>
+  <div class="largeitem"></div>
+</div>
+<div class="flexbox column">
+  <div class="horizontal-tb" data-expected-height=10 data-expected-width=40></div>
+  <div class="largeitem"></div>
+</div>
+<div class="flexbox">
+  <div class="vertical-lr" data-expected-height=10 data-expected-width=10></div>
+  <div class="largeitem"></div>
+</div>
+<div class="flexbox column">
+  <div class="vertical-lr" data-expected-height=10 data-expected-width=40></div>
+  <div class="largeitem"></div>
+</div>
+<script>
+document.body.offsetTop;
+var targets = document.getElementsByClassName('largeitem');
+for (var i = targets.length - 1; i >= 0; i--) {
+  targets[i].remove();
+};
+</script>

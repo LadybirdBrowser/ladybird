@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	initial_color: div#subject.color
+Pass	remove descendant: div#subject.color

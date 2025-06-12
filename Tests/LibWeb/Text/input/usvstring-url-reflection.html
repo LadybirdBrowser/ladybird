@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let elementList = [
+            { "audio": "src" },
+            { "embed": "src" },
+            { "frame": "longDesc" },
+            { "frame": "src" },
+            { "iframe": "longDesc" },
+            { "iframe": "src" },
+            { "img": "src" },
+            { "img": "longDesc" },
+            { "img": "lowsrc" },
+            { "input": "src" },
+            { "link": "href" },
+            { "object": "codeBase" },
+            { "object": "data" },
+            { "script": "src" },
+            { "source": "src" },
+            { "track": "src" },
+            { "video": "poster" },
+            { "video": "src" },
+            { "q": "cite" },
+            { "blockquote": "cite" },
+            { "ins": "cite" },
+            { "del": "cite" },
+        ];
+        for (const elementDescriptor of elementList) {
+            [elementName, propertyName] = Object.entries(elementDescriptor)[0];
+            const element = document.createElement(elementName);
+            element[propertyName] = "\udddda\uddddb\udddd";
+            println(`${elementName}.${propertyName} final URL path segment: ${element[propertyName].split("/").pop()}`);
+        }
+    });
+</script>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: max-width of inflexible items</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#resolve-flexible-lengths">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flexibility">
+<link rel="bookmark" href="https://crbug.com/617956">
+<meta name="assert" content="Inflexible items (flex factor 0 or flex basis violating the min/max size constraint) take max-width into account.">
+<style>
+.columns {
+  display: flex;
+  width: 800px;
+}
+
+.columns > div {
+  background: #aaa;
+}
+
+.column1 {
+  width: 800px;
+  overflow: auto;
+  max-width: 150px;
+}
+
+.column2 {
+  flex: 0.8 0 0;
+}
+
+.red {
+  position: absolute;
+  width: 510px;
+  background: red !important;
+  height: 10px;
+  z-index: -1;
+}
+
+.abspos {
+  position: absolute;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.columns')">
+<div id=log></div>
+
+<p>You should see no red</p>
+<div class="columns">
+  <div class="red"></div>
+  <div class="column1" data-expected-width="150">
+    Column 1
+  </div>
+  <div class="column2" data-expected-width="520">
+    Column 2
+  </div>
+</div>
+
+<p>This second part is just to ensure we don't assert</p>
+<div class="columns">
+  <div class="column1 abspos" data-expected-width="150">
+    Column 1
+  </div>
+  <div class="column2" data-expected-width="640">
+    Column 2
+  </div>
+</div>

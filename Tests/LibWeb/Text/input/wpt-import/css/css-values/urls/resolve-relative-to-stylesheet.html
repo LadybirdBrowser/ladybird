@@ -1,0 +1,33 @@
+<!doctype html>
+<title>URLs in a stylesheet resolve relative to the stylesheet</title>
+<link rel=help href=https://drafts.csswg.org/css-values/#relative-urls>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<link id="stylesheet" rel=stylesheet href=support/relative-urls.css>
+<div id="stylesheet-relative-image"></div>
+<div id="stylesheet-relative-variable-image"></div>
+<div id="stylesheet-relative-document-variable-image"></div>
+<style>
+    :root {
+        --image-path-document: url("images/test.png");
+    }
+</style>
+<script>
+const ids = [
+  "stylesheet-relative-image",
+  "stylesheet-relative-variable-image",
+  "stylesheet-relative-document-variable-image",
+];
+
+for (let id of ids) {
+    test(() => {
+        const el = document.getElementById(id);
+        const backgroundImageStyle = window.getComputedStyle(el)["background-image"];
+
+        const stylesheet = document.getElementById("stylesheet");
+        const sheetRelativeImageURL = new URL("images/test.png", stylesheet.href);
+
+        assert_equals(backgroundImageStyle, `url("${sheetRelativeImageURL.href}")`);
+    }, "stylesheet-relative URL: " + id);
+}
+</script>

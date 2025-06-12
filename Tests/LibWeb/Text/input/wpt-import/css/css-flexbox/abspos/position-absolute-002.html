@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Test: Absolutely positioned children of flexboxes</title>
+<link href="../support/flexbox.css" rel="stylesheet">
+<link rel="author" title="Google Inc." href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+<meta name="flags" content="dom">
+<meta name="assert" content="Checks that we correctly position abspos children
+with different alignments and dynamic changes">
+<style>
+body {
+    margin: 0;
+}
+.flexbox {
+    background-color: green;
+    height: 100px;
+    width: 100px;
+    margin: 10px;
+}
+.flexbox > * {
+    flex: none;
+}
+.relative {
+    position: relative;
+}
+.flexbox > div {
+    width: 20px;
+    height: 20px;
+}
+.absolute {
+    position: absolute;
+}
+#placed-absolute {
+    top: 20px;
+    left: 20px;
+}
+
+.rtl {
+    direction: rtl;
+}
+.ltr {
+    direction: ltr;
+}
+
+.flexbox :nth-child(1) {
+    background-color: blue;
+}
+.flexbox :nth-child(2) {
+    background-color: yellow;
+}
+.flexbox :nth-child(3) {
+    background-color: salmon;
+}
+.flexbox :nth-child(4) {
+    background-color: grey;
+}
+.flexbox :nth-child(5) {
+    background-color: red;
+}
+.flexbox :nth-child(6) {
+    background-color: orange;
+}
+.flexbox :nth-child(7) {
+    background-color: purple;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class='flexbox relative align-items-center'>
+    <div id='placed-absolute' class='absolute' data-offset-x=20 data-offset-y=20></div>
+</div>
+
+<div class='flexbox relative align-items-center'>
+    <div data-offset-x=0 data-offset-y=40></div>
+    <div class='absolute' data-offset-x=0 data-offset-y=40></div>
+    <div data-offset-x=20 data-offset-y=40></div>
+    <div class="absolute" style="top: 5px; left: 5px" data-offset-x=5 data-offset-y=5></div>
+</div>
+
+<div class="relative">
+<div class='flexbox align-items-center'>
+    <div data-offset-x=10 data-offset-y=40></div>
+    <div class='absolute' data-offset-x=10 data-offset-y=40></div>
+    <div data-offset-x=30 data-offset-y=40></div>
+    <div class="absolute" style="top: 5px; left: 5px" data-offset-x=5 data-offset-y=5></div>
+</div>
+</div>
+
+<div class='flexbox relative column rtl'>
+    <div data-offset-x=80 data-offset-y=0></div>
+    <div class='absolute' data-offset-x=80 data-offset-y=0></div>
+    <div data-offset-x=80 data-offset-y=20></div>
+    <div class="absolute" style="top: 5px; left: 5px" data-offset-x=5 data-offset-y=5></div>
+</div>
+
+<div class="relative">
+<div class='flexbox wrap-reverse'>
+    <div style="width:90px" data-offset-x=10 data-offset-y=80></div>
+    <div class="absolute" data-offset-x=10 data-offset-y=80></div>
+    <div data-offset-x=10 data-offset-y=30></div>
+    <div class="absolute" data-offset-x=10 data-offset-y=80></div>
+    <div data-offset-x=30 data-offset-y=30></div>
+    <div class="absolute" data-offset-x=10 data-offset-y=80></div>
+    <div class="absolute" style="top: 5px; left: 5px" data-offset-x=5 data-offset-y=5></div>
+</div>
+</div>
+
+<div class='flexbox relative'>
+    <div style="margin: auto;" data-offset-x=40 data-offset-y=40></div>
+    <div class="absolute" style="margin: auto;" data-offset-x=0 data-offset-y=0></div>
+    <div class="absolute" style="margin: auto;" data-offset-x=0 data-offset-y=0></div>
+    <div class="absolute" style="margin: auto; top: 5px; left: 5px" data-offset-x=5 data-offset-y=5></div>
+</div>
+
+<div class='flexbox align-items-stretch relative'>
+    <div style="height: auto" data-offset-x=0 data-offset-y=0 data-expected-height=100></div>
+    <div class="absolute" style="height: auto" data-offset-x=0 data-offset-y=0 data-expected-height=0></div>
+    <div class="absolute" style="height: auto; top: 5px; left: 5px" data-offset-x=5 data-offset-y=5 data-expected-height=0></div>
+</div>
+
+<div class="flexbox wrap relative">
+  <div style="width: 100px;" data-offset-x=0 data-offset-y=0></div>
+  <div class="absolute" data-offset-x=0 data-offset-y=0></div>
+  <div style="width: 50px;" data-offset-x=0 data-offset-y=50></div>
+  <div class="absolute" data-offset-x=0 data-offset-y=0></div>
+  <div style="width: 50px;" data-offset-x=50 data-offset-y=50></div>
+  <div class="absolute" data-offset-x=0 data-offset-y=0></div>
+</div>
+
+<div class="flexbox wrap relative align-items-flex-end">
+  <div style="width: 100px;" data-offset-x=0 data-offset-y=30></div>
+  <div class="absolute" data-offset-x=0 data-offset-y=80></div>
+  <div style="width: 50px;" data-offset-x=0 data-offset-y=80></div>
+  <div class="absolute" data-offset-x=0 data-offset-y=80></div>
+  <div style="width: 50px;" data-offset-x=50 data-offset-y=80></div>
+  <div class="absolute" data-offset-x=0 data-offset-y=80></div>
+</div>
+
+
+<script>
+var absolute = document.getElementById('placed-absolute');
+var beforePosition = absolute.getBoundingClientRect();
+document.querySelector('.flexbox').style.height = '101px';
+var afterPosition = absolute.getBoundingClientRect();
+
+// Positioned element should not change position when the height of it's parent flexbox is changed.
+for (key in beforePosition) {
+    test(function() {
+        assert_equals(beforePosition[key], afterPosition[key]);
+    }, 'position of ' + key);
+}
+</script>
+</body>
+</html>

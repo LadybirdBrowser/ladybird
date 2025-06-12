@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :nth-child(... of class) when ancestor changes</title>
+<link rel="author" title="Steinar H. Gunderson" href="sesse@chromium.org">
+<link rel="match" href="../../../../../expected/wpt-import/css/selectors/invalidation/nth-child-when-ancestor-changes-ref.html">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<style>
+  .ancestor :nth-child(even of .c) {
+    color: green;
+  }
+</style>
+<div id="toggler">
+  <p>Ignored</p>
+  <p class="c">Not ignored</p>
+  <p class="c">Not ignored</p>
+  <p class="c">Not ignored</p>
+  <p class="c">Not ignored</p>
+  <p>Ignored</p>
+</div>
+<script>
+  document.documentElement.offsetTop;
+  toggler.classList.toggle("ancestor");
+</script>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<form>
+  <input name="one" id="formcontrol" type="button" />
+  <input name="two" id="formcontrol" type="text" />
+</form>
+
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.all.constructor.name);
+        println(`typeof document.all = ${typeof document.all}`);
+        println(`equal to undefined = ${document.all == undefined}`);
+        println(`equal to null = ${document.all == null}`);
+        println(`strictly equal to undefined = ${document.all === undefined}`);
+        println(`strictly equal to null = ${document.all === null}`);
+
+        println(`is an html collection = ${document.all instanceof HTMLAllCollection}`);
+        println(`length = ${document.all.length}`);
+        println(`out of range (9)  = ${document.all[9]}`);
+        println(`out of range (-1) = ${document.all[-1]}`);
+
+        // All items
+        for (let i = 0; i < document.all.length; i++) {
+            const item = document.all[i];
+            println(`item #${i} = ${item}, id = '${item.id}', name = '${item.name}'`);
+        }
+
+        // String-like
+        println(`From good string index = ${document.all["4"]}, name = ${document.all["4"].name}`);
+        println(`From bad string index = ${document.all["50"]}`);
+
+        // Single lookup
+        println(`${document.all.one}, name ${document.all.one.name}`);
+        println(`${document.all.two}, name ${document.all.two.name}`);
+
+        // No match
+        println(document.all.nomatch);
+
+        // Matching multiple
+        const subcollection = document.all.formcontrol;
+        println(`${subcollection}, length = ${subcollection.length}`);
+        println(`first = ${subcollection[0]}`);
+        println(`second = ${subcollection[1]}`);
+
+        // Explicit named item call
+        println(`namedItem('one') = ${document.all.namedItem('one')}`);
+        println(`namedItem('1') = ${document.all.namedItem('1')}`);
+        println(`namedItem('not in list') = ${document.all.namedItem('not in list')}`);
+
+        // Explicit item call
+        println(`item() = ${document.all.item()}`);
+        println(`item('1') = ${document.all.item('1')}`);
+        println(`namedItem(2) = ${document.all.item(2)}`);
+    });
+</script>

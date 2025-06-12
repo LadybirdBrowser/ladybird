@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>    
+    function setDesignMode(value) {
+        document.designMode = value;
+        println(`document.designMode after setting to "${value}": ${document.designMode}`);
+    }
+    
+    test(() => {
+        println(`document.designMode initial value: ${document.designMode}`);
+        
+        setDesignMode("invalid");
+        setDesignMode("on");
+        setDesignMode("off");
+        setDesignMode("ON");
+        setDesignMode("OFF");
+    });
+</script>

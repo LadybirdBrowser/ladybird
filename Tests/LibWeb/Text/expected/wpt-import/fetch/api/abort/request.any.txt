@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	Calling arrayBuffer() on an aborted request
+Pass	Aborting a request after calling arrayBuffer()
+Pass	Calling arrayBuffer() on an aborted consumed empty request
+Pass	Calling arrayBuffer() on an aborted consumed nonempty request
+Pass	Calling blob() on an aborted request
+Pass	Aborting a request after calling blob()
+Pass	Calling blob() on an aborted consumed empty request
+Pass	Calling blob() on an aborted consumed nonempty request
+Pass	Calling formData() on an aborted request
+Pass	Aborting a request after calling formData()
+Pass	Calling formData() on an aborted consumed nonempty request
+Pass	Calling json() on an aborted request
+Pass	Aborting a request after calling json()
+Pass	Calling json() on an aborted consumed nonempty request
+Pass	Calling text() on an aborted request
+Pass	Aborting a request after calling text()
+Pass	Calling text() on an aborted consumed empty request
+Pass	Calling text() on an aborted consumed nonempty request

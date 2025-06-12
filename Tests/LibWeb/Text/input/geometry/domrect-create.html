@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            try {
+                println(`${testCounter}. ${JSON.stringify(part())}`);
+            } catch (e) {
+                println(`${testCounter}. Exception: ${e.name}`);
+            }
+            testCounter++;
+        }
+
+        for (const Rect of [DOMRect, DOMRectReadOnly]) {
+            println(`Testing ${Rect.name}:`);
+
+            // 1. Creating a DOMRect with no arguments
+            testPart(() => new Rect());
+
+            // 2. Creating a DOMRect with positive x, y, width and height
+            testPart(() => new Rect(10, 20, 30, 40));
+
+            // 3. Creating a DOMRect with negative x and y values
+            testPart(() => new Rect(-10, -20, 30, 40));
+
+            // 4. Creating a DOMRect with DOMRect.fromRect()
+            testPart(() => Rect.fromRect({ x: 10, y: 20, width: 30, height: 40 }));
+
+            // 5. Creating a DOMRect with NaN x value
+            testPart(() => new Rect(NaN, 20, 30, 40));
+
+            // 6. Creating a DOMRect with NaN y value
+            testPart(() => new Rect(10, NaN, 30, 40));
+
+            // 7. Creating a DOMRect with NaN width value
+            testPart(() => new Rect(10, 20, NaN, 40));
+
+            // 8. Creating a DOMRect with NaN height value
+            testPart(() => new Rect(10, 20, 30, NaN));
+
+            // 5. Creating a DOMRect with Infinity x value
+            testPart(() => new Rect(Infinity, 20, 30, 40));
+
+            // 6. Creating a DOMRect with Infinity y value
+            testPart(() => new Rect(10, Infinity, 30, 40));
+
+            // 7. Creating a DOMRect with Infinity width value
+            testPart(() => new Rect(10, 20, Infinity, 40));
+
+            // 8. Creating a DOMRect with Infinity height value
+            testPart(() => new Rect(10, 20, 30, Infinity));
+
+            testCounter = 1;
+        }
+    });
+</script>

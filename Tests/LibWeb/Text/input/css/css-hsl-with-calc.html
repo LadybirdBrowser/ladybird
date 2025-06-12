@@ -1,0 +1,11 @@
+<!doctype html><script src="../include.js"></script><style>    
+    body {    
+      --saturation-factor: 1;  
+      background: hsl(225, calc(var(--saturation-factor, 1) * 6.3%), 12.5%);  
+    }    
+</style><body></body><script>
+test(() => {
+    const bodyStyle = window.getComputedStyle(document.body);
+    println(bodyStyle.backgroundColor);
+});
+</script>

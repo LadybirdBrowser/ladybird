@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The constraint validation API Test: element.validity.tooShort</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#suffering-from-being-too-short">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-constraint-validation-api">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/validator.js"></script>
+<div id="log"></div>
+<script>
+  var testElements = [
+    {
+      tag: "input",
+      types: ["text", "search", "tel", "url", "email", "password"],
+      testData: [
+        // Non-dirty value
+        {conditions: {minLength: "", value: "abc"}, expected: false, name: "[target] Non-dirty value - minLength is not set"},
+        {conditions: {minLength: "4", value: ""}, expected: false, name: "[target] Non-dirty value - value is empty string"},
+        {conditions: {minLength: "4", value: "abcde"}, expected: false, name: "[target] Non-dirty value - length of value is greater than minLength"},
+        {conditions: {minLength: "4", value: "abcd"}, expected: false, name: "[target] Non-dirty value - length of value equals to minLength"},
+        {conditions: {minLength: "4", value: "abc"}, expected: false, name: "[target] Non-dirty value - length of value is less than minLength"},
+        //Dirty value
+        {conditions: {minLength: "4", value: "abcde"}, expected: false, name: "[target] Dirty value - value is greater than minLength", dirty: true},
+        {conditions: {minLength: "4", value: "\u0041\u0041\u0041\u0041\u0041"}, expected: false, name: "[target] Dirty value - length of value(AAAAA) in unicode is greater than minLength", dirty: true},
+        {conditions: {minLength: "4", value: "abcd"}, expected: false, name: "[target] Dirty value - value equals to minLength", dirty: true},
+        // False due to lack of required interactive editing by the user
+        {conditions: {minLength: "4", value: "abc"}, expected: false, name: "[target] Dirty value - length of value is less than minLength", dirty: true}
+      ]
+    },
+    {
+      tag: "textarea",
+      types: [],
+      testData: [
+        // Non-dirty value
+        {conditions: {minLength: "", value: "abc"}, expected: false, name: "[target] Non-dirty value - minLength is no set"},
+        {conditions: {minLength: "4", value: ""}, expected: false, name: "[target] Non-dirty value - value is empty string"},
+        {conditions: {minLength: "4", value: "abcde"}, expected: false, name: "[target] Non-dirty value - length of value is greater than minLength"},
+        {conditions: {minLength: "4", value: "abcd"}, expected: false, name: "[target] Non-dirty value - length of value equals to minLength"},
+        {conditions: {minLength: "4", value: "abc"}, expected: false, name: "[target] Non-dirty value - length of length of value is greater than minLength"},
+        //Dirty value
+        {conditions: {minLength: "4", value: "abcde"}, expected: false, name: "[target] Dirty value - value is less than minLength", dirty: true},
+        {conditions: {minLength: "4", value: "\u000D\u000A\u000D\u000A\u000D\u000A"}, expected: false, name: "[target] Dirty value - length of value(LF, CRLF) in unicode is less than minLength", dirty: true},
+        {conditions: {minLength: "4", value: "abcd"}, expected: false, name: "[target] Dirty value - length of value equals to minLength", dirty: true},
+        // False due to lack of required interactive editing by the user
+        {conditions: {minLength: "4", value: "abc"}, expected: false, name: "[target] Dirty value - length of value is greater than minLength", dirty: true}
+      ]
+    }
+  ];
+
+  validator.run_test (testElements, "tooShort");
+</script>

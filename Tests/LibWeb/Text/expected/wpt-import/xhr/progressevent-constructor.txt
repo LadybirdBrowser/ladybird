@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Default event values.
+Pass	There must not be a initProgressEvent().
+Pass	Basic test.
+Pass	ECMAScript value conversion test.
+Pass	Positive integer number test.
+Pass	Zero test.
+Pass	Decimal number test.
+Pass	Mixed integer and decimal number test.
+Pass	Negative number.
+Pass	ProgressEventInit members must be matched case-sensitively.

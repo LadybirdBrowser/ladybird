@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style type="text/css">
+    #box { display: none; }
+</style>
+<div id="box"></div>
+<br id="br"/>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const rect = document.getElementById("box").getBoundingClientRect();
+        println(JSON.stringify(rect));
+
+        const br_rect = document.getElementById("br").getBoundingClientRect();
+        println(JSON.stringify(br_rect));
+    });
+</script>

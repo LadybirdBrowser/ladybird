@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Button outside of inert container is focusable.
+Pass	Button with inert atribute is unfocusable.
+Pass	All focusable elements inside inert subtree are unfocusable
+Pass	Can get inert via property
+Pass	Elements inside of inert subtrees return false when getting 'inert'
+Pass	Setting inert via property correctly modifies inert state

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['border-block-start-style'] = "auto" should not set the property value
+Pass	e.style['border-block-start-style'] = "hidden, outset" should not set the property value
+Pass	e.style['border-block-end-style'] = "solid double" should not set the property value
+Pass	e.style['border-block-style'] = "auto" should not set the property value
+Pass	e.style['border-block-style'] = "groove, ridge" should not set the property value
+Pass	e.style['border-block-style'] = "hidden inset dashed" should not set the property value

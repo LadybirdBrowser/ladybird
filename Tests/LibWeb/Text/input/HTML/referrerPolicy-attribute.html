@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const elementName of ["link", "a", "area", "img", "iframe", "script"]) {
+            const element = document.createElement(elementName);
+            println(`${elementName} referrerPolicy initial value: '${element.referrerPolicy}'`);
+            element.referrerPolicy = "invalid";
+            println(`${elementName} referrerPolicy value after setting to "invalid": '${element.referrerPolicy}'`);
+            element.referrerPolicy = "no-referrer";
+            println(`${elementName} referrerPolicy value after setting to "no-referrer": '${element.referrerPolicy}'`);
+            element.referrerPolicy = null;
+            println(`${elementName} referrerPolicy value after setting to null: '${element.referrerPolicy}'`);
+            element.referrerPolicy = "NO-REFERRER";
+            println(`${elementName} referrerPolicy value after setting to "NO-REFERRER": '${element.referrerPolicy}'`);
+            element.referrerPolicy = "";
+            println(`${elementName} referrerPolicy value after setting to "": '${element.referrerPolicy}'`);
+            element.removeAttribute("referrerPolicy");
+            println(`${elementName} referrerPolicy value after calling removeAttribute: '${element.referrerPolicy}'`);
+        }
+    });
+</script>

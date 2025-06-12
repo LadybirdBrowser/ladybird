@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let select = document.createElement("select");
+        let option = document.createElement("option");
+        option.setAttribute("selected", "selected");
+        option.setAttribute("value", "foo");
+        select.appendChild(option);
+        select.value = "foo";
+        println("PASS"); // Didn't crash
+    });
+</script>

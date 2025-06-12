@@ -1,0 +1,2 @@
+<div style="text-align: center;">foobar</div>
+<div style="text-align: center;"><div style="">foobar</div></div>

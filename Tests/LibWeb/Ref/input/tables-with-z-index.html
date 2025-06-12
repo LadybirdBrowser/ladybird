@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<link rel="match" value="../expected/tables-with-z-index-ref.html">
+<style>
+div, table { width: 100px; height: 100px; }
+.table { display: table; }
+.red { background-color: red; }
+.green { background-color: green; }
+.fixed { position: fixed; }
+.absolute { position: absolute; }
+.offset-0 { top: 10px; }
+.offset-1 { top: 120px; }
+.offset-2 { top: 230px; }
+.offset-3 { top: 340px; }
+.offset-4 { top: 450px; }
+.offset-5 { top: 560px; }
+.offset-6 { top: 670px; }
+.offset-7 { top: 780px; }
+.z-index-1 { z-index: 1; }
+.z-index-2 { z-index: 2; }
+</style>
+
+<div class="red fixed offset-0 z-index-1"></div>
+<div class="table green fixed offset-0 z-index-2"></div>
+
+<div class="table green fixed offset-1 z-index-1"></div>
+<div class="red fixed offset-1"></div>
+
+<div class="red fixed offset-2 z-index-1"></div>
+<table class="green fixed offset-2 z-index-2"></table>
+
+<table class="green fixed offset-3 z-index-1"></table>
+<div class="red fixed offset-3"></div>
+
+<div class="red absolute offset-4 z-index-1"></div>
+<div class="table green absolute offset-4 z-index-2"></div>
+
+<div class="table green absolute offset-5 z-index-1"></div>
+<div class="red absolute offset-5"></div>
+
+<div class="red absolute offset-6 z-index-1"></div>
+<table class="green absolute offset-6 z-index-2"></table>
+
+<table class="green absolute offset-7 z-index-1"></table>
+<div class="red absolute offset-7"></div>

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Put float next to line in shrink-to-fit container</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#float-width" title="10.3.5 Floating, non-replaced elements">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-200px-square.html">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="float:left; min-width:150px; background:red;">
+  <div style="float:right; width:100px; height:200px; background:green;"></div>
+  <div style="vertical-align:top; display:inline-block; width:100px; height:200px; background:green;"></div>
+</div>

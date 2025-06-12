@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     version="1.1"
+     width="100%" height="100%" viewBox="0 0 400 400">
+<title>Null test</title>
+<h:script src="../../resources/testharness.js"/>
+<h:script src="../../resources/testharnessreport.js"/>
+
+<text x="200" y="40" font-size="25" fill="black" text-anchor="middle">Test of previousElementSibling and nextElementSibling returning null</text>
+<text id="parentEl" x="200" y="70" font-size="20" fill="black" text-anchor="middle">The result of this test is <tspan id="first_element_child" font-weight="bold">unknown.</tspan></text>
+
+<h:script><![CDATA[
+test(function() {
+  var fec = document.getElementById("first_element_child");
+  assert_equals(fec.previousElementSibling, null)
+  assert_equals(fec.nextElementSibling, null)
+})
+]]></h:script>
+</svg>

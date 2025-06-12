@@ -1,0 +1,11 @@
+#import <SVG/SVGTextContentElement.idl>
+
+// https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextPositioningElement
+[Exposed=Window]
+interface SVGTextPositioningElement : SVGTextContentElement {
+    [FIXME, SameObject] readonly attribute SVGAnimatedLengthList x;
+    [FIXME, SameObject] readonly attribute SVGAnimatedLengthList y;
+    [FIXME, SameObject] readonly attribute SVGAnimatedLengthList dx;
+    [FIXME, SameObject] readonly attribute SVGAnimatedLengthList dy;
+    [FIXME, SameObject] readonly attribute SVGAnimatedNumberList rotate;
+};

@@ -1,0 +1,12 @@
+source_set("HTTP") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "Bodies.cpp",
+    "Headers.cpp",
+    "Methods.cpp",
+    "Requests.cpp",
+    "Responses.cpp",
+    "Statuses.cpp",
+  ]
+}

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Selectors: :nth-last-child() with no argument</title>
+    <link rel="help" href="https://crbug.com/355451192">
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+      #target:nth-last-child() { color: red; }
+      #target { color: green; }
+    </style>
+  <head>
+  <body>
+  <body>
+    <div id="target">Test passes if this line is green.</div>
+    <script>
+  test(() => {
+    assert_equals(getComputedStyle(target).color, 'rgb(0, 128, 0)');
+  });
+    </script>
+  </body>
+</html>
+

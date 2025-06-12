@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	basic <input pattern> support
+Fail	<input pattern> is Unicode code point-aware
+Pass	<input pattern> supports Unicode property escape syntax
+Pass	<input pattern> supports Unicode property escape syntax for properties of strings

@@ -1,0 +1,17 @@
+<!DOCTYPE html><style>
+    .grid {
+        display: grid;
+        grid-template-rows: 100px 100px;
+        grid-template-columns: 100px 100px;
+        grid-auto-flow: column;
+    }
+
+    #b {
+        grid-column: span 2;
+        grid-row: span 2;
+    }
+
+    * {
+        outline: 1px solid black;
+    }
+</style><body><div class="grid"><div id="a">1</div><div id="b">2</div><div id="c">3</div><div id="d">4</div></div></body>

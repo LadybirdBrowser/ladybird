@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<span id="not-a-submit-button"></span>
+<form>
+    <input type="Submit" id="form-associated-button"  />
+</form>
+<input type="Submit" id="other-button" />
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        const form = document.forms[0];
+        form.addEventListener("submit", event => {
+            event.preventDefault();
+            if (event.submitter) {
+                printElement(event.submitter);
+            } else {
+                println("Submitter is null");
+            }
+        });
+        
+        form.requestSubmit();
+        
+        const formAssociatedButton = document.getElementById("form-associated-button");
+        form.requestSubmit(formAssociatedButton);
+
+        const otherButton = document.getElementById("other-button");
+        try {
+            form.requestSubmit(otherButton);
+            println("FAIL");
+        } catch (e) {
+            println(`Exception: ${e.name}`);
+        }
+
+        const notASubmitButton = document.getElementById("not-a-submit-button");
+        try {
+            form.requestSubmit(notASubmitButton);
+            println("FAIL");
+        } catch (e) {
+            println(`Exception: ${e.name}`);
+        }
+    });
+</script>

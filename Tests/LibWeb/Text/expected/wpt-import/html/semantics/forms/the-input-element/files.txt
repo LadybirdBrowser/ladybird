@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 24 tests
+
+23 Pass
+1 Fail
+Pass	files for input type=hidden
+Pass	files for input type=text
+Pass	files for input type=search
+Pass	files for input type=tel
+Pass	files for input type=url
+Pass	files for input type=email
+Pass	files for input type=password
+Pass	files for input type=date
+Pass	files for input type=month
+Pass	files for input type=week
+Pass	files for input type=time
+Pass	files for input type=datetime-local
+Pass	files for input type=number
+Pass	files for input type=range
+Pass	files for input type=color
+Pass	files for input type=checkbox
+Pass	files for input type=radio
+Pass	files for input type=submit
+Pass	files for input type=image
+Pass	files for input type=reset
+Pass	files for input type=button
+Pass	files for input type=file
+Pass	setting <input type=file>.files
+Fail	setting <input type=file>.files from DataTransfer

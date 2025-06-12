@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selector Invalidation: :has() with pseudo-classes</title>
+<link rel="author" title="Antti Koivisto" href="mailto:antti@apple.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+main:has(input) div { color: grey }
+main:has(#checkbox:checked) > #subject { color: red }
+main:has(#option:checked) > #subject { color: red }
+main:has(#checkbox:disabled) > #subject { color: green }
+main:has(#option:disabled) > :is(#subject, #subject2) { color: green }
+main:has(#optgroup:disabled) > #subject { color: blue }
+main:not(:has(#checkbox:enabled)) > #subject3 { color: green }
+main:not(:has(#option:enabled)) :is(#subject3, #subject4) { color: green }
+main:not(:has(#optgroup:enabled)) > #subject3 { color: blue }
+main:has(#text_input:valid) > #subject { color: yellow }
+main:not(:has(#text_input:invalid)) > #subject2 { color: yellow }
+main:has(#form:valid) > #subject3 { color: yellow }
+main:not(:has(#form:invalid)) > #subject4 { color: yellow }
+</style>
+
+<main id=main>
+    <form id=form>
+        <input type=checkbox id=checkbox></input>
+        <select id=select><optgroup id=optgroup><option>a</option><option id=option>b</option></optgroup></select>
+        <input id=text_input type=text required></input>
+    </form>
+    <div id=subject></div>
+    <div id=subject2></div>
+    <div id=subject3></div>
+    <div id=subject4></div>
+</main>
+
+<script>
+const grey = 'rgb(128, 128, 128)';
+const red = 'rgb(255, 0, 0)';
+const green = 'rgb(0, 128, 0)';
+const blue = 'rgb(0, 0, 255)';
+const yellow = 'rgb(255, 255, 0)';
+const purple = 'rgb(128, 0, 128)';
+const pink = 'rgb(255, 192, 203)';
+
+function testColor(test_name, subject_element, color) {
+    test(function() {
+        assert_equals(getComputedStyle(subject_element).color, color);
+    }, test_name);
+}
+
+function testPseudoClassChange(element, property, subject_element, expectedColor)
+{
+    testColor(`Before set ${property} on ${element.id}, testing ${subject_element.id}`, subject_element, grey);
+
+    element[property] = true;
+    testColor(`Set ${property} on ${element.id}, testing ${subject_element.id}`, subject_element, expectedColor);
+
+    element[property] = false;
+    testColor(`Unset ${property} on ${element.id}, testing ${subject_element.id}`, subject_element, grey);
+}
+
+function testSelectedChange(option, subject_element, expectedColor)
+{
+    const oldOption = select.selectedOptions[0];
+    option.selected = true;
+    testColor(`Set select on ${option.id}`, subject_element, expectedColor);
+    oldOption.selected = true;
+    testColor(`Reset select`, subject, grey);
+}
+
+function testValueChange(input, subject_element, expectedColor)
+{
+    testColor(`Before setting value of ${input.id}, testing ${subject_element.id}`, subject_element, grey);
+
+    input.value = "value";
+    testColor(`Set value of ${input.id}, testing ${subject_element.id}`, subject_element, expectedColor);
+
+    input.value = "";
+    testColor(`Clear value of ${input.id}, testing ${subject_element.id}`, subject_element, grey);
+}
+
+testPseudoClassChange(checkbox, "checked", subject, red);
+testSelectedChange(option, subject, red);
+
+testPseudoClassChange(checkbox, "disabled", subject, green);
+testPseudoClassChange(checkbox, "disabled", subject3, green);
+testPseudoClassChange(option, "disabled", subject, green);
+testPseudoClassChange(option, "disabled", subject3, green);
+
+testPseudoClassChange(optgroup, "disabled", subject, blue);
+testPseudoClassChange(optgroup, "disabled", subject2, green);
+testPseudoClassChange(optgroup, "disabled", subject3, blue);
+testPseudoClassChange(optgroup, "disabled", subject4, green);
+
+testValueChange(text_input, subject, yellow);
+testValueChange(text_input, subject2, yellow);
+testValueChange(text_input, subject3, yellow);
+testValueChange(text_input, subject4, yellow);
+</script>

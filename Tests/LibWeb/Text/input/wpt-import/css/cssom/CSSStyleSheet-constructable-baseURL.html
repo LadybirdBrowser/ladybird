@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>CSSStyleSheet baseURL</title>
+<link rel="author" title="Erik Nordin" href="mailto:enordin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#dom-cssstylesheetinit-baseurl">
+<div id="target"></div>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<script>
+
+function currentLocation() {
+  const sections = location.href.split("/")
+  sections.pop();
+  return sections.join("/");
+}
+
+test(() => {
+  const span = document.createElement("span");
+  target.appendChild(span);
+  span.attachShadow({ mode: "open" })
+  const shadowDiv = document.createElement("div");
+  span.shadowRoot.appendChild(shadowDiv);
+
+  const fileName = "example.png"
+  const baseURL = `${location.origin}/custom/path/`;
+  const fullURL = `${baseURL}${fileName}`;
+
+  const sheet = new CSSStyleSheet({ baseURL });
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+
+  sheet.replaceSync(`* { background-image: url("${fileName}"); }`);
+  const styleFromRelative = getComputedStyle(shadowDiv).backgroundImage;
+
+  sheet.replaceSync(`* { background-image: url("${fullURL}"); }`);
+  const styleFromFull = getComputedStyle(shadowDiv).backgroundImage;
+
+  assert_equals(styleFromRelative, styleFromFull);
+}, "Constructing sheet with custom base URL ueses that URL for CSS rules");
+
+test(() => {
+  const span = document.createElement("span");
+  target.appendChild(span);
+  span.attachShadow({ mode: "open" })
+  const shadowDiv = document.createElement("div");
+  span.shadowRoot.appendChild(shadowDiv);
+
+  const fileName = "example.png"
+  const baseURL = "custom/path/";
+  const fullURL = `${currentLocation()}/${baseURL}${fileName}`;
+
+  const sheet = new CSSStyleSheet({ baseURL });
+  span.shadowRoot.adoptedStyleSheets = [sheet];
+
+  sheet.replaceSync(`* { background-image: url("${fileName}"); }`);
+  const styleFromRelative = getComputedStyle(shadowDiv).backgroundImage;
+
+  sheet.replaceSync(`* { background-image: url("${fullURL}"); }`);
+  const styleFromFull = getComputedStyle(shadowDiv).backgroundImage;
+
+  assert_equals(styleFromRelative, styleFromFull);
+}, "Constructing sheet with relative URL adds to the constructor document's base URL");
+
+test(() => {
+  assert_throws_dom("NotAllowedError", () => { new CSSStyleSheet({ baseURL: "https://test:test/"}) });
+}, "Constructing sheet with invalid base URL throws a NotAllowedError");
+
+</script>

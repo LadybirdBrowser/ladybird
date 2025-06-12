@@ -1,0 +1,43 @@
+== Elements and Names ==
+formy.length: 12
+elements.length: 12
+elements[0] === form.foo
+elements[1] === form.bar
+elements[2] === form.baz
+elements[3] === form.qux
+elements[4] === form.quux
+elements[5] === form.corge
+elements[6] === form.foo2
+elements[7] === form.bar2
+elements[8] === form.baz2
+elements[9] === form.qux2
+elements[10] === form.quux2
+elements[11] === form.corge2
+== If no listed elements, picks img ==
+form.inside == image: true
+== Form association ==
+elements in form2: 2
+elements in form3: 2
+== Same name and id for many elements ==
+elements in samename: 6
+samename.a.length: 6
+typeof samename.a: object
+elements in sameid: 6
+sameid.a.length: 6
+typeof sameid.a: object
+== Changing name/id ==
+elements in changy: 1
+hello is goodbye? true
+Can we still use the same name?: true
+new hello is goodbye? false
+new hello is old hello? false
+new hello is newInput? true
+== Changing form attribute ==
+elements in changeForFormAttribute: 0
+elements in changeForFormAttribute: 1
+elements in changeForFormAttribute: 0
+elements in changeForFormAttribute: 1
+elements in changeForFormAttribute: 0
+== Form element appears after a form-associated element ==
+elements in formAfterInput: 1
+typeof formAfterInput.inputBeforeForm: object

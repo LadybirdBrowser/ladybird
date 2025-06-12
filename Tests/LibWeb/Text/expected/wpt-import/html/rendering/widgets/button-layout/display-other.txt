@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+3 Pass
+15 Fail
+Fail	display: block
+Pass	display: run-in
+Pass	display: flow
+Fail	display: flow-root
+Fail	display: table
+Pass	display: list-item
+Fail	display: table-row-group
+Fail	display: table-header-group
+Fail	display: table-footer-group
+Fail	display: table-row
+Fail	display: table-cell
+Fail	display: table-column-group
+Fail	display: table-column
+Fail	display: table-caption
+Fail	display: ruby-base
+Fail	display: ruby-text
+Fail	display: ruby-base-container
+Fail	display: ruby-text-container

@@ -1,0 +1,18 @@
+<!doctype html>
+<title>document.write plaintext</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div><script>
+test(function() {
+  var s = "<table><tr><td>Text</tr><plaintext><tr><td>Filler ";
+  for (var i=0; i<s.length; i++) {
+    document.write(s[i]);
+  }
+  document.close();
+  assert_equals(document.body.childNodes[2].nodeType, document.ELEMENT_NODE);
+  assert_equals(document.body.childNodes[2].localName, "plaintext");
+  assert_equals(document.body.childNodes[2].textContent, "<tr><td>Filler ");
+  assert_equals(document.body.childNodes[3].nodeType, document.ELEMENT_NODE);
+  assert_equals(document.body.childNodes[3].localName, "table");
+  assert_equals(document.body.childNodes[3].textContent, "Text");
+});
+</script>

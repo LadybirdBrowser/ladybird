@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#enableddisabled">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div id="container">
+<button id="button_enabled"></button>
+<button id="button_disabled" disabled></button>
+<input id="input_enabled">
+<input id="input_disabled" disabled>
+<select id="select_enabled"></select>
+<select id="select_disabled" disabled></select>
+<textarea id="textarea_enabled"></textarea>
+<textarea id="textarea_disabled" disabled></textarea>
+<span id="incapable"></span>
+</div>
+
+<script>
+test(() => {
+  const container = document.querySelector('#container');
+  const matched = container.querySelectorAll(':enabled');
+  for (let element of matched) {
+    assert_true(element.id.endsWith('_enabled'), element.id);
+  }
+}, ':enabeld should match to enabled controls');
+
+test(() => {
+  const container = document.querySelector('#container');
+  const matched = container.querySelectorAll(':disabled');
+  for (let element of matched) {
+    assert_true(element.id.endsWith('_disabled'), element.id);
+  }
+}, ':disabled should match to enabled controls');
+
+test(() => {
+  const container = document.querySelector('#container');
+  const matched = container.querySelectorAll(':not(:enabled)');
+  for (let element of matched) {
+    assert_true(element.id.endsWith('_disabled') || element.id == 'incapable', element.id);
+  }
+}, ':not(:enabeld) should match to disabled controls and non-controls');
+
+test(() => {
+  const container = document.querySelector('#container');
+  const matched = container.querySelectorAll(':not(:disabled)');
+  for (let element of matched) {
+    assert_true(element.id.endsWith('_enabled') || element.id == 'incapable', element.id);
+  }
+}, ':not(:disabled) should match to enabled controls and non-controls');
+</script>
+</body>

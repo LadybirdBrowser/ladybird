@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-weight with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-weight-prop">
+<meta name="assert" content="font-weight supports the full grammar 'normal | bold | bolder | lighter | <number [1,1000]>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('font-weight', 'normal');
+test_valid_value('font-weight', 'bold');
+test_valid_value('font-weight', 'bolder');
+test_valid_value('font-weight', 'lighter');
+test_valid_value('font-weight', '1');
+test_valid_value('font-weight', '100');
+test_valid_value('font-weight', '200');
+test_valid_value('font-weight', '300');
+test_valid_value('font-weight', '400');
+test_valid_value('font-weight', '500');
+test_valid_value('font-weight', '600');
+test_valid_value('font-weight', '700');
+test_valid_value('font-weight', '800');
+test_valid_value('font-weight', '900');
+test_valid_value('font-weight', '1000');
+test_valid_value('font-weight', '101');
+test_valid_value('font-weight', '150.25');
+test_valid_value('font-weight', 'calc(100)');
+test_valid_value('font-weight', 'calc(0)');
+test_valid_value('font-weight', 'calc(-100)');
+test_valid_value('font-weight', 'calc(100 + 100)', 'calc(200)');
+test_valid_value('font-weight', 'calc(100 + (sign(20cqw - 10px) * 5))', 'calc(100 + (5 * sign(20cqw - 10px)))');
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: getComputedStyle().fontSize</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-size-prop">
+<meta name="assert" content="font-size computed value is an absolute length.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #container {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<font id="reference"></font>
+<script>
+function test_relative_size(first, second) {
+  test(() => {
+    const target = document.getElementById('target');
+    target.style.fontSize = first;
+    const firstResult = Number(getComputedStyle(target).fontSize.replace('px', ''));
+    target.style.fontSize = second;
+    const secondResult = Number(getComputedStyle(target).fontSize.replace('px', ''));
+    assert_less_than_equal(firstResult, secondResult);
+  }, first + ' <= ' + second);
+}
+
+test_relative_size('xx-small', 'x-small');
+test_relative_size('x-small', 'small');
+test_relative_size('small', 'medium');
+test_relative_size('medium', 'large');
+test_relative_size('large', 'x-large');
+test_relative_size('x-large', 'xx-large');
+// Added in Fonts level 4: https://github.com/w3c/csswg-drafts/issues/3907
+test_relative_size('xx-large', 'xxx-large');
+
+// <relative-size>
+test_relative_size('inherit', 'larger');
+test_relative_size('smaller', 'inherit');
+
+// <length-percentage>
+test_computed_value('font-size', '10px');
+test_computed_value('font-size', '20%', '8px');
+test_computed_value('font-size', 'calc(30% - 40px)', '0px');
+test_computed_value('font-size', 'calc(30% + 40px)', '52px');
+test_computed_value('font-size', 'calc(10px - 0.5em)', '0px');
+test_computed_value('font-size', 'calc(10px + 0.5em)', '30px');
+
+function test_font_size(attribute, keyword) {
+  test(() => {
+    const reference = document.getElementById('reference');
+    reference.setAttribute('size', attribute);
+    const target = document.getElementById('target');
+    target.style.fontSize = keyword;
+    assert_equals(getComputedStyle(target).fontSize, getComputedStyle(reference).fontSize);
+  }, '<font size="' + attribute + '"> is font-size: ' + keyword);
+}
+
+test_font_size('2', 'small');
+test_font_size('3', 'medium');
+test_font_size('4', 'large');
+test_font_size('5', 'x-large');
+test_font_size('6', 'xx-large');
+test_font_size('7', 'xxx-large');
+</script>
+</body>
+</html>

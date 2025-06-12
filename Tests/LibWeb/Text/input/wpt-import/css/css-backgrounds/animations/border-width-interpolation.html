@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-width interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-width">
+<meta name="assert" content="border-width supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  border-width: 30px;
+}
+.target {
+  width: 50px;
+  height: 50px;
+  background-color: black;
+  display: inline-block;
+  border: 2px solid orange;
+  margin: 18px;
+  border-width: 10px;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body></body>
+
+<script>
+// As per https://bugzilla.mozilla.org/show_bug.cgi?id=137688, Firefox does not
+// support getComputedStyle for shorthands. As such, we have one test for this
+// which explicitly checks the shorthand variant, but most tests use one of the
+// longhands instead.
+function compareNotEmpty(actual, expected) {
+  assert_equals(actual, expected);
+  assert_not_equals(actual, '');
+}
+
+test_interpolation({
+  property: 'border-width',
+  from: '20px 40px 60px 80px',
+  to: '30px 50px 70px 90px',
+  comparisonFunction: compareNotEmpty,
+}, [
+  {at: -0.3, expect: '17px 37px 57px 77px'},
+  {at: 0, expect: '20px 40px 60px 80px'},
+  {at: 0.3, expect: '23px 43px 63px 83px'},
+  {at: 0.6, expect: '26px 46px 66px 86px'},
+  {at: 1, expect: '30px 50px 70px 90px'},
+  {at: 1.5, expect: '35px 55px 75px 95px'}
+]);
+
+test_interpolation({
+  property: 'border-left-width',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_interpolation({
+  property: 'border-left-width',
+  from: 'initial',
+  to: '23px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '3px'},
+  {at: 0.3, expect: '9px'},
+  {at: 0.6, expect: '15px'},
+  {at: 1, expect: '23px'},
+  {at: 1.5, expect: '33px'},
+]);
+
+test_interpolation({
+  property: 'border-left-width',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '12px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '30px'},
+]);
+
+test_interpolation({
+  property: 'border-left-width',
+  from: 'unset',
+  to: '23px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '3px'},
+  {at: 0.3, expect: '9px'},
+  {at: 0.6, expect: '15px'},
+  {at: 1, expect: '23px'},
+  {at: 1.5, expect: '33px'},
+]);
+
+test_interpolation({
+  property: 'border-left-width',
+  from: '0px',
+  to: '10px'
+}, [
+  {at: -0.3, expect: '0px'}, // CSS border-left-width can't be negative.
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '3px'},
+  {at: 0.6, expect: '6px'},
+  {at: 1, expect: '10px'},
+  {at: 1.5, expect: '15px'}
+]);
+
+test_interpolation({
+  property: 'border-bottom-width',
+  from: 'thick',
+  to: '15px'
+}, [
+  {at: -2, expect: '0px'}, // CSS border-bottom-width can't be negative.
+  {at: -0.3, expect: '2px'},
+  {at: 0, expect: '5px'},
+  {at: 0.3, expect: '8px'},
+  {at: 0.6, expect: '11px'},
+  {at: 1, expect: '15px'},
+  {at: 1.5, expect: '20px'}
+]);
+
+test_interpolation({
+  property: 'border-left-width',
+  from: 'medium',
+  to: '13px'
+}, [
+  {at: -2, expect: '0px'}, // CSS border-left-width can't be negative.
+  {at: -0.25, expect: '0.5px'},
+  {at: 0, expect: '3px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '9px'},
+  {at: 1, expect: '13px'},
+  {at: 1.5, expect: '18px'}
+]);
+
+test_interpolation({
+  property: 'border-right-width',
+  from: 'thin',
+  to: '11px'
+}, [
+  {at: -2, expect: '0px'}, // CSS border-right-width can't be negative.
+  {at: -0.3, expect: '0px'}, // CSS border-right-width can't be negative.
+  {at: 0, expect: '1px'},
+  {at: 0.3, expect: '4px'},
+  {at: 0.6, expect: '7px'},
+  {at: 1, expect: '11px'},
+  {at: 1.5, expect: '16px'}
+]);
+
+test_interpolation({
+  property: 'border-top-width',
+  from: '15px',
+  to: 'thick'
+}, [
+  {at: -2, expect: '35px'},
+  {at: -0.3, expect: '18px'},
+  {at: 0, expect: '15px'},
+  {at: 0.3, expect: '12px'},
+  {at: 0.6, expect: '9px'},
+  {at: 1, expect: '5px'},
+  {at: 1.5, expect: '0px'}
+]);
+</script>

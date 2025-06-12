@@ -1,0 +1,29 @@
+#import <CSS/FontFaceSet.idl>
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/MessagePort.idl>
+#import <HTML/UniversalGlobalScope.idl>
+#import <HTML/Window.idl>
+#import <HTML/WindowOrWorkerGlobalScope.idl>
+#import <HTML/WorkerLocation.idl>
+#import <HTML/WorkerNavigator.idl>
+
+// https://html.spec.whatwg.org/multipage/workers.html#workerglobalscope
+[Exposed=Worker]
+interface WorkerGlobalScope : EventTarget {
+    readonly attribute WorkerGlobalScope self;
+    readonly attribute WorkerLocation location;
+    readonly attribute WorkerNavigator navigator;
+    undefined importScripts(USVString... urls);
+
+    attribute OnErrorEventHandler onerror;
+    attribute EventHandler onlanguagechange;
+    attribute EventHandler onoffline;
+    attribute EventHandler ononline;
+    attribute EventHandler onrejectionhandled;
+    attribute EventHandler onunhandledrejection;
+};
+
+WorkerGlobalScope includes FontFaceSource;
+WorkerGlobalScope includes UniversalGlobalScope;
+WorkerGlobalScope includes WindowOrWorkerGlobalScope;

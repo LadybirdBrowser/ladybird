@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	transition:all changing padding-left
+Pass	transition:all changing padding
+Pass	transition:all changing padding but not padding-bottom
+Pass	transition:padding changing padding-left
+Pass	transition:padding changing padding
+Pass	transition:padding changing padding but not padding-bottom
+Pass	transition:padding-left changing padding-left
+Pass	transition:padding-left changing padding
+Pass	transition:padding-left changing padding but not padding-bottom

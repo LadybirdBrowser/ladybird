@@ -1,0 +1,102 @@
+Harness status: OK
+
+Found 97 tests
+
+97 Pass
+Pass	setup
+Pass	RSA-PSS with SHA-1 and no salt verification
+Pass	RSA-PSS with SHA-256 and no salt verification
+Pass	RSA-PSS with SHA-384 and no salt verification
+Pass	RSA-PSS with SHA-512 and no salt verification
+Pass	RSA-PSS with SHA-1, salted verification
+Pass	RSA-PSS with SHA-256, salted verification
+Pass	RSA-PSS with SHA-384, salted verification
+Pass	RSA-PSS with SHA-512, salted verification
+Pass	RSA-PSS with SHA-1 and no salt verification with altered signature after call
+Pass	RSA-PSS with SHA-256 and no salt verification with altered signature after call
+Pass	RSA-PSS with SHA-384 and no salt verification with altered signature after call
+Pass	RSA-PSS with SHA-512 and no salt verification with altered signature after call
+Pass	RSA-PSS with SHA-1, salted verification with altered signature after call
+Pass	RSA-PSS with SHA-256, salted verification with altered signature after call
+Pass	RSA-PSS with SHA-384, salted verification with altered signature after call
+Pass	RSA-PSS with SHA-512, salted verification with altered signature after call
+Pass	RSA-PSS with SHA-1 and no salt with altered plaintext after call
+Pass	RSA-PSS with SHA-256 and no salt with altered plaintext after call
+Pass	RSA-PSS with SHA-384 and no salt with altered plaintext after call
+Pass	RSA-PSS with SHA-512 and no salt with altered plaintext after call
+Pass	RSA-PSS with SHA-1, salted with altered plaintext after call
+Pass	RSA-PSS with SHA-256, salted with altered plaintext after call
+Pass	RSA-PSS with SHA-384, salted with altered plaintext after call
+Pass	RSA-PSS with SHA-512, salted with altered plaintext after call
+Pass	RSA-PSS with SHA-1 and no salt using privateKey to verify
+Pass	RSA-PSS with SHA-256 and no salt using privateKey to verify
+Pass	RSA-PSS with SHA-384 and no salt using privateKey to verify
+Pass	RSA-PSS with SHA-512 and no salt using privateKey to verify
+Pass	RSA-PSS with SHA-1, salted using privateKey to verify
+Pass	RSA-PSS with SHA-256, salted using privateKey to verify
+Pass	RSA-PSS with SHA-384, salted using privateKey to verify
+Pass	RSA-PSS with SHA-512, salted using privateKey to verify
+Pass	RSA-PSS with SHA-1 and no salt using publicKey to sign
+Pass	RSA-PSS with SHA-256 and no salt using publicKey to sign
+Pass	RSA-PSS with SHA-384 and no salt using publicKey to sign
+Pass	RSA-PSS with SHA-512 and no salt using publicKey to sign
+Pass	RSA-PSS with SHA-1, salted using publicKey to sign
+Pass	RSA-PSS with SHA-256, salted using publicKey to sign
+Pass	RSA-PSS with SHA-384, salted using publicKey to sign
+Pass	RSA-PSS with SHA-512, salted using publicKey to sign
+Pass	RSA-PSS with SHA-1 and no salt no verify usage
+Pass	RSA-PSS with SHA-256 and no salt no verify usage
+Pass	RSA-PSS with SHA-384 and no salt no verify usage
+Pass	RSA-PSS with SHA-512 and no salt no verify usage
+Pass	RSA-PSS with SHA-1, salted no verify usage
+Pass	RSA-PSS with SHA-256, salted no verify usage
+Pass	RSA-PSS with SHA-384, salted no verify usage
+Pass	RSA-PSS with SHA-512, salted no verify usage
+Pass	RSA-PSS with SHA-1 and no salt round trip
+Pass	RSA-PSS with SHA-256 and no salt round trip
+Pass	RSA-PSS with SHA-384 and no salt round trip
+Pass	RSA-PSS with SHA-512 and no salt round trip
+Pass	RSA-PSS with SHA-1, salted round trip
+Pass	RSA-PSS with SHA-256, salted round trip
+Pass	RSA-PSS with SHA-384, salted round trip
+Pass	RSA-PSS with SHA-512, salted round trip
+Pass	RSA-PSS with SHA-1 and no salt signing with wrong algorithm name
+Pass	RSA-PSS with SHA-256 and no salt signing with wrong algorithm name
+Pass	RSA-PSS with SHA-384 and no salt signing with wrong algorithm name
+Pass	RSA-PSS with SHA-512 and no salt signing with wrong algorithm name
+Pass	RSA-PSS with SHA-1, salted signing with wrong algorithm name
+Pass	RSA-PSS with SHA-256, salted signing with wrong algorithm name
+Pass	RSA-PSS with SHA-384, salted signing with wrong algorithm name
+Pass	RSA-PSS with SHA-512, salted signing with wrong algorithm name
+Pass	RSA-PSS with SHA-1 and no salt verification with wrong algorithm name
+Pass	RSA-PSS with SHA-256 and no salt verification with wrong algorithm name
+Pass	RSA-PSS with SHA-384 and no salt verification with wrong algorithm name
+Pass	RSA-PSS with SHA-512 and no salt verification with wrong algorithm name
+Pass	RSA-PSS with SHA-1, salted verification with wrong algorithm name
+Pass	RSA-PSS with SHA-256, salted verification with wrong algorithm name
+Pass	RSA-PSS with SHA-384, salted verification with wrong algorithm name
+Pass	RSA-PSS with SHA-512, salted verification with wrong algorithm name
+Pass	RSA-PSS with SHA-1 and no salt verification failure with altered signature
+Pass	RSA-PSS with SHA-256 and no salt verification failure with altered signature
+Pass	RSA-PSS with SHA-384 and no salt verification failure with altered signature
+Pass	RSA-PSS with SHA-512 and no salt verification failure with altered signature
+Pass	RSA-PSS with SHA-1, salted verification failure with altered signature
+Pass	RSA-PSS with SHA-256, salted verification failure with altered signature
+Pass	RSA-PSS with SHA-384, salted verification failure with altered signature
+Pass	RSA-PSS with SHA-512, salted verification failure with altered signature
+Pass	RSA-PSS with SHA-1 and no salt verification failure with wrong saltLength
+Pass	RSA-PSS with SHA-256 and no salt verification failure with wrong saltLength
+Pass	RSA-PSS with SHA-384 and no salt verification failure with wrong saltLength
+Pass	RSA-PSS with SHA-512 and no salt verification failure with wrong saltLength
+Pass	RSA-PSS with SHA-1, salted verification failure with wrong saltLength
+Pass	RSA-PSS with SHA-256, salted verification failure with wrong saltLength
+Pass	RSA-PSS with SHA-384, salted verification failure with wrong saltLength
+Pass	RSA-PSS with SHA-512, salted verification failure with wrong saltLength
+Pass	RSA-PSS with SHA-1 and no salt verification failure with altered plaintext
+Pass	RSA-PSS with SHA-256 and no salt verification failure with altered plaintext
+Pass	RSA-PSS with SHA-384 and no salt verification failure with altered plaintext
+Pass	RSA-PSS with SHA-512 and no salt verification failure with altered plaintext
+Pass	RSA-PSS with SHA-1, salted verification failure with altered plaintext
+Pass	RSA-PSS with SHA-256, salted verification failure with altered plaintext
+Pass	RSA-PSS with SHA-384, salted verification failure with altered plaintext
+Pass	RSA-PSS with SHA-512, salted verification failure with altered plaintext

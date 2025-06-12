@@ -1,0 +1,54 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title id='title'>HTMLOptionsCollection</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<select id="selly">
+  <option id="id1" name="name1">1</option>
+  <option id="id2" name="name2">2</option>
+  <option id="id3" name="name3">3</option>
+  <option id="id4" name="name4">4</option>
+  <option name="nameonly">nameonly</option>
+  <option id="id3">duplicate ID</option>
+  <option name="name4">duplicate name</option>
+  <option id="mixed1">mixed ID</option>
+  <option name="mixed1">mixed name</option>
+</select>
+
+<script>
+var selly;
+setup(function() {
+    selly = document.getElementById('selly');
+});
+
+test(function () {
+    assert_equals(selly.namedItem('nameonly')["value"], "nameonly");
+}, "if only one item has a *name* or id value matching the parameter, return that object and stop");
+
+test(function () {
+    assert_equals(selly.namedItem('id2')["value"], "2");
+}, "if only one item has a name or *id* value matching the parameter, return that object and stop");
+
+test(function () {
+    assert_equals(selly.namedItem('thisdoesnotexist'), null);
+}, "if no item has a name or id value matching the parameter, return null and stop");
+
+test(function () {
+    assert_equals(selly.namedItem('id3')["value"], "3");
+}, "if multiple items have a name or *id* value matching the parameter, return the first object and stop");
+
+test(function () {
+    assert_equals(selly.namedItem('name4')["value"], "4");
+}, "if multiple items have a *name* or id value matching the parameter, return the first object and stop");
+
+test(function () {
+    assert_equals(selly.namedItem('mixed1')["value"], "mixed ID");
+}, "if multiple items have a *name* or *id* value matching the parameter, return the first object and stop");
+</script>
+</body>
+</html>

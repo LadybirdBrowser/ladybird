@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+	.four {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		grid-template-rows: repeat(auto-fit, auto); /* 'auto' not allowed here, line should be ignored */
+	}
+</style>
+<div>
+<div class="four">
+	<div>A</div>
+	<div>B</div>
+	<div>C</div>
+	<div>D</div>
+	<div>E</div>
+</div>
+</div>

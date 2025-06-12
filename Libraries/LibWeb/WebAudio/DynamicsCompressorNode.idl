@@ -1,0 +1,25 @@
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/AudioParam.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#DynamicsCompressorOptions
+dictionary DynamicsCompressorOptions : AudioNodeOptions {
+    float attack = 0.003;
+    float knee = 30;
+    float ratio = 12;
+    float release = 0.25;
+    float threshold = -24;
+};
+
+// https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode
+[Exposed=Window]
+interface DynamicsCompressorNode : AudioNode {
+    constructor(BaseAudioContext context,
+                optional DynamicsCompressorOptions options = {});
+    readonly attribute AudioParam threshold;
+    readonly attribute AudioParam knee;
+    readonly attribute AudioParam ratio;
+    readonly attribute float reduction;
+    readonly attribute AudioParam attack;
+    readonly attribute AudioParam release;
+};

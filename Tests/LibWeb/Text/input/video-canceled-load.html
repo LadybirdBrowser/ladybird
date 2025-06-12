@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script type="text/javascript">
+    function updateSrc() {
+        video.src = "file:///example/file/location/wfh";
+    }
+
+    test(() => {
+        println(video.src);
+    });
+</script>
+<video id="video" src="data:">
+    <details open ontoggle="updateSrc()"></details>
+</video>

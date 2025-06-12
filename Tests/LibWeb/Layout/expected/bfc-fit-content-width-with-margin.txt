@@ -1,0 +1,53 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x304 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x288 children: not-inline
+      BlockContainer <div.margin-left> at (243.1875,8) content-size 548.8125x162 children: inline
+        frag 0 from TextNode start: 1, length: 62, rect: [243.1875,8 515.390625x18] baseline: 13.796875
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce"
+        frag 1 from TextNode start: 64, length: 68, rect: [243.1875,26 543.484375x18] baseline: 13.796875
+            "cursus est eget nisl porta, id vulputate velit imperdiet. Vestibulum"
+        frag 2 from TextNode start: 133, length: 69, rect: [243.1875,44 533.765625x18] baseline: 13.796875
+            "mollis ligula sit amet ligula aliquam, vitae vulputate magna iaculis."
+        frag 3 from TextNode start: 203, length: 68, rect: [243.1875,62 533.015625x18] baseline: 13.796875
+            "Nulla et augue fringilla, molestie nulla blandit, condimentum risus."
+        frag 4 from TextNode start: 272, length: 58, rect: [243.1875,80 488.140625x18] baseline: 13.796875
+            "Suspendisse lectus augue, sodales vitae metus ac, interdum"
+        frag 5 from TextNode start: 331, length: 63, rect: [243.1875,98 526.546875x18] baseline: 13.796875
+            "volutpat arcu. Aenean eu placerat risus, at dictum lectus. Nunc"
+        frag 6 from TextNode start: 395, length: 64, rect: [243.1875,116 524.5x18] baseline: 13.796875
+            "maximus est eu risus porta tincidunt. Cras nec felis tellus. Sed"
+        frag 7 from TextNode start: 460, length: 66, rect: [243.1875,134 523.078125x18] baseline: 13.796875
+            "euismod ultricies ipsum, eget ultricies nisl dignissim nec. Mauris"
+        frag 8 from TextNode start: 527, length: 21, rect: [243.1875,152 178.53125x18] baseline: 13.796875
+            "aliquet rhoncus urna."
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,170) content-size 784x0 children: inline
+        TextNode <#text>
+      BlockContainer <div.margin-right> at (8,170) content-size 548.8125x126 children: inline
+        frag 0 from TextNode start: 1, length: 63, rect: [8,170 531.765625x18] baseline: 13.796875
+            "Pellentesque quis vulputate urna. Mauris semper elementum velit"
+        frag 1 from TextNode start: 65, length: 62, rect: [8,188 529.640625x18] baseline: 13.796875
+            "vitae accumsan. Fusce aliquam nunc non suscipit laoreet. Etiam"
+        frag 2 from TextNode start: 128, length: 66, rect: [8,206 532.9375x18] baseline: 13.796875
+            "hendrerit sollicitudin nisl non placerat. Cras vulputate, nunc non"
+        frag 3 from TextNode start: 195, length: 64, rect: [8,224 515.765625x18] baseline: 13.796875
+            "fringilla dapibus, nisl eros volutpat enim, eget consequat lacus"
+        frag 4 from TextNode start: 260, length: 62, rect: [8,242 513.421875x18] baseline: 13.796875
+            "turpis imperdiet mi. Aenean vitae consequat tellus, eu sodales"
+        frag 5 from TextNode start: 323, length: 57, rect: [8,260 481.359375x18] baseline: 13.796875
+            "tortor. Duis euismod, odio auctor varius auctor, mi augue"
+        frag 6 from TextNode start: 381, length: 56, rect: [8,278 469.453125x18] baseline: 13.796875
+            "faucibus erat, non euismod turpis metus sit amet turpis."
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,296) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x304]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x288]
+      PaintableWithLines (BlockContainer<DIV>.margin-left) [243.1875,8 548.8125x162]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,170 784x0]
+      PaintableWithLines (BlockContainer<DIV>.margin-right) [8,170 548.8125x126]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,296 784x0]

@@ -1,0 +1,38 @@
+[
+    {
+        "title": "SerenityOS.org",
+        "url": "https://serenityos.org/"
+    },
+    {
+        "title": "GitHub",
+        "url": "https://github.com/SerenityOS/serenity"
+    },
+    {
+        "title": "Google",
+        "url": "https://www.google.com/"
+    },
+    {
+        "title": "Bjarne",
+        "url": "https://www.stroustrup.com"
+    },
+    {
+        "title": "jcs",
+        "url": "https://jcs.org/"
+    },
+    {
+        "title": "DuckDuckGo",
+        "url": "https://duckduckgo.com/"
+    },
+    {
+        "title": "HTML spec",
+        "url": "https://html.spec.whatwg.org/multipage/"
+    },
+    {
+        "title": "Acid2",
+        "url": "file:///res/html/misc/acid2.html#top"
+    },
+    {
+        "title": "Acid3",
+        "url": "http://wpt.live/acid/acid3/test.html"
+    }
+]

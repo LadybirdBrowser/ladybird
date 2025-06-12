@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const div = document.createElement("div");
+        const shadowRoot = div.attachShadow({ mode: "closed" });
+
+        const script = document.createElement("script");
+        script.innerText = "println('Hello from script in the shadow root of the just inserted div!')";
+        shadowRoot.appendChild(script);
+
+        document.body.appendChild(div);
+    });
+</script>

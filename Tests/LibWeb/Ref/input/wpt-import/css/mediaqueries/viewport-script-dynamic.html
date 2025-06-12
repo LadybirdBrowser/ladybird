@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: Meta viewport after a script and stylesheets</title>
+<link rel="author" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1424878">
+<link rel="help" href="https://drafts.csswg.org/mediaqueries/#mf-dimensions">
+<link rel="match" href="../../../../expected/wpt-import/css/mediaqueries/viewport-script-dynamic-ref.html">
+<style>
+p { color: green; }
+/* Ensure that we initially match it, and stop matching it afterwards */
+@media (min-width: 310px) {
+  p {
+    color: red;
+  }
+}
+</style>
+<!-- The broken script below is the point of the test, see the bugzilla bug. -->
+<script src="intentionally-broken-url.js"></script>
+<meta name="viewport" content="width=300">
+<p>Should be green</p>

@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Property border-width value '1px'
+Pass	Property border-width value '1px 2px'
+Pass	Property border-width value '1px 2px 3px'
+Pass	Property border-width value '1px 2px 3px 4px'
+Pass	Property border-width value '0.5em'
+Pass	Property border-width value '2px thin medium thick'
+Pass	Property border-top-width value '0px'
+Pass	Property border-right-width value '10px'
+Pass	Property border-bottom-width value 'calc(-0.5em + 10px)'
+Pass	Property border-left-width value 'calc(0.5em + 10px)'
+Pass	thin ≤ medium ≤ thick

@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 29 tests
+
+28 Pass
+1 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "create with factory method"
+Pass	Executing "different length with factory method"
+Pass	Executing "too small with factory method"
+Pass	Executing "create with constructor"
+Pass	Executing "different length with constructor"
+Pass	Executing "too small with constructor"
+Fail	Executing "output test"
+Pass	Audit report
+Pass	> [create with factory method] 
+Pass	  context.createPeriodicWave(new Float32Array(8192), new Float32Array(8192)) did not throw an exception.
+Pass	< [create with factory method] All assertions passed. (total 1 assertions)
+Pass	> [different length with factory method] 
+Pass	  context.createPeriodicWave(new Float32Array(512), new Float32Array(4)) threw IndexSizeError: "Real and imaginary arrays must have the same length and contain at least 2 elements".
+Pass	< [different length with factory method] All assertions passed. (total 1 assertions)
+Pass	> [too small with factory method] 
+Pass	  context.createPeriodicWave(new Float32Array(1), new Float32Array(1)) threw IndexSizeError: "Real and imaginary arrays must have the same length and contain at least 2 elements".
+Pass	< [too small with factory method] All assertions passed. (total 1 assertions)
+Pass	> [create with constructor] 
+Pass	  new PeriodicWave(context, { real : new Float32Array(8192), imag : new Float32Array(8192) }) did not throw an exception.
+Pass	< [create with constructor] All assertions passed. (total 1 assertions)
+Pass	> [different length with constructor] 
+Pass	  new PeriodicWave(context, { real : new Float32Array(8192), imag : new Float32Array(4) }) threw IndexSizeError: "Real and imaginary arrays must have the same length and contain at least 2 elements".
+Pass	< [different length with constructor] All assertions passed. (total 1 assertions)
+Pass	> [too small with constructor] 
+Pass	  new PeriodicWave(context, { real : new Float32Array(1), imag : new Float32Array(1) }) threw IndexSizeError: "Real and imaginary arrays must have the same length and contain at least 2 elements".
+Pass	< [too small with constructor] All assertions passed. (total 1 assertions)
+Pass	> [output test] 
+Pass	# AUDIT TASK RUNNER FINISHED: 7 tasks ran successfully.

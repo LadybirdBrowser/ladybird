@@ -1,0 +1,7 @@
+No range.
+DIV 0 - DIV 0
+BODY 0 - BODY 5
+true
+queryCommandEnabled threw exception of type: InvalidStateError
+false
+Did not crash!

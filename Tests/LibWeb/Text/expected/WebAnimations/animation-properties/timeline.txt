@@ -1,0 +1,2 @@
+Animation's default timeline is the document's timeline: true
+Animation created with null timeline has no timeline: true

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <div id="box"></div>
+        <style>
+            #box {
+                width: 100px;
+                height: 100px;
+                background: #000;
+                margin: 200px;
+            }
+            @keyframes enlarge {
+                from {
+                    transform: scale(1);
+                }
+                to {
+                    transform: scale(5);
+                }
+            }
+        </style>
+    </body>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest(done => {
+            const box = document.getElementById("box");
+
+            box.addEventListener("animationcancel", () => {
+                println("Animation cancelled");
+                done();
+            });
+
+            box.addEventListener("animationstart", () => {
+                requestAnimationFrame(() => (box.style.animation = "none"));
+            });
+
+            box.style.animation = "enlarge 2s forwards";
+        });
+    </script>
+</html>

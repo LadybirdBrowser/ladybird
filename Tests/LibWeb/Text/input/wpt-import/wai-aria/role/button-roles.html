@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <title>Button-related Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests <a href="https://w3c.github.io/aria/#button">button</a> and related roles.</p>
+
+<div role="button" aria-haspopup="false" data-testname="button aria-haspopup false" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-haspopup="true" data-testname="button aria-haspopup true" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-haspopup="menu" data-testname="button aria-haspopup menu" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-haspopup="dialog" data-testname="button aria-haspopup dialog" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-haspopup="listbox" data-testname="button aria-haspopup listbox" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-haspopup="tree" data-testname="button aria-haspopup tree" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-haspopup="grid" data-testname="button aria-haspopup grid" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-pressed="true" data-testname="button aria-pressed true" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-pressed="false" data-testname="button aria-pressed false" data-expectedrole="button" class="ex"></div>
+<div role="button" aria-pressed="" data-testname="button aria-pressed undefined" data-expectedrole="button" class="ex"></div>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

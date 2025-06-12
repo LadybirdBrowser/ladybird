@@ -1,0 +1,173 @@
+<!doctype html>
+<meta charset=utf-8>
+<!-- Creating iframes is slow in browsers -->
+<meta name=timeout content=long>
+<title>Test handling of attributes that map to pixel length properties</title>
+<link rel="help"
+      href="https://html.spec.whatwg.org/multipage/rendering.html#maps-to-the-pixel-length-property">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<body>
+  <div id="container" style="display: none">
+    <img id="defaultImg">
+    <object id="defaultObject"></object>
+    <input type="image" id="defaultInput"></input>
+  </div>
+<script>
+ /*
+  * This test tests
+  * https://html.spec.whatwg.org/multipage/rendering.html#maps-to-the-pixel-length-property
+  * for various elements and various values.
+  */
+
+ /*
+  * Array of input/output pairs.  The input is the string to use as the
+  * attribute value.  The output is the string expected as the computed style
+  * for the relevant CSS property.
+  */
+const valid_values = [
+  [ "200", "200px" ],
+  [ "1007", "1007px" ],
+  [ "   00523   ", "523px" ],
+  [ "200.", "200px" ],
+  [ "200.25", "200px" ],
+  [ "200.7", "200px" ],
+  [ "0", "0px" ],
+  [ "-0", "0px" ],
+  [ "+0", "0px" ],
+  [ "+200", "200px" ],
+  [ "200in", "200px" ],
+  [ "200.25in", "200px" ],
+  [ "   +200in    ", "200px" ],
+  [ "200%", "200px" ],
+  [ "200.%", "200px" ],
+  [ "200.25%", "200px" ],
+];
+
+ /*
+  * Array of invalid values.  These should lead to the default value of the
+  * relevant CSS property.
+  */
+const invalid_values = [
+  "-200",
+  "-200px",
+  "   -200",
+  "+-200",
+  "-+200",
+];
+
+/*
+ * Array of tests.  Each test consists of the following information:
+ *
+ * 1) A function to call to create the element to test.  This returns a
+ *    3-element array: The element to set the attribute on, the element to
+ *    compute style on, and a cleanup function to call when done.
+ * 2) The name of the attribute to set.
+ * 3) The name of the computed style property to get.
+ * 4) An element that can be used to determine the fallback style value for
+ *    invalid values.
+ */
+const tests = [
+  [ createIframe, "marginwidth", "marginLeft", document.body ],
+  [ createIframe, "marginwidth", "marginRight", document.body ],
+  [ createIframe, "marginheight", "marginTop", document.body ],
+  [ createIframe, "marginheight", "marginBottom", document.body ],
+  [ createFrame, "marginwidth", "marginLeft", document.body ],
+  [ createFrame, "marginwidth", "marginRight", document.body ],
+  [ createFrame, "marginheight", "marginTop", document.body ],
+  [ createFrame, "marginheight", "marginBottom", document.body ],
+  [ createBody, "marginwidth", "marginLeft", document.body ],
+  [ createBody, "marginwidth", "marginRight", document.body ],
+  [ createBody, "leftmargin", "marginLeft", document.body ],
+  [ createBody, "rightmargin", "marginRight", document.body ],
+  [ createBody, "marginheight", "marginTop", document.body ],
+  [ createBody, "marginheight", "marginBottom", document.body ],
+  [ createBody, "topmargin", "marginTop", document.body ],
+  [ createBody, "bottommargin", "marginBottom", document.body ],
+  [ newElem("img"), "border", "borderTopWidth", defaultImg ],
+  [ newElem("img"), "border", "borderRightWidth", defaultImg ],
+  [ newElem("img"), "border", "borderBottomWidth", defaultImg ],
+  [ newElem("img"), "border", "borderLeftWidth", defaultImg ],
+  [ newElem("object"), "border", "borderTopWidth", defaultObject ],
+  [ newElem("object"), "border", "borderRightWidth", defaultObject ],
+  [ newElem("object"), "border", "borderBottomWidth", defaultObject ],
+  [ newElem("object"), "border", "borderLeftWidth", defaultObject ],
+  [ newImageInput, "border", "borderTopWidth", defaultInput ],
+  [ newImageInput, "border", "borderRightWidth", defaultInput ],
+  [ newImageInput, "border", "borderBottomWidth", defaultInput ],
+  [ newImageInput, "border", "borderLeftWidth", defaultInput ],
+];
+
+function newElem(name) {
+  return () => {
+    var elem = document.createElement(name);
+    document.getElementById("container").appendChild(elem);
+    return [ elem, elem, () => elem.remove() ];
+  }
+}
+
+function newImageInput() {
+  var elem = document.createElement("input");
+  elem.type = "image";
+  document.getElementById("container").appendChild(elem);
+  return [ elem, elem, () => elem.remove() ];
+}
+
+function createIframe() {
+  let ifr = document.createElement("iframe");
+  document.body.appendChild(ifr);
+  return [ ifr, ifr.contentDocument.body, () => ifr.remove() ];
+ }
+
+function createBody() {
+  let ifr = document.createElement("iframe");
+  document.body.appendChild(ifr);
+  return [ ifr.contentDocument.body, ifr.contentDocument.body, () => ifr.remove() ];
+}
+
+function createFrame() {
+  // We need to create a separate iframe to put our frameset into.
+  let ifr = document.createElement("iframe");
+  document.body.appendChild(ifr);
+  let doc = ifr.contentDocument;
+  let root = doc.documentElement;
+  while (root.firstChild) {
+    root.firstChild.remove();
+  }
+  let frameset = doc.createElement("frameset");
+  frameset.setAttribute("rows", "*");
+  frameset.setAttribute("cols", "*");
+  let frame = doc.createElement("frame");
+  frameset.appendChild(frame);
+  root.appendChild(frameset);
+  return [ frame, frame.contentDocument.body, () => ifr.remove() ];
+}
+
+function style(element) {
+  return element.ownerDocument.defaultView.getComputedStyle(element);
+}
+
+for (let [setup, attr, prop, default_elem] of tests) {
+  for (let [value, result] of valid_values) {
+    let [ attr_elem, prop_elem, cleanup ] = setup();
+    test(function() {
+      this.add_cleanup(cleanup);
+      attr_elem.setAttribute(attr, value);
+      assert_equals(attr_elem.getAttribute(attr), value);
+      assert_equals(style(prop_elem)[prop], result);
+    }, `<${attr_elem.localName} ${attr}="${value}"> mapping to ${prop}`);
+  }
+
+  let defaultVal = style(default_elem)[prop];
+  for (let value of invalid_values) {
+    let [ attr_elem, prop_elem, cleanup ] = setup();
+    test(function() {
+      this.add_cleanup(cleanup);
+      attr_elem.setAttribute(attr, value);
+      assert_equals(attr_elem.getAttribute(attr), value);
+      assert_equals(style(prop_elem)[prop], defaultVal);
+    }, `<${attr_elem.localName} ${attr}="${value}"> mapping to ${prop}`);
+  }
+}
+</script>
+</body>

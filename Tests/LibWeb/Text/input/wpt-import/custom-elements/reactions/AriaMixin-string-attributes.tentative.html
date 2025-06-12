@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on Element interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="String attributes of AriaAttributes interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#element">
+<meta name="help" content="https://w3c.github.io/DOM-Parsing/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<div id="container"></div>
+
+// tentative properties that were added mid-year... merge back in after Interop 2024 completes
+<script>
+testReflectAttribute('role', 'role', 'foo', 'bar', 'role on Element');
+testReflectAttribute('ariaColIndexText', 'aria-colindextext', 'foo', 'bar', 'ariaColIndexText on Element');
+testReflectAttribute('ariaDescription', 'aria-description', 'foo', 'bar', 'ariaDescription on Element');
+testReflectAttribute('ariaRowIndexText', 'aria-rowindextext', 'foo', 'bar', 'ariaRowIndexText on Element');
+</script>
+
+</body>
+</html>

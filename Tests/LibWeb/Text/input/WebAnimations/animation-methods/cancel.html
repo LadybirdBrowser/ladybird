@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+        const animation = foo.animate({}, {});
+
+        const previousReadyPromise = animation.ready;
+        const previousFinishedPromise = animation.finished;
+
+        const { promise: promise1, resolve: resolve1 } = Promise.withResolvers();
+        const { promise: promise2, resolve: resolve2 } = Promise.withResolvers();
+
+        animation.ready.then(() => {
+            println("Calling cancel() does not abort the ready promise");
+            resolve1();
+        }).catch(e => {
+            println(`Calling cancel() aborts the ready promise with an error of type AbortError: ${e.name === "AbortError"}`);
+            resolve1();
+        });
+
+        animation.finished.then(() => {
+            println("Calling cancel() does not abort the finished promise");
+            resolve2();
+        }).catch(e => {
+            println(`Calling cancel() aborts the finished promise with an error of type AbortError: ${e.name === "AbortError"}`);
+            resolve2();
+        });
+
+        let receivedEvents = {
+            cancel: false,
+            finish: false,
+            remove: false,
+        };
+        animation.oncancel = () => { receivedEvents.cancel = true; };
+        animation.onfinish = () => { receivedEvents.finish = true; };
+        animation.onremove = () => { receivedEvents.remove = true; };
+
+        animation.cancel();
+        await promise1;
+        await promise2;
+
+        println(`Calling cancel() recreates the ready promise: ${!Object.is(previousReadyPromise, animation.ready)}`);
+        println(`Calling cancel() recreates the finished promise: ${!Object.is(previousFinishedPromise, animation.finished)}`);
+        println(`Calling cancel() resets the start time: ${animation.startTime === null}`);
+
+        await animationFrame();
+        println(`Calling cancel() sends a cancel event: ${receivedEvents.cancel}`);
+        println(`Calling cancel() does not send a finish or remove event: ${!receivedEvents.finish && !receivedEvents.remove}`);
+    });
+</script>

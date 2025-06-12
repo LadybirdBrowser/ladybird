@@ -1,0 +1,16 @@
+template("lagom_tool") {
+  assert(current_toolchain == host_toolchain,
+         "Must only depend on Lagom tools from the host_toolchain")
+  executable(target_name) {
+    forward_variables_from(invoker, "*")
+    include_dirs = [
+      "//",
+      "$root_gen_dir",
+      "//Userland/Libraries",
+    ]
+    deps += [
+      "//Userland/Libraries/LibCore:minimal",
+      "//Userland/Libraries/LibFileSystem",
+    ]
+  }
+}

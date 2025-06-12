@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	IDBKeyRange.only() - returns an IDBKeyRange and the properties are set correctly
+Pass	IDBKeyRange.only() - throws on invalid keys
+Pass	IDBKeyRange.lowerBound() - returns an IDBKeyRange and the properties are set correctly
+Pass	IDBKeyRange.lowerBound() - 'open' parameter has correct default set
+Pass	IDBKeyRange.lowerBound() - throws on invalid keys
+Pass	IDBKeyRange.upperBound() - returns an IDBKeyRange and the properties are set correctly
+Pass	IDBKeyRange.upperBound() - 'open' parameter has correct default set
+Pass	IDBKeyRange.upperBound() - throws on invalid keys
+Pass	IDBKeyRange.bound() - returns an IDBKeyRange and the properties are set correctly
+Pass	IDBKeyRange.bound() - 'lowerOpen' and 'upperOpen' parameters have correct defaults set

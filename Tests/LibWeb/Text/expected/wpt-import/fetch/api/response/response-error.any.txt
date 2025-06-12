@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Throws RangeError when responseInit's status is 0
+Pass	Throws RangeError when responseInit's status is 100
+Pass	Throws RangeError when responseInit's status is 199
+Pass	Throws RangeError when responseInit's status is 600
+Pass	Throws RangeError when responseInit's status is 1000
+Pass	Throws TypeError when responseInit's statusText is 
+
+Pass	Throws TypeError when responseInit's statusText is Ā
+Pass	Throws TypeError when building a response with body and a body status of 204
+Pass	Throws TypeError when building a response with body and a body status of 205
+Pass	Throws TypeError when building a response with body and a body status of 304

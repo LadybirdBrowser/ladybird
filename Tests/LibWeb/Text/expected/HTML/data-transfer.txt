@@ -1,0 +1,10 @@
+dropEffect: none
+effectAllowed: none
+length=0, types=
+stringItem: kind=string, type=custom-type
+length=1, types=custom-type
+stringItemAsString: data=well hello friends
+fileItem: kind=file, type=text/plain
+length=2, types=custom-type,Files
+fileItemAsFile: name=file.txt, type=text/plain
+fileItemAsEntry: name=file.txt, file=true, directory=false

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        let inputs = [
+            "fit-content(10%)",
+            "fit-content(       10%)",
+            "fit-content(10%  )",
+            "fit-content(   10%  )",
+        ];
+        let target = document.getElementById('target');
+        for (let input of inputs) {
+            target.style.width = '';
+            target.style.width = input;
+            println(`"${input}" became "${target.style.width}"`);
+        }
+    });
+</script>

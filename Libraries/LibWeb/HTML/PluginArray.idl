@@ -1,0 +1,10 @@
+#import <HTML/Plugin.idl>
+
+// https://html.spec.whatwg.org/multipage/system-state.html#pluginarray
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface PluginArray {
+    undefined refresh();
+    readonly attribute unsigned long length;
+    getter Plugin? item(unsigned long index);
+    getter Plugin? namedItem(DOMString name);
+};

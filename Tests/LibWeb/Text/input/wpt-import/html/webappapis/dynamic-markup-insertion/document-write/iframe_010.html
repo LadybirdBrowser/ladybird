@@ -1,0 +1,23 @@
+<!doctype html>
+<title>document.write plaintext</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<iframe id="test"></iframe>
+<script>
+var t = async_test();
+var iframe = document.getElementById("test");
+
+function check_dom() {
+  assert_equals(iframe.contentDocument.body.childNodes[0].localName, "plaintext")
+  assert_equals(iframe.contentDocument.body.childNodes[0].textContent, "Filler ")
+  assert_equals(iframe.contentDocument.body.childNodes[1].localName, "table")
+}
+
+t.step(function() {
+  var s = "<script>document.write('<table><plaintext>Filler '); document.close(); top.t.step(function() {top.check_dom()})</script" + ">";
+  for (var i=0; i<s.length; i++) {
+    iframe.contentDocument.write(s[i]);
+  }
+  t.done();
+});
+</script>
+<div id="log"></div>

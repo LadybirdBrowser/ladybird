@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Property block-size value 'auto'
+Pass	Property block-size value '10px'
+Pass	Property block-size value '20%'
+Pass	Property block-size value 'calc(0.5em + 10px)'
+Pass	Property block-size value 'calc(-0.5em + 10px)'
+Pass	Property block-size value 'min-content'
+Pass	Property block-size value 'max-content'

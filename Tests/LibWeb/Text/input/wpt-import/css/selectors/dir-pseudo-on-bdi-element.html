@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dom.html#the-directionality">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+test(() => {
+    const bdi = document.createElement('bdi');
+    assert_true(bdi.matches(':dir(ltr)'));
+    assert_false(bdi.matches(':dir(rtl)'));
+
+    bdi.textContent = '\u05EA';
+    assert_false(bdi.matches(':dir(ltr)'));
+    assert_true(bdi.matches(':dir(rtl)'));
+}, 'bdi element without dir content attribute');
+
+test(() => {
+    const bdi = document.createElement('bdi');
+    bdi.setAttribute('dir', 'foo');
+    assert_true(bdi.matches(':dir(ltr)'));
+    assert_false(bdi.matches(':dir(rtl)'));
+
+    bdi.textContent = '\u05EA';
+    assert_false(bdi.matches(':dir(ltr)'));
+    assert_true(bdi.matches(':dir(rtl)'));
+}, 'bdi element with invalid dir content attribute');
+
+test(() => {
+    const bdi = document.createElement('bdi');
+    bdi.setAttribute('dir', 'auto');
+    assert_true(bdi.matches(':dir(ltr)'));
+    assert_false(bdi.matches(':dir(rtl)'));
+
+    bdi.textContent = '\u05EA';
+    assert_false(bdi.matches(':dir(ltr)'));
+    assert_true(bdi.matches(':dir(rtl)'));
+
+    bdi.setAttribute('dir', 'AUTO');
+    assert_false(bdi.matches(':dir(ltr)'));
+    assert_true(bdi.matches(':dir(rtl)'));
+}, 'bdi element with dir=auto content attribute');
+
+test(() => {
+    const bdi = document.createElement('bdi');
+    bdi.setAttribute('dir', 'ltr');
+    assert_true(bdi.matches(':dir(ltr)'));
+    assert_false(bdi.matches(':dir(rtl)'));
+
+    bdi.setAttribute('dir', 'LTR');
+    assert_true(bdi.matches(':dir(ltr)'));
+    assert_false(bdi.matches(':dir(rtl)'));
+
+    bdi.textContent = '\u05EA';
+    assert_true(bdi.matches(':dir(ltr)'));
+    assert_false(bdi.matches(':dir(rtl)'));
+}, 'bdi element with dir=ltr content attribute');
+
+test(() => {
+    const bdi = document.createElement('bdi');
+    bdi.setAttribute('dir', 'rtl');
+    assert_false(bdi.matches(':dir(ltr)'));
+    assert_true(bdi.matches(':dir(rtl)'));
+
+    bdi.setAttribute('dir', 'RTL');
+    assert_false(bdi.matches(':dir(ltr)'));
+    assert_true(bdi.matches(':dir(rtl)'));
+
+    bdi.textContent = '\u05EA';
+    assert_false(bdi.matches(':dir(ltr)'));
+    assert_true(bdi.matches(':dir(rtl)'));
+}, 'bdi element with dir=rtl content attribute');
+
+</script>
+</body>
+</html>

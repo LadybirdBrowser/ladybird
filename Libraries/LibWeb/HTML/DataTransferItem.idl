@@ -1,0 +1,16 @@
+#import <EntriesAPI/FileSystemEntry.idl>
+#import <FileAPI/File.idl>
+
+callback FunctionStringCallback = undefined (DOMString data);
+
+// https://html.spec.whatwg.org/multipage/dnd.html#datatransferitem
+[Exposed=Window]
+interface DataTransferItem {
+    readonly attribute DOMString kind;
+    readonly attribute DOMString type;
+    undefined getAsString(FunctionStringCallback? _callback);
+    File? getAsFile();
+
+    // https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry
+    FileSystemEntry? webkitGetAsEntry();
+};

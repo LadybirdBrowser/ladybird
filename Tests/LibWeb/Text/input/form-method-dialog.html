@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<dialog id="test-dialog" open>
+    <form method="dialog">
+        <button id="submit-button" value="PASS">Submit</button>
+    </form>
+</dialog>
+<script>
+    test(() => {
+        const dialog = document.getElementById("test-dialog");
+        const submitter = document.getElementById("submit-button");
+        const form = document.forms[0];
+        println(`dialog.open before form submit: ${dialog.open}`);
+        println(`dialog.returnValue before form submit should be empty: ${dialog.returnValue === ""}`);
+        form.requestSubmit(submitter);
+        println(`dialog.open after form submit: ${dialog.open}`);
+        println(`dialog.returnValue after form submit: ${dialog.returnValue}`);
+    });
+</script>

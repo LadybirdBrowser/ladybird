@@ -1,0 +1,10 @@
+shared_library("LibSyntax") {
+  output_name = "syntax"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "Document.cpp",
+    "Highlighter.cpp",
+    "Language.cpp",
+  ]
+  deps = [ "//AK" ]
+}

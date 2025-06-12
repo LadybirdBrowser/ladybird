@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Invalid constructors
+        const invalidOptions = [
+            { numberOfChannels: 0, length: 17, sampleRate: 10_002 }, // 0 channels (below min)
+            { numberOfChannels: 33, length: 17, sampleRate: 10_002 }, // 33 channels (above max)
+            { numberOfChannels: 3, length: 0, sampleRate: 10_002 }, // 0 length
+            { numberOfChannels: 3, length: 17, sampleRate: 7999 }, // 7999 sample rate (below min)
+            { numberOfChannels: 3, length: 17, sampleRate: 192001 }, // 192001 sample rate (above max)
+        ];
+
+        for (let invalidOption of invalidOptions) {
+            try {
+                const buffer = new AudioBuffer(invalidOption);
+                println(`FAIL: created buffer ${buffer}`);
+            } catch (e) {
+                println(`Error creating AudioBuffer: '${e}'`);
+            }
+        }
+
+        // Valid Constructor
+        const options = { numberOfChannels: 3, length: 17, sampleRate: 10_002 };
+        const buffer = new AudioBuffer(options);
+
+        println(buffer.numberOfChannels);
+        println(buffer.length);
+        println(buffer.sampleRate);
+
+        // Check each of the channels
+        for (let k = 0; k < options.numberOfChannels; ++k) {
+            const data = buffer.getChannelData(k);
+            println(`Got ${data.constructor.name}, length = ${data.length}`);
+            println(data.length);
+
+            const dataAgain = buffer.getChannelData(k);
+            println(`Data equals itself: ${data === dataAgain}`);
+        }
+
+        // Out of range channel
+        try {
+            buffer.getChannelData(options.numberOfChannels);
+            println("FAIL: No exception thrown");
+        } catch (e) {
+            println(`Error getting channel data: '${e}'`);
+        }
+    });
+</script>

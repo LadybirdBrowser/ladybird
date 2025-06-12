@@ -1,0 +1,7 @@
+#import <Streams/ReadableStream.idl>
+#import <Streams/WritableStream.idl>
+
+interface mixin GenericTransformStream {
+    readonly attribute ReadableStream readable;
+    readonly attribute WritableStream writable;
+};

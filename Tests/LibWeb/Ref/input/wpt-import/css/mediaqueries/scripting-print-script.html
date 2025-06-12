@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries/#scripting">
+<link rel="match" href="../../../../expected/wpt-import/css/mediaqueries/scripting-print-script-ref.html">
+<style>
+  #script {
+    display: none;
+  }
+
+  @media (scripting) {
+    #script {
+      display: block;
+    }
+  }
+</style>
+<div id="script">
+  Script is enabled
+</div>

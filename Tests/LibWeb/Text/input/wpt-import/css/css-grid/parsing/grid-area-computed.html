@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridArea</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#placement">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+// auto
+test_computed_value("grid-area", "auto / auto / auto / auto",
+                    ["auto", "auto / auto / auto / auto"]);
+test_computed_value("grid-row", "auto / auto", ["auto", "auto / auto"]);
+test_computed_value("grid-column-end", "auto");
+
+// <custom-ident>
+test_computed_value("grid-row", "-zπ", [ "-zπ", "-zπ / -zπ"]);
+test_computed_value("grid-row-start", "AZ");
+test_computed_value("grid-column-start", "-_π");
+test_computed_value("grid-row-end", "_9");
+
+
+// <integer> && <custom-ident>?
+test_computed_value("grid-area", "1 / 90 -a- / auto / auto",
+                    ["1 / 90 -a-", "1 / 90 -a- / auto / auto"]);
+test_computed_value("grid-row", "2 az / auto", ["2 az", "2 az / auto"]);
+test_computed_value("grid-column", "9 / -19 zA");
+test_computed_value("grid-row-start", "-19");
+test_computed_value("grid-row-start", "9 -Z_");
+test_computed_value("grid-column-start", "-44 Z");
+test_computed_value("grid-row-end", "1 -πA");
+test_computed_value("grid-column-end", "5 π_");
+
+// span && [ <integer> || <custom-ident> ]
+test_computed_value("grid-area", "span 2 i / auto / auto / auto",
+                    ["span 2 i", "span 2 i / auto / auto / auto"]);
+test_computed_value("grid-row", "span 2 / auto", ["span 2", "span 2 / auto"]);
+test_computed_value("grid-column-start", "span 1 i", "span i");
+test_computed_value("grid-row-start", "span 1");
+test_computed_value("grid-row-end", "span 2 i");
+test_computed_value("grid-column-end", "span 2");
+
+// https://github.com/w3c/csswg-drafts/issues/3448
+test_computed_value("grid-row-start", "span i");
+test_computed_value("grid-row", "span i / auto", ["span i", "span i / auto"]);
+
+// <grid-line> [ / <grid-line> ]{0,3}
+test_computed_value("grid-area", "auto / i / auto / i",
+                    ["auto / i", "auto / i / auto / i"]);
+test_computed_value("grid-area", "auto / i / 2 j",
+                    ["auto / i / 2 j", "auto / i / 2 j / i"]);
+test_computed_value("grid-area", "auto / i / 2 j / span 3 k");
+test_computed_value("grid-row", "auto / i");
+test_computed_value("grid-column", "2 j / span 3 k");
+
+
+// https://github.com/w3c/csswg-drafts/issues/2858
+test_computed_value("grid-column-end",  "\\31st", "\\31 st");
+test_computed_value("grid-column-end",  "\\31 st", "\\31 st");
+
+</script>
+</body>
+</html>

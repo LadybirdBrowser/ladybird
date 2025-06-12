@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>A new formatting context that fits beside an adjoining float, and thus pulls down the float with its top margin</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#bfc-next-to-float" title="9.5 Floats">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<meta name="assert" content="The float is adjoining with the box that establishes a new formatting context when it fits beside it, and will therefore be affected by its margin">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-200px-square.html">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="overflow:hidden; width:200px; height:200px; background:red;">
+  <div style="margin-top:190px;">
+    <div>
+      <div style="float:left; width:100px; height:200px; background:green;"></div>
+    </div>
+    <div style="margin-top:-190px; overflow:hidden; width:100px; height:200px; background:green;"></div>
+  </div>
+</div>

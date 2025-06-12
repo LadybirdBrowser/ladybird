@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(2, [name1] 50px [name2] 100px);
+    }
+
+    .a {
+        grid-column-start: name2
+    }
+</style><div class="grid-container"><div class="a">1</div><div>2</div><div>3</div><div>4</div></div>

@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Fail
+Details
+Result	Test Name	MessageFail	select should support :open and :closed pseudo selectors.	
+Fail	select :open and :closed should invalidate correctly.	

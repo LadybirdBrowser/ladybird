@@ -1,0 +1,19 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>document.write in XHTML</title>
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com"/>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#document.write%28%29"/>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+test(function() {
+  assert_throws_dom("INVALID_STATE_ERR", function() {
+    document.write("Failure: document.write actually worked");
+  }, "document.write in XHTML should throw an INVALID_STATE_ERR ");
+}, "document.write in XHTML");
+</script>
+</body>
+</html>

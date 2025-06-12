@@ -1,0 +1,17 @@
+#import <DOM/Event.idl>
+
+// https://www.w3.org/TR/css-animations-1/#animationevent
+[Exposed=Window]
+interface AnimationEvent : Event {
+    constructor(CSSOMString type, optional AnimationEventInit animationEventInitDict = {});
+    readonly attribute CSSOMString animationName;
+    readonly attribute double elapsedTime;
+    readonly attribute CSSOMString pseudoElement;
+};
+
+// https://www.w3.org/TR/css-animations-1/#dictdef-animationeventinit
+dictionary AnimationEventInit : EventInit {
+    CSSOMString animationName = "";
+    double elapsedTime = 0.0;
+    CSSOMString pseudoElement = "";
+};

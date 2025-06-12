@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS basic box model: getComputedStyle().minHeight</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-min-height">
+<meta name="assert" content="min-height computed value is as specified, with <length-percentage> values computed">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("min-height", "min-content");
+test_computed_value("min-height", "max-content");
+
+test_computed_value("min-height", "10px");
+test_computed_value("min-height", "20%");
+
+test_computed_value('min-height', 'calc(10% + 40px)');
+test_computed_value('min-height', 'calc(10px - 0.5em)', '0px');
+test_computed_value('min-height', 'calc(10px + 0.5em)', '30px');
+
+test_computed_value("min-height", "fit-content(10px)");
+test_computed_value("min-height", "fit-content(20%)");
+test_computed_value("min-height", "fit-content(calc(10% + 40px))");
+test_computed_value("min-height", "fit-content(calc(10px + 0.5em))", "fit-content(30px)");
+</script>
+</body>
+</html>

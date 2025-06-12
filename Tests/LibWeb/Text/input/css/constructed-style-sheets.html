@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function constructedStyleSheetAppliesToDocument(options) {
+            const textDiv = document.createElement("div");
+            document.body.appendChild(textDiv);
+            const sheet = new CSSStyleSheet(options);
+            const newColor = "rgb(0, 128, 0)";
+            sheet.replaceSync(`div { color: ${newColor}; }`);
+            document.adoptedStyleSheets = [sheet];
+            const styleSheetAppliedToDocument = getComputedStyle(textDiv).color === newColor;
+            document.body.removeChild(textDiv);
+            document.adoptedStyleSheets = [];
+            return styleSheetAppliedToDocument;
+        }
+
+        println(`Disabled constructed style sheet applies to document: ${constructedStyleSheetAppliesToDocument({ disabled: true })}`);
+        println(`Constructed style sheet with media rules applies to document: ${constructedStyleSheetAppliesToDocument({ media: "screen, print" })}`);
+    });
+</script>

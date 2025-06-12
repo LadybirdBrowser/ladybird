@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script id="__NEXT_DATA__"></script>
+<script>
+    test(() => {
+        "use strict";
+        println(`window.__NEXT_DATA__ = ${window.__NEXT_DATA__}`);
+        window.__NEXT_DATA__ = undefined;
+        println(`window.__NEXT_DATA__ = ${window.__NEXT_DATA__}`);
+
+        println(`window[0] = ${window[0]}`);
+
+        // FIXME: Other browsers just swallow this error, but we throw an exception.
+        try {
+            window[0] = 42;
+        } catch (e) {
+            println(`e = ${e}`);
+        }
+        println(`window[0] = ${window[0]}`);
+        window.__proto__[0] = 42;
+        println(`window[0] = ${window[0]}`);
+    });
+</script>

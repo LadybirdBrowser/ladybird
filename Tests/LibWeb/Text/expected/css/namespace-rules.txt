@@ -1,0 +1,2 @@
+Can insert namespace rule into sheet with only @namespace and @import rules: PASS
+Cannot insert namespace rule into sheet with existing rules: PASS

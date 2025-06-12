@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+
+<p id="outside">Outside all dialogs</p>
+<script>
+    failed = false;
+
+    assert = function (bool, message) {
+        if (!bool) {
+            println("FAIL: " + message);
+            failed = true;
+        }
+    }
+
+    click = function (element) {
+        const boundingRect = element.getBoundingClientRect();
+        const centerPoint = {
+            x: boundingRect.left + boundingRect.width / 2,
+            y: boundingRect.top + boundingRect.height / 2
+        };
+        internals.click(centerPoint.x, centerPoint.y);
+    };
+
+    test(() => {
+        println("closerequest=\"Any\" should respond to light dismissal");
+        ["any", "AnY"].forEach((closedby) => {
+            const dialog = document.createElement("dialog");
+            dialog.closedBy = closedby;
+            document.body.appendChild(dialog);
+            assert(!dialog.open, "should be closed by default");
+
+            dialog.show();
+            assert(dialog.open, "should be open after show");
+
+            click(dialog);
+            assert(dialog.open, "should be open after clicking on dialog");
+
+            click(outside);
+            assert(!dialog.open, "should be closed after clicking outside dialog");
+
+            dialog.showModal();
+            assert(dialog.open, "should be open after showModal");
+
+            click(dialog);
+            assert(dialog.open, "should be open after clicking on modal dialog");
+
+            click(outside);
+            assert(!dialog.open, "should be closed after clicking outside modal dialog");
+        });
+
+        println("other dialogs should not respond to light dismissal");
+        ["closerequest", "ClOsErEqUeSt", "none", "NoNe", "invalid", "", undefined].forEach((closedby) => {
+            const dialog = document.createElement("dialog");
+            dialog.closedBy = closedby;
+            document.body.appendChild(dialog);
+            assert(!dialog.open, "should be closed by default");
+
+            dialog.show();
+            assert(dialog.open, "should be open after show");
+
+            click(dialog);
+            assert(dialog.open, "should be open after clicking on dialog");
+
+            click(outside);
+            assert(dialog.open, "should be open after clicking outside dialog");
+
+            dialog.close();
+            dialog.showModal();
+            assert(dialog.open, "should be open after showModal");
+
+            click(dialog);
+            assert(dialog.open, "should be open after clicking on modal dialog");
+
+            click(outside);
+            assert(dialog.open, "should be open after clicking outside modal dialog");
+        });
+
+        if (!failed) println("PASS")
+    });
+</script>

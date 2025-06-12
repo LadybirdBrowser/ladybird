@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let link = document.createElement("link");
+        link.setAttribute("href", "valid.css");
+        link.addEventListener("load", function() {
+            println("Got load event");
+
+            // link is still a stylesheet (no event)
+            link.setAttribute("rel", "preconnect stylesheet");
+        });
+        document.head.appendChild(link);
+
+        // link becomes a stylesheet (event)
+        link.setAttribute("rel", "stylesheet");
+
+        setTimeout(done, 1000);
+    });
+</script>

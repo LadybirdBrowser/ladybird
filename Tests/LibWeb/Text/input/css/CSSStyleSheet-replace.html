@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+    .test {
+        font-size: 12px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const newStyle = `
+        .test {
+            font-size: 14px;
+        }
+        .test2 {
+            font-size: 16px;
+        }`;
+        const newStyle2 = `.test {
+            padding: 100px;
+        }`;
+
+        const nonConstructedSheet = document.styleSheets[0];
+        try {
+            await nonConstructedSheet.replace(newStyle);
+            println("FAIL");
+        } catch (e) {
+            println(`Exception thrown when calling replace() on non-constructed stylesheet: ${e.name}`);
+        }
+
+        const sheet = new CSSStyleSheet();
+        const cssRules = sheet.cssRules;
+
+        await sheet.replace(newStyle);
+        println(`Number of CSS rules after replace(): ${sheet.cssRules.length}`);
+        for (const rule of sheet.cssRules) {
+            println(`Rule: ${rule.cssText}`);
+        }
+
+        const cssRulesAfterReplace = sheet.cssRules;
+        println(`cssRules returns the same object before and after replace(): ${cssRules === cssRulesAfterReplace}`);
+
+        const importRule = `@import url("test.css");`;
+        await sheet.replace(`${newStyle2} ${importRule}`);
+
+        println(`@import rule should be not appear below:`);
+        for (const rule of sheet.cssRules) {
+            println(`Rule: ${rule.cssText}`);
+        }
+        done();
+    });
+</script>

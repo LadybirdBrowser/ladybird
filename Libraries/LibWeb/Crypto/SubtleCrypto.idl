@@ -1,0 +1,64 @@
+#import <Crypto/CryptoKey.idl>
+
+typedef (object or DOMString) AlgorithmIdentifier;
+
+dictionary Algorithm {
+    required DOMString name;
+};
+
+enum KeyFormat { "raw", "spki", "pkcs8", "jwk" };
+
+dictionary RsaOtherPrimesInfo {
+    // The following fields are defined in Section 6.3.2.7 of JSON Web Algorithms
+    DOMString r;
+    DOMString d;
+    DOMString t;
+};
+
+dictionary JsonWebKey {
+    // The following fields are defined in Section 3.1 of JSON Web Key
+    DOMString kty;
+    DOMString use;
+    sequence<DOMString> key_ops;
+    DOMString alg;
+
+    // The following fields are defined in JSON Web Key Parameters Registration
+    boolean ext;
+
+    // The following fields are defined in Section 6 of JSON Web Algorithms
+    DOMString crv;
+    DOMString x;
+    DOMString y;
+    DOMString d;
+    DOMString n;
+    DOMString e;
+    DOMString p;
+    DOMString q;
+    DOMString dp;
+    DOMString dq;
+    DOMString qi;
+    sequence<RsaOtherPrimesInfo> oth;
+    DOMString k;
+};
+
+// https://w3c.github.io/webcrypto/#subtlecrypto-interface
+[SecureContext,Exposed=(Window,Worker)]
+interface SubtleCrypto {
+    Promise<any> encrypt(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
+    Promise<any> decrypt(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
+    Promise<any> sign(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
+    Promise<any> verify(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource signature, BufferSource data);
+
+    Promise<any> digest(AlgorithmIdentifier algorithm, BufferSource data);
+
+    Promise<any> generateKey(AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+    Promise<any> deriveKey(AlgorithmIdentifier algorithm, CryptoKey baseKey, AlgorithmIdentifier derivedKeyType, boolean extractable, sequence<KeyUsage> keyUsages);
+    // FIXME: Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional unsigned long? length = null);
+    Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional unsigned long? length);
+
+    Promise<CryptoKey> importKey(KeyFormat format, (BufferSource or JsonWebKey) keyData,  AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+    Promise<any> exportKey(KeyFormat format, CryptoKey key);
+
+    Promise<any> wrapKey(KeyFormat format, CryptoKey key, CryptoKey wrappingKey, AlgorithmIdentifier wrapAlgorithm);
+    Promise<CryptoKey> unwrapKey(KeyFormat format, BufferSource wrappedKey, CryptoKey unwrappingKey, AlgorithmIdentifier unwrapAlgorithm, AlgorithmIdentifier unwrappedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+};

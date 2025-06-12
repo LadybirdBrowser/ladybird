@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Pass	if before and node are the same element nothing should be done
+Fail	add method should add option elements correctly
+Fail	add method should add option groups correctly

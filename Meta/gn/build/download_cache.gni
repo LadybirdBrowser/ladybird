@@ -1,0 +1,4 @@
+declare_args() {
+  # Location of shared cache of downloaded files
+  cache_path = "$root_gen_dir/Cache/"
+}

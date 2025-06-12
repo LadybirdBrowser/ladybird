@@ -1,0 +1,2 @@
+Collect garbage
+PASS! (Didn't crash)

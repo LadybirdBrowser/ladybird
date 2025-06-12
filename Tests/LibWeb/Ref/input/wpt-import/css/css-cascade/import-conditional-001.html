@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Cascade: @import with basic media query</title>
+  <link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact">
+  <link rel="help" href="https://www.w3.org/TR/css-cascade-3/#conditional-import">
+  <link rel="help" href="https://www.w3.org/TR/css-cascade-4/#conditional-import">
+  <link rel="help" href="https://www.w3.org/TR/css3-mediaqueries/#syntax">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-cascade/reference/ref-filled-green-100px-square.xht">
+  <meta name="assert" content="Test passes on visual UAs if @import can be combined with a media query.">
+  <style>
+  @import "support/test-red.css";
+  @import "support/test-green.css"
+    (min-width: 1px) and /* assuming screen < 1km */ (max-width: 40000in), nonsense;
+  @import "support/test-red.css"
+    (max-width: 1px), nonsense;
+  div {
+    box-sizing: border-box;
+    width: 100px;
+    height: 100px;
+    padding: 5px; /* Avoids text antialiasing issues */
+    background: red;
+  }
+  </style>
+</head>
+<body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div class="test">FAIL</div>
+</body>
+</html>

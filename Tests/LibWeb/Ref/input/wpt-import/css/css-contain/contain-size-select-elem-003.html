@@ -1,0 +1,44 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Test: 'contain: size' on select objects should cause them to be sized as if they have no contents.</title>
+  <link rel="author" title="Morgan Rae Reschenberg" href="mailto:mreschenberg@berkeley.edu">
+  <link rel="help" href="https://drafts.csswg.org/css-contain/#containment-size">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/contain-size-select-elem-003-ref.html">
+  <style>
+  select {
+    contain: size;
+    color: transparent;
+  }
+  .minWidth {
+    min-width: 100px;
+  }
+  .width {
+    width: 100px;
+  }
+  .floatLWidth {
+    float: left;
+    width: 100px;
+  }
+  </style>
+</head>
+<body>
+  <select multiple class="floatLWidth">
+    <option>CSS Test: A size-contained floated select with specified width and no specified height should size itself as if it had no contents.</option>
+    <option>a</option>
+  </select>
+  <br style="clear:both;">
+
+  <select multiple class="minWidth">
+    <option>CSS Test: A size-contained select with specified min-width should size itself as if it had no contents.</option>
+    <option>a</option>
+  </select>
+  <br>
+
+  <select multiple class="width">
+    <option>CSS Test: A size-contained select with specified width should size itself as if it had no contents.</option>
+    <option>a</option>
+  </select>
+</body>
+</html>

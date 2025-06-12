@@ -1,0 +1,6 @@
+#import <WebGL/WebGLObject.idl>
+
+// https://registry.khronos.org/webgl/specs/latest/2.0/#3.5
+[Exposed=(Window,Worker)]
+interface WebGLTransformFeedback : WebGLObject {
+};

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let u = new URLSearchParams();
+        let iterator = u[Symbol.iterator]();
+        println(iterator);
+        println(iterator[Symbol.iterator]());
+        println(iterator === iterator[Symbol.iterator]());
+        println(iterator[Symbol.iterator].call("hello"));
+        println(iterator[Symbol.iterator].call(1));
+        println(iterator[Symbol.iterator].call(window));
+    });
+</script>

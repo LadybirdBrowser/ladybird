@@ -1,0 +1,15 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(
+function() {
+  document.write("<i id='test");
+  document.write("'>Filler Text");
+  assert_equals(document.body.firstChild.localName, "i");
+  assert_equals(document.body.firstChild.getAttribute("id"), "test");
+  assert_equals(document.body.firstChild.textContent, "Filler Text");
+}
+);
+</script>
+<div id="log"></div>

@@ -1,0 +1,4 @@
+updatePlaybackRate() updates an idle animation's playback rate immediately
+updatePlaybackRate() updates a running animation's playback rate after an animation frame
+updatePlaybackRate() updates a paused animation's playback rate after an animation frame
+updatePlaybackRate() updates a finished animation's playback rate after an animation frame

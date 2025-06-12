@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	first simple list
+Pass	first simple listitem
+Pass	last simple listitem

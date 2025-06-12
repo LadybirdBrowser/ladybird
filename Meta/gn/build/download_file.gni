@@ -1,0 +1,88 @@
+#
+# This file introduces a template for calling download_file.py
+#
+# download_file behaves like CMake's file(DOWNLOAD) with the addtion
+# of version checking the file against a build system defined version.
+#
+# Parameters:
+#   url (required) [string]
+#
+#   output (required) [string]
+#
+#   version (required) [string]
+#       Version of the file for caching purposes
+#
+#   version_file (reqiured) [string]
+#       Filename to write the version to in the filesystem
+#
+#   cache [String]
+#       Directory to clear on version mismatch
+#
+#   sha256 [String]
+#       Expected SHA-256 hash of the downloaded file
+#
+# Example use:
+#
+#    download_file("my_tarball") {
+#        url = "http://example.com/xyz.tar.gz"
+#        output = "$root_gen_dir/MyModule/xyz.tar.gz"
+#        version = "1.2.3"
+#        version_file = "$root_gen_dir/MyModule/xyz_version.txt"
+#    }
+#
+
+template("download_file") {
+  assert(defined(invoker.url), "must set 'url' in $target_name")
+  assert(defined(invoker.output), "must set 'output' in $target_name")
+  assert(defined(invoker.version), "must set 'version' in $target_name")
+  assert(defined(invoker.version_file),
+         "must set 'version_file' in $target_name")
+
+  action(target_name) {
+    script = "//Meta/gn/build/download_file.py"
+
+    sources = []
+    if (defined(invoker.cache)) {
+      outputs = [
+        invoker.cache + "/" + invoker.output,
+        invoker.cache + "/" + invoker.version_file,
+      ]
+    } else {
+      outputs = [
+        invoker.output,
+        invoker.version_file,
+      ]
+    }
+    args = [
+      "-o",
+      rebase_path(outputs[0], root_build_dir),
+      "-f",
+      rebase_path(outputs[1], root_build_dir),
+      "-v",
+      invoker.version,
+      invoker.url,
+    ]
+    if (defined(invoker.cache)) {
+      args += [
+        "-c",
+        rebase_path(invoker.cache, root_build_dir),
+      ]
+    }
+    if (defined(invoker.sha256)) {
+      args += [
+        "-s",
+        invoker.sha256,
+      ]
+    }
+
+    forward_variables_from(invoker,
+                           [
+                             "configs",
+                             "deps",
+                             "public_configs",
+                             "public_deps",
+                             "testonly",
+                             "visibility",
+                           ])
+  }
+}

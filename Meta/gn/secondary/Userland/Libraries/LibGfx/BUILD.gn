@@ -1,0 +1,103 @@
+action("generate_tiff_sources") {
+  script = "//Userland/Libraries/LibGfx/TIFFGenerator.py"
+
+  args = [
+    "-o",
+    rebase_path("$target_gen_dir/ImageFormats", root_build_dir),
+  ]
+
+  outputs = [
+    "$target_gen_dir/ImageFormats/TIFFMetadata.h",
+    "$target_gen_dir/ImageFormats/TIFFTagHandler.cpp",
+  ]
+}
+
+config("tiff_headers") {
+  include_dirs = [ "$target_gen_dir/.." ]
+}
+
+shared_library("LibGfx") {
+  output_name = "gfx"
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland",
+  ]
+  public_configs = [ ":tiff_headers" ]
+  sources = [
+    "AffineTransform.cpp",
+    "Bitmap.cpp",
+    "BitmapSequence.cpp",
+    "CMYKBitmap.cpp",
+    "Color.cpp",
+    "Font/Font.cpp",
+    "Font/FontData.cpp",
+    "Font/FontDatabase.cpp",
+    "Font/ScaledFont.cpp",
+    "Font/ScaledFontSkia.cpp",
+    "Font/Typeface.cpp",
+    "Font/TypefaceSkia.cpp",
+    "Font/WOFF/Loader.cpp",
+    "Font/WOFF2/Loader.cpp",
+    "FontCascadeList.cpp",
+    "GradientPainting.cpp",
+    "ImageFormats/AVIFLoader.cpp",
+    "ImageFormats/AnimationWriter.cpp",
+    "ImageFormats/BMPLoader.cpp",
+    "ImageFormats/BMPWriter.cpp",
+    "ImageFormats/BooleanDecoder.cpp",
+    "ImageFormats/CCITTDecoder.cpp",
+    "ImageFormats/GIFLoader.cpp",
+    "ImageFormats/ICOLoader.cpp",
+    "ImageFormats/ImageDecoder.cpp",
+    "ImageFormats/JPEGLoader.cpp",
+    "ImageFormats/JPEGWriter.cpp",
+    "ImageFormats/JPEGXLLoader.cpp",
+    "ImageFormats/PNGLoader.cpp",
+    "ImageFormats/PNGWriter.cpp",
+    "ImageFormats/TIFFLoader.cpp",
+    "ImageFormats/TinyVGLoader.cpp",
+    "ImageFormats/WebPLoader.cpp",
+    "ImageFormats/WebPSharedLossless.cpp",
+    "ImageFormats/WebPWriter.cpp",
+    "ImageFormats/WebPWriterLossless.cpp",
+    "ImmutableBitmap.cpp",
+    "MedianCut.cpp",
+    "Painter.cpp",
+    "PainterSkia.cpp",
+    "Palette.cpp",
+    "Path.cpp",
+    "PathSkia.cpp",
+    "Point.cpp",
+    "Rect.cpp",
+    "ShareableBitmap.cpp",
+    "Size.cpp",
+    "SystemTheme.cpp",
+    "TextLayout.cpp",
+    "Triangle.cpp",
+    "VectorGraphic.cpp",
+  ]
+
+  sources += get_target_outputs(":generate_tiff_sources")
+
+  deps = [
+    ":generate_tiff_sources",
+    "//AK",
+    "//Meta/gn/build/libs/avif",
+    "//Meta/gn/build/libs/harfbuzz",
+    "//Meta/gn/build/libs/jpeg",
+    "//Meta/gn/build/libs/jxl",
+    "//Meta/gn/build/libs/png",
+    "//Meta/gn/build/libs/skia",
+    "//Meta/gn/build/libs/webp",
+    "//Meta/gn/build/libs/woff2",
+    "//Userland/Libraries/LibCompress",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibCrypto",
+    "//Userland/Libraries/LibFileSystem",
+    "//Userland/Libraries/LibIPC",
+    "//Userland/Libraries/LibRIFF",
+    "//Userland/Libraries/LibTextCodec",
+    "//Userland/Libraries/LibURL",
+    "//Userland/Libraries/LibUnicode",
+  ]
+}

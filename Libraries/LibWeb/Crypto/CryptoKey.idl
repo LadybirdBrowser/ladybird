@@ -1,0 +1,12 @@
+enum KeyType { "public", "private", "secret" };
+
+enum KeyUsage { "encrypt", "decrypt", "sign", "verify", "deriveKey", "deriveBits", "wrapKey", "unwrapKey" };
+
+// https://w3c.github.io/webcrypto/#cryptokey-interface
+[SecureContext,Exposed=(Window,Worker),Serializable]
+interface CryptoKey {
+    readonly attribute KeyType type;
+    readonly attribute boolean extractable;
+    readonly attribute object algorithm;
+    readonly attribute object usages;
+};

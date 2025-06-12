@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+7 Pass
+3 Fail
+Pass	e.style['border-inline-start-width'] = "10px" should set the property value
+Pass	e.style['border-inline-start-width'] = "calc(10px + 0.5em)" should set the property value
+Pass	e.style['border-inline-start-width'] = "thick" should set the property value
+Pass	e.style['border-inline-start-width'] = "thin" should set the property value
+Pass	e.style['border-inline-end-width'] = "0" should set the property value
+Pass	e.style['border-inline-end-width'] = "calc(10px - 0.5em)" should set the property value
+Pass	e.style['border-inline-end-width'] = "medium" should set the property value
+Fail	e.style['border-inline-width'] = "10px" should set the property value
+Fail	e.style['border-inline-width'] = "medium calc(10px + 0.5em)" should set the property value
+Fail	e.style['border-inline-width'] = "10px 10px" should set the property value

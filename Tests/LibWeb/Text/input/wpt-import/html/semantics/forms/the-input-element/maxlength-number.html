@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>input type=number maxlength</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+
+<input type="number" maxlength="1">
+
+<script>
+  async_test(t => {
+    let elem = document.getElementsByTagName("input")[0];
+    test_driver.send_keys(elem, "1234")
+      .then(t.step_func(() => {
+         assert_equals(elem.value, "1234");
+         t.done();
+      }));
+  }, "maxlength doesn't apply to input type=number");
+</script>

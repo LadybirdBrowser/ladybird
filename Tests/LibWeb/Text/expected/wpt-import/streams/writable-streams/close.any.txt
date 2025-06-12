@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	fulfillment value of writer.close() call must be undefined even if the underlying sink returns a non-undefined value
+Pass	when sink calls error asynchronously while sink close is in-flight, the stream should not become errored
+Pass	when sink calls error synchronously while closing, the stream should not become errored
+Pass	when the sink throws during close, and the close is requested while a write is still in-flight, the stream should become errored during the close
+Pass	releaseLock on a stream with a pending write in which the stream has been errored
+Pass	releaseLock on a stream with a pending close in which controller.error() was called
+Pass	when close is called on a WritableStream in writable state, ready should return a fulfilled promise
+Pass	when close is called on a WritableStream in waiting state, ready promise should be fulfilled
+Pass	when close is called on a WritableStream in waiting state, ready should be fulfilled immediately even if close takes a long time
+Pass	returning a thenable from close() should work
+Pass	releaseLock() should not change the result of sync close()
+Pass	releaseLock() should not change the result of async close()
+Pass	close() should set state to CLOSED even if writer has detached
+Pass	the promise returned by async abort during close should resolve
+Pass	promises must fulfill/reject in the expected order on closure
+Pass	promises must fulfill/reject in the expected order on aborted closure
+Pass	promises must fulfill/reject in the expected order on aborted and errored closure
+Pass	close() should not reject until no sink methods are in flight
+Pass	ready promise should be initialised as fulfilled for a writer on a closed stream
+Pass	close() on a writable stream should work
+Pass	close() on a locked stream should reject
+Pass	close() on an erroring stream should reject
+Pass	close() on an errored stream should reject
+Pass	close() on an closed stream should reject
+Pass	close() on a stream with a pending close should reject
+Pass	write() on a closed stream should reject

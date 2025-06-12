@@ -1,0 +1,14 @@
+#import <Geometry/DOMPoint.idl>
+#import <SVG/SVGGraphicsElement.idl>
+#import <SVG/SVGAnimatedNumber.idl>
+
+// https://svgwg.org/svg2-draft/types.html#InterfaceSVGGeometryElement
+[Exposed=Window]
+interface SVGGeometryElement : SVGGraphicsElement {
+    [FIXME, SameObject] readonly attribute SVGAnimatedNumber pathLength;
+
+    [FIXME] boolean isPointInFill(optional DOMPointInit point = {});
+    [FIXME] boolean isPointInStroke(optional DOMPointInit point = {});
+    float getTotalLength();
+    DOMPoint getPointAtLength(float distance);
+};

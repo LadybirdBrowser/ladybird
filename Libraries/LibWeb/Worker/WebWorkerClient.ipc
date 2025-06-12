@@ -1,0 +1,3 @@
+endpoint WebWorkerClient {
+    did_close_worker() =|
+}

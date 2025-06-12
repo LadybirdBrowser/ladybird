@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    .box {
+        overflow-y: hidden;
+        overflow-x: visible;
+        width: 200px;
+        height: 200px;
+        background-color: darkblue;
+    }
+</style>
+<body><div class="box"></div></body>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const box = window.getComputedStyle(document.querySelector(".box"));
+        println(`overflow-x: ${box.getPropertyValue("overflow-x")}`);
+        println(`overflow-y: ${box.getPropertyValue("overflow-y")}`);
+    });
+</script>

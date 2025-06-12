@@ -1,0 +1,26 @@
+declare_args() {
+  # https://clang.llvm.org/docs/UsersManual.html#controlling-debugger-tuning
+  # Build with clang for debugging, tuned for a specific debugger.
+  # Both imply is_debug = true.
+  is_debug_lldb = false
+  is_debug_gdb = false
+}
+
+# args that depend on other args must live in a later declare_args() block.
+declare_args() {
+  # Build for debugging. Equivalent to is_optimized=false symbol_level=2.
+  is_debug = is_debug_lldb || is_debug_gdb
+}
+
+declare_args() {
+  # Whether to build with optimizations.
+  is_optimized = !is_debug
+
+  if (is_debug) {
+    # Debug info symbol level. 0: No symbols; 1: Line numbers; 2: Full symbols.
+    symbol_level = 2
+  } else {
+    # Debug info symbol level. 0: No symbols; 1: Line numbers; 2: Full symbols.
+    symbol_level = 1
+  }
+}

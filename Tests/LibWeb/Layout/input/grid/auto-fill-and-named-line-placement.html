@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="en"><style>
+.grid-container {
+    display: grid;
+    grid-template-columns: [start] repeat(auto-fill, minmax(100px, 1fr)) [end];
+}
+
+.grid-item {
+    grid-column: start / end;
+    background-color: lightblue;
+    padding: 20px;
+    text-align: center;
+}
+</style><div class="grid-container"><div class="grid-item">1</div></div>

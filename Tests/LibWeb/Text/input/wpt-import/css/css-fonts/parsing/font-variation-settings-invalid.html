@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-variation-settings with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-variation-settings">
+<meta name="assert" content="font-variation-settings supports only the grammar 'normal | [ <string> <number>] #'.">
+<meta name="assert" content="font-variation-settings strings must have 4 characters.">
+  <script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-variation-settings', '700');
+test_invalid_value('font-variation-settings', '"XHGT"');
+test_invalid_value('font-variation-settings', 'wght 700');
+test_invalid_value('font-variation-settings', 'normal, "wght" 700');
+
+test_invalid_value('font-variation-settings', '"wgt" 700');
+test_invalid_value('font-variation-settings', '"XHGTX" 0.7');
+test_invalid_value('font-variation-settings', '"abc\1F" 0.5');
+test_invalid_value('font-variation-settings', '"abc\7F" 0.5');
+test_invalid_value('font-variation-settings', '"abc\A9" 0.5');
+
+test_invalid_value('font-variation-settings', "'wght' 200 'abcd' 400");
+test_invalid_value('font-variation-settings', "'a' 1234");
+test_invalid_value('font-variation-settings', "'abcde' 1234");
+test_invalid_value('font-variation-settings', "'wght' 200, ");
+test_invalid_value('font-variation-settings', "'abcd\" 123");
+
+test_invalid_value('font-variation-settings', "'wght' 100px");
+test_invalid_value('font-variation-settings', "'wght' calc(100px + 200px)");
+test_invalid_value('font-variation-settings', "'wght' 42%");
+test_invalid_value('font-variation-settings', "'wght' calc(100%)");
+</script>
+</body>
+</html>

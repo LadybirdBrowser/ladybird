@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#intrinsic-sizes">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="min-content width is calculated correctly for row-wrap flex containers in a variety of scenarios with two flex items" />
+
+<style>
+  .zero-width {
+    width: 0px;
+    height: 100px;
+    margin-bottom: 20px;
+  }
+
+  .floating-flexbox {
+    display: flex;
+    flex-wrap: wrap;
+    outline: 5px solid blue;
+    height: 100px;
+    float: left;
+  }
+
+  .floating-flexbox>div:nth-child(1) {
+    background: yellow;
+  }
+
+  .floating-flexbox>div:nth-child(2) {
+    background: orange;
+  }
+
+  .floating-flexbox>div>div {
+    width: 100px;
+  }
+
+</style>
+
+<body onload="checkLayout('.floating-flexbox')">
+  <div class="zero-width">
+    <div class="floating-flexbox" data-expected-width="100">
+      <!-- contribution: 100 -->
+      <div style="flex: 1 1 200px; width:50px;">
+        <div></div>
+      </div>
+      <!-- contribution: 50 -->
+      <div style="flex: 1 1 400px; width:50px;">
+      </div>
+    </div>
+  </div>
+
+  <div class="zero-width">
+    <div class="floating-flexbox" data-expected-width="100">
+      <!-- contribution: 100px
+      starts as max(specified=200, min-content=100) = 200
+      clamped down to 50 because doesn't grow
+      clamped up to 100 because auto min size is 100
+      -->
+      <div style="flex: 0 0 50px; width: 200px;">
+        <div></div>
+      </div>
+      <!-- contribution: 50px
+      starts as max(specified=50, min-content=100) = 100
+      clamped down to 50 because doesn't grow
+      auto min size is 50, so has no effect
+      -->
+      <div style="flex: 0 0 50px; width: 50px;">
+        <div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="zero-width">
+    <div class="floating-flexbox" data-expected-width="200">
+      <!-- contribution: 200px
+      starts as max(specified=200, min-content=100) = 200
+      auto min size is 100, so has no effect
+      -->
+      <div style="flex: 1 0 50px; width: 200px;">
+        <div></div>
+      </div>
+      <!-- contribution: 150px
+      starts as max(specified=50, min-content=100) = 100
+      clamped up to 150 because doesn't shrink
+      auto min size is 50, so has no effect
+      -->
+      <div style="flex: 2 0 150px; width: 50px;">
+        <div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Same as above case except last item has margins. -->
+  <div class="zero-width">
+    <div class="floating-flexbox" data-expected-width="450">
+      <div style="flex: 1 0 50px; width: 200px;">
+        <div></div>
+      </div>
+      <div style="flex: 2 0 150px; width: 50px; margin-left: 300px;">
+        <div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Same as above except we now test that gaps are ignored. -->
+  <div class="zero-width">
+    <div class="floating-flexbox" data-expected-width="450"
+      style="row-gap: 24px; column-gap: 17px;">
+      <div style="flex: 1 0 50px; width: 200px;">
+        <div></div>
+      </div>
+      <div style="flex: 2 0 150px; width: 50px; margin-left: 300px;">
+        <div></div>
+      </div>
+    </div>
+  </div>
+</body>

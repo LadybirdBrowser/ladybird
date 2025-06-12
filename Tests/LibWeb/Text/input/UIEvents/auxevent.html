@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0px;
+        padding: 5px;
+        width: 200px;
+        height: 200px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        document.body.onauxclick = () => {
+            println("auxclick event fired");
+            done();
+        };
+
+        window.onload = () => {
+            internals.middleClick(10, 10);
+        };
+    });
+</script>

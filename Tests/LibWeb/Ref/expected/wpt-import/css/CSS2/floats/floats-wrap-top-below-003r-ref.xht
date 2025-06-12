@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head>
+<title>CSS Test: Test for wrapping around floats whose top is below the top of what must wrap around them</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+<link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+<style type="text/css">
+
+body { width: 400px; border: medium solid; }
+span { display: inline-block; vertical-align: top; width: 100px; height: 50px; background: aqua; }
+
+</style>
+</head>
+<body>
+
+<div style="float: right; width: 250px; height: 25px;"></div>
+<span></span>
+<span style="margin-top: 25px; margin-left: 250px"></span>
+
+
+
+</body></html>

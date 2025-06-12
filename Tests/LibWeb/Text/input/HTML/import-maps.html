@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "application": "./import-maps-1.js"
+        }
+    }
+</script>
+<script type="module">
+    import * as Application from 'application';
+    test(() => {
+        Application.main();
+    });
+</script>

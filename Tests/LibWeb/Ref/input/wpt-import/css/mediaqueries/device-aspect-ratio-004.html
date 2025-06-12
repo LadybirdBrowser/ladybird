@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Media Queries Test: min-device-aspect-ratio - 0/0 ('device-aspect-ratio' property with prefix 'min')</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="author" title="Xin Liu" href="mailto:xinx.liu@intel.com">
+<link rel="help" title="4.7. device-aspect-ratio" href="http://www.w3.org/TR/css3-mediaqueries/#device-aspect-ratio">
+<link rel="match" href="../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="The 'device-aspect-ratio' property with prefix 'min' set '0/0' (which is converted into '1/0') is infinite that means the style sheet specified by 'min-device-aspect-ratio' will not be applied.">
+<style>
+  div {
+    background-color: green;
+    height: 100px;
+    width: 100px;
+  }
+  @media screen and (min-device-aspect-ratio: 0/0) {
+    div {
+      background-color: red;
+    }
+  }
+</style>
+<body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div></div>
+</body>

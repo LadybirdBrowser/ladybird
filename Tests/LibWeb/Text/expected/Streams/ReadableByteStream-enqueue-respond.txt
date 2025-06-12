@@ -1,0 +1,14 @@
+Enqueuing array 60,61,62,63,64,65,66,67,68,69 onto [object ReadableByteStreamController]
+[object ReadableStreamBYOBRequest] view: '11,12,13,14,15,16'
+Got view of buffer: 60,61,62,63,64,65,66,67,68,69,11,12,13,14,15,16, offset 10, length 6
+[object ReadableStreamBYOBRequest] view: '12,13,14,15,16'
+Got view of buffer: 60,61,62,63,64,65,66,67,68,69,11,12,13,14,15,16, offset 11, length 5
+[object ReadableStreamBYOBRequest] view: '13,14,15,16'
+Got view of buffer: 60,61,62,63,64,65,66,67,68,69,11,12,13,14,15,16, offset 12, length 4
+[object ReadableStreamBYOBRequest] view: '14,15,16'
+Got view of buffer: 60,61,62,63,64,65,66,67,68,69,11,12,13,14,15,16, offset 13, length 3
+[object ReadableStreamBYOBRequest] view: '15,16'
+Got view of buffer: 60,61,62,63,64,65,66,67,68,69,11,12,13,14,15,16, offset 14, length 2
+[object ReadableStreamBYOBRequest] view: '16'
+Got view of buffer: 60,61,62,63,64,65,66,67,68,69,11,12,13,14,15,16, offset 15, length 1
+Final data: 60,61,62,63,64,65,66,67,68,69,11,12,13,14,15,16

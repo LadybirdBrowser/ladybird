@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        // FIXME: Test the following properties or types when we support them:
+        //        - repeatable-list types
+        //        - Length types with mixed percentage/unit (e.g. 10% -> 200px)
+        //        - color types with alpha
+        //        - color types with different color spaces
+        //        - backdrop-filter
+        const properties = {
+            accentColor: {
+                from: "rgb(10 20 30)",
+                to: "rgb(200 210 220)",
+            },
+            alignContent: {
+                from: "flex-start",
+                to: "space-between",
+            },
+            animationDuration: {
+                from: "1s",
+                to: "2s",
+            },
+            aspectRatio: {
+                from: "16 / 9",
+                to: "5 / 4",
+            },
+            backgroundColor: {
+                from: "rgb(10 20 30)",
+                to: "rgb(200 210 220)",
+            },
+            backgroundRepeat: {
+                from: "repeat-x",
+                to: "space",
+            },
+            // by-computed-value properties with 'auto' are discrete
+            bottom: {
+                from: "auto",
+                to: "100%",
+            },
+            boxShadow: {
+                from: "red 0px 0px 10px inset",
+                to: "blue 100px 200px 300px, blue 50px 10px 20px 30px",
+            },
+            color: {
+                from: "red",
+                to: "blue",
+            },
+            transform: {
+                from: "translate(0px, 0px)",
+                to: "translate(100px, 100px)",
+            },
+        };
+
+        const keyframe1 = {};
+        const keyframe2 = {};
+        for (const [property, value] of Object.entries(properties)) {
+            keyframe1[property] = value.from;
+            keyframe2[property] = value.to;
+        }
+
+        const foo = document.getElementById("foo");
+        const animation = foo.animate(
+            [keyframe1, keyframe2],
+            { duration: 1000, iterations: 1 },
+        );
+
+        for (let testNum = 0; testNum < 2; testNum++) {
+            const time = testNum === 0 ? 400 : 750;
+            animation.currentTime = time;
+            const style = getComputedStyle(foo);
+
+            println(`At time ${time}:`)
+            for (let property of Object.keys(properties)) {
+                property = property.replace(/([A-Z])/, "-$1").toLowerCase();
+                println(`  ${property}: ${style.getPropertyValue(property)}`);
+            }
+
+            println("");
+        }
+    })
+</script>

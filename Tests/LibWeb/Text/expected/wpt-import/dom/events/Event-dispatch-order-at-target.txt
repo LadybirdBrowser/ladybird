@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Listeners are invoked in correct order (AT_TARGET phase)

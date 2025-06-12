@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<span></span>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Create a long continuation chain
+        const spanElm = document.querySelector('span');
+        for (let i = 0; i < 200; ++i) {
+            spanElm.appendChild(document.createTextNode('a'));
+            let divElm = document.createElement('div');
+            divElm.appendChild(document.createTextNode('b'));
+            spanElm.appendChild(divElm);
+        }
+
+        // Force layout
+        document.body.offsetWidth;
+
+        // Trigger style propagation. This does not necessarily crash, but it verifies that this action completes
+        // within reasonable time instead of hanging indefinitely.
+        document.body.style.fontSize = '10px';
+    });
+</script>

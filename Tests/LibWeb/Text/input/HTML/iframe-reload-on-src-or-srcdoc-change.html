@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<iframe id="test-iframe"></iframe>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        window.addEventListener("message", (e) => {
+            println(e.data);
+            if (e.data === "DONE")
+                done();
+        });
+
+        let testCount = 1;
+
+        function createTest(asBlob, final = false) {
+            let html = `
+                &lt;script&gt;
+                    parent.postMessage(${testCount++}, "*");
+                    ${final ? "parent.postMessage('DONE', '*')" : ""}
+                &lt;/script&gt;
+            `;
+            html = html.replaceAll("&lt;", "<").replaceAll("&gt;", ">");
+            return asBlob
+            ? URL.createObjectURL(new Blob([html], { type: "text/html" }))
+            : html;
+        }
+
+        // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-2
+        // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-3
+        // Whenever an iframe element with a non-null content navigable has its srcdoc attribute set, changed, or removed,
+        // the user agent must process the iframe attributes.
+        // Similarly, whenever an iframe element with a non-null content navigable but with no srcdoc attribute specified
+        // has its src attribute set, changed, or removed, the user agent must process the iframe attributes.
+
+        const firstSrcdoc = createTest(false);
+        const testIframe = document.getElementById("test-iframe");
+
+        testIframe.addEventListener("load", () => {
+           switch (testCount)
+           {
+               case 2:
+                   // Change srcdoc.
+                   testIframe.srcdoc = createTest(false);
+                   break;
+               case 3:
+                   // Remove srcdoc.
+                   testIframe.removeAttribute("srcdoc");
+                   testCount++;
+
+                   // FIXME: Do this in test case 4. However, it does not work currently as the navigation to
+                   //        about:blank following srcdoc does not fire a load event.
+                   // Set src.
+                   testIframe.src = createTest(true);
+                   break;
+               case 5:
+                   // Change src.
+                   testIframe.src = createTest(true);
+                   break;
+               case 6:
+                   // srcdoc takes priority.
+                   testIframe.srcdoc = createTest(false);
+                   break;
+               case 7:
+                   // Changing src has no effect when srcdoc is specified.
+                   testIframe.src = createTest(true);
+                   setTimeout(() => {
+                       testIframe.srcdoc = createTest(false);
+                   }, 0)
+                   break;
+               case 9:
+                   // Removing src has no effect when srcdoc is specified.
+                   testIframe.removeAttribute("src");
+                   setTimeout(() => {
+                       testIframe.srcdoc = createTest(false);
+                   }, 0);
+                   break;
+               case 10:
+                   // Setting src has no effect when srcdoc is specified.
+                   testIframe.src = createTest(true);
+                   setTimeout(() => {
+                       testIframe.srcdoc = createTest(false);
+                   }, 0);
+                   break;
+               case 12:
+                   // Changing any other attributes doesn't cause a reload.
+                   testIframe.setAttribute("data-hello", "world");
+                   setTimeout(() => {
+                       testIframe.srcdoc = createTest(false, true);
+                   }, 0);
+                   break;
+               default:
+                   break;
+           }
+        });
+
+        // Set srcdoc.
+        testIframe.srcdoc = firstSrcdoc;
+    });
+</script>

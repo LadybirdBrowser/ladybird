@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	type can be different from "change"
+Pass	init dictionary default values
+Pass	init dictionary overrides
+Pass	argument of addListener
+Pass	argument of onchange
+Pass	constructor of "change" event

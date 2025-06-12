@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const testElements = ["td", "th"];
+
+        for (const elementName of testElements) {
+            // Test a <td> / <th> element with no parent.
+            {
+                const element = document.createElement(elementName);
+                println(`lone ${elementName}.cellIndex = ${element.cellIndex}`);
+            }
+
+            // Test a <td> / <th> element with a parent <tr> element>.
+            {
+                const tr = document.createElement("tr");
+                const element = tr.appendChild(document.createElement(elementName));
+                println(`parented ${elementName}.cellIndex = ${element.cellIndex}`);
+            }
+        }
+    });
+</script>

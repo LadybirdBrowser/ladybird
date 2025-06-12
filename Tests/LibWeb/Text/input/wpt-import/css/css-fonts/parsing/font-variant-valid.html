@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-variant with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#propdef-font-variant">
+<meta name="assert" content="font-variant supports the full grammar 'normal | none | [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> || [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ] || [ stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name>#) || character-variant(<feature-value-name>#) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) ] || <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero || <east-asian-variant-values> || <east-asian-width-values> || ruby || [ sub | super ] ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('font-variant', 'normal');
+test_valid_value('font-variant', 'none');
+
+// <common-lig-values>
+test_valid_value('font-variant', 'common-ligatures');
+test_valid_value('font-variant', 'no-common-ligatures');
+
+// <discretionary-lig-values>
+test_valid_value('font-variant', 'discretionary-ligatures');
+test_valid_value('font-variant', 'no-discretionary-ligatures');
+
+// <historical-lig-values>
+test_valid_value('font-variant', 'historical-ligatures');
+test_valid_value('font-variant', 'no-historical-ligatures');
+
+// <contextual-alt-values>
+test_valid_value('font-variant', 'contextual');
+test_valid_value('font-variant', 'no-contextual');
+
+// [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ]
+test_valid_value('font-variant', 'small-caps');
+test_valid_value('font-variant', 'all-small-caps');
+test_valid_value('font-variant', 'petite-caps');
+test_valid_value('font-variant', 'all-petite-caps');
+test_valid_value('font-variant', 'unicase');
+test_valid_value('font-variant', 'titling-caps');
+
+// [ stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name>#) || character-variant(<feature-value-name>#) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) ]
+test_valid_value('font-variant', 'stylistic(flowing)');
+test_valid_value('font-variant', 'historical-forms');
+test_valid_value('font-variant', 'styleset(flowing)');
+test_valid_value('font-variant', 'character-variant(flowing)');
+test_valid_value('font-variant', 'swash(flowing)');
+test_valid_value('font-variant', 'ornaments(flowing)');
+test_valid_value('font-variant', 'annotation(flowing)');
+
+test_valid_value('font-variant', 'stylistic(flowing) historical-forms styleset(flowing) character-variant(flowing) swash(flowing) ornaments(flowing) annotation(flowing)');
+
+test_valid_value('font-variant', 'annotation(flowing) ornaments(flowing) swash(flowing) character-variant(flowing) styleset(flowing) historical-forms stylistic(flowing)', 'stylistic(flowing) historical-forms styleset(flowing) character-variant(flowing) swash(flowing) ornaments(flowing) annotation(flowing)');
+
+// <numeric-figure-values>
+test_valid_value('font-variant', 'lining-nums');
+test_valid_value('font-variant', 'oldstyle-nums');
+
+// <numeric-spacing-values>
+test_valid_value('font-variant', 'proportional-nums');
+test_valid_value('font-variant', 'tabular-nums');
+
+// <numeric-fraction-values>
+test_valid_value('font-variant', 'diagonal-fractions');
+test_valid_value('font-variant', 'stacked-fractions');
+
+// ordinal
+test_valid_value('font-variant', 'ordinal');
+
+// slashed-zero
+test_valid_value('font-variant', 'slashed-zero');
+
+// <east-asian-variant-values>
+test_valid_value('font-variant', 'jis78');
+test_valid_value('font-variant', 'jis83');
+test_valid_value('font-variant', 'jis90');
+test_valid_value('font-variant', 'jis04');
+test_valid_value('font-variant', 'simplified');
+test_valid_value('font-variant', 'traditional');
+
+// <east-asian-width-values>
+test_valid_value('font-variant', 'full-width');
+test_valid_value('font-variant', 'proportional-width');
+
+// ruby
+test_valid_value('font-variant', 'ruby');
+
+// [ sub | super ]
+test_valid_value('font-variant', 'sub');
+test_valid_value('font-variant', 'super');
+
+
+test_valid_value('font-variant',
+                 'common-ligatures discretionary-ligatures historical-ligatures contextual' +
+                 ' small-caps stylistic(flowing) lining-nums proportional-nums diagonal-fractions' +
+                 ' ordinal slashed-zero jis78 full-width ruby sub');
+
+test_valid_value('font-variant',
+  'super proportional-width jis83 stacked-fractions tabular-nums oldstyle-nums historical-forms all-small-caps no-contextual no-historical-ligatures no-discretionary-ligatures no-common-ligatures',
+  [
+    'no-common-ligatures no-discretionary-ligatures no-historical-ligatures no-contextual all-small-caps historical-forms oldstyle-nums tabular-nums stacked-fractions jis83 proportional-width super',
+    'no-contextual no-historical-ligatures no-discretionary-ligatures no-common-ligatures all-small-caps historical-forms stacked-fractions tabular-nums oldstyle-nums jis83 proportional-width super'
+  ]
+);
+</script>
+</body>
+</html>

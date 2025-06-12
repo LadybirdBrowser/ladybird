@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Selectors Invalidation: sibling</title>
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#adjacent-sibling-combinators">
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#general-sibling-combinators">
+    <meta name="assert" content="This tests that the + next-sibling selector is effective">
+    <meta name="assert" content="This tests that the ~ subsequent-sibling selector is effective">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+
+* { background-color: inherit; }
+
+body { background-color: rgba(0, 0, 0, 0); }
+
+.t1 .sibling + *,
+.t2 .sibling ~ *,
+.t3 + .sibling + *,
+.t4 + .sibling,
+.t5 + *,
+.t6 ~ .sibling,
+.t7 + * + * .child { background-color: rgb(0, 128, 0); }
+
+    </style>
+  </head>
+  <body>
+
+<div>
+    <div id="t1">
+        <div class="sibling"></div>
+        <div id="r1"></div>
+        <div id="u1"></div>
+    </div>
+</div>
+<div>
+    <div id="t2">
+        <div class="sibling"></div>
+        <div></div>
+        <div id="r2"></div>
+    </div>
+</div>
+<div>
+    <div id="t3"></div>
+    <div class="sibling"></div>
+    <div id="r3"></div>
+</div>
+<div>
+    <div id="t4"></div>
+    <div id="r4" class="sibling"></div>
+    <div id="u4" class="sibling"></div>
+</div>
+<div>
+    <div id="t5"></div>
+    <div id="r5"></div>
+    <div id="u5"></div>
+</div>
+<div>
+    <div id="t6"></div>
+    <div></div>
+    <div id="r6" class="sibling">
+        <div id="r6b"></div>
+    </div>
+    <div id="u6"></div>
+</div>
+<div>
+    <div id="t7">
+        <div class="child"></div>
+    </div>
+    <div></div>
+    <div>
+        <div id="r7" class="child"></div>
+    </div>
+    <div>
+        <div id="u7" class="child"></div>
+    </div>
+</div>
+
+    <script>
+
+test(function() {
+    assert_equals(getComputedStyle(r1).backgroundColor, "rgba(0, 0, 0, 0)", "Background color should initially be transparent");
+
+    t1.className = "t1";
+    assert_equals(getComputedStyle(r1).backgroundColor, "rgb(0, 128, 0)", "Background color is green after class change");
+    assert_equals(getComputedStyle(u1).backgroundColor, "rgba(0, 0, 0, 0)", "Background color remains transparent");
+}, "Adjacent with universal selector");
+
+test(function() {
+    assert_equals(getComputedStyle(r2).backgroundColor, "rgba(0, 0, 0, 0)", "Background color should initially be transparent");
+
+    t2.className = "t2";
+    assert_equals(getComputedStyle(r2).backgroundColor, "rgb(0, 128, 0)", "Background color is green after class change");
+}, "Indirect adjacent with universal selector");
+
+test(function() {
+    assert_equals(getComputedStyle(r3).backgroundColor, "rgba(0, 0, 0, 0)", "Background color should initially be transparent");
+
+    t3.className = "t3";
+    assert_equals(getComputedStyle(r3).backgroundColor, "rgb(0, 128, 0)", "Background color is green after class change");
+}, "Indirect adjacent with two adjacent selectors");
+
+test(function() {
+    assert_equals(getComputedStyle(r4).backgroundColor, "rgba(0, 0, 0, 0)", "Background color should initially be transparent");
+
+    t4.className = "t4";
+    assert_equals(getComputedStyle(r4).backgroundColor, "rgb(0, 128, 0)", "Background color is green after class change");
+    assert_equals(getComputedStyle(u4).backgroundColor, "rgba(0, 0, 0, 0)", "Background color remains transparent");
+}, "Adjacent class");
+
+test(function() {
+    assert_equals(getComputedStyle(r5).backgroundColor, "rgba(0, 0, 0, 0)", "Background color should initially be transparent");
+
+    t5.className = "t5";
+    assert_equals(getComputedStyle(r5).backgroundColor, "rgb(0, 128, 0)", "Background color is green after class change");
+    assert_equals(getComputedStyle(u5).backgroundColor, "rgba(0, 0, 0, 0)", "Background color remains transparent");
+}, "Adjacent universal");
+
+test(function() {
+    assert_equals(getComputedStyle(r6).backgroundColor, "rgba(0, 0, 0, 0)", "Background color should initially be transparent");
+    assert_equals(getComputedStyle(r6b).backgroundColor, "rgba(0, 0, 0, 0)", "Child's background color should initially be transparent");
+
+    t6.className = "t6";
+    assert_equals(getComputedStyle(r6).backgroundColor, "rgb(0, 128, 0)", "Background color is green after class change");
+    assert_equals(getComputedStyle(r6b).backgroundColor, "rgb(0, 128, 0)", "Child's background color is green after class change");
+    assert_equals(getComputedStyle(u6).backgroundColor, "rgba(0, 0, 0, 0)", "Background color remains transparent");
+}, "Sibling subtree through an indirect adjacent combinator");
+
+test(function() {
+    assert_equals(getComputedStyle(r7).backgroundColor, "rgba(0, 0, 0, 0)", "Background color should initially be transparent");
+
+    t7.className = "t7";
+    assert_equals(getComputedStyle(r7).backgroundColor, "rgb(0, 128, 0)", "Background color is green after class change");
+    assert_equals(getComputedStyle(u7).backgroundColor, "rgba(0, 0, 0, 0)", "Background color remains transparent");
+}, "Sibling descendant through a universal selector");
+
+    </script>
+  </body>
+</html>

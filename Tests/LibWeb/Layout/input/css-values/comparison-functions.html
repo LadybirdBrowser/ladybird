@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+    * {
+        width: 0px;
+        height: 0px;
+    }
+    .min {
+        width: min(150px, 80px, min(200px, 300px));
+    }
+    .max {
+        width: max(15px, max(75px, 100px), 50px);
+    }
+    .clamp {
+        width: clamp(clamp(0px, 120px, 200px), 50px, clamp(100px, 500px, 300px));
+        height: clamp(clamp(0px, 120px, 200px), 1000px, clamp(100px, 500px, 300px));
+    }
+</style><div class="min"><div class="max"><div class="clamp">

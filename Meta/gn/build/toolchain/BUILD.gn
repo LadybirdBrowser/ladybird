@@ -1,0 +1,165 @@
+import("//Meta/gn/build/toolchain/compiler.gni")
+
+unix_copy_command = "ln -f {{source}} {{output}} 2>/dev/null || (rm -rf {{output}} && cp -af {{source}} {{output}})"
+
+template("unix_toolchain") {
+  toolchain(target_name) {
+    ar = "ar"
+    cc = "cc"
+    cxx = "c++"
+    ld = cxx
+
+    forward_variables_from(invoker.toolchain_args, "*")
+    forward_variables_from(invoker, "*")
+
+    not_needed([
+                 "current_cpu",
+                 "cc",
+                 "is_clang",
+                 "use_lld",
+               ])
+
+    tool("cc") {
+      if (enable_ccache) {
+        command_launcher = "ccache"
+      }
+      depfile = "{{output}}.d"
+      command = "$cc -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}}"
+      depsformat = "gcc"
+      description = "CC {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.o" ]
+    }
+
+    tool("cxx") {
+      if (enable_ccache) {
+        command_launcher = "ccache"
+      }
+      depfile = "{{output}}.d"
+      command = "$cxx -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}"
+      depsformat = "gcc"
+      description = "CXX {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.o" ]
+    }
+
+    tool("objcxx") {
+      if (enable_ccache) {
+        command_launcher = "ccache"
+      }
+      depfile = "{{output}}.d"
+      command = "$cxx -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_objcc}}"
+      depsformat = "gcc"
+      description = "OBJCXX {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.o" ]
+    }
+
+    tool("asm") {
+      if (enable_ccache) {
+        command_launcher = "ccache"
+      }
+      depfile = "{{output}}.d"
+      command = "$cc -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{asmflags}}"
+      depsformat = "gcc"
+      description = "ASM {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.o" ]
+    }
+
+    tool("alink") {
+      if (current_os == "ios" || current_os == "mac") {
+        command = "libtool -D -static -no_warning_for_no_symbols {{arflags}} -o {{output}} {{inputs}}"
+        not_needed([ "ar" ])
+      } else {
+        # Remove the output file first so that ar doesn't try to modify the
+        # existing file.
+        command =
+            "rm -f {{output}} && $ar rcsD {{arflags}} {{output}} {{inputs}}"
+      }
+      description = "AR {{output}}"
+      outputs = [ "{{output_dir}}/{{target_output_name}}.a" ]
+      output_prefix = "liblagom-"
+      default_output_dir = "{{root_out_dir}}/lib"
+    }
+
+    # Make these apply to all tools below.
+    lib_switch = "-l"
+    lib_dir_switch = "-L"
+
+    tool("solink") {
+      outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+      if (current_os == "ios" || current_os == "mac") {
+        command = "$ld -shared {{ldflags}} -o $outfile {{inputs}} {{libs}} {{frameworks}} -Wl,-install_name,@rpath/{{target_output_name}}{{output_extension}}"
+        default_output_extension = ".dylib"
+      } else {
+        command = "$ld -shared {{ldflags}} -Wl,-soname,{{target_output_name}}{{output_extension}} -Wl,-rpath,\\\$ORIGIN -o $outfile {{inputs}} {{libs}}"
+        default_output_extension = ".so"
+      }
+      description = "SOLINK $outfile"
+      outputs = [ outfile ]
+      output_prefix = "liblagom-"
+      default_output_dir = "{{root_out_dir}}/lib"
+    }
+
+    tool("solink_module") {
+      outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+      if (current_os == "ios" || current_os == "mac") {
+        command = "$ld -shared {{ldflags}} -Wl,-flat_namespace -Wl,-undefined,suppress -o $outfile {{inputs}} {{libs}} {{frameworks}} -Wl,-install_name,@rpath/{{target_output_name}}{{output_extension}}"
+        default_output_extension = ".dylib"
+      } else {
+        command = "$ld -shared {{ldflags}} -Wl,-soname,{{target_output_name}}{{output_extension}} -Wl,-rpath,\\\$ORIGIN -o $outfile {{inputs}} {{libs}}"
+        default_output_extension = ".so"
+      }
+      description = "SOLINK $outfile"
+      outputs = [ outfile ]
+      output_prefix = "lagom-"
+      default_output_dir = "{{root_out_dir}}/lib"
+    }
+
+    tool("link") {
+      if (enable_ccache) {
+        command_launcher = "ccache"
+      }
+      outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+      if (current_os == "ios" || current_os == "mac") {
+        command = "$ld {{ldflags}} -o $outfile {{inputs}} {{libs}} {{frameworks}} -Wl,-rpath,@executable_path/../lib"
+      } else {
+        command = "$ld {{ldflags}} -o $outfile -Wl,--start-group {{inputs}} -Wl,--end-group -Wl,-rpath,\\\$ORIGIN/../lib {{libs}}"
+      }
+      description = "LINK $outfile"
+      outputs = [ outfile ]
+      default_output_dir = "{{root_out_dir}}/bin"
+    }
+
+    tool("copy") {
+      command = unix_copy_command
+      description = "COPY {{source}} {{output}}"
+    }
+
+    if (current_os == "ios" || current_os == "mac") {
+      tool("copy_bundle_data") {
+        # https://github.com/nico/hack/blob/master/notes/copydir.md
+        _copydir = "cd {{source}} && " +
+                   "find . | cpio -pdl \"\$OLDPWD\"/{{output}} 2>/dev/null"
+        command = "rm -rf {{output}} && if [[ -d {{source}} ]]; then " +
+                  _copydir + "; else " + unix_copy_command + "; fi"
+        description = "COPY_BUNDLE_DATA {{source}} {{output}}"
+      }
+      tool("compile_xcassets") {
+        command = "false"
+        description = "The Ladybird build doesn't use any xcasset files"
+      }
+    }
+
+    tool("stamp") {
+      command = "touch {{output}}"
+      description = "STAMP {{output}}"
+    }
+  }
+}
+
+unix_toolchain("unix") {
+  toolchain_args = {
+    current_os = host_os
+    cc = host_cc
+    cxx = host_cxx
+    ld = host_cxx
+  }
+}

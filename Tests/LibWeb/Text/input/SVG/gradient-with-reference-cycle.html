@@ -1,0 +1,13 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg>
+    <linearGradient id="lol" href="#lmao"/>
+    <linearGradient id="lmao" href="#even"/>
+    <linearGradient id="even" href="#lol"/>
+    <rect fill="url(#lol)" />
+</svg>
+<script>
+    test(() => {
+        println("PASS (didn't hang or crash)");
+    });
+</script>

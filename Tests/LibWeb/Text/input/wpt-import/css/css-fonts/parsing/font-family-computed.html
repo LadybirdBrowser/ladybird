@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: getComputedStyle().fontFamily</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-family-prop">
+<meta name="assert" content="font-family computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value('font-family', 'serif');
+test_computed_value('font-family', 'sans-serif');
+test_computed_value('font-family', 'cursive');
+test_computed_value('font-family', 'fantasy');
+test_computed_value('font-family', 'monospace');
+test_computed_value('font-family', 'serif, sans-serif, cursive, fantasy, monospace');
+
+test_computed_value('font-family', 'Helvetica, Verdana, sans-serif');
+test_computed_value('font-family', '"New Century Schoolbook", serif');
+test_computed_value('font-family', '"21st Century", fantasy');
+
+test_computed_value('font-family', '"inherit", "serif"');
+</script>
+</body>
+</html>

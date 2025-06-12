@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <script id="with-xlink-href" xlink:href="test"></script>
+    <script id="no-xlink-href" href="test"></script>
+</svg>
+<script id="svg-script-element">
+    function dumpAttr(description, attr) {
+        if (attr === null) {
+            println(`${description} = 'null'`);
+            return;
+        }
+        println(`${description} = '${attr.constructor.name}': name = ${attr.name} value = ${attr.value}`);
+    }
+    test(() => {
+        const xlinkNS = document.getElementById("with-xlink-href");
+        dumpAttr('xlink:href getAttributeNode', xlinkNS.getAttributeNode("href"));
+        dumpAttr('xlink:href getAttributeNodeNS', xlinkNS.getAttributeNodeNS("http://www.w3.org/1999/xlink", "href"));
+
+        const noNS = document.getElementById("no-xlink-href");
+        dumpAttr('href getAttributeNode', noNS.getAttributeNode("href"));
+        dumpAttr('href getAttributeNodeNS', noNS.getAttributeNodeNS("http://www.w3.org/1999/xlink", "href"));
+    });
+</script>

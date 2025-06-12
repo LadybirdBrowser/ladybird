@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	footer scoped to body element is contentinfo
+Pass	contentinfo region scoped to body element is contentinfo

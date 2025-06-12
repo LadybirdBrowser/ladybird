@@ -1,0 +1,20 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x424 children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 420x420] baseline: 422
+      BlockContainer <button> at (13,10) content-size 420x420 inline-block [BFC] children: not-inline
+        BlockContainer <(anonymous)> at (13,10) content-size 420x420 flex-container(column) [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (13,10) content-size 420x420 flex-item [BFC] children: inline
+            frag 0 from ImageBox start: 0, length: 0, rect: [13,10 420x420] baseline: 420
+            TextNode <#text>
+            ImageBox <img> at (13,10) content-size 420x420 children: not-inline
+            TextNode <#text>
+            TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x424]
+      PaintableWithLines (BlockContainer<BUTTON>) [8,8 430x424]
+        PaintableWithLines (BlockContainer(anonymous)) [13,10 420x420]
+          PaintableWithLines (BlockContainer(anonymous)) [13,10 420x420]
+            ImagePaintable (ImageBox<IMG>) [13,10 420x420]

@@ -1,0 +1,7 @@
+Animation's startTime is initially null: true
+Animation's startTime is 100 after setting the value: true
+Animation's startTime is non-null after ready promise resolved: true
+Animation's startTime is null after calling cancel(): true
+Animation's startTime is null after calling pause() and setting currentTime: true
+Animation's startTime updates after reversing playbackRate: true
+Animation's startTime updates after calling finish(): true

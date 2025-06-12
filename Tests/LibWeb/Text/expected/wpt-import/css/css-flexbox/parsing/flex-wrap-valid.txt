@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['flex-wrap'] = "nowrap" should set the property value
+Pass	e.style['flex-wrap'] = "wrap" should set the property value
+Pass	e.style['flex-wrap'] = "wrap-reverse" should set the property value

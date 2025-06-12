@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Containment Test: 'contain: layout' and ink overflow</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-overflow-3/#ink-overflow">
+  <link rel="help" href="https://www.w3.org/TR/css-contain-1/#containment-layout">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/contain-layout-ink-overflow-015-ref.html">
+
+  <meta content="This test checks that when the contents of an element with 'contain: layout' overflows, its contents must be treated as ink overflow. In this test, the content overflows the div#inner. If such content was treated as 'overflow: visible', then the div#outer would 'pick up' such content and would make it reachable and accessible via its own generated scrollbar. But the overflowed content must be treated as ink overflow and is therefore treated as a graphical effect that is beyond the scrolling mechanism and outside the scrolling mechanism." name="assert">
+
+  <style>
+  div#outer
+    {
+      font-family: monospace;
+      font-size: 100px;
+      height: 2.8ch;
+      line-height: 1.5; /* computes to 150px */
+      width: 4ch;
+
+      overflow: auto;
+    }
+
+  div#inner
+    {
+      color: red;
+      contain: layout;
+      height: 0;
+    }
+  </style>
+
+  <!--
+
+  150px : height of 1 line box
+
+  -->
+
+ <body onload="document.getElementById('outer').scrollLeft = 250; document.getElementById('outer').scrollTop = 150;">
+
+  <p>Test passes if there is no red.
+
+  <div id="outer">
+    <div id="inner">&nbsp;<br>FAIL</div>
+  </div>

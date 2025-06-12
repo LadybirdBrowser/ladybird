@@ -1,0 +1,47 @@
+Harness status: OK
+
+Found 41 tests
+
+29 Pass
+12 Fail
+Pass	'calc(1px * NaN)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1% * NaN)' as a specified value should serialize as 'calc(NaN * 1%)'.
+Pass	'calc(1in * NaN)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1cm * NaN)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1mm * NaN)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1q * NaN)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1pt * NaN)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1pc * NaN)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * nan)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1px * infinity / infinity)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * 0 * infinity)' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * (infinity + -infinity))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * (-infinity + infinity))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * (infinity - infinity))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * infinity)' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(1px * -infinity)' as a specified value should serialize as 'calc(-infinity * 1px)'.
+Pass	'calc(1% * infinity)' as a specified value should serialize as 'calc(infinity * 1%)'.
+Pass	'calc(1% * -infinity)' as a specified value should serialize as 'calc(-infinity * 1%)'.
+Pass	'calc(1px * iNFinIty)' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(1px * (infinity + infinity))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(1px * (-infinity + -infinity))' as a specified value should serialize as 'calc(-infinity * 1px)'.
+Pass	'calc(1px * 1/infinity)' as a specified value should serialize as 'calc(0px)'.
+Pass	'calc(1px * infinity * infinity)' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(1px * -infinity * -infinity)' as a specified value should serialize as 'calc(infinity * 1px)'.
+Fail	'calc(1 * max(INFinity*3px, 0px))' as a specified value should serialize as 'calc(infinity * 1px)'.
+Pass	'calc(1 * min(inFInity*4px, 0px))' as a specified value should serialize as 'calc(0px)'.
+Fail	'calc(1 * max(nAn*2px, 0px))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1 * min(nan*3px, 0px))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1 * clamp(-INFINITY*20px, 0px, infiniTY*10px))' as a specified value should serialize as 'calc(0px)'.
+Pass	'calc(1px * max(NaN, min(0,10)))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * clamp(NaN, 0, 10))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1px * max(0, min(10, NaN)))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1px * clamp(0, 10, NaN))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1px * max(0, min(NaN, 10)))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1px * clamp(0, NaN, 10))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Pass	'calc(1px * clamp(-Infinity, 0, infinity))' as a specified value should serialize as 'calc(0px)'.
+Pass	'calc(1px * clamp(-inFinity, infinity, 10))' as a specified value should serialize as 'calc(10px)'.
+Fail	'calc(1 * min(NaN * 1pt, NaN * 1cm))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1 * max(NaN * 1cm, NaN * 2Q))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1 * min(NaN * 2px, NaN * 4em))' as a specified value should serialize as 'calc(NaN * 1px)'.
+Fail	'calc(1 * clamp(NaN * 2em, NaN * 4px, NaN * 8pt))' as a specified value should serialize as 'clamp(NaN * 1em, NaN * 1px, NaN * 1px)'.

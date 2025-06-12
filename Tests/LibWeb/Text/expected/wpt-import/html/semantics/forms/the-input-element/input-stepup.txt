@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Forms
+Pass	Calling stepUp() on input -number- where value > max should not modify value.
+Pass	Calling stepUp() on input -date- where value > max should not modify value.
+Pass	Calling stepUp() on input -datetime-local- where value > max should not modify value.
+Pass	Calling stepUp() on input -time- where value > max should not modify value.

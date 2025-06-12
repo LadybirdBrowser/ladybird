@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<button formaction="http://www.example.com/"></button>
+<input formaction="http://www.example.com/">
+<script>
+    test(() => {
+        const elementNames = [
+            "button",
+            "input",
+        ];
+        for (const elementName of elementNames) {
+            const element = document.querySelector(elementName);
+            println(`${elementName}.formAction initial value: ${element.formAction}`);
+            element.formAction = "";
+            println(`Final segment of ${elementName}.formAction after setting to the empty string: ${element.formAction.split('/').pop()}`);
+            element.formAction = "../test.html";
+            println(`Final segment of ${elementName}.formAction after setting to "../test.html": ${element.formAction.split('/').pop()}`);
+            element.remove();
+        }
+    });
+</script>

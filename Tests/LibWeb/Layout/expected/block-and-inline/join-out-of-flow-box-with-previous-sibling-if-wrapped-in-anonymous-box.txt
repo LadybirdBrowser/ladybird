@@ -1,0 +1,16 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x76 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x60 children: not-inline
+      BlockContainer <div.banner> at (8,8) content-size 200x30 children: not-inline
+      BlockContainer <(anonymous)> at (8,38) content-size 784x30 children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [8,38 200x30] baseline: 30
+        BlockContainer <div.tab> at (8,38) content-size 200x30 inline-block [BFC] children: not-inline
+        BlockContainer <div.timeline> at (592,38) content-size 200x30 floating [BFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x76]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x60]
+      PaintableWithLines (BlockContainer<DIV>.banner) [8,8 200x30]
+      PaintableWithLines (BlockContainer(anonymous)) [8,38 784x30]
+        PaintableWithLines (BlockContainer<DIV>.tab) [8,38 200x30]
+        PaintableWithLines (BlockContainer<DIV>.timeline) [592,38 200x30]

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>Shadow DOM: Slots and fallback contents in Document tree</title>
+<meta name="author" title="Takayoshi Kochi" href="mailto:kochi@google.com">
+<script src='../resources/testharness.js'></script>
+<script src='../resources/testharnessreport.js'></script>
+<script src="resources/shadow-dom.js"></script>
+
+<div id="test1">
+  <div id="host">
+    <template data-mode="open">
+      <slot id="innerSlot"></slot>
+    </template>
+    <slot id="slot"><div id="fallback">This is fallback content</div></slot>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+let n1 = createTestTree(test1);
+removeWhiteSpaceOnlyTextNodes(n1.test1);
+
+test(() => {
+  assert_array_equals(n1.innerSlot.assignedNodes(), [n1.slot]);
+  assert_array_equals(n1.innerSlot.assignedNodes({ flatten: true }), [n1.slot]);
+}, 'Children of a slot in a document tree should not be counted in flattened ' +
+   'assigned nodes.');
+</script>
+
+<div id="test2">
+  <div id="host">
+    <template data-mode="open">
+      <div id="innerHost">
+        <template data-mode="open">
+          <slot id="innerSlot"></slot>
+        </template>
+        <slot id="slot"><div id="fallback">This is fallback content</div></slot>
+      </div>
+    </template>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+let n2 = createTestTree(test2);
+removeWhiteSpaceOnlyTextNodes(n2.test2);
+
+test(() => {
+  assert_array_equals(n2.innerSlot.assignedNodes(), [n2.slot]);
+  assert_array_equals(n2.innerSlot.assignedNodes({ flatten: true }),
+                      [n2.fallback]);
+}, 'Slot fallback content in shadow tree should be counted in flattened ' +
+   'assigned nodes.');
+</script>

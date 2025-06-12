@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+        let animation = foo.animate({ opacity: [0, 1] });
+        println(`Animation's default timeline is the document's timeline: ${animation.timeline === document.timeline}`);
+
+        animation = foo.animate({ opacity: [0, 1] }, { timeline: null });
+        println(`Animation created with null timeline has no timeline: ${animation.timeline === null}`);
+    });
+</script>

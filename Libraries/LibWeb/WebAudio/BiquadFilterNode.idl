@@ -1,0 +1,33 @@
+#import <WebAudio/AudioParam.idl>
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+enum BiquadFilterType {
+    "lowpass",
+    "highpass",
+    "bandpass",
+    "lowshelf",
+    "highshelf",
+    "peaking",
+    "notch",
+    "allpass"
+};
+
+dictionary BiquadFilterOptions : AudioNodeOptions {
+    BiquadFilterType type = "lowpass";
+    float Q = 1;
+    float detune = 0;
+    float frequency = 350;
+    float gain = 0;
+};
+
+[Exposed=Window]
+interface BiquadFilterNode : AudioNode {
+    constructor (BaseAudioContext context, optional BiquadFilterOptions options = {});
+    attribute BiquadFilterType type;
+    readonly attribute AudioParam frequency;
+    readonly attribute AudioParam detune;
+    readonly attribute AudioParam Q;
+    readonly attribute AudioParam gain;
+    undefined getFrequencyResponse (Float32Array frequencyHz, Float32Array magResponse, Float32Array phaseResponse);
+};

@@ -1,0 +1,23 @@
+#import <DOM/EventTarget.idl>
+#import <IndexedDB/IDBCursor.idl>
+#import <IndexedDB/IDBIndex.idl>
+#import <IndexedDB/IDBObjectStore.idl>
+
+// https://w3c.github.io/IndexedDB/#idbrequest
+[Exposed=(Window,Worker)]
+interface IDBRequest : EventTarget {
+    readonly attribute any result;
+    readonly attribute DOMException? error;
+    readonly attribute (IDBObjectStore or IDBIndex or IDBCursor)? source;
+    readonly attribute IDBTransaction? transaction;
+    readonly attribute IDBRequestReadyState readyState;
+
+    // Event handlers:
+    attribute EventHandler onsuccess;
+    attribute EventHandler onerror;
+};
+
+enum IDBRequestReadyState {
+    "pending",
+    "done"
+};

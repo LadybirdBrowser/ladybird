@@ -1,0 +1,21 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x118 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x102 children: inline
+      frag 0 from SVGSVGBox start: 0, length: 0, rect: [9,9 100x100] baseline: 102
+      SVGSVGBox <svg#outer> at (9,9) content-size 100x100 [SVG] children: inline
+        TextNode <#text>
+        SVGGraphicsBox <use> at (9,9) content-size 100x100 children: inline
+          SVGSVGBox <svg#whee> at (9,9) content-size 100x100 [SVG] children: inline
+            TextNode <#text>
+            SVGGeometryBox <rect> at (9,9) content-size 50x50 children: inline
+              TextNode <#text>
+        TextNode <#text>
+      TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x118]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x102]
+      SVGSVGPaintable (SVGSVGBox<svg>#outer) [8,8 102x102]
+        SVGGraphicsPaintable (SVGGraphicsBox<use>) [9,9 100x100]
+          SVGSVGPaintable (SVGSVGBox<svg>#whee) [9,9 100x100]
+            SVGPathPaintable (SVGGeometryBox<rect>) [9,9 50x50]

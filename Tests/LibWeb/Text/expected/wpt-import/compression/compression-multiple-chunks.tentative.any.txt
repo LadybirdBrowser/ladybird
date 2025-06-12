@@ -1,0 +1,50 @@
+Harness status: OK
+
+Found 45 tests
+
+45 Pass
+Pass	compressing 2 chunks with deflate should work
+Pass	compressing 2 chunks with gzip should work
+Pass	compressing 2 chunks with deflate-raw should work
+Pass	compressing 3 chunks with deflate should work
+Pass	compressing 3 chunks with gzip should work
+Pass	compressing 3 chunks with deflate-raw should work
+Pass	compressing 4 chunks with deflate should work
+Pass	compressing 4 chunks with gzip should work
+Pass	compressing 4 chunks with deflate-raw should work
+Pass	compressing 5 chunks with deflate should work
+Pass	compressing 5 chunks with gzip should work
+Pass	compressing 5 chunks with deflate-raw should work
+Pass	compressing 6 chunks with deflate should work
+Pass	compressing 6 chunks with gzip should work
+Pass	compressing 6 chunks with deflate-raw should work
+Pass	compressing 7 chunks with deflate should work
+Pass	compressing 7 chunks with gzip should work
+Pass	compressing 7 chunks with deflate-raw should work
+Pass	compressing 8 chunks with deflate should work
+Pass	compressing 8 chunks with gzip should work
+Pass	compressing 8 chunks with deflate-raw should work
+Pass	compressing 9 chunks with deflate should work
+Pass	compressing 9 chunks with gzip should work
+Pass	compressing 9 chunks with deflate-raw should work
+Pass	compressing 10 chunks with deflate should work
+Pass	compressing 10 chunks with gzip should work
+Pass	compressing 10 chunks with deflate-raw should work
+Pass	compressing 11 chunks with deflate should work
+Pass	compressing 11 chunks with gzip should work
+Pass	compressing 11 chunks with deflate-raw should work
+Pass	compressing 12 chunks with deflate should work
+Pass	compressing 12 chunks with gzip should work
+Pass	compressing 12 chunks with deflate-raw should work
+Pass	compressing 13 chunks with deflate should work
+Pass	compressing 13 chunks with gzip should work
+Pass	compressing 13 chunks with deflate-raw should work
+Pass	compressing 14 chunks with deflate should work
+Pass	compressing 14 chunks with gzip should work
+Pass	compressing 14 chunks with deflate-raw should work
+Pass	compressing 15 chunks with deflate should work
+Pass	compressing 15 chunks with gzip should work
+Pass	compressing 15 chunks with deflate-raw should work
+Pass	compressing 16 chunks with deflate should work
+Pass	compressing 16 chunks with gzip should work
+Pass	compressing 16 chunks with deflate-raw should work

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+
+<body></body>
+<script>
+    function test(name) {
+        const form = document.body.appendChild(document.createElement("form"));
+        const target = document.createElement("iframe");
+        target.name = name;
+        form.action = "../../Assets/blank.html";
+        document.body.appendChild(target);
+        form.target = target.name;
+        form.submit();
+        target.addEventListener("load", () => {
+            document.body.removeChild(form);
+            document.body.removeChild(target);
+        });
+    }
+    test("1");
+    test("2");
+    test("3");
+</script>

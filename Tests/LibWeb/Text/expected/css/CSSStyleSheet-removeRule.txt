@@ -1,0 +1,12 @@
+Exception thrown when removeRule() called on empty sheet: IndexSizeError
+Rule count after adding 3 rules: 3
+Rule text: .test { padding: 10px; }
+Rule text: .test { margin: 5px; }
+Rule text: .test { font-size: 14px; }
+Rule count after calling removeRule with no arguments: 2
+Rule text: .test { margin: 5px; }
+Rule text: .test { font-size: 14px; }
+Rule count after calling removeRule with explicit index: 1
+Rule text: .test { margin: 5px; }
+Exception thrown when given a negative index: IndexSizeError
+Exception thrown when index out of range: IndexSizeError

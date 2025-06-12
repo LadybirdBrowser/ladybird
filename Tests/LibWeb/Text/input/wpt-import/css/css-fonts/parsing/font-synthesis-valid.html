@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module: parsing font-synthesis with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-synthesis">
+<meta name="assert" content="font-synthesis supports the full grammar 'none | [ weight || style || small-caps || position]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('font-synthesis', 'none');
+test_valid_value('font-synthesis', 'weight');
+test_valid_value('font-synthesis', 'style');
+test_valid_value('font-synthesis', 'small-caps');
+test_valid_value('font-synthesis', 'position');
+test_valid_value('font-synthesis', 'style weight', 'weight style');
+test_valid_value('font-synthesis', 'small-caps weight', 'weight small-caps');
+test_valid_value('font-synthesis', 'small-caps style', 'style small-caps');
+test_valid_value('font-synthesis', 'style weight small-caps', 'weight style small-caps');
+test_valid_value('font-synthesis', 'style small-caps weight ', 'weight style small-caps');
+test_valid_value('font-synthesis', 'small-caps style weight ', 'weight style small-caps');
+test_valid_value('font-synthesis', 'position style', 'style position');
+test_valid_value('font-synthesis', 'position weight style', 'weight style position');
+test_valid_value('font-synthesis', 'position weight small-caps style', 'weight style small-caps position');
+</script>
+</body>
+</html>

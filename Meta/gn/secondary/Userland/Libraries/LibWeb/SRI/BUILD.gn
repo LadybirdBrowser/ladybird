@@ -1,0 +1,5 @@
+source_set("SRI") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [ "SRI.cpp" ]
+}

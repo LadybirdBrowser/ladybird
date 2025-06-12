@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        var parser = new DOMParser();
+        var doc = parser.parseFromString("", "text/html");
+        var body = doc.createElement("body");
+        body.onblur = null;
+        println("PASS (didn't crash)");
+    });
+</script>

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	role is tree
+Pass	role is treeitem (in tree)
+Pass	role is group (in treeitem)
+Pass	role is treeitem (in group, in treeitem)
+Pass	role is treegrid
+Pass	role is row (in treegrid)
+Pass	role is gridcell (in row, in treegrid)

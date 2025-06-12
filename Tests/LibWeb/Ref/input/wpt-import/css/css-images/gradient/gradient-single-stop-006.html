@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Gradient with a single stop</title>
+    <link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+    <link rel="help" href="https://drafts.csswg.org/css-images-4/#color-stop-syntax">
+    <link rel="help" href="https://drafts.csswg.org/css-images-4/#coloring-gradient-line">
+    <meta name="assert" content="Tests that gradient with a single color stop renders the expected solid color">
+    <meta name="fuzzy" content="maxDifference=0-1; totalPixels=0-10000">
+    <link rel="match" href="../../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square-only.html">
+    <style>
+        body {
+            background: #fff;
+        }
+
+        div {
+            width: 100px;
+            height: 100px;
+            position: absolute;
+        }
+
+        #fail {
+            background: red;
+        }
+
+        #test {
+            background-image: conic-gradient(green);
+        }
+    </style>
+</head>
+
+<body>
+    <p>Test passes if there is a filled green square.</p>
+    <div id="fail"></div>
+    <div id="test"></div>
+</body>
+</html>

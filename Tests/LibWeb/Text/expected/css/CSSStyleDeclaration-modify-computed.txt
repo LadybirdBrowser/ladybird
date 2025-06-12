@@ -1,0 +1,2 @@
+Calling setProperty() on a computed CSSStyleDeclaration throws error of type: NoModificationAllowedError
+Calling removeProperty() on a computed CSSStyleDeclaration throws error of type: NoModificationAllowedError

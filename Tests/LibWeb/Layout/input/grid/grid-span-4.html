@@ -1,0 +1,16 @@
+<!doctype html><style>
+* {
+    border: 1px solid black;
+    font-size: 20px;
+}
+body {
+    display: grid;
+    grid-template-rows: repeat(10, min-content) 1fr;
+}
+.foo {
+    grid-area: 4 / 1 / 8 / 2;
+}
+.bar {
+    grid-area: 9 / 1 / 10 / 2;
+}
+</style><body><div class="foo">foo</div><div class="bar">bar</div>

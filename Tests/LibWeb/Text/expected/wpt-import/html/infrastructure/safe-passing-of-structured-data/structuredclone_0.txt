@@ -1,0 +1,52 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 41 tests
+
+36 Pass
+5 Fail
+Details
+Result	Test Name	MessagePass	Primitive string is cloned	
+Pass	Primitive integer is cloned	
+Pass	Primitive floating point is cloned	
+Pass	Primitive floating point (negative) is cloned	
+Pass	Primitive number (hex) is cloned	
+Pass	Primitive number (scientific) is cloned	
+Pass	Primitive boolean is cloned	
+Pass	Instance of Boolean is cloned	
+Pass	Instance of Number is cloned	
+Pass	Instance of String is cloned	
+Pass	Instance of Date is cloned	
+Pass	Instance of RegExp is cloned	
+Pass	Value 'null' is cloned	
+Pass	Value 'undefined' is cloned	
+Pass	Object properties are cloned	
+Pass	Prototype chains are not walked.	
+Pass	Property descriptors of Objects are not cloned	
+Pass	Cycles are preserved in Objects	
+Fail	Identity of duplicates is preserved	
+Pass	Property order is preserved	
+Pass	Enumerable properties of Arrays are cloned	
+Pass	Property descriptors of Arrays are not cloned	
+Pass	Cycles are preserved in Arrays	
+Fail	ImageData object can be cloned	Cannot serialize platform objects
+Fail	ImageData expandos are not cloned	Cannot serialize platform objects
+Pass	Window objects cannot be cloned	
+Pass	Document objects cannot be cloned	
+Pass	Empty Error objects can be cloned	
+Pass	Error objects can be cloned	
+Pass	EvalError objects can be cloned	
+Pass	RangeError objects can be cloned	
+Pass	ReferenceError objects can be cloned	
+Pass	SyntaxError objects can be cloned	
+Pass	TypeError objects can be cloned	
+Pass	URIError objects can be cloned	
+Pass	URIError objects from other realms are treated as URIError	
+Pass	Cloning a modified Error	
+Pass	Error.message: getter is ignored when cloning	
+Pass	Error.message: undefined property is stringified	
+Fail	DOMException objects can be cloned	Cannot serialize platform objects
+Fail	DOMException objects created by the UA can be cloned	Cannot serialize platform objects

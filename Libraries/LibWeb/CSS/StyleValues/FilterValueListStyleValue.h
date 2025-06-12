@@ -1,0 +1,86 @@
+/*
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
+ * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <LibGfx/Filter.h>
+#include <LibWeb/CSS/Angle.h>
+#include <LibWeb/CSS/CalculatedOr.h>
+#include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/Number.h>
+#include <LibWeb/CSS/PercentageOr.h>
+
+namespace Web::CSS {
+
+namespace FilterOperation {
+
+struct Blur {
+    LengthOrCalculated radius { Length::make_px(0) };
+    float resolved_radius(Layout::Node const&) const;
+    bool operator==(Blur const&) const = default;
+};
+
+struct DropShadow {
+    LengthOrCalculated offset_x;
+    LengthOrCalculated offset_y;
+    Optional<LengthOrCalculated> radius;
+    Optional<Color> color;
+    bool operator==(DropShadow const&) const = default;
+};
+
+struct HueRotate {
+    struct Zero {
+        bool operator==(Zero const&) const = default;
+    };
+    using AngleOrZero = Variant<AngleOrCalculated, Zero>;
+    AngleOrZero angle { Angle::make_degrees(0) };
+    float angle_degrees(Layout::Node const&) const;
+    bool operator==(HueRotate const&) const = default;
+};
+
+struct Color {
+    Gfx::ColorFilterType operation;
+    NumberPercentage amount { Number { Number::Type::Integer, 1.0 } };
+    float resolved_amount() const;
+    bool operator==(Color const&) const = default;
+};
+
+};
+
+using FilterFunction = Variant<FilterOperation::Blur, FilterOperation::DropShadow, FilterOperation::HueRotate, FilterOperation::Color>;
+
+class FilterValueListStyleValue final : public StyleValueWithDefaultOperators<FilterValueListStyleValue> {
+public:
+    static ValueComparingNonnullRefPtr<FilterValueListStyleValue const> create(
+        Vector<FilterFunction> filter_value_list)
+    {
+        VERIFY(filter_value_list.size() >= 1);
+        return adopt_ref(*new (nothrow) FilterValueListStyleValue(move(filter_value_list)));
+    }
+
+    Vector<FilterFunction> const& filter_value_list() const { return m_filter_value_list; }
+
+    virtual String to_string(SerializationMode) const override;
+
+    virtual ~FilterValueListStyleValue() override = default;
+
+    bool properties_equal(FilterValueListStyleValue const& other) const { return m_filter_value_list == other.m_filter_value_list; }
+
+private:
+    FilterValueListStyleValue(Vector<FilterFunction> filter_value_list)
+        : StyleValueWithDefaultOperators(Type::FilterValueList)
+        , m_filter_value_list(move(filter_value_list))
+    {
+    }
+
+    // FIXME: No support for SVG filters yet
+    Vector<FilterFunction> m_filter_value_list;
+};
+
+}

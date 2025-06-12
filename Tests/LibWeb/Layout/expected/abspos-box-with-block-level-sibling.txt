@@ -1,0 +1,14 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (5,5) content-size 790x236 [BFC] children: not-inline
+    BlockContainer <body> at (18,18) content-size 764x210 children: not-inline
+      BlockContainer <div.static> at (23,23) content-size 200x200 children: not-inline
+      BlockContainer <div.absolute> at (23,233) content-size 100x200 positioned [BFC] children: not-inline
+      BlockContainer <(anonymous)> at (18,228) content-size 764x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x246]
+    PaintableWithLines (BlockContainer<BODY>) [13,13 774x220]
+      PaintableWithLines (BlockContainer<DIV>.static) [18,18 210x210]
+      PaintableWithLines (BlockContainer<DIV>.absolute) [18,228 110x210]
+      PaintableWithLines (BlockContainer(anonymous)) [18,228 764x0]

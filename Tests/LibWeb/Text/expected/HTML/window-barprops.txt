@@ -1,0 +1,6 @@
+locationbar is BarProp: true visible: true
+menubar is BarProp: true visible: true
+personalbar is BarProp: true visible: true
+scrollbars is BarProp: true visible: true
+statusbar is BarProp: true visible: true
+toolbar is BarProp: true visible: true

@@ -1,0 +1,12 @@
+#import <HTML/Scripting/Fetching.idl>
+#import <SVG/SVGElement.idl>
+#import <SVG/SVGURIReference.idl>
+
+// https://www.w3.org/TR/SVG/interact.html#InterfaceSVGScriptElement
+[Exposed=Window]
+interface SVGScriptElement : SVGElement {
+    [Reflect] attribute DOMString type;
+    [Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
+};
+
+SVGScriptElement includes SVGURIReference;

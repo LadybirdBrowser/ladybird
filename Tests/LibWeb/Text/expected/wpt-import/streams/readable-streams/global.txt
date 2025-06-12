@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Stream objects created in expected globals
+Pass	Cancel promise is created in same global as stream
+Pass	Closed Promise in correct global
+Pass	Reader objects in correct global
+Pass	Desired size can be grafted from one prototype to another
+Pass	Closing errored stream throws object in appropriate global
+Pass	Can enqueue chunks from multiple globals
+Pass	Correct errors and globals for closed streams
+Pass	Tee Branches in correct global

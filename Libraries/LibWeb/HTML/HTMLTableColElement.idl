@@ -1,0 +1,18 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/tables.html#htmltablecolelement
+[Exposed=Window]
+interface HTMLTableColElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions] attribute unsigned long span;
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect=char] attribute DOMString ch;
+    [CEReactions, Reflect=charoff] attribute DOMString chOff;
+    [CEReactions, Reflect=valign] attribute DOMString vAlign;
+    [CEReactions, Reflect] attribute DOMString width;
+
+};

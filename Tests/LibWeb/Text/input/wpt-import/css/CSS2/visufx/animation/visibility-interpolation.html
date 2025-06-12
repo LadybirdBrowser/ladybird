@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>visibility interpolation</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/visufx.html#visibility">
+<meta name="assert" content="visibility supports">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_interpolation({
+  property: 'visibility',
+  from: 'visible',
+  to: 'visible'
+}, [
+  {at: -1, expect: 'visible'},
+  {at: 0, expect: 'visible'},
+  {at: 0.5, expect: 'visible'},
+  {at: 1, expect: 'visible'},
+  {at: 1.5, expect: 'visible'},
+]);
+
+test_interpolation({
+  property: 'visibility',
+  from: 'visible',
+  to: 'hidden'
+}, [
+  {at: -1, expect: 'visible'},
+  {at: 0, expect: 'visible'},
+  {at: 0.1, expect: 'visible'},
+  {at: 0.9, expect: 'visible'},
+  {at: 1, expect: 'hidden'},
+  {at: 1.5, expect: 'hidden'},
+]);
+
+test_interpolation({
+  property: 'visibility',
+  from: 'hidden',
+  to: 'visible'
+}, [
+  {at: -1, expect: 'hidden'},
+  {at: 0, expect: 'hidden'},
+  {at: 0.1, expect: 'visible'},
+  {at: 0.9, expect: 'visible'},
+  {at: 1, expect: 'visible'},
+  {at: 1.5, expect: 'visible'},
+]);
+
+test_interpolation({
+  property: 'visibility',
+  from: 'collapse',
+  to: 'visible'
+}, [
+  {at: -1, expect: 'collapse'},
+  {at: 0, expect: 'collapse'},
+  {at: 0.1, expect: 'visible'},
+  {at: 0.9, expect: 'visible'},
+  {at: 1, expect: 'visible'},
+  {at: 1.5, expect: 'visible'},
+]);
+
+test_no_interpolation({
+  property: 'visibility',
+  from: 'collapse',
+  to: 'hidden'
+});
+</script>
+</body>

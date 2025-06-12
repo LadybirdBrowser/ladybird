@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	role on Element must enqueue an attributeChanged reaction when adding role content attribute
+Pass	role on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaColIndexText on Element must enqueue an attributeChanged reaction when adding aria-colindextext content attribute
+Pass	ariaColIndexText on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaDescription on Element must enqueue an attributeChanged reaction when adding aria-description content attribute
+Pass	ariaDescription on Element must enqueue an attributeChanged reaction when replacing an existing attribute
+Pass	ariaRowIndexText on Element must enqueue an attributeChanged reaction when adding aria-rowindextext content attribute
+Pass	ariaRowIndexText on Element must enqueue an attributeChanged reaction when replacing an existing attribute

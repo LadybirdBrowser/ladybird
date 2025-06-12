@@ -1,0 +1,114 @@
+---------------
+use - no-xlink-href
+---------------
+element.href instanceof SVGAnimatedString -> true
+element.href === element.href -> true
+element.href.baseVal -> 
+element.href.animVal -> 
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> null
+element.getAttribute("href") -> null
+setting baseVal...
+done, new values:
+element.href.baseVal -> testSet
+element.href.animVal -> testSet
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> null
+element.getAttribute("href") -> testSet
+animVal should be readonly:
+TypeError: Cannot set property 'animVal' of [object SVGAnimatedString]
+---------------
+use - explicit-xlink-href
+---------------
+element.href instanceof SVGAnimatedString -> true
+element.href === element.href -> true
+element.href.baseVal -> test1
+element.href.animVal -> test1
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> test1
+element.getAttribute("href") -> null
+setting baseVal...
+done, new values:
+element.href.baseVal -> testSet
+element.href.animVal -> testSet
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> testSet
+element.getAttribute("href") -> null
+animVal should be readonly:
+TypeError: Cannot set property 'animVal' of [object SVGAnimatedString]
+---------------
+use - implicit-xlink-href
+---------------
+element.href instanceof SVGAnimatedString -> true
+element.href === element.href -> true
+element.href.baseVal -> test2
+element.href.animVal -> test2
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> null
+element.getAttribute("href") -> test2
+setting baseVal...
+done, new values:
+element.href.baseVal -> testSet
+element.href.animVal -> testSet
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> null
+element.getAttribute("href") -> testSet
+animVal should be readonly:
+TypeError: Cannot set property 'animVal' of [object SVGAnimatedString]
+---------------
+textPath - no-xlink-href
+---------------
+element.href instanceof SVGAnimatedString -> true
+element.href === element.href -> true
+element.href.baseVal -> 
+element.href.animVal -> 
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> null
+element.getAttribute("href") -> null
+setting baseVal...
+done, new values:
+element.href.baseVal -> testSet
+element.href.animVal -> testSet
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> null
+element.getAttribute("href") -> testSet
+animVal should be readonly:
+TypeError: Cannot set property 'animVal' of [object SVGAnimatedString]
+---------------
+textPath - explicit-xlink-href
+---------------
+element.href instanceof SVGAnimatedString -> true
+element.href === element.href -> true
+element.href.baseVal -> test1
+element.href.animVal -> test1
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> test1
+element.getAttribute("href") -> null
+setting baseVal...
+done, new values:
+element.href.baseVal -> testSet
+element.href.animVal -> testSet
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> testSet
+element.getAttribute("href") -> null
+animVal should be readonly:
+TypeError: Cannot set property 'animVal' of [object SVGAnimatedString]
+---------------
+textPath - implicit-xlink-href
+---------------
+element.href instanceof SVGAnimatedString -> true
+element.href === element.href -> true
+element.href.baseVal -> test2
+element.href.animVal -> test2
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> null
+element.getAttribute("href") -> test2
+setting baseVal...
+done, new values:
+element.href.baseVal -> testSet
+element.href.animVal -> testSet
+element.href.baseVal === element.href.animVal -> true
+element.getAttribute("xlink:href") -> null
+element.getAttribute("href") -> testSet
+animVal should be readonly:
+TypeError: Cannot set property 'animVal' of [object SVGAnimatedString]

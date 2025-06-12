@@ -1,0 +1,19 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#textmetrics
+[Exposed=(Window,Worker)]
+interface TextMetrics {
+    // x-direction
+    readonly attribute double width; // advance width
+    readonly attribute double actualBoundingBoxLeft;
+    readonly attribute double actualBoundingBoxRight;
+
+    // y-direction
+    readonly attribute double fontBoundingBoxAscent;
+    readonly attribute double fontBoundingBoxDescent;
+    readonly attribute double actualBoundingBoxAscent;
+    readonly attribute double actualBoundingBoxDescent;
+    readonly attribute double emHeightAscent;
+    readonly attribute double emHeightDescent;
+    readonly attribute double hangingBaseline;
+    readonly attribute double alphabeticBaseline;
+    readonly attribute double ideographicBaseline;
+};

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	colum-gap:normal computes to normal on multicol elements
+Pass	row-gap:normal computes to normal on multicol elements
+Pass	colum-gap:normal computes to normal on grid
+Pass	row-gap:normal computes to normal on grid
+Pass	colum-gap:normal (main axis) computes to normal on flexbox
+Pass	row-gap:normal (cross axis) computes to normal on flexbox

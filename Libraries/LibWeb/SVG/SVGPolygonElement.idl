@@ -1,0 +1,8 @@
+#import <SVG/SVGGeometryElement.idl>
+
+// https://svgwg.org/svg2-draft/single-page.html#shapes-InterfaceSVGPolygonElement
+[Exposed=Window]
+interface SVGPolygonElement : SVGGeometryElement {
+};
+
+// SVGPolygonElement includes SVGAnimatedPoints;

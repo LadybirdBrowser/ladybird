@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing border-inline-style with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-inline-style">
+<meta name="assert" content="border-inline-style supports only the grammar '<line-style>{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("border-inline-start-style", "auto");
+test_invalid_value("border-inline-start-style", "hidden, outset");
+test_invalid_value("border-inline-end-style", "solid double");
+test_invalid_value("border-inline-style", "auto");
+test_invalid_value("border-inline-style", "groove, ridge");
+test_invalid_value("border-inline-style", "hidden inset dashed");
+</script>
+</body>
+</html>

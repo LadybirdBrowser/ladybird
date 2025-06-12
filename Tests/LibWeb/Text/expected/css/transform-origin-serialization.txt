@@ -1,0 +1,7 @@
+center => 50% 50%
+10px => 10px 50%
+25% => 25% 50%
+left 20% => 0% 20%
+20px bottom => 20px 100%
+top right => 100% 0%
+"center" => (invalid)

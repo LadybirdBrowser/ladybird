@@ -1,0 +1,73 @@
+Harness status: OK
+
+Found 68 tests
+
+68 Pass
+Pass	input element's value should be cloned
+Pass	input element's dirty value flag should be cloned, so setAttribute doesn't affect the cloned input's value
+Pass	input[type=button] element's indeterminateness should be cloned
+Pass	input[type=button] element's checkedness should be cloned
+Pass	input[type=button] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=checkbox] element's indeterminateness should be cloned
+Pass	input[type=checkbox] element's checkedness should be cloned
+Pass	input[type=checkbox] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=color] element's indeterminateness should be cloned
+Pass	input[type=color] element's checkedness should be cloned
+Pass	input[type=color] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=date] element's indeterminateness should be cloned
+Pass	input[type=date] element's checkedness should be cloned
+Pass	input[type=date] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=datetime-local] element's indeterminateness should be cloned
+Pass	input[type=datetime-local] element's checkedness should be cloned
+Pass	input[type=datetime-local] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=email] element's indeterminateness should be cloned
+Pass	input[type=email] element's checkedness should be cloned
+Pass	input[type=email] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=file] element's indeterminateness should be cloned
+Pass	input[type=file] element's checkedness should be cloned
+Pass	input[type=file] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=hidden] element's indeterminateness should be cloned
+Pass	input[type=hidden] element's checkedness should be cloned
+Pass	input[type=hidden] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=image] element's indeterminateness should be cloned
+Pass	input[type=image] element's checkedness should be cloned
+Pass	input[type=image] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=month] element's indeterminateness should be cloned
+Pass	input[type=month] element's checkedness should be cloned
+Pass	input[type=month] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=number] element's indeterminateness should be cloned
+Pass	input[type=number] element's checkedness should be cloned
+Pass	input[type=number] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=password] element's indeterminateness should be cloned
+Pass	input[type=password] element's checkedness should be cloned
+Pass	input[type=password] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=radio] element's indeterminateness should be cloned
+Pass	input[type=radio] element's checkedness should be cloned
+Pass	input[type=radio] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=range] element's indeterminateness should be cloned
+Pass	input[type=range] element's checkedness should be cloned
+Pass	input[type=range] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=reset] element's indeterminateness should be cloned
+Pass	input[type=reset] element's checkedness should be cloned
+Pass	input[type=reset] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=search] element's indeterminateness should be cloned
+Pass	input[type=search] element's checkedness should be cloned
+Pass	input[type=search] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=submit] element's indeterminateness should be cloned
+Pass	input[type=submit] element's checkedness should be cloned
+Pass	input[type=submit] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=tel] element's indeterminateness should be cloned
+Pass	input[type=tel] element's checkedness should be cloned
+Pass	input[type=tel] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=text] element's indeterminateness should be cloned
+Pass	input[type=text] element's checkedness should be cloned
+Pass	input[type=text] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=time] element's indeterminateness should be cloned
+Pass	input[type=time] element's checkedness should be cloned
+Pass	input[type=time] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=url] element's indeterminateness should be cloned
+Pass	input[type=url] element's checkedness should be cloned
+Pass	input[type=url] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness
+Pass	input[type=week] element's indeterminateness should be cloned
+Pass	input[type=week] element's checkedness should be cloned
+Pass	input[type=week] element's dirty checkedness should be cloned, so setAttribute doesn't affect the cloned input's checkedness

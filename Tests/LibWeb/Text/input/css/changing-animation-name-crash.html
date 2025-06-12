@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        animation-name: rule1;
+    }
+    @keyframes rule1 { }
+    @keyframes rule2 { }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const foo = document.getElementById("foo");
+        println(`before: ${getComputedStyle(foo).getPropertyValue("animation-name")}`);
+        foo.style.setProperty("animation-name", "rule2");
+        requestAnimationFrame(() => {
+            println(`after: ${getComputedStyle(foo).getPropertyValue("animation-name")}`);
+            done();
+        });
+    });
+</script>

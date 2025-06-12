@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>display interpolation</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/visuren.html#display-prop">
+<meta name="assert" content="display supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<body>
+  <script>
+    test_no_interpolation({
+      property: 'display',
+      from: 'grid',
+      to: 'flex',
+      underlying: 'block',
+      target_names: ['CSS Animations', 'Web Animations']
+    });
+  </script>
+</body>

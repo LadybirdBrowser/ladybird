@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	TextEncoderStream readable and writable properties must pass brand checks
+Fail	TextDecoderStream readable and writable properties must pass brand checks

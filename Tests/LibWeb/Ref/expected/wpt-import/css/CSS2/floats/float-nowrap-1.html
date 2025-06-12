@@ -1,0 +1,24 @@
+<!doctype html>
+<title>CSS Test: Floats in nowrap context</title>
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#float-position">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=488725">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://www.mozilla.org" title="Mozilla">
+<link rel="mismatch" href="float-nowrap-1-notref.html">
+<style>
+  div {
+    width: 10ch;
+    white-space: nowrap;
+    font-family: monospace;
+  }
+  span {
+    float: right;
+    width: 5ch;
+    height: 5ch;
+    background: blue;
+  }
+</style>
+<div>
+  Some text that overflows my parent.
+  <span></span>
+</div>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+.scroll-box {
+    width: 300px;
+    height: 300px;
+    overflow: scroll;
+    border: 2px solid black;
+}
+
+.content-box {
+    width: 100%;
+    height: 600px;
+    position: relative;
+}
+
+.target-box {
+    width: 100px;
+    height: 100px;
+    background-color: red;
+    position: absolute;
+    top: 500px;
+}
+</style>
+<script src="../include.js"></script>
+<div class="scroll-box"><div class="content-box"><div class="target-box"></div></div></div>
+<script>
+    asyncTest(done => {
+        function onIntersection(entries) {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    println("The box is now visible.");
+                    done();
+                } else {
+                    println("The box is not visible.");
+                }
+            });
+        }
+
+        let observer = new IntersectionObserver(onIntersection, {
+            root: document.querySelector(".scroll-box"),
+        });
+
+        observer.observe(document.querySelector(".target-box"));
+
+        setTimeout(() => {
+            document.querySelector(".scroll-box").scrollTop = 1000;
+        }, 100);
+    });
+</script>

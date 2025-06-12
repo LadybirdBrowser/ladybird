@@ -1,0 +1,20 @@
+nodeName: CANVAS
+offsetTop: 0
+offsetLeft: 0
+offsetParent: [object HTMLTableCellElement]
+
+nodeName: TD
+offsetTop: 2
+offsetLeft: 2
+offsetParent: [object HTMLTableElement]
+
+nodeName: TABLE
+offsetTop: 100
+offsetLeft: 50
+offsetParent: [object HTMLBodyElement]
+
+nodeName: BODY
+offsetTop: 0
+offsetLeft: 0
+offsetParent: null
+

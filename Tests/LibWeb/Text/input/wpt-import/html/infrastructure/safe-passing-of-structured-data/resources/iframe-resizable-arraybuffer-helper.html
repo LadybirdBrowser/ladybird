@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script>
+
+window.addEventListener('message', (e) => {
+  const buffer = e.data;
+  e.source.postMessage(`byteLength=${buffer.byteLength},maxByteLength=${buffer.maxByteLength},resizable=${buffer.resizable}`, '*');
+});
+
+window.parent.postMessage('started', '*');
+
+</script>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<head>
+  <title>CSS Test: Static position of abspos children in a RTL row flex container, with various "justify-content" values</title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+  <link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+  <meta charset="utf-8">
+  <style>
+    .container {
+      display: flex;
+      position: relative;
+      flex-flow: row;
+      direction: rtl;
+      padding: 1px 2px;
+      border: 1px solid black;
+      background: yellow;
+      margin-bottom: 5px;
+      margin-right: 5px;
+      float: left; /* For testing in "rows" of containers */
+    }
+    br { clear: both }
+
+    .big > .container {
+      height: 10px;
+      width: 16px;
+    }
+    .small > .container {
+      height: 2px;
+      width: 4px;
+    }
+
+    .container > * {
+      position: absolute;
+      background: teal;
+      height: 6px;
+      width: 8px;
+    }
+  </style>
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script src="../../../resources/check-layout-th.js"></script>
+</head>
+<body onload="checkLayout('.container > div')">
+  <div class="big">
+    <!-- The various justify-content values, from
+         https://www.w3.org/TR/css-align-3/#propdef-align-content -->
+    <!-- normal -->
+    <div class="container" style="justify-content: normal"><div data-offset-x="10" data-offset-y="1"></div></div>
+    <br>
+    <!-- <content-distribution> -->
+    <div class="container" style="justify-content: space-between"><div data-offset-x="10" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: space-around"><div data-offset-x="6" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: space-evenly"><div data-offset-x="6" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: stretch"><div data-offset-x="10" data-offset-y="1"></div></div>
+    <br>
+    <!-- <content-position>, part 1 -->
+    <div class="container" style="justify-content: center"><div data-offset-x="6" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: start"><div data-offset-x="10" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: end"><div data-offset-x="2" data-offset-y="1"></div></div>
+    <br>
+    <!-- <content-position>, part 2 -->
+    <div class="container" style="justify-content: flex-start"><div data-offset-x="10" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: flex-end"><div data-offset-x="2" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: left"><div data-offset-x="2" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: right"><div data-offset-x="10" data-offset-y="1"></div></div>
+    <br>
+  </div>
+  <div class="small">
+    <!-- The various justify-content values, from
+         https://www.w3.org/TR/css-align-3/#propdef-align-content -->
+    <!-- normal -->
+    <div class="container" style="justify-content: normal"><div data-offset-x="-2" data-offset-y="1"></div></div>
+    <br>
+    <!-- <content-distribution> -->
+    <div class="container" style="justify-content: space-between"><div data-offset-x="-2" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: space-around"><div data-offset-x="0" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: space-evenly"><div data-offset-x="0" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: stretch"><div data-offset-x="-2" data-offset-y="1"></div></div>
+    <br>
+    <!-- <content-position>, part 1 -->
+    <div class="container" style="justify-content: center"><div data-offset-x="0" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: start"><div data-offset-x="-2" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: end"><div data-offset-x="2" data-offset-y="1"></div></div>
+    <br>
+    <!-- <content-position>, part 2 -->
+    <div class="container" style="justify-content: flex-start"><div data-offset-x="-2" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: flex-end"><div data-offset-x="2" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: left"><div data-offset-x="2" data-offset-y="1"></div></div>
+    <div class="container" style="justify-content: right"><div data-offset-x="-2" data-offset-y="1"></div></div>
+    <br>
+  </div>
+</body>
+</html>

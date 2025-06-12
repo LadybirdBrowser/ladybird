@@ -1,0 +1,13 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/grouping-content.html#htmlulistelement
+[Exposed=Window]
+interface HTMLUListElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    // Obsolete
+    [CEReactions, Reflect] attribute boolean compact;
+    [CEReactions, Reflect] attribute DOMString type;
+
+};

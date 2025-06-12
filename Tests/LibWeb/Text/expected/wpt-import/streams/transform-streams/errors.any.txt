@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	TransformStream errors thrown in transform put the writable and readable in an errored state
+Pass	TransformStream errors thrown in flush put the writable and readable in an errored state
+Pass	errored TransformStream should not enqueue new chunks
+Pass	TransformStream transformer.start() rejected promise should error the stream
+Pass	when controller.error is followed by a rejection, the error reason should come from controller.error
+Pass	TransformStream constructor should throw when start does
+Pass	when strategy.size throws inside start(), the constructor should throw the same error
+Pass	when strategy.size calls controller.error() then throws, the constructor should throw the first error
+Pass	cancelling the readable side should error the writable
+Pass	it should be possible to error the readable between close requested and complete
+Pass	an exception from transform() should error the stream if terminate has been requested but not completed
+Pass	abort should set the close reason for the writable when it happens before cancel during start, and cancel should reject
+Pass	abort should set the close reason for the writable when it happens before cancel during underlying sink write, but cancel should still succeed
+Pass	controller.error() should do nothing the second time it is called
+Pass	controller.error() should close writable immediately after readable.cancel()
+Pass	controller.error() should do nothing after readable.cancel() resolves
+Pass	controller.error() should do nothing after writable.abort() has completed
+Pass	controller.error() should do nothing after a transformer method has thrown an exception
+Pass	erroring during write with backpressure should result in the write failing
+Pass	a write() that was waiting for backpressure should reject if the writable is aborted
+Pass	the readable should be errored with the reason passed to the writable abort() method

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`readyState of 'new Document()' should be 'complete': '${new Document().readyState}'`);
+        println(`readyState of 'document.implementation.createHTMLDocument()' should be 'complete': '${document.implementation.createHTMLDocument().readyState}'`);
+        println(`readyState of 'document.implementation.createDocument()' should be 'complete': '${document.implementation.createDocument('http://www.w3.org/1999/xhtml', '').readyState}'`);
+        println(`FIXME: readyState of 'new DOMParser().parseFromString('', 'text/html')' should be 'complete': '${new DOMParser().parseFromString('', 'text/html').readyState}'`);
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        println(`readyState of 'iframe.contentDocument' of initial about:blank iframe should be 'complete': '${iframe.contentDocument.readyState}'`);
+    });
+</script>

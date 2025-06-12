@@ -1,0 +1,38 @@
+<!DOCTYPE html><style>
+    * {
+        outline: 1px solid black;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        position: relative;
+    }
+
+    #d_header {
+        background: pink;
+        width: 400px;
+        height: 30px;
+    }
+
+    #d_scene_btns {
+        float: left;
+    }
+
+    #button {
+        width: 50px;
+        height: 50px;
+        background: orange;
+    }
+
+    #button:hover {
+        background: red;
+    }
+</style><body><div id="d_header"><div id="d_scene_btns"><div id="button"></div></div> <div class="clear"></div>
+<div id="box"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(internals.hitTest(5, 5).node === document.getElementById("button"));
+    });
+</script>

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Flexboxes should perform hit testing in reverse paint order for overlapping elements: negative margin case (crbug.com/844505)

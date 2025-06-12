@@ -1,0 +1,14 @@
+#import <HTML/CanvasGradient.idl>
+#import <HTML/CanvasPattern.idl>
+#import <HTML/HTMLCanvasElement.idl>
+#import <HTML/HTMLImageElement.idl>
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasfillstrokestyles
+interface mixin CanvasFillStrokeStyles {
+    attribute (DOMString or CanvasGradient or CanvasPattern) strokeStyle;
+    attribute (DOMString or CanvasGradient or CanvasPattern) fillStyle;
+    CanvasGradient createLinearGradient(double x0, double y0, double x1, double y1);
+    CanvasGradient createRadialGradient(double x0, double y0, double r0, double x1, double y1, double r1);
+    CanvasGradient createConicGradient(double startAngle, double x, double y);
+    CanvasPattern? createPattern(CanvasImageSource image, [LegacyNullToEmptyString] DOMString repetition);
+};

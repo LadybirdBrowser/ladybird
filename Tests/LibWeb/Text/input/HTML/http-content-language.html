@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+        const url = await httpServer.createEcho("GET", "/http-content-language-test", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Expose-Headers": "Content-Language",
+                "Content-Language": "ko",
+            },
+            body: `
+                <style>
+                    div { width: 50px; }
+                    #box:lang(ko) { width: 100px; }
+                </style>
+                <body><div id="box">TEST</div></body>
+                <script>
+                    if (document.getElementById("box").offsetWidth == 100) {
+                        parent.postMessage("OK", "*")
+                    } else {
+                        parent.postMessage("FAIL", "*")
+                    }
+                <\/script>`,
+        });
+
+        const frame = document.createElement('iframe');
+        frame.src = url;
+
+        addEventListener("message", (event) => {
+            println(event.data);
+            done();
+        }, false);
+
+        document.body.appendChild(frame);
+    });
+</script>

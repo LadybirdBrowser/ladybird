@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    #scrollable-div {
+        width: 300px;
+        height: 50px;
+        overflow: auto;
+        white-space: pre;
+        border: 1px solid black;
+        padding: 10px;
+        font-size: 50px;
+    }
+</style>
+<script src="include.js"></script>
+<div id="scrollable-div">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed
+    cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis
+    ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum
+    lacinia arcu eget nulla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per
+    inceptos himenaeos.
+</div>
+<script>
+    asyncTest(done => {
+        const scrollable = document.getElementById("scrollable-div");
+
+        scrollable.addEventListener("scroll", event => {
+            println(`scroll event fired y=${scrollable.scrollTop} x=${scrollable.scrollLeft}`);
+            done();
+        });
+
+        scrollable.scrollBy({
+           top: 151,
+           left: 25,
+           behaviour: 'smooth'
+        })
+    });
+</script>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        function timesAreClose(a, b) {
+            return Math.abs(a - b) <= 1;
+        }
+        let timeline = new DocumentTimeline();
+        println(`new timeline time equals document timeline time: ${timesAreClose(timeline.currentTime, document.timeline.currentTime)}`);
+
+        timeline = new DocumentTimeline({ originTime: 0 });
+        println(`new timeline originTime defaults to 0: ${timesAreClose(timeline.currentTime, document.timeline.currentTime)}`);
+
+        timeline = new DocumentTimeline({ originTime: 1000 });
+        let passed = timesAreClose(timeline.currentTime + 1000, document.timeline.currentTime);
+        println(`new timeline originTime offsets from document timeline: ${passed}`)
+    });
+</script>

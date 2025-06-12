@@ -1,0 +1,15 @@
+#import <DOM/EventTarget.idl>
+#import <HTML/AbstractWorker.idl>
+#import <HTML/MessagePort.idl>
+#import <HTML/Worker.idl>
+
+// https://html.spec.whatwg.org/multipage/workers.html#sharedworker
+[Exposed=Window]
+interface SharedWorker : EventTarget {
+    // FIXME: "DOMString scriptURL" should be "(TrustedScriptURL or USVString) scriptURL".
+    constructor(DOMString scriptURL, optional (DOMString or WorkerOptions) options = {});
+
+    readonly attribute MessagePort port;
+};
+
+SharedWorker includes AbstractWorker;

@@ -1,0 +1,134 @@
+#
+# This file introduces templates for generating JS bindings for Web Platform
+# Objects using IDL files.
+#
+# The public generate_idl_bindings template invokes the binding generator
+# for each IDL file in the input idl_list. It creates two source_set targets
+# for the input target_name, one ending in "_generated" and one ending in
+# "_sources". The "_generated" target is simply the code generator invocation,
+# while the "_sources" target is the actual generated C++ sources files.
+#
+#
+# Parameters:
+#   idl_list (required) [string]
+#     List of IDL files that are all the same type.
+#
+#   type (required) string
+#       "global", "iterable", "namespace", or "standard"
+#
+#   include_dirs (optional) [string]
+#     List of directories to look for imported IDL files in
+#
+# Example use:
+#
+#  standard_idl_files = [
+#    "//Library/Foo.idl",
+#    "//Bar.idl"
+#  ]
+#
+#  generate_idl_bindings("standard_idl_bindings") {
+#    idl_list = standard_idl_files
+#    type = "standard"
+#  }
+#
+#  shared_library("Library") {
+#    deps = [
+#      ":standard_idl_bindings_generated"
+#      ":standard_idl_bindings_sources"
+#    ]
+#  }
+#
+
+import("//Meta/gn/build/compiled_action.gni")
+
+template("generate_idl_bindings") {
+  forward_variables_from(invoker,
+                         [
+                           "type",
+                           "idl_list",
+                           "include_dirs",
+                         ])
+  idl_sources = []
+  generate_idl = []
+  gen_dir = get_label_info("//Userland/Libraries/LibWeb", "target_gen_dir") +
+            "/Bindings/"
+  foreach(idl, idl_list) {
+    out_name = get_path_info(idl, "name")
+    path = get_path_info(rebase_path(idl, "//Userland/Libraries/LibWeb"),
+                         "dir") + "/" + out_name
+    name = string_replace(path, "/", "_")
+
+    output_files = []
+    if (type == "namespace") {
+      output_files += [
+        "${gen_dir}${out_name}Namespace.h",
+        "${gen_dir}${out_name}Namespace.cpp",
+      ]
+    } else {
+      output_files += [
+        "${gen_dir}${out_name}Constructor.h",
+        "${gen_dir}${out_name}Constructor.cpp",
+        "${gen_dir}${out_name}Prototype.h",
+        "${gen_dir}${out_name}Prototype.cpp",
+      ]
+    }
+    if (type == "iterable") {
+      output_files += [
+        "${gen_dir}${out_name}IteratorPrototype.h",
+        "${gen_dir}${out_name}IteratorPrototype.cpp",
+      ]
+    }
+    if (type == "global") {
+      output_files += [
+        "${gen_dir}${out_name}GlobalMixin.h",
+        "${gen_dir}${out_name}GlobalMixin.cpp",
+      ]
+    }
+
+    if (!defined(include_dirs)) {
+      include_dirs = [ "//Userland/Libraries" ]
+    }
+    rel_include_dirs = []
+    foreach(d, include_dirs) {
+      rel_include_dirs += [
+        "-i",
+        rebase_path(d, root_build_dir),
+      ]
+    }
+
+    compiled_action("generate_" + name) {
+      tool = "//Meta/Lagom/Tools/CodeGenerators/LibWeb/BindingsGenerator"
+      inputs = [ path + ".idl" ]
+      outputs = output_files
+      depfile = "${gen_dir}${out_name}.d"
+      args = [
+               "-o",
+               rebase_path(gen_dir, root_build_dir),
+               "--depfile",
+               rebase_path(depfile, root_build_dir),
+             ] + rel_include_dirs +
+             [
+               rebase_path(inputs[0], root_build_dir),
+               rebase_path("//Userland/Libraries/LibWeb", root_build_dir),
+             ]
+    }
+
+    source_set(name + "_sources") {
+      deps = [
+        ":generate_" + name,
+        "//Userland/Libraries/LibWeb:all_generated",
+      ]
+      sources = get_target_outputs(deps[0])
+      configs += [ "//Userland/Libraries/LibWeb:configs" ]
+    }
+
+    generate_idl += [ ":generate_" + name ]
+    idl_sources += [ ":" + name + "_sources" ]
+  }
+  source_set(target_name + "_generated") {
+    deps = generate_idl
+  }
+  source_set(target_name + "_sources") {
+    deps = idl_sources
+  }
+}

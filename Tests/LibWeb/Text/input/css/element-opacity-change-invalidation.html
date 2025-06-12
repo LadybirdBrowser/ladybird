@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        document.body.style.opacity = '0.5';
+        document.body.offsetWidth
+        document.body.style.opacity = '100.0%';
+        document.body.offsetWidth
+        document.body.style.opacity = '0.5';
+        document.body.offsetWidth
+        println("Didn't crash :^)");
+    });
+</script>

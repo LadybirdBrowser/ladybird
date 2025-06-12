@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<video id="video" autoplay src="../../Assets/test-webm.webm"></video>
+<script type="text/javascript">
+    video.addEventListener("loadedmetadata", () => {
+        parent.postMessage("video loaded", "*");
+    });
+
+    video.addEventListener("error", e => {
+        parent.postMessage(`error: ${e.target.error.message}`, "*");
+    });
+</script>

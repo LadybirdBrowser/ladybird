@@ -1,0 +1,4 @@
+PASS: revert to base (first target)
+PASS: revert to base (second target)
+PASS: double revert (first target)
+PASS: double revert (second target)

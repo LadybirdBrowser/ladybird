@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Test (CSSOM View): getClientRects of element outside DOM</title>
+    <link rel="author" title="Chris Rebert" href="http://chrisrebert.com">
+    <link rel="help" href="http://www.w3.org/TR/cssom-view/#dom-element-getclientrects">
+    <meta name="flags" content="dom">
+    <meta name="assert" content="Calling getClientRects on an element that is outside of the DOM (and therefore does not have an associated layout box) should result in an empty DOMRectList and should definitely not throw an error.">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script>
+        test(
+            function () {
+                var rectList = document.createElement('div').getClientRects();
+                assert_equals(rectList.length, 0, "DOMRectList should be empty");
+            },
+            "getClientRects on a newly-created Element not yet inserted into the DOM should return an empty DOMRectList"
+        );
+    </script>
+</head>
+<body></body>
+</html>

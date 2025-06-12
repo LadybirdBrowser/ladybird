@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Pass	.relpos 1
+Pass	.relpos 2
+Pass	.relpos 3
+Fail	.relpos 4
+Pass	.relpos 5
+Pass	.relpos 6
+Pass	.relpos 7
+Fail	.relpos 8

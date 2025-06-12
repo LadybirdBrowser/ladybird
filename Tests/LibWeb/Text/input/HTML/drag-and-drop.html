@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<div id="target" style="width: 200px; height: 200px"></div>
+<script src="../include.js"></script>
+<script type="text/javascript">
+    test(() => {
+        let target = document.getElementById("target");
+        let acceptDragEvents = true;
+
+        const printEvent = (name, e) => {
+            println(name);
+            println(`    types: ${e.dataTransfer.types}`);
+
+            const files = e.dataTransfer.files;
+
+            if (files.length !== 0) {
+                println(`    files: ${files.length}`);
+
+                for (const file of files) {
+                    println(`        ${file.name}`);
+                }
+            }
+        };
+
+        target.addEventListener("dragenter", e => {
+            printEvent("dragenter", e);
+            if (acceptDragEvents) {
+                e.preventDefault();
+            }
+        });
+        target.addEventListener("dragover", e => {
+            printEvent("dragover", e);
+            if (acceptDragEvents) {
+                e.preventDefault();
+            }
+        });
+        target.addEventListener("dragleave", e => {
+            printEvent("dragleave", e);
+        });
+        target.addEventListener("drop", e => {
+            printEvent("drop", e);
+            if (acceptDragEvents) {
+                e.preventDefault();
+            }
+        });
+
+        println("Simple drag and drop:");
+        internals.simulateDragStart(0, 0, "test1", "well hello friends :^)");
+        internals.simulateDragMove(100, 100);
+        internals.simulateDrop(100, 100);
+
+        println("\nDrag enter and leave:");
+        internals.simulateDragStart(0, 0, "test2", "well hello friends :^)");
+        internals.simulateDragMove(100, 100);
+        internals.simulateDragMove(300, 300);
+        internals.simulateDragMove(100, 100);
+        internals.simulateDrop(100, 100);
+
+        println("\nDrag enter not accepted:");
+        internals.simulateDragStart(0, 0, "test3", "well hello friends :^)");
+        acceptDragEvents = false;
+        internals.simulateDragMove(100, 100);
+        acceptDragEvents = true;
+        internals.simulateDragMove(110, 110);
+        internals.simulateDrop(100, 100);
+
+        println("\nDrag over not accepted:");
+        internals.simulateDragStart(0, 0, "test4", "well hello friends :^)");
+        internals.simulateDragMove(100, 100);
+        acceptDragEvents = false;
+        internals.simulateDragMove(110, 110);
+        acceptDragEvents = true;
+        internals.simulateDrop(100, 100);
+
+        println("\nDrop not accepted:");
+        internals.simulateDragStart(0, 0, "test5", "well hello friends :^)");
+        internals.simulateDragMove(100, 100);
+        acceptDragEvents = false;
+        internals.simulateDrop(100, 100);
+        acceptDragEvents = true;
+    });
+</script>

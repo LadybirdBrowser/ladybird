@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Rotate DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).rotate(10, 20, 30).a);
+
+        // 2. Rotate DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().rotate(10, 20, 30)).b);
+
+        // 4. Rotate DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).rotate(10, 20, 30).c);
+
+        // 5. Rotate DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().rotate(10, 20, 30)).d);
+
+        // 6. Rotate from Vector DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).rotateFromVector(0, 45));
+
+        // 7. Rotate from Vector DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().rotateFromVector(0, 45)));
+
+        // 8. Rotate from Axis Angle DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).rotateAxisAngle(0, 1, 0, 10));
+
+        // 9. Rotate from Axis Angle DOMMatrix with multiply
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().rotateAxisAngle(0, 1, 0, 10)));
+    });
+</script>

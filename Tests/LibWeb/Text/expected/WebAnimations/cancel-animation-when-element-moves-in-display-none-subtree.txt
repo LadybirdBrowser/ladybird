@@ -1,0 +1,2 @@
+Animations count before: 1
+Animations count after: 0

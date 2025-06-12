@@ -1,0 +1,29 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x166 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x150 children: not-inline
+      BlockContainer <(anonymous)> at (8,8) content-size 784x0 children: inline
+        TextNode <#text>
+        TextNode <#text>
+      BlockContainer <div> at (8,8) content-size 784x150 children: inline
+        frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 300x150] baseline: 150
+        TextNode <#text>
+        SVGSVGBox <svg> at (8,8) content-size 300x150 [SVG] children: inline
+          TextNode <#text>
+          SVGGraphicsBox <use> at (8,8) content-size 300x150 children: not-inline
+            SVGGraphicsBox <symbol#braces> at (8,8) content-size 300x150 [BFC] children: inline
+              TextNode <#text>
+              SVGGeometryBox <path> at (92.375,26.75) content-size 131.25x112.15625 children: inline
+                TextNode <#text>
+              TextNode <#text>
+          TextNode <#text>
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x166]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x150]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x150]
+        SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
+          SVGGraphicsPaintable (SVGGraphicsBox<use>) [8,8 300x150]
+            SVGGraphicsPaintable (SVGGraphicsBox<symbol>#braces) [8,8 300x150]
+              SVGPathPaintable (SVGGeometryBox<path>) [92.375,26.75 131.25x112.15625]

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 5: getComputedStyle().fontSizeAdjust</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop">
+<meta name="assert" content="font-size-adjust computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+/* Use a font with known metrics so we can verify that from-font
+   computes to the expected value from the font. */
+@font-face {
+    font-family: ahem-ex-500;
+    src: url(ahem-ex-500.otf);
+}
+#target {
+    font-family: ahem-ex-500 !important;
+    font-size: 1000px;
+}
+#container {
+    container-type: inline-size;
+    width: 10px;
+}
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+function compareFontSizeAdjustFromFont(actual, expected) {
+  // Depending on font configurations, the retrieved aspect_value may slightly
+  // differ, causing a few pixels' variation from the expected result.
+  const actual_computed_style = actual.split(" ");
+  const expected_computed_style = expected.split(" ");
+  assert_true(actual_computed_style.length === 2 && expected_computed_style.length === 2);
+
+  const actual_font_metric = actual_computed_style[0];
+  const expected_font_metric = expected_computed_style[0];
+  assert_equals(actual_font_metric, expected_font_metric);
+
+  const actual_aspect_value = parseFloat(actual_computed_style[1]);
+  const expected_aspect_value = parseFloat(expected_computed_style[1]);
+  assert_approx_equals(actual_aspect_value, expected_aspect_value, 0.00001);
+}
+
+promise_test(async (t) => {
+  await document.fonts.load("1000px ahem-ex-500");
+
+  test_computed_value('font-size-adjust', 'none');
+
+  test_computed_value('font-size-adjust', '0.5');
+  test_computed_value('font-size-adjust', 'ex-height 0.5', '0.5');  // default basis 'ex-height' omitted from serialization
+  test_computed_value('font-size-adjust', 'cap-height 0.8');
+  test_computed_value('font-size-adjust', 'ch-width 0.4');
+  test_computed_value('font-size-adjust', 'ic-width 0.9');
+  test_computed_value('font-size-adjust', 'ic-height 1.1');
+
+  // The ahem-ex-500 font has both ex-height and cap-height set at 0.5em, and ch-width is 1em.
+  // Ideographic metrics are not available, so fall back to 1em.
+  test_computed_value('font-size-adjust', 'from-font', '0.5');
+  test_computed_value('font-size-adjust', 'ex-height from-font', '0.5');  // default basis 'ex-height' omitted from serialization
+  test_computed_value('font-size-adjust', 'cap-height from-font', 'cap-height 0.5');
+  test_computed_value('font-size-adjust', 'ch-width from-font', 'ch-width 1', undefined, {comparisonFunction: compareFontSizeAdjustFromFont});
+  test_computed_value('font-size-adjust', 'ic-width from-font', 'ic-width 1', undefined, {comparisonFunction: compareFontSizeAdjustFromFont});
+  test_computed_value('font-size-adjust', 'ic-height from-font', 'ic-height 1');
+
+  test_computed_value('font-size-adjust', 'calc(0.5)', '0.5');
+  test_computed_value('font-size-adjust', 'ex-height calc(0.5)', '0.5');  // default basis 'ex' omitted from serialization
+  test_computed_value('font-size-adjust', 'cap-height calc(0.5)', 'cap-height 0.5');
+  test_computed_value('font-size-adjust', 'cap-height calc(0.5 + 1)', 'cap-height 1.5');
+  test_computed_value('font-size-adjust', 'cap-height calc(-0.5)', 'cap-height 0');
+  test_computed_value('font-size-adjust', 'cap-height calc(10 + (sign(20cqw - 10px) * 5))', 'cap-height 5');
+})
+</script>
+</body>
+</html>

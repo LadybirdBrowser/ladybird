@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const e = document.createElement("div");
+        e.style.fontFamily = 'sans-serif';
+        e.style.fontFamily = 'serif, -apple-system';
+        println(e.style.fontFamily);
+    });
+</script>

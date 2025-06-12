@@ -1,0 +1,14 @@
+diff --git a/bn_mp_set_double.c b/bn_mp_set_double.c
+--- a/bn_mp_set_double.c
++++ b/bn_mp_set_double.c
+@@ -2,9 +2,9 @@
+ #ifdef BN_MP_SET_DOUBLE_C
+ /* LibTomMath, multiple-precision integer library -- Tom St Denis */
+ /* SPDX-License-Identifier: Unlicense */
+ 
+-#if defined(__STDC_IEC_559__) || defined(__GCC_IEC_559)
++#if defined(__STDC_IEC_559__) || defined(__GCC_IEC_559) || defined(_MSC_VER)
+ mp_err mp_set_double(mp_int *a, double b)
+ {
+    uint64_t frac;
+    int exp;

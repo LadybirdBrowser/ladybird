@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<script>
+    const context = new OfflineAudioContext(1, 1, 44100)
+    const analyser = context.createAnalyser()
+    const dataArray = new Float32Array(analyser.frequencyBinCount)
+    analyser.getFloatFrequencyData(dataArray);
+</script>

@@ -1,0 +1,26 @@
+#import <PerformanceTimeline/PerformanceObserverEntryList.idl>
+
+// https://w3c.github.io/performance-timeline/#dom-performanceobservercallbackoptions
+dictionary PerformanceObserverCallbackOptions {
+    unsigned long long droppedEntriesCount;
+};
+
+callback PerformanceObserverCallback = undefined (PerformanceObserverEntryList entries, PerformanceObserver observer, optional PerformanceObserverCallbackOptions options = {});
+
+// https://w3c.github.io/performance-timeline/#dom-performanceobserverinit
+dictionary PerformanceObserverInit {
+    sequence<DOMString> entryTypes;
+    DOMString type;
+    boolean buffered;
+};
+
+// https://w3c.github.io/performance-timeline/#dom-performanceobserver
+[Exposed=(Window,Worker)]
+interface PerformanceObserver {
+    constructor(PerformanceObserverCallback callback);
+    undefined observe(optional PerformanceObserverInit options = {});
+    undefined disconnect();
+    PerformanceEntryList takeRecords();
+    // FIXME: This should be FrozenArray<DOMString>, but must also always return the same object.
+    [SameObject] static readonly attribute any supportedEntryTypes;
+};

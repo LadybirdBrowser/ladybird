@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square.xht">
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#float-position">
+<meta name="assert" content="This test checks placement of inflow content with floats present." />
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width: 100px; height: 100px; background: red; line-height: 0; position: relative;">
+  <div style="float: left; width: 20px;"></div>
+  <div style="float: right; width: 30px; height: 50px; background: green;"></div>
+  <div style="float: right; clear: right; width: 100px; height: 50px; background: green;"></div>
+  <div style="display: inline-block; width: 50px; height: 50px; background: green;"></div>
+  <div style="position: absolute; width: 20px; height: 50px; top: 0; left: 50px; background: green;"></div>
+</div>

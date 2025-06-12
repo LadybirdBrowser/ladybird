@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/alternative-style-sheets-ref.html" />
+<link title="preferred" rel="stylesheet" href="data:text/css,html { background: green }">
+<!-- These alternative style sheets shouldn't be applied -->
+<link title="alternative" rel="alternate stylesheet" href="data:text/css,html { background: red !important }">
+<link id="no-title" rel="alternate stylesheet" href="data:text/css,html { background: blue !important }">

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function dumpWheelEvent(wheelEvent) {
+        println("deltaX: " + wheelEvent.deltaX);
+        println("deltaY: " + wheelEvent.deltaY);
+        println("deltaZ: " + wheelEvent.deltaZ);
+        println("deltaMode: " + wheelEvent.deltaMode);
+        println("view: " + wheelEvent.view);
+        println("screenX: " + wheelEvent.screenX);
+        println("screenY: " + wheelEvent.screenY);
+        println("clientX: " + wheelEvent.clientX);
+        println("clientY: " + wheelEvent.clientY);
+        println("ctrlKey: " + wheelEvent.ctrlKey);
+        println("altKey: " + wheelEvent.altKey);
+        println("shiftKey: " + wheelEvent.shiftKey);
+        println("metaKey: " + wheelEvent.metaKey);
+    }
+
+    test(() => {
+        dumpWheelEvent(new WheelEvent('wheel'));
+        println('');
+        dumpWheelEvent(new WheelEvent('wheel', {
+            deltaX: 10,
+            deltaY: 20,
+            deltaZ: 35,
+            deltaMode: WheelEvent.DOM_DELTA_PAGE,
+            screenX: 1,
+            screenY: 2,
+            clientX: 3,
+            clientY: 4,
+            ctrlKey: true,
+            altKey: true,
+            shiftKey: false,
+            metaKey: true,
+        }));
+    });
+</script>

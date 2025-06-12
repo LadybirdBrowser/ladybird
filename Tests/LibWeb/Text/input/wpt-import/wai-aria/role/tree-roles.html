@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+<head>
+  <title>Tree related Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<style>
+  /* Hide collapsed rows */
+  [role="treegrid"] tr.hidden {
+    display: none;
+  }
+
+  /* Indents */
+  [role="treegrid"] tr[aria-level="2"] > td:first-child {
+    padding-left: 2ch;
+  }
+
+  [role="treegrid"] tr[aria-level="3"] > td:first-child {
+    padding-left: 4ch;
+  }
+
+  /* Collapse/expand icons */
+  [role="treegrid"] tr > td:first-child::before {
+    content: "";
+    display: inline-block;
+    width: 2ch;
+    height: 11px;
+    transition: transform 0.3s;
+    transform-origin: 5px 5px;
+  }
+
+  [role="treegrid"] tr[aria-expanded] > td:first-child::before,
+  [role="treegrid"] td[aria-expanded]:first-child::before {
+    cursor: pointer;
+
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpolygon fill='black' points='2,0 2,10 10,5'%3E%3C/polygon%3E%3C/svg%3E%0A");
+    background-repeat: no-repeat;
+  }
+
+  [role="treegrid"] tr[aria-expanded="true"] > td:first-child::before,
+  [role="treegrid"] td[aria-expanded="true"]:first-child::before {
+    transform: rotate(90deg);
+  }
+</style>
+<body>
+
+<p>Tests <a href="https://w3c.github.io/aria/#tree">tree</a> and related roles.</p>
+
+<ul role="tree" data-testname="role is tree" data-expectedrole="tree" class="ex">
+  <li role="treeitem" data-testname="role is treeitem (in tree)" data-expectedrole="treeitem" class="ex">
+    x
+    <ul role="group" data-testname="role is group (in treeitem)" data-expectedrole="group" class="ex">
+      <li role="treeitem" data-testname="role is treeitem (in group, in treeitem)" data-expectedrole="treeitem" class="ex">x</li>
+      <li role="treeitem">x</li>
+    </ul>
+  </li>
+  <li role="treeitem">x</li>
+</ul>
+
+<table role="treegrid" data-testname="role is treegrid" data-expectedrole="treegrid" class="ex">
+  <tbody>
+    <tr role="row" aria-expanded="true" aria-level="1" aria-posinset="1" aria-setsize="2" data-testname="role is row (in treegrid)" data-expectedrole="row" class="ex expander">
+      <td role="gridcell" data-testname="role is gridcell (in row, in treegrid)" data-expectedrole="gridcell" class="ex">x</td>
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+    </tr>
+    <tr role="row" aria-level="2" aria-posinset="1" aria-setsize="2">
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+    </tr>
+    <tr aria-expanded="false" aria-level="2" aria-posinset="2" aria-setsize="2" role="row" class="expander">
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+    </tr>
+    <tr role="row" aria-level="3" aria-posinset="1" aria-setsize="1" class="hidden">
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+    </tr>
+    <tr role="row" aria-expanded="false" aria-level="1" aria-posinset="2" aria-setsize="2" class="expander">
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+    </tr>
+    <tr role="row" aria-level="2" aria-posinset="1" aria-setsize="2" class="hidden">
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+    </tr>
+    <tr role="row" aria-level="2" aria-posinset="1" aria-setsize="2" class="hidden">
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+      <td role="gridcell">x</td>
+    </tr>
+  </tbody>
+</table>
+
+<script>
+  AriaUtils.verifyRolesBySelector(".ex");
+
+  const expanders = document.querySelectorAll(".expander");
+  expanders.forEach((expander) => {
+    expander.addEventListener("click", () => {
+
+      const expanderLevel = parseInt(expander.getAttribute("aria-level"))
+      let nextSibling = expander.nextElementSibling;
+
+      // Toggle aria-expanded for the row being expanded
+      let isExpanding = expander.getAttribute("aria-expanded") !== "true";
+      expander.setAttribute("aria-expanded", isExpanding.toString());
+
+      while (nextSibling) {
+        const nextSiblingLevel = parseInt(nextSibling.getAttribute("aria-level"));
+
+        // Don't expand rows found on the same level
+        if (nextSiblingLevel === expanderLevel) nextSibling = null;
+
+        if (isExpanding) {
+          // Don't expand rows beyond the next level if an ".expander" row is found as the nextSibling
+          if (nextSiblingLevel - expanderLevel === 1) {
+            nextSibling.classList.remove("hidden");
+            // Don't expand sub rows found
+            if (nextSibling.hasAttribute("aria-expanded")) nextSibling.setAttribute("aria-expanded", "false");
+          }
+        } else {
+          // Only expand rows that are more "indented" than the ".expander" row. A higher aria-level indicates a
+          // higher "level"
+          if (nextSiblingLevel > expanderLevel) {
+            nextSibling.classList.add("hidden");
+          }
+        }
+
+        nextSibling = nextSibling.nextElementSibling;
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

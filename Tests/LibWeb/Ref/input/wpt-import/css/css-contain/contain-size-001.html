@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>CSS-contain test: size containment on non-atomic inlines</title>
+  <link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+  <meta name=flags content="">
+  <meta name=assert content="size containment does not apply to non atomic inlines">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/pass_if_pass_below_clipped.html">
+  <link rel=help href="https://drafts.csswg.org/css-contain-1/#containment-size">
+
+<style>
+div { overflow: hidden; }
+span { contain: size; }
+</style>
+
+<p>Test passes if there is the word "PASS" below.</p>
+<div><span>PASS</span></div>

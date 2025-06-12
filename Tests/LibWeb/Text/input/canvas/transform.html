@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        // 1. Default transform
+        testPart(() => context.getTransform());
+
+        // 2. Translate transform
+        testPart(() => {
+            context.translate(45, 45);
+            return context.getTransform();
+        });
+
+        // 3. Scale transform
+        testPart(() => {
+            context.scale(2, 2);
+            return context.getTransform();
+        });
+
+        // 4. Rotate transform
+        testPart(() => {
+            context.rotate(45);
+            return context.getTransform();
+        });
+
+        // 5. Set transform
+        testPart(() => {
+            context.setTransform(1, 2, 3, 4, 5, 6);
+            return context.getTransform();
+        });
+
+        // 6. Set transform by DOMMatrix2DInit
+        testPart(() => {
+            context.setTransform({ a: 1, b: 2, c: 3, d: 4, e: 5, f: 6 });
+            return context.getTransform();
+        });
+    });
+</script>

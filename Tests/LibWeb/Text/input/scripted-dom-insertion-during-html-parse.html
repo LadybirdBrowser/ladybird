@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<body></body>
+<script src="include.js"></script>
+<script>
+    document.body.appendChild(document.createTextNode("PASS"));
+    test(() => {
+        println(document.body.innerText);
+    });
+</script>

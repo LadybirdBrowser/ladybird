@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help"
+  href="https://drafts.csswg.org/css-flexbox/#justify-content-property">
+<link rel="help" href="https://crbug.com/1228023">
+<meta name="assert"
+  content="Wrapped item obeys justify-content:center when the item wraps because the container has max-height.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+  .flexitem {
+    width: 100px;
+  }
+
+</style>
+
+Pass condition: orange square is vertically centered in the black box.<br>
+Chrome 112 and Safari 16.4 fail. Firefox 111 passes.
+<div
+  style="display: flex; flex-flow: column wrap; max-height: 200px; justify-content: center; align-content: start; border: 2px solid; position: relative;">
+  <div class=flexitem style="background: blue; height: 200px;"></div>
+  <div class=flexitem style="background: orange; height: 100px;"
+    data-offset-y=50></div>
+</div>
+
+<script>
+  checkLayout('.flexitem + .flexitem');
+</script>

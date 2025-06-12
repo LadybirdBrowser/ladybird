@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Overflow: verifies content visual overflow is shown</title>
+<link rel="help" href="https://www.w3.org/TR/css-overflow-3/#valdef-overflow-clip">
+<link rel="author" title="Scott Violet" href="mailto:sky@chromium.org">
+<style>
+  body {
+    margin: 0
+  }
+
+  .shadow {
+    width: 100px;
+    height: 100px;
+    will-change: transform;
+    background: black;
+    box-shadow: 10px 50px 5px red;
+  }
+
+  .cover {
+    width: 200px;
+    height: 200px;
+    background: white;
+    position: absolute;
+  }
+
+  .spacer {
+    width: 100px;
+    height: 150px;
+  }
+</style>
+<div class="shadow"></div>
+<div class="cover" style="left: 100px; top: 0"></div>
+<div class="spacer"></div>
+<div class="shadow"></div>
+<div class="cover" style="top: 350px"></div>
+</script>

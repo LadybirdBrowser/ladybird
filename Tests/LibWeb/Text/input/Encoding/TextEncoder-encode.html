@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. TextEncoder encode
+        testPart(() => new TextEncoder().encode('Well Hello Friends 😀!'));
+
+        // 2. TextEncoder encodeInto
+        testPart(() => {
+            const buffer = new Uint8Array(32);
+            new TextEncoder().encodeInto('Well Hello Friends 😀!', buffer);
+            return buffer
+        });
+
+        // 3. TextEncoder encodeInto result read
+        testPart(() => {
+            const buffer = new Uint8Array(32);
+            const result = new TextEncoder().encodeInto('Well Hello Friends 😀!', buffer);
+            return result.read;
+        });
+
+        // 3. TextEncoder encodeInto result written
+        testPart(() => {
+            const buffer = new Uint8Array(32);
+            const result = new TextEncoder().encodeInto('Well Hello Friends 😀!', buffer);
+            return result.written;
+        });
+    });
+</script>

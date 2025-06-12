@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 19 tests
+
+18 Pass
+1 Fail
+Pass	Missing arguments
+Pass	Branding
+Pass	Zero initial
+Pass	Zero initial with valueOf
+Pass	Non-zero initial
+Pass	Zero initial with respected maximum
+Pass	Zero initial with respected maximum grown twice
+Pass	Zero initial growing too much
+Pass	Out-of-range argument: undefined
+Pass	Out-of-range argument: NaN
+Pass	Out-of-range argument: Infinity
+Pass	Out-of-range argument: -Infinity
+Pass	Out-of-range argument: -1
+Pass	Out-of-range argument: 4294967296
+Pass	Out-of-range argument: 68719476736
+Pass	Out-of-range argument: "0x100000000"
+Pass	Out-of-range argument: object "[object Object]"
+Pass	Stray argument
+Fail	Growing shared memory does not detach old buffer

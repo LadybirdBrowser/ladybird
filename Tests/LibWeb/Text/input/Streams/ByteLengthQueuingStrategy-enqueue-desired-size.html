@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let controller;
+        new ReadableStream(
+            {
+                start(c) {
+                    controller = c;
+                }
+            },
+            new ByteLengthQueuingStrategy({ highWaterMark: 5 })
+        );
+
+        println(controller.desiredSize);
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+        println(controller.desiredSize);
+        controller.enqueue(new Uint8Array([1, 2, 3, 4, 5, 6, 7]));
+        println(controller.desiredSize);
+        controller.enqueue(new Uint8Array([1]));
+        println(controller.desiredSize);
+    });
+</script>

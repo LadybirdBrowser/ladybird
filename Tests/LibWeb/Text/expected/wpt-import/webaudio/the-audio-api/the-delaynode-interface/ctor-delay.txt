@@ -1,0 +1,58 @@
+Harness status: OK
+
+Found 53 tests
+
+53 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "initialize"
+Pass	Executing "invalid constructor"
+Pass	Executing "default constructor"
+Pass	Executing "test AudioNodeOptions"
+Pass	Executing "constructor options"
+Pass	Audit report
+Pass	> [initialize] 
+Pass	  context = new OfflineAudioContext(...) did not throw an exception.
+Pass	< [initialize] All assertions passed. (total 1 assertions)
+Pass	> [invalid constructor] 
+Pass	  new DelayNode() threw TypeError: "DelayNode() needs one argument".
+Pass	  new DelayNode(1) threw TypeError: "Not an object of type BaseAudioContext".
+Pass	  new DelayNode(context, 42) threw TypeError: "Not an object of type DelayOptions".
+Pass	< [invalid constructor] All assertions passed. (total 3 assertions)
+Pass	> [default constructor] 
+Pass	  node0 = new DelayNode(context) did not throw an exception.
+Pass	  node0 instanceof DelayNode is equal to true.
+Pass	  node0.numberOfInputs is equal to 1.
+Pass	  node0.numberOfOutputs is equal to 1.
+Pass	  node0.channelCount is equal to 2.
+Pass	  node0.channelCountMode is equal to max.
+Pass	  node0.channelInterpretation is equal to speakers.
+Pass	  node0.delayTime.value is equal to 0.
+Pass	< [default constructor] All assertions passed. (total 8 assertions)
+Pass	> [test AudioNodeOptions] 
+Pass	  new DelayNode(c, {channelCount: 17}) did not throw an exception.
+Pass	  node.channelCount is equal to 17.
+Pass	  new DelayNode(c, {channelCount: 0}) threw NotSupportedError: "Invalid channel count".
+Pass	  new DelayNode(c, {channelCount: 99}) threw NotSupportedError: "Invalid channel count".
+Pass	  new DelayNode(c, {channelCountMode: "max"} did not throw an exception.
+Pass	  node.channelCountMode is equal to max.
+Pass	  new DelayNode(c, {channelCountMode: "max"}) did not throw an exception.
+Pass	  node.channelCountMode after valid setter is equal to max.
+Pass	  new DelayNode(c, {channelCountMode: "clamped-max"}) did not throw an exception.
+Pass	  node.channelCountMode after valid setter is equal to clamped-max.
+Pass	  new DelayNode(c, {channelCountMode: "explicit"}) did not throw an exception.
+Pass	  node.channelCountMode after valid setter is equal to explicit.
+Pass	  new DelayNode(c, {channelCountMode: "foobar"} threw TypeError: "Invalid value 'foobar' for enumeration type 'ChannelCountMode'".
+Pass	  node.channelCountMode after invalid setter is equal to explicit.
+Pass	  new DelayNode(c, {channelInterpretation: "speakers"}) did not throw an exception.
+Pass	  node.channelInterpretation is equal to speakers.
+Pass	  new DelayNode(c, {channelInterpretation: "discrete"}) did not throw an exception.
+Pass	  node.channelInterpretation is equal to discrete.
+Pass	  new DelayNode(c, {channelInterpretation: "foobar"}) threw TypeError: "Invalid value 'foobar' for enumeration type 'ChannelInterpretation'".
+Pass	  node.channelInterpretation after invalid setter is equal to discrete.
+Pass	< [test AudioNodeOptions] All assertions passed. (total 20 assertions)
+Pass	> [constructor options] 
+Pass	  node1 = new DelayNode(c, {"delayTime":0.5,"maxDelayTime":1.5}) did not throw an exception.
+Pass	  node1.delayTime.value is equal to 0.5.
+Pass	  node1.delayTime.maxValue is equal to 1.5.
+Pass	< [constructor options] All assertions passed. (total 3 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 5 tasks ran successfully.

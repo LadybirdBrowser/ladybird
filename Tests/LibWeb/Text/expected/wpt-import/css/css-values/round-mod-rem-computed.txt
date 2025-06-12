@@ -1,0 +1,235 @@
+Harness status: OK
+
+Found 229 tests
+
+195 Pass
+34 Fail
+Pass	round(10,10) should be used-value-equivalent to 10
+Pass	mod(1,1) should be used-value-equivalent to 0
+Pass	rem(1,1) should be used-value-equivalent to 0
+Pass	calc(round(100,10)) should be used-value-equivalent to 100
+Pass	calc(round(up, 101,10)) should be used-value-equivalent to 110
+Pass	calc(round(down, 106,10)) should be used-value-equivalent to 100
+Pass	calc(round(to-zero, 105, 10)) should be used-value-equivalent to 100
+Pass	calc(round(to-zero, -105, 10)) should be used-value-equivalent to -100
+Pass	calc(round(-100, 10)) should be used-value-equivalent to -100
+Pass	calc(round(up, -103, 10)) should be used-value-equivalent to -100
+Pass	round(up, 0, 5) should be used-value-equivalent to 0
+Pass	round(down, 0, 5) should be used-value-equivalent to 0
+Pass	round(nearest, 0, 5) should be used-value-equivalent to 0
+Pass	round(to-zero, 0, 5) should be used-value-equivalent to 0
+Pass	round(up, 5, 5) should be used-value-equivalent to 5
+Pass	round(down, 5, 5) should be used-value-equivalent to 5
+Pass	round(nearest, 5, 5) should be used-value-equivalent to 5
+Pass	round(to-zero, 5, 5) should be used-value-equivalent to 5
+Pass	round(up, -5, 5) should be used-value-equivalent to -5
+Pass	round(down, -5, 5) should be used-value-equivalent to -5
+Pass	round(nearest, -5, 5) should be used-value-equivalent to -5
+Pass	round(to-zero, -5, 5) should be used-value-equivalent to -5
+Pass	round(up, 10, 5) should be used-value-equivalent to 10
+Pass	round(down, 10, 5) should be used-value-equivalent to 10
+Pass	round(nearest, 10, 5) should be used-value-equivalent to 10
+Pass	round(to-zero, 10, 5) should be used-value-equivalent to 10
+Pass	round(up, -10, 5) should be used-value-equivalent to -10
+Pass	round(down, -10, 5) should be used-value-equivalent to -10
+Pass	round(nearest, -10, 5) should be used-value-equivalent to -10
+Pass	round(to-zero, -10, 5) should be used-value-equivalent to -10
+Pass	round(up, 20, 5) should be used-value-equivalent to 20
+Pass	round(down, 20, 5) should be used-value-equivalent to 20
+Pass	round(nearest, 20, 5) should be used-value-equivalent to 20
+Pass	round(to-zero, 20, 5) should be used-value-equivalent to 20
+Pass	round(up, -20, 5) should be used-value-equivalent to -20
+Pass	round(down, -20, 5) should be used-value-equivalent to -20
+Pass	round(nearest, -20, 5) should be used-value-equivalent to -20
+Pass	round(to-zero, -20, 5) should be used-value-equivalent to -20
+Pass	mod(18,5) should be used-value-equivalent to 3
+Pass	rem(18,5) should be used-value-equivalent to 3
+Pass	mod(-140,-90) should be used-value-equivalent to -50
+Pass	mod(-18,5) should be used-value-equivalent to 2
+Pass	rem(-18,5) should be used-value-equivalent to -3
+Pass	mod(140,-90) should be used-value-equivalent to -40
+Pass	rem(140,-90) should be used-value-equivalent to 50
+Pass	calc(round(round(100,10), 10)) should be used-value-equivalent to 100
+Pass	calc(round(up, round(100,10) + 1,10)) should be used-value-equivalent to 110
+Pass	calc(round(down, round(100,10) + 2 * 3,10)) should be used-value-equivalent to 100
+Pass	calc(round(to-zero,round(100,10) * 2 - 95, 10)) should be used-value-equivalent to 100
+Pass	calc(round(round(100,10)* -1,10)) should be used-value-equivalent to -100
+Pass	calc(round(up, -103 + -103 / -103 - 1,10)) should be used-value-equivalent to -100
+Pass	calc(mod(18,5) * 2 + mod(17,5)) should be used-value-equivalent to 8
+Pass	calc(rem(mod(18,5),5)) should be used-value-equivalent to 3
+Pass	calc(rem(mod(18,5),mod(17,5))) should be used-value-equivalent to 1
+Pass	calc(mod(-140,-90)) should be used-value-equivalent to -50
+Pass	calc(mod(rem(1,18)* -1,5)) should be used-value-equivalent to 4
+Pass	round(10px,6px) should be used-value-equivalent to 12px
+Fail	round(10cm,6cm) should be used-value-equivalent to 12cm
+Fail	round(10mm,6mm) should be used-value-equivalent to 12mm
+Pass	round(10Q, 6Q) should be used-value-equivalent to 12Q
+Pass	round(10in,6in) should be used-value-equivalent to 12in
+Pass	round(10pc,6pc) should be used-value-equivalent to 12pc
+Pass	round(10pt,6pt) should be used-value-equivalent to 12pt
+Pass	round(10em,6em) should be used-value-equivalent to 12em
+Pass	round(10ex,6ex) should be used-value-equivalent to 12ex
+Pass	round(10ch,6ch) should be used-value-equivalent to 12ch
+Pass	round(10rem,6rem) should be used-value-equivalent to 12rem
+Pass	round(10vh,6vh) should be used-value-equivalent to 12vh
+Pass	round(10vw,6vw) should be used-value-equivalent to 12vw
+Pass	round(10vmin,6vmin) should be used-value-equivalent to 12vmin
+Pass	round(10vmax,6vmax) should be used-value-equivalent to 12vmax
+Pass	round(10s,6s) should be used-value-equivalent to 12s
+Pass	round(10ms,6ms) should be used-value-equivalent to 12ms
+Pass	round(10deg,6deg) should be used-value-equivalent to 12deg
+Pass	round(10grad,6grad) should be used-value-equivalent to 12grad
+Pass	round(10rad,6rad) should be used-value-equivalent to 12rad
+Pass	round(10turn,6turn) should be used-value-equivalent to 12turn
+Pass	mod(10px,6px) should be used-value-equivalent to 4px
+Pass	mod(10cm,6cm) should be used-value-equivalent to 4cm
+Pass	mod(10mm,6mm) should be used-value-equivalent to 4mm
+Pass	mod(10Q, 6Q) should be used-value-equivalent to 4Q
+Pass	mod(10in,6in) should be used-value-equivalent to 4in
+Pass	mod(10pc,6pc) should be used-value-equivalent to 4pc
+Pass	mod(10em,6em) should be used-value-equivalent to 4em
+Pass	mod(10ex,6ex) should be used-value-equivalent to 4ex
+Pass	mod(10ch,6ch) should be used-value-equivalent to 4ch
+Pass	mod(10rem,6rem) should be used-value-equivalent to 4rem
+Pass	mod(10vh,6vh) should be used-value-equivalent to 4vh
+Pass	mod(10vw,6vw) should be used-value-equivalent to 4vw
+Pass	mod(10vmin,6vmin) should be used-value-equivalent to 4vmin
+Pass	mod(10vmax,6vmax) should be used-value-equivalent to 4vmax
+Pass	mod(10s,6s) should be used-value-equivalent to 4s
+Pass	mod(10ms,6ms) should be used-value-equivalent to 4ms
+Pass	mod(10deg,6deg) should be used-value-equivalent to 4deg
+Pass	mod(10grad,6grad) should be used-value-equivalent to 4grad
+Pass	mod(10rad,6rad) should be used-value-equivalent to 4rad
+Pass	mod(10turn,6turn) should be used-value-equivalent to 4turn
+Pass	rem(10px,6px) should be used-value-equivalent to 4px
+Pass	rem(10cm,6cm) should be used-value-equivalent to 4cm
+Pass	rem(10mm,6mm) should be used-value-equivalent to 4mm
+Pass	rem(10Q, 6Q) should be used-value-equivalent to 4Q
+Pass	rem(10in,6in) should be used-value-equivalent to 4in
+Pass	rem(10pc,6pc) should be used-value-equivalent to 4pc
+Pass	rem(10em,6em) should be used-value-equivalent to 4em
+Pass	rem(10ex,6ex) should be used-value-equivalent to 4ex
+Pass	rem(10ch,6ch) should be used-value-equivalent to 4ch
+Pass	rem(10rem,6rem) should be used-value-equivalent to 4rem
+Pass	rem(10vh,6vh) should be used-value-equivalent to 4vh
+Pass	rem(10vw,6vw) should be used-value-equivalent to 4vw
+Pass	rem(10vmin,6vmin) should be used-value-equivalent to 4vmin
+Pass	rem(10vmax,6vmax) should be used-value-equivalent to 4vmax
+Pass	rem(10s,6s) should be used-value-equivalent to 4s
+Pass	rem(10ms,6ms) should be used-value-equivalent to 4ms
+Pass	rem(10deg,6deg) should be used-value-equivalent to 4deg
+Pass	rem(10grad,6grad) should be used-value-equivalent to 4grad
+Pass	rem(10rad,6rad) should be used-value-equivalent to 4rad
+Pass	rem(10turn,6turn) should be used-value-equivalent to 4turn
+Fail	round(10%,1px) should be used-value-equivalent to 8px
+Fail	round(10%,5px) should be used-value-equivalent to 10px
+Pass	round(2rem,5px) should be used-value-equivalent to 30px
+Pass	round(100px,1rem) should be used-value-equivalent to 96px
+Pass	round(10s,6000ms) should be used-value-equivalent to 12s
+Pass	round(10000ms,6s) should be used-value-equivalent to 12s
+Fail	mod(10%,1px) should be used-value-equivalent to 0.5px
+Fail	mod(10%,5px) should be used-value-equivalent to 2.5px
+Pass	mod(2rem,5px) should be used-value-equivalent to 2px
+Pass	mod(100px,1rem) should be used-value-equivalent to 4px
+Pass	mod(10s,6000ms) should be used-value-equivalent to 4s
+Pass	mod(10000ms,6s) should be used-value-equivalent to 4s
+Fail	mod(18px,100% / 15) should be used-value-equivalent to 3px
+Fail	mod(-18px,100% / 10) should be used-value-equivalent to 4.5px
+Pass	mod(18%,5%) should be used-value-equivalent to 3%
+Pass	mod(-19%,5%) should be used-value-equivalent to 1%
+Pass	mod(18vw,5vw) should be used-value-equivalent to 3vw
+Pass	mod(-18vw,5vw) should be used-value-equivalent to 2vw
+Fail	rem(10%,1px) should be used-value-equivalent to 0.5px
+Fail	rem(10%,5px) should be used-value-equivalent to 2.5px
+Pass	rem(2rem,5px) should be used-value-equivalent to 2px
+Pass	rem(100px,1rem) should be used-value-equivalent to 4px
+Pass	rem(10s,6000ms) should be used-value-equivalent to 4s
+Pass	rem(10000ms,6s) should be used-value-equivalent to 4s
+Fail	rem(18px,100% / 15) should be used-value-equivalent to 3px
+Fail	rem(-18px,100% / 15) should be used-value-equivalent to -3px
+Pass	rem(18vw,5vw) should be used-value-equivalent to 3vw
+Pass	rem(-18vw,5vw) should be used-value-equivalent to -3vw
+Pass	calc(round(1px + 0%, 1px + 0%)) should be used-value-equivalent to 1px
+Pass	calc(mod(3px + 0%, 2px + 0%)) should be used-value-equivalent to 1px
+Pass	calc(rem(3px + 0%, 2px + 0%)) should be used-value-equivalent to 1px
+Pass	round(1px + 0%, 1px) should be used-value-equivalent to 1px
+Fail	mod(3px + 0%, 2px) should be used-value-equivalent to 1px
+Fail	rem(3px + 0%, 2px) should be used-value-equivalent to 1px
+Pass	round(0, 0) should be used-value-equivalent to calc(NaN)
+Pass	round(-0, 0) should be used-value-equivalent to calc(NaN)
+Pass	round(Infinity, 0) should be used-value-equivalent to calc(NaN)
+Pass	round(-Infinity, 0) should be used-value-equivalent to calc(NaN)
+Pass	round(-4, 0) should be used-value-equivalent to calc(NaN)
+Pass	round(4, 0) should be used-value-equivalent to calc(NaN)
+Pass	round(Infinity, Infinity) should be used-value-equivalent to calc(NaN)
+Pass	round(-Infinity, -Infinity) should be used-value-equivalent to calc(NaN)
+Pass	round(Infinity, -Infinity) should be used-value-equivalent to calc(NaN)
+Pass	round(-Infinity, Infinity) should be used-value-equivalent to calc(NaN)
+Pass	mod(0, 0) should be used-value-equivalent to calc(NaN)
+Pass	mod(-0, 0) should be used-value-equivalent to calc(NaN)
+Pass	mod(Infinity, 0) should be used-value-equivalent to calc(NaN)
+Pass	mod(-Infinity, 0) should be used-value-equivalent to calc(NaN)
+Pass	mod(-4, 0) should be used-value-equivalent to calc(NaN)
+Pass	mod(4, 0) should be used-value-equivalent to calc(NaN)
+Pass	mod(Infinity, Infinity) should be used-value-equivalent to calc(NaN)
+Pass	mod(-Infinity, -Infinity) should be used-value-equivalent to calc(NaN)
+Pass	mod(Infinity, -Infinity) should be used-value-equivalent to calc(NaN)
+Pass	mod(-Infinity, Infinity) should be used-value-equivalent to calc(NaN)
+Pass	rem(0, 0) should be used-value-equivalent to calc(NaN)
+Pass	rem(-0, 0) should be used-value-equivalent to calc(NaN)
+Pass	rem(Infinity, 0) should be used-value-equivalent to calc(NaN)
+Pass	rem(-Infinity, 0) should be used-value-equivalent to calc(NaN)
+Pass	rem(-4, 0) should be used-value-equivalent to calc(NaN)
+Pass	rem(4, 0) should be used-value-equivalent to calc(NaN)
+Pass	rem(Infinity, Infinity) should be used-value-equivalent to calc(NaN)
+Pass	rem(-Infinity, -Infinity) should be used-value-equivalent to calc(NaN)
+Pass	rem(Infinity, -Infinity) should be used-value-equivalent to calc(NaN)
+Pass	rem(-Infinity, Infinity) should be used-value-equivalent to calc(NaN)
+Pass	round(up, Infinity, 4) should be used-value-equivalent to calc(Infinity)
+Pass	round(up, -Infinity, 4) should be used-value-equivalent to calc(-Infinity)
+Pass	round(up, Infinity, -4) should be used-value-equivalent to calc(Infinity)
+Pass	round(up, -Infinity, -4) should be used-value-equivalent to calc(-Infinity)
+Pass	round(down, Infinity, 4) should be used-value-equivalent to calc(Infinity)
+Pass	round(down, -Infinity, 4) should be used-value-equivalent to calc(-Infinity)
+Pass	round(down, Infinity, -4) should be used-value-equivalent to calc(Infinity)
+Pass	round(down, -Infinity, -4) should be used-value-equivalent to calc(-Infinity)
+Pass	round(nearest, Infinity, 4) should be used-value-equivalent to calc(Infinity)
+Pass	round(nearest, -Infinity, 4) should be used-value-equivalent to calc(-Infinity)
+Pass	round(nearest, Infinity, -4) should be used-value-equivalent to calc(Infinity)
+Pass	round(nearest, -Infinity, -4) should be used-value-equivalent to calc(-Infinity)
+Pass	round(to-zero, Infinity, 4) should be used-value-equivalent to calc(Infinity)
+Pass	round(to-zero, -Infinity, 4) should be used-value-equivalent to calc(-Infinity)
+Pass	round(to-zero, Infinity, -4) should be used-value-equivalent to calc(Infinity)
+Pass	round(to-zero, -Infinity, -4) should be used-value-equivalent to calc(-Infinity)
+Pass	round(nearest, 0, Infinity) should be used-value-equivalent to 0
+Fail	round(nearest, 4, Infinity) should be used-value-equivalent to 0
+Fail	round(nearest, -0, Infinity) should be used-value-equivalent to calc(-0)
+Fail	round(nearest, -4, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(nearest, 0, -Infinity) should be used-value-equivalent to 0
+Fail	round(nearest, 4, -Infinity) should be used-value-equivalent to 0
+Fail	round(nearest, -0, -Infinity) should be used-value-equivalent to calc(-0)
+Fail	round(nearest, -4, -Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(to-zero, 0, Infinity) should be used-value-equivalent to 0
+Fail	round(to-zero, 4, Infinity) should be used-value-equivalent to 0
+Fail	round(to-zero, -0, Infinity) should be used-value-equivalent to calc(-0)
+Fail	round(to-zero, -4, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(to-zero, 0, -Infinity) should be used-value-equivalent to 0
+Fail	round(to-zero, 4, -Infinity) should be used-value-equivalent to 0
+Fail	round(to-zero, -0, -Infinity) should be used-value-equivalent to calc(-0)
+Fail	round(to-zero, -4, -Infinity) should be used-value-equivalent to calc(-0)
+Fail	round(up, 1, Infinity) should be used-value-equivalent to calc(Infinity)
+Pass	round(up, 0, Infinity) should be used-value-equivalent to 0
+Fail	round(up, -1, Infinity) should be used-value-equivalent to calc(-0)
+Fail	round(up, 1, -Infinity) should be used-value-equivalent to calc(Infinity)
+Pass	round(up, 0, -Infinity) should be used-value-equivalent to 0
+Fail	round(up, -1, -Infinity) should be used-value-equivalent to calc(-0)
+Fail	round(down, 1, Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(down, 0, Infinity) should be used-value-equivalent to 0
+Fail	round(down, -1, Infinity) should be used-value-equivalent to calc(-Infinity)
+Fail	round(down, 1, -Infinity) should be used-value-equivalent to calc(-0)
+Pass	round(down, 0, -Infinity) should be used-value-equivalent to 0
+Fail	round(down, -1, -Infinity) should be used-value-equivalent to calc(-Infinity)
+Pass	mod(-0, Infinity) should be used-value-equivalent to calc(NaN)
+Pass	mod(0, -Infinity) should be used-value-equivalent to calc(NaN)
+Pass	mod(-4, Infinity) should be used-value-equivalent to calc(NaN)
+Pass	mod(4, -Infinity) should be used-value-equivalent to calc(NaN)

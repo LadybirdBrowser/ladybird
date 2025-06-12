@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Changes on Default-Alignment may affect grid item's width</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#row-align">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-item-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-items">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-justify-self-normal">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-justify-self-start">
+<meta name="assert" content="Changing the grid item's justify-items value from 'normal' to 'start' causes non-replaced items to grow.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 80px;
+  grid-template-rows: 100px;
+  font: 20px/1 Ahem;
+  background: grey;
+  justify-items: normal;
+}
+#item {
+  background: blue;
+  justify-self: auto;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script src="support/style-change.js"></script>
+<script>
+setup({ explicit_done: true });
+function runTest() {
+  evaluateStyleChange(item, "before", "data-expected-width", 80);
+  grid.style.justifyItems = "start";
+  evaluateStyleChange(item, "after", "data-expected-width", 120);
+  done();
+}
+</script>
+<body onload="document.fonts.ready.then(() => { runTest(); })">
+<div class="grid" id="grid">
+  <div data-expected-height="100" id="item">XXXXXX<br>X<br>XX XXX</div>
+</div>
+</body>
+

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#intrinsic-sizes">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="The item still has sufficient available size at the time fit-content is resolved. (A bug in the code could cause the right-most item to have a width of 75px.)">
+
+<style>
+  .item {
+    /* Remove min-height so we don't have to think about it. */
+    min-height: 0px;
+    flex: 0 0 100px;
+    outline: 1px solid;
+  }
+
+  .grandchild {
+    width: 75px;
+    float: left;
+  }
+</style>
+
+<div
+  style="display: flex; flex-flow: column wrap; width: max-content; height: 100px; background: green; position: relative;"
+  data-expected-width="250">
+  <div class="item" style="width: 100px;"></div>
+  <div class="item" style="width: fit-content;" data-expected-width="150"
+    data-offset-x="100">
+    <!-- This item has min-content=75 and max-content=150. -->
+    <div class="grandchild"></div>
+    <div class="grandchild"></div>
+  </div>
+</div>
+
+<script>
+  checkLayout('body > div');
+</script>

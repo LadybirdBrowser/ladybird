@@ -1,0 +1,18 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>CSS Test: wrapping around zero-height floats</title>
+    <link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+    <link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+    <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats" />
+    <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-zero-height-wrap-001-ref.xht"/>
+    <meta name="assert" content="wrapping around zero-height floats" />
+
+</head><body><div style="width: 500px; height: 500px; float: left; font-size: 12px;">
+
+  <div style="float: left; width: 10px; height: 30px"></div>
+  <div style="float: left; clear: left; width: 100px; height: 0"></div>
+
+  <span style="display:inline-block; vertical-align: bottom; height: 20px; width: 300px; background: blue;"></span>
+  <span style="display:inline-block; vertical-align: bottom; height: 20px; width: 300px; background: purple;"></span>
+  <span style="display:inline-block; vertical-align: bottom; height: 20px; width: 300px; background: fuchsia"></span>
+
+</div>
+</body></html>

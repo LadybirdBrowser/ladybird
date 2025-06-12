@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: grid-template sets longhands</title>
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template">
+<meta name="assert" content="grid-template supports the full grammar 'none | [ <grid-template-rows> / <grid-template-columns> ] | [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('grid-template', 'none', {
+  'grid-template-rows': 'none',
+  'grid-template-columns': 'none',
+  'grid-template-areas': 'none'
+});
+
+// <grid-template-rows> / <grid-template-columns>
+test_shorthand_value('grid-template', '10px / 20%', {
+  'grid-template-rows': '10px',
+  'grid-template-columns': '20%',
+  'grid-template-areas': 'none'
+});
+
+test_shorthand_value('grid-template', 'fit-content(calc(-0.5em + 10px)) / fit-content(calc(0.5em + 10px))', {
+  'grid-template-rows': 'fit-content(calc(-0.5em + 10px))',
+  'grid-template-columns': 'fit-content(calc(0.5em + 10px))',
+  'grid-template-areas': 'none'
+});
+
+// [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?
+test_shorthand_value('grid-template',
+                     '[header-top] "a a a"     [header-bottom]' +
+                     '  [main-top] "b b b" 1fr [main-bottom]' +
+                     '           / auto 1fr auto', {
+  'grid-template-rows': '[header-top] auto [header-bottom main-top] 1fr [main-bottom]',
+  'grid-template-columns': 'auto 1fr auto',
+  'grid-template-areas': '"a a a" "b b b"'
+});
+
+test_shorthand_value('grid-template',
+                     '  "a a a"' +
+                     '  "b b b" 1fr' +
+                     '/ auto 1fr auto', {
+  'grid-template-rows': 'auto 1fr',
+  'grid-template-columns': 'auto 1fr auto',
+  'grid-template-areas': '"a a a" "b b b"'
+});
+
+test_shorthand_value('grid-template',
+                     ' [] "a a a"     []' +
+                     ' [] "b b b" 1fr []' +
+                     '  / [] auto 1fr [] auto []', {
+  'grid-template-rows': 'auto 1fr',
+  'grid-template-columns': 'auto 1fr auto',
+  'grid-template-areas': '"a a a" "b b b"'
+});
+</script>
+</body>
+</html>

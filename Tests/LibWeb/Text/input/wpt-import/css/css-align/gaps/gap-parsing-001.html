@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment Test: gap shorthand parsing</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#row-row-gap">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .gapPx { gap: 12px; }
+  #gapPxTwo { gap: 12px 8px; }
+  #gapPxPercent { gap: 12px 10%; }
+  #gapEm { gap: 2em; font: 10px/1 Monospace; }
+  #gapEmTwo { gap: 2em 4em; font: 10px/1 Monospace; }
+  #gapVw { gap: 2vw; }
+  #gapVwTwo { gap: 2vw 1vh; }
+  #gapPercent { gap: 15%; }
+  #gapPercentTwo { gap: 15% 10%; }
+  #gapCalc { gap: calc(10px + 4px); }
+  #gapCalcFixedPercent { gap: calc(5px + 10%); }
+  #gapCalcTwo { gap: calc(10px + 4px) calc(20px - 8px); }
+  .gapInitial { gap: initial; }
+  .gapInherit { gap: inherit; }
+
+  #invalidGapNegative { gap: -10px; }
+  #invalidGapMaxContent { gap: max-content; }
+  #invalidGapNone { gap: none; }
+  #invalidGapAngle { gap: 3rad; }
+  #invalidGapResolution { gap: 2dpi; }
+  #invalidGapTime { gap: 200ms; }
+  #invalidGapThree { gap: 10px 1px 5px; }
+  #invalidGapSlash { gap: 10px / 5px; }
+  #invalidGapOneWrong { gap: 10px -5px; }
+</style>
+<body>
+  <div id="log"></div>
+
+  <div id="default"></div>
+  <div id="gapPx" class="gapPx"></div>
+  <div id="gapPxTwo"></div>
+  <div id="gapPxPercent"></div>
+  <div id="gapEm"></div>
+  <div id="gapEmTwo"></div>
+  <div id="gapVw"></div>
+  <div id="gapVwTwo"></div>
+  <div id="gapPercent"></div>
+  <div id="gapPercentTwo"></div>
+  <div id="gapCalc"></div>
+  <div id="gapCalcFixedPercent"></div>
+  <div id="gapCalcTwo"></div>
+  <div id="gapInitial" class="gapInitial"></div>
+  <div class="gapPx">
+    <div id="gapInitialPx" class="gapInitial"></div>
+  </div>
+  <div id="gapInherit" class="gapInherit"></div>
+  <div class="gapPx">
+    <div id="gapInheritPx" class="gapInherit"></div>
+  </div>
+
+  <div id="invalidGapNegative"></div>
+  <div id="invalidGapMaxContent"></div>
+  <div id="invalidGapNone"></div>
+  <div id="invalidGapAngle"></div>
+  <div id="invalidGapResolution"></div>
+  <div id="invalidGapTime"></div>
+  <div id="invalidGapThree"></div>
+  <div id="invalidGapSlash"></div>
+  <div id="invalidGapOneWrong"></div>
+
+  <script>
+    test(
+      function(){
+        var target = document.getElementById("default");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Default gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("gapPx");
+        assert_equals(getComputedStyle(target).rowGap, "12px");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "gap accepts pixels");
+    test(
+      function(){
+        var target = document.getElementById("gapPxTwo");
+        assert_equals(getComputedStyle(target).rowGap, "12px");
+        assert_equals(getComputedStyle(target).columnGap, "8px");
+      }, "gap accepts pixels 2");
+    test(
+      function(){
+        var target = document.getElementById("gapPxPercent");
+        assert_equals(getComputedStyle(target).rowGap, "12px");
+        assert_equals(getComputedStyle(target).columnGap, "10%");
+      }, "gap accepts pixels combined with percentage");
+    test(
+      function(){
+        var target = document.getElementById("gapEm");
+        assert_equals(getComputedStyle(target).rowGap, "20px");
+        assert_equals(getComputedStyle(target).columnGap, "20px");
+      }, "gap accepts em");
+    test(
+      function(){
+        var target = document.getElementById("gapEmTwo");
+        assert_equals(getComputedStyle(target).rowGap, "20px");
+        assert_equals(getComputedStyle(target).columnGap, "40px");
+      }, "gap accepts em 2");
+    test(
+      function(){
+        var target = document.getElementById("gapVw");
+        // The gap size would depend on the viewport width, so to make the test pass
+        // in any window size we just check it's not "normal".
+        assert_not_equals(getComputedStyle(target).rowGap, "normal");
+        assert_not_equals(getComputedStyle(target).columnGap, "normal");
+      }, "gap accepts vw");
+    test(
+      function(){
+        var target = document.getElementById("gapVwTwo");
+        // The gap size would depend on the viewport width, so to make the test pass
+        // in any window size we just check it's not "normal".
+        assert_not_equals(getComputedStyle(target).rowGap, "normal");
+        assert_not_equals(getComputedStyle(target).columnGap, "normal");
+      }, "gap accepts vw and vh");
+    test(
+      function(){
+        var target = document.getElementById("gapPercent");
+        assert_equals(getComputedStyle(target).rowGap, "15%");
+        assert_equals(getComputedStyle(target).columnGap, "15%");
+      }, "gap accepts percentage");
+    test(
+      function(){
+        var target = document.getElementById("gapPercentTwo");
+        assert_equals(getComputedStyle(target).rowGap, "15%");
+        assert_equals(getComputedStyle(target).columnGap, "10%");
+      }, "gap accepts percentage 2");
+    test(
+      function(){
+        var target = document.getElementById("gapCalc");
+        assert_equals(getComputedStyle(target).rowGap, "14px");
+        assert_equals(getComputedStyle(target).columnGap, "14px");
+      }, "gap accepts calc()");
+    test(
+      function(){
+        var target = document.getElementById("gapCalcFixedPercent");
+        assert_equals(getComputedStyle(target).rowGap, "calc(10% + 5px)");
+        assert_equals(getComputedStyle(target).columnGap, "calc(10% + 5px)");
+      }, "gap accepts calc() mixing fixed and percentage values");
+    test(
+      function(){
+        var target = document.getElementById("gapCalcTwo");
+        assert_equals(getComputedStyle(target).rowGap, "14px");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "gap accepts calc() 2");
+    test(
+      function(){
+        var target = document.getElementById("gapInitial");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("gapInitialPx");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial gap is 'normal' 2");
+    test(
+      function(){
+        var target = document.getElementById("gapInherit");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial inherited gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("gapInheritPx");
+        assert_equals(getComputedStyle(target).rowGap, "12px");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "gap is inheritable");
+
+    test(
+      function(){
+        var target = document.getElementById("invalidGapNegative");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Negative gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGapMaxContent");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "'max-content' gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGapNone");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "'none' gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGapAngle");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Angle gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGapResolution");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Resolution gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGapTime");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Time gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGapThree");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "gap with three values is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGapSlash");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "gap with slash is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGapOneWrong");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "gap with one wrong value is invalid");
+  </script>
+</body>
+
+

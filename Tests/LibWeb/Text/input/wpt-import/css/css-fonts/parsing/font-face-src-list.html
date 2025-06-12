@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>CSS Fonts 4 test: parsing the src descriptor list</title>
+<meta name="assert" content="A parse error in one component of the source list does not invalidate the entire descriptor">
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-face-src-parsing">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="testStyle">
+</style>
+<script>
+  const sheet = testStyle.sheet;
+  tests = [
+    // A component with a parse error does not invalidate the entire descriptor
+    // if there's some other valid component present.
+    { src: 'local(inherit), url(foo.ttf)', valid: true },
+    { src: 'local("myfont"), local(unset)', valid: true },
+    { src: 'local(), url(foo.ttf)', valid: true },
+    { src: 'local(12px monospace), url(foo.ttf)', valid: true },
+    { src: 'local("myfont") format(opentype), url(foo.ttf)', valid: true },
+    { src: 'url(not a valid url/bar.ttf), url(foo.ttf)', valid: true },
+    { src: 'url(foo.ttf) format(bad), url(foo.ttf)', valid: true },
+    { src: 'url(foo.ttf) tech(unknown), url(foo.ttf)', valid: true },
+    { src: 'url(foo.ttf) tech(color-COLRv0) otherfunc(othervalue), url(foo.ttf)', valid: true },
+    { src: 'url(foo.ttf), url(something.ttf) format(broken)', valid: true },
+    { src: '/* an empty component */, url(foo.ttf)', valid: true },
+    { src: 'local(""), url(foo.ttf), unparseable-garbage, local("another font name")', valid: true },
+    // But if all components are bad, the descriptor is invalid.
+    { src: 'local(), local(initial)', valid: false },
+    { src: 'local("textfont") format(opentype), local("emoji") tech(color-COLRv0)', valid: false },
+    { src: 'local(), /*empty*/, url(should be quoted.ttf), junk', valid: false },
+    { src: 'url(foo.ttf) format(unknown), url(bar.ttf) tech(broken)', valid: false },
+    { src: 'url(foo.ttf) tech(color-COLRv0) otherfunc(othervalue), junk', valid: false },
+  ];
+
+  for (let t of tests) {
+    test(() => {
+      assert_equals(sheet.cssRules.length, 0, "testSheet should initially be empty");
+      sheet.insertRule("@font-face { src: " + t.src + "}");
+      try {
+        assert_equals(sheet.cssRules[0].style.getPropertyValue("src") != "", t.valid);
+      } finally {
+        sheet.deleteRule(0);
+      }
+    }, "Check that src: " + t.src + " is " + (t.valid ? "valid" : "invalid"));
+  }
+</script>

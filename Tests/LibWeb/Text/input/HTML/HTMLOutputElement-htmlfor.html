@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const outputElement = document.createElement("output");
+        const htmlFor = outputElement.htmlFor;
+        println(`output.htmlFor is initially empty: ${htmlFor.length === 0}`);
+        println(`output.htmlFor always returns the same object: ${outputElement.htmlFor === htmlFor}`);
+        outputElement.htmlFor = "a";
+        println(`output.htmlFor after setting output.htmlFor to "a": ${outputElement.htmlFor}`);
+        println(`for attribute value after setting output.htmlFor to "a": ${outputElement.getAttribute("for")}`);
+        outputElement.setAttribute("for", "b");
+        println(`output.htmlFor after calling output.setAttribute("for", "b"): ${outputElement.htmlFor}`);
+        outputElement.htmlFor = "c d";
+        println(`output.htmlFor after setting output.htmlFor to "c d": ${outputElement.htmlFor}`);
+        println(`for attribute value after setting output.htmlFor to "c d": ${outputElement.getAttribute("for")}`);
+        println(`output.htmlFor.contains("c"): ${outputElement.htmlFor.contains("c")}`);
+        println(`output.htmlFor.contains("a"): ${outputElement.htmlFor.contains("a")}`);        
+    });
+</script>

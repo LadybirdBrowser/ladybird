@@ -1,0 +1,1 @@
+TypeError: Failed to obtain a Blob object from 'blob:' URL

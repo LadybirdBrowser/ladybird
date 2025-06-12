@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>The translate attribute inherit state when there's no parent element</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  const div = document.createElement("div");
+  assert_true(div.translate);
+}, 'No parent node');
+
+test(() => {
+  const div = document.createElement("div");
+  const frag = document.createDocumentFragment();
+  frag.append(div);
+  assert_true(div.translate);
+}, 'DocumentFragment parent node');
+
+for (const translateValue of ['yes', 'no']) {
+  test(() => {
+    const div = document.createElement("div");
+    const myElement = document.createElement("my-element");
+    myElement.setAttribute('translate', translateValue);
+    myElement.attachShadow({mode: 'open'});
+    myElement.shadowRoot.append(div);
+    assert_true(div.translate);
+  }, `ShadowRoot parent node whose shadow host has translate=${translateValue}`);
+}
+
+test(() => {
+  assert_true(document.documentElement.translate);
+}, 'Document parent node');
+</script>

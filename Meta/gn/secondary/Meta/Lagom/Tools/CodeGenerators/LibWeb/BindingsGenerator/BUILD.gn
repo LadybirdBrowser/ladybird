@@ -1,0 +1,13 @@
+import("//Meta/Lagom/Tools/lagom_tool.gni")
+
+lagom_tool("BindingsGenerator") {
+  sources = [
+    "IDLGenerators.cpp",
+    "Namespaces.h",
+    "main.cpp",
+  ]
+  deps = [
+    "//Userland/Libraries/LibIDL",
+    "//Userland/Libraries/LibMain",
+  ]
+}

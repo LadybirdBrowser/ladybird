@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Color-stops parsing</title>
+        <link rel="author" title="Florin Malita" href="mailto:fmalita@chromium.org">
+        <link rel="help" href="http://www.w3.org/TR/css-images-4/#color-stop-syntax">
+        <meta name="assert" content="General color stop parsing (applicable to all gradients) follows CSS Images 4 rules.">
+        <script src="../../../resources/testharness.js"></script>
+        <script src="../../../resources/testharnessreport.js"></script>
+    </head>
+    <body>
+        <script>
+                var tests = [
+                        // invalid stops
+                        { stops: ""                        , parse: false },
+                        { stops: "black, 25%"              , parse: false },
+                        { stops: "black, invalid"          , parse: false },
+                        { stops: "black, , white"          , parse: false },
+                        { stops: "black, white, 75%"       , parse: false },
+                        { stops: "black, 25% 50%, white"   , parse: false },
+                        { stops: "black, 25%, 50%, white"  , parse: false },
+                        { stops: "black 10% 25% 50%, white", parse: false },
+                        { stops: ",black, white"           , parse: false },
+                        { stops: "0%, black, white"        , parse: false },
+
+                        // basic stops
+                        { stops: "black"                           , parse: true },
+                        { stops: "black 0%"                        , parse: true },
+                        { stops: "black, white"                    , parse: true },
+                        { stops: "black 0, white"                  , parse: true },
+                        { stops: "black 0%, white"                 , parse: true },
+                        { stops: "black 0%, white 100%"            , parse: true },
+                        { stops: "black, green, white"             , parse: true },
+                        { stops: "black 0%, green 50%, white 100%" , parse: true },
+                        { stops: "black 50%, green 10%, white 100%", parse: true },
+
+                        // interpolation hints
+                        { stops: "black, 25%, white"                        , parse: true },
+                        { stops: "black 0%, 25%, white 100%"                , parse: true },
+                        { stops: "black 0%, 15%, green 50%, 60%, white 100%", parse: true },
+
+                        // dual-positioning
+                        { stops: "black 0% 50%, white"                        , parse: true },
+                        { stops: "black 0% 50%, white 50% 100%"               , parse: true },
+                        { stops: "black 0% 50%, green 25% 75%, white 50% 100%", parse: true },
+
+                        // kitchen sink
+                        { stops: "black 0% calc(100% / 5), 25%, green 30% 60%, calc(100% * 3 / 4), white calc(100% - 20%) 100%", parse: true },
+
+                        // lots of stops
+                        {
+                                stops: (() => {
+                                        let longGradient = "";
+                                        for (let x = 0; x < 500; x++) {
+                                                longGradient += `white ${x/500}%, ${(2 * x + 1) / 1000}%, `;
+                                        }
+                                        longGradient += "black";
+                                        return longGradient;
+                                })(),
+                                parse: true
+                        }
+                ];
+
+                function check_gradient(gradient, stops, shouldParse) {
+                        var div = document.createElement('div');
+                        div.setAttribute("style", "background-image: " + gradient + "(" + stops + ")");
+
+                        var inline_style = div.style.getPropertyValue("background-image");
+                        assert_equals(inline_style.startsWith(gradient), shouldParse);
+
+                        document.body.appendChild(div);
+                        var computed_style = getComputedStyle(div).getPropertyValue("background-image");
+                        assert_equals(computed_style.startsWith(gradient), shouldParse);
+                        div.remove();
+                }
+
+                [ "linear-gradient",
+                  "repeating-linear-gradient",
+                  "radial-gradient",
+                  "repeating-radial-gradient",
+                  "conic-gradient",
+                  "repeating-conic-gradient"
+                ].forEach(function(gradient) {
+                        tests.forEach(function(tst) {
+                                test(function() {
+                                        check_gradient(gradient, tst.stops, tst.parse);
+                                }, gradient + "(" + tst.stops + ") " + (tst.parse ? "[ parsable ]" : "[ unparsable ]"));
+                        });
+                });
+        </script>
+    </body>
+</html>

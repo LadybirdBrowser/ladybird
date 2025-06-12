@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>flexbox | first-letter</title>
+<meta name="assert" content="This test is ensures that flexbox placement does not apply to ::first-letter psuedo-content">
+<link rel="author" title="Vince Falconi" href="vince.falconi@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#placement">
+<style>
+  div { display: flex; }
+  div::first-letter { order: 2 }
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div>Triceratops</div>
+
+<script>
+  test(function() {
+    let order = getComputedStyle(document.querySelector('div'), '::first-letter').order;
+    assert_not_equals(order, '2');
+  });
+</script>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en" class="reftest-wait">
+<head>
+  <meta charset="UTF-8">
+  <title>CSS Test: String value of list-style-type changing dynamically</title>
+  <link rel="author" title="Oriol Brufau" href="mailto:obrufau@gmail.com">
+  <link rel="help" href="https://drafts.csswg.org/css-lists-3/#valdef-list-style-type-string">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-lists/list-style-type-string-004-ref.html">
+  <meta name="assert" content="This test checks that the marker text is updated when list-style-type changes.">
+  <style>
+    .list { list-style-type: "foo" }
+  </style>
+</head>
+<body>
+  <ol class="list">
+    <li>item 1</li>
+    <li>item 2</li>
+    <li>item 3</li>
+    <li>item 4</li>
+  </ol>
+  <ul class="list">
+    <li>item 1</li>
+    <li>item 2</li>
+    <li>item 3</li>
+    <li>item 4</li>
+  </ul>
+  <script src="../../common/reftest-wait.js"></script>
+  <script>
+    "use strict";
+    addEventListener("load", function() {
+      requestAnimationFrame(() => {
+        for (const list of document.querySelectorAll(".list")) {
+          list.style.listStyleType = '"bar"';
+        }
+        takeScreenshot();
+      });
+    }, {once: true});
+  </script>
+</body>
+</html>

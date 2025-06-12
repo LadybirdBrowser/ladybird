@@ -1,0 +1,282 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset=utf-8>
+  <title>Font family name parsing tests</title>
+  <link rel="author" title="John Daggett" href="mailto:jdaggett@mozilla.com">
+  <link rel="help" href="http://www.w3.org/TR/css-fonts-3/#font-family-prop" />
+  <link rel="help" href="http://www.w3.org/TR/css-fonts-3/#font-prop" />
+  <meta name="assert" content="tests that valid font family names parse and invalid ones don't" />
+  <script type="text/javascript" src="../../resources/testharness.js"></script>
+  <script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+  <style type="text/css">
+  </style>
+</head>
+<body>
+<div id="log"></div>
+<pre id="display"></pre>
+<style type="text/css" id="testbox"></style>
+
+<script type="text/javascript">
+
+function fontProp(n, size, s1, s2) { return (s1 ? s1 + " " : "") + (s2 ? s2 + " " : "") + size + " " + n; }
+function font(n, size, s1, s2) { return "font: " + fontProp(n, size, s1, s2); }
+
+// testrules
+//   namelist - font family list
+//   invalid  - true if declarations won't parse in either font-family or font
+//   fontonly - only test with the 'font' property
+//   single   - namelist includes only a single name (@font-face rules only allow a single name)
+
+var testFontFamilyLists = [
+
+  /* basic syntax */
+  { namelist: "simple", single: true },
+  { namelist: "'simple'", single: true },
+  { namelist: '"simple"', single: true },
+  { namelist: "-simple", single: true },
+  { namelist: "_simple", single: true },
+  { namelist: "quite simple", single: true },
+  { namelist: "quite _simple", single: true },
+  { namelist: "quite -simple", single: true },
+  { namelist: "0simple", invalid: true, single: true },
+  { namelist: "simple!", invalid: true, single: true },
+  { namelist: "simple()", invalid: true, single: true },
+  { namelist: "quite@simple", invalid: true, single: true },
+  { namelist: "#simple", invalid: true, single: true },
+  { namelist: "quite 0simple", invalid: true, single: true },
+  { namelist: "納豆嫌い", single: true },
+  { namelist: "納豆嫌い, ick, patooey" },
+  { namelist: "ick, patooey, 納豆嫌い" },
+  { namelist: "納豆嫌い, 納豆大嫌い" },
+  { namelist: "納豆嫌い, 納豆大嫌い, 納豆本当に嫌い" },
+  { namelist: "納豆嫌い, 納豆大嫌い, 納豆本当に嫌い, 納豆は好みではない" },
+  { namelist: "arial, helvetica, sans-serif" },
+  { namelist: "arial, helvetica, 'times' new roman, sans-serif", invalid: true },
+  { namelist: "arial, helvetica, \"times\" new roman, sans-serif", invalid: true },
+
+  // bug 660397 - quotes contained within family names are not escaped
+  // { namelist: "arial, helvetica, \"\\\"times new roman\", sans-serif" },
+  { namelist: "arial, helvetica, '\\\"times new roman', sans-serif" },
+  { namelist: "arial, helvetica, times 'new' roman, sans-serif", invalid: true },
+  { namelist: "arial, helvetica, times \"new\" roman, sans-serif", invalid: true },
+  // { namelist: "\"simple", invalid: true, single: true },
+  // { namelist: "\\\"simple", single: true },
+  // { namelist: "\"\\\"simple\"", single: true },
+  { namelist: "İsimple", single: true },
+  { namelist: "ßsimple", single: true },
+  { namelist: "ẙsimple", single: true },
+
+  /* escapes */
+  { namelist: "\\s imple", single: true },
+  { namelist: "\\073 imple", single: true },
+
+  // bug 475216 - css serialization doesn't escape characters that need escaping
+  // { namelist: "\\035 simple", single: true },
+  { namelist: "sim\\035 ple", single: true },
+  // { namelist: "simple\\02cinitial", single: true },
+  // { namelist: "simple, \\02cinitial" },
+  // { namelist: "sim\\020 \\035 ple", single: true },
+  // { namelist: "sim\\020 5ple", single: true },
+  // { namelist: "\\;", single: true },
+  // { namelist: "\\;,\\;", single: true },
+  // { namelist: "\\,\\;", single: true },
+  // { namelist: "\\{", single: true },
+  // { namelist: "\\{\\;", single: true },
+  // { namelist: "\\}", single: true },
+  // { namelist: "\\}\\;", single: true },
+  // { namelist: "\\@simple", single: true },
+  // { namelist: "\\@simple\\;", single: true },
+  // { namelist: "\\@font-face", single: true },
+  // { namelist: "\\@font-face\\;", single: true },
+  // { namelist: "\\031 \\036 px", single: true },
+  // { namelist: "\\031 \\036 px", single: true },
+  { namelist: "\\1f4a9", single: true },
+  { namelist: "\\01f4a9", single: true },
+  { namelist: "\\0001f4a9", single: true },
+  { namelist: "\\AbAb", single: true },
+
+  /* keywords */
+  { namelist: "italic", single: true },
+  { namelist: "bold", single: true },
+  { namelist: "bold italic", single: true },
+  { namelist: "italic bold", single: true },
+  { namelist: "larger", single: true },
+  { namelist: "smaller", single: true },
+  { namelist: "bolder", single: true },
+  { namelist: "lighter", single: true },
+  { namelist: "default", invalid: true, fontonly: true, single: true },
+  { namelist: "initial", invalid: true, fontonly: true, single: true },
+  { namelist: "inherit", invalid: true, fontonly: true, single: true },
+  { namelist: "normal", single: true },
+  { namelist: "default, simple", invalid: true },
+  { namelist: "initial, simple", invalid: true },
+  { namelist: "inherit, simple", invalid: true },
+  { namelist: "normal, simple" },
+  { namelist: "simple, default", invalid: true },
+  { namelist: "simple, initial", invalid: true },
+  { namelist: "simple, inherit", invalid: true },
+  { namelist: "simple, default bongo" },
+  { namelist: "simple, initial bongo" },
+  { namelist: "simple, inherit bongo" },
+  { namelist: "simple, bongo default" },
+  { namelist: "simple, bongo initial" },
+  { namelist: "simple, bongo inherit" },
+  { namelist: "simple, normal" },
+  { namelist: "simple default", single: true },
+  { namelist: "simple initial", single: true },
+  { namelist: "simple inherit", single: true },
+  { namelist: "simple normal", single: true },
+  { namelist: "default simple", single: true },
+  { namelist: "initial simple", single: true },
+  { namelist: "inherit simple", single: true },
+  { namelist: "normal simple", single: true },
+  { namelist: "caption", single: true }, // these are keywords for the 'font' property but only when in the first position
+  { namelist: "icon", single: true },
+  { namelist: "menu", single: true },
+
+  /* Unset */
+  { namelist: "unset", invalid: true, fontonly: true, single: true },
+  { namelist: "unset, simple", invalid: true },
+  { namelist: "simple, unset", invalid: true },
+  { namelist: "simple, unset bongo" },
+  { namelist: "simple, bongo unset" },
+  { namelist: "simple unset", single: true },
+  { namelist: "unset simple", single: true },
+];
+
+var gTest = 0;
+
+/* strip out just values */
+function extractDecl(rule)
+{
+  var t = rule.replace(/[ \n]+/g, " ");
+  t = t.replace(/.*{[ \n]*/, "");
+  t = t.replace(/[ \n]*}.*/, "");
+  return t;
+}
+
+
+function testStyleRuleParse(decl, invalid) {
+  var sheet = document.styleSheets[1];
+  var rule = ".test" + gTest++ + " { " + decl + "; }";
+
+  while(sheet.cssRules.length > 0) {
+    sheet.deleteRule(0);
+  }
+
+  // shouldn't throw but improper handling of punctuation may cause some parsers to throw
+  try {
+    sheet.insertRule(rule, 0);
+  } catch (e) {
+    assert_unreached("unexpected error with " + decl + " ==> " + e.name);
+  }
+
+  assert_equals(sheet.cssRules.length, 1,
+    "strange number of rules (" + sheet.cssRules.length + ") with " + decl);
+
+  var s = extractDecl(sheet.cssRules[0].cssText);
+
+  if (invalid) {
+    assert_equals(s, "", "rule declaration shouldn't parse - " + rule + " ==> " + s);
+  } else {
+    assert_not_equals(s, "", "rule declaration should parse - " + rule);
+
+    // check that the serialization also parses
+    var r = ".test" + gTest++ + " { " + s + " }";
+    while(sheet.cssRules.length > 0) {
+      sheet.deleteRule(0);
+    }
+    try {
+      sheet.insertRule(r, 0);
+    } catch (e) {
+      assert_unreached("exception occurred parsing serialized form of rule - " + rule + " ==> " + r + " " + e.name);
+    }
+    var s2 = extractDecl(sheet.cssRules[0].cssText);
+    assert_not_equals(s2, "", "serialized form of rule should also parse - " + rule + " ==> " + r);
+  }
+}
+
+var kDefaultFamilySetting = "onelittlepiggywenttomarket";
+
+function testFontFamilySetterParse(namelist, invalid) {
+  var el = document.getElementById("display");
+
+  el.style.fontFamily = kDefaultFamilySetting;
+  var def = el.style.fontFamily;
+  el.style.fontFamily = namelist;
+  if (!invalid) {
+    assert_not_equals(el.style.fontFamily, def, "fontFamily setter should parse - " + namelist);
+    var parsed = el.style.fontFamily;
+    el.style.fontFamily = kDefaultFamilySetting;
+    el.style.fontFamily = parsed;
+    assert_equals(el.style.fontFamily, parsed, "fontFamily setter should parse serialized form to identical serialization - " + parsed + " ==> " + el.style.fontFamily);
+  } else {
+    assert_equals(el.style.fontFamily, def, "fontFamily setter shouldn't parse - " + namelist);
+  }
+}
+
+var kDefaultFontSetting = "16px onelittlepiggywenttomarket";
+
+function testFontSetterParse(n, size, s1, s2, invalid) {
+  var el = document.getElementById("display");
+
+  el.style.font = kDefaultFontSetting;
+  var def = el.style.font;
+  var fp = fontProp(n, size, s1, s2);
+  el.style.font = fp;
+  if (!invalid) {
+    assert_not_equals(el.style.font, def, "font setter should parse - " + fp);
+    var parsed = el.style.font;
+    el.style.font = kDefaultFontSetting;
+    el.style.font = parsed;
+    assert_equals(el.style.font, parsed, "font setter should parse serialized form to identical serialization - " + parsed + " ==> " + el.style.font);
+  } else {
+    assert_equals(el.style.font, def, "font setter shouldn't parse - " + fp);
+  }
+}
+
+var testFontVariations = [
+  { size: "16px" },
+  { size: "900px" },
+  { size: "900em" },
+  { size: "35%" },
+  { size: "7832.3%" },
+  { size: "xx-large" },
+  { size: "larger", s1: "lighter" },
+  { size: "16px", s1: "italic" },
+  { size: "16px", s1: "italic", s2: "bold" },
+  { size: "smaller", s1: "normal" },
+  { size: "16px", s1: "normal", s2: "normal" },
+  { size: "16px", s1: "400", s2: "normal" },
+  { size: "16px", s1: "bolder", s2: "oblique" }
+];
+
+function testFamilyNameParsing() {
+  var i;
+  for (i = 0; i < testFontFamilyLists.length; i++) {
+    var tst = testFontFamilyLists[i];
+    var n = tst.namelist;
+    var t;
+
+    if (!tst.fontonly) {
+      t = "font-family: " + n;
+      test(function() { testStyleRuleParse(t, tst.invalid); }, t);
+      test(function() { testFontFamilySetterParse(n, tst.invalid); }, t + " (setter)");
+    }
+
+    var v;
+    for (v = 0; v < testFontVariations.length; v++) {
+      var f = testFontVariations[v];
+      t = font(n, f.size, f.s1, f.s2);
+      test(function() { testStyleRuleParse(t, tst.invalid); }, t);
+      test(function() { testFontSetterParse(n, f.size, f.s1, f.s2, tst.invalid); }, t + " (setter)");
+    }
+  }
+}
+
+testFamilyNameParsing();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 20 tests
+
+1 Pass
+19 Fail
+Pass	CSS Fonts Module Level 5: getComputedStyle().fontSizeAdjust
+Fail	Property font-size-adjust value 'none'
+Fail	Property font-size-adjust value '0.5'
+Fail	Property font-size-adjust value 'ex-height 0.5'
+Fail	Property font-size-adjust value 'cap-height 0.8'
+Fail	Property font-size-adjust value 'ch-width 0.4'
+Fail	Property font-size-adjust value 'ic-width 0.9'
+Fail	Property font-size-adjust value 'ic-height 1.1'
+Fail	Property font-size-adjust value 'from-font'
+Fail	Property font-size-adjust value 'ex-height from-font'
+Fail	Property font-size-adjust value 'cap-height from-font'
+Fail	Property font-size-adjust value 'ch-width from-font'
+Fail	Property font-size-adjust value 'ic-width from-font'
+Fail	Property font-size-adjust value 'ic-height from-font'
+Fail	Property font-size-adjust value 'calc(0.5)'
+Fail	Property font-size-adjust value 'ex-height calc(0.5)'
+Fail	Property font-size-adjust value 'cap-height calc(0.5)'
+Fail	Property font-size-adjust value 'cap-height calc(0.5 + 1)'
+Fail	Property font-size-adjust value 'cap-height calc(-0.5)'
+Fail	Property font-size-adjust value 'cap-height calc(10 + (sign(20cqw - 10px) * 5))'

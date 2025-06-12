@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>getBoundingClientRect</title>
+    <link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+
+    <style>
+      #foo {
+        margin: 0px 0px 0px 5px;
+        transform: translate(10px, 200px);
+        position: fixed;
+        left: 5px;
+        background-color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="foo">
+      FOO
+    </div>
+    <script>
+        test(function () {
+            var foo = document.getElementById("foo").getBoundingClientRect();
+            assert_equals(foo.left, 20);
+        });
+    </script>
+  </body>
+</html>

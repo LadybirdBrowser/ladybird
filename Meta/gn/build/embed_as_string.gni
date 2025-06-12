@@ -1,0 +1,64 @@
+# This file introduces a template for calling embed_as_string.py.
+#
+# embed_as_string behaves like C++23 #embed, converting an input file into
+# an AK::StringView literal rather than a C-string literal. The literal will
+# be placed into a global variable, optionally with a namespace wrapping it.
+#
+# Note that the file must not contain any tokens that need to be escaped
+# in C++, or the script will fail to produce a valid C++ translation unit.
+#
+# Parameters:
+#
+#   input (required) [string]
+#
+#   output (required) [string]
+#
+#   variable_name (required) [string]
+#
+#   namespace (optional) [string]
+#
+# Example use:
+#
+#   embed_as_string("embed_my_file") {
+#     input = "MyFile.txt"
+#     output = "$root_gen_dir/MyDirectory/MyFile.cpp"
+#     variable_name = "my_file_contents"
+#     namespace = "My::NS"
+#   }
+
+template("embed_as_string") {
+  assert(defined(invoker.input), "must set 'input' in $target_name")
+  assert(defined(invoker.output), "must set 'output' in $target_name")
+  assert(defined(invoker.variable_name),
+         "must set 'variable_name' in $target_name")
+
+  action(target_name) {
+    script = "//Meta/embed_as_string.py"
+
+    sources = [ invoker.input ]
+    outputs = [ invoker.output ]
+    args = [
+      "-o",
+      rebase_path(outputs[0], root_build_dir),
+      "-n",
+      invoker.variable_name,
+    ]
+    if (defined(invoker.namespace)) {
+      args += [
+        "-s",
+        invoker.namespace,
+      ]
+    }
+    args += [ rebase_path(sources[0], root_build_dir) ]
+
+    forward_variables_from(invoker,
+                           [
+                             "configs",
+                             "deps",
+                             "public_configs",
+                             "public_deps",
+                             "testonly",
+                             "visibility",
+                           ])
+  }
+}

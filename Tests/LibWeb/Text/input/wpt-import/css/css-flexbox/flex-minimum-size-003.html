@@ -1,0 +1,23 @@
+<!doctype html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto">
+<link rel="help" href="https://crbug.com/1151608">
+<meta name="assert" content="automatic minimum size computation doesn't overflow when multiplying by the aspect ratio" />
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('img')">
+
+<div id=log></div>
+
+<div style="display: flex; width: 300px;">
+  <img src="data:image/svg+xml,%3Csvg viewBox='0 0 1 1' width='8000' height='8000' xmlns='http://www.w3.org/2000/svg' %3E%3C/svg%3E" data-expected-width=8000 style="height: 8000px;">
+</div>
+
+<div style="display: flex; flex-direction: column; height: 300px;">
+  <img src="data:image/svg+xml,%3Csvg viewBox='0 0 1 1' width='8000' height='8000' xmlns='http://www.w3.org/2000/svg' %3E%3C/svg%3E" data-expected-height=8000 style="width: 8000px;">
+</div>
+
+</body>

@@ -1,0 +1,53 @@
+<!doctype html>
+<title>Aspect-ratio items with borders</title>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#algo-main-item" title="Section B">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#transferred-size-suggestion">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#content-size-suggestion">
+<meta name="assert" content="Multiplying cross size by aspect ratio should operate on content box only.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+img {
+  border-top: 50px solid blue;
+  border-left: 10px solid orange;
+}
+
+.flexbox {
+  display: flex;
+  margin-bottom: 20px;
+}
+</style>
+
+<!-- script after body was flakily triggering before images were loaded, so wait for onload -->
+<body onload="checkLayout('img')">
+
+<p>
+The green boxes should all be 100x100.
+</p>
+
+Section B of flex base size + transferred size suggestion:
+<div class=flexbox>
+  <img style="height: 100px;" src="support/200x200-green.png" data-expected-client-width=100 data-expected-client-height=100 />
+</div>
+
+Section B of flex base size + transferred size suggestion, with box-sizing: border-box:
+<!-- Chrome 83 fails the border-box version. -->
+<div class=flexbox>
+  <img style="height: 150px; box-sizing: border-box;" src="support/200x200-green.png" data-expected-client-width=100 data-expected-client-height=100 />
+</div>
+
+content size suggestion
+<div class=flexbox>
+  <img style="max-height: 100px;" src="support/200x200-green.png" data-expected-client-width=100 data-expected-client-height=100 />
+</div>
+
+content size suggestion
+<div class=flexbox>
+  <img style="min-height: 100px;" src="support/60x60-green.png" data-expected-client-width=100 data-expected-client-height=100 />
+</div>
+
+</body>

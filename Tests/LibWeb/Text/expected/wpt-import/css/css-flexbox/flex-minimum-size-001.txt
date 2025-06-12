@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	.flexbox, .inline-flexbox 1
+Pass	.flexbox, .inline-flexbox 2
+Pass	.flexbox, .inline-flexbox 3
+Pass	.flexbox, .inline-flexbox 4
+Pass	.flexbox, .inline-flexbox 5
+Pass	.flexbox, .inline-flexbox 6

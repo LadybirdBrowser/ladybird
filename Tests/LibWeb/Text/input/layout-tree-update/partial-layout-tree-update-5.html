@@ -1,0 +1,38 @@
+<!doctype html>
+<style>
+    * {
+        outline: 1px solid black;
+    }
+    #foo {
+        width: max-content;
+        display: flex;
+        gap: 10px;
+    }
+    #foo div {
+        background: green;
+        width: 50px;
+        height: 50px;
+    }
+    #foo #c {
+        background: orange;
+        width: 100px;
+        height: 100px;
+    }
+    #container {
+        display: contents;
+    }
+</style>
+<script src="../include.js"></script>
+<body><div id="foo"><div id="container"><div id="a"></div></div><div id="c"></div></body>
+<script>
+    test(() => {
+        println("foo width: " + getComputedStyle(foo).width);
+        let b = document.createElement("div");
+        b.setAttribute("id", "b");
+        container.appendChild(b);
+        println("a width: " + getComputedStyle(a).width);
+        println("b width: " + getComputedStyle(b).width);
+        println("c width: " + getComputedStyle(c).width);
+        println("foo width: " + getComputedStyle(foo).width);
+    });
+</script>

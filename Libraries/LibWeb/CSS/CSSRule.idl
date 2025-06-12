@@ -1,0 +1,25 @@
+#import <CSS/CSSStyleSheet.idl>
+
+// https://www.w3.org/TR/cssom/#the-cssrule-interface
+[Exposed=Window]
+interface CSSRule {
+
+    attribute CSSOMString cssText;
+    readonly attribute CSSRule? parentRule;
+    readonly attribute CSSStyleSheet? parentStyleSheet;
+
+    // the following attribute and constants are historical
+    [ImplementedAs=type_for_bindings] readonly attribute unsigned short type;
+    const unsigned short STYLE_RULE = 1;
+    const unsigned short CHARSET_RULE = 2;
+    const unsigned short IMPORT_RULE = 3;
+    const unsigned short MEDIA_RULE = 4;
+    const unsigned short FONT_FACE_RULE = 5;
+    const unsigned short PAGE_RULE = 6;
+    const unsigned short KEYFRAMES_RULE = 7;
+    const unsigned short KEYFRAME_RULE = 8;
+    const unsigned short MARGIN_RULE = 9;
+    const unsigned short NAMESPACE_RULE = 10;
+    const unsigned short SUPPORTS_RULE = 12;
+
+};

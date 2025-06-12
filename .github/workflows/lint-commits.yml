@@ -1,0 +1,94 @@
+name: Lint Commit Messages
+
+on: [pull_request_target]
+
+# Make sure to update Meta/lint-commit.sh to match this script when adding new checks!
+# (… but don't accept overlong 'fixup!' commit descriptions.)
+
+jobs:
+  lint:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    if: github.repository == 'LadybirdBrowser/ladybird'
+
+    steps:
+      - name: Lint PR commits
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const excludedBotIds = [
+              49699333,  // dependabot[bot]
+            ];
+            const rules = [
+              {
+                pattern: /^[^\r]*$/,
+                error: "Commit message contains CRLF line breaks (only unix-style LF linebreaks are allowed)",
+              },
+              {
+                pattern: /^.+(\r?\n(\r?\n.*)*)?$/,
+                error: "Empty line between commit title and body is missing",
+              },
+              {
+                pattern: /^.{0,72}(?:\r?\n(?:(.{0,72})|(.*?([a-z]+:\/\/)?(([a-zA-Z0-9_]|-)+\.)+[a-z]{2,}(:\d+)?([a-zA-Z_0-9@:%\+.~\?&/=]|-)+).*?))*$/,
+                error: "Commit message lines are too long (maximum allowed is 72 characters, except for URLs)",
+              },
+              {
+                pattern: /^((?!^Merge branch )[\s\S])*$/,
+                error: "Commit is a git merge commit, use the rebase command instead",
+              },
+              {
+                pattern: /^\S.*?\S: .+/,
+                error: "Missing category in commit title (if this is a fix up of a previous commit, it should be squashed)",
+              },
+              {
+                pattern: /^\S.*?: [A-Z0-9]/,
+                error: "First word of commit after the subsystem is not capitalized",
+              },
+              {
+                pattern: /^.+[^.\n](\r?\n.*)*$/,
+                error: "Commit title ends in a period",
+              },
+              {
+                pattern: /^((?!Signed-off-by: )[\s\S])*$/,
+                error: "Commit body contains a Signed-off-by tag",
+              },
+            ];
+
+            const { repository, pull_request } = context.payload;
+
+            // NOTE: This maxes out at 250 commits. If this becomes a problem, see:
+            // https://octokit.github.io/rest.js/v18#pulls-list-commits
+            const opts = github.rest.pulls.listCommits.endpoint.merge({
+              owner: repository.owner.login,
+              repo: repository.name,
+              pull_number: pull_request.number,
+            });
+            const commits = await github.paginate(opts);
+
+            const errors = [];
+            for (const { sha, commit: { message }, author } of commits) {
+              if (author !== null && excludedBotIds.includes(author.id)) {
+                continue;
+              }
+              const commitErrors = [];
+              for (const { pattern, error } of rules) {
+                if (!pattern.test(message)) {
+                  commitErrors.push(error);
+                }
+              }
+              if (commitErrors.length > 0) {
+                const title = message.split("\n")[0];
+                errors.push([`${title} (${sha}):`, ...commitErrors].join("\n  "));
+              }
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(`One or more of the commits in this PR do not match the code submission policy:\n\n${errors.join("\n")}`);
+            }
+
+      - name: Comment on PR
+        if: ${{ failure() && !github.event.pull_request.draft }}
+        uses: IdanHo/comment-on-pr@63ea2bf352997c66e524b8b5be7a79163fb3a88a
+        env:
+          GITHUB_TOKEN: ${{ secrets.LADYBIRD_BOT_TOKEN }}
+        with:
+          msg: "Hello!\n\nOne or more of the commit messages in this PR do not match the Ladybird [code submission policy](https://github.com/LadybirdBrowser/ladybird/blob/master/CONTRIBUTING.md#code-submission-policy), please check the `lint_commits` CI job for more details on which commits were flagged and why.\nPlease do not close this PR and open another, instead modify your commit message(s) with [git commit --amend](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/changing-a-commit-message) and force push those changes to update this PR."

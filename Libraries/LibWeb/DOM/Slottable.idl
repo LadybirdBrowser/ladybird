@@ -1,0 +1,7 @@
+// FIXME: This #import causes a circular import-related error
+// #import <HTML/HTMLSlotElement.idl>
+
+// https://dom.spec.whatwg.org/#mixin-slotable
+interface mixin Slottable {
+    readonly attribute HTMLSlotElement? assignedSlot;
+};

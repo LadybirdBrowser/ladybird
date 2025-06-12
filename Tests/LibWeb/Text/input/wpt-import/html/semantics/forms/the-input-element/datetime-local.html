@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Form input type=datetime-local</title>
+<link rel="author" title="Denis Ah-Kang" href="mailto:denis@w3.org">
+<link rel=help href="https://html.spec.whatwg.org/multipage/multipage/common-microsyntaxes.html#local-dates-and-times">
+<link rel=help href="https://html.spec.whatwg.org/multipage/multipage/states-of-the-type-attribute.html#local-date-and-time-state-(type=datetime-local)">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+  var datetimeLocal = [
+    {value: "", expected: "", testname: "empty value"},
+    {value: "2014-01-01T11:11:11.111", expected: "2014-01-01T11:11:11.111", testname: "datetime-local input value set to 2014-01-01T11:11:11.111 without min/max"},
+    {value: "2014-01-01 11:11:11.111", expected: "2014-01-01T11:11:11.111", testname: "datetime-local input value set to 2014-01-01 11:11:11.111 without min/max"},
+    {value: "2014-01-01 11:11", expected: "2014-01-01T11:11", testname: "datetime-local input value set to 2014-01-01 11:11 without min/max"},
+    {value: "2014-01-01 00:00:00.000", expected: "2014-01-01T00:00", testname: "datetime-local input value set to 2014-01-01 00:00:00.000 without min/max"},
+    {value: "2014-01-0 11:11", expected: "", testname: "datetime-local input value set to 2014-01-0 11:11 without min/max"},
+    {value: "2014-01-01 11:1", expected: "", testname: "datetime-local input value set to 2014-01-01 11:1 without min/max"},
+    {value: "2014-01-01 11:1d1", expected: "", testname: "invalid datetime-local input value 1"},
+    {value: "2014-01-01H11:11", expected: "", testname: "invalid datetime-local input value 2"},
+    {value: "2014-01-01 11:11:", expected: "", testname: "invalid datetime-local input value 3"},
+    {value: "2014-01-01 11-11", expected: "", testname: "invalid datetime-local input value 4"},
+    {value: "2014-01-01 11:11:123", expected: "", testname: "invalid datetime-local input value 5"},
+    {value: "2014-01-01 11:11:12.1234", expected: "", testname: "invalid datetime-local input value 6"},
+    {value: "2014-01-01 11:12", attributes: { min: "2014-01-01 11:11" }, expected: "2014-01-01T11:12", testname: "Value >= min attribute"},
+    {value: "2014-01-01 11:10", attributes: { min: "2014-01-01 11:11" }, expected: "2014-01-01T11:10", testname: "Value < min attribute"},
+    {value: "2014-01-01 11:10", attributes: { max: "2014-01-01 11:11" }, expected: "2014-01-01T11:10", testname: "Value <= max attribute"},
+    {value: "2014-01-01 11:12", attributes: { max: "2014-01-01 11:11" }, expected: "2014-01-01T11:12", testname: "Value > max attribute"}
+  ];
+  for (var i = 0; i < datetimeLocal.length; i++) {
+    var w = datetimeLocal[i];
+    test(function() {
+      var input = document.createElement("input");
+      input.type = "datetime-local";
+      input.value = w.value;
+      for(var attr in w.attributes) {
+        input[attr] = w.attributes[attr];
+      }
+      assert_equals(input.value, w.expected);
+    }, w.testname);
+  }
+</script>

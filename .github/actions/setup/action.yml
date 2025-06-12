@@ -1,0 +1,131 @@
+name: 'Setup action'
+description: 'Sets up the dependencies for the CI VM'
+author: 'Andrew Kaster <akaster@serenityos.org>'
+inputs:
+  os:
+    description: 'Operating System to set up'
+    required: true
+    default: 'Linux'
+  arch:
+    description: 'Target Architecture to set up'
+    required: true
+    default: 'x86_64'
+  toolchain:
+    description: 'Toolchain to set up'
+    required: true
+    default: 'Clang'
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+        cache: 'pip'
+    - name: 'Install Python dependencies'
+      shell: bash
+      run: pip install pyyaml requests six
+
+    - name: 'Install Dependencies'
+      if: ${{ inputs.os == 'Linux' }}
+      shell: bash
+      run: |
+        set -e
+
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+
+        if [ ! -f /etc/apt/sources.list.d/llvm.list ]; then
+          curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
+          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+        fi
+
+        sudo apt-get update -y
+        sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 \
+            gcc-14 g++-14 libcurl4-openssl-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
+            libstdc++-14-dev lld-20 llvm-20 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
+
+        if ${{ inputs.toolchain == 'Clang' }} ; then
+          sudo apt-get install -y clang-20 clang++-20 clang-tools-20
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
+        fi
+
+        sudo update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-20 100
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+
+        # FIXME: https://github.com/WebAssembly/wabt/issues/2533
+        #        wabt doesn't have binary releases for arm64 Linux
+        curl -f -L -o wabt-1.0.35-ubuntu-20.04.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
+        tar -xzf ./wabt-1.0.35-ubuntu-20.04.tar.gz
+        rm ./wabt-1.0.35-ubuntu-20.04.tar.gz
+        echo "${{ github.workspace }}/wabt-1.0.35/bin" >> $GITHUB_PATH
+
+    - name: 'Select latest Xcode'
+      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: 16.3
+
+    - name: 'Install Swift toolchain'
+      if: ${{ inputs.toolchain == 'Swift' }}
+      shell: bash
+      run: |
+        set -e
+
+        export SWIFTLY_HOME_DIR=${{ github.workspace }}/.swiftly/share
+        export SWIFTLY_BIN_DIR=${{ github.workspace }}/.swiftly/bin
+
+        echo "$SWIFTLY_BIN_DIR" >> $GITHUB_PATH
+        echo "SWIFTLY_HOME_DIR=$SWIFTLY_HOME_DIR" >> $GITHUB_ENV
+        echo "SWIFTLY_BIN_DIR=$SWIFTLY_BIN_DIR" >> $GITHUB_ENV
+
+        export PATH=$SWIFTLY_BIN_DIR:$PATH
+
+        mkdir -p $SWIFTLY_HOME_DIR
+        mkdir -p $SWIFTLY_BIN_DIR
+
+        if ${{ inputs.os == 'Linux' }} ; then
+          curl -O https://download.swift.org/swiftly/linux/swiftly-${{ inputs.arch }}.tar.gz
+          file swiftly-${{ inputs.arch }}.tar.gz
+          tar -xzf swiftly-${{ inputs.arch }}.tar.gz -C $SWIFTLY_BIN_DIR
+          rm swiftly-${{ inputs.arch }}.tar.gz
+        else
+          # FIXME: https://github.com/swiftlang/swiftly/issues/271
+          #    Why does this drop files in $HOME? That's not very CI-friendly
+          curl -O https://download.swift.org/swiftly/darwin/swiftly.pkg
+          installer -pkg swiftly.pkg -target CurrentUserHomeDirectory
+          cp ~/.swiftly/bin/swiftly $SWIFTLY_BIN_DIR
+          rm swiftly.pkg
+        fi
+
+        swiftly init \
+          --no-modify-profile \
+          --quiet-shell-followup \
+          --assume-yes \
+          --skip-install \
+          --verbose
+
+        echo "swiftly version: $(swiftly --version)" >&2
+
+        # installs version listed in .swift-version
+        swiftly install
+        swiftly list
+
+    - name: 'Install Dependencies'
+      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
+      shell: bash
+      run: |
+        set -e
+        brew update
+        brew install autoconf autoconf-archive automake bash ccache coreutils llvm@20 nasm ninja pkg-config qt unzip wabt
+
+    - name: 'Set required environment variables'
+      if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('VCPKG_FORCE_SYSTEM_BINARIES', '1')
+
+    - name: 'Install vcpkg'
+      shell: bash
+      run: ./Toolchain/BuildVcpkg.py

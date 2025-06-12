@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let reloaded = false;
+
+        window.addEventListener("message", event => {
+            switch (event.data.action) {
+                case "loaded":
+                    println("iframe is loaded");
+                    if (!reloaded) {
+                        event.source.postMessage({ action: "reload" });
+                        reloaded = true;
+                    } else {
+                        done();
+                    }
+                    break;
+                case "acknowledge-asked-to-reload":
+                    println("iframe is going to reload");
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.src = "../../data/iframe-reload.html";
+        document.body.appendChild(iframe);
+    });
+</script>

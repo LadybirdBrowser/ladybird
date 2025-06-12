@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<select id="select-test">
+    <option value="A"></option>
+    <option value="B"></option>
+</select>
+<script>
+    asyncTest(done => {
+        const selectElement = document.getElementById("select-test");
+        let onchangeTriggered = false;
+        
+        selectElement.onchange = () => {
+            onchangeTriggered = true;
+        }
+        
+        selectElement.value = "B";
+        setTimeout(() => {
+            if (!onchangeTriggered) {
+                println("PASS");
+            } else {
+                println("FAILED");
+            }
+            done();
+        }, 1);
+    });
+</script>

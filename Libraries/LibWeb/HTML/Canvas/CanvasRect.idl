@@ -1,0 +1,6 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasrect
+interface mixin CanvasRect {
+    undefined clearRect(unrestricted double x, unrestricted double y, unrestricted double w, unrestricted double h);
+    undefined fillRect(unrestricted double x, unrestricted double y, unrestricted double w, unrestricted double h);
+    undefined strokeRect(unrestricted double x, unrestricted double y, unrestricted double w, unrestricted double h);
+};

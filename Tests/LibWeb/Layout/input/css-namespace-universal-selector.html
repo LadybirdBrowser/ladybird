@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+@namespace s "http://www.w3.org/2000/svg";
+
+body * {
+    display: block;
+    width: 100px;
+    border: 1px solid black;
+}
+body |* {
+    width: 200px !important;
+}
+body *|* {
+    height: 100px;
+}
+body s|* {
+    border-width: 10px;
+}
+</style>
+<svg></svg>
+<math></math>
+<div></div>

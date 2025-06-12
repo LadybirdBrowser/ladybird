@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	fallback role w/ region with no label
+Pass	fallback role w/ region with label
+Pass	aria 1.1 switch role w/ fallback to aria 1.0 checkbox role
+Pass	div[role=button] ignoring invalid foo role token
+Pass	unknown[role=button] ignoring invalid foo role token
+Pass	button ignoring single invalid role token
+Pass	button ignoring multiple invalid role tokens
+Pass	div[role=button] ignoring invalid foo role token including punctuation-contaminated known link role
+Pass	div[role=button] ignoring invalid unicode diacritics etc on link and group role tokens
+Pass	div[role=button] ignoring tab char
+Pass	div[role=button] ignoring line break
+Pass	div[role=button] ignoring braille whitespace char

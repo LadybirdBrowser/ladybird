@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['flex-wrap'] = "auto" should not set the property value
+Pass	e.style['flex-wrap'] = "nowrap wrap" should not set the property value

@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Pass
+Pass	e.style['backdrop-filter'] = "auto" should not set the property value
+Pass	e.style['backdrop-filter'] = "none hue-rotate(0deg)" should not set the property value
+Pass	e.style['backdrop-filter'] = "blur(10)" should not set the property value
+Pass	e.style['backdrop-filter'] = "blur(-100px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "brightness(-20)" should not set the property value
+Pass	e.style['backdrop-filter'] = "brightness(30px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "contrast(-20)" should not set the property value
+Pass	e.style['backdrop-filter'] = "contrast(30px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "drop-shadow(10 20)" should not set the property value
+Pass	e.style['backdrop-filter'] = "drop-shadow(10% 20%)" should not set the property value
+Pass	e.style['backdrop-filter'] = "drop-shadow(1px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "drop-shadow(1px 2px 3px 4px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "drop-shadow(rgb(4, 5, 6))" should not set the property value
+Pass	e.style['backdrop-filter'] = "drop-shadow()" should not set the property value
+Pass	e.style['backdrop-filter'] = "grayscale(-20)" should not set the property value
+Pass	e.style['backdrop-filter'] = "grayscale(30px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "hue-rotate(90)" should not set the property value
+Pass	e.style['backdrop-filter'] = "invert(-20)" should not set the property value
+Pass	e.style['backdrop-filter'] = "invert(30px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "opacity(-20)" should not set the property value
+Pass	e.style['backdrop-filter'] = "opacity(30px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "saturate(-20)" should not set the property value
+Pass	e.style['backdrop-filter'] = "saturate(30px)" should not set the property value
+Pass	e.style['backdrop-filter'] = "sepia(-20)" should not set the property value
+Pass	e.style['backdrop-filter'] = "sepia(30px)" should not set the property value

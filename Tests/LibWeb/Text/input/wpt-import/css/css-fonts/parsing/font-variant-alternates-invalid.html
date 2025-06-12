@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+      CSS Fonts Module Level 4: parsing font-variant-alternates with invalid values
+    </title>
+    <link
+      rel="help"
+      href="https://drafts.csswg.org/css-fonts-4/#propdef-font-variant-alternates"
+    />
+    <meta
+      name="assert"
+      content="font-variant-alternates supports only the grammar normal | [ stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name>#) || character-variant(<feature-value-name>#) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) ]"
+    />
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/parsing-testcommon.js"></script>
+  </head>
+  <body>
+    <script>
+      test_invalid_value(
+        "font-variant-alternates",
+        "swash(several,different,aliases)"
+      );
+      test_invalid_value("font-variant-alternates", "stylistic(more,than,one)");
+      test_invalid_value("font-variant-alternates", "ornaments(more,than,one)");
+      test_invalid_value("font-variant-alternates", "swash(more,than,one)");
+      test_invalid_value(
+        "font-variant-alternates",
+        "annotation(more,than,one)"
+      );
+      test_invalid_value(
+        "font-variant-alternates",
+        "historical-forms(argument)"
+      );
+      test_invalid_value("font-variant-alternates", "annotation()");
+      test_invalid_value("font-variant-alternates", "annotation");
+      test_invalid_value("font-variant-alternates", "swash");
+      test_invalid_value("font-variant-alternates", "ornaments stylistic");
+      test_invalid_value("font-variant-alternates", "swash(one) swash(two)");
+      test_invalid_value(
+        "font-variant-alternates",
+        "unkown(one) myfunction(two)"
+      );
+      test_invalid_value(
+        "font-variant-alternates",
+        "styleset(thisone) styleset(something,else)"
+      );
+      test_invalid_value(
+        "font-variant-alternates",
+        "swash(foo) swash(bar)"
+      );
+      test_invalid_value("font-variant-alternates", "ornaments(one historical-forms");
+    </script>
+  </body>
+</html>

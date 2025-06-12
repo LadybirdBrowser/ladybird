@@ -1,0 +1,9 @@
+static_library("LibMain") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "Main.cpp",
+    "Main.h",
+  ]
+  deps = [ "//AK" ]
+  output_name = "main"
+}

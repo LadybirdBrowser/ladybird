@@ -1,0 +1,2 @@
+anim count: 1
+keyframe: {"offset":null,"computedOffset":1,"easing":"linear","composite":"auto","marginLeft":"10px"}

@@ -1,0 +1,14 @@
+source_set("Platform") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "AudioCodecPlugin.cpp",
+    "AudioCodecPluginAgnostic.cpp",
+    "EventLoopPlugin.cpp",
+    "EventLoopPluginSerenity.cpp",
+    "FontPlugin.cpp",
+    "ImageCodecPlugin.cpp",
+    "Timer.cpp",
+    "TimerSerenity.cpp",
+  ]
+}

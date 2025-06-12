@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	InputEvent constructor without InputEventInit.
+Pass	InputEvent construtor with InputEventInit where data is null
+Pass	InputEvent construtor with InputEventInit where data is empty string
+Pass	InputEvent construtor with InputEventInit where data is non empty string

@@ -1,0 +1,72 @@
+#import <DOM/AbortSignal.idl>
+#import <Fetch/Body.idl>
+#import <Fetch/BodyInit.idl>
+#import <Fetch/Headers.idl>
+
+typedef (Request or USVString) RequestInfo;
+
+// https://fetch.spec.whatwg.org/#request
+[Exposed=(Window,Worker)]
+interface Request {
+    constructor(RequestInfo input, optional RequestInit init = {});
+
+    readonly attribute ByteString method;
+    readonly attribute USVString url;
+    [SameObject] readonly attribute Headers headers;
+
+    readonly attribute RequestDestination destination;
+    readonly attribute USVString referrer;
+    readonly attribute ReferrerPolicy referrerPolicy;
+    readonly attribute RequestMode mode;
+    readonly attribute RequestCredentials credentials;
+    readonly attribute RequestCache cache;
+    readonly attribute RequestRedirect redirect;
+    readonly attribute DOMString integrity;
+    readonly attribute boolean keepalive;
+    readonly attribute boolean isReloadNavigation;
+    readonly attribute boolean isHistoryNavigation;
+    readonly attribute AbortSignal signal;
+    readonly attribute RequestDuplex duplex;
+
+    [NewObject] Request clone();
+};
+Request includes Body;
+
+dictionary RequestInit {
+    ByteString method;
+    HeadersInit headers;
+    BodyInit? body;
+    USVString referrer;
+    ReferrerPolicy referrerPolicy;
+    RequestMode mode;
+    RequestCredentials credentials;
+    RequestCache cache;
+    RequestRedirect redirect;
+    DOMString integrity;
+    boolean keepalive;
+    AbortSignal? signal;
+    RequestDuplex duplex;
+    RequestPriority priority;
+    any window; // can only be set to null
+};
+
+enum RequestDestination { "", "audio", "audioworklet", "document", "embed", "font", "frame", "iframe", "image", "json", "manifest", "object", "paintworklet", "report", "script", "sharedworker", "style",  "track", "video", "worker", "xslt" };
+enum RequestMode { "navigate", "same-origin", "no-cors", "cors" };
+enum RequestCredentials { "omit", "same-origin", "include" };
+enum RequestCache { "default", "no-store", "reload", "no-cache", "force-cache", "only-if-cached" };
+enum RequestRedirect { "follow", "error", "manual" };
+enum RequestDuplex { "half" };
+enum RequestPriority { "high", "low", "auto" };
+
+// https://w3c.github.io/webappsec-referrer-policy/#enumdef-referrerpolicy
+enum ReferrerPolicy {
+    "",
+    "no-referrer",
+    "no-referrer-when-downgrade",
+    "same-origin",
+    "origin",
+    "strict-origin",
+    "origin-when-cross-origin",
+    "strict-origin-when-cross-origin",
+    "unsafe-url"
+};

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const encoder = new TextEncoder();
+        const message = "Hello friends";
+        const encodedMessage = encoder.encode(message);
+
+        const keyAlgorithm = {
+            name: "Ed25519",
+        };
+        const extractable = true;
+        const usages = ["sign", "verify"];
+        const key = await window.crypto.subtle.generateKey(keyAlgorithm, extractable, usages);
+
+        const signatureAlgorithm = {
+            name: "Ed25519",
+        };
+        const signature = await window.crypto.subtle.sign(
+            signatureAlgorithm,
+            key.privateKey,
+            encodedMessage
+        );
+
+        let result = await window.crypto.subtle.verify(
+            signatureAlgorithm,
+            key.publicKey,
+            signature,
+            encodedMessage
+        );
+
+        if (result) {
+            println(`Verified OK`);
+        } else {
+            println(`FAIL: Verification not ok`);
+        }
+
+        done();
+    });
+</script>

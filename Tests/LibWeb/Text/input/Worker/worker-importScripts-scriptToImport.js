@@ -1,0 +1,3 @@
+function importedFunction() {
+    return "YES";
+}

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>flexbox | computed style | flex-flow: column-reverse nowrap</title>
+<link rel="author" href="http://opera.com" title="Opera Software">
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#flex-flow-property">
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#valdef-flex-direction-column-reverse">
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#valdef-flex-wrap-nowrap">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<meta name="flags" content="dom">
+<style>
+body {
+	color: red;
+	flex-flow: column-reverse nowrap;
+}
+</style>
+<div id="log"></div>
+<script>
+test(function() {
+    var body = document.body;
+
+    assert_equals(getComputedStyle(body).getPropertyValue("flex-direction"),
+	          "column-reverse");
+    assert_equals(getComputedStyle(body).getPropertyValue("flex-wrap"),
+	          "nowrap");
+});
+</script>

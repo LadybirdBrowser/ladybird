@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const inputElement = document.createElement("input");
+        inputElement.type = "color";
+        inputElement.value = "#000000";
+        inputElement.select();
+        println("PASS (didn't crash)");
+    });
+</script>

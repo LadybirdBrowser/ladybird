@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.dir.constructor.name);
+        println(`document.dir = '${document.dir}'`);
+        document.dir = 'ltr';
+        println(`document.dir = '${document.dir}'`);
+        document.dir = 'rtl';
+        println(`document.dir = '${document.dir}'`);
+        document.dir = 'auto';
+        println(`document.dir = '${document.dir}'`);
+        document.dir = 'unknown';
+        println(`document.dir = '${document.dir}'`);
+    });
+</script>

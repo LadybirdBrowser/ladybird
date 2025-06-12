@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-compositing-ref.html" />
+<style>
+    div {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        opacity: 50%;
+    }
+    #d1 {
+        background-color: rgb(186, 190, 92);
+    }
+    #d2 {
+        background-color: linear-gradient(to right rgb(255, 132, 0) 51%),
+            linear-gradient(to right, rgb(255, 0, 212));
+        background-blend-mode: normal, difference;
+        mix-blend-mode: screen;
+        top: 10px;
+    }
+    #d3 {
+        background-color: rgb(21, 107, 118);
+        isolation: isolate;
+        mix-blend-mode: multiply;
+        top: 20px;
+    }
+    #d4 {
+        background-color: linear-gradient(to right rgb(77, 145, 113) 51%),
+            linear-gradient(to right, rgb(60, 118, 41));
+        background-blend-mode: normal, exclusion;
+        mix-blend-mode: normal;
+        isolation: isolate;
+        top: 30px;
+    }
+    #d5 {
+        background-color: rgb(34, 29, 78);
+        mix-blend-mode: difference;
+        top: 40px;
+    }
+</style>
+<div id="d1">111</div>
+<div id="d2">222</div>
+<div id="d3">333</div>
+<div id="d4">444</div>
+<div id="d5">555</div>

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            const sheet = new CSSStyleSheet();
+            sheet.insertRule(`@import url("style-sheet-with-byte-order-mark.css")`);
+            println("FAIL");
+        } catch (e) {
+            println(`Inserting an @import rule into a constructed stylesheet throws: ${e.name}`);
+        }
+    });
+</script>

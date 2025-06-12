@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/4441">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_no_interpolation({
+  property: 'flex-direction',
+  from: 'initial',
+  to: 'column'
+});
+
+test_no_interpolation({
+  property: 'flex-wrap',
+  from: 'initial',
+  to: 'wrap'
+});
+</script>

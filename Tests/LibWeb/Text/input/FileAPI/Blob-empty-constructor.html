@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const blob = new Blob;
+        if (blob.size === 0 && blob.type === "")
+            println("PASS");
+        else
+            println("FAIL");
+    });
+</script>

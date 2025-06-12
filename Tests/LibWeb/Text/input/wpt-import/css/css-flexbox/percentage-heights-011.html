@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: percentage height of flex item</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-property">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="This test checks that the height of flexitems work properly
+with percentage value and 'overflow-y' auto.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+window.onload = function()
+{
+    var outer = document.getElementById("outer");
+    outer.style.height = "300px";
+    outer.offsetLeft;
+    outer.style.height = "100px";
+    checkLayout('#outer');
+};
+</script>
+</head>
+<body>
+<div id=log></div>
+<div id="outer" data-expected-height="100">
+  <div class="flexbox" data-expected-height="100" style="height: 100%">
+    <div class="flex-one" data-expected-height="100" style="overflow-y: auto; height: 100%">
+        <div data-expected-height="100" style="height: 100%">
+          <div data-expected-height="100" style="width: 100px; height: 100px; background-color: green"></div>
+        </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

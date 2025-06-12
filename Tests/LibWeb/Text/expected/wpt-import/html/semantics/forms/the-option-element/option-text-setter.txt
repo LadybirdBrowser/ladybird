@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Verify that using HTMLOptionElement.text setter does not update the existing text child node.

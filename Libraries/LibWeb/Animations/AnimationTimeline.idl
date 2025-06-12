@@ -1,0 +1,5 @@
+// https://www.w3.org/TR/web-animations-1/#animationtimeline
+[Exposed=Window]
+interface AnimationTimeline {
+    readonly attribute double? currentTime;
+};

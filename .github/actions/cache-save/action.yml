@@ -1,0 +1,71 @@
+name: 'Cache Save Action'
+description: 'Saves caches of build artifacts.'
+author: 'Andrew Kaster <akaster@serenityos.org>'
+
+inputs:
+  runner_labels:
+    description: 'Runner selection labels'
+    required: true
+  arch:
+    description: 'Target Architecture to restore caches for'
+    required: false
+    default: 'x86_64'
+  ccache_path:
+    description: 'Path to the ccache directory'
+    required: false
+    default: ''
+  ccache_primary_key:
+    description: 'Primary ccache key'
+    required: false
+    default: ''
+  vcpkg_cache_path:
+    description: 'Path to the vcpkg binary cache directory'
+    required: false
+    default: ''
+  vcpkg_cache_primary_key:
+    description: 'Primary vcpkg binary cache key'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Prune obsolete ccache files'
+      shell: bash
+      if: ${{ inputs.ccache_path != '' }}
+      run: |
+        CCACHE_DIR=${{ inputs.ccache_path }} ccache --evict-older-than=1d
+
+    - name: 'Compiler Cache (blacksmith)'
+      uses: useblacksmith/cache/save@v5
+      if: ${{ inputs.ccache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
+      with:
+        path: ${{ inputs.ccache_path }}
+        key: ${{ inputs.ccache_primary_key }}
+
+    - name: 'Compiler Cache (GitHub runner)'
+      uses: actions/cache/save@v4
+      if: ${{ inputs.ccache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
+      with:
+        path: ${{ inputs.ccache_path }}
+        key: ${{ inputs.ccache_primary_key }}
+
+    - name: 'Cache Stats'
+      shell: bash
+      if: ${{ inputs.ccache_path != '' }}
+      run: |
+        CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
+
+    - name: 'vcpkg binary cache (blacksmith)'
+      uses: useblacksmith/cache/save@v5
+      if: ${{ inputs.vcpkg_cache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
+      with:
+        path: ${{ inputs.vcpkg_cache_path }}
+        key: ${{ inputs.vcpkg_cache_primary_key }}
+
+    - name: 'vcpkg binary cache (GitHub runner)'
+      uses: actions/cache/save@v4
+      if: ${{ inputs.vcpkg_cache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
+      with:
+        path: ${{ inputs.vcpkg_cache_path }}
+        key: ${{ inputs.vcpkg_cache_primary_key }}

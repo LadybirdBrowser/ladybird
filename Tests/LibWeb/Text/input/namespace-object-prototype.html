@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    function testNamespace(testCase) {
+        println(`Prototype of ${testCase.name} is Object.prototype: ${Object.getPrototypeOf(testCase.namespace) === Object.prototype}`); 
+        println(`${testCase.name}.toString(): ${testCase.namespace.toString()}`);
+        println(`Object.prototype.toString.call(${testCase.name}): ${Object.prototype.toString.call(testCase.namespace)}`);
+    }
+
+    test(() => {
+        const testCases = [
+            { namespace: CSS, name: "CSS" },
+            { namespace: WebAssembly, name: "WebAssembly" },
+        ];
+
+        for (const testCase of testCases) {
+            testNamespace(testCase);
+        }
+    });
+</script>

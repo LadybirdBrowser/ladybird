@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+
+    #box {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="box"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(internals.hitTest(50, 50).node === document.getElementById("box"));
+    });
+</script>

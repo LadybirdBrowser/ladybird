@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square.xht">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1003558">
+<style>
+#target {
+  height: 50px;
+  width: 0;
+  background: green;
+  float: right;
+}
+
+span {
+  float: left;
+  width: 50px;
+  height: 50px;
+  background: green;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: flow-root; width: 100px; background: red;">
+  <div id="target"></div>
+  <div style="position: absolute; width: 50px; height: 50px; background: green;"></div>
+  <div>
+    <div style="clear: both; height: 10px;">
+      <div>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.body.offsetTop;
+document.getElementById('target').style.width = '50px';
+</script>

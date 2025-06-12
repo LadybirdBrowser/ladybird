@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Property inline-size value 'auto'
+Pass	Property inline-size value '10px'
+Pass	Property inline-size value '20%'
+Pass	Property inline-size value 'calc(0.5em + 10px)'
+Pass	Property inline-size value 'calc(-0.5em + 10px)'
+Pass	Property inline-size value 'min-content'
+Pass	Property inline-size value 'max-content'

@@ -1,0 +1,28 @@
+<style>
+    body {
+        width: 780px;
+        text-align: center;
+        font-family: 'SerenitySans';
+    }
+    .box {
+        height: 100px;
+        width: 300px;
+        background: red;
+    }
+    #top {
+        overflow: hidden;
+    }
+    #bottom {
+        border: 1px solid black;
+    }
+</style>
+<body>
+    <div id="top">
+        <div id="top-left" class="box" style="float: left"></div>
+        <div id="top-right" class="box" style="float: right"></div>
+    </div>
+    <div id="bottom">
+        <!-- Due to the overflow property of the top div, this div should be laid beneath the top, rather than inline -->
+        <div id="text">foobar</div>
+    </div>
+</body>

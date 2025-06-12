@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#floats">
+<link rel="help" href="https://www.w3.org/TR/CSS22/zindex.html">
+<div id="f1" style="float:left; width:100px; height:100px;"></div>
+<div id="f2" style="float:left; width:100px; height:100px; margin-top:50px; margin-left:-50px;"></div>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  test(()=> {
+      var elm = document.elementFromPoint(70, 70);
+      assert_equals(elm.id, "f2");
+  }, "Hit test float");
+</script>

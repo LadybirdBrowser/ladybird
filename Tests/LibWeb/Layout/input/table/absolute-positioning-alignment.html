@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+    * {
+        margin: 5px;
+        padding: 0;
+        border: 3px solid black;
+    }
+    .container {
+        display: flex;
+        position: relative;
+        width: 500px;
+        height: 500px;
+    }
+    .table {
+        display: table;
+        position: absolute;
+        background: green;
+        margin: auto;
+    }
+    .right {
+        top: 0;
+        bottom: 0;
+        right: 0;
+        width: 100px;
+        height: 150px;
+    }
+    .left {
+        top: 0;
+        bottom: 0;
+        width: 100px;
+        height: 150px;
+    }
+    .top {
+        left: 0;
+        right: 0;
+        width: 150px;
+        height: 100px;
+    }
+    .bottom {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 150px;
+        height: 100px;
+    }
+</style>
+<div class=container>
+    <div class="table left"></div>
+    <div class="table right"></div>
+    <div class="table top"></div>
+    <div class="table bottom"></div>
+</div>

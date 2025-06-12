@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #input {
+        width: 100px;
+        height: 100px;
+        border: 1px solid black;
+    }
+</style>
+<div id="input" contenteditable="true"></div>
+<script>
+    test(() => {
+        const input = document.getElementById("input");
+        internals.sendText(input, "hello");
+        println(document.body.innerText);
+    });
+</script>

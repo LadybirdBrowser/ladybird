@@ -1,0 +1,22 @@
+#import <DOM/ChildNode.idl>
+#import <DOM/Element.idl>
+#import <DOM/Node.idl>
+
+// https://dom.spec.whatwg.org/#characterdata
+[Exposed=Window]
+interface CharacterData : Node {
+    [LegacyNullToEmptyString] attribute DOMString data;
+    [ImplementedAs=length_in_utf16_code_units] readonly attribute unsigned long length;
+
+    DOMString substringData(unsigned long offset, unsigned long count);
+    undefined appendData(DOMString data);
+    undefined insertData(unsigned long offset, DOMString data);
+    undefined deleteData(unsigned long offset, unsigned long count);
+    undefined replaceData(unsigned long offset, unsigned long count, DOMString data);
+
+    // https://dom.spec.whatwg.org/#interface-nondocumenttypechildnode
+    readonly attribute Element? previousElementSibling;
+    readonly attribute Element? nextElementSibling;
+};
+
+CharacterData includes ChildNode;

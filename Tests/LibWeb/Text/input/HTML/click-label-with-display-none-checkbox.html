@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+input {
+    display: none;
+}
+</style>
+<label id="lbl">Label<input id="checkbox" type="checkbox"/></label>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        checkbox.addEventListener("change", () => {
+            println("Checkbox changed");
+            done();
+        });
+    
+        internals.click(5, 5);
+    });
+</script>

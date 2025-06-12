@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	{Element,Range}.prototype.getBoundingClientRect on SVG <tspan>, Element
+Fail	{Element,Range}.prototype.getBoundingClientRect on SVG <tspan>, Range

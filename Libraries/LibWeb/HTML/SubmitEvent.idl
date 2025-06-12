@@ -1,0 +1,14 @@
+#import <DOM/Event.idl>
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submitevent
+[Exposed=Window]
+interface SubmitEvent : Event {
+    constructor(DOMString type, optional SubmitEventInit eventInitDict = {});
+
+    readonly attribute HTMLElement? submitter;
+};
+
+dictionary SubmitEventInit : EventInit {
+    HTMLElement? submitter = null;
+};

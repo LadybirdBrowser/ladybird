@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: a98-rgb</title>
+<link rel="author" title="Sam Weinig" href="mailto:weinig@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#valdef-color-a98-rgb">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/blacksquare-ref.html">
+<meta name="assert" content="a98-rgb with no alpha">
+<style>
+    .test { background-color: red; width: 12em; height: 12em; }
+    .test { background-color: color(a98-rgb 0 0 0); } /* black (sRGB #000000) converted to a98-rgb */
+</style>
+<body>
+    <p>Test passes if you see a black square, and no red.</p>
+    <div class="test"></div>
+</body>

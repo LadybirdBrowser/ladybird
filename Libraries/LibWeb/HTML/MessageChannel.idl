@@ -1,0 +1,12 @@
+#import <HTML/MessagePort.idl>
+
+// https://html.spec.whatwg.org/multipage/web-messaging.html#messagechannel
+[Exposed=(Window,Worker)]
+interface MessageChannel {
+
+    constructor();
+
+    readonly attribute MessagePort port1;
+    readonly attribute MessagePort port2;
+
+};

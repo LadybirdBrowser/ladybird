@@ -1,0 +1,15 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x736 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x720 children: inline
+      frag 0 from VideoBox start: 0, length: 0, rect: [8,8 320x240] baseline: 240
+      frag 1 from VideoBox start: 0, length: 0, rect: [8,248 640x480] baseline: 480
+      VideoBox <video> at (8,8) content-size 320x240 children: not-inline
+      TextNode <#text>
+      VideoBox <video> at (8,248) content-size 640x480 children: not-inline
+      TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x736]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x736]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x720]
+      VideoPaintable (VideoBox<VIDEO>) [8,8 320x240]
+      VideoPaintable (VideoBox<VIDEO>) [8,248 640x480]

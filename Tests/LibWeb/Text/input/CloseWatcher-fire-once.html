@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let controller = new AbortController();
+        let watcher = new CloseWatcher({ signal: controller.signal });
+        let oncancel_call_count_ = 0;
+        let onclose_call_count_ = 0;
+        watcher.oncancel = () => oncancel_call_count_++;
+        watcher.onclose = () => onclose_call_count_++;
+
+        watcher.requestClose();
+        controller.abort();
+
+        println(oncancel_call_count_);
+        println(onclose_call_count_);
+    })
+</script>

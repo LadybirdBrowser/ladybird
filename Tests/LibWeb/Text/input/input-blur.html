@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<input id=input type=text>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.addEventListener("focus", () => {
+            println("focus");
+        });
+
+        input.addEventListener("blur", () => {
+            println("blur");
+        });
+
+        input.focus();
+        input.blur();
+    })
+</script>

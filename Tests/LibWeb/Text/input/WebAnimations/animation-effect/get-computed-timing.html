@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    const foo = document.getElementById("foo");
+
+    promiseTest(async () => {
+        const timeline = internals.createInternalAnimationTimeline();
+        let anim = foo.animate({}, {
+            delay: 10,
+            endDelay: 20,
+            fill: "forwards",
+            iterationStart: 30,
+            iterations: 40,
+            duration: 50,
+            direction: "normal",
+            easing: "linear",
+            timeline,
+        });
+
+        await animationFrame();
+        let timing = anim.effect.getComputedTiming();
+        println(`num properties: ${Object.getOwnPropertyNames(timing).length}`);
+        println(`delay: ${timing.delay}`);
+        println(`endDelay: ${timing.endDelay}`);
+        println(`fill: ${timing.fill}`);
+        println(`iterationStart: ${timing.iterationStart}`);
+        println(`iterations: ${timing.iterations}`);
+        println(`duration: ${timing.duration}`);
+        println(`direction: ${timing.direction}`);
+        println(`easing: ${timing.easing}`);
+        println(`endTime: ${timing.endTime}`);
+        println(`activeDuration: ${timing.activeDuration}`);
+        println(`localTime: ${timing.localTime}`);
+        println(`progress: ${timing.progress}`);
+        println(`currentIteration: ${timing.currentIteration}`);
+
+        // Test with some progress
+        anim = foo.animate({}, {
+            duration: 1000,
+            iterations: 3,
+            timeline,
+        });
+        timeline.setTime(1200);
+        await animationFrame();
+        timing = anim.effect.getComputedTiming();
+        println("");
+        println(`localTime: ${timing.localTime}`);
+        println(`progress: ${timing.progress.toFixed(2)}`);
+        println(`currentIteration: ${timing.currentIteration}`);
+    });
+</script>

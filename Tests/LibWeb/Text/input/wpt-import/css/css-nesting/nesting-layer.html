@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>Nested @layers</title>
+<link rel="help" href="https://drafts.csswg.org/css-nesting/#nested-group-rules">
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#layering">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+
+  .a {
+    /* This should have no effect. Only at-rules containing style rules
+       are vaild when nested. */
+    @layer theme, base;
+  }
+
+  /* The theme layer wins over the base layer. */
+  @layer base, theme;
+
+  .a {
+    @layer theme {
+      & {
+        z-index: 1;
+      }
+
+      .b {
+        background-color: green;
+      }
+    }
+  }
+
+  @layer base {
+    .a {
+      z-index: 0;
+    }
+    .a .b {
+      background-color: red;
+    }
+  }
+</style>
+<main>
+  <div class="a">
+    <div class="b">
+    </div>
+  </div>
+</main>
+<script>
+  test(() => {
+    let a = document.querySelector("main > .a");
+    let b = document.querySelector("main > .a > .b");
+    assert_equals(getComputedStyle(a).zIndex, "1");
+    assert_equals(getComputedStyle(b).backgroundColor, "rgb(0, 128, 0)");
+  }, '@layer can be nested');
+</script>

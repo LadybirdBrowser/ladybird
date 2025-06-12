@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let canvas = document.createElement("canvas");
+        let context = canvas.getContext("2d");
+        context.font = '20px SerenitySans';
+        println(context.font);
+        context.font = '!!!'; // Invalid value, should be ignored.
+        println(context.font);
+    });
+</script>

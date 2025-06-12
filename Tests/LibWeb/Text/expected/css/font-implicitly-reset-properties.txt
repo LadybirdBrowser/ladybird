@@ -1,0 +1,13 @@
+font-feature-settings: normal
+font-kerning: undefined
+font-language-override: normal
+font-optical-sizing: undefined
+font-size-adjust: undefined
+font-variant-alternates: normal
+font-variant-caps: normal
+font-variant-east-asian: normal
+font-variant-emoji: normal
+font-variant-ligatures: normal
+font-variant-numeric: normal
+font-variant-position: normal
+font-variation-settings: normal

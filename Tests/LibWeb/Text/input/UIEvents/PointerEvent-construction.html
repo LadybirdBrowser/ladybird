@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function dumpPointerEvent(event) {
+        println(`Class: ${event.constructor.name}`);
+        println(`Parent: ${Object.getPrototypeOf(event.constructor).constructor.name}`);
+        println(`Type: '${event.type}'`);
+        println(`Bubbles: ${event.bubbles}`);
+        println(`Cancelable: ${event.cancelable}`);
+        println(`Client X: ${event.clientX}`);
+        println(`Client Y: ${event.clientY}`);
+        println(`Pointer ID: ${event.pointerId}`);
+        println(`Width: ${event.width}`);
+        println(`Height: ${event.height}`);
+        println(`Pressure: ${event.pressure}`);
+        println(`Tangential Pressure: ${event.tangentialPressure}`);
+        println(`Tilt X: ${event.tiltX}`);
+        println(`Tilt Y: ${event.tiltY}`);
+        println(`Twist: ${event.twist}`);
+        println(`Altitude Angle: ${event.altitudeAngle}`);
+        println(`Azimuth Angle: ${event.azimuthAngle}`);
+        println(`Pointer Type: '${event.pointerType}'`);
+        println(`Is Primary: ${event.isPrimary}`);
+        println(`Is Trusted: ${event.isTrusted}`);
+    }
+
+    test(() => {
+        dumpPointerEvent(new PointerEvent('pointerdown'));
+
+        dumpPointerEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 100,
+            clientY: 200,
+            pointerId: 0,
+            width: 1,
+            height: 1,
+            pressure: 0,
+            tangentialPressure: 0,
+            tiltX: 0,
+            tiltY: 0,
+            twist: 0,
+            altitudeAngle: 0,
+            azimuthAngle: 0,
+            pointerType: "",
+            isPrimary: false
+        }));
+    });
+</script>

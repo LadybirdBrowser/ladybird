@@ -1,0 +1,13 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        background-color: hsl(235 calc(1 * 85.6%) 64.7% / 1);
+    }
+</style>
+<div id="target">Hello</div>
+<script>
+    test(() => {
+        println(getComputedStyle(document.getElementById("target"))["background-color"]);
+    });
+</script>

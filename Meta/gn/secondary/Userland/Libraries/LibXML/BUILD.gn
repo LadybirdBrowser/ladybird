@@ -1,0 +1,12 @@
+shared_library("LibXML") {
+  output_name = "xml"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "DOM/Node.cpp",
+    "Parser/Parser.cpp",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+  ]
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>absolute</title>
+    <style>
+        div {
+            width: 100px;
+            height: 100px;
+        }
+        .absolute {
+            position: absolute;
+        }
+        .blue {
+            width: 200px;
+            height: 200px;
+            background-color: blue;
+            top: 208px;
+            left: 208px;
+        }
+        .yellow {
+            background-color: yellow;
+            top: 50px;
+            left: 50px;
+        }
+        .red {
+            background-color: red;
+            top: 100px;
+            left: 100px;
+        }
+        .green {
+            background-color: green;
+            top: 300px;
+            left: 300px;
+        }
+        .black {
+            background-color: black;
+            width: 50px;
+            height: 50px;
+            top: 50px;
+            left: 50px;
+        }
+        .blue_margin {
+            width: 200px;
+            height: 200px;
+            background-color: blue;
+            margin-top: 200px;
+            margin-left: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="blue absolute">
+        <div class="red absolute"></div>
+        <div class="yellow absolute">
+            <div class="black absolute"></div>
+        </div>
+        <div class="green absolute"></div>
+    </div>
+    <div class="blue">
+        <div class="red"></div>
+        <div class="yellow"></div>
+        <div class="green"></div>
+    </div>
+    <div class="blue_margin"></div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Containment Test: Size containment replaced elements intrinsic size</title>
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-size">
+<link rel="match" href="../../../../expected/wpt-import/css/css-contain/contain-size-replaced-005-ref.html">
+<meta name=assert content="This test checks that intrinsic size of out-of-flow replaced elements with 'contain: size' is zero.">
+<style>
+  body > div, video, audio, img, canvas, svg, iframe {
+    position: absolute;
+    border: 3px solid orange;
+    contain: size;
+    margin-bottom: 15px;
+    width: min-content;
+    height: min-content;
+    float: left;
+    clear: both;
+  }
+</style>
+<div>abc</div>
+<video></video><br>
+<video controls></video><br>
+<img src="support/60x60-green.png"><br>
+<picture>
+<source srcset="support/60x60-green.png">
+    <img>
+</picture><br>
+<canvas></canvas><br>
+<svg></svg><br>
+<iframe></iframe>

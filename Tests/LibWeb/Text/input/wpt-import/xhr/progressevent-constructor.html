@@ -1,0 +1,77 @@
+<!doctype html>
+<title>ProgressEvent constructor</title>
+<link rel="help" href="https://xhr.spec.whatwg.org/#interface-progressevent">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-constructor">
+<link rel="help" href="https://dom.spec.whatwg.org/#interface-event">
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+test(function() {
+  var ev = new ProgressEvent("test")
+  assert_equals(ev.type, "test")
+  assert_equals(ev.target, null)
+  assert_equals(ev.currentTarget, null)
+  assert_equals(ev.eventPhase, Event.NONE)
+  assert_equals(ev.bubbles, false)
+  assert_equals(ev.cancelable, false)
+  assert_equals(ev.defaultPrevented, false)
+  assert_equals(ev.isTrusted, false)
+  assert_true(ev.timeStamp > 0)
+  assert_true("initEvent" in ev)
+  assert_equals(ev.lengthComputable, false)
+  assert_equals(ev.loaded, 0)
+  assert_equals(ev.total, 0)
+}, "Default event values.")
+test(function() {
+  var ev = new ProgressEvent("test")
+  assert_equals(ev["initProgressEvent"], undefined)
+}, "There must not be a initProgressEvent().")
+test(function() {
+  var ev = new ProgressEvent("I am an event", { type: "trololol", bubbles: true, cancelable: false})
+  assert_equals(ev.type, "I am an event")
+  assert_equals(ev.bubbles, true)
+  assert_equals(ev.cancelable, false)
+}, "Basic test.")
+test(function() {
+  var ev = new ProgressEvent(null, { lengthComputable: "hah", loaded: "2" })
+  assert_equals(ev.type, "null")
+  assert_equals(ev.lengthComputable, true)
+  assert_equals(ev.loaded, 2)
+}, "ECMAScript value conversion test.")
+test(function() {
+  var ev = new ProgressEvent(null, { loaded: 1, total: 2 })
+  assert_equals(ev.type, "null")
+  assert_equals(ev.loaded, 1)
+  assert_equals(ev.total, 2)
+}, "Positive integer number test.")
+test(function () {
+  var ev = new ProgressEvent(null, { loaded: 0, total: 1 })
+  assert_equals(ev.type, "null")
+  assert_equals(ev.loaded, 0)
+  assert_equals(ev.total, 1)
+}, "Zero test.")
+test(function () {
+  var ev = new ProgressEvent(null, { loaded: 1.5, total: 3.5 })
+  assert_equals(ev.type, "null")
+  assert_equals(ev.loaded, 1.5)
+  assert_equals(ev.total, 3.5)
+}, "Decimal number test.")
+test(function () {
+  var ev = new ProgressEvent(null, { loaded: 1.5, total: 5 })
+  assert_equals(ev.type, "null")
+  assert_equals(ev.loaded, 1.5)
+  assert_equals(ev.total, 5)
+}, "Mixed integer and decimal number test.")
+test(function () {
+  var ev = new ProgressEvent(null, { loaded: -1, total: -5.5 })
+  assert_equals(ev.type, "null")
+  assert_equals(ev.loaded, -1)
+  assert_equals(ev.total, -5.5)
+}, "Negative number.")
+test(function () {
+  var ev = new ProgressEvent("Xx", { lengthcomputable: true})
+  assert_equals(ev.type, "Xx")
+  assert_equals(ev.lengthComputable, false)
+}, "ProgressEventInit members must be matched case-sensitively.")
+</script>

@@ -1,0 +1,5 @@
+window.opener initial value: null
+window.opener after setting to "test": test
+iframe contentWindow.opener initial value is the current window object: true
+iframe contentWindow.opener after setting to null: null
+iframe contentWindow.opener after setting to "test": test

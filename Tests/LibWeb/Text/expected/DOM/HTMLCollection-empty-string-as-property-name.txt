@@ -1,0 +1,2 @@
+Empty string in collection: false
+'haxx' in collection: true

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>Morphed radio input</title>
+<link rel="author" title="Kagami Sascha Rosylight" href="mailto:krosylight@mozilla.com">
+<link rel="help" href="https://html.spec.whatwg.org/#radio-button-state-(type=radio)">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<input id="radio" type="radio" name="name_7" checked>
+<input id="text" name="name_7" checked>
+<script>
+  "use strict";
+
+  test(() => {
+    text.type = 'radio';
+    assert_false(radio.checked);
+  }, "Setting type attribute must unset checkedness of other elements");
+</script>

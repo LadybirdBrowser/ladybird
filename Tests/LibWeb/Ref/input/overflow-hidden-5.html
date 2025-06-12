@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<head>
+<link rel="match" href="../expected/overflow-hidden-5-ref.html" />
+<style type="text/css">
+    body {
+        margin: 0;
+    }
+
+    .wrapper {
+        margin-top: 100px;
+        margin-left: 100px;
+        width: 900px;
+        border: 5px solid magenta;
+    }
+
+    .container {
+        overflow: hidden;
+        display: block;
+        height: 400px;
+    }
+
+    .box {
+        background-color: darkblue;
+        width: 256px;
+        height: 256px;
+        transform: translate3d(-50px, -50px, 0px);
+    }
+</style>
+</head>
+<div class="wrapper"><div class="container"><div class="box"></div></div></div>

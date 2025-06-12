@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	Passing nothing to Headers constructor
+Pass	Passing undefined to Headers constructor
+Pass	Passing null to Headers constructor
+Pass	Basic operation with one property
+Pass	Basic operation with one property and a proto
+Pass	Correct operation ordering with two properties
+Pass	Correct operation ordering with two properties one of which has an invalid name
+Pass	Correct operation ordering with two properties one of which has an invalid value
+Pass	Correct operation ordering with non-enumerable properties
+Pass	Correct operation ordering with undefined descriptors
+Pass	Correct operation ordering with repeated keys
+Pass	Basic operation with Symbol keys
+Pass	Operation with non-enumerable Symbol keys

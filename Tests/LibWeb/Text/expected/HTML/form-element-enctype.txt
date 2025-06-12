@@ -1,0 +1,8 @@
+enctype  | application/x-www-form-urlencoded
+encoding | application/x-www-form-urlencoded
+
+enctype  | text/plain
+encoding | text/plain
+
+enctype  | application/x-www-form-urlencoded
+encoding | application/x-www-form-urlencoded

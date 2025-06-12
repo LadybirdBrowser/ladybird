@@ -1,0 +1,16 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/grouping-content.html#htmlolistelement
+[Exposed=Window]
+interface HTMLOListElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute boolean reversed;
+    [CEReactions] attribute long start;
+    [CEReactions, Reflect] attribute DOMString type;
+
+    // Obsolete
+    [CEReactions, Reflect] attribute boolean compact;
+
+};

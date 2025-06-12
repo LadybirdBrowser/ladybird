@@ -1,0 +1,16 @@
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+#import <HTML/VideoTrack.idl>
+
+// https://html.spec.whatwg.org/multipage/media.html#videotracklist
+[Exposed=Window]
+interface VideoTrackList : EventTarget {
+    readonly attribute unsigned long length;
+    getter VideoTrack (unsigned long index);
+    VideoTrack? getTrackById(DOMString id);
+    readonly attribute long selectedIndex;
+
+    attribute EventHandler onchange;
+    attribute EventHandler onaddtrack;
+    attribute EventHandler onremovetrack;
+};

@@ -1,0 +1,94 @@
+import("//Meta/Lagom/Tools/lagom_tool.gni")
+
+source_set("headers") {
+  sources = [ "GeneratorUtil.h" ]
+}
+
+lagom_tool("GenerateAriaRoles") {
+  sources = [ "GenerateAriaRoles.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateCSSEnums") {
+  sources = [ "GenerateCSSEnums.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateCSSMathFunctions") {
+  sources = [ "GenerateCSSMathFunctions.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateCSSMediaFeatureID") {
+  sources = [ "GenerateCSSMediaFeatureID.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateCSSPropertyID") {
+  sources = [ "GenerateCSSPropertyID.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateCSSPseudoClass") {
+  sources = [ "GenerateCSSPseudoClass.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateCSSPseudoElement") {
+  sources = [ "GenerateCSSPseudoElement.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateCSSTransformFunctions") {
+  sources = [ "GenerateCSSTransformFunctions.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateCSSKeyword") {
+  sources = [ "GenerateCSSKeyword.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateWindowOrWorkerInterfaces") {
+  sources = [ "GenerateWindowOrWorkerInterfaces.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibIDL",
+    "//Userland/Libraries/LibMain",
+  ]
+}
+
+lagom_tool("GenerateNamedCharacterReferences") {
+  sources = [ "GenerateNamedCharacterReferences.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}

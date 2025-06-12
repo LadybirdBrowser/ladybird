@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment Test: column-gap parsing</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#column-row-gap">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .columnGapPx { column-gap: 12px; }
+  #columnGapEm { column-gap: 2em; font: 10px/1 Monospace; }
+  #columnGapVw { column-gap: 2vw; }
+  #columnGapPercent { column-gap: 15%; }
+  #columnGapCalc { column-gap: calc(10px + 4px); }
+  #columnGapCalcFixedPercent { column-gap: calc(5px + 10%); }
+  .columnGapInitial { column-gap: initial; }
+  .columnGapInherit { column-gap: inherit; }
+
+  #invalidColumnGapNegative { column-gap: -10px; }
+  #invalidColumnGapMaxContent { column-gap: max-content; }
+  #invalidColumnGapNone { column-gap: none; }
+  #invalidColumnGapMultiple { column-gap: 10px 1px; }
+  #invalidColumnGapAngle { column-gap: 3rad; }
+  #invalidColumnGapResolution { column-gap: 2dpi; }
+  #invalidColumnGapTime { column-gap: 200ms; }
+</style>
+<body>
+  <div id="log"></div>
+
+  <div id="default"></div>
+  <div id="columnGapPx" class="columnGapPx"></div>
+  <div id="columnGapEm"></div>
+  <div id="columnGapVw"></div>
+  <div id="columnGapPercent"></div>
+  <div id="columnGapCalc"></div>
+  <div id="columnGapCalcFixedPercent"></div>
+  <div id="columnGapInitial" class="columnGapInitial"></div>
+  <div class="columnGapPx">
+    <div id="columnGapInitialPx" class="columnGapInitial"></div>
+  </div>
+  <div id="columnGapInherit" class="columnGapInherit"></div>
+  <div class="columnGapPx">
+    <div id="columnGapInheritPx" class="columnGapInherit"></div>
+  </div>
+
+  <div id="invalidColumnGapNegative"></div>
+  <div id="invalidColumnGapMaxContent"></div>
+  <div id="invalidColumnGapNone"></div>
+  <div id="invalidColumnGapMultiple"></div>
+  <div id="invalidColumnGapAngle"></div>
+  <div id="invalidColumnGapResolution"></div>
+  <div id="invalidColumnGapTime"></div>
+
+  <script>
+    test(
+      function(){
+        var target = document.getElementById("default");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Default column-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("columnGapPx");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "column-gap accepts pixels");
+    test(
+      function(){
+        var target = document.getElementById("columnGapEm");
+        assert_equals(getComputedStyle(target).columnGap, "20px");
+      }, "column-gap accepts em");
+    test(
+      function(){
+        var target = document.getElementById("columnGapVw");
+        // The columnGap size would depend on the viewport width, so to make the test pass
+        // in any window size we just check it's not "normal".
+        assert_not_equals(getComputedStyle(target).columnGap, "normal");
+      }, "column-gap accepts vw");
+    test(
+      function(){
+        var target = document.getElementById("columnGapPercent");
+        assert_equals(getComputedStyle(target).columnGap, "15%");
+      }, "column-gap accepts percentage");
+    test(
+      function(){
+        var target = document.getElementById("columnGapCalc");
+        assert_equals(getComputedStyle(target).columnGap, "14px");
+      }, "column-gap accepts calc()");
+    test(
+      function(){
+        var target = document.getElementById("columnGapCalcFixedPercent");
+        assert_equals(getComputedStyle(target).columnGap, "calc(10% + 5px)");
+      }, "column-gap accepts calc() mixing fixed and percentage values");
+    test(
+      function(){
+        var target = document.getElementById("columnGapInitial");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial column-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("columnGapInitialPx");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial column-gap is 'normal' 2");
+    test(
+      function(){
+        var target = document.getElementById("columnGapInherit");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial inherited column-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("columnGapInheritPx");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "column-gap is inheritable");
+
+
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapNegative");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Negative column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapMaxContent");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "'max-content' column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapNone");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "'none' column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapMultiple");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "column-gap with multiple values is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapAngle");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Angle column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapResolution");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Resolution column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapTime");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Time column-gap is invalid");
+  </script>
+</body>
+
+

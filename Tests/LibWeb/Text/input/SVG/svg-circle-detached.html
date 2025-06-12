@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const circleElement = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        const cx = circleElement.cx;
+        const cy = circleElement.cy;
+        const r = circleElement.r;
+        println("PASS (didn't crash)");
+    });
+</script>

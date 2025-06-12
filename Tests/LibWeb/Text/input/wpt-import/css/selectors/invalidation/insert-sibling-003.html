@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSS Selectors Invalidation: insert sibling of ancestor</title>
+  <link rel="help" href="https://drafts.csswg.org/selectors-4/#adjacent-sibling-combinators">
+  <meta name="assert" content="This tests that the + next-sibling selector is effective">
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <style>
+    .c * { background-color: blue; }
+
+    .a + * + .c * { background-color: green; }
+  </style>
+</head>
+<body>
+  <div>
+    <div id="first" class="a"></div>
+    <div></div>
+    <div class="c">
+      <div>
+        <div id="target"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    'use strict';
+    const green = 'rgb(0, 128, 0)';
+    const blue = 'rgb(0, 0, 255)';
+
+    test(function() {
+      const first = document.getElementById('first');
+      const target = document.getElementById('target');
+      const parent = first.parentElement;
+      assert_equals(getComputedStyle(target).backgroundColor, green, "initial color");
+
+      parent.removeChild(first);
+      assert_equals(getComputedStyle(target).backgroundColor, blue, "color after removal");
+
+      parent.insertBefore(first, parent.firstChild);
+      assert_equals(getComputedStyle(target).backgroundColor, green, "color after insert")
+  }, "Remove/Insert earlier sibling of ancestor");
+  </script>
+</body>
+</html>

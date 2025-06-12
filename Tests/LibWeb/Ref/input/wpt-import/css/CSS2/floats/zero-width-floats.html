@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>Zero width floats</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#float-width" title="10.3.5 Floating, non-replaced elements">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-200px-square.html">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="margin-left:50px; width:100px;">
+  <div style="float:left; width:0; height:50px;"></div>
+  <div style="float:right; clear:left; width:0; height:150px;"></div>
+  <div style="overflow:hidden; margin:0 -50px; height:100px; background:green;"></div>
+</div>
+<div style="position:relative; top:-100px; overflow:hidden; clear:both; width:200px; height:100px; background:green;"></div>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+    <span id="outer">
+        <span id="inner">
+            <span id="name">lang</span>
+            <span id="value">"en"</span>
+        </span>
+    </span>
+    <script type="text/javascript">
+        test(() => {
+            printElement(internals.hitTest(10, 10).node.parentNode);
+            printElement(internals.hitTest(50, 10).node.parentNode);
+        });
+    </script>
+</body>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script type="text/javascript">
+    asyncTest(async done => {
+        const body = new URLSearchParams();
+        body.append("username", "buggie");
+        body.append("password", "hunter2");
+
+        const request = new Request("fetch-url-search-params.html", {
+            method: "POST",
+            body: body,
+        });
+
+        println(await request.text());
+        done();
+    });
+</script>

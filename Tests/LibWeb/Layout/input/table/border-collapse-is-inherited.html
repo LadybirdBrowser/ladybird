@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Collapsed table</title>
+    <style>
+        html {
+            font-family: sans-serif;
+        }
+
+        table {
+            border-collapse: collapse;
+            border-spacing: 20px 10px;
+            border: 1px solid blue;
+        }
+
+        td,
+        th {
+            border: 1px solid black;
+            padding: 10px 20px;
+        }
+
+        td {
+            text-align: center;
+        }
+
+        .horizontal>* {
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class=horizontal>
+        <table>
+            <tbody>
+                <tr>
+                    <td>A</td>
+                    <td>B</td>
+                    <td>1</td>
+                </tr>
+                <tr>
+                    <td>C</td>
+                    <td>D</td>
+                    <td>2</td>
+                </tr>
+                <tr>
+                    <td>E</td>
+                    <td>F</td>
+                    <td>3</td>
+                </tr>
+                <tr>
+                    <td>G</td>
+                    <td>H</td>
+                    <td>4</td>
+                </tr>
+                <tr>
+                    <td>I</td>
+                    <td>J</td>
+                    <td>5</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+
+</body>
+
+</html>

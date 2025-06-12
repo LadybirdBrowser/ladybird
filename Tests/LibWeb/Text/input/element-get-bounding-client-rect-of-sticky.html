@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scrollable {
+        width: 300px;
+        height: 200px;
+        overflow: auto;
+        position: relative;
+    }
+
+    #inner-content {
+        width: 500px;
+        height: 800px;
+        padding: 10px;
+        background-color: #f06;
+    }
+
+    #sticky-element {
+        position: sticky;
+        top: 50px;
+        padding: 20px;
+        background-color: #4caf50;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+    }
+</style>
+<div id="scrollable">
+    <div id="inner-content">
+        <div id="sticky-element">Sticky Element</div>
+        <div style="height: 600px"></div>
+    </div>
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const stickyElement = document.getElementById("sticky-element");
+        const boundingRect = stickyElement.getBoundingClientRect();
+
+        println(`Bounding Client Rect: top=${boundingRect.top}, left=${boundingRect.left}, width=${boundingRect.width}, height=${boundingRect.height}`);
+    });
+</script>

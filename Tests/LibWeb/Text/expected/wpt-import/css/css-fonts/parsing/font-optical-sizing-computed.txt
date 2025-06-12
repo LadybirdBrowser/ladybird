@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Property font-optical-sizing value 'auto'
+Fail	Property font-optical-sizing value 'none'

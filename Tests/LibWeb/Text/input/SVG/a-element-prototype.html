@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let a = document.createElementNS("http://www.w3.org/2000/svg", "a");
+        println(a.__proto__ === SVGAElement.prototype);
+    });
+</script>

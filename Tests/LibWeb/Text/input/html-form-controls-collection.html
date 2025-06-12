@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<form>
+  <input name="one" id="formcontrol" type="button" />
+  <input name="two" id="formcontrol" type="text" />
+</form>
+<script src="include.js"></script>
+<script>
+    function printDescription(name) {
+        println("-------------------");
+        println(name);
+        println("-------------------");
+    }
+
+    function dumpInput(name, item) {
+        printDescription(name);
+        println(item.constructor.name);
+        println(item.id);
+        println(item.type);
+    }
+
+    function dumpRadioNodeList(name, radioNodeList) {
+        printDescription(name);
+        println(radioNodeList.constructor.name);
+        println(radioNodeList.length);
+        println(radioNodeList[0].type);
+        println(radioNodeList[1].type);
+    }
+
+    function dumpNoMatch(name, item) {
+        printDescription(name);
+        println(item);
+    }
+
+    test(() => {
+        const form = document.forms[0].elements;
+        println(form.constructor.name);
+        println(form.length);
+
+        dumpRadioNodeList('form.namedItem("formcontrol")', form.namedItem("formcontrol"))
+        dumpInput('form.namedItem("one")', form.namedItem("one"));
+        dumpInput('form.namedItem("two")', form.namedItem("two"));
+        dumpNoMatch('form.namedItem("nomatch")', form.namedItem("nomatch"));
+
+        dumpRadioNodeList('form["formcontrol"]', form["formcontrol"])
+        dumpInput('form["one"]', form["one"]);
+        dumpInput('form["two"]', form["two"]);
+        dumpNoMatch('form["nomatch"]', form["nomatch"]);
+
+        dumpRadioNodeList('form.formcontrol', form.formcontrol)
+        dumpInput('form.one', form.one);
+        dumpInput('form.two', form.two);
+        dumpNoMatch('form.nomatch', form.nomatch);
+
+        dumpInput('form[0]', form[0]);
+        dumpInput('form[1]', form[1]);
+        dumpNoMatch('form[2]', form[2]);
+    })
+</script>

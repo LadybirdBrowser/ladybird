@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+  .grid-container {
+    display: grid;
+    background-color: lightsalmon;
+  }
+
+  .grid-item {
+    background-color: lightblue;
+  }
+</style>
+
+<!-- Should render a 64px wide image -->
+<div class="grid-container" style="
+    grid-template-columns: auto 0 minmax(0, 100%);
+  ">
+  <div class="wrapper" style="width: 100%;">
+    <img style="width: 100%;" src="data:image/jpeg;base64,
+      /9j/4AAQSkZJRgABAQEAYABgAAD/2wBDADIiJSwlHzIsKSw4NTI7S31RS0VFS5ltc1p9tZ++u7Kf
+      r6zI4f/zyNT/16yv+v/9////////wfD/////////////2wBDATU4OEtCS5NRUZP/zq/O////////
+      ////////////////////////////////////////////////////////////wAARCAAYAEADAREA
+      AhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAQMAAgQF/8QAJRABAAIBBAEEAgMAAAAAAAAAAQIR
+      AAMSITEEEyJBgTORUWFx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAA
+      AAD/2gAMAwEAAhEDEQA/AOgM52xQDrjvAV5Xv0vfKUALlTQfeBm0HThMNHXkL0Lw/swN5qgA8yT4
+      MCS1OEOJV8mBz9Z05yfW8iSx7p4j+jA1aD6Wj7ZMzstsfvAas4UyRHvjrAkC9KhpLMClQntlqFc2
+      X1gUj4viwVObKrddH9YDoHvuujAEuNV+bLwFS8XxdSr+Cq3Vf+4F5RgQl6ZR2p1eAzU/HX80YBYy
+      JLCuexwJCO2O1bwCRidAfWBSctswbI12GAJT3yiwFR7+MBjGK2g/WAJR3FdF84E2rK5VR0YH/9k=">
+  </div>
+</div>

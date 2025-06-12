@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/972904">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<div style="margin-top:-100000000px;">
+  <div style="margin-bottom:-100000000px; padding-top: 1px;"></div>
+  text <!-- "text" is placed at the highest possible location due to saturated margin top values. -->
+  <div style="float: left; width: 60px; height: 20px;"></div>
+  <div style="margin-top: 10px;">
+    <div style="float: left; width: 10px;"></div>
+    <div style="float: left; width: 100px; height: 100px;"></div>
+  </div>
+</div>
+
+<script>
+test(() => { }, 'test passes if it does not crash');
+</script>

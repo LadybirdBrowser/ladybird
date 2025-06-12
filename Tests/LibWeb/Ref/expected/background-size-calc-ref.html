@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        span {
+            display: inline-block;
+            min-width: 12px;
+            min-height: 12px;
+            background-image: url("../data/2x2checkerboard.png");
+            background-size: calc(max(0.75em, 12px));
+        }
+    </style>
+</head>
+<!-- FIXME: Workaround to ensure CSS background-image is loaded before taking screenshot: https://github.com/LadybirdBrowser/ladybird/issues/3448 -->
+<body><span></span><img src="../data/2x2checkerboard.png">

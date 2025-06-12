@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing border-block-color with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-block-color">
+<meta name="assert" content="border-block-color supports only the grammar '<color>{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("border-block-start-color", "#12");
+test_invalid_value("border-block-start-color", "auto");
+test_invalid_value("border-block-start-color", "red green");
+test_invalid_value("border-block-start-color", "rgb");
+test_invalid_value("border-block-start-color", "rgb(1,2,3,4,5)");
+test_invalid_value("border-block-start-color", "rgb(10%, 20, 30%)");
+test_invalid_value("border-block-end-color", "#123456789");
+test_invalid_value("border-block-end-color", "123");
+test_invalid_value("border-block-end-color", "hsla(1,2,3,4,5)");
+test_invalid_value("border-block-end-color", "red, green");
+test_invalid_value("border-block-end-color", "rgb(1)");
+test_invalid_value("border-block-end-color", "rgba(-2, 300, 400%, -0.5)");
+test_invalid_value("border-block-color", "auto");
+test_invalid_value("border-block-color", "lime, transparent");
+test_invalid_value("border-block-color", "red green blue");
+</script>
+</body>
+</html>

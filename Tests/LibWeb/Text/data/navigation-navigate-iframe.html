@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script>
+    function filename(path) {
+        url = new URL(path)
+        return url.pathname.split('/').pop() + url.hash
+    }
+
+    (async () => {
+    try {
+        parent.postMessage(`Initial history length is ${navigation.entries().length}`, "*");
+
+        navigation.oncurrententrychange = (e) => {
+            parent.postMessage(`${e.type} for change to ${filename(navigation.currentEntry.url)} of type ${e.navigationType} from ${filename(e.from.url)}`, "*");
+        }
+
+        navigation.onnavigate = (e) => {
+            parent.postMessage(`NavigateEvent for ${e.navigationType} ${filename(e.destination.url)} (Same document? ${e.destination.sameDocument}) with info: ${e.info}`, "*")
+        }
+
+        // Navigate to fragment
+        let a = navigation.navigate("navigation-navigate-iframe.html#1", { info: 42, history: "push" });
+
+        await a.committed.then((f) => {
+           parent.postMessage(`Committed to navigation to ${filename(f.url)}`, "*");
+        },
+        (e) => {
+            parent.postMessage("ERROR:" + e, "*", "*");
+        })
+
+        await a.finished.then((f) => {
+           parent.postMessage(`Finished navigation to ${filename(f.url)}`, "*");
+        },
+        (e) => {
+            parent.postMessage("ERROR:" + e, "*");
+        })
+
+        parent.postMessage(`History length after navigate is ${navigation.entries().length}`, "*");
+
+        // FIXME: Enable these tests 😅
+        // Navigate backwards
+        // let b = navigation.back()
+        // await b.committed.then((f) => {
+        //    parent.postMessage(`Committed to back navigation to ${filename(f.url)}`, "*");
+        // },
+        // (e) => {
+        //     parent.postMessage("ERROR:" + e, "*", "*");
+        // })
+        // await b.finished.then((f) => {
+        //    parent.postMessage(`Finished back navigation to ${filename(f.url)}`, "*");
+        // },
+        // (e) => {
+        //     parent.postMessage("ERROR:" + e, "*");
+        // })
+
+        // parent.postMessage(`History length after back is ${navigation.entries().length}`, "*");
+
+        // Navigate forwards
+        // let c = navigation.forward()
+        // await c.committed.then((f) => {
+        //    parent.postMessage(`Committed to forward navigation to ${filename(f.url)}`, "*");
+        // },
+        // (e) => {
+        //     parent.postMessage("ERROR:" + e, "*", "*");
+        // })
+        // await c.finished.then((f) => {
+        //    parent.postMessage(`Finished forward navigation to ${filename(f.url)}`, "*");
+        // },
+        // (e) => {
+        //     parent.postMessage("ERROR:" + e, "*");
+        // })
+
+        // parent.postMessage(`History length after forward is ${navigation.entries().length}`, "*");
+
+    } catch (e) {
+        parent.postMessage("ERROR:" + e, "*");
+    }
+    parent.postMessage("DONE", "*");
+    })();
+</script>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Rowspan relaxed parsing</title>
+    <style>
+        table, td {
+            border: 1px solid black;
+            border-spacing: 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<table border="1">
+    <tr>
+        <th>Header 1</th>
+        <th>Header 2</th>
+        <th>Header 3</th>
+    </tr>
+    <tr>
+        <td>Cell 1</td>
+        <td>Cell 2</td>
+        <td rowspan="2">Cell 3</td>
+    </tr>
+    <tr>
+        <td>Cell 4</td>
+        <td>Cell 5</td>
+    </tr>
+    <tr>
+        <td>Cell 6</td>
+        <td>Cell 7</td>
+        <td>Cell 8</td>
+    </tr>
+    <tr>
+        <td>Cell 9</td>
+        <td>Cell 10</td>
+        <td rowspan="2foo">Cell 11</td>
+    </tr>
+    <tr>
+        <td>Cell 12</td>
+        <td>Cell 13</td>
+    </tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 5fr));
+    }
+
+    .a {
+        grid-column-start: span 4;
+        grid-column-end: span 8;
+    }
+
+    .b {
+        grid-column-start: span 8;
+        grid-column-end: span 4;
+    }
+</style><div class="grid-container"><div class="grid-item a">1</div><div class="grid-item b">2</div></div>

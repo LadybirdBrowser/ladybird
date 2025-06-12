@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+
+    .grid-container {
+        display: grid;
+        grid-template-columns: [a] auto [b] auto;
+    }
+
+    .a {
+        grid-column-start: a;
+    }
+
+    .b {
+        grid-column-start: b;
+    }
+</style><div class="grid-container"><div class="a">1</div><div class="b">2</div></div>

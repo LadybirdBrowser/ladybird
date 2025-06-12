@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="author" title="Xiaocheng Hu" href="xiaochengh@chromium.org">
+<link rel="help" href="http://www.w3.org/TR/css3-values/#calc-notation">
+<link rel="help" href="https://www.w3.org/TR/css3-mediaqueries/#units">
+<link rel="match" href="../../../../expected/wpt-import/css/mediaqueries/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="The 'in' unit used in calc is not mistaken as 'px'.">
+<style>
+p { font-size: 16px; }
+#target {
+  width: 100px;
+  height: 100px;
+  background-color: green;
+}
+@media (min-width: calc(100in)) {
+  /* Should not be selected */
+  #target { background-color: red }
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id=target></div>

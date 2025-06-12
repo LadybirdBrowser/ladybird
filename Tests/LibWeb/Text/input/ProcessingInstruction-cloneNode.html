@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+  test(() => {
+    let pi = document.createProcessingInstruction("someTarget", "someData")
+    let clone = pi.cloneNode()
+
+    function dumpProcessingInstruction(name, pi) {
+      println(name + ": " + pi)
+      println(name + ".target: " + pi.target)
+      println(name + ".data: " + pi.data)
+      println("")
+    }
+
+    dumpProcessingInstruction("pi", pi)
+    dumpProcessingInstruction("clone", clone)
+
+    println("pi === clone -> " + (pi === clone))
+    println("pi.isEqualNode(clone) -> " + pi.isEqualNode(clone))
+
+    let other = document.createProcessingInstruction("baz", "bux")
+    println("pi.isEqualNode(other) -> " + pi.isEqualNode(other))
+  });
+</script>

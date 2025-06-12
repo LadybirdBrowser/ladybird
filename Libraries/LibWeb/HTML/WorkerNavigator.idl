@@ -1,0 +1,24 @@
+#import <HTML/NavigatorConcurrentHardware.idl>
+#import <HTML/NavigatorDeviceMemory.idl>
+#import <HTML/NavigatorID.idl>
+#import <HTML/NavigatorLanguage.idl>
+#import <HTML/NavigatorOnLine.idl>
+#import <MediaCapabilitiesAPI/MediaCapabilities.idl>
+#import <StorageAPI/NavigatorStorage.idl>
+
+// https://html.spec.whatwg.org/multipage/workers.html#workernavigator
+[Exposed=Worker]
+interface WorkerNavigator {
+    // https://w3c.github.io/media-capabilities/#dom-workernavigator-mediacapabilities
+    [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
+
+    // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
+    [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
+};
+
+WorkerNavigator includes NavigatorID;
+WorkerNavigator includes NavigatorLanguage;
+WorkerNavigator includes NavigatorOnLine;
+WorkerNavigator includes NavigatorConcurrentHardware;
+WorkerNavigator includes NavigatorStorage;
+WorkerNavigator includes NavigatorDeviceMemory;

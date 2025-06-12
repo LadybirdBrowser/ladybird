@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/1129563">
+<body style="contain: size layout;">
+  <div id="target" style="contain: size layout;"></div>
+  <div id="child"></div>
+</body>
+<script>
+document.body.offsetTop;
+const target = document.getElementById('target');
+const child = document.getElementById('child');
+target.appendChild(child);
+</script>

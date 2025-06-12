@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe name="testFrame"></iframe>
+<script>    
+    asyncTest(done => {
+        const frame = document.querySelector("iframe");
+        // Taken from: https://html.spec.whatwg.org/multipage/nav-history-apis.html#crossoriginproperties-(-o-)
+        const crossOriginWindowProperties = [
+            "window",
+            "self",
+            "location",
+            "close",
+            "closed",
+            "focus",
+            "blur",
+            "frames",
+            "length",
+            "top",
+            "opener",
+            "parent",
+            "postMessage",
+        ];
+        frame.onload = () => {
+            for (const property of crossOriginWindowProperties) {
+                const value = frame.contentWindow[property];
+            }
+            println("PASS (didn't crash)");
+            done();
+        }
+
+        // FIXME: about:newtab is being used here, as it is a simple way to load a cross origin URL using local files. 
+        // This should be replaced with something less fragile if it becomes available.
+        window.open("about:newtab", "testFrame");
+    });
+</script>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	option index should work inside the document
+Pass	option index should always be 0 for options in datalists
+Pass	option index should always be 0 for options with no container
+Pass	option index should always be 0 for options not even in the document

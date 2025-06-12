@@ -1,0 +1,25 @@
+#import <SVG/SVGGraphicsElement.idl>
+
+// https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextContentElement
+[Exposed=Window]
+interface SVGTextContentElement : SVGGraphicsElement {
+
+    // lengthAdjust Types
+    const unsigned short LENGTHADJUST_UNKNOWN = 0;
+    const unsigned short LENGTHADJUST_SPACING = 1;
+    const unsigned short LENGTHADJUST_SPACINGANDGLYPHS = 2;
+
+    [FIXME, SameObject] readonly attribute SVGAnimatedLength textLength;
+    [FIXME, SameObject] readonly attribute SVGAnimatedEnumeration lengthAdjust;
+
+    long getNumberOfChars();
+    [FIXME] float getComputedTextLength();
+    [FIXME] float getSubStringLength(unsigned long charnum, unsigned long nchars);
+    DOMPoint getStartPositionOfChar(unsigned long charnum);
+    [FIXME] DOMPoint getEndPositionOfChar(unsigned long charnum);
+    [FIXME] DOMRect getExtentOfChar(unsigned long charnum);
+    [FIXME] float getRotationOfChar(unsigned long charnum);
+    [FIXME] long getCharNumAtPosition(optional DOMPointInit point = {});
+    [FIXME] undefined selectSubString(unsigned long charnum, unsigned long nchars);
+
+};

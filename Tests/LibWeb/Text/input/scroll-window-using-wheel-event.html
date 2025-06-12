@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<style>
+    body {
+        overflow: scroll;
+    }
+
+    .box {
+        height: 300px;
+        width: 200px;
+    }
+
+    .red {
+        background-color: red;
+    }
+
+    .green {
+        background-color: green;
+    }
+
+    .cyan {
+        background-color: cyan;
+    }
+
+    .pink {
+        background-color: pink;
+    }
+
+    .blue {
+        background-color: blue;
+    }
+</style>
+<div class="container">
+    <div class="box red"></div>
+    <div class="box green"></div>
+    <div class="box blue"></div>
+    <div class="box pink"></div>
+    <div class="box cyan"></div>
+    <div class="box red"></div>
+    <div class="box green"></div>
+    <div class="box blue"></div>
+    <div class="box pink"></div>
+    <div class="box cyan"></div>
+</div>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const container = document.querySelector(".container");
+        window.onscroll = () => {
+            println(`new scrollY: ${window.scrollY}`);
+            done();
+        };
+        internals.wheel(50, 50, 0, 100);
+    });
+</script>

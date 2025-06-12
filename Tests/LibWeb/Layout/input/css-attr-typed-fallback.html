@@ -1,0 +1,30 @@
+<!doctype html>
+<link rel="match" href="reference/css-attr-typed-ref.html" />
+<style>
+    div {
+        width: 100px;
+        height: 20px;
+        border: 1px solid black;
+    }
+    .string::before {
+        content: attr(foo string, "WHF!");
+    }
+    .string-no-fallback::before {
+        content: attr(foo string);
+    }
+    .length {
+        width: attr(foo length, 200px);
+    }
+    .px {
+        width: attr(foo px, 200px);
+    }
+    .color {
+        background-color: attr(foo color, lime);
+    }
+</style>
+<div class="string"></div>
+<div class="string-no-fallback"></div>
+<div class="length" foo="90pizzas"></div>
+<div class="px" foo="twohundred"></div>
+<div class="color" foo="grunge"></div>
+<div class="color" foo="rgb(0,0,0)"></div>

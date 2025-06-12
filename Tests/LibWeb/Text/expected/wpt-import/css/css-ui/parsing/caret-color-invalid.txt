@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['caret-color'] = "none" should not set the property value
+Pass	e.style['caret-color'] = "invert" should not set the property value
+Pass	e.style['caret-color'] = "50%" should not set the property value
+Pass	e.style['caret-color'] = "red green" should not set the property value

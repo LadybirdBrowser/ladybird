@@ -1,0 +1,7 @@
+#import <CSS/CSSRule.idl>
+
+// https://drafts.csswg.org/css-cascade-5/#the-csslayerstatementrule-interface
+[Exposed=Window]
+interface CSSLayerStatementRule : CSSRule {
+    readonly attribute FrozenArray<CSSOMString> nameList;
+};

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const inputElement = document.createElement("input");
+        inputElement.type = "time";
+        ["invalid", "xx:34:56", "12:xx:56", "12:34:xx", "12:34:60"].forEach(value => {
+            inputElement.value = value;
+            println(`Parsed ${value} as ${inputElement.valueAsNumber}`);
+        });
+        println("PASS (didn't crash)");
+    });
+</script>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <title>Tentative: Contextual Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<!--
+  New sectionheader and sectionfooter roles.
+  See https://github.com/w3c/aria/pull/1931
+-->
+<main>
+    <div role="sectionfooter" data-testname="role is sectionfooter (in main)" data-expectedrole="sectionfooter" class="ex">x</div>
+</main>
+<main>
+    <div role="sectionheader" data-testname="role is sectionheader (in main)" data-expectedrole="sectionheader" class="ex">x</div>
+</main>
+
+<script>
+    AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

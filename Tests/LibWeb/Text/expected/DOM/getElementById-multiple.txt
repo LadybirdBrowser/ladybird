@@ -1,0 +1,1 @@
+getElementById('foo') => 1

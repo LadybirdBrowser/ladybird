@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+
+    .grid-container {
+        display: grid;
+        grid-template-rows: repeat(5, 20px);
+    }
+
+    .a {
+        grid-row-end: span 2;
+    }
+
+    .b {
+        grid-row-end: span 3;
+    }
+</style><div class="grid-container"><div class="a">1</div><div class="b">2</div></div>

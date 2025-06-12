@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: getComputedStyle().inlineSize</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical-1/#dimension-properties">
+<meta name="assert" content="inline-size computed value is an absolute length.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #parent {
+    width: 200px;
+  }
+  #target {
+    width: 0px;
+    height: 0px;
+    font-size: 40px;
+  }
+  #child {
+    width: 60px;
+  }
+</style>
+</head>
+<body>
+<div id="parent">
+  <div id="target">
+    <div id="child">
+    </div>
+  </div>
+</div>
+<script>
+test_computed_value("inline-size", "auto", "200px"); // parent width
+
+test_computed_value("inline-size", "10px");
+test_computed_value("inline-size", "20%", "40px");
+test_computed_value("inline-size", "calc(0.5em + 10px)", "30px");
+test_computed_value("inline-size", "calc(-0.5em + 10px)", "0px");
+
+test_computed_value("inline-size", "min-content", "60px"); // child width
+test_computed_value("inline-size", "max-content", "60px");
+</script>
+</body>
+</html>

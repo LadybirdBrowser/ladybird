@@ -1,0 +1,20 @@
+<style>
+b, i {
+    position: relative;
+    top: 25px;
+}
+</style><span>well <b>hello <i>friends</i></b></span>
+<div><br><br><br><br><pre id=out></pre></div>
+
+<script>
+function println(s) {
+    let out = document.getElementById("out");
+    out.innerHTML += s + "\n";
+}
+let i = document.getElementsByTagName("i")[0]
+let b = document.getElementsByTagName("b")[0]
+let span = document.getElementsByTagName("span")[0]
+println("well: " + span.offsetLeft + ", " + span.offsetTop)
+println("hello: " + b.offsetLeft + ", " + b.offsetTop)
+println("friends: " + i.offsetLeft + ", " + i.offsetTop)
+</script>

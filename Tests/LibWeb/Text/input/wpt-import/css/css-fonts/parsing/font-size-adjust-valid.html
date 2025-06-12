@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 5: parsing font-size-adjust with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop">
+<meta name="assert" content="font-size-adjust supports the full grammar 'none | [metric]? [from-font | <number>]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('font-size-adjust', 'none');
+
+test_valid_value('font-size-adjust', '0.5');
+test_valid_value('font-size-adjust', 'ex-height 0.5', '0.5');  // default basis 'ex' omitted from serialization
+test_valid_value('font-size-adjust', 'cap-height 0.8');
+test_valid_value('font-size-adjust', 'ch-width 0.4');
+test_valid_value('font-size-adjust', 'ic-width 0.9');
+test_valid_value('font-size-adjust', 'ic-height 0.9');
+
+test_valid_value('font-size-adjust', 'from-font');
+test_valid_value('font-size-adjust', 'ex-height from-font', 'from-font');  // default basis 'ex' omitted from serialization
+test_valid_value('font-size-adjust', 'cap-height from-font');
+test_valid_value('font-size-adjust', 'ch-width from-font');
+test_valid_value('font-size-adjust', 'ic-width from-font');
+test_valid_value('font-size-adjust', 'ic-height from-font');
+
+test_valid_value('font-size-adjust', 'calc(0.5)');
+test_valid_value('font-size-adjust', 'ex-height calc(0.5)', 'calc(0.5)');  // default basis 'ex' omitted from serialization
+test_valid_value('font-size-adjust', 'cap-height calc(0.5)');
+test_valid_value('font-size-adjust', 'cap-height calc(0.5 + 1)', 'cap-height calc(1.5)');
+test_valid_value('font-size-adjust', 'cap-height calc(-0.5)', 'cap-height calc(-0.5)');
+test_valid_value('font-size-adjust', 'cap-height calc(10 + (sign(20cqw - 10px) * 5))', 'cap-height calc(10 + (5 * sign(20cqw - 10px)))');
+</script>
+</body>
+</html>

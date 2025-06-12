@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: 100px;
+    width: 100px;
+}
+.test {
+    grid-column: 1 / span 2;
+    grid-row: 1;
+    background: red;
+}
+.big-child {
+    width: 500px;
+    height: 100px;
+}
+</style><div class="grid"><div class="test"><div class="big-child"></div></div></div>

@@ -1,0 +1,14 @@
+<!DOCTYPE html><html><style type="text/css">
+.container {
+    display: grid;
+    grid-template-columns: [grid-start] repeat(12, 40px) [grid-end];
+    background: pink;
+}
+.item {
+    grid-column: grid-start / grid-end;
+}
+.box {
+    width: 100%;
+    outline: 5px solid black;
+}
+</style><div class="container"><div class="item"><div class="box">1</div></div>

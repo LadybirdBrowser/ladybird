@@ -1,0 +1,17 @@
+declare_args() {
+  # Set to true when host compiler is clang so that clang flags will be passed to it
+  is_clang = current_os == "mac"
+
+  # Enable setting -fuse-ld and other flags for using the lld linker.
+  # Should not be set on macOS when using the default system compiler.
+  use_lld = false
+
+  # Use ccache as a compiler launcher for compile and link jobs
+  enable_ccache = true
+
+  # C compiler for native builds
+  host_cc = "cc"
+
+  # C++ compiler for native builds
+  host_cxx = "c++"
+}

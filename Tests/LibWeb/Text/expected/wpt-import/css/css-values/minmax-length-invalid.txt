@@ -1,0 +1,54 @@
+Harness status: OK
+
+Found 48 tests
+
+46 Pass
+2 Fail
+Pass	e.style['border-left-width'] = "min()" should not set the property value
+Pass	e.style['border-left-width'] = "min( )" should not set the property value
+Pass	e.style['border-left-width'] = "min(,)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1py)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px, )" should not set the property value
+Pass	e.style['border-left-width'] = "min(, 1px)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px + )" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px - )" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px * )" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px / )" should not set the property value
+Fail	e.style['border-left-width'] = "min(1px 2px)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px, , 2px)" should not set the property value
+Pass	e.style['border-left-width'] = "max()" should not set the property value
+Pass	e.style['border-left-width'] = "max( )" should not set the property value
+Pass	e.style['border-left-width'] = "max(,)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1py)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px, )" should not set the property value
+Pass	e.style['border-left-width'] = "max(, 1px)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px + )" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px - )" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px * )" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px / )" should not set the property value
+Fail	e.style['border-left-width'] = "max(1px 2px)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px, , 2px)" should not set the property value
+Pass	e.style['border-left-width'] = "min(0)" should not set the property value
+Pass	e.style['border-left-width'] = "min(0%)" should not set the property value
+Pass	e.style['border-left-width'] = "min(0s)" should not set the property value
+Pass	e.style['border-left-width'] = "min(0Hz)" should not set the property value
+Pass	e.style['border-left-width'] = "min(0dpi)" should not set the property value
+Pass	e.style['border-left-width'] = "min(0fr)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px, 0)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px, 0%)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px, 0s)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px, 0Hz)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px, 0dpi)" should not set the property value
+Pass	e.style['border-left-width'] = "min(1px, 0fr)" should not set the property value
+Pass	e.style['border-left-width'] = "max(0)" should not set the property value
+Pass	e.style['border-left-width'] = "max(0%)" should not set the property value
+Pass	e.style['border-left-width'] = "max(0s)" should not set the property value
+Pass	e.style['border-left-width'] = "max(0Hz)" should not set the property value
+Pass	e.style['border-left-width'] = "max(0dpi)" should not set the property value
+Pass	e.style['border-left-width'] = "max(0fr)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px, 0)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px, 0%)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px, 0s)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px, 0Hz)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px, 0dpi)" should not set the property value
+Pass	e.style['border-left-width'] = "max(1px, 0fr)" should not set the property value

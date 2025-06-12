@@ -1,0 +1,10 @@
+normal
+embed
+isolate
+bidi-override
+isolate-override
+plaintext
+normal
+normal
+normal
+normal

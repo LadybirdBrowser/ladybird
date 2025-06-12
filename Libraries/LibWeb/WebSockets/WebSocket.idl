@@ -1,0 +1,33 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+#import <FileAPI/Blob.idl>
+
+// https://websockets.spec.whatwg.org/#websocket
+[Exposed=(Window,Worker)]
+interface WebSocket : EventTarget {
+
+    constructor(USVString url, optional (DOMString or sequence<DOMString>) protocols);
+
+    readonly attribute USVString url;
+
+    // ready state
+    const unsigned short CONNECTING = 0;
+    const unsigned short OPEN = 1;
+    const unsigned short CLOSING = 2;
+    const unsigned short CLOSED = 3;
+    readonly attribute unsigned short readyState;
+    [FIXME] readonly attribute unsigned long long bufferedAmount;
+
+    // networking
+    attribute EventHandler onopen;
+    attribute EventHandler onerror;
+    attribute EventHandler onclose;
+    readonly attribute DOMString extensions;
+    readonly attribute DOMString protocol;
+    undefined close(optional [Clamp] unsigned short code, optional USVString reason);
+
+    // messaging
+    attribute EventHandler onmessage;
+    attribute DOMString binaryType;
+    undefined send((BufferSource or Blob or USVString) data);
+};

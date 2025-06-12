@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const elementsToTest = [
+            "br",
+            "span",
+        ];
+        for (const elementName of elementsToTest) {
+            const element = document.createElement(elementName);
+            document.body.appendChild(element);
+            const style = getComputedStyle(element);
+            let values = [];
+            for (const propertyName of style) {
+                values.push(style[propertyName]);
+            }
+            element.remove();
+        }
+        println("PASS (didn't crash)");
+    });
+</script>

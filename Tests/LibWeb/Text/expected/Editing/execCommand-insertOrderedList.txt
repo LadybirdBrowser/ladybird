@@ -1,0 +1,3 @@
+<ol><li>foobar</li></ol>
+<div>foobar</div>
+<ol><li>foobar</li></ol>

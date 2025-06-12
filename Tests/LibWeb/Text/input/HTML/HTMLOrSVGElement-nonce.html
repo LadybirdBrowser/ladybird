@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const printNonce = (elm) => println(`nonce: "${elm.nonce}" attribute: ${elm.getAttribute('nonce')};`);
+
+        println('generic IDL and attribute interaction');
+        const s1 = document.createElement('script');
+        printNonce(s1);
+        s1.nonce = '123';
+        printNonce(s1);
+        s1.setAttribute('nonce', '456');
+        printNonce(s1);
+        s1.nonce = null;
+        printNonce(s1);
+
+        println('insertion');
+        const s2 = document.createElement('script');
+        s2.setAttribute('nonce', 'foo');
+        printNonce(s2);
+        document.body.appendChild(s2);
+        printNonce(s2);
+
+        println('cloning');
+        const s3 = document.createElement('script');
+        s3.setAttribute('nonce', 'bar');
+        printNonce(s3);
+        const cs3 = s3.cloneNode();
+        printNonce(cs3);
+    });
+</script>

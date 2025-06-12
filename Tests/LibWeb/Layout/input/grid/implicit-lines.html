@@ -1,0 +1,34 @@
+<!DOCTYPE html><html lang="en"><style>
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 100px 100px;
+    gap: 10px;
+    height: 220px;
+    grid-template-areas: 
+    "one two"
+    "one three";
+}
+
+.item1 {
+    background-color: lightblue;
+    grid-row-start: one-start;
+    grid-row-end: one-end;
+    grid-column-start: one-start;
+    grid-column-end: one-end;
+}
+
+.item2 {
+    background-color: lightcoral;
+    grid-area: two;
+}
+
+.item3 {
+    background-color: lightgreen;
+    grid-row-start: three-start;
+    grid-row-end: three-end;
+    grid-column-start: three-start;
+    grid-column-end: three-end;
+}
+</style>
+<div class="grid-container"><div class="item2">Item 2</div><div class="item1">Item 1</div><div class="item3">Item 2</div></div>

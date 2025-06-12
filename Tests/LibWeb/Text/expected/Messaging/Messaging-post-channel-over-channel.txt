@@ -1,0 +1,6 @@
+Port1: "Hello"
+Port1: {"foo":{}}
+Port1: "DONE"
+Port2: "Hello"
+Port2: "DONE"
+Port3: "Hello from the transferred port"

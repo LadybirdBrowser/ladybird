@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: only serialize 'grid' when the value can roundtrip</title>
+<link rel="author" title="Daniel Libby" href="mailto:dlibby@microsoft.com">
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#propdef-grid">
+<meta name="assert" content="grid shorthand must not serialize when the value cannot roundtrip.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+  function test_shorthand_roundtrip(cssText, properties, declarations) {
+    var div = document.createElement('div');
+    div.style.cssText = cssText;
+
+    for (let property of Object.keys(properties).sort()) {
+      test(function(){
+        const readValue = div.style[property];
+        if (Array.isArray(properties[property])) {
+          assert_in_array(readValue, properties[property], property + " serialization should be sound");
+        } else {
+          assert_equals(readValue, properties[property], property + " serialization should be canonical");
+        }
+
+        if (readValue != "") {
+          div.style[property] = "";
+          div.style[property] = readValue;
+          assert_equals(div.style[property], readValue, "serialization should round-trip");
+        }
+      }, "e.style.cssText = " + cssText + " should set " + property);
+    }
+
+    if (declarations) {
+      let cssTextSerialization = div.style.cssText;
+      declarations.forEach(decl => {
+        test(function(){
+          assert_true(cssTextSerialization.indexOf(decl) !== -1,
+                      `cssText serialization ('${cssTextSerialization}') must contain contain '${decl}'`);
+        }, `cssText ('${cssText}') must contain '${decl}' in its serialization`);
+      });
+    }
+  }
+
+  test_shorthand_roundtrip('grid: auto-flow auto / 100px 100px',
+                            {
+    'grid': 'none / 100px 100px',
+    'grid-template-areas': 'none'
+  });
+
+  test_shorthand_roundtrip('grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four"',
+                            {
+    'grid': '',
+    'grid-template-areas': '"one two" "three four"',
+    'grid-auto-flow': 'row',
+    'grid-auto-rows': 'auto'
+  });
+
+  test_shorthand_roundtrip('grid: 30px 40px / 50px 60px; grid-auto-flow: column',
+                           {
+    'grid': '',
+    'grid-template': '30px 40px / 50px 60px',
+    'grid-auto-flow': 'column',
+  }, [
+    'grid-template: 30px 40px / 50px 60px;',
+    'grid-auto-rows: auto;',
+    'grid-auto-columns: auto;',
+    'grid-auto-flow: column;'
+  ]);
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-rows: 20px',
+                           {
+    'grid': '20px / 10px',
+    'grid-template': '20px / 10px'
+  }, [
+    'grid: 20px / 10px;'
+  ]);
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px)',
+                           {
+    'grid': 'repeat(2, 20px) / 10px',
+    'grid-template-rows': 'repeat(2, 20px)'
+  });
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) repeat(3, 30px)',
+                           {
+    'grid': 'repeat(2, 20px) repeat(3, 30px) / 10px',
+    'grid-template-rows': 'repeat(2, 20px) repeat(3, 30px)'
+  });
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-rows: repeat(auto-fill, 20px)',
+                           {
+    'grid': 'repeat(auto-fill, 20px) / 10px',
+    'grid-template-rows': 'repeat(auto-fill, 20px)'
+  });
+
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-rows: repeat(auto-fit, 20px)',
+                           {
+    'grid': 'repeat(auto-fit, 20px) / 10px',
+    'grid-template-rows': 'repeat(auto-fit, 20px)'
+  });
+
+  test_shorthand_roundtrip('grid: 10px / auto; grid-template-columns: 20px',
+                           {
+    'grid': '10px / 20px',
+    'grid-template': '10px / 20px'
+  }, [
+    'grid: 10px / 20px;'
+  ]);
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px)',
+                           {
+    'grid': 'none / repeat(2, 20px)',
+    'grid-template-columns': 'repeat(2, 20px)'
+  });
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) repeat(3, 30px)',
+                           {
+    'grid': 'none / repeat(2, 20px) repeat(3, 30px)',
+    'grid-template-columns': 'repeat(2, 20px) repeat(3, 30px)'
+  });
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-columns: repeat(auto-fill, 20px)',
+                           {
+    'grid': 'none / repeat(auto-fill, 20px)',
+    'grid-template-columns': 'repeat(auto-fill, 20px)'
+  });
+
+  test_shorthand_roundtrip('grid: auto-flow / 10px; grid-template-columns: repeat(auto-fit, 20px)',
+                           {
+    'grid': 'none / repeat(auto-fit, 20px)',
+    'grid-template-columns': 'repeat(auto-fit, 20px)'
+  });
+
+  test_shorthand_roundtrip('grid: auto-flow 1px / 2px; grid-auto-flow: inherit', { 'grid': '' });
+  test_shorthand_roundtrip('grid: 1px / 2px; grid-auto-flow: row', { 'grid': '1px / 2px' });
+  test_shorthand_roundtrip('grid: none / 2px; grid-auto-flow: row', { 'grid': 'none / 2px' });
+  test_shorthand_roundtrip('grid: 1px / 2px; grid-auto-columns: auto', { 'grid': '1px / 2px' });
+  test_shorthand_roundtrip('grid: 1px / 2px; grid-auto-rows: auto', { 'grid': '1px / 2px' });
+  test_shorthand_roundtrip('grid: 1px / auto-flow 2px; grid-auto-rows: auto', { 'grid': '1px / auto-flow 2px' });
+  test_shorthand_roundtrip('grid: 1px / auto-flow; grid-auto-columns: auto', { 'grid': '1px / auto-flow' });
+  test_shorthand_roundtrip('grid: auto-flow 1px / 2px; grid-auto-columns: auto', { 'grid': 'auto-flow 1px / 2px' });
+  test_shorthand_roundtrip('grid: auto-flow 1px / none; grid-auto-columns: auto', { 'grid': 'auto-flow 1px / none' });
+  test_shorthand_roundtrip('grid: auto-flow dense / 2px; grid-auto-rows: auto', { 'grid': 'auto-flow dense / 2px' });
+
+  test_shorthand_roundtrip('grid: auto-flow 1px / 2px; grid-auto-columns: 3px',
+                           {
+    'grid': '',
+    'grid-auto-columns': '3px',
+    'grid-auto-rows': '1px',
+    'grid-auto-flow': 'row',
+    'grid-template-columns': '2px',
+    'grid-template-rows': 'none'
+  });
+  test_shorthand_roundtrip('grid: 1px / auto-flow 2px; grid-auto-rows: 3px',
+                           {
+    'grid': '',
+    'grid-auto-columns': '2px',
+    'grid-auto-rows': '3px',
+    'grid-auto-flow': 'column',
+    'grid-template-columns': 'none',
+    'grid-template-rows': '1px'
+  });
+  test_shorthand_roundtrip('grid: none / auto-flow 1px; grid-template-columns: 3px',
+                           {
+    'grid': '',
+    'grid-auto-columns': '1px',
+    'grid-auto-rows': 'auto',
+    'grid-auto-flow': 'column',
+    'grid-template-columns': '3px',
+    'grid-template-rows': 'none'
+  });
+  test_shorthand_roundtrip('grid: none / auto-flow 1px; grid-template-columns: repeat(2, 3px)',
+                           {
+    'grid': '',
+    'grid-auto-columns': '1px',
+    'grid-auto-rows': 'auto',
+    'grid-auto-flow': 'column',
+    'grid-template-columns': 'repeat(2, 3px)',
+    'grid-template-rows': 'none'
+  });
+  test_shorthand_roundtrip('grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fill, 3px)',
+                           {
+    'grid': '',
+    'grid-auto-columns': '1px',
+    'grid-auto-rows': 'auto',
+    'grid-auto-flow': 'column',
+    'grid-template-columns': 'repeat(auto-fill, 3px)',
+    'grid-template-rows': 'none'
+  });
+  test_shorthand_roundtrip('grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fit, 3px)',
+                           {
+    'grid': '',
+    'grid-auto-columns': '1px',
+    'grid-auto-rows': 'auto',
+    'grid-auto-flow': 'column',
+    'grid-template-columns': 'repeat(auto-fit, 3px)',
+    'grid-template-rows': 'none'
+  });
+  test_shorthand_roundtrip('grid: auto-flow 1px / none; grid-template-rows: 3px',
+                           {
+    'grid': '',
+    'grid-auto-columns': 'auto',
+    'grid-auto-rows': '1px',
+    'grid-auto-flow': 'row',
+    'grid-template-columns': 'none',
+    'grid-template-rows': '3px'
+  });
+  test_shorthand_roundtrip('grid: auto-flow 1px / none; grid-template-rows: repeat(2, 3px)',
+                           {
+    'grid': '',
+    'grid-auto-columns': 'auto',
+    'grid-auto-rows': '1px',
+    'grid-auto-flow': 'row',
+    'grid-template-columns': 'none',
+    'grid-template-rows': 'repeat(2, 3px)'
+  });
+  test_shorthand_roundtrip('grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fill, 3px)',
+                           {
+    'grid': '',
+    'grid-auto-columns': 'auto',
+    'grid-auto-rows': '1px',
+    'grid-auto-flow': 'row',
+    'grid-template-columns': 'none',
+    'grid-template-rows': 'repeat(auto-fill, 3px)'
+  });
+  test_shorthand_roundtrip('grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px)',
+                           {
+    'grid': '',
+    'grid-auto-columns': 'auto',
+    'grid-auto-rows': '1px',
+    'grid-auto-flow': 'row',
+    'grid-template-columns': 'none',
+    'grid-template-rows': 'repeat(auto-fit, 3px)'
+  });
+  test_shorthand_roundtrip('grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four"',
+                            {
+    'grid': '',
+    'grid-template-areas': '"one two" "three four"',
+    'grid-template-rows': 'auto auto',
+    'grid-template-columns': 'repeat(2, 3px)'
+  });
+  test_shorthand_roundtrip('grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four"',
+                            {
+    'grid': '',
+    'grid-template-areas': '"one two" "three four"',
+    'grid-template-rows': 'auto auto',
+    'grid-template-columns': 'repeat(2, 1fr)'
+  });
+  test_shorthand_roundtrip('grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four"',
+                            {
+    'grid': '',
+    'grid-template-areas': '"one two" "three four"',
+    'grid-template-rows': 'auto auto',
+    'grid-template-columns': 'repeat(auto-fill, 3px)'
+  });
+  test_shorthand_roundtrip('grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four"',
+                            {
+    'grid': '',
+    'grid-template-areas': '"one two" "three four"',
+    'grid-template-rows': 'auto auto',
+    'grid-template-columns': 'repeat(auto-fit, 3px)'
+  });
+</script>

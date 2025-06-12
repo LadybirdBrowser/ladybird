@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+
+        let anim = foo.animate({}, { duration: Infinity });
+        anim.cancel();
+        anim.playbackRate = -1;
+
+        try {
+            anim.play();
+        } catch {
+            println("Cannot rewind an animation with an infinite effect end")
+        }
+
+        anim = foo.animate({}, {});
+        anim.play();
+        println(`play() leaves animation's startTime unresolved: ${anim.startTime === null}`);
+
+        anim = foo.animate({}, {});
+        let oldPromise = anim.ready;
+        anim.play();
+        if (Object.is(oldPromise, anim.ready))
+            println("play() does not recreate the animation's ready promise");
+
+        anim = foo.animate({}, {});
+        anim.play();
+        anim.ready.catch(() => {
+            println("play() does not synchronously resolve the ready promise");
+        });
+        anim.cancel();
+    });
+</script>

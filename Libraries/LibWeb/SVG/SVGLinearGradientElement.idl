@@ -1,0 +1,11 @@
+#import <SVG/SVGAnimatedLength.idl>
+#import <SVG/SVGGradientElement.idl>
+
+// https://svgwg.org/svg2-draft/single-page.html#pservers-InterfaceSVGLinearGradientElement
+[Exposed=Window]
+interface SVGLinearGradientElement : SVGGradientElement {
+    [SameObject] readonly attribute SVGAnimatedLength x1;
+    [SameObject] readonly attribute SVGAnimatedLength y1;
+    [SameObject] readonly attribute SVGAnimatedLength x2;
+    [SameObject] readonly attribute SVGAnimatedLength y2;
+};

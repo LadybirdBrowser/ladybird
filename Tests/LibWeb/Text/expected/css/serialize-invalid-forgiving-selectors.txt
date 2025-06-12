@@ -1,0 +1,2 @@
+:is(hello, !?) -> :is(hello, !?)
+:is(what, :fake(:imaginary), really) -> :is(what, :fake(:imaginary), really)

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      realtimeanalyser-basic.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let context = 0;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('Basic AnalyserNode test', function(task, should) {
+        context = new AudioContext();
+        let analyser = context.createAnalyser();
+
+        should(analyser.numberOfInputs, 'Number of inputs for AnalyserNode')
+            .beEqualTo(1);
+
+        should(analyser.numberOfOutputs, 'Number of outputs for AnalyserNode')
+            .beEqualTo(1);
+
+        should(analyser.minDecibels, 'Default minDecibels value')
+            .beEqualTo(-100);
+
+        should(analyser.maxDecibels, 'Default maxDecibels value')
+            .beEqualTo(-30);
+
+        should(
+            analyser.smoothingTimeConstant,
+            'Default smoothingTimeConstant value')
+            .beEqualTo(0.8);
+
+        let expectedValue = -50 - (1 / 3);
+        analyser.minDecibels = expectedValue;
+
+        should(analyser.minDecibels, 'node.minDecibels = ' + expectedValue)
+            .beEqualTo(expectedValue);
+
+        expectedValue = -40 - (1 / 3);
+        analyser.maxDecibels = expectedValue;
+
+        should(analyser.maxDecibels, 'node.maxDecibels = ' + expectedValue)
+            .beEqualTo(expectedValue);
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

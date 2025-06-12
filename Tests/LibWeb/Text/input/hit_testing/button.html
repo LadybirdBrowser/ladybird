@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    #btn {
+        background-color: gold;
+        font-size: 100px;
+        width: 500px;
+        border: none;
+    }
+</style>
+<script src="../include.js"></script>
+<button type="submit" id="btn">Button</button>
+<script>
+    asyncTest(done => {
+        const brn = document.getElementById("btn");
+        btn.onclick = () => {
+            println("Clicked!");
+            done();
+        };
+        internals.click(50, 50);
+    });
+</script>

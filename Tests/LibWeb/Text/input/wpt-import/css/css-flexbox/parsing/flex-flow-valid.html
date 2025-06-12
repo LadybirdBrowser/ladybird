@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout Module Level 1: parsing flex-flow with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex-flow">
+<meta name="assert" content="flex-flow supports the full grammar '<flex-direction> || <flex-wrap>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("flex-flow", "column nowrap", "column");
+test_valid_value("flex-flow", "nowrap column", "column");
+test_valid_value("flex-flow", "wrap row-reverse", "row-reverse wrap");
+test_valid_value("flex-flow", "nowrap", "row");
+test_valid_value("flex-flow", "row nowrap", "row");
+test_valid_value("flex-flow", "wrap", "wrap");
+test_valid_value("flex-flow", "row wrap", "wrap");
+</script>
+</body>
+</html>

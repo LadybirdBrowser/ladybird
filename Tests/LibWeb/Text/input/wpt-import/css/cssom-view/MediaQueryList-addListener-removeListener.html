@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="flags" content="dom">
+<title>CSS Test: CSSOM View MediaQueryList::{add,remove}Listener</title>
+<link rel="author" title="Rune Lillesveen" href="mailto:rune@opera.com">
+<link rel="help" href="https://www.w3.org/TR/cssom-view-1/#the-mediaquerylist-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/matchMedia.js"></script>
+<div id="log"></div>
+<script>
+"use strict";
+
+test(() => {
+    const mql = window.matchMedia("(min-width: 100px)");
+
+    mql.addListener(null);
+    mql.addListener(undefined);
+
+    mql.removeListener(null);
+    mql.removeListener(undefined);
+}, "EventListener parameter is optional");
+
+promise_test(async t => {
+    const iframe = await createIFrame(t, 200, 100);
+    const heightMQL = iframe.contentWindow.matchMedia("(max-height: 50px)");
+    const widthMQL = iframe.contentWindow.matchMedia("(min-width: 150px)");
+
+    let heightEvent;
+    let widthEvent;
+
+    heightMQL.addListener(event => {
+        heightEvent = event;
+    });
+    widthMQL.addListener(event => {
+        widthEvent = event;
+    });
+
+    assert_false(heightMQL.matches);
+    assert_true(widthMQL.matches);
+
+    iframe.height = "50"; // 200x100 => 200x50
+    await waitForChangesReported();
+
+    assert_equals(heightEvent.media, heightMQL.media);
+    assert_true(heightEvent.matches);
+    assert_true(heightMQL.matches);
+    assert_true(widthMQL.matches);
+
+    iframe.width = "100"; // 200x50 => 100x50
+    await waitForChangesReported();
+
+    assert_equals(widthEvent.media, widthMQL.media);
+    assert_false(widthEvent.matches);
+    assert_false(widthMQL.matches);
+    assert_true(heightMQL.matches);
+}, "listeners are called when <iframe> is resized");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let eventsCount = 0;
+    mql.addListener(() => {
+        eventsCount++;
+    });
+
+    for (let i = 1; i <= 10; i++) {
+        triggerMQLEvent(mql);
+        await waitForChangesReported();
+        assert_equals(eventsCount, i);
+    }
+}, "listeners are called correct number of times");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+    const calls = [];
+
+    mql.addListener(() => {
+        calls.push("1st");
+    });
+    mql.addListener(() => {
+        calls.push("2nd");
+    });
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+
+    assert_array_equals(calls, ["1st", "2nd"]);
+}, "listeners are called in order they were added");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let called = 0;
+    const listener = () => {
+        called++;
+    };
+
+    mql.addListener(listener);
+    mql.addListener(listener);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+
+    assert_equals(called, 1);
+}, "listener that was added twice is called only once");
+
+promise_test(async t => {
+    const iframe = await createIFrame(t, 100);
+    const media = `(min-width: 200px)`;
+
+    const mql1 = iframe.contentWindow.matchMedia(media);
+    const mql2 = iframe.contentWindow.matchMedia(media);
+    const calls = [];
+
+    mql2.addListener(() => {
+        calls.push("mql2");
+    });
+
+    mql1.addListener(() => {
+        calls.push("mql1");
+    });
+
+    iframe.width = "200"; // 100x100 => 200x100
+    await waitForChangesReported();
+
+    assert_array_equals(calls, ["mql1", "mql2"]);
+}, "listeners are called in order their MQLs were created");
+
+promise_test(async t => {
+    const iframe = await createIFrame(t, 200);
+    const media = `(max-height: 150px)`;
+
+    const mql1 = iframe.contentWindow.matchMedia(media);
+    const mql2 = iframe.contentWindow.matchMedia(media);
+
+    let calls = 0;
+    const listener = () => {
+        calls++;
+    };
+
+    mql1.addListener(listener);
+    mql2.removeListener(listener);
+
+    iframe.height = "50"; // 200x200 => 200x50
+    await waitForChangesReported();
+
+    assert_equals(calls, 1);
+}, "removing listener from one MQL doesn't remove it from all MQLs");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+    const listener = t.unreached_func("should not be called");
+
+    mql.addListener(listener);
+    mql.removeListener(listener);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+}, "MediaQueryList::removeListener removes added listener");
+</script>

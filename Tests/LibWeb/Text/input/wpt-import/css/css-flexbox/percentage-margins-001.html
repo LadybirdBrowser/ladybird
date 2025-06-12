@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: percent margins with flex child</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://drafts.csswg.org/css2/box.html#margin-properties">
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=93411">
+<meta name="assert" content="This test ensures that percent margins always are computed with respect to the containing block's width even when there is flex on any child.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox" style="display:flex; flex-direction: column; background-color: salmon; height: 300px; width: 400px;">
+    <div style="margin: 10%; background-color: orange; height: 5px; flex: 1" data-expected-width=320 data-expected-height=135></div>
+    <div style="margin: 10%; background-color: orange; height: 5px;" data-expected-width=320 data-expected-height=5></div>
+</div>
+
+<div class="flexbox" style="display:flex; background-color: salmon; height: 300px; width: 400px;">
+    <div style="margin: 10%; background-color: orange; height: 5px; flex: 1 5px" data-expected-width=235 data-expected-height=5></div>
+    <div style="margin: 10%; background-color: orange; height: 5px; width: 5px" data-expected-width=5 data-expected-height=5></div>
+</div>
+
+<div class="flexbox" style="display:flex; background-color: salmon; height: 300px; width: 400px; padding: 100px;">
+    <div style="margin: 10%; background-color: orange; height: 5px; flex: 1 5px" data-expected-width=235 data-expected-height=5></div>
+    <div style="margin: 10%; background-color: orange; height: 5px; width: 5px" data-expected-width=5 data-expected-height=5></div>
+</div>
+
+</body>

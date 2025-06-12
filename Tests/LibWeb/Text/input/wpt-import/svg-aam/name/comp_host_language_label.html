@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <title>Name Comp: Host Language Label</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<h1>SVG-AAM: Label Tests</h1>
+
+<p>Tests SVG-specific host language label rules (title element and xlink:title attr) in <a href="https://w3c.github.io/svg-aam/#mapping_additional_nd">SVG-AAM §8.1 Name and Description</a>, but note the open issues in <a href="https://github.com/w3c/svg-aam/issues/31">SVG-AAM #31</a>.
+
+
+<h2>SVG * > title</h2>
+<svg viewbox="0 0 300 100">
+  <circle cx="26" cy="26" r="25" data-expectedlabel="circle label" data-testname="circle > title" class="ex"><title>circle label</title></circle>
+  <rect x="60" y="1" width="50" height="50" data-expectedlabel="rect label" data-testname="rect > title" class="ex"><title>rect label</title></rect>
+  <polygon points="100,100 150,25 150,75 200,0" fill="none" stroke="black" data-expectedlabel="polygon label" data-testname="polygon > title" class="ex"><title>polygon label</title></polygon>
+</svg><br>
+<svg viewbox="0 0 200 90">
+  <g fill="white" stroke="green" stroke-width="5" data-expectedlabel="group label" data-testname="g > title" class="ex">
+    <title>group label</title>
+    <circle cx="40" cy="40" r="25" />
+    <circle cx="60" cy="60" r="25" />
+  </g>
+</svg>
+<br>
+
+
+<h2>SVG a[xlink:title][href]</h2>
+<svg viewbox="0 0 300 100">
+  <a href="#" data-expectedlabel="circle link label" xlink:title="circle link label" data-testname="[xlink:title][href] > circle" class="ex"><circle cx="26" cy="26" r="25"></circle></a>
+  <a href="#" data-expectedlabel="rect link label" xlink:title="rect link label" data-testname="[xlink:title][href] > rect" class="ex"><rect x="60" y="1" width="50" height="50"></rect></a>
+  <a href="#" data-expectedlabel="polygon link label" xlink:title="polygon link label" data-testname="[xlink:title][href] > polygon" class="ex"><polygon points="100,100 150,25 150,75 200,0" fill="none" stroke="black"></polygon></a>
+</svg><br>
+<svg viewbox="0 0 200 90">
+  <a href="#" data-expectedlabel="group link label" xlink:title="group link label" data-testname="[xlink:title][href] > g" class="ex">
+  <g fill="white" stroke="green" stroke-width="5">
+    <circle cx="40" cy="40" r="25" />
+    <circle cx="60" cy="60" r="25" />
+  </g>
+  </a>
+</svg>
+<br>
+
+<h2>SVG a[xlink:title][xlink:href]:not([href])</h2>
+<svg viewbox="0 0 300 100">
+  <a xlink:href="#" data-expectedlabel="circle link label" xlink:title="circle link label" data-testname="[xlink:title][xlink:href] > circle" class="ex"><circle cx="26" cy="26" r="25"></circle></a>
+  <a xlink:href="#" data-expectedlabel="rect link label" xlink:title="rect link label" data-testname="[xlink:title][xlink:href] > rect" class="ex"><rect x="60" y="1" width="50" height="50"></rect></a>
+  <a xlink:href="#" data-expectedlabel="polygon link label" xlink:title="polygon link label" data-testname="[xlink:title][xlink:href] > polygon" class="ex"><polygon points="100,100 150,25 150,75 200,0" fill="none" stroke="black"></polygon></a>
+</svg><br>
+<svg viewbox="0 0 200 90">
+  <a xlink:href="#" data-expectedlabel="group link label" xlink:title="group link label" data-testname="[xlink:title][xlink:href] > g" class="ex">
+  <g fill="white" stroke="green" stroke-width="5">
+    <circle cx="40" cy="40" r="25" />
+    <circle cx="60" cy="60" r="25" />
+  </g>
+  </a>
+</svg>
+<br>
+
+<script>
+AriaUtils.verifyLabelsBySelector(".ex");
+</script>
+</body>
+</html>

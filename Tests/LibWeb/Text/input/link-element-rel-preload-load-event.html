@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let eventCount = 0;
+
+        let goodLink = document.createElement("link");
+        goodLink.setAttribute("rel", "preload");
+        goodLink.setAttribute("href", "valid.css");
+        goodLink.setAttribute("as", "style");
+        goodLink.addEventListener("load", function () {
+            println("Got load event");
+
+            if (++eventCount == 2) {
+                done();
+            }
+        });
+        document.head.appendChild(goodLink);
+
+        let badLink = document.createElement("link");
+        badLink.setAttribute("rel", "preload");
+        badLink.setAttribute("href", "this-file-does-not-exist-and-so-is-invalid.css");
+        badLink.setAttribute("as", "style");
+        badLink.addEventListener("error", function () {
+            println("Got error event");
+
+            if (++eventCount == 2) {
+                done();
+            }
+        });
+        document.head.appendChild(badLink);
+    });
+</script>

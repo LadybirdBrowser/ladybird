@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const fragment = document.createDocumentFragment();
+        fragment.appendChild(document.createTextNode("hello"));
+
+        const walker = document.createTreeWalker(document, 0);
+        walker.currentNode = fragment;
+
+        walker.nextNode();
+        println("PASS (Didn't get stuck)");
+    });
+</script>

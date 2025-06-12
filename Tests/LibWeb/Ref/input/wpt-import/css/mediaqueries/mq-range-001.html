@@ -1,0 +1,26 @@
+<!doctype html>
+<title>Test: invalid range syntax</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-4/#mq-syntax">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/2790">
+<link rel="match" href="../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="range syntax without operator isn't valid syntax, unlike what some earlier iteration of the spec claimed">
+<style>
+div {
+    width: 100px;
+    height: 100px;
+    background-color: red;
+}
+
+/* if the syntax is accepted, whether (width 500px) is true or not doesn't matter,
+   as the second part of the "or" clause will be true,
+   but if the syntax is rejected, then the whole thing is ignored.
+*/
+@media (width 500px) or (min-width: 0) {
+    div { background-color: green; }
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+
+<div></div>

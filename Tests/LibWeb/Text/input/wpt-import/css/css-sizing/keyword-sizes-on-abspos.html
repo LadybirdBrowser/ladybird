@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<title>Keyword sizes on absolutely positioned box</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#sizing-values">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#sizing-values">
+<link rel="help" href="https://drafts.csswg.org/css-position/#abspos-layout">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11387">
+<meta assert="The various keyword sizes work as expected on absolutely positioned boxes.">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+
+<style>
+.cb {
+  position: relative;
+  width: 100px;
+  height: 100px
+}
+
+.test {
+  position: absolute;
+  inset: 0;
+  margin: 5px;
+  border: 3px solid;
+  padding: 2px;
+  font: 20px/1 Ahem;
+}
+
+/* Set the preferred size to small amount, to test that the min size works */
+.test.min-width  { width:  0px }
+.test.min-height { height: 0px }
+
+/* Set the preferred size to big amount, to test that the max size works */
+.test.max-width  { width:  500px }
+.test.max-height { height: 500px }
+
+/* stretch isn't widely supported, fall back to vendor-prefixed alternatives */
+.width.stretch      {      width: -moz-available;      width: -webkit-fill-available;      width: stretch }
+.min-width.stretch  {  min-width: -moz-available;  min-width: -webkit-fill-available;  min-width: stretch }
+.max-width.stretch  {  max-width: -moz-available;  max-width: -webkit-fill-available;  max-width: stretch }
+.height.stretch     {     height: -moz-available;     height: -webkit-fill-available;     height: stretch }
+.min-height.stretch { min-height: -moz-available; min-height: -webkit-fill-available; min-height: stretch }
+.max-height.stretch { max-height: -moz-available; max-height: -webkit-fill-available; max-height: stretch }
+
+canvas { display: block; background: currentcolor }
+.test.width canvas,  .test.min-width canvas,  .test.max-width canvas  { width:  100% }
+.test.height canvas, .test.min-height canvas, .test.max-height canvas { height: 100% }
+</style>
+<div id="log"></div>
+
+<div class="cb">
+  <div class="test width" style="width: initial" data-expected-width="90">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test width" style="width: min-content" data-expected-width="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test width" style="width: fit-content" data-expected-width="90">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test width" style="width: max-content" data-expected-width="110">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test width stretch" data-expected-width="90">XX XX</div>
+</div>
+
+<div class="cb">
+  <div class="test min-width" style="min-width: initial" data-expected-width="10">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test min-width" style="min-width: min-content" data-expected-width="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test min-width" style="min-width: fit-content" data-expected-width="90">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test min-width" style="min-width: max-content" data-expected-width="110">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test min-width stretch" data-expected-width="90">XX XX</div>
+</div>
+
+<div class="cb">
+  <div class="test max-width" style="max-width: initial" data-expected-width="510">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test max-width" style="max-width: min-content" data-expected-width="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test max-width" style="max-width: fit-content" data-expected-width="90">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test max-width" style="max-width: max-content" data-expected-width="110">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test max-width stretch" data-expected-width="90">XX XX</div>
+</div>
+
+<div class="cb">
+  <div class="test width" style="width: initial" data-expected-width="90">
+    <canvas width="20" height="10" data-expected-width="80" data-expected-height="40"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test width" style="width: min-content" data-expected-width="10">
+    <canvas width="20" height="10" data-expected-width="0" data-expected-height="0"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test width" style="width: fit-content" data-expected-width="30">
+    <canvas width="20" height="10" data-expected-width="20" data-expected-height="10"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test width" style="width: max-content" data-expected-width="30">
+    <canvas width="20" height="10" data-expected-width="20" data-expected-height="10"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test width stretch" data-expected-width="90">
+    <canvas width="20" height="10" data-expected-width="80" data-expected-height="40"></canvas>
+  </div>
+</div>
+
+<div class="cb">
+  <div class="test min-width" style="min-width: initial" data-expected-width="10">
+    <canvas width="20" height="10" data-expected-width="0" data-expected-height="0"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test min-width" style="min-width: min-content" data-expected-width="10">
+    <canvas width="20" height="10" data-expected-width="0" data-expected-height="0"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test min-width" style="min-width: fit-content" data-expected-width="30">
+    <canvas width="20" height="10" data-expected-width="20" data-expected-height="10"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test min-width" style="min-width: max-content" data-expected-width="30">
+    <canvas width="20" height="10" data-expected-width="20" data-expected-height="10"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test min-width stretch" data-expected-width="90">
+    <canvas width="20" height="10" data-expected-width="80" data-expected-height="40"></canvas>
+  </div>
+</div>
+
+<div class="cb">
+  <div class="test max-width" style="max-width: initial" data-expected-width="510">
+    <canvas width="20" height="10" data-expected-width="500" data-expected-height="250"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test max-width" style="max-width: min-content" data-expected-width="10">
+    <canvas width="20" height="10" data-expected-width="0" data-expected-height="0"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test max-width" style="max-width: fit-content" data-expected-width="30">
+    <canvas width="20" height="10" data-expected-width="20" data-expected-height="10"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test max-width" style="max-width: max-content" data-expected-width="30">
+    <canvas width="20" height="10" data-expected-width="20" data-expected-height="10"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test max-width stretch" data-expected-width="90">
+    <canvas width="20" height="10" data-expected-width="80" data-expected-height="40"></canvas>
+  </div>
+</div>
+
+<div class="cb">
+  <div class="test height" style="height: initial" data-expected-height="90">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test height" style="height: min-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test height" style="height: fit-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test height" style="height: max-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test height stretch" data-expected-height="90">XX XX</div>
+</div>
+
+<div class="cb">
+  <div class="test min-height" style="min-height: initial" data-expected-height="10">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test min-height" style="min-height: min-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test min-height" style="min-height: fit-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test min-height" style="min-height: max-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test min-height stretch" data-expected-height="90">XX XX</div>
+</div>
+
+<div class="cb">
+  <div class="test max-height" style="max-height: initial" data-expected-height="510">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test max-height" style="max-height: min-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test max-height" style="max-height: fit-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test max-height" style="max-height: max-content" data-expected-height="50">XX XX</div>
+</div>
+<div class="cb">
+  <div class="test max-height stretch" data-expected-height="90">XX XX</div>
+</div>
+
+<div class="cb">
+  <div class="test height" style="height: initial" data-expected-height="90">
+    <canvas width="10" height="20" data-expected-width="40" data-expected-height="80"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test height" style="height: min-content" data-expected-height="30">
+    <canvas width="10" height="20" data-expected-width="10" data-expected-height="20"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test height" style="height: fit-content" data-expected-height="30">
+    <canvas width="10" height="20" data-expected-width="10" data-expected-height="20"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test height" style="height: max-content" data-expected-height="30">
+    <canvas width="10" height="20" data-expected-width="10" data-expected-height="20"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test height stretch" data-expected-height="90">
+    <canvas width="10" height="20" data-expected-width="40" data-expected-height="80"></canvas>
+  </div>
+</div>
+
+<div class="cb">
+  <div class="test min-height" style="min-height: initial" data-expected-height="10">
+    <canvas width="10" height="20" data-expected-width="0" data-expected-height="0"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test min-height" style="min-height: min-content" data-expected-height="10">
+    <canvas width="10" height="20" data-expected-width="0" data-expected-height="0"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test min-height" style="min-height: fit-content" data-expected-height="10">
+    <canvas width="10" height="20" data-expected-width="0" data-expected-height="0"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test min-height" style="min-height: max-content" data-expected-height="10">
+    <canvas width="10" height="20" data-expected-width="0" data-expected-height="0"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test min-height stretch" data-expected-height="90">
+    <canvas width="10" height="20" data-expected-width="40" data-expected-height="80"></canvas>
+  </div>
+</div>
+
+<div class="cb">
+  <div class="test max-height" style="max-height: initial" data-expected-height="510">
+    <canvas width="10" height="20" data-expected-width="250" data-expected-height="500"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test max-height" style="max-height: min-content" data-expected-height="510">
+    <canvas width="10" height="20" data-expected-width="250" data-expected-height="500"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test max-height" style="max-height: fit-content" data-expected-height="510">
+    <canvas width="10" height="20" data-expected-width="250" data-expected-height="500"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test max-height" style="max-height: max-content" data-expected-height="510">
+    <canvas width="10" height="20" data-expected-width="250" data-expected-height="500"></canvas>
+  </div>
+</div>
+<div class="cb">
+  <div class="test max-height stretch" data-expected-height="90">
+    <canvas width="10" height="20" data-expected-width="40" data-expected-height="80"></canvas>
+  </div>
+</div>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+document.fonts.ready.then(() => checkLayout(".test"));
+</script>

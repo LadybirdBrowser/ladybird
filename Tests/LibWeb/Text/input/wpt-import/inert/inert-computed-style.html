@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>inert isn't hit-testable, but that isn't expose in the computed style</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<style>
+  body { margin: 0 }
+  div {
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: blue;
+  }
+  #nonInert {
+    background-color: red;
+  }
+</style>
+<div id="nonInert"></div>
+<div id="inert"></div>
+<script>
+  test(function() {
+    let inert = document.getElementById("inert");
+    assert_equals(
+      document.elementFromPoint(50, 50),
+      inert,
+      "not-yet-inert node hit-test before non-inert node",
+    );
+    inert.inert = true;
+    assert_equals(
+      document.elementFromPoint(50, 50),
+      nonInert,
+      "inert node is transparent to events (as pointer-events: none)",
+    );
+    assert_equals(
+      getComputedStyle(inert).pointerEvents,
+      getComputedStyle(nonInert).pointerEvents,
+      "inert node doesn't change pointer-events computed value",
+    );
+    assert_equals(
+      getComputedStyle(inert).userSelect,
+      getComputedStyle(nonInert).userSelect,
+      "inert node doesn't change user-select computed value",
+    );
+  });
+</script>

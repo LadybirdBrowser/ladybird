@@ -1,0 +1,127 @@
+name: 'Cache Restore Action'
+description: 'Restores caches of downloaded files and build artifacts.'
+author: 'Andrew Kaster <akaster@serenityos.org>'
+
+inputs:
+  runner_labels:
+    description: 'Runner selection labels'
+    required: true
+  os:
+    description: 'Operating System to restore caches for'
+    required: true
+    default: 'Linux'
+  arch:
+    description: 'Target Architecture to restore caches for'
+    required: false
+    default: 'x86_64'
+  toolchain:
+    description: 'Toolchain to restore caches for (GNU or Clang)'
+    required: false
+    default: 'GNU'
+  cache_key_extra:
+    description: 'Code coverage setting, ON or OFF, or debug setting, ALL or NORMAL'
+    required: false
+    default: 'OFF'
+  ccache_version:
+    description: 'Increment this number if CI has trouble with ccache.'
+    required: false
+    default: '0'
+  ccache_path:
+    description: 'Path to the ccache directory'
+    required: false
+    default: ''
+  download_cache_path:
+    description: 'Path to the download cache directory'
+    required: false
+    default: 'caches'
+  vcpkg_cache_path:
+    description: 'Path to vcpkg binary cache'
+    required: false
+    default: ''
+
+outputs:
+  ccache_primary_key:
+    description: 'Primary ccache key'
+    value: ${{ steps.cache-outputs.outputs.ccache_primary_key }}
+  vcpkg_cache_primary_key:
+    description: 'Primary vcpkg binary cache key'
+    value: ${{ steps.cache-outputs.outputs.vcpkg_cache_primary_key }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: 'Date Stamp'
+      shell: bash
+      id: 'date-stamp'
+      run: |
+        echo "timestamp=$(date -u "+%Y%m%d%H%M_%S")" >> "$GITHUB_OUTPUT"
+
+    - name: 'Compiler Cache (blacksmith)'
+      uses: useblacksmith/cache/restore@v5
+      id: 'ccache-blacksmith'
+      if: ${{ inputs.ccache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
+      with:
+        path: ${{ inputs.ccache_path }}
+        key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        restore-keys: |
+          ccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ inputs.ccache_version }}
+          "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+
+    - name: 'Compiler Cache (GitHub runner)'
+      uses: actions/cache/restore@v4
+      id: 'ccache-gh'
+      if: ${{ inputs.ccache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
+      with:
+        path: ${{ inputs.ccache_path }}
+        key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        restore-keys: |
+          ccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ inputs.ccache_version }}
+          "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+
+    - name: 'Configure Compiler Cache'
+      if: ${{ inputs.ccache_path != '' }}
+      shell: bash
+      run: |
+          CCACHE_DIR=${{ inputs.ccache_path }} ccache -M 0
+
+          # Reset all ccache modification dates to a known epoch. This provides a baseline that we can prune against.
+          find ${{ inputs.ccache_path }} | tac | xargs touch -a -m -d "2018-10-10T09:53:07Z"
+
+          CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
+          CCACHE_DIR=${{ inputs.ccache_path }} ccache -z
+
+    - name: 'Restore vcpkg cache (blacksmith)'
+      uses: useblacksmith/cache/restore@v5
+      if: ${{ inputs.vcpkg_cache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
+      id: 'vcpkg-blacksmith'
+      with:
+        path: ${{ inputs.vcpkg_cache_path }}
+        key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        restore-keys: |
+          vcpkg | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ inputs.ccache_version }}
+          "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+
+    - name: 'Restore vcpkg cache (GitHub runner)'
+      uses: actions/cache/restore@v4
+      if: ${{ inputs.ccache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
+      id: 'vcpkg-gh'
+      with:
+        path: ${{ inputs.vcpkg_cache_path }}
+        key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        restore-keys: |
+          vcpkg | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ inputs.ccache_version }}
+          "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+
+    # FIXME: When all runners are using the useblacksmith/cache action and this step is removed, we should also be able
+    #        to remove the quoteless cache restore keys in the cache actions above.
+    - name: 'Cache Outputs'
+      id: 'cache-outputs'
+      shell: bash
+      run: |
+        if ${{ contains(inputs.runner_labels, 'blacksmith') }} ; then
+          echo "ccache_primary_key=${{ steps.ccache-blacksmith.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
+          echo "vcpkg_cache_primary_key=${{ steps.vcpkg-blacksmith.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "ccache_primary_key=${{ steps.ccache-gh.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
+          echo "vcpkg_cache_primary_key=${{ steps.vcpkg-gh.outputs.cache-primary-key }}" >> "$GITHUB_OUTPUT"
+        fi

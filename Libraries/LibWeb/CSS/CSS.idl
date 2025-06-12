@@ -1,0 +1,8 @@
+// https://www.w3.org/TR/cssom-1/#namespacedef-css
+[Exposed=Window]
+namespace CSS {
+    CSSOMString escape(CSSOMString ident);
+
+    boolean supports(CSSOMString property, CSSOMString value);
+    boolean supports(CSSOMString conditionText);
+};

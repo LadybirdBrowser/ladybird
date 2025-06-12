@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+body { margin: 0; }
+.row { clear: both; }
+
+.container {
+  width: 128px;
+  height: 128px;
+  border: 4px solid black;
+  float: left;
+}
+
+.blue { background-color: #00f; }
+.green { background-color: #0f0; }
+
+.full {
+  position: relative;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.center-half {
+  position: relative;
+  left: 25%;
+  top: 25%;
+  width: 50%;
+  height: 50%;
+}
+
+.offset-half {
+  position: relative;
+  left: 12.5%;
+  top: 12.5%;
+  width: 50%;
+  height: 50%;
+}
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <div class="container"><div class="blue full"></div></div>
+      <div class="container"><div class="green offset-half"><div class="blue center-half"></div></div></div>
+    </div>
+    <div class="row">
+      <div class="container"><div class="green full"><div class="blue center-half"></div></div></div>
+      <div class="container"><div class="green offset-half"><div class="blue center-half"></div></div></div>
+    </div>
+  </body>
+</html>

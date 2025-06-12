@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+2 Pass
+7 Fail
+Pass	e.style['font-language-override'] = "normal" should set the property value
+Fail	e.style['font-language-override'] = "\"KSW\"" should set the property value
+Pass	e.style['font-language-override'] = "\"APPH\"" should set the property value
+Fail	e.style['font-language-override'] = "\"ENG \"" should set the property value
+Fail	e.style['font-language-override'] = "\"ksw\"" should set the property value
+Fail	e.style['font-language-override'] = "\"tr\"" should set the property value
+Fail	e.style['font-language-override'] = "\"en  \"" should set the property value
+Fail	e.style['font-language-override'] = "\" en \"" should set the property value
+Fail	e.style['font-language-override'] = "\"1 %\"" should set the property value

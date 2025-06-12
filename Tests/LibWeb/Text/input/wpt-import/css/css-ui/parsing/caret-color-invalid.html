@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS UI Level 3: parsing caret-color with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-ui-3/#caret-color">
+<meta name="assert" content="caret-color supports only the grammar 'auto | <color>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("caret-color", "none");
+test_invalid_value("caret-color", "invert");
+test_invalid_value("caret-color", "50%");
+test_invalid_value("caret-color", "red green");
+</script>
+</body>
+</html>

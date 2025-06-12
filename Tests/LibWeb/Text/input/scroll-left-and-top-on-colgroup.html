@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<table>
+<colgroup id="my-group">
+<col width="40">
+<col></colgroup>
+<tbody>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const element = document.getElementById('my-group');
+        println(`scroll left = ${element.scrollLeft}`);
+        println(`scroll top = ${element.scrollTop}`);
+    });
+</script>

@@ -1,0 +1,19 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x100 children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 69.078125x100 [BFC] children: not-inline
+        Box <div> at (8,8) content-size 69.078125x100 table-box [TFC] children: inline
+          Box <(anonymous)> at (8,8) content-size 69.078125x100 table-row children: inline
+            BlockContainer <(anonymous)> at (8,8) content-size 69.078125x100 table-cell [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 5, rect: [8,8 69.078125x100] baseline: 59
+                  "hello"
+              TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 69.078125x100]
+        PaintableBox (Box<DIV>) [8,8 69.078125x100]
+          PaintableBox (Box(anonymous)) [8,8 69.078125x100]
+            PaintableWithLines (BlockContainer(anonymous)) [8,8 69.078125x100]
+              TextPaintable (TextNode<#text>)

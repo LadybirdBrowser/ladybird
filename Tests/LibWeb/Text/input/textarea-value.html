@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Textarea get value
+        testPart(() => {
+            const textarea = document.createElement('textarea');
+            textarea.textContent = 'PASS';
+            return textarea.value;
+        });
+
+        // 2. Textarea set value
+        testPart(() => {
+            const textarea = document.createElement('textarea');
+            textarea.textContent = 'PASS';
+            textarea.value = 'FAIL';
+            return textarea.textContent;
+        });
+
+        // 3. Textarea set default value
+        testPart(() => {
+            const textarea = document.createElement('textarea');
+            textarea.textContent = 'FAIL';
+            textarea.defaultValue = 'PASS';
+            return textarea.textContent;
+        });
+
+        // 4. Textarea text length
+        testPart(() => {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = 'PASS';
+            return textarea.textLength;
+        });
+
+        // 5. Textarea input via keyboard events.
+        testPart(() => {
+            const textarea = document.createElement('textarea');
+
+            // The element currently has to be part of a document to be able to receive keyboard events.
+            document.body.appendChild(textarea);
+
+            internals.sendText(textarea, 'PASS');
+            const value = textarea.value;
+
+            document.body.removeChild(textarea);
+            return value;
+        });
+
+        // 6. Textarea set value with carriage return
+        testPart(() => {
+            const textarea = document.createElement('textarea');
+            textarea.value = '\ntext\rwith\r\ncarriage\n\rreturn\r\r';
+            return textarea.value.replaceAll('\n', '[0x0a]');
+        });
+    });
+</script>

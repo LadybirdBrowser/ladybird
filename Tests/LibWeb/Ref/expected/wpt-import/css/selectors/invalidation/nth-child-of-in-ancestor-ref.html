@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :nth-child(... of class) as ancestor</title>
+<link rel="author" title="Steinar H. Gunderson" href="sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<div>
+  <p>Not <span style="color: green">ignored</span></p>
+  <p>Selectively <span>ignored<span></p>
+  <p>Not <span>ignored</span></p>
+  <p>Not <span style="color: green">ignored</span></p>
+  <p>Not <span>ignored</span></p>
+  <p>Ignored</p>
+</div>

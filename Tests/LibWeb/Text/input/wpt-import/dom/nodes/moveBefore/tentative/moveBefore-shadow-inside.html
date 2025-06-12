@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+    <style>
+        section {
+            position: relative;
+        }
+        #item {
+            position: absolute;
+            inset: 0;
+        }
+        #section1 {
+            width: 200px;
+            height: 200px;
+        }
+
+        #section2 {
+            width: 300px;
+            height: 300px;
+        }
+    </style>
+<section id="section1">
+    <div id="item">
+        <template shadowRootMode="open">
+            <style>
+                div {
+                    position: absolute;
+                    inset: 0;
+                    background-color: var(--color, red);
+                }
+            </style>
+            <div></div>
+        </template>
+    </div>
+</section>
+<section id="section2">
+
+</section>
+<script>
+    promise_test(async () => {
+        const item = document.querySelector("#item");
+        document.querySelector("#section2").moveBefore(item, null);
+        await new Promise(resolve => requestAnimationFrame(() => resolve()));
+        assert_equals(item.shadowRoot.querySelector("div").getBoundingClientRect().width, 300);
+    });
+</script>

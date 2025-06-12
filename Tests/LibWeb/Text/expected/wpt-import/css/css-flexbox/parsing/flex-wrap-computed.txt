@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property flex-wrap value 'nowrap'
+Pass	Property flex-wrap value 'wrap'
+Pass	Property flex-wrap value 'wrap-reverse'

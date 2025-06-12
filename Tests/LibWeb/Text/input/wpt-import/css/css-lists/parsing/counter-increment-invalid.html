@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Lists: parsing counter-increment with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#propdef-counter-increment">
+<meta name="assert" content="counter-increment supports only the grammar '[ <counter-name> <integer>? ]+ | none'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('counter-increment', 'none chapter');
+test_invalid_value('counter-increment', 'reversed(none)');
+test_invalid_value('counter-increment', 'reversed(chapter)');
+test_invalid_value('counter-increment', '3');
+test_invalid_value('counter-increment', '99 imagenum');
+test_invalid_value('counter-increment', 'section -1, imagenum 99');
+test_invalid_value('counter-increment', 'section 3.14');
+test_invalid_value('counter-increment', 'inherit 1');
+test_invalid_value('counter-increment', 'initial 1');
+test_invalid_value('counter-increment', 'unset 1');
+test_invalid_value('counter-increment', 'default 1');
+test_invalid_value('counter-increment', 'revert 1');
+test_invalid_value('counter-increment', 'revert-layer 1');
+</script>
+</body>
+</html>

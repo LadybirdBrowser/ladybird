@@ -1,0 +1,15 @@
+shared_library("LibRegex") {
+  output_name = "regex"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "RegexByteCode.cpp",
+    "RegexLexer.cpp",
+    "RegexMatcher.cpp",
+    "RegexOptimizer.cpp",
+    "RegexParser.cpp",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibUnicode",
+  ]
+}

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        let work = new Worker('worker.mjs', { type: 'module' });
+        work.onmessage = (e) => {
+            println(`Message from worker: ${e.data}`);
+            work.onmessage = null;
+            work.terminate();
+            done();
+        };
+
+        work.onerror = (e) => {
+            println(`Worker error: ${e.message}`);
+        };
+
+        work.postMessage('Hello :^)');
+    });
+</script>

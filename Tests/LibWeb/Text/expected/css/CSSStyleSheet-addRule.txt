@@ -1,0 +1,9 @@
+addValue() return value: -1
+Rule count after calling addRule() with no arguments: 1
+Rule text: undefined { }
+Rule count after calling addRule with no index: 2
+Second rule text: .test { font-size: 14px; }
+Rule count after calling addRule with index 0: 3
+Rule text: .test { padding: 100px; }
+Exception thrown when given a negative index: IndexSizeError
+Exception thrown when index out of range: IndexSizeError

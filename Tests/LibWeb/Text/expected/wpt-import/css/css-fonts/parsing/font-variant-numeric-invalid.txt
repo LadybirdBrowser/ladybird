@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	e.style['font-variant-numeric'] = "auto" should not set the property value
+Pass	e.style['font-variant-numeric'] = "normal lining-nums" should not set the property value
+Pass	e.style['font-variant-numeric'] = "lining-nums oldstyle-nums" should not set the property value
+Pass	e.style['font-variant-numeric'] = "proportional-nums normal" should not set the property value
+Pass	e.style['font-variant-numeric'] = "tabular-nums proportional-nums" should not set the property value
+Pass	e.style['font-variant-numeric'] = "normal diagonal-fractions" should not set the property value
+Pass	e.style['font-variant-numeric'] = "diagonal-fractions stacked-fractions" should not set the property value
+Pass	e.style['font-variant-numeric'] = "ordinal normal" should not set the property value
+Pass	e.style['font-variant-numeric'] = "normal slashed-zero" should not set the property value

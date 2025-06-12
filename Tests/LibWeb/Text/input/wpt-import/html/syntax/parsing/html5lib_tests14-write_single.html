@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_tests14.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['d0faa36cd34bbc8e41bacd676e995aef68cb8ef7','9d97df65d72e97363840684da4e164b50c4bf1cb','c5de9372cd188bc22d40d4ad08eb6f787ab521ea','d16e1c0655b2086c1bd995cf6f1c5c7106e48ef0','383a71bb62eacf93dcb2399c7dd7419d92a91899','ee5e2e4a3346d225907f27c1f12b3cb2e77c32c4','cd557ae48cd48356c367e470927d0fc108724409',];
+      var tests = {
+          "d0faa36cd34bbc8e41bacd676e995aef68cb8ef7":[async_test('html5lib_tests14.html d0faa36cd34bbc8e41bacd676e995aef68cb8ef7'), "%3C%21DOCTYPE%20html%3E%3Chtml%3E%3Cbody%3E%3Cxyz%3Aabc%3E%3C/xyz%3Aabc%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cxyz%3Aabc%3E"],"9d97df65d72e97363840684da4e164b50c4bf1cb":[async_test('html5lib_tests14.html 9d97df65d72e97363840684da4e164b50c4bf1cb'), "%3C%21DOCTYPE%20html%3E%3Chtml%3E%3Cbody%3E%3Cxyz%3Aabc%3E%3C/xyz%3Aabc%3E%3Cspan%3E%3C/span%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cxyz%3Aabc%3E%0A%7C%20%20%20%20%20%3Cspan%3E"],"c5de9372cd188bc22d40d4ad08eb6f787ab521ea":[async_test('html5lib_tests14.html c5de9372cd188bc22d40d4ad08eb6f787ab521ea'), "%3C%21DOCTYPE%20html%3E%3Chtml%3E%3Chtml%20abc%3Adef%3Dgh%3E%3Cxyz%3Aabc%3E%3C/xyz%3Aabc%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20abc%3Adef%3D%22gh%22%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cxyz%3Aabc%3E"],"d16e1c0655b2086c1bd995cf6f1c5c7106e48ef0":[async_test('html5lib_tests14.html d16e1c0655b2086c1bd995cf6f1c5c7106e48ef0'), "%3C%21DOCTYPE%20html%3E%3Chtml%20xml%3Alang%3Dbar%3E%3Chtml%20xml%3Alang%3Dfoo%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20xml%3Alang%3D%22bar%22%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E"],"383a71bb62eacf93dcb2399c7dd7419d92a91899":[async_test('html5lib_tests14.html 383a71bb62eacf93dcb2399c7dd7419d92a91899'), "%3C%21DOCTYPE%20html%3E%3Chtml%20123%3D456%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20123%3D%22456%22%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E"],"ee5e2e4a3346d225907f27c1f12b3cb2e77c32c4":[async_test('html5lib_tests14.html ee5e2e4a3346d225907f27c1f12b3cb2e77c32c4'), "%3C%21DOCTYPE%20html%3E%3Chtml%20123%3D456%3E%3Chtml%20789%3D012%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20123%3D%22456%22%0A%7C%20%20%20789%3D%22012%22%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E"],"cd557ae48cd48356c367e470927d0fc108724409":[async_test('html5lib_tests14.html cd557ae48cd48356c367e470927d0fc108724409'), "%3C%21DOCTYPE%20html%3E%3Chtml%3E%3Cbody%20789%3D012%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20789%3D%22012%22"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

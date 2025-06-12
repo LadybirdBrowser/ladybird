@@ -1,0 +1,14 @@
+#import <DOM/CharacterData.idl>
+#import <DOM/Slottable.idl>
+#import <HTML/HTMLSlotElement.idl>
+
+// https://dom.spec.whatwg.org/#text
+[Exposed=Window]
+interface Text : CharacterData {
+    constructor(optional DOMString data = "");
+
+    [NewObject] Text splitText(unsigned long offset);
+    readonly attribute DOMString wholeText;
+};
+
+Text includes Slottable;

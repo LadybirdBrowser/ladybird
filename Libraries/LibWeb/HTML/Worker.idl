@@ -1,0 +1,29 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/AbstractWorker.idl>
+#import <HTML/MessagePort.idl>
+#import <Fetch/Request.idl>
+
+// https://html.spec.whatwg.org/multipage/workers.html#worker
+[Exposed=(Window,DedicatedWorker,SharedWorker)]
+interface Worker : EventTarget {
+    // FIXME: "DOMString scriptURL" should be "(TrustedScriptURL or USVString) scriptURL".
+    constructor(DOMString scriptURL, optional WorkerOptions options = {});
+
+    undefined terminate();
+    undefined postMessage(any message, sequence<object> transfer);
+    undefined postMessage(any message, optional StructuredSerializeOptions options = {});
+
+    attribute EventHandler onmessage;
+    attribute EventHandler onmessageerror;
+};
+
+dictionary WorkerOptions {
+    WorkerType type = "classic";
+    RequestCredentials credentials = "same-origin";
+    DOMString name = "";
+};
+
+enum WorkerType { "classic", "module" };
+
+Worker includes AbstractWorker;

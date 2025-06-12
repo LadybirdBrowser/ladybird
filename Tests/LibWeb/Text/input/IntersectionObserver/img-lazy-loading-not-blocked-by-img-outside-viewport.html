@@ -1,0 +1,19 @@
+<!doctype html><style>
+img {
+    border: 1px solid black;
+    width: 30px;
+    height: 30px;
+}
+/* This element will not be visible in the viewport */
+#notInViewport {
+    position: relative;
+    top: -1000px;
+}
+</style><body><img id="notInViewport" loading="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAUElEQVRo3u3PQQ0AMAgEsGP+xeEIVOxB0jpodSaXvRwnICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg8N8ChgACTxD8p8QAAAAASUVORK5CYII="><img id="inViewport" loading="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAUElEQVRo3u3PQQ0AMAgEsGP+xeEIVOxB0jpodSaXvRwnICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg8N8ChgACTxD8p8QAAAAASUVORK5CYII=">
+<script>
+    const inViewport = document.getElementById("inViewport");
+    inViewport.addEventListener("load", function() {
+        document.body.innerHTML = "PASS";
+        internals.signalTestIsDone(document.body.innerText);
+    });
+</script>

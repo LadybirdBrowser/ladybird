@@ -1,0 +1,4 @@
+reverse() does not update the playback rate synchronously
+reverse() updates the playback rate asynchronously
+Cannot reverse an animation with an infinite effect end
+reverse() does not update the playback rate if calling play() would throw an exception

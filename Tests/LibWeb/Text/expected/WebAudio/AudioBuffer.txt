@@ -1,0 +1,18 @@
+Error creating AudioBuffer: 'NotSupportedError: Number of channels must not be '0''
+Error creating AudioBuffer: 'NotSupportedError: Number of channels is greater than allowed range'
+Error creating AudioBuffer: 'NotSupportedError: Length of buffer must be at least 1'
+Error creating AudioBuffer: 'NotSupportedError: Sample rate is outside of allowed range'
+Error creating AudioBuffer: 'NotSupportedError: Sample rate is outside of allowed range'
+3
+17
+10002
+Got Float32Array, length = 17
+17
+Data equals itself: true
+Got Float32Array, length = 17
+17
+Data equals itself: true
+Got Float32Array, length = 17
+17
+Data equals itself: true
+Error getting channel data: 'IndexSizeError: Channel index is out of range'

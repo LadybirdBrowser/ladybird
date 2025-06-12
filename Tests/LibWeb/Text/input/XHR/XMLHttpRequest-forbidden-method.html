@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const forbiddenMethods = ["CONNECT", "TRACE", "TRACK"];
+        const SECURITY_ERR = 18;
+        let i = 0;
+        for (const method of forbiddenMethods) {
+            const xhr = new XMLHttpRequest();
+            try {
+                xhr.open(method, "data:text/plain,", true);
+            }
+            catch (e) {
+                if (e.code === SECURITY_ERR)
+                    i += 1;
+            }
+        }
+        if (i === forbiddenMethods.length)
+            println("PASS");
+    });
+</script>

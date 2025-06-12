@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Changing Self-Alignment properties to interfere in Baseline Alignment</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-align">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#self-alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-self-property">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#typedef-baseline-position">
+<meta name="assert" content="Changing the 'align-self' property's value of a grid item to 'baseline' will include such item into a baseline context, which implies recomputing all the baseline offsets and aligning the items in such context.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+#container {
+  position: relative;
+  display: inline-grid;
+  grid: 100px / 50px 50px 50px;
+  background: grey;
+  align-items: baseline;
+  font-family: Ahem;
+  line-height: 1;
+}
+#item1 {
+  font-size: 20px;
+  background: blue;
+}
+#item2 {
+  font-size: 40px;
+  background: green;
+  align-self: center;
+}
+#item3 {
+  font-size: 30px;
+  background: red;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script src="support/style-change.js"></script>
+<script>
+setup({ explicit_done: true });
+function runTest() {
+    let before = {
+        item1: {"data-offset-y": 8  },
+        item2: {"data-offset-y": 30 },
+        item3: {"data-offset-y": 0  }
+    }
+
+    let after = {
+        item1: {"data-offset-y": 16 },
+        item2: {"data-offset-y": 0  },
+        item3: {"data-offset-y": 8  }
+    }
+
+    evaluateStyleChangeMultiple("before", before);
+    item2.style.alignSelf = "baseline";
+    evaluateStyleChangeMultiple("after", after);
+    done();
+}
+</script>
+<body onload="document.fonts.ready.then(() => { runTest(); })">
+    <div id="container">
+        <div id="item1" data-expected-width="50" data-expected-height="20" data-offset-x="0">É</div>
+        <div id="item2" data-expected-width="50" data-expected-height="40" data-offset-x="50">É</div>
+        <div id="item3" data-expected-width="50" data-expected-height="30" data-offset-x="100">É</div>
+    </div>
+    <div id="log"></div>
+</body>

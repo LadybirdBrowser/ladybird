@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <script id="with-xlink-href" xlink:href="test"></script>
+    <script id="no-xlink-href" href="test"></script>
+</svg>
+<script id="svg-script-element">
+    test(() => {
+        const xlinkNS = document.getElementById("with-xlink-href");
+        println(`xlink:ref getAttribute = '${xlinkNS.getAttribute("href")}'`);
+        println(`xlink:ref getAttributeNS = '${xlinkNS.getAttributeNS("http://www.w3.org/1999/xlink", "href")}'`);
+
+        const noNS = document.getElementById("no-xlink-href");
+        println(`href getAttribute = '${noNS.getAttribute("href")}'`);
+        println(`href getAttributeNS = '${noNS.getAttributeNS("http://www.w3.org/1999/xlink", "href")}'`);
+    });
+</script>

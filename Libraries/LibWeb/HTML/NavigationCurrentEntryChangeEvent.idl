@@ -1,0 +1,18 @@
+#import <DOM/Event.idl>
+#import <HTML/NavigationHistoryEntry.idl>
+#import <HTML/NavigationType.idl>
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-navigationcurrententrychangeevent-interface
+[Exposed=Window]
+interface NavigationCurrentEntryChangeEvent : Event {
+    constructor(DOMString type, NavigationCurrentEntryChangeEventInit eventInitDict);
+
+    readonly attribute NavigationType? navigationType;
+    readonly attribute NavigationHistoryEntry from;
+};
+
+dictionary NavigationCurrentEntryChangeEventInit : EventInit {
+    // FIXME: Set default value of null when IDL generator supports it
+    NavigationType? navigationType;
+    required NavigationHistoryEntry from;
+};

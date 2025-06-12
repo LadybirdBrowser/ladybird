@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Display: reflowing a display:list-item on dom changes - non-zero height</title>
+<link rel="author" title="Rune Lillesveen" href="mailto:futhark@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-display-3/#list-items">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<ul>
+  <li id="item" style="background:green">
+    <div id="content" style="overflow:hidden">Text<div>
+  </li>
+</ul>
+<script>
+  test(function() {
+    document.body.offsetTop; // force layout
+    item.insertBefore(document.createTextNode("This text should have a green background"), item.firstChild);
+    content.innerHTML = "";
+    assert_not_equals(item.clientHeight, 0, "The height of the LI should not be 0px.");
+  }, "List item height after DOM change.");
+</script>

@@ -1,0 +1,2 @@
+Disabled constructed style sheet applies to document: false
+Constructed style sheet with media rules applies to document: true

@@ -1,0 +1,8 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<script type="">
+    test(() => {        
+        println(`document.compatMode: ${document.compatMode}`);
+        println(`document.scrollingElement is body element: ${document.scrollingElement === document.body}`);
+    });
+</script>

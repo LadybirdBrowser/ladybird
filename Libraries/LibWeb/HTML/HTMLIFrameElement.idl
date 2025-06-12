@@ -1,0 +1,34 @@
+#import <HTML/HTMLElement.idl>
+#import <HTML/Scripting/Fetching.idl>
+#import <DOM/Document.idl>
+
+// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#htmliframeelement
+[Exposed=Window]
+interface HTMLIFrameElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, Reflect] attribute DOMString srcdoc;
+    [CEReactions, Reflect] attribute DOMString name;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
+    [CEReactions, Reflect] attribute DOMString allow;
+    [CEReactions, Reflect=allowfullscreen] attribute boolean allowFullscreen;
+    [CEReactions, Reflect] attribute DOMString width;
+    [CEReactions, Reflect] attribute DOMString height;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
+    [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute DOMString loading;
+    readonly attribute Document? contentDocument;
+    readonly attribute WindowProxy? contentWindow;
+    Document? getSVGDocument();
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect] attribute DOMString scrolling;
+    [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;
+    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute DOMString marginHeight;
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute DOMString marginWidth;
+
+};

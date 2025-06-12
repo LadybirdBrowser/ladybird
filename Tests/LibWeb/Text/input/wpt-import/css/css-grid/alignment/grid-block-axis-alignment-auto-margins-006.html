@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Aligning grid items using 'auto' margins and relative sized rows</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" title="10.2 Aligning with auto margins" href="https://drafts.csswg.org/css-grid/#auto-margins">
+<meta name="assert" content="The 'top' and 'bottom' margins must be recomputed whenever the grid item's height changes.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+  #grid {
+      display: grid;
+      position: relative;
+      background: grey;
+      font: 10px/1 Ahem;
+      grid-template-columns: 100px;
+      grid-template-rows: 40% 60%;
+      height: 500px;
+      width: 300px;
+  }
+  #grid div {
+    margin: auto 0px auto 0px;
+  }
+  #item1 {
+      color: green;
+  }
+  #item2 {
+      color: blue;
+  }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<div id="grid">
+    <div id="item1">XXXXX</div>
+    <div id="item2">XXXXX</div>
+</div>
+<script>
+setup({ explicit_done: true });
+document.fonts.ready.then(() => {
+    item1.setAttribute("data-offset-y", "95");
+    item2.setAttribute("data-offset-y", "345");
+    checkLayout('#grid', false);
+
+    grid.style.fontSize = "40px";
+
+    item1.setAttribute("data-offset-y", "80");
+    item2.setAttribute("data-offset-y", "330");
+    checkLayout('#grid', true);
+});
+</script>

@@ -1,0 +1,21 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 0x0 [BFC] children: not-inline
+        Box <div#box1> at (8,8) content-size 0x0 table-box [TFC] children: not-inline
+          Box <(anonymous)> at (8,8) content-size 0x0 table-row children: not-inline
+            BlockContainer <(anonymous)> at (8,8) content-size 0x0 table-cell [BFC] children: not-inline
+              BlockContainer <div> at (8,8) content-size 0x0 children: not-inline
+                TableWrapper <(anonymous)> at (8,8) content-size 0x0 [BFC] children: not-inline
+                  Box <div#box2> at (8,8) content-size 0x0 table-box [TFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 0x0]
+        PaintableBox (Box<DIV>#box1) [8,8 0x0]
+          PaintableBox (Box(anonymous)) [8,8 0x0]
+            PaintableWithLines (BlockContainer(anonymous)) [8,8 0x0]
+              PaintableWithLines (BlockContainer<DIV>) [8,8 0x0]
+                PaintableWithLines (TableWrapper(anonymous)) [8,8 0x0]
+                  PaintableBox (Box<DIV>#box2) [8,8 0x0]

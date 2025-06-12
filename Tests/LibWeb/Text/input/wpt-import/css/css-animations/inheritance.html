@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Animations properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations/#property-index">
+<meta name="assert" content="Properties inherit or not according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+<div id="target"></div>
+</div>
+<script>
+assert_not_inherited('animation-delay', '0s', '2s');
+assert_not_inherited('animation-direction', 'normal', 'reverse');
+assert_not_inherited('animation-duration', '0s', '3s');
+assert_not_inherited('animation-fill-mode', 'none', 'forwards');
+assert_not_inherited('animation-iteration-count', '1', '4');
+assert_not_inherited('animation-name', 'none', 'spinner');
+assert_not_inherited('animation-play-state', 'running', 'paused');
+assert_not_inherited('animation-timing-function', 'ease', 'linear');
+</script>
+</body>
+</html>

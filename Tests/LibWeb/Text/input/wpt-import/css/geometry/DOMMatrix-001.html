@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Geometry Interfaces: DOMMatrix and DOMMatrixReadOnly constructors</title>
+    <link rel="author" title="Dirk Schulze" href="mailto:dschulze@adobe.com" />
+    <link rel="help" href="https://drafts.fxtf.org/geometry/#DOMMatrix">
+    <link rel="help" href="https://drafts.fxtf.org/geometry/#dommatrix-constructors">
+    <link rel="help" href="https://drafts.fxtf.org/geometry/#dom-dommatrix-dommatrix">
+    <script src="support/dommatrix-test-util.js"></script>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+    <div id="log"></div>
+    <script>
+        var initial = {
+            m11: 1, m21: 0, m31: 0, m41: 0,
+            m12: 0, m22: 1, m32: 0, m42: 0,
+            m13: 0, m23: 0, m33: 1, m43: 0,
+            m14: 0, m24: 0, m34: 0, m44: 1,
+            is2D: true,
+            isIdentity: true
+        };
+        var scaleTranslate2D = {
+            m11: 2, m21: 0, m31: 0, m41: 10,
+            m12: 0, m22: 2, m32: 0, m42: 10,
+            m13: 0, m23: 0, m33: 1, m43: 0,
+            m14: 0, m24: 0, m34: 0, m44: 1,
+            is2D: true,
+            isIdentity: false
+        };
+        ["DOMMatrix", "DOMMatrixReadOnly"].forEach(function(constr) {
+            test(function() {
+                checkDOMMatrix(new self[constr](), initial);
+            }, `new ${constr}()`);
+
+            test(function() {
+                checkDOMMatrix(new self[constr](undefined), initial);
+            }, `new ${constr}(undefined)`);
+
+            test(function() {
+                checkDOMMatrix(new self[constr](new self[constr]()), initial);
+            }, `new ${constr}(new ${constr}())`);
+
+            ['none',
+             ' none',
+             'none ',
+             'NONE',
+             'none/**/',
+             '/**/none',
+             '',
+            ].forEach(function(string) {
+                test(function() {
+                    checkDOMMatrix(new self[constr](string), initial);
+                }, `new ${constr}(${format_value(string)})`);
+            });
+
+            test(function() {
+                var float32Array = new Float32Array([
+                    2.0, 0.0, 0.0, 0.0,
+                    0.0, 2.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    10.0, 10.0, 0.0, 1.0]);
+                checkDOMMatrix(new self[constr](float32Array), scaleTranslate2D, false);
+            }, `new ${constr}(float32Array) 16 elements`);
+
+            test(function() {
+                var float32Array = new Float32Array([2.0, 0.0, 0.0, 2.0, 10.0, 10.0]);
+                checkDOMMatrix(new self[constr](float32Array), scaleTranslate2D);
+            }, `new ${constr}(float32Array) 6 elements`);
+
+            test(function() {
+                var float64Array = new Float64Array([
+                    2.0, 0.0, 0.0, 0.0,
+                    0.0, 2.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    10.0, 10.0, 0.0, 1.0]);
+                checkDOMMatrix(new self[constr](float64Array), scaleTranslate2D, false);
+            }, `new ${constr}(float64Array) 16 elements`);
+
+            test(function() {
+                var float64Array = new Float64Array([2.0, 0.0, 0.0, 2.0, 10.0, 10.0]);
+                checkDOMMatrix(new self[constr](float64Array), scaleTranslate2D);
+            }, `new ${constr}((float64Array) 6 elements`);
+
+            [
+                [2.0, 0.0, 0.0, 0.0,
+                0.0, 2.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                10.0, 10.0, 0.0, 1.0],
+                [2.0, 0.0, 0.0, 2.0, 10.0, 10.0],
+            ].forEach(function(sequence) {
+                test(function() {
+                    checkDOMMatrix(new self[constr](sequence), scaleTranslate2D,
+                                   sequence.length == 6);
+                }, `new ${constr}(sequence) ${sequence.length} elements`);
+            });
+
+            {
+                const epsilon = 0.0000000005;
+                ['scale(2) translateX(5px) translateY(5px)',
+                 'scale(2, 2) translateX(5px) translateY(5px)',
+                 'scale(2)translateX(5px)translateY(5px)',
+                 'scale(2) translateX(calc(2 * 2.5px)) translateY(5px)',
+                 'scale(2) translateX(5px) translateY(5px) rotate(5deg) rotate(-5deg)',
+                ].forEach(function(string) {
+                    test(function() {
+                        checkMatrix(new self[constr](string), scaleTranslate2D, { epsilon });
+                    }, `new ${constr}(${format_value(string)})`);
+                });
+            }
+
+            ['translateX    (5px)',
+             'scale(2 2) translateX(5) translateY(5)',
+             'scale(2, 2), translateX(5)  ,translateY(5)',
+             'translateX(5em)',
+             'translateX(5ex)',
+             'translateX(5ch)',
+             'translateX(5rem)',
+             'translateX(5cqw)',
+             'translateX(5cqh)',
+             'translateX(5cqb)',
+             'translateX(5cqi)',
+             'translateX(5cqmin)',
+             'translateX(5cqmax)',
+             'translateX(5vw)',
+             'translateX(5vh)',
+             'translateX(5vb)',
+             'translateX(5vi)',
+             'translateX(5vmin)',
+             'translateX(5vmax)',
+             'translateX(5%)',
+             'rotate(5)',
+             'rotate(5, 5, 5)',
+             'rotate(5, 5px, 5px)',
+             'rotate(5deg, 5px, 5px)',
+             ' ',
+             '/**/',
+             '\0',
+             ';',
+             'none;',
+             'null',
+             null, // is converted to 'null' by IDL
+             'undefined',
+             'inherit',
+             'initial',
+             'unset',
+            ].forEach(function(string) {
+                test(function() {
+                    assert_throws_dom('SyntaxError', function() { new self[constr](string); });
+                }, `new ${constr}(${format_value(string)})`);
+            });
+
+            test(function() {
+                var sequence = [
+                    2.0, 1.0, 0.0, 0.0,
+                    1.0, 2.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    10.0, 10.0, 0.0, 1.0];
+                checkDOMMatrix(new self[constr](sequence), {
+                    m11: 2, m21: 1, m31: 0, m41: 10,
+                    m12: 1, m22: 2, m32: 0, m42: 10,
+                    m13: 0, m23: 0, m33: 1, m43: 0,
+                    m14: 0, m24: 0, m34: 0, m44: 1,
+                    is2D: false,
+                    isIdentity: false
+                });
+            }, `new ${constr}(sequence)`);
+
+            test(function() {
+                var matrix = new self[constr]([
+                    2.0, 1.0, 0.0, 0.0,
+                    1.0, 2.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    10.0, 10.0, 0.0, 1.0]);
+                checkDOMMatrix(new self[constr](matrix), {
+                    m11: 2, m21: 1, m31: 0, m41: 10,
+                    m12: 1, m22: 2, m32: 0, m42: 10,
+                    m13: 0, m23: 0, m33: 1, m43: 0,
+                    m14: 0, m24: 0, m34: 0, m44: 1,
+                    is2D: false,
+                    isIdentity: false
+                });
+            }, `new ${constr}(matrix)`);
+
+            ['scale(2, 2), translateX(5px) translateY(5px)',
+            ].forEach(function(string) {
+                test(function() {
+                    assert_throws_dom("SyntaxError", function() { new self[constr](string); });
+                }, `new ${constr}(${format_value(string)})`);
+            });
+
+            [
+                [2.0, 0.0, 0.0, 0.0,
+                0.0, 2.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                10.0, 10.0, 0.0, 2.0, 0.0], // 17 elements
+                [2.0, 0.0, 0.0, 0.0,
+                0.0, 2.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                10.0, 10.0, 0.0], // 15 elements
+                [2.0, 0.0, 0.0, 2.0, 10.0], // 5 elements
+                [], // 0 elements
+            ].forEach(function(sequence) {
+                test(function() {
+                    assert_throws_js(TypeError, function() { new self[constr](sequence); });
+                }, `new ${constr}(sequence) ${sequence.length} elements`);
+            });
+        });
+    </script>
+</body>
+</html>

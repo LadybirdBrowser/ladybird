@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	':default' matches <button>s that are their form's default button, <input>s of type submit/image that are their form's default button, checked <input>s and selected <option>s
+Pass	':default' matches dynamically changed form's default buttons

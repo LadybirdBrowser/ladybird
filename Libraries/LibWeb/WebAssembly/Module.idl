@@ -1,0 +1,27 @@
+enum ImportExportKind {
+    "function",
+    "table",
+    "memory",
+    "global"
+};
+
+dictionary ModuleExportDescriptor {
+    required [GenerateAsRequired] USVString name;
+    required [GenerateAsRequired] ImportExportKind kind;
+};
+
+dictionary ModuleImportDescriptor {
+    required [GenerateAsRequired] USVString module;
+    required [GenerateAsRequired] USVString name;
+    required [GenerateAsRequired] ImportExportKind kind;
+};
+
+// https://webassembly.github.io/spec/js-api/#modules
+[LegacyNamespace=WebAssembly, Exposed=*]
+interface Module {
+    constructor(BufferSource bytes);
+
+    static sequence<ModuleExportDescriptor> exports(Module moduleObject);
+    static sequence<ModuleImportDescriptor> imports(Module moduleObject);
+    static sequence<ArrayBuffer> customSections(Module moduleObject, DOMString sectionName);
+};

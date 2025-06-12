@@ -1,0 +1,15 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x416 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x400 children: not-inline
+      Box <div.flex.row> at (8,8) content-size 200x200 flex-container(row-reverse) [FFC] children: not-inline
+        BlockContainer <div.item> at (108,8) content-size 100x100 flex-item [BFC] children: not-inline
+      Box <div.flex.column> at (8,208) content-size 200x200 flex-container(column-reverse) [FFC] children: not-inline
+        BlockContainer <div.item> at (8,308) content-size 100x100 flex-item [BFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x416]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x400]
+      PaintableBox (Box<DIV>.flex.row) [8,8 200x200]
+        PaintableWithLines (BlockContainer<DIV>.item) [108,8 100x100]
+      PaintableBox (Box<DIV>.flex.column) [8,208 200x200]
+        PaintableWithLines (BlockContainer<DIV>.item) [8,308 100x100]

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['flex-direction'] = "auto" should not set the property value
+Pass	e.style['flex-direction'] = "column row-reverse" should not set the property value

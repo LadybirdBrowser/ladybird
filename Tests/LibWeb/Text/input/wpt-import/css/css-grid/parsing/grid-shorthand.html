@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: grid sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid/#grid-shorthand">
+<meta name="assert" content="grid supports the full grammar '<'grid-template'> | <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>? | [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <grid-template>
+test_shorthand_value('grid', 'none', {
+  'grid-template-rows': 'none',
+  'grid-template-columns': 'none',
+  'grid-template-areas': 'none',
+
+  'grid-auto-rows': 'auto',
+  'grid-auto-columns': 'auto',
+  'grid-auto-flow': 'row'
+});
+
+test_shorthand_value('grid', '10px / 20%', {
+  'grid-template-rows': '10px',
+  'grid-template-columns': '20%',
+  'grid-template-areas': 'none',
+
+  'grid-auto-rows': 'auto',
+  'grid-auto-columns': 'auto',
+  'grid-auto-flow': 'row'
+});
+
+// This could theoretically be serialized as "auto-flow / 10px",
+// but spec mandates the 'grid-template-*' form when the
+// 'grid-auto-*' properties are all initial.
+test_shorthand_value('grid', 'none / 10px', {
+  'grid-template-rows': 'none',
+  'grid-template-columns': '10px',
+  'grid-template-areas': 'none',
+
+  'grid-auto-rows': 'auto',
+  'grid-auto-columns': 'auto',
+  'grid-auto-flow': 'row'
+});
+
+test_shorthand_value('grid', 'fit-content(calc(-0.5em + 10px)) / fit-content(calc(0.5em + 10px))', {
+  'grid-template-rows': 'fit-content(calc(-0.5em + 10px))',
+  'grid-template-columns': 'fit-content(calc(0.5em + 10px))',
+  'grid-template-areas': 'none',
+
+  'grid-auto-rows': 'auto',
+  'grid-auto-columns': 'auto',
+  'grid-auto-flow': 'row'
+});
+
+test_shorthand_value('grid',
+                     '[header-top] "a a a"     [header-bottom]' +
+                     '  [main-top] "b b b" 1fr [main-bottom]' +
+                     '           / auto 1fr auto', {
+  'grid-template-rows': '[header-top] auto [header-bottom main-top] 1fr [main-bottom]',
+  'grid-template-columns': 'auto 1fr auto',
+  'grid-template-areas': '"a a a" "b b b"',
+
+  'grid-auto-rows': 'auto',
+  'grid-auto-columns': 'auto',
+  'grid-auto-flow': 'row'
+});
+
+test_shorthand_value('grid',
+                     '  "a a a"' +
+                     '  "b b b" 1fr' +
+                     '/ auto 1fr auto', {
+  'grid-template-rows': 'auto 1fr',
+  'grid-template-columns': 'auto 1fr auto',
+  'grid-template-areas': '"a a a" "b b b"',
+
+  'grid-auto-rows': 'auto',
+  'grid-auto-columns': 'auto',
+  'grid-auto-flow': 'row'
+});
+
+test_shorthand_value('grid',
+                     ' [] "a a a"     []' +
+                     ' [] "b b b" 1fr []' +
+                     '  / [] auto 1fr [] auto []', {
+  'grid-template-rows': 'auto 1fr',
+  'grid-template-columns': 'auto 1fr auto',
+  'grid-template-areas': '"a a a" "b b b"',
+
+  'grid-auto-rows': 'auto',
+  'grid-auto-columns': 'auto',
+  'grid-auto-flow': 'row'
+});
+
+// <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>?
+test_shorthand_value('grid',
+                     '10px' +
+                     ' / auto-flow dense' +
+                     ' 20px', {
+  'grid-template-rows': '10px',
+  'grid-template-columns': 'none',
+  'grid-template-areas': 'none',
+
+  'grid-auto-rows': 'auto',
+  'grid-auto-columns': '20px',
+  'grid-auto-flow': 'column dense'
+});
+
+// [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
+test_shorthand_value('grid',
+                     'auto-flow dense' +
+                     ' 30px /' +
+                     ' 40px', {
+  'grid-template-rows': 'none',
+  'grid-template-columns': '40px',
+  'grid-template-areas': 'none',
+
+  'grid-auto-rows': '30px',
+  'grid-auto-columns': 'auto',
+  'grid-auto-flow': 'dense'
+});
+</script>
+</body>
+</html>

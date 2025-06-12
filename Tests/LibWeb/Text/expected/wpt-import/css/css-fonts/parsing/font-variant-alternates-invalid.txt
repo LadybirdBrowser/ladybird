@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	e.style['font-variant-alternates'] = "swash(several,different,aliases)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "stylistic(more,than,one)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "ornaments(more,than,one)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "swash(more,than,one)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "annotation(more,than,one)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "historical-forms(argument)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "annotation()" should not set the property value
+Pass	e.style['font-variant-alternates'] = "annotation" should not set the property value
+Pass	e.style['font-variant-alternates'] = "swash" should not set the property value
+Pass	e.style['font-variant-alternates'] = "ornaments stylistic" should not set the property value
+Pass	e.style['font-variant-alternates'] = "swash(one) swash(two)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "unkown(one) myfunction(two)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "styleset(thisone) styleset(something,else)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "swash(foo) swash(bar)" should not set the property value
+Pass	e.style['font-variant-alternates'] = "ornaments(one historical-forms" should not set the property value

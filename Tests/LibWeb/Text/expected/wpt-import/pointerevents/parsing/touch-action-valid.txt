@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['touch-action'] = "auto" should set the property value
+Pass	e.style['touch-action'] = "none" should set the property value
+Pass	e.style['touch-action'] = "manipulation" should set the property value
+Pass	e.style['touch-action'] = "pan-x" should set the property value
+Pass	e.style['touch-action'] = "pan-y" should set the property value
+Pass	e.style['touch-action'] = "pan-y pan-x" should set the property value

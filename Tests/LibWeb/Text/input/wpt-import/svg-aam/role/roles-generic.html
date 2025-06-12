@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <title>SVG-AAM Generic Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+
+<p>Tests ONLY the default <code>generic</code> mappings defined in <a href="https://w3c.github.io/svg-aam/#include_elements">SVG-AAM: 5.1.2 Including Elements in the Accessibility Tree</a>.</p>
+
+<h2>Simple Elements</h2>
+<!-- Note: adding an inoccuous label, tabindex, or some other accessible marker may cause the computedrole result to change. -->
+<svg>
+  <!-- Some elements skipped: never-rendered elements can return unpredicable/undefined/unspecified values for computedrole. -->
+  <circle data-testname="el-circle" class="ex-generic"></circle>
+  <ellipse data-testname="el-ellipse" class="ex-generic"></ellipse>
+  <foreignObject data-testname="el-foreignObject" class="ex-generic"></foreignObject>
+  <g data-testname="el-g" class="ex-generic"></g>
+  <!-- image -> in ./role-img.tentative.html -->
+  <line data-testname="el-line" class="ex-generic"></line>
+  <!-- skipped: mesh -->
+  <path data-testname="el-path" class="ex-generic"></path>
+  <polygon data-testname="el-polygon" class="ex-generic"></polygon>
+  <polyline data-testname="el-polyline" class="ex-generic"></polyline>
+  <rect data-testname="el-rect" class="ex-generic"></rect>
+  <!-- blocked: textPath -> https://w3c.github.io/svg-aam/#textpath-tspan-mappings-issue-->
+  <!-- blocked: tspan -> https://w3c.github.io/svg-aam/#textpath-tspan-mappings-issue -->
+  <!-- skipped: use -->
+</svg>
+
+<script>
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+table.tBodies pass
+table.rows pass
+thead.rows pass
+tr.cells pass
+form.elements pass
+document.applets pass
+document.anchors pass
+document.images pass
+document.embeds pass
+document.plugins pass
+document.links pass
+document.forms pass
+document.scripts pass

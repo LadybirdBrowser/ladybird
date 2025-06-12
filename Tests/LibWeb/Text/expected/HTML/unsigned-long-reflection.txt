@@ -1,0 +1,470 @@
+canvas.getAttribute("width") after canvas.setAttribute("width", "0"): 0
+canvas.width after canvas.setAttribute("width", "0"): 0
+canvas.getAttribute("width") after canvas.width = 0: 0
+canvas.width after canvas.width = 0: 0
+canvas.getAttribute("width") after canvas.setAttribute("width", "1"): 1
+canvas.width after canvas.setAttribute("width", "1"): 1
+canvas.getAttribute("width") after canvas.width = 1: 1
+canvas.width after canvas.width = 1: 1
+canvas.getAttribute("width") after canvas.setAttribute("width", "2147483647"): 2147483647
+canvas.width after canvas.setAttribute("width", "2147483647"): 2147483647
+canvas.getAttribute("width") after canvas.width = 2147483647: 2147483647
+canvas.width after canvas.width = 2147483647: 2147483647
+canvas.getAttribute("width") after canvas.setAttribute("width", "2147483648"): 2147483648
+canvas.width after canvas.setAttribute("width", "2147483648"): 300
+canvas.getAttribute("width") after canvas.width = 2147483648: 300
+canvas.width after canvas.width = 2147483648: 300
+canvas.getAttribute("width") after canvas.setAttribute("width", "4294967295"): 4294967295
+canvas.width after canvas.setAttribute("width", "4294967295"): 300
+canvas.getAttribute("width") after canvas.width = 4294967295: 300
+canvas.width after canvas.width = 4294967295: 300
+canvas.getAttribute("width") after canvas.setAttribute("width", "4294967296"): 4294967296
+canvas.width after canvas.setAttribute("width", "4294967296"): 300
+canvas.getAttribute("width") after canvas.width = 4294967296: 0
+canvas.width after canvas.width = 4294967296: 0
+canvas.getAttribute("height") after canvas.setAttribute("height", "0"): 0
+canvas.height after canvas.setAttribute("height", "0"): 0
+canvas.getAttribute("height") after canvas.height = 0: 0
+canvas.height after canvas.height = 0: 0
+canvas.getAttribute("height") after canvas.setAttribute("height", "1"): 1
+canvas.height after canvas.setAttribute("height", "1"): 1
+canvas.getAttribute("height") after canvas.height = 1: 1
+canvas.height after canvas.height = 1: 1
+canvas.getAttribute("height") after canvas.setAttribute("height", "2147483647"): 2147483647
+canvas.height after canvas.setAttribute("height", "2147483647"): 2147483647
+canvas.getAttribute("height") after canvas.height = 2147483647: 2147483647
+canvas.height after canvas.height = 2147483647: 2147483647
+canvas.getAttribute("height") after canvas.setAttribute("height", "2147483648"): 2147483648
+canvas.height after canvas.setAttribute("height", "2147483648"): 150
+canvas.getAttribute("height") after canvas.height = 2147483648: 150
+canvas.height after canvas.height = 2147483648: 150
+canvas.getAttribute("height") after canvas.setAttribute("height", "4294967295"): 4294967295
+canvas.height after canvas.setAttribute("height", "4294967295"): 150
+canvas.getAttribute("height") after canvas.height = 4294967295: 150
+canvas.height after canvas.height = 4294967295: 150
+canvas.getAttribute("height") after canvas.setAttribute("height", "4294967296"): 4294967296
+canvas.height after canvas.setAttribute("height", "4294967296"): 150
+canvas.getAttribute("height") after canvas.height = 4294967296: 0
+canvas.height after canvas.height = 4294967296: 0
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "0"): 0
+colgroup.span after colgroup.setAttribute("span", "0"): 1
+colgroup.getAttribute("span") after colgroup.span = 0: 0
+colgroup.span after colgroup.span = 0: 1
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "1"): 1
+colgroup.span after colgroup.setAttribute("span", "1"): 1
+colgroup.getAttribute("span") after colgroup.span = 1: 1
+colgroup.span after colgroup.span = 1: 1
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "2147483647"): 2147483647
+colgroup.span after colgroup.setAttribute("span", "2147483647"): 1000
+colgroup.getAttribute("span") after colgroup.span = 2147483647: 2147483647
+colgroup.span after colgroup.span = 2147483647: 1000
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "2147483648"): 2147483648
+colgroup.span after colgroup.setAttribute("span", "2147483648"): 1000
+colgroup.getAttribute("span") after colgroup.span = 2147483648: 1
+colgroup.span after colgroup.span = 2147483648: 1
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "4294967295"): 4294967295
+colgroup.span after colgroup.setAttribute("span", "4294967295"): 1000
+colgroup.getAttribute("span") after colgroup.span = 4294967295: 1
+colgroup.span after colgroup.span = 4294967295: 1
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "4294967296"): 4294967296
+colgroup.span after colgroup.setAttribute("span", "4294967296"): 1000
+colgroup.getAttribute("span") after colgroup.span = 4294967296: 0
+colgroup.span after colgroup.span = 4294967296: 1
+img.getAttribute("height") after img.setAttribute("height", "0"): 0
+img.height after img.setAttribute("height", "0"): 0
+img.getAttribute("height") after img.height = 0: 0
+img.height after img.height = 0: 0
+img.getAttribute("height") after img.setAttribute("height", "1"): 1
+img.height after img.setAttribute("height", "1"): 1
+img.getAttribute("height") after img.height = 1: 1
+img.height after img.height = 1: 1
+img.getAttribute("height") after img.setAttribute("height", "2147483647"): 2147483647
+img.height after img.setAttribute("height", "2147483647"): 2147483647
+img.getAttribute("height") after img.height = 2147483647: 2147483647
+img.height after img.height = 2147483647: 2147483647
+img.getAttribute("height") after img.setAttribute("height", "2147483648"): 2147483648
+img.height after img.setAttribute("height", "2147483648"): 0
+img.getAttribute("height") after img.height = 2147483648: 0
+img.height after img.height = 2147483648: 0
+img.getAttribute("height") after img.setAttribute("height", "4294967295"): 4294967295
+img.height after img.setAttribute("height", "4294967295"): 0
+img.getAttribute("height") after img.height = 4294967295: 0
+img.height after img.height = 4294967295: 0
+img.getAttribute("height") after img.setAttribute("height", "4294967296"): 4294967296
+img.height after img.setAttribute("height", "4294967296"): 0
+img.getAttribute("height") after img.height = 4294967296: 0
+img.height after img.height = 4294967296: 0
+img.getAttribute("hspace") after img.setAttribute("hspace", "0"): 0
+img.hspace after img.setAttribute("hspace", "0"): 0
+img.getAttribute("hspace") after img.hspace = 0: 0
+img.hspace after img.hspace = 0: 0
+img.getAttribute("hspace") after img.setAttribute("hspace", "1"): 1
+img.hspace after img.setAttribute("hspace", "1"): 1
+img.getAttribute("hspace") after img.hspace = 1: 1
+img.hspace after img.hspace = 1: 1
+img.getAttribute("hspace") after img.setAttribute("hspace", "2147483647"): 2147483647
+img.hspace after img.setAttribute("hspace", "2147483647"): 2147483647
+img.getAttribute("hspace") after img.hspace = 2147483647: 2147483647
+img.hspace after img.hspace = 2147483647: 2147483647
+img.getAttribute("hspace") after img.setAttribute("hspace", "2147483648"): 2147483648
+img.hspace after img.setAttribute("hspace", "2147483648"): 0
+img.getAttribute("hspace") after img.hspace = 2147483648: 0
+img.hspace after img.hspace = 2147483648: 0
+img.getAttribute("hspace") after img.setAttribute("hspace", "4294967295"): 4294967295
+img.hspace after img.setAttribute("hspace", "4294967295"): 0
+img.getAttribute("hspace") after img.hspace = 4294967295: 0
+img.hspace after img.hspace = 4294967295: 0
+img.getAttribute("hspace") after img.setAttribute("hspace", "4294967296"): 4294967296
+img.hspace after img.setAttribute("hspace", "4294967296"): 0
+img.getAttribute("hspace") after img.hspace = 4294967296: 0
+img.hspace after img.hspace = 4294967296: 0
+img.getAttribute("width") after img.setAttribute("width", "0"): 0
+img.width after img.setAttribute("width", "0"): 0
+img.getAttribute("width") after img.width = 0: 0
+img.width after img.width = 0: 0
+img.getAttribute("width") after img.setAttribute("width", "1"): 1
+img.width after img.setAttribute("width", "1"): 1
+img.getAttribute("width") after img.width = 1: 1
+img.width after img.width = 1: 1
+img.getAttribute("width") after img.setAttribute("width", "2147483647"): 2147483647
+img.width after img.setAttribute("width", "2147483647"): 2147483647
+img.getAttribute("width") after img.width = 2147483647: 2147483647
+img.width after img.width = 2147483647: 2147483647
+img.getAttribute("width") after img.setAttribute("width", "2147483648"): 2147483648
+img.width after img.setAttribute("width", "2147483648"): 0
+img.getAttribute("width") after img.width = 2147483648: 0
+img.width after img.width = 2147483648: 0
+img.getAttribute("width") after img.setAttribute("width", "4294967295"): 4294967295
+img.width after img.setAttribute("width", "4294967295"): 0
+img.getAttribute("width") after img.width = 4294967295: 0
+img.width after img.width = 4294967295: 0
+img.getAttribute("width") after img.setAttribute("width", "4294967296"): 4294967296
+img.width after img.setAttribute("width", "4294967296"): 0
+img.getAttribute("width") after img.width = 4294967296: 0
+img.width after img.width = 4294967296: 0
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "0"): 0
+input.maxLength after input.setAttribute("maxlength", "0"): 0
+input.getAttribute("maxlength") after input.maxLength = 0: 0
+input.maxLength after input.maxLength = 0: 0
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "1"): 1
+input.maxLength after input.setAttribute("maxlength", "1"): 1
+input.getAttribute("maxlength") after input.maxLength = 1: 1
+input.maxLength after input.maxLength = 1: 1
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "2147483647"): 2147483647
+input.maxLength after input.setAttribute("maxlength", "2147483647"): 2147483647
+input.getAttribute("maxlength") after input.maxLength = 2147483647: 2147483647
+input.maxLength after input.maxLength = 2147483647: 2147483647
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "2147483648"): 2147483648
+input.maxLength after input.setAttribute("maxlength", "2147483648"): -1
+input.maxLength = 2147483648 threw exception of type IndexSizeError
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "4294967295"): 4294967295
+input.maxLength after input.setAttribute("maxlength", "4294967295"): -1
+input.maxLength = 4294967295 threw exception of type IndexSizeError
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "4294967296"): 4294967296
+input.maxLength after input.setAttribute("maxlength", "4294967296"): -1
+input.getAttribute("maxlength") after input.maxLength = 4294967296: 0
+input.maxLength after input.maxLength = 4294967296: 0
+input.getAttribute("minlength") after input.setAttribute("minLength", "0"): 0
+input.minLength after input.setAttribute("minlength", "0"): 0
+input.getAttribute("minlength") after input.minLength = 0: 0
+input.minLength after input.minLength = 0: 0
+input.getAttribute("minlength") after input.setAttribute("minLength", "1"): 1
+input.minLength after input.setAttribute("minlength", "1"): 1
+input.getAttribute("minlength") after input.minLength = 1: 1
+input.minLength after input.minLength = 1: 1
+input.getAttribute("minlength") after input.setAttribute("minLength", "2147483647"): 2147483647
+input.minLength after input.setAttribute("minlength", "2147483647"): 2147483647
+input.getAttribute("minlength") after input.minLength = 2147483647: 2147483647
+input.minLength after input.minLength = 2147483647: 2147483647
+input.getAttribute("minlength") after input.setAttribute("minLength", "2147483648"): 2147483648
+input.minLength after input.setAttribute("minlength", "2147483648"): -1
+input.minLength = 2147483648 threw exception of type IndexSizeError
+input.getAttribute("minlength") after input.setAttribute("minLength", "4294967295"): 4294967295
+input.minLength after input.setAttribute("minlength", "4294967295"): -1
+input.minLength = 4294967295 threw exception of type IndexSizeError
+input.getAttribute("minlength") after input.setAttribute("minLength", "4294967296"): 4294967296
+input.minLength after input.setAttribute("minlength", "4294967296"): -1
+input.getAttribute("minlength") after input.minLength = 4294967296: 0
+input.minLength after input.minLength = 4294967296: 0
+input.getAttribute("size") after input.setAttribute("size", "0"): 0
+input.size after input.setAttribute("size", "0"): 20
+input.size = 0 threw exception of type IndexSizeError
+input.getAttribute("size") after input.setAttribute("size", "1"): 1
+input.size after input.setAttribute("size", "1"): 1
+input.getAttribute("size") after input.size = 1: 1
+input.size after input.size = 1: 1
+input.getAttribute("size") after input.setAttribute("size", "2147483647"): 2147483647
+input.size after input.setAttribute("size", "2147483647"): 2147483647
+input.getAttribute("size") after input.size = 2147483647: 2147483647
+input.size after input.size = 2147483647: 2147483647
+input.getAttribute("size") after input.setAttribute("size", "2147483648"): 2147483648
+input.size after input.setAttribute("size", "2147483648"): 20
+input.getAttribute("size") after input.size = 2147483648: 20
+input.size after input.size = 2147483648: 20
+input.getAttribute("size") after input.setAttribute("size", "4294967295"): 4294967295
+input.size after input.setAttribute("size", "4294967295"): 20
+input.getAttribute("size") after input.size = 4294967295: 20
+input.size after input.size = 4294967295: 20
+input.getAttribute("size") after input.setAttribute("size", "4294967296"): 4294967296
+input.size after input.setAttribute("size", "4294967296"): 20
+input.size = 4294967296 threw exception of type IndexSizeError
+input.getAttribute("height") after input.setAttribute("height", "0"): 0
+input.height after input.setAttribute("height", "0"): 0
+input.getAttribute("height") after input.height = 0: 0
+input.height after input.height = 0: 0
+input.getAttribute("height") after input.setAttribute("height", "1"): 1
+input.height after input.setAttribute("height", "1"): 1
+input.getAttribute("height") after input.height = 1: 1
+input.height after input.height = 1: 0
+input.getAttribute("height") after input.setAttribute("height", "2147483647"): 2147483647
+input.height after input.setAttribute("height", "2147483647"): 2147483647
+input.getAttribute("height") after input.height = 2147483647: 2147483647
+input.height after input.height = 2147483647: 0
+input.getAttribute("height") after input.setAttribute("height", "2147483648"): 2147483648
+input.height after input.setAttribute("height", "2147483648"): 0
+input.getAttribute("height") after input.height = 2147483648: 0
+input.height after input.height = 2147483648: 0
+input.getAttribute("height") after input.setAttribute("height", "4294967295"): 4294967295
+input.height after input.setAttribute("height", "4294967295"): 0
+input.getAttribute("height") after input.height = 4294967295: 0
+input.height after input.height = 4294967295: 0
+input.getAttribute("height") after input.setAttribute("height", "4294967296"): 4294967296
+input.height after input.setAttribute("height", "4294967296"): 0
+input.getAttribute("height") after input.height = 4294967296: 0
+input.height after input.height = 4294967296: 0
+input.getAttribute("width") after input.setAttribute("width", "0"): 0
+input.width after input.setAttribute("width", "0"): 0
+input.getAttribute("width") after input.width = 0: 0
+input.width after input.width = 0: 0
+input.getAttribute("width") after input.setAttribute("width", "1"): 1
+input.width after input.setAttribute("width", "1"): 1
+input.getAttribute("width") after input.width = 1: 1
+input.width after input.width = 1: 0
+input.getAttribute("width") after input.setAttribute("width", "2147483647"): 2147483647
+input.width after input.setAttribute("width", "2147483647"): 2147483647
+input.getAttribute("width") after input.width = 2147483647: 2147483647
+input.width after input.width = 2147483647: 0
+input.getAttribute("width") after input.setAttribute("width", "2147483648"): 2147483648
+input.width after input.setAttribute("width", "2147483648"): 0
+input.getAttribute("width") after input.width = 2147483648: 0
+input.width after input.width = 2147483648: 0
+input.getAttribute("width") after input.setAttribute("width", "4294967295"): 4294967295
+input.width after input.setAttribute("width", "4294967295"): 0
+input.getAttribute("width") after input.width = 4294967295: 0
+input.width after input.width = 4294967295: 0
+input.getAttribute("width") after input.setAttribute("width", "4294967296"): 4294967296
+input.width after input.setAttribute("width", "4294967296"): 0
+input.getAttribute("width") after input.width = 4294967296: 0
+input.width after input.width = 4294967296: 0
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "0"): 0
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "0"): 0
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 0: 0
+marquee.scrollAmount after marquee.scrollAmount = 0: 0
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "1"): 1
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "1"): 1
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 1: 1
+marquee.scrollAmount after marquee.scrollAmount = 1: 1
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "2147483647"): 2147483647
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "2147483647"): 2147483647
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 2147483647: 2147483647
+marquee.scrollAmount after marquee.scrollAmount = 2147483647: 2147483647
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "2147483648"): 2147483648
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "2147483648"): 6
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 2147483648: 6
+marquee.scrollAmount after marquee.scrollAmount = 2147483648: 6
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "4294967295"): 4294967295
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "4294967295"): 6
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 4294967295: 6
+marquee.scrollAmount after marquee.scrollAmount = 4294967295: 6
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "4294967296"): 4294967296
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "4294967296"): 6
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 4294967296: 0
+marquee.scrollAmount after marquee.scrollAmount = 4294967296: 0
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "0"): 0
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "0"): 0
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 0: 0
+marquee.scrollDelay after marquee.scrollDelay = 0: 0
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "1"): 1
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "1"): 1
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 1: 1
+marquee.scrollDelay after marquee.scrollDelay = 1: 1
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "2147483647"): 2147483647
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "2147483647"): 2147483647
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 2147483647: 2147483647
+marquee.scrollDelay after marquee.scrollDelay = 2147483647: 2147483647
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "2147483648"): 2147483648
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "2147483648"): 85
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 2147483648: 85
+marquee.scrollDelay after marquee.scrollDelay = 2147483648: 85
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "4294967295"): 4294967295
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "4294967295"): 85
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 4294967295: 85
+marquee.scrollDelay after marquee.scrollDelay = 4294967295: 85
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "4294967296"): 4294967296
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "4294967296"): 85
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 4294967296: 0
+marquee.scrollDelay after marquee.scrollDelay = 4294967296: 0
+select.getAttribute("size") after select.setAttribute("size", "0"): 0
+select.size after select.setAttribute("size", "0"): 0
+select.getAttribute("size") after select.size = 0: 0
+select.size after select.size = 0: 0
+select.getAttribute("size") after select.setAttribute("size", "1"): 1
+select.size after select.setAttribute("size", "1"): 1
+select.getAttribute("size") after select.size = 1: 1
+select.size after select.size = 1: 1
+select.getAttribute("size") after select.setAttribute("size", "2147483647"): 2147483647
+select.size after select.setAttribute("size", "2147483647"): 2147483647
+select.getAttribute("size") after select.size = 2147483647: 2147483647
+select.size after select.size = 2147483647: 2147483647
+select.getAttribute("size") after select.setAttribute("size", "2147483648"): 2147483648
+select.size after select.setAttribute("size", "2147483648"): 0
+select.getAttribute("size") after select.size = 2147483648: 0
+select.size after select.size = 2147483648: 0
+select.getAttribute("size") after select.setAttribute("size", "4294967295"): 4294967295
+select.size after select.setAttribute("size", "4294967295"): 0
+select.getAttribute("size") after select.size = 4294967295: 0
+select.size after select.size = 4294967295: 0
+select.getAttribute("size") after select.setAttribute("size", "4294967296"): 4294967296
+select.size after select.setAttribute("size", "4294967296"): 0
+select.getAttribute("size") after select.size = 4294967296: 0
+select.size after select.size = 4294967296: 0
+td.getAttribute("colspan") after td.setAttribute("colSpan", "0"): 0
+td.colSpan after td.setAttribute("colspan", "0"): 1
+td.getAttribute("colspan") after td.colSpan = 0: 0
+td.colSpan after td.colSpan = 0: 1
+td.getAttribute("colspan") after td.setAttribute("colSpan", "1"): 1
+td.colSpan after td.setAttribute("colspan", "1"): 1
+td.getAttribute("colspan") after td.colSpan = 1: 1
+td.colSpan after td.colSpan = 1: 1
+td.getAttribute("colspan") after td.setAttribute("colSpan", "2147483647"): 2147483647
+td.colSpan after td.setAttribute("colspan", "2147483647"): 1000
+td.getAttribute("colspan") after td.colSpan = 2147483647: 2147483647
+td.colSpan after td.colSpan = 2147483647: 1000
+td.getAttribute("colspan") after td.setAttribute("colSpan", "2147483648"): 2147483648
+td.colSpan after td.setAttribute("colspan", "2147483648"): 1000
+td.getAttribute("colspan") after td.colSpan = 2147483648: 1
+td.colSpan after td.colSpan = 2147483648: 1
+td.getAttribute("colspan") after td.setAttribute("colSpan", "4294967295"): 4294967295
+td.colSpan after td.setAttribute("colspan", "4294967295"): 1000
+td.getAttribute("colspan") after td.colSpan = 4294967295: 1
+td.colSpan after td.colSpan = 4294967295: 1
+td.getAttribute("colspan") after td.setAttribute("colSpan", "4294967296"): 4294967296
+td.colSpan after td.setAttribute("colspan", "4294967296"): 1000
+td.getAttribute("colspan") after td.colSpan = 4294967296: 0
+td.colSpan after td.colSpan = 4294967296: 1
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "0"): 0
+td.rowSpan after td.setAttribute("rowspan", "0"): 0
+td.getAttribute("rowspan") after td.rowSpan = 0: 0
+td.rowSpan after td.rowSpan = 0: 0
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "1"): 1
+td.rowSpan after td.setAttribute("rowspan", "1"): 1
+td.getAttribute("rowspan") after td.rowSpan = 1: 1
+td.rowSpan after td.rowSpan = 1: 1
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "2147483647"): 2147483647
+td.rowSpan after td.setAttribute("rowspan", "2147483647"): 65534
+td.getAttribute("rowspan") after td.rowSpan = 2147483647: 2147483647
+td.rowSpan after td.rowSpan = 2147483647: 65534
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "2147483648"): 2147483648
+td.rowSpan after td.setAttribute("rowspan", "2147483648"): 65534
+td.getAttribute("rowspan") after td.rowSpan = 2147483648: 1
+td.rowSpan after td.rowSpan = 2147483648: 1
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "4294967295"): 4294967295
+td.rowSpan after td.setAttribute("rowspan", "4294967295"): 65534
+td.getAttribute("rowspan") after td.rowSpan = 4294967295: 1
+td.rowSpan after td.rowSpan = 4294967295: 1
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "4294967296"): 4294967296
+td.rowSpan after td.setAttribute("rowspan", "4294967296"): 65534
+td.getAttribute("rowspan") after td.rowSpan = 4294967296: 0
+td.rowSpan after td.rowSpan = 4294967296: 0
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "0"): 0
+textarea.maxLength after textarea.setAttribute("maxlength", "0"): 0
+textarea.getAttribute("maxlength") after textarea.maxLength = 0: 0
+textarea.maxLength after textarea.maxLength = 0: 0
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "1"): 1
+textarea.maxLength after textarea.setAttribute("maxlength", "1"): 1
+textarea.getAttribute("maxlength") after textarea.maxLength = 1: 1
+textarea.maxLength after textarea.maxLength = 1: 1
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "2147483647"): 2147483647
+textarea.maxLength after textarea.setAttribute("maxlength", "2147483647"): 2147483647
+textarea.getAttribute("maxlength") after textarea.maxLength = 2147483647: 2147483647
+textarea.maxLength after textarea.maxLength = 2147483647: 2147483647
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "2147483648"): 2147483648
+textarea.maxLength after textarea.setAttribute("maxlength", "2147483648"): -1
+textarea.maxLength = 2147483648 threw exception of type IndexSizeError
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "4294967295"): 4294967295
+textarea.maxLength after textarea.setAttribute("maxlength", "4294967295"): -1
+textarea.maxLength = 4294967295 threw exception of type IndexSizeError
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "4294967296"): 4294967296
+textarea.maxLength after textarea.setAttribute("maxlength", "4294967296"): -1
+textarea.getAttribute("maxlength") after textarea.maxLength = 4294967296: 0
+textarea.maxLength after textarea.maxLength = 4294967296: 0
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "0"): 0
+textarea.minLength after textarea.setAttribute("minlength", "0"): 0
+textarea.getAttribute("minlength") after textarea.minLength = 0: 0
+textarea.minLength after textarea.minLength = 0: 0
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "1"): 1
+textarea.minLength after textarea.setAttribute("minlength", "1"): 1
+textarea.getAttribute("minlength") after textarea.minLength = 1: 1
+textarea.minLength after textarea.minLength = 1: 1
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "2147483647"): 2147483647
+textarea.minLength after textarea.setAttribute("minlength", "2147483647"): 2147483647
+textarea.getAttribute("minlength") after textarea.minLength = 2147483647: 2147483647
+textarea.minLength after textarea.minLength = 2147483647: 2147483647
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "2147483648"): 2147483648
+textarea.minLength after textarea.setAttribute("minlength", "2147483648"): -1
+textarea.minLength = 2147483648 threw exception of type IndexSizeError
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "4294967295"): 4294967295
+textarea.minLength after textarea.setAttribute("minlength", "4294967295"): -1
+textarea.minLength = 4294967295 threw exception of type IndexSizeError
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "4294967296"): 4294967296
+textarea.minLength after textarea.setAttribute("minlength", "4294967296"): -1
+textarea.getAttribute("minlength") after textarea.minLength = 4294967296: 0
+textarea.minLength after textarea.minLength = 4294967296: 0
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "0"): 0
+textarea.rows after textarea.setAttribute("rows", "0"): 2
+textarea.getAttribute("rows") after textarea.rows = 0: 2
+textarea.rows after textarea.rows = 0: 2
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "1"): 1
+textarea.rows after textarea.setAttribute("rows", "1"): 1
+textarea.getAttribute("rows") after textarea.rows = 1: 1
+textarea.rows after textarea.rows = 1: 1
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "2147483647"): 2147483647
+textarea.rows after textarea.setAttribute("rows", "2147483647"): 2147483647
+textarea.getAttribute("rows") after textarea.rows = 2147483647: 2147483647
+textarea.rows after textarea.rows = 2147483647: 2147483647
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "2147483648"): 2147483648
+textarea.rows after textarea.setAttribute("rows", "2147483648"): 2
+textarea.getAttribute("rows") after textarea.rows = 2147483648: 2
+textarea.rows after textarea.rows = 2147483648: 2
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "4294967295"): 4294967295
+textarea.rows after textarea.setAttribute("rows", "4294967295"): 2
+textarea.getAttribute("rows") after textarea.rows = 4294967295: 2
+textarea.rows after textarea.rows = 4294967295: 2
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "4294967296"): 4294967296
+textarea.rows after textarea.setAttribute("rows", "4294967296"): 2
+textarea.getAttribute("rows") after textarea.rows = 4294967296: 2
+textarea.rows after textarea.rows = 4294967296: 2
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "0"): 0
+textarea.cols after textarea.setAttribute("cols", "0"): 20
+textarea.getAttribute("cols") after textarea.cols = 0: 20
+textarea.cols after textarea.cols = 0: 20
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "1"): 1
+textarea.cols after textarea.setAttribute("cols", "1"): 1
+textarea.getAttribute("cols") after textarea.cols = 1: 1
+textarea.cols after textarea.cols = 1: 1
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "2147483647"): 2147483647
+textarea.cols after textarea.setAttribute("cols", "2147483647"): 2147483647
+textarea.getAttribute("cols") after textarea.cols = 2147483647: 2147483647
+textarea.cols after textarea.cols = 2147483647: 2147483647
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "2147483648"): 2147483648
+textarea.cols after textarea.setAttribute("cols", "2147483648"): 20
+textarea.getAttribute("cols") after textarea.cols = 2147483648: 20
+textarea.cols after textarea.cols = 2147483648: 20
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "4294967295"): 4294967295
+textarea.cols after textarea.setAttribute("cols", "4294967295"): 20
+textarea.getAttribute("cols") after textarea.cols = 4294967295: 20
+textarea.cols after textarea.cols = 4294967295: 20
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "4294967296"): 4294967296
+textarea.cols after textarea.setAttribute("cols", "4294967296"): 20
+textarea.getAttribute("cols") after textarea.cols = 4294967296: 20
+textarea.cols after textarea.cols = 4294967296: 20

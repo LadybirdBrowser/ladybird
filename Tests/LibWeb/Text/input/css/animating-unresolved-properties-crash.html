@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- https://github.com/SerenityOS/serenity/issues/23609 -->
+<style>
+    :root {
+        --accent: #00f;
+    }
+
+    @keyframes myMove {
+        0% {
+            border-top: 2px solid var(--accent);
+        }
+    }
+
+    div {
+        animation: myMove 1s infinite;
+    }
+</style>
+<div></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        requestAnimationFrame(() => {
+            println("PASS! (Didn't crash)");
+            done();
+        });
+    });
+</script>

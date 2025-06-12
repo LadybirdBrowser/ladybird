@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<title>HTMLselectElement Test: validity</title>
+<link rel="author" title="Ionel Popescu" href="mailto:iopopesc@microsoft.com">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<select id="select1" required>
+  <option>one</option>
+  <option>two</option>
+  <option>three</option>
+  <option>four</option>
+</select>
+
+<form>
+  <select id="select2" required>
+  </select>
+</form>
+
+<style>
+  select, ::picker(select) {
+    appearance: base-select;
+  }
+</style>
+
+<script>
+
+test(() => {
+  let select = document.createElement('select');
+  assert_true(select.willValidate, "A select element is a submittable element that is a candidate for constraint validation.");
+  let option = document.createElement('option');
+  select.appendChild(option);
+  assert_true(select.checkValidity(), "Always valid when the select isn't a required value.");
+
+  select.required = true;
+  assert_equals(select.value, "");
+  assert_false(select.checkValidity(), "A selected placeholder option should invalidate the select.");
+
+  let emptyOption = document.createElement('option');
+  select.appendChild(emptyOption);
+  assert_false(select.checkValidity(), "A selected placeholder option should invalidate the select even if there are multiple options.");
+  emptyOption.selected = true;
+  assert_true(select.checkValidity(), "An empty non-placeholder option should be a valid choice.");
+
+  let filledOption = document.createElement('option');
+  filledOption.value = "test";
+  select.appendChild(filledOption);
+  filledOption.selected = true;
+  assert_equals(select.value, "test", "The non-empty value should be set.");
+  assert_true(select.checkValidity(), "A non-empty non-placeholder option should be a valid choice.");
+
+  select.removeChild(option);
+  select.appendChild(emptyOption);
+  emptyOption.selected = true;
+  assert_equals(select.value, "", "The empty value should be set.");
+  assert_true(select.checkValidity(), "Only the first option can be seen as a placeholder.");
+
+  select.removeChild(filledOption);
+  assert_false(select.checkValidity(), "A selected placeholder option should invalidate the select.");
+
+  emptyOption.value = "test2";
+  assert_equals(select.value, "test2");
+  assert_true(select.checkValidity(), "A non-empty option value should be a valid choice.");
+
+  emptyOption.removeAttribute("value");
+  assert_equals(select.value, "");
+  assert_false(select.checkValidity());
+  emptyOption.innerText = "test";
+  assert_equals(select.value, "test");
+  assert_true(select.checkValidity(), "A non-empty option should be a valid choice.");
+
+  const select1 = document.getElementById('select1');
+  assert_equals(select1.value, "one");
+  assert_true(select1.checkValidity(), "A select with non-empty placeholder option should be valid.");
+}, "Validation for placeholder option");
+
+test(() => {
+  const select2 = document.getElementById('select2');
+  assert_equals(select2.value, "");
+  assert_false(select2.checkValidity());
+  let form = document.querySelector('form');
+  let invalidControl = form.querySelector('select:invalid');
+  assert_equals(select2, invalidControl);
+  let didDispatchInvalid = false;
+  invalidControl.addEventListener('invalid', e => { didDispatchInvalid = true; });
+  let didDispatchSubmit = false;
+  form.addEventListener('submit', event => { event.preventDefault(); didDispatchSubmit = true; });
+
+  form.requestSubmit();
+  assert_true(didDispatchInvalid);
+  assert_false(didDispatchSubmit);
+}, "Check form not submitted for invalid select");
+
+</script>

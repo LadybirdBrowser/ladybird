@@ -1,0 +1,8 @@
+divs[0].id: fred
+divs[0].className: math
+divs[1].id: spaghetti
+divs[1].className: 
+divs[2].getAttribute("grape"): foo
+divs[0].numAttributes: 2
+divs[1].numAttributes: 2
+divs[2].numAttributes: 1

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<title>Implicit nesting</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-nesting/implicit-nesting-ref.html">
+<style>
+  .test {
+    background-color: red;
+    width: 30px;
+    height: 30px;
+    display: grid;
+  }
+
+  .test-1 {
+    > div {
+      background-color: green;
+    }
+  }
+
+  .test-2 {
+    .test-2-child {
+      background-color: green;
+    }
+  }
+  .test-2-child {
+    background-color: red;
+  }
+
+  .test-3-child {
+    background-color: red;
+  }
+  .test-3-child {
+    .test-3 & {
+      background-color: green;
+    }
+  }
+
+  .test-4 {
+    :is(&) {
+      background-color: green;
+    }
+  }
+
+  .test-5 {
+    :is(.test-5, &.does-not-exist) {
+      background-color: green;
+    }
+  }
+
+  .test-6 {
+    > .foo,.test-6-child,+ .bar {
+      background-color: green;
+    }
+  }
+
+  .test-7 {
+    > .foo, .bar, + .test-7-sibling {
+      background-color: green;
+    }
+  }
+
+  .test-8 {
+    > .foo, .test-8-child, + .bar {
+      background-color: green;
+    }
+  }
+
+  body * + * {
+    margin-top: 8px;
+  }
+</style>
+<body>
+  <p>Tests pass if <strong>block is green</strong></p>
+  <div class="test test-1"><div></div></div>
+  <div class="test test-2"><div class="test-2-child"></div></div>
+  <div class="test test-3"><div class="test-3-child"></div></div>
+  <div class="test test-4"></div>
+  <div class="test test-5"><div class="test-5"></div></div>
+  <div class="test test-6"><div class="test-6-child"></div></div>
+  <div class="test test-7" style="display:none"></div><div class="test test-7-sibling"></div>
+  <div class="test test-8"><div class="test-8-child"></div></div>
+</body>

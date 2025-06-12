@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Selectors :first-child</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-first-child-pseudo">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<!--
+  See also:
+  * child-indexed-pseudo-class.html
+  * child-indexed-no-parent.html
+  * invalidation/first-child-last-child.html
+-->
+<body>
+
+<div>
+  <div id="target1">Whitespace nodes should be ignored.</div>
+</div>
+
+<div>
+  <div id="target2">There is the second child element.</div>
+  <blockquote></blockquote>
+</div>
+
+<div>
+  <!-- -->
+  <div id="target3">A comment node should be ignored.</div>
+</div>
+
+<div>
+  .
+  <div id="target4">Non-whitespace text node should be ignored.</div>
+</div>
+
+<div>
+  <blockquote></blockquote>
+  <div id="target5" data-expected="false">The second child should not be matched.</div>
+</div>
+
+<script>
+for (let i = 1; i <= 5; ++i) {
+  let target = document.querySelector(`#target${i}`);
+  test(() => {
+    if (target.dataset.expected == 'false')
+      assert_false(target.matches(':first-child'));
+    else
+      assert_true(target.matches(':first-child'));
+  }, target.textContent);
+}
+</script>
+

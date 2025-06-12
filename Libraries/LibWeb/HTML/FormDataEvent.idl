@@ -1,0 +1,14 @@
+#import <DOM/Event.idl>
+#import <XHR/FormData.idl>
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#the-formdataevent-interface
+[Exposed=Window]
+interface FormDataEvent : Event {
+    constructor(DOMString type, FormDataEventInit eventInitDict);
+
+    readonly attribute FormData formData;
+};
+
+dictionary FormDataEventInit : EventInit {
+    required FormData formData;
+};

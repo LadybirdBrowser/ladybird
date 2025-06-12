@@ -1,0 +1,2 @@
+namespaceURI=http://www.w3.org/2000/xmlns/ prefix=null localName=xmlns value=http://www.w3.org/2000/svg
+namespaceURI=http://www.w3.org/2000/xmlns/ prefix=xmlns localName=test value=foo

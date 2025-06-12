@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<!-- https://github.com/SerenityOS/serenity/issues/23716 -->
+<style>
+    #foo {
+        animation: anim 1s;
+        animation-play-state: paused;
+    }
+    @keyframes anim {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+</style>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+        const timeline = internals.createInternalAnimationTimeline();
+        timeline.setTime(0);
+
+        const anim = foo.getAnimations()[0];
+        anim.timeline = timeline;
+        let finishCount = 0;
+        anim.onfinish = () => { finishCount++; }
+
+        anim.play();
+
+        // Cause a few style invalidations, which shouldn't mess with the animation at all
+        await animationFrame();
+        foo.style = "";
+        timeline.setTime(500);
+
+        await animationFrame();
+        foo.style = "";
+        timeline.setTime(1000);
+
+        await animationFrame();
+        foo.style = "";
+        timeline.setTime(1500);
+
+        await animationFrame();
+        println(`finish count: ${finishCount}`);
+    });
+</script>

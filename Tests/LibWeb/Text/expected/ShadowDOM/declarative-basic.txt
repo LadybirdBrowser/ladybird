@@ -1,0 +1,25 @@
+[object ShadowRoot]
+0
+null
+0
+[object ShadowRoot]
+1
+null
+0
+[object ShadowRoot]
+0
+
+
+
+<template shadowrootmode="open">open</template>
+
+
+<template shadowrootmode="open" shadowrootserializable="">open</template>
+
+
+
+
+
+<template shadowrootmode="open" shadowrootserializable="">open</template>
+
+

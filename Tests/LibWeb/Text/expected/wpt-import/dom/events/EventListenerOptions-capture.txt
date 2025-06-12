@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Capture boolean should be honored correctly
+Pass	Capture option should be honored correctly
+Pass	Supports capture option
+Pass	Equivalence of option values

@@ -1,0 +1,28 @@
+TypeError: Must specify one of entryTypes or type
+TypeError: Cannot specify type or buffered if entryTypes is specified
+TypeError: Cannot specify type or buffered if entryTypes is specified
+InvalidModificationError: Cannot change a PerformanceObserver from observing multiple types to observing a single type
+observer === globalObserver: true
+list instanceof PerformanceObserverEntryList: true
+allEntries instanceof Array: true
+allEntries.length === 3: true
+allEntries[0] === startMark: true
+allEntries[1] === measureMark: true
+allEntries[2] === endMark: true
+markEntries instanceof Array: true
+markEntries.length === 2: true
+markEntries[0] === startMark: true
+markEntries[1] === endMark: true
+measureEntries instanceof Array: true
+measureEntries.length === 1: true
+measureEntries[0] === measureMark: true
+startEntries instanceof Array: true
+startEntries.length === 1: true
+startEntries[0] === startMark: true
+endEntries instanceof Array: true
+endEntries.length === 1: true
+endEntries[0] === endMark: true
+measureEntriesByName instanceof Array: true
+measureEntriesByName.length === 1: true
+measureEntriesByName[0] === measureMark: true
+records.length === 0: true

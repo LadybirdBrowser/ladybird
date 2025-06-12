@@ -1,0 +1,8 @@
+#import <DOM/Node.idl>
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#xmlserializer
+[Exposed=Window]
+interface XMLSerializer {
+    constructor();
+    DOMString serializeToString(Node root);
+};

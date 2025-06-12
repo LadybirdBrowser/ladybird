@@ -1,0 +1,3 @@
+document.clear() returns undefined: true
+document.captureEvents() returns undefined: true
+document.releaseEvents() returns undefined: true

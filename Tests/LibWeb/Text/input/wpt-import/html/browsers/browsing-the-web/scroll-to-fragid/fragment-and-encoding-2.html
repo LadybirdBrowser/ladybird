@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset=windows-1252>
+<title>Fragment navigation: encoding</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<div style=height:10000px></div>
+<div id=&#xFFFD;></div>
+<div id=&#xFEFF;&#xFFFD;></div>
+<script>
+function goToTop() {
+  location.hash = "top";
+  assert_equals(self.scrollY, 0, "#top");
+}
+
+test(() => {
+  assert_equals(location.hash, "", "Page must be loaded with no hash");
+
+  location.hash = "%C2";
+  assert_equals(location.hash, "#%C2");
+  assert_greater_than(self.scrollY, 1000, "#%C2");
+}, "Invalid percent-encoded UTF-8 byte should decode as U+FFFD");
+
+test(() => {
+  goToTop();
+
+  location.hash = "%EF%BB%BF%C2";
+  assert_equals(location.hash, "#%EF%BB%BF%C2");
+  assert_greater_than(self.scrollY, 1000, "#%EF%BB%BF%C2");
+}, "Percent-encoded UTF-8 BOM followed by invalid UTF-8 byte should decode as U+FEFF U+FFFD");
+
+test(() => {
+  goToTop();
+
+  location.hash = "%EF%BF%BD";
+  assert_equals(location.hash, "#%EF%BF%BD");
+  assert_greater_than(self.scrollY, 1000, "#%EF%BF%BD");
+
+  goToTop();
+}, "Percent-encoded UTF-8 byte sequence for U+FFFD should decode as U+FFFD");
+</script>

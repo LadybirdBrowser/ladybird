@@ -1,0 +1,23 @@
+<!doctype html><style type="text/css">
+* { outline: 1px solid black; }
+body { display: grid; }
+#foo {
+    grid-area: 1 / 1 / auto / auto;
+    background: pink;
+    width: 100px;
+    height: 100px;
+}
+#bar {
+    grid-area: 1 / 1 / auto / auto;
+    background: orange;
+    width: 100px;
+    height: 100px;
+}
+</style>
+<div id="foo"></div><div id="bar"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(internals.hitTest(50, 50).node === document.getElementById("bar"));
+    });
+</script>

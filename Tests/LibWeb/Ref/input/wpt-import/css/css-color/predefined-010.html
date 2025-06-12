@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: predefined colorspaces, prophoto-rgb, percent values</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#predefined">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/greensquare-090-ref.html">
+<meta name="assert" content="Color function with explicit prophoto-rgb value as percent matches sRGB #009900. Note that prophoto-rgb uses a D50 white so the chromatic adaptation step from Lab must be skipped.">
+<style>
+    .test { background-color: red; width: 12em; height: 6em; margin-top:0}
+    .ref { background-color: #009900; width: 12em; height: 6em; margin-bottom: 0}
+    .test {background-color: color(prophoto-rgb 28.610% 49.131% 16.133%)}
+</style>
+<body>
+    <p>Test passes if you see a green square, and no red.</p>
+    <p class="ref"> </p>
+    <p class="test"> </p>
+</body>

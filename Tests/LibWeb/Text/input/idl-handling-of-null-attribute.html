@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script id="script-element">
+    test(() => {
+        let s = document.getElementById("script-element");
+        println(`initial type = '${s.type}'`);
+        s.type = null;
+        println(`after setting to null = '${s.type}'`);
+    });
+</script>

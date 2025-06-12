@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <title>Tentative: Tree related Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<!--
+  CORE-AAM requires that, for elements with roles not contained in the
+  required context, user agents must ignore the role token and return the
+  computed role as if the ignored role token had not been included.
+  See https://w3c.github.io/core-aam/#roleMappingComputedRole
+-->
+<nav role="treeitem" data-testname="orphaned treeitem outside the context of tree" data-expectedrole="navigation" class="ex">x</nav>
+<button role="treeitem" data-testname="orphaned button with treeitem role outside tree context" data-expectedrole="button" class="ex">x</button>
+
+<script>
+  AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

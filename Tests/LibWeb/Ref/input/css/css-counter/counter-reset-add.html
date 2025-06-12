@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-counter/counter-reset-add-ref.html" />
+<style>
+div > div::before { content: counter(item) ': '; }
+.Res8 { counter-reset: item 8; }
+.Inc1 { counter-increment: item 1; }
+</style>
+
+<div id="parent">
+    <div class='Inc1'>Nine</div>
+    <div class='Inc1'>Ten</div>
+    <div class='Inc1'>Eleven</div>
+</div>
+
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('parent').classList.add('Res8');
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+</script>
+</html>

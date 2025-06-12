@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function dumpAudioParam(param) {
+        println(`${param} current: ${param.value}, default: ${param.defaultValue}, min: ${param.minValue}, max: ${param.maxValue}, rate: ${param.automationRate}`);
+    }
+
+    test(() => {
+        const audioContext = new OfflineAudioContext(1, 5000, 44100);
+
+        const oscillator = audioContext.createOscillator();
+
+        // Check prototype
+        let prototype = Object.getPrototypeOf(oscillator);
+
+        while (prototype) {
+            println(prototype.constructor.name);
+            prototype = Object.getPrototypeOf(prototype);
+        }
+
+        // Context getter
+        println(`context: '${oscillator.context}, is same as original: ${audioContext === oscillator.context}`);
+
+        // Invalid type in constructor
+        try {
+            new OscillatorNode(audioContext, { type: 'custom' });
+        } catch (e) {
+            println(`Error creating node: '${e}'`);
+        }
+
+        // Type attribute
+        println(`oscillator node type: '${oscillator.type}'`);
+        try {
+            oscillator.type = 'custom';
+        } catch (e) {
+            println(`Error: '${e}', type is: ${oscillator.type}`);
+        }
+        oscillator.type = 'triangle';
+        println(`oscillator node type: '${oscillator.type}'`);
+
+        // Frequency attribute
+        let frequency = oscillator.frequency;
+        dumpAudioParam(frequency);
+        frequency.value = -52;
+        dumpAudioParam(frequency);
+        frequency.value = 100_000;
+        dumpAudioParam(frequency);
+        frequency.value = -22051;
+        dumpAudioParam(frequency);
+    });
+</script>

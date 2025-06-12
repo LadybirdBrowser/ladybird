@@ -1,0 +1,4 @@
+abcdefghijklmnopqrstuvwxyz
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+0123456789!@#$%^&*()-=_+,<
+Done!

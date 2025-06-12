@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Selectors Invalidation: :enabled and :disabled</title>
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#enableddisabled">
+    <link rel="help" href="https://html.spec.whatwg.org/#enabling-and-disabling-form-controls:-the-disabled-attribute">
+    <meta name="assert" content="This tests that the :enabled and :disabled selectors are effective, and that the enabled/disabled status of an element is changed when updating its 'disabled' attribute by script.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+      input {
+        position: absolute;
+        left: 200px;
+        top: 300px;
+      }
+
+      :enabled {
+        left: 100px;
+      }
+
+      :disabled {
+        top: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <input id="first" type="button" value="First"></input>
+    <input id="second" type="button" value="Second" disabled></input>
+
+    <script>
+      test(() => {
+        assert_equals(getComputedStyle(first).left, '100px');
+        assert_equals(getComputedStyle(first).top, '300px');
+
+        first.disabled = true;
+        assert_equals(getComputedStyle(first).left, '200px');
+        assert_equals(getComputedStyle(first).top, '400px');
+      }, "Element updates when disabled");
+
+      test(() => {
+        assert_equals(getComputedStyle(second).left, '200px');
+        assert_equals(getComputedStyle(second).top, '400px');
+
+        second.disabled = false;
+        assert_equals(getComputedStyle(second).left, '100px');
+        assert_equals(getComputedStyle(second).top, '300px');
+      }, "Element updates when enabled");
+    </script>
+  </body>
+</html>

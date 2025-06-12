@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    const foo = document.getElementById("foo");
+
+    test(() => {
+        const anim = foo.animate({}, {});
+        anim.effect.updateTiming({
+            delay: 10,
+            endDelay: 20,
+            fill: "forwards",
+            iterationStart: 30,
+            iterations: 40,
+            duration: 50,
+            direction: "alternate-reverse",
+            easing: "linear",
+        });
+
+        const timing = anim.effect.getTiming();
+        println(`num properties: ${Object.getOwnPropertyNames(timing).length}`);
+        println(`delay: ${timing.delay}`);
+        println(`endDelay: ${timing.endDelay}`);
+        println(`fill: ${timing.fill}`);
+        println(`iterationStart: ${timing.iterationStart}`);
+        println(`iterations: ${timing.iterations}`);
+        println(`duration: ${timing.duration}`);
+        println(`direction: ${timing.direction}`);
+        println(`easing: ${timing.easing}`);
+
+        function expectThrows(obj, message) {
+            try {
+                anim.updateTiming(obj);
+            } catch {
+                println(message);
+            }
+        }
+
+        expectThrows({ iterationStart: -10 }, "updateTiming() throws if it receives a negative iterationStart value");
+        expectThrows({ iterations: -10 }, "updateTiming() throws if it receives a negative iterations value");
+        expectThrows({ iterations: NaN }, "updateTiming() throws if it receives a NaN iterations value");
+        expectThrows({ duration: -10 }, "updateTiming() throws if it receives a negative duration value");
+        expectThrows({ duration: NaN }, "updateTiming() throws if it receives a NaN duration value");
+        expectThrows({ easing: "abcd" }, "updateTiming() throws if it receives an invalid easing function value");
+    });
+</script>

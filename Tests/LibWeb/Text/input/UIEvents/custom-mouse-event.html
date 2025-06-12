@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter}. ${JSON.stringify(part())}`);
+            testCounter++;
+        }
+
+        // 1. Creating a MouseEvent
+        testPart(() => new MouseEvent('click', { clientX: 10 }).clientX);
+
+        // 2. Creating a MouseEvent with modifier
+        testPart(() => new MouseEvent('click', { ctrlKey: true }).getModifierState('Control'));
+
+        // 3. Creating a MouseEvent with modifier
+        testPart(() => new MouseEvent('click', { modifierAltGraph: true }).getModifierState('AltGraph'));
+
+        // 4. Creating a MouseEvent with modifier
+        testPart(() => new MouseEvent('click', { modifierSymbolLock: true }).getModifierState('SymbolLock'));
+    });
+</script>

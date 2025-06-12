@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Should be known: '(prefers-reduced-motion)'
+Pass	Should be known: '(prefers-reduced-motion: no-preference)'
+Pass	Should be known: '(prefers-reduced-motion: reduce)'
+Pass	Should be parseable: '(prefers-reduced-motion: 0)'
+Pass	Should be unknown: '(prefers-reduced-motion: 0)'
+Pass	Should be parseable: '(prefers-reduced-motion: none)'
+Pass	Should be unknown: '(prefers-reduced-motion: none)'
+Pass	Should be parseable: '(prefers-reduced-motion: 10px)'
+Pass	Should be unknown: '(prefers-reduced-motion: 10px)'
+Pass	Should be parseable: '(prefers-reduced-motion: no-preference reduce)'
+Pass	Should be unknown: '(prefers-reduced-motion: no-preference reduce)'
+Pass	Should be parseable: '(prefers-reduced-motion: reduced)'
+Pass	Should be unknown: '(prefers-reduced-motion: reduced)'
+Pass	Should be parseable: '(prefers-reduced-motion: no-preference/reduce)'
+Pass	Should be unknown: '(prefers-reduced-motion: no-preference/reduce)'
+Pass	Check that no-preference evaluates to false in the boolean context

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Basic nesting</title>
+<link rel="author" title="Adam Argyle" href="mailto:argyle@google.com">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<style>
+  .test {
+    background-color: green;
+    width: 30px;
+    height: 30px;
+    display: grid;
+  }
+
+  body * + * {
+    margin-top: 8px;
+  }
+</style>
+<body>
+  <p>Tests pass if <strong>block is green</strong></p>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+  <div class="test"></div>
+</body>

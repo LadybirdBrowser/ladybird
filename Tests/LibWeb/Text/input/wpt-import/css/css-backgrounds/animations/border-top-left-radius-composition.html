@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-top-left-radius composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#the-border-radius">
+<meta name="assert" content="border-top-left-radius supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_composition({
+  property: 'border-top-left-radius',
+  underlying: '40px 40px',
+  addFrom: '60px 60px',
+  addTo: '160px 160px',
+}, [
+  {at: -0.25, expect: '75px'},
+  {at: 0, expect: '100px'},
+  {at: 0.25, expect: '125px'},
+  {at: 0.5, expect: '150px'},
+  {at: 0.75, expect: '175px'},
+  {at: 1, expect: '200px'},
+  {at: 1.25, expect: '225px'},
+]);
+
+test_composition({
+  property: 'border-top-left-radius',
+  underlying: '40px 140px',
+  replaceFrom: '100px 120px',
+  addTo: '160px 60px',
+}, [
+  {at: -0.25, expect: '75px 100px'},
+  {at: 0, expect: '100px 120px'},
+  {at: 0.25, expect: '125px 140px'},
+  {at: 0.5, expect: '150px 160px'},
+  {at: 0.75, expect: '175px 180px'},
+  {at: 1, expect: '200px'},
+  {at: 1.25, expect: '225px 220px'},
+]);
+
+test_composition({
+  property: 'border-top-left-radius',
+  underlying: '40px 60px',
+  addFrom: '60px 140px',
+  replaceTo: '200px 120px',
+}, [
+  {at: -0.25, expect: '75px 220px'},
+  {at: 0, expect: '100px 200px'},
+  {at: 0.25, expect: '125px 180px'},
+  {at: 0.5, expect: '150px 160px'},
+  {at: 0.75, expect: '175px 140px'},
+  {at: 1, expect: '200px 120px'},
+  {at: 1.25, expect: '225px 100px'},
+]);
+</script>
+</body>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let imageData = new ImageData(100, 100);
+        println(imageData.data);
+        println(imageData.data.length);
+
+        imageData = new ImageData(1, 2);
+        println(imageData.data);
+        println(imageData.data.length);
+
+        const arr = new Uint8ClampedArray(40_000);
+        // Fill the array with the same RGBA values
+        for (let i = 0; i < arr.length; i += 4) {
+            arr[i + 0] = 0; // R value
+            arr[i + 1] = 190; // G value
+            arr[i + 2] = 0; // B value
+            arr[i + 3] = 255; // A value
+        }
+        imageData = new ImageData(arr, 200);
+        println(imageData.data);
+        println(imageData.data.length);
+    });
+</script>

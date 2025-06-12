@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    #large-box {
+        position: absolute;
+        top: 10px;
+        left: 500px;
+        width: 100px;
+        height: 100px;
+        background-color: magenta;
+    }
+
+    #small-box {
+        position: absolute;
+        top: 35px;
+        left: 525px;
+        width: 50px;
+        height: 50px;
+        background-color: yellow;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="large-box"></div><div id="small-box"></div>
+<script>
+    function isEmptyArray(val) {
+        return Array.isArray(val) && val.length === 0;
+    }
+
+    test(() => {
+        println(`Negative coordinates return empty array: ${isEmptyArray(document.elementsFromPoint(-1, -1))}`);
+        println(`Coordinates outside the viewport return empty array: ${isEmptyArray(document.elementsFromPoint(99999, 99999))}`);
+        println("== Elements at (500, 10) ==")
+        for (let elem of document.elementsFromPoint(500, 10)) {
+            printElement(elem);
+        }
+        println("== Elements at (550, 60) ==")
+        for (let elem of document.elementsFromPoint(550, 60)) {
+            printElement(elem);
+        }
+    });
+</script>

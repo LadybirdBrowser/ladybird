@@ -1,0 +1,22 @@
+#import <DOM/DOMTokenList.idl>
+#import <HTML/HTMLHyperlinkElementUtils.idl>
+#import <SVG/SVGURIReference.idl>
+
+// https://svgwg.org/svg2-draft/linking.html#InterfaceSVGAElement
+[Exposed=Window]
+interface SVGAElement : SVGGraphicsElement {
+
+    [FIXME, SameObject] readonly attribute SVGAnimatedString target;
+    [Reflect] attribute DOMString download;
+    [Reflect] attribute USVString ping;
+    [Reflect] attribute DOMString rel;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+    [Reflect] attribute DOMString hreflang;
+    [Reflect] attribute DOMString type;
+
+    [FIXME] attribute DOMString referrerPolicy;
+
+};
+
+SVGAElement includes SVGURIReference;
+// FIXME: SVGAElement includes HTMLHyperlinkElementUtils;

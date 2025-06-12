@@ -1,0 +1,1 @@
+PASS (did not hang)

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Marquee should have overflow: hidden !important in the UA stylesheet

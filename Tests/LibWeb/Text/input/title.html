@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // The title is the empty string by default.
+        println(`1: "${document.title}"`);
+
+        // When the title is set, and a title element does not exist, one is added to to head element.
+        let titleElements = document.getElementsByTagName('title');
+        println(`2a: ${titleElements.length}`)
+
+        document.title = 'This is a title!';
+
+        titleElements = document.getElementsByTagName('title');
+        println(`2b: ${titleElements.length}`)
+        println(`2c: "${titleElements[0].innerText}"`);
+        println(`2d: "${document.title}"`);
+
+        // Getting and setting the title's text attribute.
+        println(`3a: "${titleElements[0].text}"`);
+        println(`3b: "${document.title}"`);
+
+        titleElements[0].text = "Another title!";
+        println(`3c: "${titleElements[0].text}"`);
+        println(`3d: "${document.title}"`);
+
+        // Removing the title element sets the title back to default.
+        titleElements[0].remove();
+        println(`4: "${document.title}"`);
+
+        // After adding several title elements to the body, setting the title updates the text
+        // content of only the first title element.
+        document.body.appendChild(document.createElement('title'));
+        document.body.appendChild(document.createElement('title'));
+        document.body.appendChild(document.createElement('title'));
+
+        titleElements = document.getElementsByTagName('title');
+        println(`5a: ${titleElements.length}`)
+        println(`5b: "${titleElements[0].innerText}"`);
+        println(`5c: "${titleElements[1].innerText}"`);
+        println(`5d: "${titleElements[2].innerText}"`);
+
+        document.title = 'This is another title!';
+
+        titleElements = document.getElementsByTagName('title');
+        println(`5e: ${titleElements.length}`)
+        println(`5f: "${titleElements[0].innerText}"`);
+        println(`5g: "${titleElements[1].innerText}"`);
+        println(`5h: "${titleElements[2].innerText}"`);
+    });
+</script>

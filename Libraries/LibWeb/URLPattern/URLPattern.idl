@@ -1,0 +1,61 @@
+typedef (USVString or URLPatternInit) URLPatternInput;
+
+// https://urlpattern.spec.whatwg.org/#urlpattern
+[Exposed=(Window,Worker)]
+interface URLPattern {
+    constructor(URLPatternInput input, USVString baseURL, optional URLPatternOptions options = {});
+    constructor(optional URLPatternInput input = {}, optional URLPatternOptions options = {});
+
+    boolean test(optional URLPatternInput input = {}, optional USVString baseURL);
+
+    URLPatternResult? exec(optional URLPatternInput input = {}, optional USVString baseURL);
+
+    readonly attribute USVString protocol;
+    readonly attribute USVString username;
+    readonly attribute USVString password;
+    readonly attribute USVString hostname;
+    readonly attribute USVString port;
+    readonly attribute USVString pathname;
+    readonly attribute USVString search;
+    readonly attribute USVString hash;
+
+    readonly attribute boolean hasRegExpGroups;
+};
+
+// https://urlpattern.spec.whatwg.org/#dictdef-urlpatterninit
+dictionary URLPatternInit {
+    USVString protocol;
+    USVString username;
+    USVString password;
+    USVString hostname;
+    USVString port;
+    USVString pathname;
+    USVString search;
+    USVString hash;
+    USVString baseURL;
+};
+
+// https://urlpattern.spec.whatwg.org/#dictdef-urlpatternoptions
+dictionary URLPatternOptions {
+    boolean ignoreCase = false;
+};
+
+// https://urlpattern.spec.whatwg.org/#dictdef-urlpatternresult
+dictionary URLPatternResult {
+    [GenerateAsRequired] sequence<URLPatternInput> inputs;
+
+    [GenerateAsRequired] URLPatternComponentResult protocol;
+    [GenerateAsRequired] URLPatternComponentResult username;
+    [GenerateAsRequired] URLPatternComponentResult password;
+    [GenerateAsRequired] URLPatternComponentResult hostname;
+    [GenerateAsRequired] URLPatternComponentResult port;
+    [GenerateAsRequired] URLPatternComponentResult pathname;
+    [GenerateAsRequired] URLPatternComponentResult search;
+    [GenerateAsRequired] URLPatternComponentResult hash;
+};
+
+// https://urlpattern.spec.whatwg.org/#dictdef-urlpatterncomponentresult
+dictionary URLPatternComponentResult {
+    [GenerateAsRequired] USVString input;
+    [GenerateAsRequired] record<USVString, (USVString or undefined)> groups;
+};

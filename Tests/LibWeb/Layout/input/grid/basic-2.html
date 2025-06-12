@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+#grid {
+    display: grid;
+    grid-template-columns:
+        auto
+        1fr;
+    grid-template-rows:
+        auto
+        auto;
+}
+
+#title {
+    grid-column: 1;
+    grid-row: 1;
+    background-color: lightblue;
+}
+
+#board {
+    grid-column: 2;
+    grid-row: 1;
+    background-color: lightgreen;
+}
+</style><div id="grid"><div id="title">Game Title</div><div id="board">Board</div></div>

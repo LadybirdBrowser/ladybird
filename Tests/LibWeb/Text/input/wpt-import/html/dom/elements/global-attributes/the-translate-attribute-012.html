@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html  lang="en" >
+<head>
+<meta charset="utf-8"/>
+<title>translate=""</title>
+<link rel='author' title='Richard Ishida' href='mailto:ishida@w3.org'>
+<link rel='help' href='https://html.spec.whatwg.org/multipage/#the-translate-attribute'>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style type='text/css'>
+</style>
+</head>
+<body>
+
+
+
+<div class="test" translate="no"><div id="box" translate="">&nbsp;</div></div>
+
+
+<script>
+test(function() {
+assert_true(document.getElementById('box').translate);
+}, "If the translate attribute is set to a null string, javascript will detect the translation mode of text as translate-enabled.");
+</script>
+
+<div id='log'></div>
+
+</body>
+</html>

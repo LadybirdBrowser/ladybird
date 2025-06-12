@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	el-circle
+Pass	el-ellipse
+Pass	el-foreignObject
+Pass	el-g
+Pass	el-line
+Pass	el-path
+Pass	el-polygon
+Pass	el-polyline
+Pass	el-rect

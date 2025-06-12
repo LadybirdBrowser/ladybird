@@ -1,0 +1,15 @@
+#import <DOM/Event.idl>
+
+// https://w3c.github.io/csswg-drafts/cssom-view-1/#mediaquerylistevent
+[Exposed=Window]
+interface MediaQueryListEvent : Event {
+    constructor(CSSOMString type, optional MediaQueryListEventInit eventInitDict = {});
+
+    readonly attribute CSSOMString media;
+    readonly attribute boolean matches;
+};
+
+dictionary MediaQueryListEventInit : EventInit {
+    CSSOMString media = "";
+    boolean matches = false;
+};

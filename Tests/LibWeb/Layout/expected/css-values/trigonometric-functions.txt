@@ -1,0 +1,24 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x996 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x980 children: not-inline
+      BlockContainer <div.sin> at (8,8) content-size 80x100 positioned children: not-inline
+      BlockContainer <div.cos> at (8,108) content-size 100x100 positioned children: not-inline
+      BlockContainer <div.tan> at (8,208) content-size 120x100 positioned children: not-inline
+      BlockContainer <div.asin> at (8,308) content-size 100x140 positioned children: not-inline
+      BlockContainer <div.acos> at (8,448) content-size 100x160 positioned children: not-inline
+      BlockContainer <div.atan> at (8,608) content-size 100x180 positioned children: not-inline
+      BlockContainer <div.atan2> at (8,788) content-size 100x200 positioned children: not-inline
+      BlockContainer <(anonymous)> at (8,988) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x996]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x996]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x980]
+      PaintableWithLines (BlockContainer<DIV>.sin) [8,8 80x100]
+      PaintableWithLines (BlockContainer<DIV>.cos) [8,108 100x100]
+      PaintableWithLines (BlockContainer<DIV>.tan) [8,208 120x100]
+      PaintableWithLines (BlockContainer<DIV>.asin) [8,308 100x140]
+      PaintableWithLines (BlockContainer<DIV>.acos) [8,448 100x160]
+      PaintableWithLines (BlockContainer<DIV>.atan) [8,608 100x180]
+      PaintableWithLines (BlockContainer<DIV>.atan2) [8,788 100x200]
+      PaintableWithLines (BlockContainer(anonymous)) [8,988 784x0]

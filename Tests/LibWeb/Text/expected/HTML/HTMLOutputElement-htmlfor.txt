@@ -1,0 +1,9 @@
+output.htmlFor is initially empty: true
+output.htmlFor always returns the same object: true
+output.htmlFor after setting output.htmlFor to "a": a
+for attribute value after setting output.htmlFor to "a": a
+output.htmlFor after calling output.setAttribute("for", "b"): b
+output.htmlFor after setting output.htmlFor to "c d": c d
+for attribute value after setting output.htmlFor to "c d": c d
+output.htmlFor.contains("c"): true
+output.htmlFor.contains("a"): false

@@ -1,0 +1,14 @@
+source_set("WebIDL") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "AbstractOperations.cpp",
+    "Buffers.cpp",
+    "CallbackType.cpp",
+    "DOMException.cpp",
+    "ObservableArray.cpp",
+    "OverloadResolution.cpp",
+    "Promise.cpp",
+    "Tracing.cpp",
+  ]
+}

@@ -1,0 +1,17 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x100 flex-container(row) [FFC] children: not-inline
+      Box <div> at (8,8) content-size 100x100 flex-container(row) flex-item [FFC] children: not-inline
+        SVGSVGBox <svg.c-ico> at (8,8) content-size 100x100 flex-item [SVG] children: not-inline
+          SVGGraphicsBox <use> at (8,8) content-size 100x100 children: not-inline
+            SVGGraphicsBox <symbol#icon-cart> at (8,8) content-size 100x100 [BFC] children: not-inline
+              SVGGeometryBox <rect> at (8,8) content-size 100x100 children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
+    PaintableBox (Box<BODY>) [8,8 784x100]
+      PaintableBox (Box<DIV>) [8,8 100x100]
+        SVGSVGPaintable (SVGSVGBox<svg>.c-ico) [8,8 100x100]
+          SVGGraphicsPaintable (SVGGraphicsBox<use>) [8,8 100x100]
+            SVGGraphicsPaintable (SVGGraphicsBox<symbol>#icon-cart) [8,8 100x100]
+              SVGPathPaintable (SVGGeometryBox<rect>) [8,8 100x100]

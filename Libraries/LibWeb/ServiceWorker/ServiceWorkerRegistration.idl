@@ -1,0 +1,27 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+#import <ServiceWorker/ServiceWorker.idl>
+
+// https://w3c.github.io/ServiceWorker/#serviceworkerregistration-interface
+[SecureContext, Exposed=(Window,Worker)]
+interface ServiceWorkerRegistration : EventTarget {
+    readonly attribute ServiceWorker? installing;
+    readonly attribute ServiceWorker? waiting;
+    readonly attribute ServiceWorker? active;
+    [FIXME, SameObject] readonly attribute NavigationPreloadManager navigationPreload;
+
+    readonly attribute USVString scope;
+    readonly attribute ServiceWorkerUpdateViaCache updateViaCache;
+
+    [FIXME, NewObject] Promise<undefined> update();
+    [FIXME, NewObject] Promise<boolean> unregister();
+
+    // event
+    [FIXME] attribute EventHandler onupdatefound;
+};
+
+enum ServiceWorkerUpdateViaCache {
+    "imports",
+    "all",
+    "none"
+};

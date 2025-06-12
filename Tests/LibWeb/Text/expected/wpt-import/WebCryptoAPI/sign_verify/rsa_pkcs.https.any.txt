@@ -1,0 +1,50 @@
+Harness status: OK
+
+Found 45 tests
+
+45 Pass
+Pass	setup
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 verification
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 verification
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 verification
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 verification
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 verification with altered signature after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 verification with altered signature after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 verification with altered signature after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 verification with altered signature after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 with altered plaintext after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 with altered plaintext after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 with altered plaintext after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 with altered plaintext after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 using privateKey to verify
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 using privateKey to verify
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 using privateKey to verify
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 using privateKey to verify
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 using publicKey to sign
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 using publicKey to sign
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 using publicKey to sign
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 using publicKey to sign
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 no verify usage
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 no verify usage
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 no verify usage
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 no verify usage
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 round trip
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 round trip
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 round trip
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 round trip
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 signing with wrong algorithm name
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 signing with wrong algorithm name
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 signing with wrong algorithm name
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 signing with wrong algorithm name
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 verification with wrong algorithm name
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 verification with wrong algorithm name
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 verification with wrong algorithm name
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 verification with wrong algorithm name
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 verification failure with altered signature
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 verification failure with altered signature
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 verification failure with altered signature
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 verification failure with altered signature
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 verification failure with altered plaintext
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 verification failure with altered plaintext
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 verification failure with altered plaintext
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 verification failure with altered plaintext

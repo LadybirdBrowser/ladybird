@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Test: If a BFC's inline-axis margin is sufficiently negative such
+  that it inflates its border-box to be too large to fit alongside a float,
+  then it should be pushed below the float</title>
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<link rel="help" href="https://www.w3.org/TR/CSS21/visuren.html#floats">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<meta name="assert" content="The border box of ... an element in the normal flow that establishes a new block formatting context ... must not overlap the margin box of any floats in the same block formatting context as the element itself. If necessary, implementations should clear the said element by placing it below any preceding floats">
+<link rel="help" href="https://www.w3.org/TR/CSS21/visudet.html#blockwidth">
+<!-- For a BFC with 'width:auto', negative total inline-axis margins will
+     effectively set a lower-bound for the used border-box width, to satisfy
+     the equation in CSS2.1 10.3.3. This test exercises scenarios where this
+     mechanism "props up" the BFC's border-box enough to make its border-box
+     collide width the float's margin-box, resulting in it needing to be moved
+     down below the float. -->
+<!-- NOTE: This testcase-variant actually has "width:stretch" (and
+     vendor-prefixed equivalents) rather than "auto", but I think the effect
+     should be the same, since the "stretch" and "auto" sizing keywords are
+     equivalent in most cases. (Though: in practice, WebKit and Gecko are both
+     more-eager-to-wrap here, with their vendor-prefixed "stretch" values, as
+     compared to with "auto"... I'm not sure whether or not there's a good
+     reason for that, so this test is named with ".tentative" for now.) -->
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-wrap-bfc-with-margin-001-ref.html">
+<script>
+  const MARGIN_VALS = [-30, -20, -17,
+                       // Values -16 through -1 are non-interoperable and are
+                       // split off to a separate test.
+                       0, 5, 10, 14
+                       // Values over 15 are non-interoperable and are
+                       // split off to a separate test.
+                      ];
+  const HORIZ_SIDES = ["left", "right"]; // Used for 'float:*' and 'margin-*'.
+  const DIRECTION_VALS = ["ltr", "rtl"];
+
+  function newDivWithClassAndParent(className, parent) {
+    let elem = document.createElement("div");
+    if (className) {
+      elem.classList.add(className);
+    }
+    parent.appendChild(elem);
+    return elem;
+  }
+  function generateGroup(directionVal, floatVal, marginPropSuffix) {
+    let group = newDivWithClassAndParent("group", document.body);
+    group.style.direction = directionVal;
+    const marginPropName = "margin-" + marginPropSuffix;
+
+    for (let v of MARGIN_VALS) {
+      let container = newDivWithClassAndParent("container", group);
+      let float = newDivWithClassAndParent("float", container);
+      float.style.cssFloat = floatVal;
+
+      let bfc = newDivWithClassAndParent("bfc", container);
+      bfc.style[marginPropName] = v + "px";
+    }
+  }
+  function go() {
+    for (let directionVal of DIRECTION_VALS) {
+      for (let floatVal of HORIZ_SIDES) {
+        for (let marginPropSuffix of HORIZ_SIDES) {
+          generateGroup(directionVal, floatVal, marginPropSuffix);
+        }
+      }
+    }
+    // Note: the "reftest-wait" usage here isn't strictly necessary; it just
+    // helps ensure that we actually make it through all of the above JS and
+    // populate this document with the content that we want to render.
+    // (Specifically: if we e.g. throw a JS exception somewhere early in both
+    // the testcase and reference case, then the "reftest-wait" class will
+    // never be removed; and that will cause the test run to be classified
+    // as a failure, rather than a trivial "pass" with a visual comparison of
+    // two blank documents.)
+    document.documentElement.removeAttribute("class");
+  }
+</script>
+<style>
+.group {
+  width: 500px;
+  border: 1px solid black;
+}
+.container {
+  /* This is the container that holds our float+bfc.  We make it an
+     inline-block so that we can test a bunch of these in a row.  */
+  display: inline-block;
+  vertical-align: top;
+  width: 30px;
+  height: 40px;
+  /* This border and margin are just cosmetic, to avoid overlap between
+   * adjacent containers within a row. */
+  border: 1px solid gray;
+  margin-left: 30px;
+}
+
+.float {
+  /* We'll set the float property elsewhere (to 'right' or 'left'). */
+  width: 7px;
+  height: 8px;
+  background: fuchsia;
+  border: 1px solid purple;
+  /* Each .float's margin-box (which the corresponding .bfc's border-box cannot
+   * overlap) is 14px wide:
+   *   7px content + 2px horizontal border + 5px horizontal margin
+   * Note that we're intentionally using a nonzero 'margin' here, to be sure
+   * the UA is using the float's margin-box (and not one of its other
+   * boxes) for this non-overlapping calculation. */
+  margin: 1px 3px 1px 2px;
+}
+.bfc {
+  /* Each .bfc's border-box width is 2px (from the border) plus whatever we
+   * resolve 'width:auto' to, which is influenced by the particular choice of
+   * 'margin' values (and the available space). */
+  display: flow-root;
+  background: aqua;
+  height: 15px;
+  border: 1px solid blue;
+
+  /* https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing */
+  width: -moz-available;
+  width: -webkit-fill-available;
+  width: stretch;
+}
+</style>
+<body onload="go()">
+</body>
+</html>

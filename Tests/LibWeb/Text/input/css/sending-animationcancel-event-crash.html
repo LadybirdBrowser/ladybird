@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- https://github.com/SerenityOS/serenity/issues/24424 -->
+<style>
+    @keyframes anim {
+        to {
+            width: 200px;
+        }
+    }
+
+    div {
+        animation: anim 1s;
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const foo = document.getElementById("foo");
+        const anim = foo.getAnimations()[0];
+        foo.addEventListener("animationcancel", () => {
+            println("PASS! (Didn't crash)");
+            done();
+        });
+        requestAnimationFrame(() => {
+            anim.cancel();
+        });
+    });
+</script>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const sheet = new CSSStyleSheet();
+        try {
+            sheet.removeRule();
+            println("FAIL");
+        } catch (e) {
+            println(`Exception thrown when removeRule() called on empty sheet: ${e.name}`);
+        }
+
+        sheet.addRule(".test", "padding: 10px");
+        sheet.addRule(".test", "margin: 5px");
+        sheet.addRule(".test", "font-size: 14px");
+        println(`Rule count after adding 3 rules: ${sheet.cssRules.length}`);
+        for (const rule of sheet.cssRules) {
+            println(`Rule text: ${rule.cssText}`);
+        }
+        sheet.removeRule();
+        println(`Rule count after calling removeRule with no arguments: ${sheet.cssRules.length}`);
+        for (const rule of sheet.cssRules) {
+            println(`Rule text: ${rule.cssText}`);
+        }
+        sheet.removeRule(1);
+        println(`Rule count after calling removeRule with explicit index: ${sheet.cssRules.length}`);
+        println(`Rule text: ${sheet.cssRules[0].cssText}`);
+        try {
+            sheet.removeRule(-1);
+            println("FAIL");
+        } catch (e) {
+            println(`Exception thrown when given a negative index: ${e.name}`);
+        }
+        try {
+            sheet.removeRule(1);
+            println("FAIL");
+        } catch (e) {
+            println(`Exception thrown when index out of range: ${e.name}`);
+        }
+    });
+</script>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Display: first-line and first-letter pseudo-elements</title>
+<link rel="help" href="https://www.w3.org/TR/css-display-3/#placement">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #t1::first-letter { float: left; display: flex; font-size: 30px }
+  #t2::first-letter { float: left; font-size: 30px }
+  #t3::first-letter { display: flex; font-size: 30px }
+  #t4::first-letter { font-size: 30px }
+  #t5::first-line { float: left; display: flex; font-size: 30px }
+  #t6::first-line { float: left; font-size: 30px }
+  #t7::first-line { display: flex; font-size: 30px }
+  #t8::first-line { font-size: 30px }
+</style>
+<div id="t1">First letter is float and flex.</div>
+<div id="t2">First letter is float but not flex.</div>
+<div id="t3">First letter is flex but not float.</div>
+<div id="t4">First letter not float or flex.</div>
+<div id="t5">First line is float and flex.</div>
+<div id="t6">First line is float but not flex.</div>
+<div id="t7">First line is flex but not float.</div>
+<div id="t8">First line is not float or flex.</div>
+<script>
+  function getFirstLetterDisplayFor(id) {
+    return window.getComputedStyle(document.getElementById(id), "::first-letter").display;
+  }
+  function getFirstLineDisplayFor(id) {
+    return window.getComputedStyle(document.getElementById(id), "::first-line").display;
+  }
+  test(function() {
+    assert_equals(getFirstLetterDisplayFor("t1"), "block");
+    assert_equals(getFirstLetterDisplayFor("t2"), "block");
+    assert_equals(getFirstLetterDisplayFor("t3"), "inline");
+    assert_equals(getFirstLetterDisplayFor("t4"), "inline");
+    assert_equals(getFirstLineDisplayFor("t5"), "inline");
+    assert_equals(getFirstLineDisplayFor("t6"), "inline");
+    assert_equals(getFirstLineDisplayFor("t7"), "inline");
+    assert_equals(getFirstLineDisplayFor("t8"), "inline");
+  }, "display of first-letter and first-line");
+</script>

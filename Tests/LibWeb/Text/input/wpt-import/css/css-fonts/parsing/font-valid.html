@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-prop">
+<meta name="assert" content="font supports the full grammar '[ [ <'font-style'> || <font-variant-css2> || <'font-weight'> || <font-stretch-css3> ]? <'font-size'> [ / <'line-height'> ]? <'font-family'> ] | caption | icon | menu | message-box | small-caption | status-bar'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+'use strict';
+
+// Firefox and Edge 18 serialize these as supplied.
+// Blink and Safari have implementation-dependent or platform-dependent serializations.
+function test_system_font(keyword) {
+  test(() => {
+    const target = document.getElementById('target');
+    const previousValue = 'italic xx-large/0px fantasy';
+    target.style.font = previousValue;
+    target.style.font = keyword;
+    const readValue = target.style.getPropertyValue('font');
+    assert_not_equals(readValue, '', 'font should be set');
+    assert_not_equals(readValue, previousValue, 'font should be updated');
+    target.style.font = previousValue;
+    target.style.font = readValue;
+    assert_equals(target.style.getPropertyValue('font'), readValue, "serialization should round-trip");
+  }, keyword + ' should be a supported system font.');
+}
+
+test_system_font('caption');
+test_system_font('icon');
+test_system_font('menu');
+test_system_font('message-box');
+test_system_font('small-caption');
+test_system_font('status-bar');
+
+// values other than normal
+const generate_style = (() => {
+  const alternatives = [
+    'italic',
+    'oblique'
+  ];
+  let counter = 0;
+  return () => alternatives[counter++ % alternatives.length];
+})();
+
+// value other than normal
+const generate_variant = () => 'small-caps';
+
+// values other than normal
+const generate_weight = (() => {
+  const alternatives = [
+    'bold',
+    'bolder',
+    'lighter',
+    '100',
+    '900'
+  ];
+  let counter = 0;
+  return () => alternatives[counter++ % alternatives.length];
+})();
+
+// values other than normal
+const generate_stretch = (() => {
+  const alternatives = [
+    'ultra-condensed',
+    'extra-condensed',
+    'condensed',
+    'semi-condensed',
+    'semi-expanded',
+    'expanded',
+    'extra-expanded',
+    'ultra-expanded'
+  ];
+  let counter = 0;
+  return () => alternatives[counter++ % alternatives.length];
+})();
+
+const generate_size = (() => {
+  const alternatives = [
+    // <absolute-size>
+    'xx-small',
+    'medium',
+    'xx-large',
+
+    // <relative-size>
+    'larger',
+    'smaller',
+
+    // <length-percentage>
+    '10px',
+    '20%',
+    'calc(30% - 40px)',
+  ];
+  let counter = 0;
+  return () => alternatives[counter++ % alternatives.length];
+})();
+
+const generate_line_height = (() => {
+  const alternatives = [
+    null,
+    'normal',
+    '1.2',
+    'calc(120% + 1.2em)'
+  ];
+  let counter = 0;
+  return () => alternatives[counter++ % alternatives.length];
+})();
+
+const generate_family = (() => {
+  const alternatives = [
+    'serif',
+    'sans-serif',
+    'cursive',
+    'fantasy',
+    'monospace',
+    'Menu',
+    '"FB Armada"'
+  ];
+  let counter = 0;
+  return () => alternatives[counter++ % alternatives.length];
+})();
+
+function test_specific(prefix) {
+  let parts = [];
+  let canonical = [];
+  let style = null;
+  let variant = null;
+  let weight = null;
+  let stretch = null;
+  for (let entry of prefix) {
+    if (entry === 'style') {
+      style = generate_style();
+      parts.push(style);
+    } else if (entry === 'variant') {
+      variant = generate_variant();
+      parts.push(variant);
+    } else if (entry === 'weight') {
+      weight = generate_weight();
+      parts.push(weight);
+    } else if (entry === 'stretch') {
+      stretch = generate_stretch();
+      parts.push(stretch);
+    } else {
+      // normal
+      parts.push('normal');
+    }
+  }
+
+  if (style)
+    canonical.push(style);
+  if (variant)
+    canonical.push(variant);
+  if (weight)
+    canonical.push(weight);
+  if (stretch)
+    canonical.push(stretch);
+
+  const size = generate_size();
+  const lineHeight = generate_line_height();
+  if (lineHeight) {
+    parts.push(size + '/' + lineHeight);
+    if (lineHeight === 'normal')
+      canonical.push(size);
+    else
+      canonical.push(size + ' / ' + lineHeight);
+  } else {
+    parts.push(size);
+    canonical.push(size);
+  }
+
+  const family = generate_family();
+  parts.push(family);
+  canonical.push(family);
+
+  test_valid_value('font', parts.join(' '), canonical.join(' '));
+}
+
+function test_various(prefix) {
+  test_specific(prefix);
+  if (prefix.length === 4)
+    return;
+
+  const alternatives = [
+    'normal',
+    'style',
+    'variant',
+    'weight',
+    'stretch'
+  ];
+  for (let alternative of alternatives) {
+    if (alternative === 'normal' || !prefix.includes(alternative))
+      test_various(prefix.concat(alternative));
+    // else we would have two styles or two variants, etc.
+  }
+}
+
+test_various([]);
+</script>
+</body>
+</html>

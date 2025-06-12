@@ -1,0 +1,11 @@
+source_set("WebAssembly") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "Instance.cpp",
+    "Memory.cpp",
+    "Module.cpp",
+    "Table.cpp",
+    "WebAssembly.cpp",
+  ]
+}

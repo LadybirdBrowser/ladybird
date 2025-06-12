@@ -1,0 +1,39 @@
+Signal 0 aborted: false
+Signal 1 aborted: false
+Signal 2 aborted: false
+Signal 3 aborted: false
+Signal 4 aborted: false
+Abort callback for signal: 0. Reason: Test AbortController 1
+Abort callback for signal: 1. Reason: Test AbortController 1
+Abort callback for signal: 3. Reason: Test AbortController 1
+Abort callback for signal: 4. Reason: Test AbortController 1
+Signal 0 aborted: true
+Signal 1 aborted: true
+Signal 2 aborted: false
+Signal 3 aborted: true
+Signal 4 aborted: true
+Signal 0 aborted: false
+Signal 1 aborted: false
+Signal 2 aborted: false
+Signal 3 aborted: false
+Signal 4 aborted: false
+Abort callback for signal: 1. Reason: Test AbortController 2
+Abort callback for signal: 2. Reason: Test AbortController 2
+Abort callback for signal: 3. Reason: Test AbortController 2
+Abort callback for signal: 4. Reason: Test AbortController 2
+Signal 0 aborted: false
+Signal 1 aborted: true
+Signal 2 aborted: true
+Signal 3 aborted: true
+Signal 4 aborted: true
+Signal 0 aborted: false
+Signal 1 aborted: false
+Signal 2 aborted: false
+Signal 3 aborted: false
+Signal 4 aborted: false
+Abort callback for signal: 4. Reason: Test AbortController 3
+Signal 0 aborted: false
+Signal 1 aborted: false
+Signal 2 aborted: false
+Signal 3 aborted: false
+Signal 4 aborted: true

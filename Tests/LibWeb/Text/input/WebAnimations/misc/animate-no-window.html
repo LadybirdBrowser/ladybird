@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const divElement = document.createElement("div");
+        const newDocument = document.implementation.createDocument("http://www.w3.org/1999/xhtml", "html");
+        newDocument.documentElement.appendChild(divElement)
+        animation = divElement.animate({}, {});
+        println("PASS (didn't crash)");
+    });
+</script>

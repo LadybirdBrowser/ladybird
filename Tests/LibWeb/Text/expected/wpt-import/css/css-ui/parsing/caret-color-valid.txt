@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['caret-color'] = "auto" should set the property value
+Pass	e.style['caret-color'] = "rgba(10, 20, 30, 0.4)" should set the property value

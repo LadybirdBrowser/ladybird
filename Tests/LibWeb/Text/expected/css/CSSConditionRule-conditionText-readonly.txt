@@ -1,0 +1,4 @@
+@media rule conditionText initial value: not all
+@media rule conditionText value after assignment: not all
+@supports rule conditionText initial value: not (unsupported-property: unsupported-value)
+@supports rule conditionText value after assignment: not (unsupported-property: unsupported-value)

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :link, :visited :any-link, pseudo-class in :has() argument</title>
+<link rel="author" title="Byungwoo Lee" href="blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #parent { color: blue; }
+  #grandparent { color: blue; }
+  #parent:has(> :not(:link)) { color: grey; }
+  #parent:has(> :link) { color: green; }
+  #parent:has(> :visited) { color: red; }
+  #grandparent:has(:not(:any-link)) { color: grey; }
+  #grandparent:has(:any-link) { color: green; }
+</style>
+<div id="grandparent"></div>
+<script>
+  const BLUE = "rgb(0, 0, 255)";
+  const GREY = "rgb(128, 128, 128)";
+  const GREEN = "rgb(0, 128, 0)";
+  const RED = "rgb(255, 0, 0)";
+
+  function checkColor(id, color, target_matches) {
+    let element = document.getElementById(id);
+    let message = ["location.hash ==", location.hash, ": #" + id, "should be",
+                   color, (target_matches ? "with" : "without"),
+                   ":target"].join(" ");
+    assert_equals(getComputedStyle(element).color, color, message);
+  }
+
+  promise_test(async () => {
+    assert_equals(getComputedStyle(grandparent).color, BLUE,
+                  "grandparent should be blue without any element");
+
+    let parent = document.createElement("div");
+    parent.id = "parent";
+    grandparent.appendChild(parent);
+
+    assert_equals(getComputedStyle(grandparent).color, GREY,
+                  "grandparent should be grey after parent added");
+    assert_equals(getComputedStyle(parent).color, BLUE,
+                  "parent should be blue without any link");
+
+    let div = document.createElement("div");
+    parent.appendChild(div);
+
+    assert_equals(getComputedStyle(grandparent).color, GREY,
+                  "grandparent should be grey after div added");
+    assert_equals(getComputedStyle(parent).color, GREY,
+                  "parent should be grey after div added");
+
+    let visited = document.createElement("a");
+    visited.href = "";
+    parent.appendChild(visited);
+
+    assert_equals(getComputedStyle(grandparent).color, GREEN,
+                  "grandparent should be green after visited link added");
+    assert_equals(getComputedStyle(parent).color, GREEN,
+                  "parent should be green after visited link added");
+
+    let unvisited = document.createElement("a");
+    unvisited.href = "unvisited";
+    parent.appendChild(unvisited);
+
+    assert_equals(getComputedStyle(grandparent).color, GREEN,
+                  "grandparent should be green after unvisited link added");
+    assert_equals(getComputedStyle(parent).color, GREEN,
+                  "parent should be green after unvisited link added");
+
+    unvisited.remove();
+
+    assert_equals(getComputedStyle(grandparent).color, GREEN,
+                  "grandparent should be green after unvisited link removed");
+    assert_equals(getComputedStyle(parent).color, GREEN,
+                  "parent should be blue after unvisited link removed");
+
+    visited.remove();
+
+    assert_equals(getComputedStyle(grandparent).color, GREY,
+                  "grandparent should be grey after visited link removed");
+    assert_equals(getComputedStyle(parent).color, GREY,
+                  "parent should be grey after visited link removed");
+
+    div.remove();
+
+    assert_equals(getComputedStyle(grandparent).color, GREY,
+                  "grandparent should be grey after div removed");
+    assert_equals(getComputedStyle(parent).color, BLUE,
+                  "parent should be blue after div removed");
+
+    parent.remove();
+
+    assert_equals(getComputedStyle(grandparent).color, BLUE,
+                  "grandparent should be blue after parent removed");
+  });
+</script>

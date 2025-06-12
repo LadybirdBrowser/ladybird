@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['font-kerning'] = "normal auto" should not set the property value
+Pass	e.style['font-kerning'] = "none, auto" should not set the property value

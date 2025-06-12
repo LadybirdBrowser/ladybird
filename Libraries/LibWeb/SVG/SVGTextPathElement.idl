@@ -1,0 +1,22 @@
+#import <SVG/SVGTextContentElement.idl>
+#import <SVG/SVGURIReference.idl>
+
+// https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextPathElement
+[Exposed=Window]
+interface SVGTextPathElement : SVGTextContentElement {
+    // textPath Method Types
+    const unsigned short TEXTPATH_METHODTYPE_UNKNOWN = 0;
+    const unsigned short TEXTPATH_METHODTYPE_ALIGN = 1;
+    const unsigned short TEXTPATH_METHODTYPE_STRETCH = 2;
+
+    // textPath Spacing Types
+    const unsigned short TEXTPATH_SPACINGTYPE_UNKNOWN = 0;
+    const unsigned short TEXTPATH_SPACINGTYPE_AUTO = 1;
+    const unsigned short TEXTPATH_SPACINGTYPE_EXACT = 2;
+
+    [FIXME, SameObject] readonly attribute SVGAnimatedLength startOffset;
+    [FIXME, SameObject] readonly attribute SVGAnimatedEnumeration method;
+    [FIXME, SameObject] readonly attribute SVGAnimatedEnumeration spacing;
+};
+
+SVGTextPathElement includes SVGURIReference;

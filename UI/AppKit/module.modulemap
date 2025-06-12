@@ -1,0 +1,19 @@
+module Ladybird [system] {
+    requires cplusplus
+    requires objc_arc
+
+    explicit module WebView {
+        header "Interface/LadybirdWebView.h"
+        export *
+    }
+
+    explicit module WebViewWindow {
+        header "Interface/LadybirdWebViewWindow.h"
+        export *
+    }
+
+    explicit module WebViewApplication {
+        header "../../Libraries/LibWebView/Application.h"
+        export *
+    }
+}

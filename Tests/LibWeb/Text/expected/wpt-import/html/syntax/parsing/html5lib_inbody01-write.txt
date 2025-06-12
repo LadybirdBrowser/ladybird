@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	html5lib_inbody01.html 3e20aae3cbc7f10b28cbfc1e20b2949708872a3c
+Pass	html5lib_inbody01.html ec6b9d9dccaa3494a317afac0edfcc485b959663
+Pass	html5lib_inbody01.html cc4923612d10b2115cd03e269080ddf5463d95ae
+Pass	html5lib_inbody01.html a5ebf8808e479239966038951d5383ed65ff4eb6

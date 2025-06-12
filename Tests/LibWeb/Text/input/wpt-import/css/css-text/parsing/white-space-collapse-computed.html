@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text: getComputedStyle().whiteSpace</title>
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#propdef-white-space">
+<meta name="assert" content="white-space computed value is specified keyword.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("white-space-collapse", "collapse");
+test_computed_value("white-space-collapse", "preserve");
+test_computed_value("white-space-collapse", "preserve-breaks");
+test_computed_value("white-space-collapse", "break-spaces");
+</script>
+</body>
+</html>

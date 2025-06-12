@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Containment Test: Layout containment inside a fit-content element</title>
+<link rel="help" href="https://crbug.com/1268449">
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-layout">
+<link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+<meta name=assert
+    content="Layout containment inside a fit-content element should update size when the content is changed">
+<style>
+    #contain-parent {
+        width: fit-content;
+    }
+
+    #contain-layout {
+        contain: layout;
+        background: green;
+    }
+
+    #content {
+        width: 50px;
+        height: 100px;
+    }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="contain-parent">
+    <div id="contain-layout">
+        <div id="content"></div>
+    </div>
+</div>
+
+<script>
+window.requestAnimationFrame(() => {
+    document.body.offsetTop;
+    document.getElementById('content').style.width = '100px';
+    document.body.offsetTop;
+});
+</script>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	innerHTML in XHTML: getting while the document is in an invalid state
+Pass	innerHTML in XHTML: getting while the document is in an invalid state 1

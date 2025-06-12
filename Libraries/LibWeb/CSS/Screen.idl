@@ -1,0 +1,21 @@
+#import <CSS/ScreenOrientation.idl>
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+
+// https://w3c.github.io/csswg-drafts/cssom-view-1/#screen
+[Exposed=Window]
+interface Screen {
+    readonly attribute long availWidth;
+    readonly attribute long availHeight;
+    readonly attribute long width;
+    readonly attribute long height;
+    readonly attribute unsigned long colorDepth;
+    readonly attribute unsigned long pixelDepth;
+
+    // https://w3c.github.io/screen-orientation/#extensions-to-the-screen-interface
+    [SameObject] readonly attribute ScreenOrientation orientation;
+
+    // https://w3c.github.io/window-management/#api-extensions-to-screen
+    [SecureContext] readonly attribute boolean isExtended;
+    [SecureContext] attribute EventHandler onchange;
+};

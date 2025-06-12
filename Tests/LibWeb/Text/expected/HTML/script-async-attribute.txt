@@ -1,0 +1,3 @@
+includeScript.async = false
+script.async = true
+script.async = false

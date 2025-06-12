@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const progressElement = document.createElement("progress");
+        println(`value attribute initial value: ${progressElement.value}`);
+        println(`max attribute initial value: ${progressElement.max}`);
+        progressElement.value = -1;
+        println(`value attribute after setting value attribute to -1: ${progressElement.value}`);
+        progressElement.max = -1;
+        println(`max attribute after setting max attribute to -1: ${progressElement.max}`);
+        progressElement.max = 0;
+        println(`max attribute after setting max attribute to 0: ${progressElement.max}`);
+        progressElement.value = 50;
+        println(`value attribute after setting value attribute to 50: ${progressElement.value}`);
+        progressElement.max = 100;
+        println(`value attribute after setting max attribute to 100: ${progressElement.value}`);
+        println(`max attribute after setting max attribute to 100: ${progressElement.max}`);
+        progressElement.value = 101;
+        println(`value attribute after setting max attribute to 101: ${progressElement.value}`);
+        progressElement.value = -1;
+        println(`value attribute after setting value attribute to -1: ${progressElement.value}`);
+        progressElement.max = 0;
+        println(`value attribute after setting max attribute to 0: ${progressElement.value}`);
+        println(`max attribute after setting max attribute to 0: ${progressElement.max}`);
+    });
+</script>

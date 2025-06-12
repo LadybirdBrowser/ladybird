@@ -1,0 +1,2 @@
+[Pass] Object.defineProperty(HTMLCollection, key, value) throws
+[Pass] "use strict"; HTMLCollection[key] setter throws

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    .scrollable-div {
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        border: 10px magenta solid;
+    }
+
+    span {
+        width: 100px;
+        height: 100px;
+        display: inline-block;
+        border: 10px solid #000;
+    }
+
+    body {
+        width: 300px;
+    }
+</style>
+<body>
+    <div class="scrollable-div">
+        <span>Item 1</span><span>Item 2</span><span>Item 3</span><span>Item 4</span
+        ><span>Item 5</span><span>Item 6</span><span>Item 7</span><span>Item 8</span
+        ><span>Item 9</span><span>Item 10</span><span>Item 11</span><span>Item 12</span>
+    </div>
+</body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const scrollableDiv = document.querySelector(".scrollable-div");
+        const scrollWidth = scrollableDiv.scrollWidth;
+        println("scrollWidth: " + scrollWidth);
+        scrollableDiv.scrollLeft = scrollableDiv.scrollWidth;
+        println("scrollLeft: " + scrollableDiv.scrollLeft);
+    });
+</script>

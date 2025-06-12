@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Get select value of unedited
+        testPart(() => {
+            const select = document.createElement('select');
+            // FIXME: Remove selected attribute (currently this is needed because the children are not loaded to select first item in test run)
+            select.innerHTML = `
+                <option value="one" selected>One</option>
+                <option value="two">Two</option>
+                <option value="three">Three</option>
+            `;
+            return select.value;
+        });
+
+        // 2. Get select selectedIndex
+        testPart(() => {
+            const select = document.createElement('select');
+            // FIXME: Remove selected attribute (currently this is needed because the children are not loaded to select first item in test run)
+            select.innerHTML = `
+                <option value="one" selected>One</option>
+                <option value="two">Two</option>
+                <option value="three">Three</option>
+            `;
+            return select.selectedIndex;
+        });
+
+        // 3. Get select value of selectedIndex
+        testPart(() => {
+            const select = document.createElement('select');
+            select.innerHTML = `
+                <option value="one">One</option>
+                <option value="two">Two</option>
+                <option value="three">Three</option>
+            `;
+            select.selectedIndex = 1;
+            return select.value;
+        });
+
+        // 4. Get select length
+        testPart(() => {
+            const select = document.createElement('select');
+            select.innerHTML = `
+                <option value="one">One</option>
+                <option value="two">Two</option>
+                <option value="three">Three</option>
+            `;
+            return select.length;
+        });
+
+        // 5. Get select value of init selected
+        testPart(() => {
+            const select = document.createElement('select');
+            select.innerHTML = `
+                <option value="one">One</option>
+                <option value="two">Two</option>
+                <option value="three" selected>Three</option>
+            `;
+            return select.value;
+        });
+
+        // 6. Get select value without option values
+        testPart(() => {
+            const select = document.createElement('select');
+            select.innerHTML = `
+                <option>One</option>
+                <option>Two</option>
+                <option selected>Three</option>
+            `;
+            return select.value;
+        });
+
+        // 7. Set select size property
+        testPart(() => {
+            const select = document.createElement('select');
+            select.size = '45';
+            return select.size;
+        });
+
+        // 8. Set select size property invalid
+        testPart(() => {
+            const select = document.createElement('select');
+            select.size = '12';
+            select.size = 'fadsfsd';
+            return select.size;
+        });
+
+        // 9. Get select size default
+        testPart(() => {
+            const select = document.createElement('select');
+            return select.size;
+        });
+
+        // 10. Use select set length to remove options
+        testPart(() => {
+            const select = document.createElement('select');
+            for (let i = 0; i < 10; i++) {
+                select.appendChild(document.createElement('option'));
+            }
+            select.length = 3;
+            return select.length;
+        });
+
+        // 11. Use select set length to add options
+        testPart(() => {
+            const select = document.createElement('select');
+            for (let i = 0; i < 10; i++) {
+                select.appendChild(document.createElement('option'));
+            }
+            select.length = 999;
+            return select.length;
+        });
+
+        // 12. Use select set length to add options with invalid large size
+        testPart(() => {
+            const select = document.createElement('select');
+            for (let i = 0; i < 10; i++) {
+                select.appendChild(document.createElement('option'));
+            }
+            select.length = 100_001;
+            return select.length;
+        });
+
+        // 13. Use select set length to add options with invalid small size
+        testPart(() => {
+            const select = document.createElement('select');
+            for (let i = 0; i < 10; i++) {
+                select.appendChild(document.createElement('option'));
+            }
+            select.length = -10;
+            return select.length;
+        });
+
+        // 14. OptionsCollection selectedIndex is the same as select selectedIndex
+        testPart(() => {
+            const select = document.createElement('select');
+            for (let i = 0; i < 10; i++) {
+                const option = document.createElement('option');
+                if (i == 5) option.selected = true;
+                select.appendChild(option);
+            }
+            return `${select.options.selectedIndex} ${select.selectedIndex}`;
+        });
+
+        // 15. Remove select options
+        testPart(() => {
+            const select = document.createElement('select');
+            for (let i = 0; i < 10; i++) {
+                select.appendChild(document.createElement('option'));
+            }
+            select.remove(5);
+            select.options.remove(6);
+            return select.length;
+        });
+
+        // 16. Remove select options invalid
+        testPart(() => {
+            const select = document.createElement('select');
+            for (let i = 0; i < 10; i++) {
+                select.appendChild(document.createElement('option'));
+            }
+            select.remove(-1);
+            select.options.remove(11);
+            return select.length;
+        });
+
+        // 17. Get selected selected options
+        testPart(() => {
+            const select = document.createElement('select');
+            for (let i = 0; i < 10; i++) {
+                const option = document.createElement('option');
+                option.textContent = i;
+                if (i == 5) option.selected = true;
+                select.appendChild(option);
+            }
+            select.options[2].selected = true;
+            return select.selectedOptions[0].textContent;
+        });
+    });
+</script>

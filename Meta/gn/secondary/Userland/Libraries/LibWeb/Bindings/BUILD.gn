@@ -1,0 +1,23 @@
+source_set("Bindings") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "AudioConstructor.cpp",
+    "AudioConstructor.h",
+    "ExceptionOrUtils.h",
+    "HostDefined.cpp",
+    "HostDefined.h",
+    "ImageConstructor.cpp",
+    "ImageConstructor.h",
+    "Intrinsics.cpp",
+    "Intrinsics.h",
+    "MainThreadVM.cpp",
+    "MainThreadVM.h",
+    "OptionConstructor.cpp",
+    "OptionConstructor.h",
+    "PlatformObject.cpp",
+    "PlatformObject.h",
+    "Serializable.h",
+    "Transferable.h",
+  ]
+}

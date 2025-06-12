@@ -1,0 +1,33 @@
+#import <DOM/Document.idl>
+#import <DOM/Element.idl>
+#import <DOM/Node.idl>
+#import <IntersectionObserver/IntersectionObserverEntry.idl>
+
+// https://w3c.github.io/IntersectionObserver/#intersection-observer-callback
+callback IntersectionObserverCallback = undefined (sequence<IntersectionObserverEntry> entries, IntersectionObserver observer);
+
+// https://w3c.github.io/IntersectionObserver/#intersection-observer-interface
+[Exposed=(Window)]
+interface IntersectionObserver {
+    constructor(IntersectionObserverCallback callback, optional IntersectionObserverInit options = {});
+    readonly attribute (Element or Document)? root;
+    readonly attribute DOMString rootMargin;
+    readonly attribute DOMString scrollMargin;
+    readonly attribute FrozenArray<double> thresholds;
+    readonly attribute long delay;
+    readonly attribute boolean trackVisibility;
+    undefined observe(Element target);
+    undefined unobserve(Element target);
+    undefined disconnect();
+    sequence<IntersectionObserverEntry> takeRecords();
+};
+
+// https://w3c.github.io/IntersectionObserver/#intersection-observer-init
+dictionary IntersectionObserverInit {
+    (Element or Document)? root = null;
+    DOMString rootMargin = "0px";
+    DOMString scrollMargin = "0px";
+    (double or sequence<double>) threshold = 0;
+    long delay = 0;
+    boolean trackVisibility = false;
+};

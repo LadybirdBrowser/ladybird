@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>
+      CSS Test: Testing how explicit main-size & cross-size constraints
+      influence sizing on non-stretched flex item w/ intrinsic ratio,
+      some padding, box-sizing:border-box, and a vertical writing-mode.
+    </title>
+    <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+    <link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+    <link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#hypothetical-main-size">
+    <link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#hypothetical-cross-size">
+    <style>
+      .flexbox {
+        display: flex;
+        flex-direction: row;
+        border: 1px solid black;
+        margin: 0 2px 2px 0; /* (Just for spacing things out, visually) */
+        width: 40px;
+        height: 40px;
+
+        justify-content: flex-start;
+        align-items: flex-start;
+
+        float: left; /* For testing in "rows" */
+      }
+      img {
+        padding: 1px 2px 3px 4px;
+        box-sizing: border-box;
+        background: pink;
+      }
+
+      br { clear: both; }
+
+      .flexbox > * {
+        writing-mode: vertical-lr;
+
+        /* Disable "min-width:auto"/"min-height:auto" to focus purely on
+           later channels of influence. */
+        min-width: 0;
+        min-height: 0;
+      }
+    </style>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/check-layout-th.js"></script>
+  </head>
+  <body onload="checkLayout('.flexbox > img')">
+    <!-- NOTE: solidblue.png has an intrinsic size of 16px by 16px. -->
+
+    <!-- Row 1: no special sizing: -->
+    <div class="flexbox">
+      <img src="support/solidblue.png" data-expected-width="22" data-expected-height="20">
+    </div>
+    <br>
+
+    <!-- Row 2: Specified main-size, cross-size, or flex-basis: -->
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="width: 30px" data-expected-width="30" data-expected-height="28">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="height: 30px" data-expected-width="32" data-expected-height="30">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="flex: 0 0 30px" data-expected-width="30" data-expected-height="28">
+    </div>
+    <br>
+
+    <!-- Row 3: min main-size OR min cross-size, or both -->
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="min-width: 34px" data-expected-width="34" data-expected-height="32">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="min-height: 34px" data-expected-width="36" data-expected-height="34">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="min-width: 30px;
+                                              min-height: 34px" data-expected-width="36" data-expected-height="34">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="min-width: 34px;
+                                              min-height: 30px" data-expected-width="34" data-expected-height="32">
+    </div>
+    <br>
+
+    <!-- Row 4: max main-size OR max cross-size, or both -->
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="max-width: 16px" data-expected-width="16" data-expected-height="14">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="max-height: 16px" data-expected-width="18" data-expected-height="16">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="max-width: 20px;
+                                              max-height: 14px" data-expected-width="16" data-expected-height="14">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="max-width: 14px;
+                                              max-height: 20px" data-expected-width="14" data-expected-height="12">
+    </div>
+    <br>
+
+    <!-- Row 5: min main-size vs. max cross-size, & vice versa -->
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="min-width: 30px;
+                                              max-height: 10px" data-expected-width="30" data-expected-height="10">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="max-width: 10px;
+                                              min-height: 30px" data-expected-width="10" data-expected-height="30">
+    </div>
+    <br>
+
+    <!-- Row 6: min|max main-size vs. explicit cross-size, & vice versa -->
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="min-width: 30px;
+                                              height: 10px" data-expected-width="30" data-expected-height="10">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="width: 30px;
+                                              max-height: 10px" data-expected-width="30" data-expected-height="10">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="max-width: 10px;
+                                              height: 30px" data-expected-width="10" data-expected-height="30">
+    </div>
+    <div class="flexbox">
+      <img src="support/solidblue.png" style="width: 10px;
+                                              min-height: 30px" data-expected-width="10" data-expected-height="30">
+    </div>
+  </body>
+</html>

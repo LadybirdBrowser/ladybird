@@ -1,0 +1,2 @@
+[object ImageData]
+PASS: Didn't crash

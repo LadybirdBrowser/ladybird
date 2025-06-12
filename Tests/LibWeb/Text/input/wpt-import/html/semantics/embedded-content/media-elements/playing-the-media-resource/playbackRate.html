@@ -1,0 +1,53 @@
+<!doctype html>
+<title>playbackRate</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+test(function() {
+  var v = document.createElement('video');
+  assert_equals(v.playbackRate, 1);
+}, 'playbackRate initial value');
+
+function testPlaybackRateHelper(t, newPlaybackRate) {
+  var v = document.createElement('video');
+  var initialRate = v.playbackRate;
+
+  v.addEventListener('ratechange', t.step_func_done(function() {
+    assert_equals(v.playbackRate, newPlaybackRate);
+  }));
+
+  try {
+    v.playbackRate = newPlaybackRate;
+  } catch(e) {
+    assert_equals(e.name, 'NotSupportedError');
+    assert_equals(v.playbackRate, initialRate);
+    t.done();
+  }
+}
+
+async_test(function(t) {
+  testPlaybackRateHelper(this, 3);
+}, "playbackRate set to small positive value");
+
+async_test(function(t) {
+  testPlaybackRateHelper(this, 100);
+}, "playbackRate set to large positive value");
+
+async_test(function(t) {
+  testPlaybackRateHelper(this, -3);
+}, "playbackRate set to small negative value");
+
+async_test(function(t) {
+  testPlaybackRateHelper(this, -100);
+}, "playbackRate set to large negative value");
+
+async_test(function(t) {
+  testPlaybackRateHelper(this, 0);
+}, "playbackRate set to 0");
+
+async_test(function(t) {
+  testPlaybackRateHelper(this, -1);
+}, "playbackRate set to -1");
+
+</script>

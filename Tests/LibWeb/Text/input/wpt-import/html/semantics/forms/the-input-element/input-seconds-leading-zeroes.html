@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<html>
+ <head>
+  <title>HTMLInputElement leading zeroes in seconds/millis</title>
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+ </head>
+ <body>
+  <h3>input times and datetimes with leading zeroes in seconds/millis</h3>
+  <!-- This test ensures that seconds and milliseconds are being
+       output with the appropriate field widths when sanitizing
+       datetime-locals and times, e.g. that we don't see "12:30:1".
+       The spec is not specific about how much precision to use
+       in a sanitized time string, but an invalid string would
+       fail at .valueAsNumber -->
+  <hr>
+  <div id="log"></div>
+
+  <input id="inp">
+  <script>
+    var inp=document.getElementById("inp");
+    var cases = [
+      ["datetime-local", "2000-01-01T12:30:01",     946729801000],
+      ["datetime-local", "2000-01-01T12:30:00.5",   946729800500],
+      ["datetime-local", "2000-01-01T12:30:00.04",  946729800040],
+      ["datetime-local", "2000-01-01T12:30:00.003", 946729800003],
+
+      ["time", "12:30:01",     45001000],
+      ["time", "12:30:00.5",   45000500],
+      ["time", "12:30:00.04",  45000040],
+      ["time", "12:30:00.003", 45000003],
+    ];
+
+    for (var i in cases) {
+      var c = cases[i];
+      test(function() {
+        inp.setAttribute("type", c[0]);
+        inp.value = c[1];
+        assert_equals(inp.valueAsNumber, c[2]);
+      },"Expected valueAsNumber=" +c[2] + " from " + c[1]);
+      if (c[0] == "datetime-local") {
+        test(function() {
+          inp.setAttribute("type", c[0]);
+          inp.value = c[1];
+          assert_in_array(inp.value, [c[1], c[1].replace("T", " ")]);
+        },"Expected digits unchanged in round-trip of " + c[1])
+      }
+    }
+  </script>
+ </body>
+</html>

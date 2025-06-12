@@ -1,0 +1,23 @@
+-- Empty FontFaceSet --
+fontFaceSet.size: 0
+fontFaceSet.has(fontFace): false
+fontFaceSet.status: loaded
+deleteBeforeAdd: false
+-- Add Font --
+fontFaceSet.size: 1
+fontFaceSet.has(fontFace): true
+fontFaceKey.name: Hash Sans
+FIXME: fontFaceSet.status: loaded
+-- Delete Font --
+fontFaceSet.size: 0
+fontFaceSet.has(fontFace): false
+didDelete: true
+fontFaceSet.status: loaded
+-- Add Font again --
+fontFaceSet.size: 1
+fontFaceSet.has(fontFace): true
+FIXME: fontFaceSet.status: loaded
+-- Clear FontFaceSet --
+fontFaceSet.size: 0
+fontFaceSet.has(fontFace): false
+fontFaceSet.status: loaded

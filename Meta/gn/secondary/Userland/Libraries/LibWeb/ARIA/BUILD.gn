@@ -1,0 +1,16 @@
+source_set("ARIA") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "ARIAMixin.cpp",
+    "ARIAMixin.h",
+    "AriaData.cpp",
+    "AriaData.h",
+    "RoleType.cpp",
+    "RoleType.h",
+    "Roles.cpp",
+    "Roles.h",
+    "StateAndProperties.cpp",
+    "StateAndProperties.h",
+  ]
+}

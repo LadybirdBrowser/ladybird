@@ -1,0 +1,6 @@
+num animations without subtree: 1
+num animations with subtree: 4
+Anim for element parent is in the correct order: true
+Anim for element child1 is in the correct order: true
+Anim for element child2 is in the correct order: true
+Anim for element child3 is in the correct order: true

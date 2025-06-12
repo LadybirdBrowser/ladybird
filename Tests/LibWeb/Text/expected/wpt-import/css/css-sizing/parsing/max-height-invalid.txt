@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['max-height'] = "auto" should not set the property value
+Pass	e.style['max-height'] = "min-content max-content" should not set the property value
+Pass	e.style['max-height'] = "-10%" should not set the property value
+Pass	e.style['max-height'] = "-0.5em" should not set the property value

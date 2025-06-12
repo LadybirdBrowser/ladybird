@@ -1,0 +1,8 @@
+cmake_policy(PUSH)
+cmake_policy(SET CMP0057 NEW)
+if(NOT "COMPONENTS" IN_LIST ARGS)
+    _find_package(${ARGS} COMPONENTS data)
+else()
+    _find_package(${ARGS})
+endif()
+cmake_policy(POP)

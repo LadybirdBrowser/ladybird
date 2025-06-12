@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+
+        let animation = foo.animate({ opacity: [0, 1] }, { duration: 1000 });
+        println(`Animation's startTime is initially null: ${animation.startTime === null}`);
+        animation.startTime = 100;
+        println(`Animation's startTime is 100 after setting the value: ${animation.startTime === 100}`);
+
+        animation = foo.animate({ opacity: [0, 1] }, { duration: 1000 });
+        await animation.ready;
+        println(`Animation's startTime is non-null after ready promise resolved: ${animation.startTime !== null}`);
+        animation.cancel();
+        println(`Animation's startTime is null after calling cancel(): ${animation.startTime === null}`);
+
+        animation = foo.animate({ opacity: [0, 1] }, { duration: 1000 });
+        animation.pause();
+        animation.currentTime = 100;
+        println(`Animation's startTime is null after calling pause() and setting currentTime: ${animation.startTime === null}`);
+
+        const timeline = internals.createInternalAnimationTimeline();
+        timeline.setTime(0);
+
+        animation = foo.animate({ opacity: [0, 1] }, { duration: 1000, timeline });
+        animation.startTime = 100;
+        animation.playbackRate = -1;
+        println(`Animation's startTime updates after reversing playbackRate: ${animation.startTime === -100}`);
+
+        animation = foo.animate({ opacity: [0, 1] }, { duration: 1000, timeline });
+        animation.finish();
+        println(`Animation's startTime updates after calling finish(): ${animation.startTime === -1000}`);
+    });
+</script>

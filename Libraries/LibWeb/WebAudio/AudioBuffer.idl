@@ -1,0 +1,23 @@
+// https://webaudio.github.io/web-audio-api/#AudioBufferOptions
+dictionary AudioBufferOptions {
+    unsigned long numberOfChannels = 1;
+    required unsigned long length;
+    required float sampleRate;
+};
+
+// https://webaudio.github.io/web-audio-api/#AudioBuffer
+[Exposed=Window]
+interface AudioBuffer {
+    constructor (AudioBufferOptions options);
+    readonly attribute float sampleRate;
+    readonly attribute unsigned long length;
+    readonly attribute double duration;
+    readonly attribute unsigned long numberOfChannels;
+    Float32Array getChannelData(unsigned long channel);
+    undefined copyFromChannel(Float32Array destination,
+                              unsigned long channelNumber,
+                              optional unsigned long bufferOffset = 0);
+    undefined copyToChannel(Float32Array source,
+                            unsigned long channelNumber,
+                            optional unsigned long bufferOffset = 0);
+};

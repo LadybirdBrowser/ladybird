@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#background-size">
+<meta name="test" content="background-size supports animation as a repeatable list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  background-size: 100px 100px;
+}
+.target {
+  width: 80px;
+  height: 100px;
+  display: inline-block;
+  border: 10px solid black;
+  background-repeat: no-repeat;
+  background-image: url(../resources/stripes-100.png),
+                    url(../resources/stripes-100.png),
+                    url(../resources/blue-100.png),
+                    url(../resources/green-100.png);
+  background-position: left top, right top, left bottom, right bottom;
+  background-size: 10px 10px;
+}
+.expected {
+  margin-right: 10px;
+  border-color: green;
+}
+</style>
+
+<body></body>
+
+<script>
+// neutral
+test_interpolation({
+  property: 'background-size',
+  from: neutralKeyframe,
+  to: '20px 20px, 0px 0px',
+}, [
+  {at: -0.25, expect: ' 7.5px  7.5px, 12.5px 12.5px,  7.5px  7.5px, 12.5px 12.5px'},
+  {at: 0, expect:     '10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px, 10.0px 10.0px'},
+  {at: 0.25, expect:  '12.5px 12.5px,  7.5px  7.5px, 12.5px 12.5px,  7.5px  7.5px'},
+  {at: 0.5, expect:   '15.0px 15.0px,  5.0px  5.0px, 15.0px 15.0px,  5.0px  5.0px'},
+  {at: 0.75, expect:  '17.5px 17.5px,  2.5px  2.5px, 17.5px 17.5px,  2.5px  2.5px'},
+  {at: 1, expect:     '20.0px 20.0px,  0.0px  0.0px, 20.0px 20.0px,  0.0px  0.0px'},
+  {at: 1.25, expect:  '22.5px 22.5px,  0.0px  0.0px, 22.5px 22.5px,  0.0px  0.0px'},
+]);
+
+// initial
+test_no_interpolation({
+  property: 'background-size',
+  from: 'initial',
+  to: '20px 20px, 0px 0px',
+});
+
+// inherit
+test_interpolation({
+  property: 'background-size',
+  from: 'inherit',
+  to: '20px 20px, 0px 0px',
+}, [
+  {at: -0.25, expect: '120px 120px, 125px 125px, 120px 120px, 125px 125px'},
+  {at: 0, expect:     '100px 100px, 100px 100px, 100px 100px, 100px 100px'},
+  {at: 0.25, expect:  ' 80px  80px,  75px  75px,  80px  80px,  75px  75px'},
+  {at: 0.5, expect:   ' 60px  60px,  50px  50px,  60px  60px,  50px  50px'},
+  {at: 0.75, expect:  ' 40px  40px,  25px  25px,  40px  40px,  25px  25px'},
+  {at: 1, expect:     ' 20px  20px,   0px   0px,  20px  20px,   0px   0px'},
+  {at: 1.25, expect:  '  0px   0px,   0px   0px,   0px   0px,   0px   0px'},
+]);
+
+// unset
+test_no_interpolation({
+  property: 'background-size',
+  from: 'unset',
+  to: '20px 20px, 0px 0px',
+});
+
+// Matched keywords in size value list.
+test_interpolation({
+  property: 'background-size',
+  from: '0px auto, 0px 0px, contain, cover',
+  to: '40px auto, 40px 40px, contain, cover',
+}, [
+  {at: -0.25, expect: ' 0px auto,  0px  0px, contain, cover'},
+  {at: 0, expect:     ' 0px auto,  0px  0px, contain, cover'},
+  {at: 0.25, expect:  '10px auto, 10px 10px, contain, cover'},
+  {at: 0.5, expect:   '20px auto, 20px 20px, contain, cover'},
+  {at: 0.75, expect:  '30px auto, 30px 30px, contain, cover'},
+  {at: 1, expect:     '40px auto, 40px 40px, contain, cover'},
+  {at: 1.25, expect:  '50px auto, 50px 50px, contain, cover'},
+]);
+
+// Mismatched keywords in size value list.
+test_no_interpolation({
+  property: 'background-size',
+  from: '0px 0px, 0px 0px, contain, cover',
+  to: '40px 40px, 40px 40px, cover, contain',
+});
+
+test_no_interpolation({
+  property: 'background-size',
+  from: '0px auto, 0px 0px',
+  to: 'auto 40px, 40px 40px',
+});
+
+// Equal number of size values as background images.
+test_interpolation({
+  property: 'background-size',
+  from: '0px 0px, 0px 0px, 0px 0px, 0px 0px',
+  to: '20px 20px, 40px 40px, 60px 60px, 100px 100px',
+}, [
+  {at: -0.25, expect: ' 0px  0px,  0px  0px,  0px  0px,   0px   0px'},
+  {at: 0, expect:     ' 0px  0px,  0px  0px,  0px  0px,   0px   0px'},
+  {at: 0.25, expect:  ' 5px  5px, 10px 10px, 15px 15px,  25px  25px'},
+  {at: 0.5, expect:   '10px 10px, 20px 20px, 30px 30px,  50px  50px'},
+  {at: 0.75, expect:  '15px 15px, 30px 30px, 45px 45px,  75px  75px'},
+  {at: 1, expect:     '20px 20px, 40px 40px, 60px 60px, 100px 100px'},
+  {at: 1.25, expect:  '25px 25px, 50px 50px, 75px 75px, 125px 125px'},
+]);
+
+// Single size value repeated over background images.
+test_interpolation({
+  property: 'background-size',
+  from: '0px 0px',
+  to: '80px 80px',
+}, [
+  {at: -0.25, expect: '  0px   0px,   0px   0px,   0px   0px,   0px   0px'},
+  {at: 0, expect:     '  0px   0px,   0px   0px,   0px   0px,   0px   0px'},
+  {at: 0.25, expect:  ' 20px  20px,  20px  20px,  20px  20px,  20px  20px'},
+  {at: 0.5, expect:   ' 40px  40px,  40px  40px,  40px  40px,  40px  40px'},
+  {at: 0.75, expect:  ' 60px  60px,  60px  60px,  60px  60px,  60px  60px'},
+  {at: 1, expect:     ' 80px  80px,  80px  80px,  80px  80px,  80px  80px'},
+  {at: 1.25, expect:  '100px 100px, 100px 100px, 100px 100px, 100px 100px'},
+]);
+
+test_interpolation({
+  property: 'background-size',
+  from: '0px',
+  to: '80px',
+}, [
+  {at: -0.25, expect: '  0px,   0px,   0px,   0px'},
+  {at: 0, expect:     '  0px,   0px,   0px,   0px'},
+  {at: 0.25, expect:  ' 20px,  20px,  20px,  20px'},
+  {at: 0.5, expect:   ' 40px,  40px,  40px,  40px'},
+  {at: 0.75, expect:  ' 60px,  60px,  60px,  60px'},
+  {at: 1, expect:     ' 80px,  80px,  80px,  80px'},
+  {at: 1.25, expect:  '100px, 100px, 100px, 100px'},
+]);
+
+// Mismatched numbers of size values.
+test_interpolation({
+  property: 'background-size',
+  from: '0px 0px, 80px 0px',
+  to: '40px 40px, 80px 80px, 0px 80px',
+}, [
+  {at: -0.25, expect: ' 0px  0px, 80px   0px, 0px   0px, 90px  0px'},
+  {at: 0, expect:     ' 0px  0px, 80px   0px, 0px   0px, 80px  0px'},
+  {at: 0.25, expect:  '10px 10px, 80px  20px, 0px  20px, 70px 10px'},
+  {at: 0.5, expect:   '20px 20px, 80px  40px, 0px  40px, 60px 20px'},
+  {at: 0.75, expect:  '30px 30px, 80px  60px, 0px  60px, 50px 30px'},
+  {at: 1, expect:     '40px 40px, 80px  80px, 0px  80px, 40px 40px'},
+  {at: 1.25, expect:  '50px 50px, 80px 100px, 0px 100px, 30px 50px'},
+]);
+</script>

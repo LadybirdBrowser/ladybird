@@ -1,0 +1,13 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const printElement = (element) => {
+            println(`Element nodeName: ${element.nodeName} namespaceURI: ${element.namespaceURI} __proto__: ${element.__proto__}`);
+        };
+
+        printElement(document.createElementNS('http://www.w3.org/1999/xhtml', 'foo'));
+        printElement(document.createElementNS('http://www.w3.org/2000/svg', 'foo'));
+        printElement(document.createElementNS('http://www.w3.org/1998/Math/MathML', 'foo'));
+    });
+</script>

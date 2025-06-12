@@ -1,0 +1,21 @@
+executable("ImageDecoder") {
+  configs += [ "//Ladybird:ladybird_config" ]
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland/Services",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibGfx",
+    "//Userland/Libraries/LibIPC",
+    "//Userland/Libraries/LibImageDecoderClient",
+    "//Userland/Libraries/LibMain",
+    "//Userland/Libraries/LibThreading",
+  ]
+  sources = [
+    "//Userland/Services/ImageDecoder/ConnectionFromClient.cpp",
+    "main.cpp",
+  ]
+  output_dir = "$root_out_dir/libexec"
+}

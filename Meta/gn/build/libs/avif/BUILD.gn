@@ -1,0 +1,9 @@
+import("//Meta/gn/build/libs/third_party.gni")
+
+third_party_dependency("avif") {
+  libs = [
+    "avif",
+    "dav1d",
+    "yuv",
+  ]
+}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #editable {
+        border: 1px solid #ccc;
+        font-size: 30px;
+        width: 400px;
+        height: 100px;
+    }
+</style>
+<div id="editable" contenteditable="true">
+    Ladybird is an ongoing project to build an independent web browser from scratch.
+</div>
+<script>
+    asyncTest(async done => {
+        function elementToString(e) {
+            let element_string = `<${e.nodeName} `;
+            if (e.id) element_string += `id="${e.id}" `;
+            element_string += ">";
+            return element_string;
+        }
+
+        document.addEventListener("selectionchange", function (e) {
+            const selection = window.getSelection();
+            println(
+                `selectionchange anchorNode=${elementToString(selection.anchorNode)} anchorOffset=${
+                    selection.anchorOffset
+                } type=${selection.type} focusNode=${elementToString(
+                    selection.focusNode
+                )} focusOffset=${selection.focusOffset} isCollapsed=${selection.isCollapsed}`
+            );
+        });
+
+        println("Events:");
+
+        internals.click(20, 10);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        internals.click(30, 10);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        internals.click(40, 10);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        done();
+    });
+</script>

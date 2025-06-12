@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<link rel="stylesheet" disabled href="data:text/css,html { background: rgb(0, 128, 0) }">
+<script>    
+    asyncTest(done => {
+        const documentStyle = getComputedStyle(document.documentElement);
+        const link = document.querySelector("link");
+        println(`link.disabled initial value: ${link.disabled}`);
+        println(`document.styleSheets.length initial value: ${document.styleSheets.length}`);
+        println(`background color when link is disabled: ${documentStyle.backgroundColor}`);
+        
+        link.onload = () => {
+            println("onload event fired");
+            println(`link.disabled: ${link.disabled}`);
+            println(`document.styleSheets.length: ${document.styleSheets.length}`);
+            println(`background color: ${documentStyle.backgroundColor}`);
+            const sheet = document.styleSheets[0];
+            println(`sheet.ownerNode is link element: ${sheet.ownerNode === link}`);
+
+            link.disabled = true;
+            println(`document.styleSheets.length after link disabled again: ${document.styleSheets.length}`);
+            println(`link.disabled after link disabled again: ${link.disabled}`);
+            println(`background color after link disabled again: ${documentStyle.backgroundColor}`);
+            println(`sheet.ownerNode is null: ${sheet.ownerNode === null}`);
+
+            done();
+        };
+
+        link.disabled = false;
+    });
+</script>

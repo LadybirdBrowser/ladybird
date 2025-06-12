@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      stereopannernode-basic.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {
+            label: 'test',
+            description:
+                'Attributes and basic functionality of StereoPannerNode'
+          },
+          (task, should) => {
+
+            let context = new AudioContext();
+            let panner = context.createStereoPanner();
+
+            should(panner.numberOfInputs, 'panner.numberOfInputs').beEqualTo(1);
+            should(panner.numberOfOutputs, 'panner.numberOfOutputs')
+                .beEqualTo(1);
+            should(panner.pan.defaultValue, 'panner.pan.defaultValue')
+                .beEqualTo(0.0);
+            should(() => panner.pan.value = 1.0, 'panner.pan.value = 1.0')
+                .notThrow();
+            should(panner.pan.value, 'panner.pan.value').beEqualTo(1.0);
+
+            should(() => panner.channelCount = 1, 'panner.channelCount = 1')
+                .notThrow();
+            should(() => panner.channelCount = 3, 'panner.channelCount = 3')
+                .throw();
+            should(
+                () => panner.channelCountMode = 'explicit',
+                'panner.channelCountMode = "explicit"')
+                .notThrow();
+            should(
+                () => panner.channelCountMode = 'max',
+                'panner.channelCountMode = "max"')
+                .throw();
+
+            task.done();
+          });
+      audit.run();
+    </script>
+  </body>
+</html>

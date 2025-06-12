@@ -1,0 +1,4559 @@
+{
+  "Structure": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#structure",
+    "description": "A document structural element.",
+    "superClassRoles": [
+      "RoleType"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": null,
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Widget": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#widget",
+    "description": "An interactive component of a graphical user interface (GUI).",
+    "superClassRoles": [
+      "RoleType"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": null,
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Window": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#window",
+    "description": "A browser or application window.",
+    "superClassRoles": [
+      "RoleType"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-modal",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Composite": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#composite",
+    "description": "A widget that may contain navigable descendants or owned children.",
+    "superClassRoles": [
+      "Widget"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Application": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#application",
+    "description": "A structure containing one or more focusable elements requiring user input, such as keyboard or gesture events, that do not follow a standard interaction pattern supported by a widget role.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Document": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#document",
+    "description": "An element containing content that assistive technology users may want to browse in a reading mode.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Generic": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#generic",
+    "description": "A nameless container element that has no semantic meaning on its own.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-label",
+      "aria-labelledby",
+      "aria-roledescription"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Presentation": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#presentation",
+    "description": "An element whose implicit native role semantics will not be mapped to the accessibility API. See synonym none.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Range": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#range",
+    "description": "An element representing a range of values.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-valuemax",
+      "aria-valuemin",
+      "aria-valuenow",
+      "aria-valuetext"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": null,
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "RowGroup": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#rowgroup",
+    "description": "A structure containing one or more row elements in a tabular container.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "grid",
+      "table",
+      "treegrid"
+    ],
+    "requiredOwnedElements": [
+      "row"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Section": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#section",
+    "description": "A renderable structural containment unit in a document or application.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": null,
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "SectionFooter": {
+    "specLink": "https://w3c.github.io/aria/#sectionfooter",
+    "description": "A set of user interface objects and information representing information about its closest ancestral content group.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "SectionHeader": {
+    "specLink": "https://w3c.github.io/aria/#sectionheader",
+    "description": "A set of user interface objects and information that represents a collection of introductory items for the element's closest ancestral content group.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Input": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#input",
+    "description": "A generic type of widget that allows user input.",
+    "superClassRoles": [
+      "Widget"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "SectionHead": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#sectionhead",
+    "description": "A structure that labels or summarizes the topic of its related section.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": null,
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "FocusableSeparator": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#separator",
+    "description": "A divider that separates and distinguishes sections of content or groups of menuitems.\n// NOTE: This is not an actual aria role, but Separator has distinct behavior and inheritance\n//       depending on if it is focusable or not, so it is implemented as two classes.\n//       Also see NonFocusableSeparator.",
+    "superClassRoles": [
+      "Widget"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-valuemax",
+      "aria-valuemin",
+      "aria-valuetext"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [
+      "aria-valuenow"
+    ],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Horizontal",
+      "aria-valuemin": "0.0",
+      "aria-valuemax": "100.0"
+    }
+  },
+  "NonFocusableSeparator": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#separator",
+    "description": "A divider that separates and distinguishes sections of content or groups of menuitems.\n// NOTE: This is not an actual aria role, but Separator has distinct behavior and inheritance\n//       depending on if it is focusable or not, so it is implemented as two classes.\n//       Also see FocusableSeparator.",
+    "superClassRoles": [
+      "Structure"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Horizontal"
+    }
+  },
+  "Article": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#article",
+    "description": "A section of a page that consists of a composition that forms an independent part of a document, page, or site.",
+    "superClassRoles": [
+      "Document"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Meter": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#meter",
+    "description": "An element that represents a scalar measurement within a known range, or a fractional value. See related progressbar.",
+    "superClassRoles": [
+      "Range"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-valuemax",
+      "aria-valuemin",
+      "aria-valuetext"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [
+      "aria-valuenow"
+    ],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {
+      "aria-valuemin": "0.0",
+      "aria-valuemax": "100.0"
+    }
+  },
+  "Progressbar": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#progressbar",
+    "description": "An element that displays the progress status for tasks that take a long time.\n// NOTE: Progresbar also inherits from Widgetfrom Cell, but we can't do that in C++ due to Progressbar already inheriting from Widget\n//       This is fine because behavior is still correct and is() will still work as expected.",
+    "superClassRoles": [
+      "Range"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-valuemax",
+      "aria-valuemin",
+      "aria-valuenow",
+      "aria-valuetext"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {
+      "aria-valuemin": "0.0",
+      "aria-valuemax": "100.0"
+    }
+  },
+  "Scrollbar": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#scrollbar",
+    "description": "A graphical object that controls the scrolling of content within a viewing area, regardless of whether the content is fully displayed within the viewing area.",
+    "superClassRoles": [
+      "Range",
+      "Widget"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-valuemax",
+      "aria-valuemin",
+      "aria-valuetext"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [
+      "aria-controls",
+      "aria-valuenow"
+    ],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Vertical",
+      "aria-valuemin": "0.0",
+      "aria-valuemax": "100.0"
+    }
+  },
+  "Slider": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#slider",
+    "description": "An input where the user selects a value from within a given range.",
+    "superClassRoles": [
+      "Input",
+      "Range"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-readonly",
+      "aria-roledescription",
+      "aria-valuemax",
+      "aria-valuemin"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [
+      "aria-valuenow"
+    ],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Horizontal",
+      "aria-valuemin": "0.0",
+      "aria-valuemax": "100.0"
+    }
+  },
+  "SpinButton": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#spinbutton",
+    "description": "A form of range that expects the user to select from among discrete choices.",
+    "superClassRoles": [
+      "Composite",
+      "Input",
+      "Range"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-readonly",
+      "aria-required",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-valuemax",
+      "aria-valuemin",
+      "aria-valuenow",
+      "aria-valuetext"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-valuenow": "0.0"
+    }
+  },
+  "Alert": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#alert",
+    "description": "A type of live region with important, and usually time-sensitive, information. See related alertdialog and status.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-live": "AriaLive::Assertive",
+      "aria-atomic": "true"
+    }
+  },
+  "BlockQuote": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#blockquote",
+    "description": "A section of content that is quoted from another source.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Caption": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#caption",
+    "description": "Visible content that names, and may also describe, a figure, table, grid, or treegrid.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [
+      "figure",
+      "grid",
+      "group",
+      "radiogroup",
+      "table",
+      "treegrid"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Cell": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#cell",
+    "description": "A cell in a tabular container. See related gridcell.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-colindex",
+      "aria-colindextext",
+      "aria-colspan",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-rowindex",
+      "aria-rowindextext",
+      "aria-rowspan"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "row"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Code": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#code",
+    "description": "A section whose content represents a fragment of computer code.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Definition": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#definition",
+    "description": "A definition of a term or concept. See related term.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Deletion": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#deletion",
+    "description": "A deletion contains content that is marked as removed or content that is being suggested for removal. See related insertion.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Emphasis": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#emphasis",
+    "description": "One or more emphasized characters. See related strong.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Figure": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#figure",
+    "description": "A perceivable section of content that typically contains a graphical document, images, code snippets, or example text. The parts of a figure MAY be user-navigable.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Group": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#group",
+    "description": "A set of user interface objects that is not intended to be included in a page summary or table of contents by assistive technologies.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Img": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#img",
+    "description": "A container for a collection of elements that form an image.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  },
+  "Insertion": {
+    "specLink": "",
+    "description": "",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Landmark": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#landmark",
+    "description": "A perceivable section containing content that is relevant to a specific, author-specified purpose and sufficiently important that users will likely want to be able to navigate to the section easily and to have it listed in a summary of the page. Such a page summary could be generated dynamically by a user agent or assistive technology.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "List": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#list",
+    "description": "A section containing listitem elements. See related listbox.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "listitem"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "ListItem": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#listitem",
+    "description": "A single item in a list or directory.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-level",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "directory",
+      "list"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Log": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#log",
+    "description": "A type of live region where new information is added in meaningful order and old information may disappear. See related marquee.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-live": "AriaLive::Polite"
+    }
+  },
+  "Marquee": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#marquee",
+    "description": "A type of live region where non-essential information changes frequently. See related log.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Math": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#math",
+    "description": "Content that represents a mathematical expression.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Note": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#note",
+    "description": "A section whose content is parenthetic or ancillary to the main content of the resource.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Paragraph": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#paragraph",
+    "description": "A paragraph of content.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Status": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#status",
+    "description": "A type of live region whose content is advisory information for the user but is not important enough to justify an alert, often but not necessarily presented as a status bar.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-live": "AriaLive::Polite",
+      "aria-atomic": "true"
+    }
+  },
+  "Strong": {
+    "specLink": "https://w3c.github.io/aria/#strong",
+    "description": "Content that is important, serious, or urgent.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Subscript": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#subscript",
+    "description": "One or more subscripted characters. See related superscript.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Suggestion": {
+    "specLink": "https://w3c.github.io/aria/#suggestion",
+    "description": "A single proposed change to content.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "insertion",
+      "deletion"
+    ],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Superscript": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#superscript",
+    "description": "One or more superscripted characters. See related superscript.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Table": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#table",
+    "description": "A section containing data arranged in rows and columns. See related grid.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-colcount",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-rowcount"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "caption",
+      "row",
+      "rowgroup"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "TabPanel": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#tabpanel",
+    "description": "A container for the resources associated with a tab, where each tab is contained in a tablist.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Term": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#term",
+    "description": "A word or phrase with a corresponding definition. See related definition.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Time": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#time",
+    "description": "An element that represents a specific point in time.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Tooltip": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#tooltip",
+    "description": "A contextual popup that displays a description for an element.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Dialog": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#dialog",
+    "description": "A dialog is a descendant window of the primary window of a web application. For HTML pages, the primary application window is the entire web document, i.e., the body element.",
+    "superClassRoles": [
+      "Window"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-modal",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "AlertDialog": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#alertdialog",
+    "description": "A type of dialog that contains an alert message, where initial focus goes to an element within the dialog. See related alert and dialog.",
+    "superClassRoles": [
+      "Alert",
+      "Dialog"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-modal",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "GridCell": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#gridcell",
+    "description": "A cell in a grid or treegrid.",
+    "superClassRoles": [
+      "Cell",
+      "Widget"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid",
+      "aria-selected"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-colindex",
+      "aria-colindextext",
+      "aria-colspan",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription",
+      "aria-rowindex",
+      "aria-rowindextext",
+      "aria-rowspan"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "row"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "ColumnHeader": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#columnheader",
+    "description": "A cell containing header information for a column.\n// NOTE: ColumnHeader also inherits from Cell, but we can't do that in C++ due to GridCell already inheriting from Cell\n//       This is fine because behavior is still correct and is() will still work as expected.",
+    "superClassRoles": [
+      "GridCell",
+      "SectionHead"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid",
+      "aria-selected"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-colindex",
+      "aria-colindextext",
+      "aria-colspan",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription",
+      "aria-rowindex",
+      "aria-rowindextext",
+      "aria-rowspan",
+      "aria-sort"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "row"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "RowHeader": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#rowheader",
+    "description": "A cell containing header information for a row.\n// NOTE: RowHeader also inherits from Cell, but we can't do that in C++ due to GridCell already inheriting from Cell\n//       This is fine because behavior is still correct and is() will still work as expected.",
+    "superClassRoles": [
+      "GridCell",
+      "SectionHead"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid",
+      "aria-selected"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-colindex",
+      "aria-colspan",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription",
+      "aria-rowindex",
+      "aria-rowspan",
+      "aria-sort"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "row"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Row": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#row",
+    "description": "A row of cells in a tabular container.",
+    "superClassRoles": [
+      "Group",
+      "Widget"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-selected"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-colindex",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-expanded",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-level",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-rowindex",
+      "aria-rowindextext",
+      "aria-setsize"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "grid",
+      "rowgroup",
+      "table",
+      "treegrid"
+    ],
+    "requiredOwnedElements": [
+      "cell",
+      "columnheader",
+      "gridcell",
+      "rowheader"
+    ],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Select": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#select",
+    "description": "A form widget that allows the user to make selections from a set of choices.",
+    "superClassRoles": [
+      "Composite",
+      "Group"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Toolbar": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#toolbar",
+    "description": "A collection of commonly used function buttons or controls represented in compact visual form.",
+    "superClassRoles": [
+      "Group"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Horizontal"
+    }
+  },
+  "ListBox": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#listbox",
+    "description": "A widget that allows the user to select one or more items from a list of choices. See related combobox and list.",
+    "superClassRoles": [
+      "Select"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-expanded",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-multiselectable",
+      "aria-orientation",
+      "aria-owns",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "group",
+      "option"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Vertical"
+    }
+  },
+  "Menu": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#menu",
+    "description": "A type of widget that offers a list of choices to the user.",
+    "superClassRoles": [
+      "Select"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "group",
+      "menuitem",
+      "menuitemradio",
+      "menuitemcheckbox",
+      "separator"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Vertical"
+    }
+  },
+  "RadioGroup": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#radiogroup",
+    "description": "A group of radio buttons.",
+    "superClassRoles": [
+      "Select"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-orientation",
+      "aria-owns",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Tree": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#tree",
+    "description": "A widget that allows the user to select one or more items from a hierarchically organized collection.",
+    "superClassRoles": [
+      "Select"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-multiselectable",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "group",
+      "treeitem"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Vertical"
+    }
+  },
+  "MenuBar": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#menubar",
+    "description": "A presentation of menu that usually remains visible and is usually presented horizontally.",
+    "superClassRoles": [
+      "Menu"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "group",
+      "menuitem",
+      "menuitemradio",
+      "menuitemcheckbox",
+      "separator"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Horizontal"
+    }
+  },
+  "TreeGrid": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#treegrid",
+    "description": "A grid whose rows can be expanded and collapsed in the same manner as for a tree.",
+    "superClassRoles": [
+      "Row"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-colcount",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-multiselectable",
+      "aria-orientation",
+      "aria-owns",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription",
+      "aria-rowcount"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "caption",
+      "row",
+      "rowgroup"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Banner": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#banner",
+    "description": "https://www.w3.org/TR/wai-aria-1.2/#banner",
+    "superClassRoles": [
+      "Landmark"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Complementary": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#complementary",
+    "description": "A landmark that is designed to be complementary to the main content at a similar level in the DOM hierarchy, but remaining meaningful when separated from the main content.",
+    "superClassRoles": [
+      "Landmark"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "ContentInfo": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#contentinfo",
+    "description": "A landmark that contains information about the parent document.",
+    "superClassRoles": [
+      "Landmark"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Form": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#form",
+    "description": "A landmark region that contains a collection of items and objects that, as a whole, combine to create a form. See related search.",
+    "superClassRoles": [
+      "Landmark"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Main": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#main",
+    "description": "A landmark containing the main content of a document.",
+    "superClassRoles": [
+      "Landmark"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Mark": {
+    "specLink": "https://w3c.github.io/aria/#mark",
+    "description": "Content which is marked or highlighted for reference or notation purposes, due to the content's relevance in the enclosing context.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [
+      "aria-braillelabel",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Navigation": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#navigation",
+    "description": "A landmark containing a collection of navigational elements (usually links) for navigating the document or related documents.",
+    "superClassRoles": [
+      "Landmark"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Region": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#region",
+    "description": "A landmark containing content that is relevant to a specific, author-specified purpose and sufficiently important that users will likely want to be able to navigate to the section easily and to have it listed in a summary of the page. Such a page summary could be generated dynamically by a user agent or assistive technology.",
+    "superClassRoles": [
+      "Landmark"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Search": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#search",
+    "description": "A landmark region that contains a collection of items and objects that, as a whole, combine to create a search facility. See related form and searchbox.",
+    "superClassRoles": [
+      "Landmark"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Directory": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#directory",
+    "description": "[Deprecated in ARIA 1.2] A list of references to members of a group, such as a static table of contents.",
+    "superClassRoles": [
+      "List"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Feed": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#feed",
+    "description": "A scrollable list of articles where scrolling may cause articles to be added to or removed from either end of the list.",
+    "superClassRoles": [
+      "List"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "article"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+
+  "Option": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#option",
+    "description": "A selectable item in a listbox.",
+    "superClassRoles": [
+      "Input"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-checked",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [
+      "aria-selected"
+    ],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "group",
+      "listbox"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  },
+  "TreeItem": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#treeitem",
+    "description": "An option item of a tree. This is an element within a tree that may be expanded or collapsed if it contains a sub-level group of tree item elements.",
+    "superClassRoles": [
+      "ListItem",
+      "Option"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-checked",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-selected"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-level",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "group",
+      "tree"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Timer": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#timer",
+    "description": "A type of live region containing a numerical counter which indicates an amount of elapsed time from a start point, or the time remaining until an end point.",
+    "superClassRoles": [
+      "Status"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-live": "AriaLive::Off"
+    }
+  },
+  "Grid": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#grid",
+    "description": "A composite widget containing a collection of one or more rows with one or more cells where some or all cells in the grid are focusable by using methods of two-dimensional navigation, such as directional arrow keys.",
+    "superClassRoles": [
+      "Composite",
+      "Table"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-colcount",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-multiselectable",
+      "aria-owns",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "caption",
+      "row",
+      "rowgroup"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Heading": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#heading",
+    "description": "A heading for a section of the page.",
+    "superClassRoles": [
+      "SectionHead"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-level",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [
+      "aria-level"
+    ],
+    "prohibitedStates": [
+    ],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Tab": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#tab",
+    "description": "A grouping label providing a mechanism for selecting the tab content that is to be rendered to the user.",
+    "superClassRoles": [
+      "SectionHead",
+      "Widget"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-selected"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "tablist"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {
+      "aria-selected": "false"
+    }
+  },
+
+  "Command": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#command",
+    "description": "A form of widget that performs an action but does not receive input data.",
+    "superClassRoles": [
+      "Widget"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Button": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#button",
+    "description": "An input that allows for user-triggered actions when clicked or pressed. See related link.",
+    "superClassRoles": [
+      "Command"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-pressed"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  },
+  "Link": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#link",
+    "description": "An interactive reference to an internal or external resource that, when activated, causes the user agent to navigate to that resource. See related button.",
+    "superClassRoles": [
+      "Command"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "MenuItem": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#menuitem",
+    "description": "An option in a set of choices contained by a menu or menubar.",
+    "superClassRoles": [
+      "Command"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "group",
+      "menu",
+      "menubar"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "MenuItemCheckBox": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#menuitemcheckbox",
+    "description": "A menuitem with a checkable state whose possible values are true, false, or mixed.",
+    "superClassRoles": [
+      "MenuItem"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [
+      "aria-checked"
+    ],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "group",
+      "menu",
+      "menubar"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  },
+  "MenuItemRadio": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#menuitemradio",
+    "description": "A checkable menuitem in a set of elements with the same role, only one of which can be checked at a time.",
+    "superClassRoles": [
+      "MenuItemCheckBox"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [
+      "aria-checked"
+    ],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [
+      "group",
+      "menu",
+      "menubar"
+    ],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  },
+  "CheckBox": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#checkbox",
+    "description": "A checkable input that has three possible values: true, false, or mixed.",
+    "superClassRoles": [
+      "Input"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription"
+    ],
+    "requiredStates": [
+      "aria-checked"
+    ],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  },
+  "ComboBox": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#combobox",
+    "description": "An input that controls another element, such as a listbox or grid, that can dynamically pop up to help the user set the value of the input.",
+    "superClassRoles": [
+      "Input"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-autocomplete",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription"
+    ],
+    "requiredStates": [
+      "aria-expanded"
+    ],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-haspopup": "AriaHasPopup::Listbox"
+    }
+  },
+  "Radio": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#radio",
+    "description": "A checkable input in a group of elements with the same role, only one of which can be checked at a time.",
+    "superClassRoles": [
+      "Input"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-posinset",
+      "aria-relevant",
+      "aria-roledescription",
+      "aria-setsize"
+    ],
+    "requiredStates": [
+      "aria-checked"
+    ],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  },
+  "TextBox": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#textbox",
+    "description": "A type of input that allows free-form text as its value.",
+    "superClassRoles": [
+      "Input"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-autocomplete",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-multiline",
+      "aria-owns",
+      "aria-placeholder",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "Switch": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#switch",
+    "description": "A type of checkbox that represents on/off values, as opposed to checked/unchecked values. See related checkbox.",
+    "superClassRoles": [
+      "CheckBox"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-expanded",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription"
+    ],
+    "requiredStates": [
+      "aria-checked"
+    ],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "AuthorContent",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  },
+  "SearchBox": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#searchbox",
+    "description": "A type of textbox intended for specifying search criteria. See related textbox and search.",
+    "superClassRoles": [
+      "TextBox"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-autocomplete",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-multiline",
+      "aria-owns",
+      "aria-placeholder",
+      "aria-readonly",
+      "aria-relevant",
+      "aria-required",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "TabList": {
+    "specLink": "https://www.w3.org/TR/wai-aria-1.2/#tablist",
+    "description": "A list of tab elements, which are references to tabpanel elements.",
+    "superClassRoles": [
+      "Composite"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-multiselectable",
+      "aria-orientation",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [
+      "tab"
+    ],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {
+      "aria-orientation": "AriaOrientation::Horizontal"
+    }
+  },
+  "GraphicsDocument": {
+    "specLink": "https://w3c.github.io/graphics-aria/#graphics-document",
+    "description": "A type of document in which the visual appearance or layout of content conveys meaning.",
+    "superClassRoles": [
+      "Document"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "GraphicsObject": {
+    "specLink": "https://w3c.github.io/graphics-aria/#graphics-object",
+    "description": "A section of a graphics-document that represents a distinct object or sub-component with semantic meaning.",
+    "superClassRoles": [
+      "Group"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "GraphicsSymbol": {
+    "specLink": "https://w3c.github.io/graphics-aria/#graphics-symbol",
+    "description": "A graphical object used to convey a simple meaning or category, where the meaning is more important than the particular visual appearance.",
+    "superClassRoles": [
+      "Img"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-grabbed",
+      "aria-hidden"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
+  }
+}

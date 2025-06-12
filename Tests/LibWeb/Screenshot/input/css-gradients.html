@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<link rel="match" href="../expected/css-gradients-ref.html" />
+<style>
+  body {
+    background-color: white;
+  }
+
+  div {
+    border: 1px solid black;
+    margin: 20px;
+  }
+
+  .box {
+    width: 200px;
+    height: 200px;
+  }
+
+  .rect {
+    width: 400px;
+    height: 225px;
+  }
+
+  .grad-0 {
+    background-image: linear-gradient(to top, red, yellow);
+  }
+
+  .grad-1 {
+    background-image: linear-gradient(to bottom, red, yellow);
+  }
+
+  .grad-2 {
+    background-image: linear-gradient(to left, red, yellow);
+  }
+
+  .grad-3 {
+    background-image: linear-gradient(to right, red, yellow);
+  }
+
+  .grad-4 {
+    background-image: linear-gradient(to top, rgba(255, 0, 0, .8), rgba(255, 0, 0, 0) 70.71%),
+      linear-gradient(to bottom, rgba(0, 255, 0, .8), rgba(0, 255, 0, 0) 70.71%),
+      linear-gradient(to left, rgba(0, 0, 255, .8), rgba(0, 0, 255, 0) 70.71%);
+  }
+
+  .grad-5 {
+    background-image: linear-gradient(to top, blue, 30%, orange, 10%, red);
+  }
+
+  .grad-6 {
+    background-image: linear-gradient(to top, blue 30%, 30%, orange 20%, 10%, red);
+  }
+
+  .grad-7 {
+    width: 400px;
+    height: 225px;
+    background-image: linear-gradient(to right, red 0%, black 20%, yellow 60%, cyan 100%);
+  }
+
+  .grad-8 {
+    background-image: linear-gradient(to right,
+        red,
+        #f06d06,
+        rgb(255, 255, 0),
+        green);
+  }
+
+  .grad-9 {
+    background: linear-gradient(135deg, #f2f2f2 25%, transparent 25%) -20px 0,
+      linear-gradient(225deg, #f2f2f2 25%, transparent 25%) -20px 0,
+      linear-gradient(315deg, #f2f2f2 25%, transparent 25%),
+      linear-gradient(45deg, #f2f2f2 25%, transparent 25%);
+    background-size: 40px 40px;
+    background-color: #50e3c2;
+  }
+
+  .grad-10 {
+    background-image: linear-gradient(90deg, red, transparent, blue);
+  }
+
+  .grad-11 {
+    background-image: linear-gradient(to top right, indigo, white, deeppink);
+  }
+
+  .grad-12 {
+    background-image: linear-gradient(to top left, indigo, white, deeppink);
+  }
+
+  .grad-13 {
+    background-image: linear-gradient(to bottom left, indigo, white, deeppink);
+  }
+
+  .grad-14 {
+    background-image: linear-gradient(to bottom right, indigo, white, deeppink);
+  }
+
+  .grad-webkit {
+    background-image: -webkit-linear-gradient(top right, yellow, black, yellow, black);
+  }
+
+  .grad-15 {
+    background-image: linear-gradient(to top left, red, green, blue);
+    background-size: 30px 30px;
+  }
+
+  .grad-hints {
+    background-image: linear-gradient(to right, hotpink, 50%, rebeccapurple);
+  }
+
+  .grad-rainbow {
+    background-image: linear-gradient(to right,
+        tomato,
+        25%,
+        orange 0,
+        50%,
+        yellowgreen 0,
+        75%,
+        dodgerblue 0)
+  }
+
+  .grad-repeat-0 {
+    background-image: repeating-linear-gradient(#e66465, #e66465 20px, #9198e5 20px, #9198e5 25px);
+  }
+
+  .grad-repeat-1 {
+    background-image: repeating-linear-gradient(45deg, #3f87a6, #ebf8e1 15%, #f69d3c 20%);
+  }
+
+  .grad-repeat-2 {
+    background-image: repeating-linear-gradient(transparent, #4d9f0c 40px),
+      repeating-linear-gradient(0.25turn, transparent, #3f87a6 20px);
+  }
+
+  .grad-repeat-3 {
+    background-image: -webkit-repeating-linear-gradient(left, red 10%, blue 30%);
+  }
+
+  .grad-double-position {
+    background-image: linear-gradient(to right, red 20%, orange 20% 40%, yellow 40% 60%, green 60% 80%, blue 80%)
+  }
+
+  .grad-conic-1 {
+    background-image: conic-gradient(red, orange, yellow, green, blue);
+  }
+
+  .grad-conic-2 {
+    background-image: conic-gradient(from 0.25turn at 50% 30%, #f69d3c, 10deg, #3f87a6, 350deg, #ebf8e1);
+  }
+
+  .grad-conic-3 {
+    background-image: conic-gradient(from 3.1416rad at 10% 50%, #e66465, #9198e5);
+  }
+
+  .grad-conic-4 {
+    background-image: conic-gradient(red 6deg, orange 6deg 18deg, yellow 18deg 45deg,
+        green 45deg 110deg, blue 110deg 200deg, purple 200deg);
+  }
+
+  .grad-conic-5 {
+    background-image: conic-gradient(at 60% 45%, red, yellow, green);
+  }
+
+  .grad-conic-6 {
+    background-image: conic-gradient(red 0deg, red 90deg, yellow 90deg, yellow 180deg, green 180deg, green 270deg, blue 270deg);
+  }
+
+  .grad-conic-repeat-1 {
+    background-image: repeating-conic-gradient(red 0%,
+        yellow 15%,
+        red 33%);
+  }
+
+  .grad-conic-repeat-2 {
+    background-image: repeating-conic-gradient(from 45deg at 10% 50%,
+        brown 0deg 10deg,
+        darkgoldenrod 10deg 20deg,
+        chocolate 20deg 30deg);
+  }
+
+  .grad-radial-1 {
+    background-image: radial-gradient(#e66465, #9198e5);
+  }
+
+  .grad-radial-2 {
+    background-image: radial-gradient(closest-side, #3f87a6, #ebf8e1, #f69d3c);
+  }
+
+  .grad-radial-3 {
+    background-image: radial-gradient(circle at 100px, #333, #333 50%, #eee 75%, #333 75%);
+  }
+
+  .grad-radial-4 {
+    background-image: radial-gradient(200px 100px ellipse at 25% 50%, yellow, #009966, purple);
+  }
+
+  .grad-radial-repeat-1 {
+    background-image: repeating-radial-gradient(#e66465, #9198e5 20%);
+  }
+
+  .grad-radial-repeat-2 {
+    background-image: repeating-radial-gradient(closest-side, #3f87a6, #ebf8e1, #f69d3c);
+  }
+
+  .grad-radial-repeat-3 {
+    background-image: repeating-radial-gradient(circle at 100%, #333, #333 10px, #eee 10px, #eee 20px);
+  }
+
+  .grad-radial-calc {
+    background-image: repeating-radial-gradient(circle at calc(100% - 10px) calc(20% + 10px), #333, #333 10px, #eee 10px, #eee 20px);
+  }
+</style>
+<body>
+  <div class="box grad-0"></div>
+  <div class="box grad-1"></div>
+  <div class="box grad-2"></div>
+  <div class="box grad-3"></div>
+  <div class="box grad-4"></div>
+  <div class="box grad-5"></div>
+  <div class="box grad-6"></div>
+  <div class="box grad-rainbow"></div>
+  <div class="box grad-hints"></div>
+  <div class="rect grad-7"></div>
+  <div class="box grad-8"></div>
+  <div class="box grad-9"></div>
+  <div class="box grad-10"></div>
+  <div class="rect grad-11"></div>
+  <div class="rect grad-12"></div>
+  <div class="rect grad-13"></div>
+  <div class="rect grad-14"></div>
+  <div class="rect grad-15"></div>
+  <div class="box grad-webkit"></div>
+  <div class="box grad-repeat-0"></div>
+  <div class="box grad-repeat-1"></div>
+  <div class="box grad-repeat-2"></div>
+  <div class="box grad-repeat-3"></div>
+  <div class="box grad-double-position"></div>
+  <div class="box grad-conic-1"></div>
+  <div class="box grad-conic-2"></div>
+  <div class="box grad-conic-3"></div>
+  <div class="box grad-conic-4"></div>
+  <div class="box grad-conic-5"></div>
+  <div class="box grad-conic-6"></div>
+  <div class="box grad-conic-repeat-1"></div>
+  <div class="box grad-conic-repeat-2"></div>
+  <div class="rect grad-radial-1"></div>
+  <div class="rect grad-radial-2"></div>
+  <div class="rect grad-radial-3"></div>
+  <div class="rect grad-radial-4"></div>
+  <div class="rect grad-radial-repeat-1"></div>
+  <div class="rect grad-radial-repeat-2"></div>
+  <div class="rect grad-radial-repeat-3"></div>
+  <div class="rect grad-radial-calc"></div>
+</body>
+</html>

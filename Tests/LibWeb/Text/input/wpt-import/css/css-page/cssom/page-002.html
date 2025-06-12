@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/cssom/#the-csspagerule-interface">
+<title>Add / remove declarations inside CSSPageRule</title>
+<style id="sheet">
+  @page {}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  var sheet = document.getElementById("sheet").sheet;
+  var pageRule = sheet.rules[0];
+  var style = pageRule.style;
+  test(()=> {
+    assert_equals(style.length, 0);
+    style.setProperty("margin-left", "50%");
+    assert_equals(style.length, 1);
+    assert_equals(style.marginLeft, "50%");
+    style.setProperty("margin-left", "100px");
+    assert_equals(style.length, 1);
+    assert_equals(style.marginLeft, "100px");
+    style.setProperty("margin", "auto");
+    assert_equals(style.length, 4);
+    assert_equals(style.marginLeft, "auto");
+  }, "Add declarations");
+
+  test(()=> {
+    assert_equals(style.length, 4);
+    style.removeProperty("margin");
+    assert_equals(style.length, 0);
+  }, "Remove declarations");
+</script>

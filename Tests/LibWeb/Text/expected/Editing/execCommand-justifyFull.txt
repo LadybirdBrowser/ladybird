@@ -1,0 +1,2 @@
+<div style="text-align: justify;">foobar</div>
+<div style="text-align: justify;"><div style="">foobar</div></div>

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>CSS Test: A float wrapped in an anonymous block should be visible within a container with overflow: hidden.</title>
+<link rel="author" href="mailto:obrufrau@igalia.com" title="Oriol Brufrau">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square.xht">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level" />
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="overflow: hidden; width: 100px; height: 100px; background: red">
+  <div style="height: 50px; background: green"></div>
+  <span>
+    <div style="float: left; width: 100px; height: 50px; background: green"></div>
+  </span>
+</div>

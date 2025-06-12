@@ -1,0 +1,63 @@
+<!doctype quirks>
+<title>CSS Flexbox: percentage size in flexbox children in quirks mode</title>
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk" title="Number 4">
+<link rel="help" href="https://crbug.com/1054185">
+<meta name="assert" content="This test checks that percentage height/width values in flexbox descendants are correctly resolved in quirks mode.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+.fixed-height { height: 100px; }
+.flex {
+  display: flex;
+  border: 3px solid black;
+}
+
+.pct {
+    height: 100%;
+    min-height: 10px;
+    width: 50px;
+    display: inline-block;
+    vertical-align: top;
+    background: purple;
+}
+.px {
+    height: 50px;
+    width: 50px;
+    display: inline-block;
+    vertical-align: top;
+    background: blue
+};
+</style>
+
+flex with 1 wrapper div inside:
+<div class="fixed-height">
+  <div class="flex">
+    <div>
+      <div class="pct" data-expected-height=50></div>
+      <div class="px"></div>
+    </div>
+  </div>
+</div>
+flex with several wrapper divs inside:
+<div class="fixed-height">
+  <div class="flex">
+    <div>
+      <div>
+        <div>
+          <div class="pct" data-expected-height=50></div>
+          <div class="px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+checkLayout('.pct');
+</script>

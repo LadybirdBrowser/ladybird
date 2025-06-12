@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Pass
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png")'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(use-credentials))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar"))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity(""))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer-when-downgrade))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(same-origin))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(origin))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(strict-origin))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(origin-when-cross-origin))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(strict-origin-when-cross-origin))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(unsafe-url))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar"))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") crossorigin(anonymous))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") referrerpolicy(no-referrer))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) integrity("sha384-foobar"))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) referrerpolicy(no-referrer))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) crossorigin(anonymous))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar") referrerpolicy(no-referrer))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") referrerpolicy(no-referrer) crossorigin(anonymous))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) crossorigin(anonymous) integrity("sha384-foobar"))'
+Pass	Property background-image value 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) integrity("sha384-foobar") crossorigin(anonymous))'

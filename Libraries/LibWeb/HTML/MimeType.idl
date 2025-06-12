@@ -1,0 +1,10 @@
+#import <HTML/Plugin.idl>
+
+// https://html.spec.whatwg.org/multipage/system-state.html#mimetype
+[Exposed=Window]
+interface MimeType {
+    readonly attribute DOMString type;
+    readonly attribute DOMString description;
+    readonly attribute DOMString suffixes;
+    readonly attribute Plugin enabledPlugin;
+};

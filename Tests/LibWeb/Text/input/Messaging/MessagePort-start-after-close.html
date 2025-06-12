@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let channel = new MessageChannel();
+        let port = channel.port2;
+        port.close();
+        port.start();
+        println("PASS (didn't crash)");
+    });
+</script>

@@ -1,0 +1,1 @@
+Error setting href: SyntaxError: Invalid URL 'http://@:www.invalid-url.com'

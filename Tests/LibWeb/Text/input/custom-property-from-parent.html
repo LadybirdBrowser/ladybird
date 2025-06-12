@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    :root {
+        --my-background-color: #19db6e;
+    }
+</style>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const style = getComputedStyle(document.body);
+        println(`PASS: ${style.getPropertyValue("--my-background-color")}`);
+    });
+</script>

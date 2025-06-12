@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Individual transform: combine individual transform properties</title>
+    <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#individual-transforms">
+    <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#ctm">
+    <style>
+      @keyframes anim {
+        to {
+          transform: translate(50px, 50px) rotate(45deg) scale(2, 1);
+        }
+      }
+      .block {
+        display:  inline-block;
+        width: 50px;
+        height: 50px;
+        margin:  50px;
+        padding:  0;
+        transform-origin: 0 0;
+        background:  lime;
+        /* Freeze the animation at the midpoint. */
+        animation-timing-function: cubic-bezier(0, 1, 1, 0);
+        animation-duration:  1000000s;
+        animation-delay:  -500000s;
+        animation-name:  anim;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="block"></div>
+      <div class="block"></div>
+    </div>
+    <div>
+      <div class="block"></div>
+      <div class="block"></div>
+    </div>
+    <div>
+      <div class="block"></div>
+      <div class="block"></div>
+    </div>
+  </body>
+</html>

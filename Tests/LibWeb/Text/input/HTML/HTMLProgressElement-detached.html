@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const progressElement = document.createElement("progress");
+        progressElement.max = 100;
+        progressElement.value = 50;
+        println("PASS (didn't crash)");
+    });
+</script>

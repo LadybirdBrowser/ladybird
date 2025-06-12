@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-template with invalid values</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#propdef-grid-template">
+<meta name="assert" content="grid-template supports only the grammar `none | [ <'grid-template-rows'> / <'grid-template-columns'> ] | [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?`.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+
+test_invalid_value("grid-template", 'auto');
+test_invalid_value("grid-template", 'none none');
+test_invalid_value("grid-template", 'none []');
+test_invalid_value("grid-template", '10px');
+test_invalid_value("grid-template", '20%');
+test_invalid_value("grid-template", '5fr');
+test_invalid_value("grid-template", '[a]');
+test_invalid_value("grid-template", '[a] 10px');
+test_invalid_value("grid-template", '[a] repeat(2, 10px)');
+test_invalid_value("grid-template", '[a] repeat(auto-fill, 10px)');
+test_invalid_value("grid-template", '[a] repeat(auto-fit, 10px)');
+test_invalid_value("grid-template", '[a] 10px []');
+test_invalid_value("grid-template", '[a] repeat(2, 10px) []');
+test_invalid_value("grid-template", '[a] repeat(auto-fill, 10px) []');
+test_invalid_value("grid-template", '[a] repeat(auto-fit, 10px) []');
+test_invalid_value("grid-template", '[]');
+test_invalid_value("grid-template", '10px "a"');
+test_invalid_value("grid-template", 'repeat(2, 10px) "a"');
+test_invalid_value("grid-template", 'repeat(auto-fill, 10px) "a"');
+test_invalid_value("grid-template", 'repeat(auto-fit, 10px) "a"');
+test_invalid_value("grid-template", '[] 10px "a"');
+test_invalid_value("grid-template", '[] repeat(2, 10px) "a"');
+test_invalid_value("grid-template", '[] repeat(auto-fill, 10px) "a"');
+test_invalid_value("grid-template", '[] repeat(auto-fit, 10px) "a"');
+test_invalid_value("grid-template", '10px [] "a"');
+test_invalid_value("grid-template", 'repeat(2, 10px) [] "a"');
+test_invalid_value("grid-template", 'repeat(auto-fill, 10px) [] "a"');
+test_invalid_value("grid-template", 'repeat(auto-fit, 10px) [] "a"');
+test_invalid_value("grid-template", '[] [] "a"');
+test_invalid_value("grid-template", '"a" none');
+test_invalid_value("grid-template", '"a" 10px 10px');
+test_invalid_value("grid-template", '"a" repeat(2, 10px) 10px');
+test_invalid_value("grid-template", '"a" 10px repeat(2, 10px)');
+test_invalid_value("grid-template", '"a" repeat(auto-fill, 10px) 10px');
+test_invalid_value("grid-template", '"a" 10px repeat(auto-fill, 10px)');
+test_invalid_value("grid-template", '"a" repeat(auto-fit, 10px) 10px');
+test_invalid_value("grid-template", '"a" 10px repeat(auto-fit, 10px)');
+test_invalid_value("grid-template", '"a" [a] 10px');
+test_invalid_value("grid-template", '"a" [a] repeat(2, 10px)');
+test_invalid_value("grid-template", '"a" [a] repeat(auto-fill, 10px)');
+test_invalid_value("grid-template", '"a" [a] repeat(auto-fit, 10px)');
+test_invalid_value("grid-template", '"a" [a] 10px [a]');
+test_invalid_value("grid-template", '"a" [a] repeat(2, 10px) [a]');
+test_invalid_value("grid-template", '"a" [a] repeat(auto-fill, 10px) [a]');
+test_invalid_value("grid-template", '"a" [a] repeat(auto-fit, 10px) [a]');
+test_invalid_value("grid-template", '"a" [a] [a] 10px');
+test_invalid_value("grid-template", '"a" [a] [a] repeat(2, 10px)');
+test_invalid_value("grid-template", '"a" [a] [a] repeat(auto-fill, 10px)');
+test_invalid_value("grid-template", '"a" [a] [a] repeat(auto-fit, 10px)');
+test_invalid_value("grid-template", '"a" 10px [a] [a]');
+test_invalid_value("grid-template", '"a" repeat(2, 10px) [a] [a]');
+test_invalid_value("grid-template", '"a" repeat(auto-fill, 10px) [a] [a]');
+test_invalid_value("grid-template", '"a" repeat(auto-fit, 10px) [a] [a]');
+test_invalid_value("grid-template", '"a" [a] [a]');
+test_invalid_value("grid-template", '[a] "a" [a] [a]');
+test_invalid_value("grid-template", '"a" "a" [a] [a]');
+test_invalid_value("grid-template", '"a" [a] [a] / none');
+test_invalid_value("grid-template", '"a" "a" [a] [a] / none');
+test_invalid_value("grid-template", 'none / "a"');
+test_invalid_value("grid-template", '"a" / none');
+test_invalid_value("grid-template", 'none / [] "a"');
+test_invalid_value("grid-template", 'none / "a" []');
+test_invalid_value("grid-template", 'none / "a" [] 10px');
+test_invalid_value("grid-template", 'none / "a" [] repeat(2, 10px)');
+test_invalid_value("grid-template", 'none / "a" [] repeat(auto-fill, 10px)');
+test_invalid_value("grid-template", 'none / "a" [] repeat(auto-fit, 10px)');
+
+// FIXME: add more values to test full syntax
+
+</script>
+</body>
+</html>

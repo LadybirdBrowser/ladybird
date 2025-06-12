@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Window timeOrigin is close to Date.now() when there is no system clock adjustment.
+Pass	Window and worker timeOrigins are close when created one after another.
+Pass	Window and worker timeOrigins differ when worker is created after a delay.

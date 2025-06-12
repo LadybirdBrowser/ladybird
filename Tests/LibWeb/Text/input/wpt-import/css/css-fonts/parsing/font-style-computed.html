@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: getComputedStyle().fontStyle</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-style-prop">
+<meta name="assert" content="font-style computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+  #container {
+    container-type: inline-size;
+    width: 10px;
+  }
+  #target {
+    font-family: Ahem;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+test_computed_value('font-style', 'normal');
+test_computed_value('font-style', 'italic');
+test_computed_value('font-style', 'oblique');
+
+test_computed_value('font-style', 'oblique 0deg', 'normal');
+test_computed_value('font-style', 'oblique calc(10deg - 10deg)', 'normal');
+
+test_computed_value('font-style', 'oblique 10deg');
+test_computed_value('font-style', 'oblique -10deg');
+test_computed_value('font-style', 'oblique -90deg');
+test_computed_value('font-style', 'oblique 90deg');
+test_computed_value('font-style', 'oblique 10grad', 'oblique 9deg');
+test_computed_value('font-style', 'oblique calc(90deg)', 'oblique 90deg');
+test_computed_value('font-style', 'oblique calc(100deg)', 'oblique 90deg');
+test_computed_value('font-style', 'oblique calc(-100deg)', 'oblique -90deg');
+test_computed_value('font-style', 'oblique calc(30deg * 2)', 'oblique 60deg');
+test_computed_value('font-style', 'oblique calc(30deg + (sign(20cqw - 10px) * 5deg))', 'oblique 25deg');
+</script>
+</body>
+</html>

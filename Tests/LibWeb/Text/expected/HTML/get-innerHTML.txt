@@ -1,0 +1,10 @@
+
+  <ol reversed="" xml:myattribute=""></ol>
+  <ol xmlns:somename=""></ol>
+  <svg xmlns="http://www.w3.org/2000/svg">
+    <script xlink:href="test"></script>
+    <script href="test"></script>
+    <script id="script" madeup:thing="test" xmlns="5"></script>
+  </svg>
+  <label xml:lang="en-US" class="struct"></label>
+

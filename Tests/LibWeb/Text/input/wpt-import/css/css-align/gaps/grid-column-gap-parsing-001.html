@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment Test: grid-column-gap parsing</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#gap-legacy">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .columnGapPx { grid-column-gap: 12px; }
+  #columnGapEm { grid-column-gap: 2em; font: 10px/1 Monospace; }
+  #columnGapVw { grid-column-gap: 2vw; }
+  #columnGapPercent { grid-column-gap: 15%; }
+  #columnGapCalc { grid-column-gap: calc(10px + 4px); }
+  #columnGapCalcFixedPercent { grid-column-gap: calc(5px + 10%); }
+  .columnGapInitial { grid-column-gap: initial; }
+  .columnGapInherit { grid-column-gap: inherit; }
+
+  #invalidColumnGapNegative { grid-column-gap: -10px; }
+  #invalidColumnGapMaxContent { grid-column-gap: max-content; }
+  #invalidColumnGapNone { grid-column-gap: none; }
+  #invalidColumnGapMultiple { grid-column-gap: 10px 1px; }
+  #invalidColumnGapAngle { grid-column-gap: 3rad; }
+  #invalidColumnGapResolution { grid-column-gap: 2dpi; }
+  #invalidColumnGapTime { grid-column-gap: 200ms; }
+</style>
+<body>
+  <div id="log"></div>
+
+  <div id="default"></div>
+  <div id="columnGapPx" class="columnGapPx"></div>
+  <div id="columnGapEm"></div>
+  <div id="columnGapVw"></div>
+  <div id="columnGapPercent"></div>
+  <div id="columnGapCalc"></div>
+  <div id="columnGapCalcFixedPercent"></div>
+  <div id="columnGapInitial" class="columnGapInitial"></div>
+  <div class="columnGapPx">
+    <div id="columnGapInitialPx" class="columnGapInitial"></div>
+  </div>
+  <div id="columnGapInherit" class="columnGapInherit"></div>
+  <div class="columnGapPx">
+    <div id="columnGapInheritPx" class="columnGapInherit"></div>
+  </div>
+
+  <div id="invalidColumnGapNegative"></div>
+  <div id="invalidColumnGapMaxContent"></div>
+  <div id="invalidColumnGapNone"></div>
+  <div id="invalidColumnGapMultiple"></div>
+  <div id="invalidColumnGapAngle"></div>
+  <div id="invalidColumnGapResolution"></div>
+  <div id="invalidColumnGapTime"></div>
+
+  <script>
+    test(
+      function(){
+        var target = document.getElementById("default");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Default grid-column-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("columnGapPx");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "grid-column-gap accepts pixels");
+    test(
+      function(){
+        var target = document.getElementById("columnGapEm");
+        assert_equals(getComputedStyle(target).columnGap, "20px");
+      }, "grid-column-gap accepts em");
+    test(
+      function(){
+        var target = document.getElementById("columnGapVw");
+        // The columnGap size would depend on the viewport width, so to make the test pass
+        // in any window size we just check it's not "normal".
+        assert_not_equals(getComputedStyle(target).columnGap, "normal");
+      }, "grid-column-gap accepts vw");
+    test(
+      function(){
+        var target = document.getElementById("columnGapPercent");
+        assert_equals(getComputedStyle(target).columnGap, "15%");
+      }, "grid-column-gap accepts percentage");
+    test(
+      function(){
+        var target = document.getElementById("columnGapCalc");
+        assert_equals(getComputedStyle(target).columnGap, "14px");
+      }, "grid-column-gap accepts calc()");
+    test(
+      function(){
+        var target = document.getElementById("columnGapCalcFixedPercent");
+        assert_equals(getComputedStyle(target).columnGap, "calc(10% + 5px)");
+      }, "grid-column-gap accepts calc() mixing fixed and percentage values");
+    test(
+      function(){
+        var target = document.getElementById("columnGapInitial");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial grid-column-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("columnGapInitialPx");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial grid-column-gap is 'normal' 2");
+    test(
+      function(){
+        var target = document.getElementById("columnGapInherit");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial inherited grid-column-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("columnGapInheritPx");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "grid-column-gap is inheritable");
+
+
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapNegative");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Negative grid-column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapMaxContent");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "'max-content' grid-column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapNone");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "'none' grid-column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapMultiple");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "grid-column-gap with multiple values is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapAngle");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Angle grid-column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapResolution");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Resolution grid-column-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidColumnGapTime");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Time grid-column-gap is invalid");
+  </script>
+</body>
+
+

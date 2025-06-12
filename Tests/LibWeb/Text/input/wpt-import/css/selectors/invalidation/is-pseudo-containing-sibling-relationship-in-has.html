@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selectors Test: :has(:is()) invalidation for sibling change</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+  #test-container > div { background-color: green; }
+  #target1:has(:is(.item + .item + .item)) { background-color: red; }
+  #target2:has(:is(.invalid .item, .item + .item + .item)) { background-color: red; }
+  #target3:has(:is(.item + .item + .item > .child + .child + .child)) { background-color: red; }
+  #target4:has(:is(.item + .item + .item > .child):is(.child + .child + .child)) { background-color: red; }
+  #target5:has(:is(.item + .item + .item > .child)) { background-color: red; }
+  #target6:has(:is(.invalid .item, .item + .item + .item > .child)) { background-color: red; }
+  #target7:has(:is(.item + .item + .item > .child + .child + .child)) { background-color: red; }
+  #target8:has(:is(.child + .child + .child):is(.item + .item + .item > .child)) { background-color: red; }
+  #target9:has(:is(:where(:is(.item + .item + .item) > .child) + .child + .child)) { background-color: red; }
+  #target10:has(:is(.item:nth-child(3))) { background-color: red; }
+  #target11:has(:is(.item:nth-child(3) > .child:nth-child(3))) { background-color: red; }
+  #target12:has(:is(.item:nth-last-child(3))) { background-color: red; }
+  #target13:has(:is(.item:nth-last-child(3) > .child:nth-last-child(3))) { background-color: red; }
+  #target14:has(:is(.item:nth-child(3) > .child)) { background-color: red; }
+  #target15:has(:is(.item:nth-child(3) > .child:nth-child(3))) { background-color: red; }
+  #target16:has(:is(.item:nth-last-child(3) > .child)) { background-color: red; }
+  #target17:has(:is(.item:nth-last-child(3) > .child:nth-last-child(3))) { background-color: red; }
+  .item + .item + .item {
+    #target18:has(&) { background-color: red; }
+    #target19:has(:is(& > .child + .child + .child)) { background-color: red; }
+  }
+  .item + .item + .item > .child {
+    #target20:has(:is(& + .child + .child)) { background-color: red; }
+  }
+</style>
+<div id="test-container">
+  <div id="target1">
+    <div class="item" id="item1">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">This text should have a green background</div>
+  </div>
+  <div id="target2">
+    <div class="item" id="item2">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">This text should have a green background</div>
+  </div>
+  <div id="target3">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item">
+      <span class="child" id="item3">(FAIL if you see this text)</span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target4">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item">
+      <span class="child" id="item4">(FAIL if you see this text)</span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target5">
+    <div class="item" id="item5">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target6">
+    <div class="item" id="item6">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target7">
+    <div class="item"></div>
+    <div class="item" id="item7">FAIL if you see this text</div>
+    <div class="item">
+      <span class="child"></span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target8">
+    <div class="item"></div>
+    <div class="item" id="item8">FAIL if you see this text</div>
+    <div class="item">
+      <span class="child"></span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target9">
+    <div class="item"></div>
+    <div class="item" id="item9">FAIL if you see this text</div>
+    <div class="item">
+      <span class="child"></span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target10">
+    <div class="item" id="item10">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">This text should have a green background</div>
+  </div>
+  <div id="target11">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item">
+      <span class="child" id="item11">(FAIL if you see this text)</span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target12">
+    <div class="item">This text should have a green background</div>
+    <div class="item"></div>
+    <div class="item" id="item12">FAIL if you see this text</div>
+  </div>
+  <div id="target13">
+    <div class="item">
+      <span class="child">This text should have a green background</span>
+      <span class="child"></span>
+      <span class="child" id="item13">(FAIL if you see this text)</span>
+    </div>
+    <div class="item"></div>
+    <div class="item"></div>
+  </div>
+  <div id="target14">
+    <div class="item" id="item14">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target15">
+    <div class="item" id="item15">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">
+      <span class="child"></span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target16">
+    <div class="item">
+      <span class="child">This text should have a green background</span>
+    </div>
+    <div class="item"></div>
+    <div class="item" id="item16">FAIL if you see this text</div>
+  </div>
+  <div id="target17">
+    <div class="item">
+      <span class="child">This text should have a green background</span>
+      <span class="child"></span>
+      <span class="child"></span>
+    </div>
+    <div class="item"></div>
+    <div class="item" id="item17">FAIL if you see this text</div>
+  </div>
+  <div id="target18">
+    <div class="item" id="item18">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">This text should have a green background</div>
+  </div>
+  <div id="target19">
+    <div class="item"></div>
+    <div class="item" id="item19">FAIL if you see this text</div>
+    <div class="item">
+      <span class="child"></span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+  <div id="target20">
+    <div class="item"></div>
+    <div class="item" id="item20">FAIL if you see this text</div>
+    <div class="item">
+      <span class="child"></span>
+      <span class="child"></span>
+      <span class="child">This text should have a green background</span>
+    </div>
+  </div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target1).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target2).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target3).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target4).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target5).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target6).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target7).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target8).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target9).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target10).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target11).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target12).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target13).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target14).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target15).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target16).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target17).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target18).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target19).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target20).backgroundColor, "rgb(255, 0, 0)");
+  }, "Initially red");
+
+  test(() => {
+    item1.remove();
+    assert_equals(getComputedStyle(target1).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector enclosed by :is() no longer matching after removal (1)");
+
+  test(() => {
+    item2.remove();
+    assert_equals(getComputedStyle(target2).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector enclosed by :is() no longer matching after removal (2)");
+
+  test(() => {
+    item3.remove();
+    assert_equals(getComputedStyle(target3).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector enclosed by :is() no longer matching after removal (3)");
+
+  test(() => {
+    item4.remove();
+    assert_equals(getComputedStyle(target4).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector enclosed by :is() no longer matching after removal (4)");
+
+  test(() => {
+    item5.remove();
+    assert_equals(getComputedStyle(target5).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector in non-subject enclosed by :is() no longer matching after removal (1)");
+
+  test(() => {
+    item6.remove();
+    assert_equals(getComputedStyle(target6).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector in non-subject enclosed by :is() no longer matching after removal (2)");
+
+  test(() => {
+    item7.remove();
+    assert_equals(getComputedStyle(target7).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector in non-subject enclosed by :is() no longer matching after removal (3)");
+
+  test(() => {
+    item8.remove();
+    assert_equals(getComputedStyle(target8).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector in non-subject enclosed by :is() no longer matching after removal (4)");
+
+  test(() => {
+    item9.remove();
+    assert_equals(getComputedStyle(target9).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector in non-subject enclosed by :is() no longer matching after removal (5)");
+
+  test(() => {
+    item10.remove();
+    assert_equals(getComputedStyle(target10).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-child() enclosed by :is() no longer matching after removal (1)");
+
+  test(() => {
+    item11.remove();
+    assert_equals(getComputedStyle(target11).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-child() enclosed by :is() no longer matching after removal (2)");
+
+  test(() => {
+    item12.remove();
+    assert_equals(getComputedStyle(target12).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-last-child() enclosed by :is() no longer matching after removal (1)");
+
+  test(() => {
+    item13.remove();
+    assert_equals(getComputedStyle(target13).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-last-child() enclosed by :is() no longer matching after removal (2)");
+
+  test(() => {
+    item14.remove();
+    assert_equals(getComputedStyle(target14).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-child() in non-subject enclosed by :is() no longer matching after removal (1)");
+
+  test(() => {
+    item15.remove();
+    assert_equals(getComputedStyle(target15).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-child() in non-subject enclosed by :is() no longer matching after removal (2)");
+
+  test(() => {
+    item16.remove();
+    assert_equals(getComputedStyle(target16).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-last-child() in non-subject enclosed by :is() no longer matching after removal (1)");
+
+  test(() => {
+    item17.remove();
+    assert_equals(getComputedStyle(target17).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-last-child() in non-subject enclosed by :is() no longer matching after removal (2)");
+
+  test(() => {
+    item18.remove();
+    assert_equals(getComputedStyle(target18).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector in parent selector enclosed by :is() no longer matching after removal");
+
+  test(() => {
+    item19.remove();
+    assert_equals(getComputedStyle(target19).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector in parent selector non-subject position enclosed by :is() no longer matching after removal (1)");
+
+  test(() => {
+    item20.remove();
+    assert_equals(getComputedStyle(target20).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling selector in parent selector non-subject position enclosed by :is() no longer matching after removal (2)");
+</script>

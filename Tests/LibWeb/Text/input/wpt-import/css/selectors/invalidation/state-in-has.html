@@ -1,0 +1,58 @@
+<!doctype html>
+<title>:has() invalidation with :state() pseudo-class</title>
+<link rel="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational" />
+<link rel="help" href="https://github.com/whatwg/html/pull/8467" />
+<style>
+  #subject {
+    background-color: #f00;
+  }
+  #subject:has(:state(--green)) {
+    background-color: #0f0;
+  }
+  #subject:has(:state(--blue)) {
+    background-color: #00f;
+  }
+</style>
+<body>
+  Test :state() pseudo-class invalidation with :has()
+  <div id="subject">
+    <my-element id="child"></my-element>
+  </div>
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script>
+    const RED = "rgb(255, 0, 0)";
+    const GREEN = "rgb(0, 255, 0)";
+    const BLUE = "rgb(0, 0, 255)";
+
+    test(() => {
+      customElements.define(
+        "my-element",
+        class MyElement extends HTMLElement {
+          connectedCallback() {
+            this.elementInternals = this.attachInternals();
+          }
+        },
+      );
+      assert_equals(getComputedStyle(subject).backgroundColor, RED);
+      child.elementInternals.states.add("--green");
+      assert_equals(getComputedStyle(subject).backgroundColor, GREEN);
+      child.elementInternals.states.clear();
+      assert_equals(getComputedStyle(subject).backgroundColor, RED);
+
+      child.elementInternals.states.add("--blue");
+      assert_equals(getComputedStyle(subject).backgroundColor, BLUE);
+      child.elementInternals.states.clear();
+      assert_equals(getComputedStyle(subject).backgroundColor, RED);
+
+      child.elementInternals.states.add("--green");
+      child.elementInternals.states.add("--blue");
+      assert_equals(getComputedStyle(subject).backgroundColor, BLUE);
+      child.elementInternals.states.delete("--blue");
+      assert_equals(getComputedStyle(subject).backgroundColor, GREEN);
+      child.elementInternals.states.delete("--green");
+      assert_equals(getComputedStyle(subject).backgroundColor, RED);
+    }, "Test :has() invalidation with :state() pseudo-classes");
+  </script>
+</body>

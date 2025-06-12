@@ -1,0 +1,23 @@
+<!doctype html>
+<link rel="match" href="../expected/overflow-hidden-3-ref.html" />
+<style>
+body {
+    width: 100px;
+    height: 100px;
+}
+#outer {
+    width: 200px;
+    height: 100px;
+    overflow: hidden;
+}
+#inner {
+    position: relative;
+    z-index: 0;
+    overflow: hidden;
+}
+#green {
+    width: 200px;
+    height: 200px;
+    background: green;
+}
+</style><body><div id="outer"><div id="inner"><div id="green">

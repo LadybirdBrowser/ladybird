@@ -1,0 +1,12 @@
+#import <Streams/ReadableStreamBYOBRequest.idl>
+
+// https://streams.spec.whatwg.org/#rbs-controller-class-definition
+[Exposed=*]
+interface ReadableByteStreamController {
+    readonly attribute ReadableStreamBYOBRequest? byobRequest;
+    readonly attribute unrestricted double? desiredSize;
+
+    undefined close();
+    undefined error(optional any e);
+    undefined enqueue(ArrayBufferView chunk);
+};

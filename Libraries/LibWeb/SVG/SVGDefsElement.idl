@@ -1,0 +1,4 @@
+// https://svgwg.org/svg2-draft/single-page.html#struct-InterfaceSVGDefsElement
+[Exposed=Window]
+interface SVGDefsElement : SVGGraphicsElement {
+};

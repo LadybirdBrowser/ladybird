@@ -1,0 +1,13 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x100 children: not-inline
+      ImageBox <img> at (8,8) content-size 50x100 children: not-inline
+        (SVG-as-image isolated context)
+        Viewport <#document> at (0,0) content-size 50x100 [BFC] children: not-inline
+          SVGSVGBox <svg> at (0,0) content-size 50x100 [SVG] children: not-inline
+            SVGGeometryBox <rect> at (0,0) content-size 50x100 children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
+      ImagePaintable (ImageBox<IMG>) [8,8 50x100]

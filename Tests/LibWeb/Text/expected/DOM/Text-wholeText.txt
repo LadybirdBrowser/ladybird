@@ -1,0 +1,6 @@
+Text node A with no siblings: A
+Text node B with previous sibling A: AB
+Text node B with previous sibling A and next sibling C: ABC
+CDATA section D with no siblings: D
+CDATA section E with previous sibling D: DE
+CDATA section E with previous sibling D and next sibling F: DEF

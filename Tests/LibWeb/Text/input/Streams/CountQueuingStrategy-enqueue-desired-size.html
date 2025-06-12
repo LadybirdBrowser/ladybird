@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let controller;
+        new ReadableStream(
+            {
+                start(c) {
+                    controller = c;
+                }
+            },
+            new CountQueuingStrategy({ highWaterMark: 3 })
+        );
+
+        println(controller.desiredSize);
+        controller.enqueue('Hello, friends!');
+        println(controller.desiredSize);
+        controller.enqueue('Enqueues being counted...');
+        println(controller.desiredSize);
+        controller.enqueue('By CountQueuingStrategy');
+        println(controller.desiredSize);
+        controller.enqueue('!');
+        println(controller.desiredSize);
+    });
+</script>

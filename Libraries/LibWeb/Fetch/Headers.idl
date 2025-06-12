@@ -1,0 +1,16 @@
+// https://fetch.spec.whatwg.org/#typedefdef-headersinit
+typedef (sequence<sequence<ByteString>> or record<ByteString, ByteString>) HeadersInit;
+
+// https://fetch.spec.whatwg.org/#headers
+[Exposed=(Window,Worker)]
+interface Headers {
+    constructor(optional HeadersInit init);
+
+    undefined append(ByteString name, ByteString value);
+    undefined delete(ByteString name);
+    ByteString? get(ByteString name);
+    sequence<ByteString> getSetCookie();
+    boolean has(ByteString name);
+    undefined set(ByteString name, ByteString value);
+    iterable<ByteString, ByteString>;
+};

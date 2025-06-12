@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment Test: Default column-gap test animation</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#column-row-gap">
+<link rel="help" href="https://www.w3.org/TR/css-animations-1/#keyframes">
+<meta name="assert" content="This test checks that the default value for column-gap property, which is 'normal', is not interpolable.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @keyframes column-gap-to-100 {
+    to { column-gap: 100px; }
+  }
+
+  #target {
+    animation-name: column-gap-to-100;
+    animation-duration: 2s;
+    animation-delay: -1s;
+    animation-play-state: paused;
+  }
+</style>
+<body>
+  <div id="target"></div>
+  <div id="log"></div>
+
+  <script>
+    test(
+      function(){
+        var target = document.getElementById("target");
+        assert_equals(getComputedStyle(target).columnGap, "100px");
+      }, "Default column-gap is not interpolable");
+  </script>
+</body>

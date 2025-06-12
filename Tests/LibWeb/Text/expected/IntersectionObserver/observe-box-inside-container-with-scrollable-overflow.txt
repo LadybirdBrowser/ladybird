@@ -1,0 +1,2 @@
+The box is not visible.
+The box is now visible.

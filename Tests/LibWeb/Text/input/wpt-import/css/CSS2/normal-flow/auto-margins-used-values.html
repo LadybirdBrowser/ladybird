@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#blockwidth">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<style>
+.container {
+  display: flow-root;
+  width: 100px;
+  padding: 5px;
+  box-sizing: border-box;
+}
+.box {
+  display: flow-root;
+  width: 40px;
+  height: 10px;
+  background: lime;
+}
+</style>
+<body onload="checkLayout('.box')">
+  <div class="container">
+    <div class="box" style="margin: auto;" data-expected-margin-left="25" data-expected-margin-right="25"></div>
+    <div class="box" style="margin-left: auto;" data-expected-margin-left="50" data-expected-margin-right="0"></div>
+    <div class="box" style="margin-right: auto;" data-expected-margin-left="0" data-expected-margin-right="50"></div>
+  </div>
+  <div class="container" style="direction: rtl;">
+    <div class="box" style="margin: auto;" data-expected-margin-left="25" data-expected-margin-right="25"></div>
+    <div class="box" style="margin-left: auto;" data-expected-margin-left="50" data-expected-margin-right="0"></div>
+    <div class="box" style="margin-right: auto;" data-expected-margin-left="0" data-expected-margin-right="50"></div>
+  </div>
+</body>

@@ -1,0 +1,8 @@
+"bleed: auto": parsed as "auto"
+"bleed: 1in": parsed as "1in"
+"bleed: -2cm": parsed as "-2cm"
+"bleed: auto 1in": INVALID
+"bleed: 3cm auto": INVALID
+"bleed: 1cm 2cm": INVALID
+"bleed: orange": INVALID
+"bleed: none": INVALID

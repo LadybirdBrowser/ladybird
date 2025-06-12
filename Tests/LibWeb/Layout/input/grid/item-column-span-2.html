@@ -1,0 +1,21 @@
+<style>
+    .container {
+        display: grid;
+        grid-template-columns: auto 0 minmax(0, calc(100%));
+        background-color: red;
+    }
+
+    .item-left {
+        grid-column: 1;
+        width: 100px;
+        background-color: blueviolet;
+    }
+
+    .item-right {
+        grid-column: 2 / span 2;
+    }
+</style>
+<div class="container">
+    <div class="item-left"></div>
+    <div class="item-right">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut iaculis venenatis purus, eget blandit velit venenatis at.</div>
+</div>

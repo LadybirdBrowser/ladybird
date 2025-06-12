@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+.container {
+    display: grid;
+    background-color: lightsalmon;
+
+    /* Invalid minmax value as can't have a flexible length as a minimum value. */
+    grid-template-columns: minmax(1fr, 100px) 1fr 1fr;
+}
+
+.one {
+    background-color: lightblue;
+}
+
+.two {
+    background-color: yellowgreen;
+}
+</style>
+<div class="container"><div class="one">1</div><div class="two">2</div></div>

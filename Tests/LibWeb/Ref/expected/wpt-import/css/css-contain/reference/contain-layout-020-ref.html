@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>CSS Containment Test: Removing layout containment and contained positioned elements</title>
+
+<style>
+.container {
+    width: 300px;
+    height: 300px;
+}
+.box {
+    width: 100px;
+    height: 100px;
+    background-color: green;
+}
+.fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+.abspos {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+</style>
+
+<div class="container">
+  <div class="fixed box"></div>
+  <div class="abspos box"></div>
+</div>

@@ -1,0 +1,28 @@
+declare_args() {
+  # If true, download wasm spec tests from github.
+  # Tests will be used by test-wasm to verify spec compliance
+  include_wasm_spec_tests = false
+}
+
+if (include_wasm_spec_tests) {
+  # FIXME: Port wasm_spec_tests.cmake
+}
+
+shared_library("LibWasm") {
+  output_name = "wasm"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "AbstractMachine/AbstractMachine.cpp",
+    "AbstractMachine/BytecodeInterpreter.cpp",
+    "AbstractMachine/Configuration.cpp",
+    "AbstractMachine/Validator.cpp",
+    "Parser/Parser.cpp",
+    "Printer/Printer.cpp",
+    "WASI/Wasi.cpp",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibJS",
+  ]
+}

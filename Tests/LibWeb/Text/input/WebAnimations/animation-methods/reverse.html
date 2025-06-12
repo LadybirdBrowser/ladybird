@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+
+        // FIXME: passing a null timeline here is broken, needs [ExplicitNull] support for dictionary members
+        // let anim = foo.animate({}, { timeline: null });
+        // try {
+        // 	anim.reverse();
+        // } catch {
+        // 	println("Cannot call reverse() on an animation with no timeline");
+        // }
+
+        anim = foo.animate({}, {});
+        anim.reverse();
+        if (anim.playbackRate === 1.0)
+            println("reverse() does not update the playback rate synchronously");
+        await animationFrame();
+        if (anim.playbackRate === -1.0)
+            println("reverse() updates the playback rate asynchronously");
+
+        anim = foo.animate({}, { duration: Infinity });
+        anim.cancel();
+        anim.playbackRate = -1;
+        try {
+            // anim.play() would throw here
+            anim.reverse();
+        } catch {
+            println("Cannot reverse an animation with an infinite effect end");
+        }
+        if (anim.playbackRate === -1)
+            println("reverse() does not update the playback rate if calling play() would throw an exception");
+    });
+</script>

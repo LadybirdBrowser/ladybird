@@ -1,0 +1,56 @@
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+#import <HTML/NavigationHistoryEntry.idl>
+#import <HTML/NavigationTransition.idl>
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-interface
+[Exposed=Window]
+interface Navigation : EventTarget {
+    sequence<NavigationHistoryEntry> entries();
+    readonly attribute NavigationHistoryEntry? currentEntry;
+    undefined updateCurrentEntry(NavigationUpdateCurrentEntryOptions options);
+    readonly attribute NavigationTransition? transition;
+
+    readonly attribute boolean canGoBack;
+    readonly attribute boolean canGoForward;
+
+    NavigationResult navigate(USVString url, optional NavigationNavigateOptions options = {});
+    NavigationResult reload(optional NavigationReloadOptions options = {});
+
+    NavigationResult traverseTo(DOMString key, optional NavigationOptions options = {});
+    NavigationResult back(optional NavigationOptions options = {});
+    NavigationResult forward(optional NavigationOptions options = {});
+
+    attribute EventHandler onnavigate;
+    attribute EventHandler onnavigatesuccess;
+    attribute EventHandler onnavigateerror;
+    attribute EventHandler oncurrententrychange;
+};
+
+dictionary NavigationUpdateCurrentEntryOptions {
+    required any state;
+};
+
+dictionary NavigationOptions {
+    any info;
+};
+
+dictionary NavigationNavigateOptions : NavigationOptions {
+    any state;
+    NavigationHistoryBehavior history = "auto";
+};
+
+dictionary NavigationReloadOptions : NavigationOptions {
+    any state;
+};
+
+dictionary NavigationResult {
+    [GenerateAsRequired] Promise<NavigationHistoryEntry> committed;
+    [GenerateAsRequired] Promise<NavigationHistoryEntry> finished;
+};
+
+enum NavigationHistoryBehavior {
+    "auto",
+    "push",
+    "replace"
+};

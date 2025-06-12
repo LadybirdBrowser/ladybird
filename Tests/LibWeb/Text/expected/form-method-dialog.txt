@@ -1,0 +1,4 @@
+dialog.open before form submit: true
+dialog.returnValue before form submit should be empty: true
+dialog.open after form submit: false
+dialog.returnValue after form submit: PASS

@@ -1,0 +1,28 @@
+CSS Global Support Directory
+============================
+
+This directory contains common support files (such as images and external
+style sheets). These are sync'ed into the support directories of all our
+test suites. If you have test-suite-specific support files, please add
+them to the appropriate test-suite-specific support/ directory.
+
+If you add to a support/ directory, please run the tools/supportprop.py
+script from the top of the repository to cascade support files into the
+lower-level support directories.
+
+Description of the Common Support File Collection
+-------------------------------------------------
+
+The 1x1-* images are all exactly one pixel.
+
+The swatch-* images all use 15x15 cells.
+
+The square-* images all use 15x15 cells with one pixel borders.
+
+The pattern-* images use cells of various sizes:
+
+   pattern-grg-rgr-grg.png   20x20
+   pattern-rgr-grg-rgr.png   20x20
+   pattern-tr.png            15x15
+   pattern-grg-rrg-rgg.png   15x15
+

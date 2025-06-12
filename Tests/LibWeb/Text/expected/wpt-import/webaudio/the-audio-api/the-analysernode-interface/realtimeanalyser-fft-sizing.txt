@@ -1,0 +1,48 @@
+Harness status: OK
+
+Found 43 tests
+
+43 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "FFT size test"
+Pass	Audit report
+Pass	> [FFT size test] Test that re-sizing the FFT arrays does not fail.
+Pass	  Setting fftSize to -1 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 0 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 1 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 2 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 3 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 4 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 5 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 8 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 9 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 16 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 17 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 32 did not throw an exception.
+Pass	  Setting fftSize to 33 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 64 did not throw an exception.
+Pass	  Setting fftSize to 65 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 128 did not throw an exception.
+Pass	  Setting fftSize to 129 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 256 did not throw an exception.
+Pass	  Setting fftSize to 257 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 512 did not throw an exception.
+Pass	  Setting fftSize to 513 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 1024 did not throw an exception.
+Pass	  Setting fftSize to 1025 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 2048 did not throw an exception.
+Pass	  Setting fftSize to 2049 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 4096 did not throw an exception.
+Pass	  Setting fftSize to 4097 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 8192 did not throw an exception.
+Pass	  Setting fftSize to 8193 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 16384 did not throw an exception.
+Pass	  Setting fftSize to 16385 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 32768 did not throw an exception.
+Pass	  Setting fftSize to 32769 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 65536 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 65537 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 131072 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	  Setting fftSize to 131073 threw IndexSizeError: "Analyser node fftSize not a power of 2 between 32 and 32768".
+Pass	< [FFT size test] All assertions passed. (total 37 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

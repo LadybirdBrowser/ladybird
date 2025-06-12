@@ -1,0 +1,29 @@
+<!doctype html>
+<title>CSS Media Queries Test: ex, ch, and ic from initial font</title>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries/#units">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="ex_ref" style="width: 100ex"></div>
+<div id="ch_ref" style="width: 100ch"></div>
+<div id="ic_ref" style="width: 100ic"></div>
+<script>
+  const viewport_width = document.documentElement.offsetWidth;
+
+  test(() => {
+    const viewport_ex = (viewport_width * 100) / ex_ref.offsetWidth;
+    const ex_query = `(min-width: ${viewport_ex-0.5}ex) and (max-width: ${viewport_ex+0.5}ex)`;
+    assert_true(matchMedia(ex_query).matches);
+  }, "ex unit in media queries should match initial font");
+
+  test(() => {
+    const viewport_ch = (viewport_width * 100) / ch_ref.offsetWidth;
+    const ch_query = `(min-width: ${viewport_ch-0.5}ch) and (max-width: ${viewport_ch+0.5}ch)`;
+    assert_true(matchMedia(ch_query).matches);
+  }, "ch unit in media queries should match initial font");
+
+  test(() => {
+    const viewport_ic = (viewport_width * 100) / ic_ref.offsetWidth;
+    const ic_query = `(min-width: ${viewport_ic-0.5}ic) and (max-width: ${viewport_ic+0.5}ic)`;
+    assert_true(matchMedia(ic_query).matches);
+  }, "ic unit in media queries should match initial font");
+</script>

@@ -1,0 +1,6 @@
+[object Window]
+[object Window]
+[object WindowProperties]
+[object EventTarget]
+[object Object]
+null

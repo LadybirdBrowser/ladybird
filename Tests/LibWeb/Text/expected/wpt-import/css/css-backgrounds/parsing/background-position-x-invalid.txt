@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	e.style['background-position-x'] = "top" should not set the property value
+Pass	e.style['background-position-x'] = "bottom" should not set the property value
+Pass	e.style['background-position-x'] = "y-start" should not set the property value
+Pass	e.style['background-position-x'] = "y-end" should not set the property value
+Pass	e.style['background-position-x'] = "center 10px" should not set the property value
+Pass	e.style['background-position-x'] = "20% left" should not set the property value
+Pass	e.style['background-position-x'] = "right left" should not set the property value
+Pass	e.style['background-position-x'] = "x-start center" should not set the property value
+Pass	e.style['background-position-x'] = "left, center right" should not set the property value

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 100px;
+        height: 100px;
+        background-color: gray;
+    }
+    body {
+        height: 200vh;
+    }
+</style>
+<div onClick="
+    println(`x: ${event.x}`);
+    println(`y: ${event.y}`);
+    println(`screenX: ${event.screenX}`);
+    println(`screenY: ${event.screenY}`);
+    println(`clientX: ${event.clientX}`);
+    println(`clientY: ${event.clientY}`);
+    println(`pageX: ${event.pageX}`);
+    println(`pageY: ${event.pageY}`);
+    println(`offsetX: ${event.offsetX}`);
+    println(`offsetY: ${event.offsetY}`);
+"></div>
+
+<script src="../include.js"></script>
+
+<script>
+    test(() => {
+        window.scrollBy(0, 10)
+        internals.click(50, 50);
+    });
+</script>

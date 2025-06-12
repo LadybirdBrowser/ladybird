@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Rowspan interaction with nested tables</title>
+
+    <style>
+        table {
+            border: 5px solid black;
+            border-spacing: 2px;
+        }
+
+        td {
+            border: 5px solid blue;
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <table>
+        <tbody>
+            <tr>
+                <td>X</td>
+                <td rowspan="2">
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>A</td>
+                            </tr>
+                            <tr>
+                                <td>B</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td>Y</td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+
+</html>

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1340168">
+<div style="contain:size layout;">
+  <div id="klabb" style="display:inline-block; contain:size layout;">t</div>
+  <br>
+  <div id="babb" style="display:inline-block; width:10px; height:10px;"></div>
+</div>
+<script>
+  document.body.offsetTop;
+  klabb.innerHTML = ":-)";
+  klabb.style.height = "100px";
+  document.body.offsetTop;
+  babb.style.width = "20px";
+</script>

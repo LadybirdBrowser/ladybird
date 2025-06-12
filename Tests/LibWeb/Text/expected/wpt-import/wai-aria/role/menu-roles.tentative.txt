@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	orphaned menuitem outside the context of menu/menubar
+Pass	orphaned menuitemradio outside the context of menu/menubar
+Pass	orphaned menuitemcheckbox outside the context of menu/menubar
+Pass	orphan button with menuitem role
+Pass	orphan button with menuitemcheckbox role
+Pass	orphan button with menuitemradio role
+Pass	orphan div with menuitem role
+Pass	orphan div with menuitemcheckbox role
+Pass	orphan div with menuitemradio role

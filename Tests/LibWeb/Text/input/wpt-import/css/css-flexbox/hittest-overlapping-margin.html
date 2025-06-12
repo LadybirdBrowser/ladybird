@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<link rel="author" title="Andrew Comminos" href="mailto:acomminos@fb.com" />
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#painting" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#container {
+  width: 600px;
+  display: flex;
+}
+
+#left {
+  width: 300px;
+  overflow: hidden;
+  white-space: nowrap;
+  background: rgba(200, 200, 200, 0.8);
+}
+
+#right {
+  width: 300px;
+  background-color: rgba(0, 128, 0, 0.8);
+  margin-left: -100px;
+}
+</style>
+<div id="container">
+  <a id="left" href="#">foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo</a>
+  <div id="right"></div>
+</div>
+<div id="log"></div>
+<script>
+  test(function(t)
+    {
+      const container = document.querySelector('#container');
+      // Target the intersection of the two child elements.
+      // The occluded link should not be clickable.
+      const x = container.offsetLeft + 250;
+      const y = container.offsetTop + 5;
+
+      var element = document.elementFromPoint(x, y);
+      assert_equals(element.nodeName, 'DIV');
+      assert_equals(element.id, 'right');
+    }, "Flexboxes should perform hit testing in reverse paint order for overlapping elements: negative margin case (crbug.com/844505)");
+</script>

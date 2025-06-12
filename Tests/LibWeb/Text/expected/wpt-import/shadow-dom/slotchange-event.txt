@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+12 Pass
+20 Fail
+Fail	slotchange event must fire on a default slot element inside an open shadow root  in a document
+Fail	slotchange event must fire on a default slot element inside a closed shadow root  in a document
+Fail	slotchange event must fire on a default slot element inside an open shadow root  not in a document
+Fail	slotchange event must fire on a default slot element inside a closed shadow root  not in a document
+Fail	slotchange event must fire on a named slot element insidean open shadow root  in a document
+Fail	slotchange event must fire on a named slot element insidea closed shadow root  in a document
+Fail	slotchange event must fire on a named slot element insidean open shadow root  not in a document
+Fail	slotchange event must fire on a named slot element insidea closed shadow root  not in a document
+Pass	slotchange event must not fire on a slot element inside an open shadow root  in a document when another slot's assigned nodes change
+Pass	slotchange event must not fire on a slot element inside a closed shadow root  in a document when another slot's assigned nodes change
+Pass	slotchange event must not fire on a slot element inside an open shadow root  not in a document when another slot's assigned nodes change
+Pass	slotchange event must not fire on a slot element inside a closed shadow root  not in a document when another slot's assigned nodes change
+Pass	slotchange event must fire on a slot element when a shadow host has a slottable and the slot was inserted and must not fire when the shadow host was mutated after the slot was removed inside an open shadow root  in a document
+Pass	slotchange event must fire on a slot element when a shadow host has a slottable and the slot was inserted and must not fire when the shadow host was mutated after the slot was removed inside a closed shadow root  in a document
+Pass	slotchange event must fire on a slot element when a shadow host has a slottable and the slot was inserted and must not fire when the shadow host was mutated after the slot was removed inside an open shadow root  not in a document
+Pass	slotchange event must fire on a slot element when a shadow host has a slottable and the slot was inserted and must not fire when the shadow host was mutated after the slot was removed inside a closed shadow root  not in a document
+Fail	slotchange event must fire on a slot element inside an open shadow root  in a document even if the slot was removed immediately after the assigned nodes were mutated
+Fail	slotchange event must fire on a slot element inside a closed shadow root  in a document even if the slot was removed immediately after the assigned nodes were mutated
+Fail	slotchange event must fire on a slot element inside an open shadow root  not in a document even if the slot was removed immediately after the assigned nodes were mutated
+Fail	slotchange event must fire on a slot element inside a closed shadow root  not in a document even if the slot was removed immediately after the assigned nodes were mutated
+Fail	slotchange event must fire on a slot element inside an open shadow root  in a document when innerHTML modifies the children of the shadow host
+Fail	slotchange event must fire on a slot element inside a closed shadow root  in a document when innerHTML modifies the children of the shadow host
+Fail	slotchange event must fire on a slot element inside an open shadow root  not in a document when innerHTML modifies the children of the shadow host
+Fail	slotchange event must fire on a slot element inside a closed shadow root  not in a document when innerHTML modifies the children of the shadow host
+Pass	slotchange event must fire on a slot element inside an open shadow root  in a document when nested slots's contents change
+Pass	slotchange event must fire on a slot element inside a closed shadow root  in a document when nested slots's contents change
+Pass	slotchange event must fire on a slot element inside an open shadow root  not in a document when nested slots's contents change
+Pass	slotchange event must fire on a slot element inside a closed shadow root  not in a document when nested slots's contents change
+Fail	slotchange event must fire at the end of current microtask after mutation observers are invoked inside an open shadow root  in a document when slots's contents change
+Fail	slotchange event must fire at the end of current microtask after mutation observers are invoked inside a closed shadow root  in a document when slots's contents change
+Fail	slotchange event must fire at the end of current microtask after mutation observers are invoked inside an open shadow root  not in a document when slots's contents change
+Fail	slotchange event must fire at the end of current microtask after mutation observers are invoked inside a closed shadow root  not in a document when slots's contents change

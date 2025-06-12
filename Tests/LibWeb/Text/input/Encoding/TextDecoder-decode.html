@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            let decoder = new TextDecoder("utf-8");
+            println(`[${decoder.decode(new Uint8Array([0x41, 0x42, 0x43]))}]`); // "ABC"
+            println(`[${decoder.decode()}]`);
+        } catch(e) {
+            println("ERROR: " + e.name + ": " + e.message);
+        }
+    });
+</script>

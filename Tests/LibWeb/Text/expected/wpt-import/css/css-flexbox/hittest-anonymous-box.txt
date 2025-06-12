@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Hit-testing within an anonymous flex-item should return the flexbox as the hittest result.

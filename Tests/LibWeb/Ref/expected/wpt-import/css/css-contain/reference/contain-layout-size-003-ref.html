@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reference Test</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+
+  <style>
+  div
+    {
+      color: transparent;
+      float: left;
+      font-size: 16px;
+      padding: 8px;
+    }
+
+  div#blue-rectangle
+    {
+      background-color: blue;
+      margin: 8px;
+      width: 6em;
+    }
+
+  div#orange-rectangle
+    {
+      background-color: orange;
+      height: 0px;
+      width: 12em;
+    }
+  </style>
+
+  <p>Test passes if the orange rectangle and blue rectangle do not overlap.
+
+  <div id="blue-rectangle">Some text in a blue rectangle.</div>
+
+  <div id="orange-rectangle">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore.</div>

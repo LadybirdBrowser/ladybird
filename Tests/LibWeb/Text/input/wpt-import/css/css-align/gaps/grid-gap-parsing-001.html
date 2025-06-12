@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment Test: gap shorthand parsing</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#gap-legacy">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .gapPx { grid-gap: 12px; }
+  #gapPxTwo { grid-gap: 12px 8px; }
+  #gapPxPercent { grid-gap: 12px 10%; }
+  #gapEm { grid-gap: 2em; font: 10px/1 Monospace; }
+  #gapEmTwo { grid-gap: 2em 4em; font: 10px/1 Monospace; }
+  #gapVw { grid-gap: 2vw; }
+  #gapVwTwo { grid-gap: 2vw 1vh; }
+  #gapPercent { grid-gap: 15%; }
+  #gapPercentTwo { grid-gap: 15% 10%; }
+  #gapCalc { grid-gap: calc(10px + 4px); }
+  #gapCalcFixedPercent { grid-gap: calc(5px + 10%); }
+  #gapCalcTwo { grid-gap: calc(10px + 4px) calc(20px - 8px); }
+  .gapInitial { grid-gap: initial; }
+  .gapInherit { grid-gap: inherit; }
+
+  #invalidGridGapNegative { grid-gap: -10px; }
+  #invalidGridGapMaxContent { grid-gap: max-content; }
+  #invalidGridGapNone { grid-gap: none; }
+  #invalidGridGapAngle { grid-gap: 3rad; }
+  #invalidGridGapResolution { grid-gap: 2dpi; }
+  #invalidGridGapTime { grid-gap: 200ms; }
+  #invalidGridGapThree { grid-gap: 10px 1px 5px; }
+  #invalidGridGapSlash { grid-gap: 10px / 5px; }
+  #invalidGridGapOneWrong { grid-gap: 10px -5px; }
+</style>
+<body>
+  <div id="log"></div>
+
+  <div id="default"></div>
+  <div id="gapPx" class="gapPx"></div>
+  <div id="gapPxTwo"></div>
+  <div id="gapPxPercent"></div>
+  <div id="gapEm"></div>
+  <div id="gapEmTwo"></div>
+  <div id="gapVw"></div>
+  <div id="gapVwTwo"></div>
+  <div id="gapPercent"></div>
+  <div id="gapPercentTwo"></div>
+  <div id="gapCalc"></div>
+  <div id="gapCalcFixedPercent"></div>
+  <div id="gapCalcTwo"></div>
+  <div id="gapInitial" class="gapInitial"></div>
+  <div class="gapPx">
+    <div id="gapInitialPx" class="gapInitial"></div>
+  </div>
+  <div id="gapInherit" class="gapInherit"></div>
+  <div class="gapPx">
+    <div id="gapInheritPx" class="gapInherit"></div>
+  </div>
+
+  <div id="invalidGridGapNegative"></div>
+  <div id="invalidGridGapMaxContent"></div>
+  <div id="invalidGridGapNone"></div>
+  <div id="invalidGridGapAngle"></div>
+  <div id="invalidGridGapResolution"></div>
+  <div id="invalidGridGapTime"></div>
+  <div id="invalidGridGapThree"></div>
+  <div id="invalidGridGapSlash"></div>
+  <div id="invalidGridGapOneWrong"></div>
+
+  <script>
+    test(
+      function(){
+        var target = document.getElementById("default");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Default grid-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("gapPx");
+        assert_equals(getComputedStyle(target).rowGap, "12px");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "grid-gap accepts pixels");
+    test(
+      function(){
+        var target = document.getElementById("gapPxTwo");
+        assert_equals(getComputedStyle(target).rowGap, "12px");
+        assert_equals(getComputedStyle(target).columnGap, "8px");
+      }, "grid-gap accepts pixels 2");
+    test(
+      function(){
+        var target = document.getElementById("gapPxPercent");
+        assert_equals(getComputedStyle(target).rowGap, "12px");
+        assert_equals(getComputedStyle(target).columnGap, "10%");
+      }, "grid-gap accepts pixels combined with percentage");
+    test(
+      function(){
+        var target = document.getElementById("gapEm");
+        assert_equals(getComputedStyle(target).rowGap, "20px");
+        assert_equals(getComputedStyle(target).columnGap, "20px");
+      }, "grid-gap accepts em");
+    test(
+      function(){
+        var target = document.getElementById("gapEmTwo");
+        assert_equals(getComputedStyle(target).rowGap, "20px");
+        assert_equals(getComputedStyle(target).columnGap, "40px");
+      }, "grid-gap accepts em 2");
+    test(
+      function(){
+        var target = document.getElementById("gapVw");
+        // The gap size would depend on the viewport width, so to make the test pass
+        // in any window size we just check it's not "normal".
+        assert_not_equals(getComputedStyle(target).rowGap, "normal");
+        assert_not_equals(getComputedStyle(target).columnGap, "normal");
+      }, "grid-gap accepts vw");
+    test(
+      function(){
+        var target = document.getElementById("gapVwTwo");
+        // The gap size would depend on the viewport width, so to make the test pass
+        // in any window size we just check it's not "normal".
+        assert_not_equals(getComputedStyle(target).rowGap, "normal");
+        assert_not_equals(getComputedStyle(target).columnGap, "normal");
+      }, "grid-gap accepts vw and vh");
+    test(
+      function(){
+        var target = document.getElementById("gapPercent");
+        assert_equals(getComputedStyle(target).rowGap, "15%");
+        assert_equals(getComputedStyle(target).columnGap, "15%");
+      }, "grid-gap accepts percentage");
+    test(
+      function(){
+        var target = document.getElementById("gapPercentTwo");
+        assert_equals(getComputedStyle(target).rowGap, "15%");
+        assert_equals(getComputedStyle(target).columnGap, "10%");
+      }, "grid-gap accepts percentage 2");
+    test(
+      function(){
+        var target = document.getElementById("gapCalc");
+        assert_equals(getComputedStyle(target).rowGap, "14px");
+        assert_equals(getComputedStyle(target).columnGap, "14px");
+      }, "grid-gap accepts calc()");
+    test(
+      function(){
+        var target = document.getElementById("gapCalcFixedPercent");
+        assert_equals(getComputedStyle(target).rowGap, "calc(10% + 5px)");
+        assert_equals(getComputedStyle(target).columnGap, "calc(10% + 5px)");
+      }, "grid-gap accepts calc() mixing fixed and percentage values");
+    test(
+      function(){
+        var target = document.getElementById("gapCalcTwo");
+        assert_equals(getComputedStyle(target).rowGap, "14px");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "grid-gap accepts calc() 2");
+    test(
+      function(){
+        var target = document.getElementById("gapInitial");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial grid-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("gapInitialPx");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial grid-gap is 'normal' 2");
+    test(
+      function(){
+        var target = document.getElementById("gapInherit");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Initial inherited grid-gap is 'normal'");
+    test(
+      function(){
+        var target = document.getElementById("gapInheritPx");
+        assert_equals(getComputedStyle(target).rowGap, "12px");
+        assert_equals(getComputedStyle(target).columnGap, "12px");
+      }, "grid-gap is inheritable");
+
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapNegative");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Negative grid-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapMaxContent");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "'max-content' grid-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapNone");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "'none' grid-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapAngle");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Angle grid-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapResolution");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Resolution grid-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapTime");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "Time grid-gap is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapThree");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "grid-gap with three values is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapSlash");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "grid-gap with slash is invalid");
+    test(
+      function(){
+        var target = document.getElementById("invalidGridGapOneWrong");
+        assert_equals(getComputedStyle(target).rowGap, "normal");
+        assert_equals(getComputedStyle(target).columnGap, "normal");
+      }, "grid-gap with one wrong value is invalid");
+  </script>
+</body>
+
+

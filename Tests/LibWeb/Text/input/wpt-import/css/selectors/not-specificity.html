@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>Specificity for complex :not selectors</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#negation">
+<style>
+  main :not(#foo) { --t0:PASS; }
+  main :not(.foo) { --t0:FAIL; }
+
+  main :not(div#foo) { --t1:PASS; }
+  main :not(#foo) { --t1:FAIL; }
+
+  main :not(.bar, #foo) { --t2:FAIL; }
+  main :not(#foo, .bar) { --t2:PASS; }
+
+  main :not(.bar, #foo) { --t3:PASS; }
+  main :not(.foo, .bar) { --t3:FAIL; }
+
+  main :not(span + span) { --t4:PASS; }
+  main :not(span) { --t4:FAIL; }
+
+  main :not(span, li, #foo) { --t5:PASS; }
+  main :not(span, li, p) { --t5:FAIL; }
+
+  main :not(span, :not(:not(.a#foo)), p) { --t6:PASS; }
+  main :not(span, #foo, p) { --t6:FAIL; }
+
+  main :not(span, #foo, p) { --t7:PASS; }
+  main :not(span, :where(.a#foo), p) { --t7:FAIL; }
+</style>
+<main id=main>
+  <div id=div></div>
+</main>
+<script>
+  function test_value(name, description) {
+    test(function() {
+      let actual = getComputedStyle(div).getPropertyValue(name);
+      assert_equals(actual, 'PASS');
+    }, description);
+  }
+
+  test_value('--t0', ':not(#foo) wins over :not(.foo)');
+  test_value('--t1', ':not(div#foo) wins over :not(#foo)');
+  test_value('--t2', ':not(.bar, #foo) has same specificity as :not(#foo, .bar)');
+  test_value('--t3', ':not(.bar, #foo) wins over :not(.foo, .bar)');
+  test_value('--t4', ':not(span + span) wins over :not(span)');
+  test_value('--t5', ':not(span, li, p) wins over :not(span, lo, p)');
+  test_value('--t6', ':not(span, :not(:not(.a#foo)), p) wins over :not(span, #foo, p)');
+  test_value('--t7', ':not(span, #foo, p) wins over :not(span, :where(.a#foo), p)');
+</script>

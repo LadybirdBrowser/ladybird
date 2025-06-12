@@ -1,0 +1,9 @@
+Prefix for namespace "test" on document: ex
+Prefix for namespace "test" on document fragment: null
+Prefix for namespace "test" on comment node 0: ex
+Prefix null on document: null
+Prefix for absent namespace "no" on document: null
+Prefix for namespace "def" on child: abc
+Prefix null on child: null
+Prefix for namespace "test" (in parent) on child: ex
+Prefix for namespace "def" (from attribute "x") on child: abc

@@ -1,0 +1,40 @@
+<!DOCTYPE html><style>
+* {
+    border: 10px solid black !important;
+}
+      body {
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .outer {
+        display: flex;
+        width: 150px;
+        height: 150px;
+        background: wheat;
+      }
+      .outer > div {
+        position: absolute;
+        width: 150px;
+        height: 50px;
+        background: orange;
+      }
+      .normal { align-items: normal; }
+      .stretch { align-items: stretch; }
+      .flex-start { align-items: flex-start; }
+      .flex-end { align-items: flex-end; }
+      .start { align-items: start; }
+      .end { align-items: end; }
+      .center { align-items: center; }
+      .self-start { align-items: self-start; }
+      .self-end { align-items: self-end; }
+</style>
+<body>
+<div class="outer normal"><div>normal</div></div>
+<div class="outer stretch"><div>stretch</div></div>
+<div class="outer start"><div>start</div></div>
+<div class="outer flex-start"><div>flex-start</div></div>
+<div class="outer end"><div>end</div></div>
+<div class="outer flex-end"><div>flex-end</div></div>
+<div class="outer center"><div>center</div></div>
+<div class="outer self-start"><div>self-start</div></div>
+<div class="outer self-end"><div>self-end</div></div>

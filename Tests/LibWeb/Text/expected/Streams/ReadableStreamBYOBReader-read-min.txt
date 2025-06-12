@@ -1,0 +1,4 @@
+This -⌄
+ will not be processed as one chunk
+This -> will be processed as one chunk
+Stream closed

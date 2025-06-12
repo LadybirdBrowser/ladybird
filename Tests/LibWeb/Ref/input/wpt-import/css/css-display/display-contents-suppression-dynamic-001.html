@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test: display: contents unboxing works in presence of dynamic changes to the tree.</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://drafts.csswg.org/css-display-3/#valdef-display-contents">
+<link rel="help" href="https://drafts.csswg.org/css-display-3/#unbox">
+<link rel="match" href="../../../../expected/wpt-import/css/css-display/display-contents-suppression-dynamic-001-ref.html">
+<p>Test passes if you see nothing below.</p>
+<textarea style="display: contents">
+  FAIL
+</textarea>
+<script>
+  let textarea = document.querySelector("textarea");
+  textarea.offsetTop;
+  textarea.appendChild(document.createTextNode("FAIL"));
+</script>

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id=container></div>
+<script type="text/javascript">
+    test(() => {
+        let container = document.getElementById("container");
+        container.innerHTML = '<script><\/script>';
+        println("PASS");
+    });
+</script>

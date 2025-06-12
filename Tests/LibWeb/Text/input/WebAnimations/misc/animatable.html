@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<div id="parent">
+    <div id="child1"></div>
+    <div id="child2">
+        <div id="child3"></div>
+    </div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const elements = ["parent", "child1", "child2", "child3"];
+        for (const id of elements)
+            document.getElementById(id).animate({}, { duration: Infinity });
+
+        const parent = document.getElementById("parent");
+        const subtreeAnimations = parent.getAnimations({ subtree: true });
+        println(`num animations without subtree: ${parent.getAnimations({ subtree: false }).length}`);
+        println(`num animations with subtree: ${subtreeAnimations.length}`);
+
+        for (let i = 0; i < elements.length; i++) {
+            const elem = document.getElementById(elements[i]);
+            const correctOrder = Object.is(subtreeAnimations[i], elem.getAnimations()[0]);
+            println(`Anim for element ${elements[i]} is in the correct order: ${correctOrder}`);
+        }
+    })
+</script>

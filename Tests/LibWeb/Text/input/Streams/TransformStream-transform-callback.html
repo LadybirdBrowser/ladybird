@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const {writable, readable} = new TransformStream({
+            transform(chunk, controller) {
+                controller.enqueue(chunk.toUpperCase());
+            }
+        });
+        const writer = writable.getWriter();
+        writer.write("Hello, world!");
+        writer.close();
+        const reader = readable.getReader();
+        reader.read().then(function processText({done, value}) {
+            println(`Done: ${done}`);
+            if (done)
+                return;
+
+            println(value);
+            reader.read().then(processText);
+        });
+    });
+</script>

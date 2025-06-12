@@ -1,0 +1,13 @@
+== before appending
+is linkEl.sheet null? true
+- document stylesheets (length = 0)
+- shadow root stylesheets (length = 0)
+== link loaded
+is linkEl.sheet null? false
+- document stylesheets (length = 0)
+- shadow root stylesheets (length = 1)
+-- shadow root linkEl.sheet === sheet: true
+== link removed
+is linkEl.sheet null? true
+- document stylesheets (length = 0)
+- shadow root stylesheets (length = 0)

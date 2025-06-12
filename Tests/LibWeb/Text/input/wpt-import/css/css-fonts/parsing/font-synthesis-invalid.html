@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module: parsing font-synthesis with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-synthesis">
+<meta name="assert" content="font-synthesis supports only the grammar 'none | [ weight || style || small-caps || position ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-synthesis', 'auto');
+test_invalid_value('font-synthesis', 'none weight');
+test_invalid_value('font-synthesis', 'none style');
+test_invalid_value('font-synthesis', 'none position');
+test_invalid_value('font-synthesis', 'style none');
+test_invalid_value('font-synthesis', 'none small-caps');
+test_invalid_value('font-synthesis', 'small-caps none');
+test_invalid_value('font-synthesis', 'position none');
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Test: 'contain: layout' element should not contain absolute/fixed position elements when no principal box is generated.</title>
+  <link rel="author" title="Yusuf Sermet" href="mailto:ysermet@mozilla.com">
+  <link rel="author" title="Morgan Rae Reschenberg" href="mailto:mreschenberg@berkeley.edu">
+  <link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-layout">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/contain-layout-ignored-cases-no-principal-box-003-ref.html">
+  <style>
+  #a {
+    contain: layout;
+    display: contents;
+    width: 100px;
+    height: 100px;
+    background: red;
+    margin: 50px;
+  }
+  #b {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100px;
+    height: 100px;
+    background: green;
+  }
+  </style>
+</head>
+<body>
+  <div id="a">
+    <div>
+      <div id="b"></div>
+    </div>
+  </div>
+</body>
+</html>

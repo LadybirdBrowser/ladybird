@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSS-contain test: style containment invalidation with elements in different subtrees</title>
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+<link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/quote-scoping-invalidation-004-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-style">
+
+<style>
+  #root {
+    quotes: "A" "Z" "1" "9" "(" ")" "+" "-";
+  }
+  #root::before, #root span::before {
+    content: open-quote;
+  }
+  #root::after {
+    content: close-quote;
+  }
+ .contain-style {
+   contain: style;
+ }
+</style>
+
+<p>Test passes if the text below is "A111119" (not including the quotation marks).<p>
+<div id="root">
+  <div class="contain-style">
+    <span id="span1"></span>
+    <span id="span2"></span>
+  </div>
+  <div class="contain-style">
+    <span id="span3"></span>
+    <span id="span4"></span>
+  </div>
+  <span></span>
+</div>
+
+<script>
+  document.body.offsetTop;
+  span1.className = "contain-style";
+  span3.className = "contain-style";
+</script>

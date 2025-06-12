@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	empty URL: inline-unquoted
+Fail	empty URL: inline-quoted
+Fail	empty URL: external-unquoted
+Fail	empty URL: external-quoted
+Fail	empty URL: external-variable

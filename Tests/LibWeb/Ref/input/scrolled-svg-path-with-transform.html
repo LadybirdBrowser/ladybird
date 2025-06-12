@@ -1,0 +1,18 @@
+<!doctype html>
+<link rel="match" href="../expected/scrolled-svg-path-with-transform.html" />
+<style>
+html {
+    scrollbar-width: none;
+}
+body {
+    margin: 0px;
+    height: 5000px;
+}
+.rotate {
+    transform: rotate(180deg);
+    outline: 1px solid black;
+}
+</style><body style="overflow: auto"><svg class="rotate"><path d="M22 13.5H6.3l5.5 7.5H8.3l-6.5-9 6.5-9h3.5l-5.5 7.5H22v3z">
+<script>
+    window.scrollBy(0, 100);
+</script>

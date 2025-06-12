@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic & Extrinsic Sizing Test: parsing box-sizing with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-box-sizing">
+<meta name="assert" content="box-sizing supports the full grammar 'content-box | border-box'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("box-sizing", "content-box");
+test_valid_value("box-sizing", "border-box");
+</script>
+</body>
+</html>

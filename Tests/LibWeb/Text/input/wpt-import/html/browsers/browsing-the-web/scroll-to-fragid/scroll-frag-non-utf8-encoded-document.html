@@ -1,0 +1,21 @@
+<!doctype html>
+<title>Fragment Navigation: fragment id should not be found in non UTF8 document</title>
+<meta name=timeout content=long>
+<meta http-equiv="Content-Type" content="text/html; charset=gbk"/>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<div></div>
+<div id="&#x586f" style="position:absolute; top:100px;"></div>
+<div style="height:200vh;"></div>
+<script>
+async_test(test => {
+  assert_equals(document.characterSet, "GBK", "Document should be GBK encoded");
+  assert_equals(location.hash, "", "Page must be loaded with no hash");
+  location.hash = '%89g';
+  test.step_timeout(() => {
+    assert_equals( document.scrollingElement.scrollTop, 0 );
+    test.done();
+  }, 1);
+});
+</script>

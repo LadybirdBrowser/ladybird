@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#tree-construction:html-integration-point">
+<body>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<math><annotation-xml id="point-1" encoding="text/html"><xmp>&lt;/xmp&gt;&lt;img></xmp></annotation-xml></math>
+<math><annotation-xml id="point-2" encoding="application/xhtml+xml"><style>&lt;/style&gt;&lt;img></style></annotation-xml></math>
+<svg><foreignObject id="point-3"><iframe>&lt;/iframe&gt;&lt;img></iframe></foreignObject></svg>
+<svg><desc id="point-4"><noembed>&lt;/noembed&gt;&lt;img></noembed></desc></svg>
+<svg><title id="point-5"><noframes>&lt;/noframes&gt;&lt;img></noframes></title></svg>
+
+<script>
+function generate_test(id) {
+  return () => {
+    let point = document.querySelector('#' + id);
+    assert_not_equals(point.namespaceURI, 'http://www.w3.org/1999/xhtml');
+    let rawTextElement = point.firstChild;
+    assert_equals(rawTextElement.namespaceURI, 'http://www.w3.org/1999/xhtml');
+    assert_equals(rawTextElement.textContent.substr(0, 4), '&lt;',
+                  'Entity references should not be decoded.');
+  };
+}
+
+test(generate_test('point-1'), 'MathML annotation-xml with encoding=text/html should be an HTML integration point');
+test(generate_test('point-2'), 'MathML annotation-xml with encoding=application/xhtml+xml should be an HTML integration point');
+test(generate_test('point-3'), 'SVG foreignObject should be an HTML integration point');
+test(generate_test('point-4'), 'SVG desc should be an HTML integration point');
+test(generate_test('point-5'), 'SVG title should be an HTML integration point');
+</script>
+</body>

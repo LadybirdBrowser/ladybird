@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>CSS Fonts Module Level 4: parsing @font-face src:local()</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#local-font-fallback">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="testStyle">
+</style>
+<script>
+  const sheet = testStyle.sheet;
+  tests = [
+    // Gargbage data following valid local() is not valid
+    { src:'local(A) dummy()', valid:false},
+    // Gargbage data preceding valid local() is not valid
+    { src:'dummy() local(A)', valid:false},
+    // Unquoted collapsing space
+    { src:'local(  A  )', valid:true },
+    { src:'local(A B)', valid:true },
+    { src:'local(A    B)', valid:true },
+    { src:'local(   A  B   )', valid:true },
+    // Unquoted local() with invalid CSS-wide keywords excluded from <custom-ident>
+    { src:'local(default)', valid:false },
+    { src:'local(inherit)', valid:false },
+    { src:'local(revert)', valid:false },
+    { src:'local(unset)', valid:false },
+    // Unquoted local() with CSS-wide keywords as part of the name
+    { src:'local(default A)', valid:true },
+    { src:'local(inherit A)', valid:true },
+    { src:'local(revert A)', valid:true },
+    { src:'local(unset A)', valid:true },
+    // Quoted local() with CSS-wide keywords
+    { src:'local("default")', valid:true },
+    { src:'local("inherit")', valid:true },
+    { src:'local("revert")', valid:true },
+    { src:'local("unset")', valid:true }
+  ];
+
+  for (let t of tests) {
+    test(() => {
+      assert_equals(sheet.cssRules.length, 0, "testSheet should initially be empty");
+      sheet.insertRule("@font-face { src: " + t.src + "}");
+      assert_equals(sheet.cssRules[0].style.getPropertyValue("src") != "", t.valid);
+      sheet.deleteRule(0);
+    }, "Check that src: " + t.src + " is " + (t.valid ? "valid" : "invalid"));
+  }
+</script>

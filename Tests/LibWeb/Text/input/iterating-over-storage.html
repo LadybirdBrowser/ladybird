@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        for (_ in window.localStorage);
+        println("PASS (didn't loop forever)");
+    });
+</script>

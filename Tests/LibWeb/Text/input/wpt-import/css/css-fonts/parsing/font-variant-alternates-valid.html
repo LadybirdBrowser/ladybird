@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+      CSS Fonts Module Level 4: parsing font-variant-alternates with valid
+      values
+    </title>
+    <link
+      rel="help"
+      href="https://drafts.csswg.org/css-fonts-4/#propdef-font-variant-alternates"
+    />
+    <meta
+      name="assert"
+      content="font-variant-alternates supports only the grammar normal | [ stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name>#) || character-variant(<feature-value-name>#) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) ]"
+    />
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/parsing-testcommon.js"></script>
+  </head>
+  <body>
+    <script>
+      test_valid_value(
+        "font-variant-alternates",
+        "character-variant(more, than, one)"
+      );
+      test_valid_value("font-variant-alternates", "styleset(more, than, one)");
+      test_valid_value(
+        "font-variant-alternates",
+        "styleset(more, than, one) character-variant(more, than, one)"
+      );
+    </script>
+  </body>
+</html>

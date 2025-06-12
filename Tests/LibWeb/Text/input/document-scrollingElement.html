@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        println(`document.compatMode: ${document.compatMode}`);
+        println(`document.scrollingElement is document root element: ${document.scrollingElement === document.documentElement}`);
+    });
+</script>

@@ -1,0 +1,3 @@
+new timeline time equals document timeline time: true
+new timeline originTime defaults to 0: true
+new timeline originTime offsets from document timeline: true

@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <title>HTMLAreaElement Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<map name="areamap">
+  <area shape="rect" coords="0,0,15,15" href="#" alt="x" data-testname="el-area" data-expectedrole="link" class="ex">
+  <area shape="rect" coords="15,15,31,31" alt="x" data-testname="el-area-no-href" class="ex-generic">
+</map>
+<img usemap="#areamap" style="width: 32px; height: 32px;" alt="x" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>

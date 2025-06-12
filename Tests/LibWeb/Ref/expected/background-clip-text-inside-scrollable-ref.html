@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    #text {
+        background: linear-gradient(#6d98cc, #8a64e5);
+        background-clip: text;
+        color: transparent;
+        font-size: 50px;
+    }
+
+    #scrollable {
+        width: 300px;
+        height: 300px;
+        border: 1px solid black;
+        overflow: scroll;
+    }
+</style>
+<div id="scrollable">
+    Clip<span id="text">Text</span>
+</div>

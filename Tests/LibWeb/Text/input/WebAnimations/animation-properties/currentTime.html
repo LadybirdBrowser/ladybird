@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+
+        let animation = new Animation(null, null);
+        println(`Animation with no timeline has null currentTime: ${animation.currentTime === null}`);
+
+        animation = new Animation(new KeyframeEffect(foo, []));
+        println(`Animation that hasn't been played has null currentTime: ${animation.currentTime === null}`);
+
+        const timeline = internals.createInternalAnimationTimeline();
+        animation = foo.animate({ color: "red" }, { duration: 1000, timeline });
+        println(`Played animation has a currentTime of 0: ${animation.currentTime === 0}`);
+
+        timeline.setTime(100);
+        if (animation.currentTime === 100)
+            println("Animation time after 100ms is correct");
+
+        animation = foo.animate({ opacity: [0, 1] }, { duration: 1000 });
+        println(`New animation has not started animating: ${getComputedStyle(foo).opacity === "0"}`);
+        animation.currentTime = 1000;
+        println(`Animation with currentTime set to end is finished: ${getComputedStyle(foo).opacity === "1"}`);
+    });
+</script>

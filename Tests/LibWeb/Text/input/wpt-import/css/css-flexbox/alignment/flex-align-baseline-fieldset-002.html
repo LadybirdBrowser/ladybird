@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7656#issuecomment-1248617134">
+<style>
+.target {
+  display: flex;
+  position: relative;
+  line-height: 0;
+  writing-mode: vertical-rl;
+}
+.target > div {
+  background: hotpink;
+  font-size: 30px;
+}
+fieldset {
+  padding: 10px;
+  border: solid 10px;
+  margin: 0;
+  font-size: 20px;
+}
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cyan 3px;
+  outline-offset: -3px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target > *')">
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="35"><span></span></div>
+  <fieldset data-offset-x="0">
+    <legend><span></span></legend>
+    <span></span><br><span></span>
+  </table>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="15"><span></span></div>
+  <fieldset data-offset-x="0">
+    <span></span><br><span></span>
+    <legend><span></span></legend>
+  </table>
+</div>

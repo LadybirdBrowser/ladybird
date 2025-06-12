@@ -1,0 +1,7 @@
+FIXME: Order of messages is incorrect
+Port1: "Hello"
+Port1: {"foo":"bar","baz":[1,2,3,4]}
+Port1: "DONE"
+Port2: "Hello"
+Port2: {"foo":"bar","baz":[1,2,3,4]}
+Port2: "DONE"

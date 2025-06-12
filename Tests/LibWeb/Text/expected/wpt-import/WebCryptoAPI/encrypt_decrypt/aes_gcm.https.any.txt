@@ -1,0 +1,330 @@
+Harness status: OK
+
+Found 325 tests
+
+325 Pass
+Pass	setup
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv decryption
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv decryption
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv decryption
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv without encrypt usage
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv with mismatched key and algorithm
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv without decrypt usage
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 24-bits
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 48-bits
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 72-bits
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 95-bits
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 129-bits
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 24-bits
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 48-bits
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 72-bits
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 95-bits
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 129-bits
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 24-bits
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 48-bits
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 72-bits
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 95-bits
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 129-bits
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 24-bits decryption
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 48-bits decryption
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 72-bits decryption
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 95-bits decryption
+Pass	AES-GCM 128-bit key, 96-bit iv, illegal tag length 129-bits decryption
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 24-bits decryption
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 48-bits decryption
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 72-bits decryption
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 95-bits decryption
+Pass	AES-GCM 192-bit key, 96-bit iv, illegal tag length 129-bits decryption
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 24-bits decryption
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 48-bits decryption
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 72-bits decryption
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 95-bits decryption
+Pass	AES-GCM 256-bit key, 96-bit iv, illegal tag length 129-bits decryption

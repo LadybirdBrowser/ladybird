@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Input element's list attribute should point to the datalist element.
+Pass	Input element's list attribute should point to the datalist element in Shadow DOM.

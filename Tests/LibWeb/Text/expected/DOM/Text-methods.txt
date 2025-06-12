@@ -1,0 +1,6 @@
+text.data = '🙃', length = 2
+text.data = '🙃🙃', length = 4
+text.data = '🙃hi🙃🙃', length = 8
+text.data = '🙃i🙃🙃', length = 7
+text.data = '🙃replaced!', length = 11
+repla

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>::placeholder should not support 'writing-mode', 'direction', and 'text-orientation'</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#placeholder-pseudo">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#first-line-styling">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/reference/placeholder-excluded-properties-ref.html">
+<style>
+.horizontal::placeholder {
+  writing-mode: vertical-rl;
+  direction: rtl;
+}
+
+.vertical {
+  writing-mode: vertical-rl;
+}
+.vertical::placeholder {
+  text-orientation: upright;
+}
+</style>
+<body>
+<input class="horizontal" placeholder="placeholder">
+<input class="vertical" placeholder="placeholder">
+</body>

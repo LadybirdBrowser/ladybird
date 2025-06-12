@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>CSS Transitions Test: Intermediate Property Values of missing value types</title>
+        <meta name="assert" content="Test checks that expected value types that haven't been specified are transitionable">
+        <link rel="help" href="http://www.w3.org/TR/css3-transitions/#transitions">
+        <link rel="help" href="https://drafts.csswg.org/web-animations-1/#animation-type">
+        <link rel="author" title="Rodney Rehm" href="http://rodneyrehm.de/en/">
+        <meta name="flags" content="dom">
+
+        <script src="../../resources/testharness.js" type="text/javascript"></script>
+        <script src="../../resources/testharnessreport.js" type="text/javascript"></script>
+
+        <script src="./support/vendorPrefix.js" type="text/javascript"></script>
+        <script src="./support/helper.js" type="text/javascript"></script>
+        <script src="./support/runParallelAsyncHarness.js" type="text/javascript"></script>
+        <script src="./support/generalParallelTest.js" type="text/javascript"></script>
+        <script src="./support/properties.js" type="text/javascript"></script>
+
+        <style type="text/css">
+            #offscreen {
+                position: absolute;
+                top: -100000px;
+                left: -100000px;
+                width: 100000px;
+                height: 100000px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- required by testharnessreport.js -->
+        <div id="log"></div>
+        <!-- elements used for testing -->
+        <div id="fixture" class="fixture">
+            <div class="container">
+                <div class="transition">Text sample</div>
+            </div>
+        </div>
+        <div id="offscreen"></div>
+
+        <!--
+            SEE ./support/README.md for an abstract explanation of the test procedure
+            http://test.csswg.org/source/contributors/rodneyrehm/submitted/css3-transitions/README.md
+        -->
+
+        <script>
+            // this suite tests property value types that haven't been specified
+            // (like <percentage> for margin-bottom)
+
+            // this test takes its time, give it a minute to run
+            var timeout = 60000;
+            setup({timeout: timeout});
+
+            var tests = getMissingPropertyTests();
+            // for testing, limit to a couple of iterations
+            // tests = tests.slice(10, 30);
+            // or filter using one of:
+            // tests = filterPropertyTests(tests, "background-color color(rgba)");
+            // tests = filterPropertyTests(tests, ["background-color color(rgba)", ...]);
+            // tests = filterPropertyTests(tests, /^background-color/);
+
+            // general transition-duration
+            var duration = '2s';
+
+            runParallelAsyncHarness({
+                // array of test data
+                tests: tests,
+                // the number of tests to run in parallel
+                testsPerSlice: 50,
+                // milliseconds to wait before calling teardown and ending test
+                duration: parseFloat(duration) * 1000,
+                // prepare individual test
+                setup: function(data, options) {
+                    var styles = {
+                        '.fixture': {},
+
+                        '.container': data.parentStyle,
+                        '.container.to': {},
+                        '.container.how': {},
+
+                        '.transition': data.from,
+                        '.transition.to' : data.to,
+                        '.transition.how' : {transition: 'all ' + duration + ' linear 0s'}
+                    };
+
+                    generalParallelTest.setup(data, options);
+                    generalParallelTest.addStyles(data, options, styles);
+                },
+                // cleanup after individual test
+                teardown: generalParallelTest.teardown,
+                // invoked prior to running a slice of tests
+                sliceStart: generalParallelTest.sliceStart,
+                // invoked after transitions have started
+                transitionsStarted: generalParallelTest.transitionsStarted,
+                // invoked after running a slice of tests
+                sliceDone: generalParallelTest.sliceDone,
+                // test cases, make them as granular as possible
+                cases: {
+                    // test property values while transitioning
+                    // values.start kicks off a transition
+                    'values': {
+                        // run actual test, assertions can be used here!
+                        start: function(test, data, options) {
+                            // identify initial and target values
+                            generalParallelTest.getStyle(data);
+                            // make sure values differ, if they don't, the property could most likely not be parsed
+                            assert_not_equals(data.transition.from, data.transition.to, "initial and target values may not match");
+                            // kick off the transition
+                            generalParallelTest.startTransition(data);
+
+                            // make sure we didn't get the target value immediately.
+                            // If we did, there wouldn't be a transition!
+                            var current = data.transition.computedStyle(data.property);
+                            assert_not_equals(current, data.transition.to, "must not be target value after start");
+                        },
+                        done: function(test, data, options) {
+                            // make sure the property's value were neither initial nor target while transitioning
+                            test.step(generalParallelTest.assertIntermediateValuesFunc(data, 'transition'));
+                        }
+                    },
+                    // test TransitionEnd events
+                    'events': {
+                        done: function(test, data, options) {
+                            // make sure there were no events on parent
+                            test.step(generalParallelTest.assertExpectedEventsFunc(data, 'container', ""));
+                            // make sure we got the event for the tested property only
+                            test.step(generalParallelTest.assertExpectedEventsFunc(data, 'transition', addVendorPrefix(data.property) + ":" + duration));
+                        }
+                    }
+                },
+                // called once all tests are done
+                done: generalParallelTest.done
+            });
+        </script>
+    </body>
+</html>

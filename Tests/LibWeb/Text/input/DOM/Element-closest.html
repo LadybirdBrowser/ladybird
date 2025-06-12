@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="a" id="target"><div id="nested"></div></div>
+<script>    
+    test(() => {
+        const matchingElement = document.getElementById("nested").closest(".a, .b, .c");
+        printElement(matchingElement);     
+    });
+</script>
+</html>

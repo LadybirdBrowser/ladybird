@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+  <title>SVG-AAM Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+
+<p>Tests the mappings defined in <a href="https://w3c.github.io/svg-aam/#mapping_role_table">SVG-AAM: 6.2 Element Mapping</a>.<p>
+
+<h2>Simple Elements With aria-label to Ensure Tree Inclusion</h2>
+<svg>
+  <!-- Some elements skipped: never-rendered elements can return unpredicable/undefined/unspecified values for computedrole. -->
+  <a href="#" data-testname="el-a[href]" data-expectedrole="link" aria-label="label" class="ex">x</a>
+  <a xlink:href="#" data-testname="el-a[xlink:href]" data-expectedrole="link" aria-label="label" class="ex">x</a>
+  <!-- skipped: animate -->
+  <!-- skipped: animateMotion -->
+  <!-- skipped: animateTransform -->
+  <!-- blocked: audio -> https://github.com/w3c/html-aam/issues/511 -->
+  <!-- todo: canvas -> follow HTML -->
+  <!-- blocked: circle -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- n/a: clipPath -->
+  <!-- n/a: cursor -->
+  <!-- n/a: defs -->
+  <!-- n/a: desc -->
+  <!-- n/a: discard -->
+  <!-- blocked: ellipse -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- n/a: feBlend -->
+  <!-- n/a: feColorMatrix -->
+  <!-- n/a: feComponentTransfer -->
+  <!-- n/a: feComposite -->
+  <!-- n/a: feConvolveMatrix -->
+  <!-- n/a: feDiffuseLighting -->
+  <!-- n/a: feDisplacementMap -->
+  <!-- n/a: feDistantLight -->
+  <!-- n/a: feDropShadow -->
+  <!-- n/a: feFlood -->
+  <!-- n/a: feFuncA -->
+  <!-- n/a: feFuncB -->
+  <!-- n/a: feFuncG -->
+  <!-- n/a: feFuncR -->
+  <!-- n/a: feGaussianBlur -->
+  <!-- n/a: feImage -->
+  <!-- n/a: feMerge -->
+  <!-- n/a: feMergeNode -->
+  <!-- n/a: feMorphology -->
+  <!-- n/a: feOffset -->
+  <!-- n/a: fePointLight -->
+  <!-- n/a: feSpecularLighting -->
+  <!-- n/a: feSpotLight -->
+  <!-- n/a: feTile -->
+  <!-- n/a: feTurbulence -->
+  <!-- n/a: filter -->
+  <!-- todo: foreignObject (spec says `group` role if rendered and labeled) -->
+  <g fill="white" stroke="green" stroke-width="2" data-testname="el-g" data-expectedrole="group" aria-label="label" class="ex">
+    <circle cx="40" cy="40" r="25" />
+  </g>
+  <!-- n/a: hatch -->
+  <!-- n/a: hatchPath -->
+  <!-- todo: iframe -> follow HTML -->
+  <image data-testname="el-image" data-expectedrole="image" aria-label="label" class="ex" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="></image>
+  <!-- blocked: line -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- n/a: linearGradient -->
+  <!-- n/a: marker -->
+  <!-- n/a: mask -->
+  <!-- todo: mesh (spec says `image` role if rendered and labeled) -->
+  <!-- n/a: meshPatch -->
+  <!-- n/a: meshRow -->
+  <!-- n/a: metadata -->
+  <!-- n/a: mpath -->
+  <!-- blocked: path -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- n/a: pattern -->
+  <!-- blocked: polygon -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- blocked: polyline -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- n/a: radialGradient -->
+  <!-- blocked: rect -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- n/a: script -->
+  <!-- n/a: set -->
+  <!-- n/a: solidColor -->
+  <!-- todo: source -> follow HTML -->
+  <!-- n/a: stop -->
+  <!-- n/a: style -->
+  <!-- blocked: svg -> https://github.com/w3c/svg-aam/issues/18 -->
+  <!-- n/a: switch -->
+  <!-- blocked: symbol -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- blocked: text -> https://github.com/w3c/svg-aam/issues/33 -->
+  <!-- blocked: textPath -> https://w3c.github.io/svg-aam/#textpath-tspan-mappings-issue-->
+  <!-- n/a: title -->
+  <!-- todo: track -> follow HTML -->
+  <!-- blocked: tspan -> https://w3c.github.io/svg-aam/#textpath-tspan-mappings-issue -->
+  <!-- blocked: use -> https://github.com/w3c/svg-aam/issues/24 -->
+  <!-- todo: video -> follow HTML -->
+  <!-- n/a: view -->
+</svg>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+
+        let anim = foo.animate({}, {});
+        anim.playbackRate = 0;
+        try {
+            anim.finish();
+        } catch {
+            println("Cannot finish an animation with no effective playback rate");
+        }
+
+        anim = foo.animate({}, { duration: Infinity });
+        try {
+            anim.finish();
+        } catch {
+            println("Cannot finish an animation with an infinite effect end");
+        }
+
+        anim = foo.animate({}, {});
+        anim.updatePlaybackRate(2.0);
+        let previousPlaybackRate = anim.playbackRate;
+        anim.finish();
+        if (previousPlaybackRate === 1.0 && anim.playbackRate === 2.0)
+            println("finish() updates animation's pending playback rate")
+
+        const timeline = internals.createInternalAnimationTimeline();
+        anim = foo.animate({}, { duration: 1000, timeline });
+        anim.finish();
+        if (anim.currentTime === 1000)
+            println("finish() updates currentTime of animation with positive playback rate");
+
+        anim = foo.animate({}, { duration: 1000 });
+        anim.playbackRate = -1;
+        anim.finish();
+        if (anim.currentTime === 0)
+            println("finish() updates currentTime of animation with negative playback rate");
+        if (anim.startTime !== null)
+            println("finish() updates animation's startTime");
+
+        anim = foo.animate({}, { duration: 1000 });
+        let finishCount = 0;
+        anim.onfinish = () => { finishCount++; }
+        anim.finish();
+        await animationFrame();
+        if (finishCount === 1)
+            println("finish() sends an onfinish event");
+
+        anim = foo.animate({}, { duration: 1000 });
+        let finished = false;
+        anim.finished.then(() => finished = true);
+        anim.finish();
+
+        await animationFrame();
+        if (finished)
+            println("finish() recreated the animation's finished promise");
+    });
+</script>

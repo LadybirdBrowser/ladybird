@@ -1,0 +1,32 @@
+#import <FileAPI/Blob.idl>
+#import <HTML/ImageData.idl>
+#import <HTML/CanvasRenderingContext2D.idl>
+#import <HTML/Canvas/CanvasDrawImage.idl>
+
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#images-2
+[Exposed=(Window,Worker), Serializable, Transferable]
+interface ImageBitmap {
+    readonly attribute unsigned long width;
+    readonly attribute unsigned long height;
+    undefined close();
+};
+
+
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapsource
+typedef (CanvasImageSource or
+         Blob or
+         ImageData) ImageBitmapSource;
+
+enum ImageOrientation { "from-image", "flipY" };
+enum PremultiplyAlpha { "none", "premultiply", "default" };
+enum ColorSpaceConversion { "none", "default" };
+enum ResizeQuality { "pixelated", "low", "medium", "high" };
+
+dictionary ImageBitmapOptions {
+    // FIXME: ImageOrientation imageOrientation = "from-image";
+    // FIXME: PremultiplyAlpha premultiplyAlpha = "default";
+    // FIXME: ColorSpaceConversion colorSpaceConversion = "default";
+    // FIXME: [EnforceRange] unsigned long resizeWidth;
+    // FIXME: [EnforceRange] unsigned long resizeHeight;
+    // FIXME: ResizeQuality resizeQuality = "low";
+};

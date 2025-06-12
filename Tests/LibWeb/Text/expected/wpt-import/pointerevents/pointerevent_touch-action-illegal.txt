@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	'pan-x none' is corrected properly
+Pass	'pan-y none' is corrected properly
+Pass	'auto none' is corrected properly

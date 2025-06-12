@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    // Note: The "persisted" state is tested in the Animation.persist() test
+
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+        const animation1 = foo.animate({ opacity: [0, 1] }, { duration: 10, fill: "forwards" });
+        println(`Animation's replaceState is active initially: ${animation1.replaceState === "active"}`);
+
+        await animation1.finished;
+        println(`Animation's replaceState is active after finishing: ${animation1.replaceState === "active"}`);
+
+        const animation2 = foo.animate({ opacity: [1, 0] }, { duration: 10, fill: "forwards" });
+        println(`Animation's replaceState is not removed after creating new animation: ${animation1.replaceState === "active"}`);
+
+        await animation2.finished;
+
+        // This shouldn't be necessary, but this test has been a bit flaky on CI, so this should hopefully make the test more reliable
+        await animationFrame();
+
+        println(`Animation's replaceState is removed after new animation finishes: ${animation1.replaceState === "removed"}`);
+    });
+</script>

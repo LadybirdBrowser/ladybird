@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const CHUNK1 =  "abcdefghijklmnopqrstuvwxyz";
+    const CHUNK2 =  "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const CHUNK3 =  "0123456789!@#$%^&*()-=_+,<";
+
+    asyncTest(done => {
+        const writableStream = new WritableStream(
+            {
+                write(chunk) {
+                    return new Promise((resolve) => {
+                        const textDecoder = new TextDecoder("utf-8");
+                        println(textDecoder.decode(new Uint8Array(chunk)));
+
+                        resolve();
+                    });
+                },
+
+                close() {
+                    done();
+                }
+            }
+        );
+        const stream = new ReadableStream({
+            start(controller) {
+                pullCount = 0;
+            },
+
+            pull(controller) {
+                const textEncoder = new TextEncoder();
+
+                ++pullCount;
+
+                if (pullCount == 1) {
+                    controller.enqueue(textEncoder.encode(CHUNK1));
+                } else if (pullCount == 2) {
+                     controller.enqueue(textEncoder.encode(CHUNK2));
+                } else if (pullCount == 3) {
+                     controller.enqueue(textEncoder.encode(CHUNK3));
+                } else {
+                    controller.close();
+                }
+            },
+
+            cancel() {},
+        });
+
+        stream.pipeTo(writableStream);
+    });
+</script>

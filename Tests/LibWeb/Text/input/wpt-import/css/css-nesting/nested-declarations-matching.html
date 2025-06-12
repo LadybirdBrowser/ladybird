@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<title>CSS Nesting: CSSNestedDeclarations matching</title>
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/#nested-declarations-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  .trailing {
+    --x: FAIL;
+    & { --x: FAIL; }
+    --x: PASS;
+  }
+</style>
+<div class=trailing></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.trailing');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), 'PASS');
+  }, 'Trailing declarations apply after any preceding rules');
+</script>
+
+
+<style>
+  .trailing_no_leading {
+    & { --x: FAIL; }
+    --x: PASS;
+  }
+</style>
+<div class=trailing_no_leading></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.trailing_no_leading');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), 'PASS');
+  }, 'Trailing declarations apply after any preceding rules (no leading)');
+</script>
+
+
+<style>
+  .trailing_multiple {
+    --x: FAIL;
+    --y: FAIL;
+    --z: FAIL;
+    --w: FAIL;
+    & { --x: FAIL; }
+    --x: PASS;
+    --y: PASS;
+    & { --z: FAIL; }
+    --z: PASS;
+    --w: PASS;
+  }
+</style>
+<div class=trailing_multiple></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.trailing_multiple');
+    let s = getComputedStyle(e);
+    assert_equals(s.getPropertyValue('--x'), 'PASS');
+    assert_equals(s.getPropertyValue('--y'), 'PASS');
+    assert_equals(s.getPropertyValue('--z'), 'PASS');
+    assert_equals(s.getPropertyValue('--w'), 'PASS');
+  }, 'Trailing declarations apply after any preceding rules (multiple)');
+</script>
+
+
+<style>
+  .trailing_specificity {
+    --x: FAIL;
+    :is(&, div.nomatch2) { --x: PASS; } /* Specificity: (0, 1, 1) */
+    --x: FAIL; /* Specificity: (0, 1, 0) */
+  }
+</style>
+<div class=trailing_specificity></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.trailing_specificity');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), 'PASS');
+  }, 'Nested declarations rule has same specificity as outer selector');
+</script>
+
+
+<style>
+  #nomatch, .specificity_top_level {
+    --x: FAIL;
+    :is(&, div.nomatch2) { --x: PASS; } /* Specificity: (0, 1, 1) */
+    --x: FAIL; /* Specificity: (0, 1, 0). In particular, this does not have
+               specificity like :is(#nomatch, .specificity_top_level). */
+  }
+</style>
+<div class=specificity_top_level></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.specificity_top_level');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), 'PASS');
+  }, 'Nested declarations rule has top-level specificity behavior');
+</script>
+
+
+<style>
+  #nomatch, .specificity_top_level_max, div.specificity_top_level_max {
+    --x: FAIL;
+    :is(:where(&), div.nomatch2) { --x: FAIL; } /* Specificity: (0, 1, 1) */
+    --x: PASS; /* Specificity: (0, 1, 1) (for div.specificity_top_level_max) */
+  }
+</style>
+<div class=specificity_top_level_max></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.specificity_top_level_max');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), 'PASS');
+  }, 'Nested declarations rule has top-level specificity behavior (max matching)');
+</script>
+
+<style>
+  .nested_pseudo::after {
+    --x: FAIL;
+    @media (width > 0px) {
+      --x: PASS;
+    }
+  }
+</style>
+<div class=nested_pseudo></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.nested_pseudo');
+    assert_equals(getComputedStyle(e, '::after').getPropertyValue('--x'), 'PASS');
+  }, 'Bare declartaion in nested grouping rule can match pseudo-element');
+</script>
+
+<style>
+  #nomatch, .nested_group_rule {
+    --x: FAIL;
+    @media (width > 0px) {
+      --x: FAIL; /* Specificity: (0, 1, 0) */
+    }
+    --x: PASS;
+  }
+</style>
+<div class=nested_group_rule></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.nested_group_rule');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), 'PASS');
+  }, 'Nested group rules have top-level specificity behavior');
+</script>
+
+
+<style>
+  .nested_scope_rule {
+    div:where(&) { /* Specificity: (0, 0, 1) */
+      --x: PASS;
+    }
+    @scope (&) {
+      --x: FAIL; /* Specificity: (0, 0, 0) */
+    }
+  }
+</style>
+<div class=nested_scope_rule></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.nested_scope_rule');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), 'PASS');
+  }, 'Nested @scope rules behave like :where(:scope)');
+</script>
+
+
+<style>
+  .nested_scope_rule_trailing {
+    div:where(&) { /* Specificity: (0, 0, 1) */
+      --x: PASS;
+    }
+    @scope (&) {
+      --ignored: 1;
+      .ignored {}
+      --x: FAIL; /* Specificity: (0, 0, 0) */
+    }
+  }
+</style>
+<div class=nested_scope_rule_trailing></div>
+<script>
+  test(() => {
+    let e = document.querySelector('.nested_scope_rule_trailing');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), 'PASS');
+  }, 'Nested @scope rules behave like :where(:scope) (trailing)');
+</script>
+
+
+<style id=set_parent_selector_text_style>
+  .set_parent_selector_text {
+    div {
+      color: red;
+    }
+    .a1 {
+      .ignored {}
+      color: green;
+    }
+  }
+</style>
+<div class=set_parent_selector_text>
+  <div class=a1>A1</div>
+  <div class=a2>A2</div>
+</div>
+<script>
+  test(() => {
+    let a1 = document.querySelector('.set_parent_selector_text > .a1');
+    let a2 = document.querySelector('.set_parent_selector_text > .a2');
+    assert_equals(getComputedStyle(a1).color, 'rgb(0, 128, 0)');
+    assert_equals(getComputedStyle(a2).color, 'rgb(255, 0, 0)');
+
+    let rules = set_parent_selector_text_style.sheet.cssRules;
+    assert_equals(rules.length, 1);
+    assert_equals(rules[0].cssRules.length, 2);
+
+    let a_rule = rules[0].cssRules[1];
+    assert_equals(a_rule.selectorText, '& .a1');
+    a_rule.selectorText = '.a2';
+    assert_equals(a_rule.selectorText, '& .a2');
+
+    assert_equals(getComputedStyle(a1).color, 'rgb(255, 0, 0)');
+    assert_equals(getComputedStyle(a2).color, 'rgb(0, 128, 0)');
+  }, 'Nested declarations rule responds to parent selector text change');
+</script>

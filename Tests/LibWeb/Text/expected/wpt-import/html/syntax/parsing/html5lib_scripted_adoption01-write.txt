@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	html5lib_scripted_adoption01.html 8970fe21b551a270aa74648bb2e8b905edb54522

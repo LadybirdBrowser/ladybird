@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            try {
+                println(`${testCounter}. ${JSON.stringify(part())}`);
+            } catch (e) {
+                println(`${testCounter}. Exception: ${e.name}`);
+            }
+            testCounter++;
+        }
+
+        // 1. Creating a DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]));
+
+        // 2. Creating a DOMMatrix
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]));
+
+        // 3. Creating a DOMMatrix with fromMatrix
+        testPart(() => DOMMatrix.fromMatrix({ a: 10, b: 20, c: 30, d: 40, e: 50, f: 60 }));
+
+        // 4. Creating a DOMMatrix with fromMatrix
+        testPart(() => DOMMatrix.fromMatrix({ m11: 10, m12: 20, m13: 30, m14: 40, m21: 50, m22: 60, m23: 70, m24: 80, m31: 90, m32: 100, m33: 110, m34: 120, m41: 130, m42: 140, m43: 150, m44: 160 }));
+
+        // 5. Creating a DOMMatrix with fromFloat32Array
+        testPart(() => DOMMatrix.fromFloat32Array(new Float32Array([10, 20, 30, 40, 50, 60])));
+
+        // 6. Creating a DOMMatrix with fromFloat32Array
+        testPart(() => DOMMatrix.fromFloat32Array(new Float32Array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160])));
+
+        // 7. Creating a DOMMatrix with fromFloat64Array
+        testPart(() => DOMMatrix.fromFloat64Array(new Float64Array([10, 20, 30, 40, 50, 60])));
+
+        // 8. Creating a DOMMatrix with fromFloat64Array
+        testPart(() => DOMMatrix.fromFloat64Array(new Float64Array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160])));
+
+        // 9. Creating a DOMMatrix with fromFloat32Array wrong amount
+        testPart(() => DOMMatrix.fromFloat32Array(new Float32Array([10, 20, 30, 40])));
+
+        // 10. Creating a DOMMatrix with fromFloat64Array wrong amount
+        testPart(() => DOMMatrix.fromFloat64Array(new Float64Array([10, 20, 30, 40])));
+
+        // 11. Creating a DOMMatrix with CSS transform string
+        testPart(() => new DOMMatrix('translate(10px, 10px)'));
+
+        // 12. Creating a DOMMatrix with CSS transform string
+        testPart(() => new DOMMatrix('scale(10) translate(10px, 10px)'));
+
+        // 13. Creating a DOMMatrix with CSS transform string
+        testPart(() => new DOMMatrix('scale(2)'));
+
+        // 14. Creating a DOMMatrix with CSS transform string
+        testPart(() => new DOMMatrix('rotate(20deg) translate(10px, 10px)'));
+
+        // 15. Creating a DOMMatrix with CSS transform string with error
+        testPart(() => new DOMMatrix('translate(2)'));
+
+        // 16. Creating a DOMMatrix with CSS transform string with error
+        testPart(() => new DOMMatrix('rotate(20)'));
+
+        // 17. Creating a DOMMatrix with CSS transform string with error
+        testPart(() => new DOMMatrix('rotate(20px)'));
+
+        // 18. Creating a DOMMatrix with CSS transform string with error
+        testPart(() => new DOMMatrix('matrix(1.0, 2.0deg, 3.0, 4.0, 5.0, 6.0)'));
+
+        // 19. Creating a DOMMatrix with CSS transform string with non-absolute units should fail
+        testPart(() => new DOMMatrix('translate(1em, 1em)'));
+    });
+</script>

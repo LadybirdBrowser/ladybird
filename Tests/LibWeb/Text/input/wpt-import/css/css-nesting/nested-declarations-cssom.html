@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<title>CSS Nesting: CSSNestedDeclarations CSSOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/#nested-declarations-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync(`
+      .a {
+        & { --x:1; }
+        --x:2;
+      }
+    `);
+    assert_equals(s.cssRules.length, 1);
+    let outer = s.cssRules[0];
+    assert_equals(outer.cssRules.length, 2);
+    assert_equals(outer.cssRules[0].cssText, `& { --x: 1; }`);
+    assert_equals(outer.cssRules[1].cssText, `--x: 2;`);
+  }, 'Trailing declarations');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync(`
+      .a {
+        --a:1;
+        --b:1;
+        & { --c:1; }
+        --d:1;
+        --e:1;
+        & { --f:1; }
+        --g:1;
+        --h:1;
+        --i:1;
+        & { --j:1; }
+        --k:1;
+        --l:1;
+      }
+    `);
+    assert_equals(s.cssRules.length, 1);
+    let outer = s.cssRules[0];
+    assert_equals(outer.cssRules.length, 6);
+    assert_equals(outer.cssRules[0].cssText, `& { --c: 1; }`);
+    assert_equals(outer.cssRules[1].cssText, `--d: 1; --e: 1;`);
+    assert_equals(outer.cssRules[2].cssText, `& { --f: 1; }`);
+    assert_equals(outer.cssRules[3].cssText, `--g: 1; --h: 1; --i: 1;`);
+    assert_equals(outer.cssRules[4].cssText, `& { --j: 1; }`);
+    assert_equals(outer.cssRules[5].cssText, `--k: 1; --l: 1;`);
+  }, 'Mixed declarations');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync(`
+      .a {
+        & { --x:1; }
+        --y:2;
+        --z:3;
+      }
+    `);
+    assert_equals(s.cssRules.length, 1);
+    let outer = s.cssRules[0];
+    assert_equals(outer.cssRules.length, 2);
+    let nested_declarations = outer.cssRules[1];
+    assert_true(nested_declarations instanceof CSSNestedDeclarations);
+    assert_equals(nested_declarations.style.length, 2);
+    assert_equals(nested_declarations.style.getPropertyValue('--x'), '');
+    assert_equals(nested_declarations.style.getPropertyValue('--y'), '2');
+    assert_equals(nested_declarations.style.getPropertyValue('--z'), '3');
+  }, 'CSSNestedDeclarations.style');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync(`
+      .a {
+        @media (width > 100px) {
+          --x:1;
+          --y:1;
+          .b { }
+          --z:1;
+        }
+        --w:1;
+      }
+    `);
+    assert_equals(s.cssRules.length, 1);
+    let outer = s.cssRules[0];
+    assert_equals(outer.cssRules.length, 2);
+
+    // @media
+    let media = outer.cssRules[0];
+    assert_equals(media.cssRules.length, 3);
+    assert_true(media.cssRules[0] instanceof CSSNestedDeclarations);
+    assert_equals(media.cssRules[0].cssText, `--x: 1; --y: 1;`);
+    assert_equals(media.cssRules[1].cssText, `& .b { }`);
+    assert_true(media.cssRules[2] instanceof CSSNestedDeclarations);
+    assert_equals(media.cssRules[2].cssText, `--z: 1;`);
+
+    assert_true(outer.cssRules[1] instanceof CSSNestedDeclarations);
+    assert_equals(outer.cssRules[1].cssText, `--w: 1;`);
+  }, 'Nested group rule');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync(`
+      .a {
+        @scope (.foo) {
+          --x:1;
+          --y:1;
+          .b { }
+          --z:1;
+        }
+        --w:1;
+      }
+    `);
+    assert_equals(s.cssRules.length, 1);
+    let outer = s.cssRules[0];
+    if (window.CSSScopeRule) {
+      assert_equals(outer.cssRules.length, 2);
+
+      // @scope
+      let scope = outer.cssRules[0];
+      assert_true(scope instanceof CSSScopeRule);
+      assert_equals(scope.cssRules.length, 3);
+      assert_true(scope.cssRules[0] instanceof CSSNestedDeclarations);
+      assert_equals(scope.cssRules[0].cssText, `--x: 1; --y: 1;`);
+      assert_equals(scope.cssRules[1].cssText, `.b { }`); // Implicit :scope here.
+      assert_true(scope.cssRules[2] instanceof CSSNestedDeclarations);
+      assert_equals(scope.cssRules[2].cssText, `--z: 1;`);
+
+      assert_true(outer.cssRules[1] instanceof CSSNestedDeclarations);
+      assert_equals(outer.cssRules[1].cssText, `--w: 1;`);
+    } else {
+      assert_equals(outer.cssRules.length, 0);
+    }
+  }, 'Nested @scope rule');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync(`
+      a {
+        & { --x:1; }
+        width: 100px;
+        height: 200px;
+        color:hover {}
+        --y: 2;
+      }
+    `);
+    assert_equals(s.cssRules.length, 1);
+    let outer = s.cssRules[0];
+    assert_equals(outer.cssRules.length, 4);
+    assert_equals(outer.cssRules[0].cssText, `& { --x: 1; }`);
+    assert_equals(outer.cssRules[1].cssText, `width: 100px; height: 200px;`);
+    assert_equals(outer.cssRules[2].cssText, `& color:hover { }`);
+    assert_equals(outer.cssRules[3].cssText, `--y: 2;`);
+  }, 'Inner rule starting with an ident');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync('.a {}');
+    assert_equals(s.cssRules.length, 1);
+    let a_rule = s.cssRules[0];
+    assert_equals(a_rule.cssRules.length, 0);
+    a_rule.insertRule(`
+      width: 100px;
+      height: 200px;
+    `);
+    assert_equals(a_rule.cssRules.length, 1);
+    assert_true(a_rule.cssRules[0] instanceof CSSNestedDeclarations);
+    assert_equals(a_rule.cssRules[0].cssText, `width: 100px; height: 200px;`);
+  }, 'Inserting a CSSNestedDeclaration rule into style rule');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync('.a { @media (width > 100px) {} }');
+    assert_equals(s.cssRules.length, 1);
+    assert_equals(s.cssRules[0].cssRules.length, 1);
+    let media_rule = s.cssRules[0].cssRules[0];
+    assert_true(media_rule instanceof CSSMediaRule);
+    assert_equals(media_rule.cssRules.length, 0);
+    media_rule.insertRule(`
+      width: 100px;
+      height: 200px;
+    `);
+    assert_equals(media_rule.cssRules.length, 1);
+    assert_true(media_rule.cssRules[0] instanceof CSSNestedDeclarations);
+    assert_equals(media_rule.cssRules[0].cssText, `width: 100px; height: 200px;`);
+  }, 'Inserting a CSSNestedDeclaration rule into nested group rule');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync('@media (width > 100px) {}');
+    assert_equals(s.cssRules.length, 1);
+    let media_rule = s.cssRules[0];
+    assert_true(media_rule instanceof CSSMediaRule);
+    assert_equals(media_rule.cssRules.length, 0);
+    assert_throws_dom('SyntaxError', () => {
+      media_rule.insertRule(`
+        width: 100px;
+        height: 200px;
+      `);
+    });
+  }, 'Attempting to insert a CSSNestedDeclaration rule into top-level @media rule');
+
+  test(() => {
+    let sheet = new CSSStyleSheet();
+    assert_throws_dom('SyntaxError', () => {
+      sheet.insertRule(`
+        width: 100px;
+        height: 200px;
+      `);
+    });
+  }, 'Attempting to insert a CSSNestedDeclaration rule into a stylesheet');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync('.a {}');
+    assert_equals(s.cssRules.length, 1);
+    let a_rule = s.cssRules[0];
+    assert_equals(a_rule.cssRules.length, 0);
+    assert_throws_dom('SyntaxError', () => {
+      a_rule.insertRule('');
+    });
+  }, 'Attempting to insert a CSSNestedDeclaration rule, empty block');
+
+  test(() => {
+    let s = new CSSStyleSheet();
+    s.replaceSync('.a {}');
+    assert_equals(s.cssRules.length, 1);
+    let a_rule = s.cssRules[0];
+    assert_equals(a_rule.cssRules.length, 0);
+    assert_throws_dom('SyntaxError', () => {
+    a_rule.insertRule(`
+      xwidth: 100px;
+      xheight: 200px;
+    `);
+    });
+  }, 'Attempting to insert a CSSNestedDeclaration rule, all invalid declarations');
+</script>

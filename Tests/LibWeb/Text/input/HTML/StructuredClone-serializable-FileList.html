@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<input id="input1" type="file" multiple />
+<script src="../include.js"></script>
+<script>
+    const runTest = async id => {
+        let input = document.getElementById(id);
+
+        return new Promise(resolve => {
+            input.addEventListener("input", async () => {
+                println(`${id}:`);
+
+                let files = structuredClone(input.files);
+
+                for (let file of input.files) {
+                    const text = await file.text();
+
+                    println(`${file.name}: ${file.type}: ${text}`);
+                }
+
+                resolve();
+            });
+
+            internals.dispatchUserActivatedEvent(input, new Event("mousedown"));
+            input.showPicker();
+        });
+    }
+
+    asyncTest(async done => {
+        await runTest("input1");
+
+        done();
+    });
+</script>

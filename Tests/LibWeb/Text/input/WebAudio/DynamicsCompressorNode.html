@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function dumpAudioParam(param) {
+        println(`${param} current: ${param.value}, default: ${param.defaultValue}, min: ${param.minValue}, max: ${param.maxValue}, rate: ${param.automationRate}`);
+    }
+
+    test(() => {
+        const audioContext = new OfflineAudioContext(1, 5000, 44100);
+
+        const compressor = audioContext.createDynamicsCompressor();
+
+        // Check prototype
+        let prototype = Object.getPrototypeOf(compressor);
+
+        while (prototype) {
+            println(prototype.constructor.name);
+            prototype = Object.getPrototypeOf(prototype);
+        }
+
+        // Audio Params
+        dumpAudioParam(compressor.threshold);
+        dumpAudioParam(compressor.knee);
+        dumpAudioParam(compressor.ratio);
+        dumpAudioParam(compressor.attack);
+        dumpAudioParam(compressor.release);
+
+        // Default reduction
+        println(`reduction: ${compressor.reduction}`);
+    });
+</script>

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe name="framey" src=""></iframe>
+<iframe name=spices></iframe>
+<script>
+    test(() => {
+        println(window.framey === window.frames[0]);
+        println(window.spices == window.frames[1]);
+
+        // FIXME: Test with cross-origin iframe?
+        // FIXME: Test with iframe that sets window.name -- this changes nothing atm
+    });
+</script>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Containment Test: 'contain: layout' applies to 'table-cell' elements</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-contain-1/#containment-layout">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/contain-layout-cell-001-ref.html">
+
+  <meta content="In this test, the td#contain should act as the containing block for div#abs-pos ." name="assert">
+
+  <style>
+  table
+    {
+      background-color: blue;
+      border-spacing: 2px;
+      height: 206px;
+      table-layout: fixed;
+      width: 206px;
+    }
+
+  td
+    {
+      background-color: white;
+      padding: 0px;
+      vertical-align: top;
+    }
+
+  td#contain
+    {
+      contain: layout;
+    }
+
+  span
+    {
+      background-color: red;
+      color: yellow;
+      font-family: monospace;
+      vertical-align: top;
+    }
+
+  div#abs-pos
+    {
+      background-color: green;
+      color: white;
+      font-family: monospace;
+      left: 0px;
+      position: absolute;
+      top: 0px;
+    }
+  </style>
+
+  <p>Test passes if there is the word PASS and if there is <strong>no red</strong>.
+
+  <table>
+
+    <tr><td>&nbsp;<td>&nbsp;
+
+    <tr><td>&nbsp;<td id="contain"><span>FAIL</span><div id="abs-pos">PASS</div>
+
+  </table>

@@ -1,0 +1,14 @@
+none => none
+block => block
+flow-root => flow-root
+inline => inline
+inline-block => inline-block
+run-in => run-in
+list-item => list-item
+flex => flex
+inline-flex => inline-flex
+grid => grid
+inline-grid => inline-grid
+ruby => ruby
+table => table
+inline-table => inline-table

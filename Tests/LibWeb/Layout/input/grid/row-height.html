@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+  .grid-container {
+    display: grid;
+    background-color: lightsalmon;
+  }
+
+  .grid-item {
+    background-color: lightblue;
+  }
+</style>
+
+<!-- Should render a 2x2 grid with the first row having a height of 50px -->
+<div class="grid-container" style="grid-template-columns: auto auto;">
+  <div class="grid-item" style="height: 50px;">1</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">3</div>
+  <div class="grid-item">4</div>
+</div>

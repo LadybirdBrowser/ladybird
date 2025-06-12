@@ -1,0 +1,5 @@
+Before replaceData:
+[0]: 53997
+[1]: 56998
+After replaceData:
+[0]: 56998

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const e = document.createElement("div");
+        document.body.appendChild(e);
+        const definition = "0 calc(5px - 10px) 0 calc(2px + 3px)";
+        e.style.boxShadow = definition;
+        const computedStyle = getComputedStyle(e);
+        const serialized = computedStyle.boxShadow;
+        println(definition + " => " + serialized);
+        e.remove();
+    });
+</script>

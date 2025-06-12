@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: minimum size of the radio button</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto">
+<meta name="assert" content="This test ensures that radio buttons used as flex items do not shrink below their default sizes.">
+<style>
+.flex {
+  display: flex;
+  width: 500px;
+}
+
+.wide {
+  width: 600px;
+  flex: none;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<p>You should see two identical-looking lines, both with a radio button at the
+beginning.</p>
+
+<div class="flex">
+  <input type="radio" id="check">
+  <div class="wide">Text</div>
+</div>
+
+<div>
+  <input type="radio" style="vertical-align: top;" id="ref"><span>Text</span>
+</div>
+
+<script>
+var ref = document.getElementById("ref");
+var check = document.getElementById("check");
+
+test(function() {
+  assert_equals(ref.offsetWidth, check.offsetWidth, "width should be equal");
+}, "two radio button widths are identical");
+</script>

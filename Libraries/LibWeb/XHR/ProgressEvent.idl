@@ -1,0 +1,17 @@
+#import <DOM/Event.idl>
+
+// https://xhr.spec.whatwg.org/#interface-progressevent
+[Exposed=(Window,Worker)]
+interface ProgressEvent : Event {
+    constructor(DOMString type, optional ProgressEventInit eventInitDict = {});
+
+    readonly attribute boolean lengthComputable;
+    readonly attribute double loaded;
+    readonly attribute double total;
+};
+
+dictionary ProgressEventInit : EventInit {
+    boolean lengthComputable = false;
+    double loaded = 0;
+    double total = 0;
+};

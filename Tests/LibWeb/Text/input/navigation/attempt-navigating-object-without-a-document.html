@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<object id="obj" type="text/html" data="about:blank"></object>
+<script>
+    asyncTest(done => {
+        const objectElement = document.getElementById("obj");
+        objectElement.onload = () => {
+            // Should not be reached.
+            println("load event fired");
+        };
+        objectElement.remove();
+        objectElement.data = "data:text/html;charset=utf-8,%3Chtml%3E%3Cbody%3E%3Ch1%3EHello%2C%20World%21%3C%2Fh1%3E%3Cp%3EThis%20is%20a%20simple%20embedded%20HTML%20using%20data%20URI.%3C%2Fp%3E%3C%2Fbody%3E%3C%2Fhtml%3E";
+    
+        setTimeout(() => {
+            println("PASS");
+            done();
+        }, 100);
+    });
+</script>

@@ -1,0 +1,20 @@
+import("//Meta/gn/build/libs/third_party.gni")
+
+third_party_dependency("jxl") {
+  libs = [
+    "jxl",
+    "hwy",
+    "brotlienc",
+    "brotlidec",
+    "brotlicommon",
+    "jxl_cms",
+    "lcms2",
+  ]
+  defines = [
+    # FIXME: These static defines depend on whether you built jxl as static or not...
+    "JXL_STATIC_DEFINE",
+    "JXL_CMS_STATIC_DEFINE",
+    "HWY_STATIC_DEFINE",
+    "CMS_NO_REGISTER_KEYWORD",
+  ]
+}

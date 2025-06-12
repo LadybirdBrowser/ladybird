@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        // FIXME: Surely there's a better way to get this font URL
+        let fontUrl = new URL(location.href);
+        fontUrl.search = "";
+        fontUrl += "/../../../../Assets/HashSans.woff";
+
+        const hashSans = new FontFace("Hash Sans", `url(${fontUrl})`);
+        println(`hashSans.family: ${hashSans.family}`);
+        println(`hashSans.status: ${hashSans.status}`);
+
+        await hashSans.load().then(() => {
+            println(`hashSans.status: ${hashSans.status}`);
+        }, () => {
+            println("FAILED");
+        });
+
+        let notExistFont = new FontFace("NotExist", "url(https://something.invalid/not-exist.woff)");
+        await notExistFont.load().then(() => {
+            println("FAILED");
+        }, (reason) => {
+            println(`font load failed because: ${reason}`);
+            println(`notExistFont.status: ${notExistFont.status}`);
+        });
+
+        done();
+    });
+</script>

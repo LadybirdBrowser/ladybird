@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+
+<head>
+    <style>
+        #outer {
+            width: 200px;
+            height: 200px;
+            background-color: lightblue;
+        }
+
+        #inner {
+            width: 100px;
+            height: 100px;
+            background-color: pink;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="outer">
+        <div id="inner"></div>
+    </div>
+</body>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const outerBox = document.getElementById("outer");
+        const innerBox = document.getElementById("inner");
+
+        function createTimeoutPromise(timeout) {
+            return new Promise(r => {
+                setTimeout(r, timeout);
+            });
+        }
+
+        function createResizeObserverCallback() {
+            let resolve;
+            const promise = new Promise(r => {
+                resolve = r;
+            });
+
+            const callback = (entries) => {
+                for (let entry of entries) {
+                    const { width, height } = entry.contentRect;
+                    println(`Size changed: ${width}px x ${height}px`);
+                }
+
+                resolve();
+            };
+
+            return { promise, callback };
+        }
+
+        const { callback, promise } = createResizeObserverCallback();
+
+        const resizeObserver = new ResizeObserver(callback);
+        resizeObserver.observe(innerBox);
+        resizeObserver.observe(outerBox);
+
+        await promise;
+
+        resizeObserver.disconnect();
+
+        innerBox.style.width = "500px";
+        outerBox.style.width = "600px";
+
+        // Let event loop run to ensure that observer callback is not invoked.
+        await createTimeoutPromise(0);
+
+        done();
+    });
+</script>

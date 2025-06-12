@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        var pos_x = document.getElementById("position-x")
+        var pos_y = document.getElementById("position-y")
+        println(getComputedStyle(pos_x).backgroundPositionX)
+        println(getComputedStyle(pos_y).backgroundPositionY)
+    });
+</script>
+<style>
+.example {
+  display: inline-block;
+  width: 200px;
+  height: 200px;
+  border: 1px solid black;
+  background-repeat: no-repeat;
+  background-size: 30px 30px;
+  background-image: linear-gradient(red, red);
+}
+</style>
+<div id="position-x" class="example" style="background-position-x: right"></div><div id="position-y" class="example" style="background-position-y: bottom"></div>

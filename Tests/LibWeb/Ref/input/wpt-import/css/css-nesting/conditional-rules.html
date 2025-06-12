@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<title>Conditional rules with nesting</title>
+<link rel="author" title="Adam Argyle" href="mailto:argyle@google.com">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-nesting/conditional-rules-ref.html">
+<style>
+  .test {
+    background-color: red;
+    width: 30px;
+    height: 30px;
+    display: grid;
+  }
+
+  .test-5 {
+    @media (min-width: 10px) {
+      & {
+        background-color: green;
+      }
+    }
+  }
+
+  .test-6 {
+    @media (min-width: 10px) {
+      background-color: green;
+    }
+  }
+
+  .test-10 {
+    @supports (display: grid) {
+      & {
+        background-color: green;
+      }
+    }
+  }
+
+  .test-11 {
+    @layer {
+      & {
+        background-color: green !important;
+      }
+    }
+  }
+
+  .test-12 {
+    @scope (&) {
+      :scope {
+        background-color: green;
+      }
+    }
+  }
+
+  div {
+    container-type: inline-size;
+  }
+  .test-13 {
+    @container (width >= 0px) {
+      & {
+        background-color: green;
+      }
+    }
+  }
+
+  body * + * {
+    margin-top: 8px;
+  }
+</style>
+<body>
+  <p>Tests pass if <strong>block is green</strong></p>
+  <div class="test test-5"></div>
+  <div class="test test-6"></div>
+  <div class="test test-10"></div>
+  <div class="test test-11"></div>
+  <div class="test test-12"><div class="test-12"></div></div>
+  <div class="test"><div class="test-13"></div></div>
+</body>

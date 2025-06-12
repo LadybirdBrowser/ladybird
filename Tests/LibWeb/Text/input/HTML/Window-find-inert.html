@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div>not inert</div>
+<div inert>inert</div>
+<script>
+    test(() => {
+        let initialResult = window.find("inert");
+        let secondCallResult = window.find("inert");
+        println(`window.find("inert") initial result: ${initialResult}`);
+        println(`window.find("inert") second call: ${secondCallResult}`);
+    });
+</script>

@@ -1,0 +1,32 @@
+<!doctype html><style>
+* {
+    outline: 1px solid black;
+}
+body {
+    position: absolute;
+    width: 400px;
+}
+#grid {
+    display: flow-root;
+    background-color: magenta;
+    height: 75px;
+}
+#grid-item-abspos {
+    position: absolute;
+    height: 25px;
+    background-color: yellowgreen;
+}
+#fill {
+    width: 100px;
+    height: 100px;
+    background-color: rebeccapurple;
+}
+</style>
+<div id="fill">hello</div>
+<div id="grid">
+    <div id="grid-item-abspos" style="top: 0; left: 0">top left</div>
+    <div id="grid-item-abspos" style="top: 0; right: 0">top right</div>
+    <div id="grid-item-abspos" style="bottom: 0; left: 0">bottom left</div>
+    <div id="grid-item-abspos" style="bottom: 0; right: 0">bottom right</div>
+</div>
+<div id="fill">hello</div>

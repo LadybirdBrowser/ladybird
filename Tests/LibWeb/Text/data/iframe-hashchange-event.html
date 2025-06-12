@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script>
+    window.addEventListener('hashchange', (event) => {
+        const oldURL = new URL(event.oldURL);
+        const newURL = new URL(event.newURL);
+        parent.postMessage(`hashchange oldURL.hash=${oldURL.hash} newURL.hash=${newURL.hash}`, "*");
+        if (location.hash === "#test")
+            location.hash = "#done";
+    });
+
+    location.hash = "#test";
+</script>

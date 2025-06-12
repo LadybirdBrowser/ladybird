@@ -1,0 +1,10 @@
+Empty sheet ownerNode: null
+Empty sheet ownerRule: null
+Empty sheet title: null
+Empty sheet cssRules is empty: true
+Empty sheet is disabled by default: false
+cssRules length after insertRule(): 1
+cssRules text: * { font-size: 16px; }
+rules and cssRules are the same object: true
+cssRules length after deleteRule(): 0
+Disabled sheet is disabled: true

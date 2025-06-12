@@ -1,0 +1,29 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x70 [BFC] children: not-inline
+    Box <body> at (10,10) content-size 500x52 flex-container(row) [FFC] children: not-inline
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      BlockContainer <div.big> at (11,11) content-size 381.625x50 flex-item [BFC] children: not-inline
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      BlockContainer <div.buttons> at (394.625,11) content-size 114.375x50 flex-item [BFC] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [395.625,12 57.046875x18] baseline: 14.796875
+        frag 1 from BlockContainer start: 0, length: 0, rect: [454.671875,12 53.328125x18] baseline: 14.796875
+        BlockContainer <div.button> at (395.625,12) content-size 57.046875x18 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [395.625,12 57.046875x18] baseline: 13.796875
+              "Accept"
+          TextNode <#text>
+        BlockContainer <div.button> at (454.671875,12) content-size 53.328125x18 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [454.671875,12 53.328125x18] baseline: 13.796875
+              "Reject"
+          TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x72]
+    PaintableBox (Box<BODY>) [9,9 502x54]
+      PaintableWithLines (BlockContainer<DIV>.big) [10,10 383.625x52]
+      PaintableWithLines (BlockContainer<DIV>.buttons) [393.625,10 116.375x52]
+        PaintableWithLines (BlockContainer<DIV>.button) [394.625,11 59.046875x20]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.button) [453.671875,11 55.328125x20]
+          TextPaintable (TextNode<#text>)

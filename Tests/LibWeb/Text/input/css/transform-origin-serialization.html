@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function serialize(input) {
+            const e = document.createElement("div");
+            e.style.transformOrigin = input;
+            const serialized = e.style.transformOrigin;
+            println(input + " => " + (serialized === '' ? '(invalid)' : serialized));
+        }
+
+        for (transformOrigin of [
+            'center',
+            '10px',
+            '25%',
+            'left 20%',
+            '20px bottom',
+            'top right',
+            '"center"',
+        ]) {
+            serialize(transformOrigin);
+        }
+    });
+</script>

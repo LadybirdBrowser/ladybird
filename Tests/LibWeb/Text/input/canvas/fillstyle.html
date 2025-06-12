@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        // 1. Integers
+        testPart(() => {
+            context.fillStyle = "rgb(0,255,0)";
+            return context.fillStyle;
+        });
+
+        // 2. Decimals
+        testPart(() => {
+            context.fillStyle = "rgb(254.56022744510793,0.28813966673057,0.2973971574794)";
+            return context.fillStyle;
+        });
+
+        // 3. Clamp numbers between 0-255
+        testPart(() => {
+            context.fillStyle = "rgba(-50,-50,500,1)";
+            return context.fillStyle;
+        });
+
+        // 4. Percentages
+        testPart(() => {
+            context.fillStyle = "rgb(0%, 100%, 0%)";
+            return context.fillStyle;
+        });
+
+        // 5. Calc, with out-of-range values
+        testPart(() => {
+            context.fillStyle = "rgb(calc(infinity), 0, 0)";
+            return context.fillStyle;
+        });
+    });
+</script>

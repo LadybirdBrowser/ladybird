@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let counter = 0;
+        setTimeout(() => {
+            history.replaceState({}, "test", "history-replace-push-state-race-3.html");
+            counter++;
+            if (counter === 2) {
+                println("test done!");
+                done();
+            }
+        }, 0);
+        setTimeout(() => {
+            history.replaceState({}, "test", "history-replace-push-state-race-3.html");
+            counter++;
+            if (counter === 2) {
+                println("test done!");
+                done();
+            }
+        }, 0);
+    });
+</script>

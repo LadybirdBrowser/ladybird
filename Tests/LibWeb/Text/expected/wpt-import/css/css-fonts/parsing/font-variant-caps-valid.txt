@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['font-variant-caps'] = "normal" should set the property value
+Pass	e.style['font-variant-caps'] = "small-caps" should set the property value
+Pass	e.style['font-variant-caps'] = "all-small-caps" should set the property value
+Pass	e.style['font-variant-caps'] = "petite-caps" should set the property value
+Pass	e.style['font-variant-caps'] = "all-petite-caps" should set the property value
+Pass	e.style['font-variant-caps'] = "unicase" should set the property value
+Pass	e.style['font-variant-caps'] = "titling-caps" should set the property value

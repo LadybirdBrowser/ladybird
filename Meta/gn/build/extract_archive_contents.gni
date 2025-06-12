@@ -1,0 +1,76 @@
+#
+# This file introduces templates for calling extract_archive_contents.py
+#
+# extract_archive_contents.py behaves like CMake's file(ARCHIVE_EXTRACT)
+#
+# Parameters:
+#   archive (required) [string]
+#
+#   files (required) [list of strings]
+#       Relative paths to the root of the archive of files to extract
+#
+#   directory (required) [string]
+#       Output directory root for all the files
+#
+#   paths (optional) [list of strings]
+#       Relative paths to the root of the archive of directories to extract
+#
+# Example use:
+#
+#    extract_archive_contents("my_files") {
+#        archive = "$root_gen_dir/MyModule/xyz.tar.gz"
+#        directory = "$root_gen_dir/MyModule"
+#        files = [
+#           "file_one.txt",
+#           "file_two"
+#        ]
+#        paths = [ "some_dir" ]
+#    }
+#
+
+template("extract_archive_contents") {
+  assert(defined(invoker.archive), "must set 'archive' in $target_name")
+  assert(defined(invoker.files) || defined(invoker.paths),
+         "must set 'files' and/or 'paths' in $target_name")
+  assert(defined(invoker.directory), "must set 'directory' in $target_name")
+
+  action(target_name) {
+    script = "//Meta/gn/build/extract_archive_contents.py"
+
+    paths = []
+    if (defined(invoker.paths)) {
+      foreach(path, invoker.paths) {
+        paths += [ path + "/" ]
+      }
+    }
+    files = []
+    if (defined(invoker.files)) {
+      files = invoker.files
+    }
+    stamp_file = invoker.directory + "$target_name.stamp"
+
+    sources = invoker.archive
+    outputs = []
+    args = [
+             "-d",
+             rebase_path(invoker.directory, root_build_dir),
+             "-s",
+             rebase_path(stamp_file, root_build_dir),
+             rebase_path(sources[0], root_build_dir),
+           ] + files + paths
+    foreach(file, files) {
+      outputs += [ invoker.directory + file ]
+    }
+    outputs += [ stamp_file ]
+
+    forward_variables_from(invoker,
+                           [
+                             "configs",
+                             "deps",
+                             "public_configs",
+                             "public_deps",
+                             "testonly",
+                             "visibility",
+                           ])
+  }
+}

@@ -1,0 +1,4 @@
+✅ Pass: Selector match for SVG element textPath.
+✅ Pass: Selector match for SVG element clipPath.
+✅ Pass: Selector match for SVG element foreignObject.
+✅ Pass: Selector match for SVG element radialGradient.

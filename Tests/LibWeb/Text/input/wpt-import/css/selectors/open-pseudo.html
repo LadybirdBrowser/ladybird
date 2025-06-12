@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://drafts.csswg.org/selectors-4/#open-state">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<dialog>dialog</dialog>
+
+<details>details</details>
+
+<select>
+  <option>one</option>
+</select>
+
+<script>
+test(() => {
+  const dialog = document.querySelector('dialog');
+  assert_false(dialog.matches(':open'),
+    ':open should not match when the dialog is closed.');
+
+  dialog.show();
+  assert_true(dialog.matches(':open'),
+    ':open should match after dialog.open().');
+
+  dialog.close();
+  dialog.showModal();
+  assert_true(dialog.matches(':open'),
+    ':open should match after dialog.showModal().');
+
+  dialog.close();
+}, 'The dialog element should support :open.');
+
+test(() => {
+  const details = document.querySelector('details');
+  assert_false(details.matches(':open'),
+    ':open should not match when the details is closed.');
+
+  details.open = true;
+  assert_true(details.matches(':open'),
+    ':open should match when the details is open.');
+}, 'The details element should support :open.');
+
+promise_test(async () => {
+  const select = document.querySelector('select');
+  assert_false(select.matches(':open'),
+    ':open should not match when the select is closed.');
+
+  await test_driver.click(select);
+  await new Promise(requestAnimationFrame);
+  assert_true(select.matches(':open'),
+    ':open should match when the select is open.');
+}, 'The select element should support :open.');
+</script>

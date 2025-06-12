@@ -1,0 +1,82 @@
+<!doctype html>
+<title>abspos flex children with top margins</title>
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.org">
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+<link rel="bookmark" href="https://crbug.com/808750">
+<meta name="flags" content="dom">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+.container {
+  display: flex;
+  background: lightgray;
+  width: 250px;
+  height: 48px;
+
+  /* Add some margin so that overflowing things don't stomp on each other: */
+  margin: 50px 10px;
+  float: left;
+  position: relative;
+}
+
+.contentBox {
+  position: absolute;
+  /* Margin-box is 100px tall (2px of border + 98px of content): */
+  border: 1px solid teal;
+  height: 98px;
+
+  width: 98px;
+  left: 20px;
+}
+.marginBox {
+  position: absolute;
+  /* Margin-box is 100px tall
+    (60px of margin-top + 2px of border + 38px of content): */
+  margin-top: 60px;
+  border: 1px solid orange;
+  height: 38px;
+
+  width: 100px;
+  left: 120px;
+}
+</style>
+<div class="container">
+  <div class="contentBox">
+    aaa
+  </div>
+  <div class="marginBox">
+    bbb
+  </div>
+</div>
+
+<div class="container" style="align-items: flex-end">
+  <div class="contentBox">
+    aaa
+  </div>
+  <div class="marginBox">
+    bbb
+  </div>
+</div>
+
+<div class="container" style="align-items: center">
+  <div class="contentBox">
+    aaa
+  </div>
+  <div class="marginBox">
+    bbb
+  </div>
+</div>
+<div id=log style="clear:both"></div>
+
+<script>
+test(function() {
+  var elements = document.querySelectorAll(".contentBox, .marginBox");
+  for (var i = 0; i < elements.length; i+=2) {
+    assert_equals(elements[i].getBoundingClientRect().bottom,
+                  elements[i+1].getBoundingClientRect().bottom);
+  }
+}, "The bottom of each pair of boxes should be the same");
+</script>

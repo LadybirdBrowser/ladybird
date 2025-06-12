@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const sheet = new CSSStyleSheet();
+        println(`addValue() return value: ${sheet.addRule()}`);
+        println(`Rule count after calling addRule() with no arguments: ${sheet.cssRules.length}`);
+        println(`Rule text: ${sheet.cssRules[0].cssText}`);
+        sheet.addRule(".test", "font-size: 14px");
+        println(`Rule count after calling addRule with no index: ${sheet.cssRules.length}`);
+        println(`Second rule text: ${sheet.cssRules[1].cssText}`);
+        sheet.addRule(".test", "padding: 100px", 0);
+        println(`Rule count after calling addRule with index 0: ${sheet.cssRules.length}`);
+        println(`Rule text: ${sheet.cssRules[0].cssText}`);
+        try {
+            sheet.addRule(".test", "padding: 10px", -1);
+            println("FAIL");
+        } catch (e) {
+            println(`Exception thrown when given a negative index: ${e.name}`);
+        }
+        try {
+            sheet.addRule(".test", "padding: 10px", 4);
+            println("FAIL");
+        } catch (e) {
+            println(`Exception thrown when index out of range: ${e.name}`);
+        }
+    });
+</script>

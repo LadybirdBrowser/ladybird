@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const algorithm = "AES-GCM";
+
+        // Generate keys and export them, verify length
+        const aesGcm128bitKey = await crypto.subtle.generateKey({ name: algorithm, length: 128 }, true, ["encrypt"]);
+        const aesGcm192bitKey = await crypto.subtle.generateKey({ name: algorithm, length: 192 }, true, ["encrypt"]);
+        const aesGcm256bitKey = await crypto.subtle.generateKey({ name: algorithm, length: 256 }, true, ["encrypt"]);
+
+        const exported128bitKey = await crypto.subtle.exportKey("raw", aesGcm128bitKey);
+        const exported192bitKey = await crypto.subtle.exportKey("raw", aesGcm192bitKey);
+        const exported256bitKey = await crypto.subtle.exportKey("raw", aesGcm256bitKey);
+
+        println("exported 128 bit key length: " + exported128bitKey.byteLength);
+        println("exported 192 bit key length: " + exported192bitKey.byteLength);
+        println("exported 256 bit key length: " + exported256bitKey.byteLength);
+
+        done();
+    });
+</script>

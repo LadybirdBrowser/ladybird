@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+.grid-container {
+    display: grid;
+    grid-template-columns: min-content min-content;
+    grid-template-rows: min-content min-content;
+}
+
+.item-span-one-one {
+    background-color: lightpink;
+    grid-row: 1 / span 1;
+    grid-column: 2;
+}
+
+.item-span-one-two {
+    background-color: lightgreen;
+    grid-row: 2 / span 1;
+    grid-column: 2;
+}
+
+.item-span-two {
+    background-color: lightskyblue;
+    grid-row: 1 / span 2;
+    grid-column: 1;
+}
+</style>
+<div class="grid-container">
+<div class="grid-item item-span-one-one">
+In a sollicitudin augue. Sed ante augue, rhoncus nec porttitor id,
+lacinia et nibh. Pellentesque diam libero, ultrices eget eleifend at,
+consequat ut orci.
+</div>
+<div class="grid-item item-span-one-two">
+Suspendisse potenti. Pellentesque at varius lacus, sed sollicitudin leo.
+Pellentesque malesuada mi eget pellentesque tempor. Donec egestas mauris
+est, ut lobortis nisi luctus at.
+</div>
+<div class="grid-item item-span-two">
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vitae
+condimentum erat, ac posuere arcu. Aenean tincidunt mi ligula, vel
+semper dolor aliquet at. Phasellus scelerisque dapibus diam sed rhoncus.
+Proin sed orci leo.
+</div>
+</div>

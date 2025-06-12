@@ -1,0 +1,18 @@
+#import <CSS/CSSStyleSheet.idl>
+#import <CSS/LinkStyle.idl>
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmlstyleelement
+[Exposed=Window]
+interface HTMLStyleElement : HTMLElement {
+    [HTMLConstructor] constructor();
+
+    attribute boolean disabled;
+    [CEReactions, Reflect] attribute DOMString media;
+    [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+
+    // Obsolete
+    [Reflect] attribute DOMString type;
+};
+
+HTMLStyleElement includes LinkStyle;

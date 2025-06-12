@@ -1,0 +1,8 @@
+import("//Meta/gn/build/libs/third_party.gni")
+import("//Meta/gn/build/libs/vulkan/enable.gni")
+
+third_party_dependency("vulkan") {
+  libs = [ "vulkan" ]
+  defines = [ "USE_VULKAN=1" ]
+  enable = enable_vulkan
+}

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        var doc = document.implementation.createHTMLDocument("");
+        doc.removeChild(doc.documentElement);
+        var html = doc.appendChild(doc.createElement("html"));
+        html.appendChild(doc.createElement("body"));
+        html.appendChild(doc.createElement("frameset"));
+        println(`BODY == ${doc.body.tagName}`);
+        html.firstChild.remove();
+        html.firstChild.remove();
+        html.appendChild(doc.createElement("frameset"));
+        html.appendChild(doc.createElement("body"));
+        println(`FRAMESET == ${doc.body.tagName}`);
+    });
+</script>

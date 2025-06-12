@@ -1,0 +1,14 @@
+source_set("ResizeObserver") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "ResizeObservation.cpp",
+    "ResizeObservation.h",
+    "ResizeObserver.cpp",
+    "ResizeObserver.h",
+    "ResizeObserverEntry.cpp",
+    "ResizeObserverEntry.h",
+    "ResizeObserverSize.cpp",
+    "ResizeObserverSize.h",
+  ]
+}

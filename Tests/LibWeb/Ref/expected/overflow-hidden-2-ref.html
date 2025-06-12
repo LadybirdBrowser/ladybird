@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <style>
+            .box1 {
+                width: 400px;
+                height: 400px;
+                background-color: slateblue;
+                position: absolute;
+            }
+
+            .translate {
+                width: 200px;
+                height: 200px;
+                background-color: black;
+                transform: translate(150px, 150px);
+            }
+
+            .box2 {
+                width: 100px;
+                height: 100px;
+                background-color: orangered;
+                position: absolute;
+            }
+
+            .box3 {
+                position: relative;
+                width: 100px;
+                height: 100px;
+                background-color: greenyellow;
+                top: -90px;
+                left: -120px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box1">
+            <div class="translate">
+                <div class="box2"><div class="box3"></div></div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,18 @@
+source_set("Fetch") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [
+    "Fetching",
+    "Infrastructure",
+    "//Userland/Libraries/LibWeb:all_generated",
+  ]
+  sources = [
+    "Body.cpp",
+    "BodyInit.cpp",
+    "Enums.cpp",
+    "FetchMethod.cpp",
+    "Headers.cpp",
+    "HeadersIterator.cpp",
+    "Request.cpp",
+    "Response.cpp",
+  ]
+}

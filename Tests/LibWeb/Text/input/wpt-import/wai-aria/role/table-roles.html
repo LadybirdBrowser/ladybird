@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Table Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+  </head>
+<body>
+    <p>Tests <a href="https://w3c.github.io/aria/#table">table</a> and related roles.</p>
+
+<!-- HTML <table> Elements Testing  -->
+
+    <!-- <caption> -> wpt/html-aam/table-roles.html -->
+
+    <!-- <table> -> wpt/html-aam/table-roles.html -->
+    <!-- <tbody> -> wpt/html-aam/table-roles.html -->
+
+    <!-- <td> -> wpt/html-aam/table-roles.html -->
+
+    <!-- <tfoot> -> wpt/html-aam/table-roles.html -->
+
+    <!-- <th> -> wpt/html-aam/table-roles.html -->
+    <!-- <thead> -> wpt/html-aam/table-roles.html -->
+
+    <!-- <tr> -> wpt/html-aam/table-roles.html -->
+
+
+<!-- ARIA Grid Elements Testing  -->
+
+        <!-- Grid roles tested in ./grid-roles.html -->
+
+
+<!-- ARIA Table Roles Testing  -->
+
+    <!-- caption -->
+    <div role="table">
+        <div role="caption" data-testname="div role is caption (in div with table role)" data-expectedrole="caption" class="ex">x</div>
+    </div>
+
+    <p role="caption" data-testname="orphan p role is caption" data-expectedrole="caption" class="ex">x</p>
+
+    <!-- cell -->
+    <div role="table">
+        <div role="rowgroup">
+            <div role="row">
+              <span role="columnheader">x</span>
+              <span role="columnheader">x</span>
+            </div>
+        </div>
+        <div role="rowgroup">
+            <div role="row">
+                <span role="cell" data-testname="span role is cell (in div with row role, in div with rowgroup role, in div with table role)" data-expectedrole="cell" class="ex">x</span>
+                <span role="cell">x</span>
+            </div>
+        </div>
+    </div>
+
+    <span role="cell" data-testname="orphan span role is cell" data-expectedrole="cell" class="ex">x</span>
+
+    <!-- columnheader -->
+    <div role="table">
+        <div role="rowgroup">
+            <div role="row">
+                <span role="columnheader" data-testname="span role is columnheader (in div with row role, in div with rowgroup role, in div with table role)" data-expectedrole="columnheader" class="ex">x</span>
+                <span role="columnheader">x</span>
+                <span role="columnheader">x</span>
+            </div>
+        </div>
+        <div role="rowgroup">
+            <div role="row">
+                <span role="rowheader">x</span>
+                <span role="cell">x</span>
+                <span role="cell">x</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- row -->
+    <div role="table">
+        <div role="rowgroup">
+            <div role="row" data-testname="div role is row (in div with rowgroup role, in div with table role)" data-expectedrole="row" class="ex">
+                <span role="columnheader">x</span>
+            </div>
+        </div>
+        <div role="rowgroup">
+            <div role="row">
+                <span role="cell">x</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- rowgroup -->
+    <div role="table">
+        <div role="rowgroup" data-testname="div role is rowgroup (in div with table role)" data-expectedrole="rowgroup" class="ex">
+            <div role="row">
+                <span role="columnheader">x</span>
+                <span role="columnheader">x</span>
+            </div>
+        </div>
+        <div role="rowgroup">
+            <div role="row">
+                <span role="cell">x</span>
+                <span role="cell">x</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- rowheader -->
+    <div role="table">
+        <div role="rowgroup">
+            <div role="row">
+                <span role="columnheader">x</span>
+                <span role="columnheader">x</span>
+                <span role="columnheader">x</span>
+            </div>
+        </div>
+        <div role="rowgroup">
+            <div role="row">
+                <span role="rowheader" data-testname="role is rowheader (in div with row role, in div with rowgroup role, in div with table role)" data-expectedrole="rowheader" class="ex">x</span>
+                <span role="cell">x</span>
+                <span role="cell">x</span>
+                <span role="cell">x</span>
+            </div>
+        </div>
+      </div>
+
+    <!-- table -->
+    <div role="table" data-testname="div role is table" data-expectedrole="table" class="ex">
+        <div role="row">
+            <span role="columnheader">x</span>
+            <span role="columnheader">x</span>
+        </div>
+        <div role="row">
+            <span role="cell">x</span>
+            <span role="cell">x</span>
+        </div>
+    </div>
+
+<script>
+    AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

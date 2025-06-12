@@ -1,0 +1,4 @@
+OK: InvalidCharacterError: Attribute name must not be empty or contain invalid characters
+OK: InvalidCharacterError: Attribute name must not be empty or contain invalid characters
+OK: InvalidCharacterError: Attribute name must not be empty or contain invalid characters
+OK: InvalidCharacterError: Attribute name must not be empty or contain invalid characters

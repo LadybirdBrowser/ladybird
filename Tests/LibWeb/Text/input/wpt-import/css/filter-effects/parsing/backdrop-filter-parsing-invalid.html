@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Filter Effects Module Level 2: parsing backdrop-filter with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<meta name="assert" content="backdrop-filter supports only the grammar 'none | <backdrop-filter-function-list>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// Edge fails: expected "" but got "none"
+
+test_invalid_value("backdrop-filter", "auto");
+test_invalid_value("backdrop-filter", "none hue-rotate(0deg)");
+
+test_invalid_value("backdrop-filter", "blur(10)");
+test_invalid_value("backdrop-filter", "blur(-100px)");
+
+test_invalid_value("backdrop-filter", "brightness(-20)");
+test_invalid_value("backdrop-filter", "brightness(30px)");
+
+test_invalid_value("backdrop-filter", "contrast(-20)");
+test_invalid_value("backdrop-filter", "contrast(30px)");
+
+test_invalid_value("backdrop-filter", "drop-shadow(10 20)");
+test_invalid_value("backdrop-filter", "drop-shadow(10% 20%)");
+test_invalid_value("backdrop-filter", "drop-shadow(1px)");
+test_invalid_value("backdrop-filter", "drop-shadow(1px 2px 3px 4px)");
+test_invalid_value("backdrop-filter", "drop-shadow(rgb(4, 5, 6))");
+test_invalid_value("backdrop-filter", "drop-shadow()");
+
+test_invalid_value("backdrop-filter", "grayscale(-20)");
+test_invalid_value("backdrop-filter", "grayscale(30px)");
+
+test_invalid_value("backdrop-filter", "hue-rotate(90)");
+
+test_invalid_value("backdrop-filter", "invert(-20)");
+test_invalid_value("backdrop-filter", "invert(30px)");
+
+test_invalid_value("backdrop-filter", "opacity(-20)");
+test_invalid_value("backdrop-filter", "opacity(30px)");
+
+test_invalid_value("backdrop-filter", "saturate(-20)");
+test_invalid_value("backdrop-filter", "saturate(30px)");
+
+test_invalid_value("backdrop-filter", "sepia(-20)");
+test_invalid_value("backdrop-filter", "sepia(30px)");
+</script>
+</body>
+</html>

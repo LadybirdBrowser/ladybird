@@ -1,0 +1,103 @@
+button: unset
+button.getAttribute('formEnctype') == 'null'
+button.formEnctype == ''
+
+button.setAttribute('formEnctype', '')
+button.getAttribute('formEnctype') == ''
+button.formEnctype == 'application/x-www-form-urlencoded'
+
+button.setAttribute('formEnctype', 'undefined')
+button.getAttribute('formEnctype') == 'undefined'
+button.formEnctype == 'application/x-www-form-urlencoded'
+
+button.setAttribute('formEnctype', 'null')
+button.getAttribute('formEnctype') == 'null'
+button.formEnctype == 'application/x-www-form-urlencoded'
+
+button.setAttribute('formEnctype', 'application/x-www-form-urlencoded')
+button.getAttribute('formEnctype') == 'application/x-www-form-urlencoded'
+button.formEnctype == 'application/x-www-form-urlencoded'
+
+button.setAttribute('formEnctype', 'multipart/form-data')
+button.getAttribute('formEnctype') == 'multipart/form-data'
+button.formEnctype == 'multipart/form-data'
+
+button.setAttribute('formEnctype', 'text/plain')
+button.getAttribute('formEnctype') == 'text/plain'
+button.formEnctype == 'text/plain'
+
+button.setAttribute('formEnctype', 'APPLICATION/X-WWW-FORM-URLENCODED')
+button.getAttribute('formEnctype') == 'APPLICATION/X-WWW-FORM-URLENCODED'
+button.formEnctype == 'application/x-www-form-urlencoded'
+
+button.setAttribute('formEnctype', 'MULTIPART/FORM-DATA')
+button.getAttribute('formEnctype') == 'MULTIPART/FORM-DATA'
+button.formEnctype == 'multipart/form-data'
+
+button.setAttribute('formEnctype', 'tEXt/PlAIn')
+button.getAttribute('formEnctype') == 'tEXt/PlAIn'
+button.formEnctype == 'text/plain'
+
+button.setAttribute('formEnctype', 'text/plain ')
+button.getAttribute('formEnctype') == 'text/plain '
+button.formEnctype == 'application/x-www-form-urlencoded'
+
+button.setAttribute('formEnctype', '7')
+button.getAttribute('formEnctype') == '7'
+button.formEnctype == 'application/x-www-form-urlencoded'
+
+button.setAttribute('formEnctype', '5%')
+button.getAttribute('formEnctype') == '5%'
+button.formEnctype == 'application/x-www-form-urlencoded'
+
+input: unset
+input.getAttribute('formEnctype') == 'null'
+input.formEnctype == ''
+
+input.setAttribute('formEnctype', '')
+input.getAttribute('formEnctype') == ''
+input.formEnctype == 'application/x-www-form-urlencoded'
+
+input.setAttribute('formEnctype', 'undefined')
+input.getAttribute('formEnctype') == 'undefined'
+input.formEnctype == 'application/x-www-form-urlencoded'
+
+input.setAttribute('formEnctype', 'null')
+input.getAttribute('formEnctype') == 'null'
+input.formEnctype == 'application/x-www-form-urlencoded'
+
+input.setAttribute('formEnctype', 'application/x-www-form-urlencoded')
+input.getAttribute('formEnctype') == 'application/x-www-form-urlencoded'
+input.formEnctype == 'application/x-www-form-urlencoded'
+
+input.setAttribute('formEnctype', 'multipart/form-data')
+input.getAttribute('formEnctype') == 'multipart/form-data'
+input.formEnctype == 'multipart/form-data'
+
+input.setAttribute('formEnctype', 'text/plain')
+input.getAttribute('formEnctype') == 'text/plain'
+input.formEnctype == 'text/plain'
+
+input.setAttribute('formEnctype', 'APPLICATION/X-WWW-FORM-URLENCODED')
+input.getAttribute('formEnctype') == 'APPLICATION/X-WWW-FORM-URLENCODED'
+input.formEnctype == 'application/x-www-form-urlencoded'
+
+input.setAttribute('formEnctype', 'MULTIPART/FORM-DATA')
+input.getAttribute('formEnctype') == 'MULTIPART/FORM-DATA'
+input.formEnctype == 'multipart/form-data'
+
+input.setAttribute('formEnctype', 'tEXt/PlAIn')
+input.getAttribute('formEnctype') == 'tEXt/PlAIn'
+input.formEnctype == 'text/plain'
+
+input.setAttribute('formEnctype', 'text/plain ')
+input.getAttribute('formEnctype') == 'text/plain '
+input.formEnctype == 'application/x-www-form-urlencoded'
+
+input.setAttribute('formEnctype', '7')
+input.getAttribute('formEnctype') == '7'
+input.formEnctype == 'application/x-www-form-urlencoded'
+
+input.setAttribute('formEnctype', '5%')
+input.getAttribute('formEnctype') == '5%'
+input.formEnctype == 'application/x-www-form-urlencoded'

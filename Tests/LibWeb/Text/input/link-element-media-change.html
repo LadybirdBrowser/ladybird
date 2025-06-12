@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="body-background-color-red.css" media="print" onload="this.media='all'">
+    </head>
+    <body>
+        <script src="include.js"></script>
+        <script>
+            asyncTest(done => {
+                window.onload = function () {
+                    println("document background: " + getComputedStyle(document.body).backgroundColor);
+                    done();
+                };
+            });
+        </script>
+    </body>
+</html>

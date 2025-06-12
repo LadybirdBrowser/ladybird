@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<embed name="m_bed" src="" type="">
+<img name="im_adge" src="">
+<form name="farm"></form>
+<object name="abject"></object>
+<div id="fred"></div>
+<div id="fred"></div>
+<div id="fred"></div>
+<div id="george"></div>
+<script>
+    test(() => {
+        let embeds = document.getElementsByTagName("embed");
+        let images = document.getElementsByTagName("img");
+        let forms = document.getElementsByTagName("form");
+        let objects = document.getElementsByTagName("object");
+
+        // NOTE: The whitespace at the beginning of the results is for the empty elements before the test
+        println(embeds[0] === m_bed);
+        println(images[0] === im_adge);
+        println(forms[0] === farm);
+        println(objects[0] === abject);
+
+        let freds = fred;
+        println(freds.length === 3)
+        let divs = document.getElementsByTagName("div");
+        for (let i = 0; i < 3; ++i) {
+            if (divs[i] !== freds[i])
+                println("FAIL: div " + i);
+        }
+        george.innerHTML = "george"
+
+        let also_fred = document.createElement("div");
+        also_fred.setAttribute("id", "fred");
+        document.body.appendChild(also_fred);
+        println(freds.length === 4);
+
+        // divs[3] is george
+        if (divs[4] !== freds[3])
+            println("FAILED: dynamic insertion");
+
+        // FIXME: Test the child navigable cases when window.open is less TODO
+        // let wandow = window.open("about:blank", "the_target");
+        // println(wandow === the_target);
+        // FIXME: Test that a child navigable is preferred over an element
+    });
+</script>

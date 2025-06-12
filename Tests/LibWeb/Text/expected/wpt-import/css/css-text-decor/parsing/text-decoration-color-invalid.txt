@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['text-decoration-color'] = "auto" should not set the property value
+Pass	e.style['text-decoration-color'] = "invert" should not set the property value
+Pass	e.style['text-decoration-color'] = "50%" should not set the property value
+Pass	e.style['text-decoration-color'] = "red green" should not set the property value

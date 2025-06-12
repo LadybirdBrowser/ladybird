@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#prefers-contrast" />
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+<script>
+query_should_be_known("(prefers-contrast)");
+query_should_be_known("(prefers-contrast: no-preference)");
+query_should_be_known("(prefers-contrast: more)");
+query_should_be_known("(prefers-contrast: less)");
+query_should_be_known("(prefers-contrast: custom)");
+
+query_should_be_unknown("(prefers-contrast: increase)");
+query_should_be_unknown("(prefers-contrast: none)");
+query_should_be_unknown("(prefers-contrast: forced high)");
+query_should_be_unknown("(prefers-contrast: forced low)");
+query_should_be_unknown("(prefers-contrast > increase)");
+query_should_be_unknown("(prefers-increased-contrast)");
+query_should_be_unknown("(prefers-decreased-contrast)");
+query_should_be_unknown("(prefers-contrast: high)");
+query_should_be_unknown("(prefers-contrast: low)");
+query_should_be_unknown("(prefers-contrast: forced)");
+
+test(() => {
+  // no-preference is the default and all other values evaluate to
+  // true in the boolean context. If no-preference matches, then
+  // boolean context should be false. If no-preference does not match
+  // then boolean context should be true. Therefore, these two values
+  // should always be each others inverse irrespective of OS level
+  // settings.
+  let booleanContext = window.matchMedia("(prefers-contrast)");
+  let noPref = window.matchMedia("(prefers-contrast: no-preference)");
+  assert_equals(noPref.matches, !booleanContext.matches);
+}, "Check boolean context evaluation.");
+</script>

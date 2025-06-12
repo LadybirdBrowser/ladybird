@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+  .grid-container {
+    display: grid;
+    background-color: lightsalmon;
+  }
+
+  .grid-item {
+    background-color: lightblue;
+  }
+</style>
+
+<div class="grid-container" style="
+    grid-template-columns: min-content max-content 1fr;
+    grid-template-areas: 'one two three';
+    ">
+  <div class="grid-item" style="grid-area: one; min-width: 25%; max-width: 50%;">min-content</div>
+  <div class="grid-item" style="grid-area: two;">max-content</div>
+  <div class="grid-item" style="grid-area: three;">1fr</div>
+</div>

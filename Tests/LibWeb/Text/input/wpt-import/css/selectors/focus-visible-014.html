@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Test: :focus-visible matches after script focus move</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+<meta name="assert" content="This test checks that if the active element matches ':focus-visible' and a script causes focus to move elsewhere, the newly focused element should match ':focus-visible'.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @supports not selector(:focus-visible) {
+    :focus {
+      outline: red solid 5px;
+      background-color: red;
+    }
+  }
+
+  :focus-visible {
+    background: lime;
+  }
+
+  :focus:not(:focus-visible) {
+    background-color: red;
+  }
+</style>
+
+<input id="input"></input>
+<div id="target" tabindex="0">Target</div>
+
+<script>
+  async_test(function(t) {
+    input.addEventListener("focus", t.step_func(function() {
+      assert_equals(getComputedStyle(input).backgroundColor, "rgb(0, 255, 0)", `backgroundColor for ${input.tagName}#${input.id} should be lime`);
+      target.focus();
+    }));
+
+    target.addEventListener("focus", t.step_func(function() {
+      assert_equals(getComputedStyle(target).backgroundColor, "rgb(0, 255, 0)", `backgroundColor for ${target.tagName}#${target.id} should be lime`);
+      t.done();
+    }));
+
+    input.focus();
+  }, ":focus-visible matches after script focus move");
+</script>

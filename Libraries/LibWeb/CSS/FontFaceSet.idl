@@ -1,0 +1,49 @@
+#import <CSS/FontFace.idl>
+#import <DOM/EventTarget.idl>
+
+dictionary FontFaceSetLoadEventInit : EventInit {
+    sequence<FontFace> fontfaces = [];
+};
+
+// FIXME
+// [Exposed=(Window,Worker)]
+//interface FontFaceSetLoadEvent : Event {
+//    constructor(CSSOMString type, optional FontFaceSetLoadEventInit eventInitDict = {});
+//    [SameObject] readonly attribute FrozenArray<FontFace> fontfaces;
+//};
+
+enum FontFaceSetLoadStatus { "loading", "loaded" };
+
+// https://drafts.csswg.org/css-font-loading/#fontfaceset
+[Exposed=(Window,Worker)]
+interface FontFaceSet : EventTarget {
+    setlike<FontFace>;
+    FontFaceSet add(FontFace font);
+    boolean delete(FontFace font);
+    undefined clear();
+
+    // events for when loading state changes
+    attribute EventHandler onloading;
+    attribute EventHandler onloadingdone;
+    attribute EventHandler onloadingerror;
+
+    // check and start loads if appropriate
+    // and fulfill promise when all loads complete
+    // FIXME: Promise<sequence<FontFace>> load(CSSOMString font, optional CSSOMString text = " ");
+    Promise<sequence<FontFace>> load(CSSOMString font, optional CSSOMString text = "");
+
+    // return whether all fonts in the fontlist are loaded
+    // (does not initiate load if not available)
+    // FIXME: boolean check(CSSOMString font, optional CSSOMString text = " ");
+    [FIXME] boolean check(CSSOMString font, optional CSSOMString text = "");
+
+    // async notification that font loading and layout operations are done
+    readonly attribute Promise<FontFaceSet> ready;
+
+    // loading state, "loading" while one or more fonts loading, "loaded" otherwise
+    readonly attribute FontFaceSetLoadStatus status;
+};
+
+interface mixin FontFaceSource {
+    readonly attribute FontFaceSet fonts;
+};

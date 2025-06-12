@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: display-p3</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#valdef-color-display-p3">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#predefined-to-predefined">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/yellowsquare-ref.html">
+<meta name="assert" content="display-p3 with no alpha">
+<style>
+    body { background-color: grey; }
+    .test { background-color: red; width: 12em; height: 6em; margin-top: 0; }
+    .ref { background-color: yellow; width: 12em; height: 6em; margin-bottom: 0; } /* sRGB yellow converted to display-p3 */
+    .test { background-color: color(display-p3 1 1 0.330897); }
+</style>
+<body>
+    <p>Test passes if you see a yellow square, and no red.</p>
+    <div class="ref"></div>
+    <div class="test"></div>
+</body>

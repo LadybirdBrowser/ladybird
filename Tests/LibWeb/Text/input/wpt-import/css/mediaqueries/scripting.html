@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#scripting">
+<script type="text/javascript" src="../../resources/testharness.js"></script>
+<script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+<script type="text/javascript" src="resources/matchmedia-utils.js"></script>
+
+<script>
+query_should_be_known("(scripting)");
+query_should_be_known("(scripting: enabled)");
+query_should_be_known("(scripting: initial-only)");
+query_should_be_known("(scripting: none)");
+
+query_should_be_unknown("(scripting: 0)");
+query_should_be_unknown("(scripting: 10px)");
+query_should_be_unknown("(scripting: invalid)");
+
+test(() => {
+  let match_enabled = window.matchMedia("(scripting: enabled)");
+  assert_true(match_enabled.matches);
+}, "Check that scripting currently matches 'enabled'");
+
+test(() => {
+  let booleanContext = window.matchMedia("(scripting)");
+  assert_true(booleanContext.matches);
+}, "Check that scripting currently evaluates to true in the boolean context");
+</script>

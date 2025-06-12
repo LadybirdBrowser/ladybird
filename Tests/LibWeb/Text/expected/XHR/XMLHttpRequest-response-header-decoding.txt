@@ -1,0 +1,4 @@
+getAllResponseHeaders()
+refresh: 0;./refreshed.txt?ÿ
+
+getResponseHeader("Refresh") => '0;./refreshed.txt?ÿ'

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>Matching behavior for :not with complex selector list</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#negation">
+
+<main id=main>
+  <div id=a><div id=d></div></div>
+  <div id=b><div id=e></div></div>
+  <div id=c><div id=f></div></div>
+</main>
+
+<script>
+  function formatElements(elements) {
+    return elements.map(e => e.id).sort().join();
+  }
+
+  // Test that |selector| returns the given elements in #main.
+  function test_selector(selector, expected) {
+    test(function() {
+      let actual = Array.from(main.querySelectorAll(selector));
+      assert_equals(formatElements(actual), formatElements(expected));
+    }, `${selector} matches expected elements`);
+  }
+
+  test_selector(':not(#a)', [b, c, d, e, f]);
+  test_selector(':not(#a #d)', [a, b, c, e, f]);
+  test_selector(':not(#b div)', [a, b, c, d, f]);
+  test_selector(':not(div div)', [a, b, c]);
+  test_selector(':not(div + div)', [a, d, e, f]);
+  test_selector(':not(main > div)', [d, e, f]);
+  test_selector(':not(#a, #b)', [c, d, e, f]);
+  test_selector(':not(#f, main > div)', [d, e]);
+  test_selector(':not(div + div + div, div + div > div)', [a, b, d]);
+  test_selector(':not(div:nth-child(1))', [b, c]);
+  test_selector(':not(:not(div))', [a, b, c, d, e, f]);
+  test_selector(':not(:not(:not(div)))', []);
+  test_selector(':not(div, span)', []);
+  test_selector(':not(span, p)', [a, b, c, d, e, f]);
+  test_selector(':not(#unknown, .unknown)', [a, b, c, d, e, f]);
+  test_selector(':not(#unknown > div, span)', [a, b, c, d, e, f]);
+  test_selector(':not(#unknown ~ div, span)', [a, b, c, d, e, f]);
+  test_selector(':not(:hover div)', [a, b, c, d, e, f]);
+  test_selector(':not(:link div)', [a, b, c, d, e, f]);
+  test_selector(':not(:visited div)', [a, b, c, d, e, f]);
+</script>

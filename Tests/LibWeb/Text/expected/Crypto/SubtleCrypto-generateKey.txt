@@ -1,0 +1,15 @@
+generateKey with RSA-OAEP algorithm
+publicKey: [object CryptoKey]
+publicKey algorithm: {"name":"RSA-OAEP","modulusLength":256,"publicExponent":{"0":1,"1":0,"2":1},"hash":"SHA-256"}
+publicKey type: public
+publicKey extractable: true
+publicKey usages: encrypt,wrapKey
+privateKey: [object CryptoKey]
+privateKey algorithm: {"name":"RSA-OAEP","modulusLength":256,"publicExponent":{"0":1,"1":0,"2":1},"hash":"SHA-256"}
+privateKey type: private
+privateKey extractable: true
+privateKey usages: decrypt,unwrapKey
+invalid usages throw
+Error: SyntaxError: Invalid key usage 'sign'
+no usages for private key throws
+Error: SyntaxError: usages must not be empty

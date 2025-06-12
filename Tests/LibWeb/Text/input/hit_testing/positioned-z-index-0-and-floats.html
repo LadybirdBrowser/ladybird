@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container {
+        background-color: #2196f3;
+        padding: 10px;
+    }
+
+    .item {
+        float: left;
+        width: 100px;
+        height: 100px;
+        background-color: yellow;
+        position: absolute;
+    }
+
+    #a {
+        left: 100px;
+    }
+
+    #b {
+        z-index: 1;
+        left: 500px;
+    }
+
+    .nested-item {
+        float: left;
+        width: 50px;
+        height: 50px;
+        background-color: yellowgreen;
+    }
+
+    #c {
+        border: 10px solid black;
+    }
+
+    #d {
+        border: 10px solid black;
+        background-color: magenta;
+    }
+
+    .wrapper {
+        float: left;
+        width: 100px;
+        height: 100px;
+        background-color: yellow;
+        position: absolute;
+    }
+</style>
+<div id="container">
+    <div class="wrapper" id="c">
+        <div class="item" id="a"><div id="aa" class="nested-item">1</div></div>
+    </div>
+    <div class="wrapper" id="d">
+        <div class="item" id="b"><div id="bb" class="nested-item">2</div></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        printElement(internals.hitTest(156, 54).node);
+        printElement(internals.hitTest(200, 106).node);
+        printElement(internals.hitTest(548, 65).node);
+        printElement(internals.hitTest(576, 105).node);
+        printElement(internals.hitTest(82, 78).node);
+        printElement(internals.hitTest(403, 16).node);
+    });
+</script>

@@ -1,0 +1,12 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/tables.html#htmltablecaptionelement
+[Exposed=Window]
+interface HTMLTableCaptionElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString align;
+
+};

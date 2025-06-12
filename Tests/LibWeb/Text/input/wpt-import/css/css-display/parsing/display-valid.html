@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Display: parsing display with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#display-prop">
+<link rel="help" href="https://drafts.csswg.org/css-display/#the-display-properties">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-containers">
+<meta name="assert" content="display supports the full spec grammar.">
+<meta name="assert" content="display supports the new values 'grid | inline-grid'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// https://drafts.csswg.org/css-grid-1/#grid-containers
+test_valid_value("display", "grid");
+test_valid_value("display", "inline-grid");
+
+// https://drafts.csswg.org/css2/visuren.html#display-prop
+test_valid_value("display", "inline");
+test_valid_value("display", "block");
+test_valid_value("display", "list-item");
+test_valid_value("display", "inline-block");
+test_valid_value("display", "table");
+test_valid_value("display", "inline-table");
+test_valid_value("display", "table-row-group");
+test_valid_value("display", "table-header-group");
+test_valid_value("display", "table-footer-group");
+test_valid_value("display", "table-row");
+test_valid_value("display", "table-column-group");
+test_valid_value("display", "table-column");
+test_valid_value("display", "table-cell");
+test_valid_value("display", "table-caption");
+test_valid_value("display", "none");
+
+// https://drafts.csswg.org/css-flexbox-1/#flex-containers
+test_valid_value("display", "flex");
+test_valid_value("display", "inline-flex");
+
+test_valid_value("display", "contents");
+
+// https://drafts.csswg.org/css-display/#the-display-properties
+test_valid_value("display", "run-in");
+test_valid_value("display", "flow", "block");
+test_valid_value("display", "flow-root");
+test_valid_value("display", "ruby");
+test_valid_value("display", "ruby-base");
+test_valid_value("display", "ruby-text");
+
+test_valid_value("display", "flow list-item", "list-item");
+test_valid_value("display", "list-item flow", "list-item");
+test_valid_value("display", "flow-root list-item", "flow-root list-item");
+test_valid_value("display", "list-item flow-root", "flow-root list-item");
+
+test_valid_value("display", "block flow", "block");
+test_valid_value("display", "flow block", "block");
+test_valid_value("display", "flow-root block", "flow-root");
+test_valid_value("display", "block flow-root", "flow-root");
+test_valid_value("display", "flex block", "flex");
+test_valid_value("display", "block flex", "flex");
+test_valid_value("display", "grid block", "grid");
+test_valid_value("display", "block grid", "grid");
+test_valid_value("display", "table block", "table");
+test_valid_value("display", "block table", "table");
+test_valid_value("display", "block ruby", "block ruby");
+test_valid_value("display", "ruby block", "block ruby");
+test_valid_value("display", "block list-item", "list-item");
+test_valid_value("display", "list-item block", "list-item");
+test_valid_value("display", "flow block list-item", "list-item");
+test_valid_value("display", "block flow list-item", "list-item");
+test_valid_value("display", "flow list-item block", "list-item");
+test_valid_value("display", "block list-item flow", "list-item");
+test_valid_value("display", "list-item block flow", "list-item");
+test_valid_value("display", "list-item flow block", "list-item");
+test_valid_value("display", "flow-root block list-item", "flow-root list-item");
+test_valid_value("display", "block flow-root list-item", "flow-root list-item");
+test_valid_value("display", "flow-root list-item block", "flow-root list-item");
+test_valid_value("display", "block list-item flow-root", "flow-root list-item");
+test_valid_value("display", "list-item block flow-root", "flow-root list-item");
+test_valid_value("display", "list-item flow-root block", "flow-root list-item");
+
+test_valid_value("display", "inline flow", "inline");
+test_valid_value("display", "flow inline", "inline");
+test_valid_value("display", "flow-root inline", "inline-block");
+test_valid_value("display", "inline flow-root", "inline-block");
+test_valid_value("display", "flex inline", "inline-flex");
+test_valid_value("display", "inline flex", "inline-flex");
+test_valid_value("display", "grid inline", "inline-grid");
+test_valid_value("display", "inline grid", "inline-grid");
+test_valid_value("display", "table inline", "inline-table");
+test_valid_value("display", "inline table", "inline-table");
+test_valid_value("display", "inline ruby", "ruby");
+test_valid_value("display", "ruby inline", "ruby");
+test_valid_value("display", "inline list-item", "inline list-item");
+test_valid_value("display", "list-item inline", "inline list-item");
+test_valid_value("display", "flow inline list-item", "inline list-item");
+test_valid_value("display", "inline flow list-item", "inline list-item");
+test_valid_value("display", "flow list-item inline", "inline list-item");
+test_valid_value("display", "inline list-item flow", "inline list-item");
+test_valid_value("display", "list-item inline flow", "inline list-item");
+test_valid_value("display", "list-item flow inline", "inline list-item");
+test_valid_value("display", "flow-root inline list-item", "inline flow-root list-item");
+test_valid_value("display", "inline flow-root list-item", "inline flow-root list-item");
+test_valid_value("display", "flow-root list-item inline", "inline flow-root list-item");
+test_valid_value("display", "inline list-item flow-root", "inline flow-root list-item");
+test_valid_value("display", "list-item inline flow-root", "inline flow-root list-item");
+test_valid_value("display", "list-item flow-root inline", "inline flow-root list-item");
+
+test_valid_value("display", "run-in flow", "run-in");
+test_valid_value("display", "flow run-in", "run-in");
+test_valid_value("display", "flow-root run-in", "run-in flow-root");
+test_valid_value("display", "run-in flow-root", "run-in flow-root");
+test_valid_value("display", "flex run-in", "run-in flex");
+test_valid_value("display", "run-in flex", "run-in flex");
+test_valid_value("display", "grid run-in", "run-in grid");
+test_valid_value("display", "run-in grid", "run-in grid");
+test_valid_value("display", "table run-in", "run-in table");
+test_valid_value("display", "run-in table", "run-in table");
+test_valid_value("display", "run-in ruby", "run-in ruby");
+test_valid_value("display", "ruby run-in", "run-in ruby");
+test_valid_value("display", "run-in list-item", "run-in list-item");
+test_valid_value("display", "list-item run-in", "run-in list-item");
+test_valid_value("display", "flow run-in list-item", "run-in list-item");
+test_valid_value("display", "run-in flow list-item", "run-in list-item");
+test_valid_value("display", "flow list-item run-in", "run-in list-item");
+test_valid_value("display", "run-in list-item flow", "run-in list-item");
+test_valid_value("display", "list-item run-in flow", "run-in list-item");
+test_valid_value("display", "list-item flow run-in", "run-in list-item");
+test_valid_value("display", "flow-root run-in list-item", "run-in flow-root list-item");
+test_valid_value("display", "run-in flow-root list-item", "run-in flow-root list-item");
+test_valid_value("display", "flow-root list-item run-in", "run-in flow-root list-item");
+test_valid_value("display", "run-in list-item flow-root", "run-in flow-root list-item");
+test_valid_value("display", "list-item run-in flow-root", "run-in flow-root list-item");
+test_valid_value("display", "list-item flow-root run-in", "run-in flow-root list-item");
+
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic & Extrinsic Sizing Test: parsing min-width with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-min-width">
+<meta name="assert" content="min-width supports only the grammar 'auto | <length-percentage> | min-content | max-content | fit-content(<length-percentage>)'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("min-width", "none");
+test_invalid_value("min-width", "complex");
+
+test_invalid_value("min-width", "-10%");
+test_invalid_value("min-width", "-0.5em");
+test_invalid_value("min-width", "60");
+
+test_invalid_value("min-width", "10px 20%");
+test_invalid_value("min-width", "max-content 10px");
+test_invalid_value("min-width", "min-content max-content");
+
+// The following were previously supported by a min-width definition in
+// https://drafts.csswg.org/css-box-3/
+test_invalid_value("min-width", "available");
+test_invalid_value("min-width", "10px border-box");
+test_invalid_value("min-width", "content-box 20%");
+</script>
+</body>
+</html>

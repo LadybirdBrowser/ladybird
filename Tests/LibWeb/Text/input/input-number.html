@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Input stepUp
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = '10';
+            input.stepUp(5);
+            return input.valueAsNumber;
+        });
+
+        // 2. Input stepDown
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = '10';
+            input.stepUp(2);
+            return input.valueAsNumber;
+        });
+
+        // 3. Input stepUp with custom step
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = '10';
+            input.step = '2';
+            input.stepUp(2);
+            return input.valueAsNumber;
+        });
+
+        // 4. Input stepDown with custom step
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = '10';
+            input.step = '2';
+            input.stepDown(2);
+            return input.valueAsNumber;
+        });
+
+        // 5. Input stepUp with custom step and max
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = '10';
+            input.step = '2';
+            input.max = '20';
+            input.stepUp(8);
+            return input.valueAsNumber;
+        });
+
+        // 6. Input stepDown with custom step and min
+        testPart(() => {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = '10';
+            input.step = '2';
+            input.min = '2';
+            input.stepDown(8);
+            return input.valueAsNumber;
+        });
+    });
+</script>

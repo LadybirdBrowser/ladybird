@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+  .grid-container {
+    display: grid;
+    background-color: lightsalmon;
+  }
+
+  .grid-item {
+    background-color: lightblue;
+  }
+</style>
+
+<!-- Should render a full-width 4x4 grid with:
+     - one large column on the left
+     - one large column on the right, being split in half vertically, with the number 2 in the top half,
+       and numbers 3, 4, 5, and 6 in the bottom -->
+<div class="grid-container" style="
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(2, 25px 25px 25px 25px );
+    ">
+  <div class="grid-item" style="grid-row: 1 / -1; grid-column: span 4;">1</div>
+  <div class="grid-item" style="grid-row: 1 / 5; grid-column: 5 / -1;">2</div>
+  <div class="grid-item" style="grid-column: span 2; grid-row: span 2;">3</div>
+  <div class="grid-item" style="grid-column: span 2 / -1; grid-row: span 2;">4</div>
+  <div class="grid-item" style="grid-column: span 2; grid-row: 7 / span 100;">5</div>
+  <div class="grid-item" style="grid-column: 7 / span 2; grid-row: span 2 / -1;">6</div>
+</div>
+
+<!-- Multiple repeats -->
+<!-- Should render 2 50px columns and 2 100px columns -->
+<div class="grid-container" style="
+    grid-template-columns: repeat(2, 50px) repeat(2, 100px)
+  ">
+  <div class="grid-item">1</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">3</div>
+  <div class="grid-item">4</div>
+</div>

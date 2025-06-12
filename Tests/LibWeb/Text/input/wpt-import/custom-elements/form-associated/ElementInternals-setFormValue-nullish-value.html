@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ElementInternals.setFormValue(nullish value) should clear submission value</title>
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setformvalue">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script>
+        customElements.define("test-form-element", class extends HTMLElement {
+            static formAssociated = true;
+            constructor() {
+                super();
+                this.i = this.attachInternals();
+            }
+        });
+    </script>
+</head>
+<body>
+    <form id="form-null">
+        <test-form-element id="input-null" name="input-null"></test-form-element>
+    </form>
+
+    <form id="form-undefined">
+        <test-form-element id="input-undefined" name="input-undefined"></test-form-element>
+    </form>
+
+    <script>
+      test(() => {
+        const input = document.getElementById("input-null");
+        input.i.setFormValue("fail");
+        input.i.setFormValue(null);
+        const formData = new FormData(document.getElementById("form-null"));
+        assert_false(formData.has("input-null"));
+      }, "ElementInternals.setFormValue(null) clears submission value");
+
+      test(() => {
+        const input = document.getElementById("input-undefined");
+        input.i.setFormValue("fail");
+        input.i.setFormValue(undefined);
+        const formData = new FormData(document.getElementById("form-undefined"));
+        assert_false(formData.has("input-undefined"));
+      }, "ElementInternals.setFormValue(undefined) clears submission value");
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/required-optional-pseudoclass-ref.html" />
+
+<style>
+    input:required {
+        border: 2px solid red;
+    }
+
+    input:optional {
+        border: 2px solid blue;
+    }
+
+    input:required+span {
+        color: green;
+    }
+
+    div>input:required {
+        border: 2px dashed red;
+    }
+
+    section input:optional {
+        border: 2px dashed blue;
+    }
+
+    input:required~label {
+        color: orange;
+    }
+
+    form:has(input:required) {
+        border: 2px solid purple;
+    }
+</style>
+
+<input type="text" required placeholder="Should be red"><span>Should be green</span>
+<input type="text" placeholder="Should be blue">
+
+<div>
+    <input type="text" required placeholder="Should be dashed red">
+</div>
+
+<section>
+    <div>
+        <input type="text" placeholder="Should be dashed blue">
+    </div>
+</section>
+
+<p>Other content</p>
+<label>Should be orange</label>
+
+<form>
+    <span>Purple border</span>
+    <input id="make-me-required" type="text" placeholder="Should be red">
+</form>
+<form>
+    <span>No border</span>
+    <input id="make-me-optional" type="text" required placeholder="Should be blue">
+</form>
+
+<!-- After the document has loaded, toggle the required-ness of the previous two inputs -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const makeMeOptional = document.getElementById("make-me-optional");
+        const makeMeRequired = document.getElementById("make-me-required");
+
+        makeMeOptional.required = false;
+        makeMeRequired.required = true;
+    });
+</script>

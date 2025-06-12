@@ -1,0 +1,15 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x42 [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x24 children: not-inline
+      BlockContainer <div.first> at (11,11) content-size 778x22 children: inline
+        frag 0 from Box start: 0, length: 0, rect: [22,22 0x0] baseline: 22
+        Box <span.second> at (22,22) content-size 0x0 flex-container(row) [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (22,22) content-size 0x0 [BFC] children: inline
+            TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x44]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x26]
+      PaintableWithLines (BlockContainer<DIV>.first) [10,10 780x24]
+        PaintableBox (Box<SPAN>.second) [11,11 22x22]
+          PaintableWithLines (BlockContainer(anonymous)) [22,22 0x0]

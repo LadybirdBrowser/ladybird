@@ -1,0 +1,4 @@
+Animation has expected currentTime value after 100ms
+Animation has expected currentTime value after 200ms
+Animation has expected currentTime value after 300ms
+Animation has expected currentTime value after 400ms

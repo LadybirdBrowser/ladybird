@@ -1,0 +1,225 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSSAnimation.effect</title>
+<meta name="timeout" content="long">
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#cssanimation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes anim {
+  from {
+    margin-left: 0px;
+  }
+  to {
+    margin-left: 100px;
+  }
+}
+</style>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim 100s';
+
+  const watcher = new EventWatcher(t, div, [ 'animationend',
+                                             'animationcancel' ],
+                                   fastEventsTimeout);
+  const animation = div.getAnimations()[0];
+  await animation.ready;
+
+  animation.currentTime = 50 * MS_PER_SEC;
+  animation.effect = null;
+  assert_equals(animation.playState, 'finished');
+  assert_equals(getComputedStyle(div).marginLeft, '0px');
+  await watcher.wait_for('animationend');
+}, 'Setting a null effect on a running animation fires an animationend event');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim 100s';
+
+  const animation = div.getAnimations()[0];
+  await animation.ready;
+
+  animation.currentTime = 50 * MS_PER_SEC;
+  animation.effect = new KeyframeEffect(div,
+                                        { left: [ '0px' , '100px'] },
+                                        100 * MS_PER_SEC);
+  assert_equals(getComputedStyle(div).marginLeft, '0px');
+  assert_equals(getComputedStyle(div).left, '50px');
+}, 'Replacing an animation\'s effect with an effect that targets a different ' +
+   'property should update both properties');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim 100s';
+
+  const animation = div.getAnimations()[0];
+  await animation.ready;
+
+  animation.currentTime = 50 * MS_PER_SEC;
+  animation.effect = new KeyframeEffect(div,
+                                        { left: [ '0px' , '100px'] },
+                                        20 * MS_PER_SEC);
+  assert_equals(animation.playState, 'finished');
+}, 'Replacing an animation\'s effect with a shorter one that should have ' +
+   'already finished, the animation finishes immediately');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim 100s';
+
+  const animation = div.getAnimations()[0];
+  assert_true(animation.pending);
+
+  animation.effect = new KeyframeEffect(div,
+                                        { left: [ '0px' , '100px'] },
+                                        100 * MS_PER_SEC);
+  assert_true(animation.pending);
+
+  await animation.ready;
+
+  assert_false(animation.pending);
+}, 'A play-pending animation\'s effect whose effect is replaced still exits ' +
+   'the pending state');
+
+promise_test(async t => {
+  const div1 = addDiv(t);
+  const div2 = addDiv(t);
+
+  const watcher1 = new EventWatcher(t, div1, 'animationstart',
+                                    fastEventsTimeout);
+  // Watch |div2| as well to ensure it does *not* get events.
+  const watcher2 = new EventWatcher(t, div2, 'animationstart');
+
+  div1.style.animation = 'anim 100s';
+
+  const animation = div1.getAnimations()[0];
+  animation.effect = new KeyframeEffect(div2,
+                                        { left: [ '0px', '100px' ] },
+                                        100 * MS_PER_SEC);
+
+  await watcher1.wait_for('animationstart');
+
+  assert_equals(animation.effect.target, div2);
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'CSS animation events are dispatched at the original element even after'
+   + ' setting an effect with a different target element');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  const watcher = new EventWatcher(t, div, [ 'animationstart',
+                                             'animationend',
+                                             'animationcancel' ],
+                                   fastEventsTimeout);
+  div.style.animation = 'anim 100s';
+  const animation = div.getAnimations()[0];
+  animation.finish();
+
+  await watcher.wait_for([ 'animationstart', 'animationend' ]);
+  // Set a longer effect
+  animation.effect = new KeyframeEffect(div,
+                                        { left: [ '0px', '100px' ] },
+                                        200 * MS_PER_SEC);
+  await watcher.wait_for('animationstart');
+}, 'After replacing a finished animation\'s effect with a longer one ' +
+   'it fires an animationstart event');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim 100s';
+  div.style.animationComposition = 'add';
+  const animation = div.getAnimations()[0];
+  assert_equals(animation.effect.composite, 'add');
+}, 'Setting animation-composition sets the composite property on the effect');
+
+test(t => {
+  const div = addDiv(t);
+
+  // Create custom keyframes so we can tweak them
+  const stylesheet = document.styleSheets[0];
+  const keyframes = '@keyframes anim-custom { to { left: 100px } }';
+  const ruleIndex = stylesheet.insertRule(keyframes, 0);
+  const keyframesRule = stylesheet.cssRules[ruleIndex];
+
+  t.add_cleanup(function() {
+    stylesheet.deleteRule(ruleIndex);
+  });
+
+  div.style.animation = 'anim-custom 100s';
+
+  // Replace the effect
+  const animation = div.getAnimations()[0];
+  animation.effect = new KeyframeEffect(
+    div,
+    { left: '200px' },
+    200 * MS_PER_SEC
+  );
+
+  // Update the timing properties
+  div.style.animationDuration = '4s';
+  div.style.animationIterationCount = '6';
+  div.style.animationDirection = 'reverse';
+  div.style.animationDelay = '8s';
+  div.style.animationFillMode = 'both';
+  div.style.animationPlayState = 'paused';
+  div.style.animationComposition = 'add';
+
+  // Update the keyframes
+  keyframesRule.deleteRule(0);
+  keyframesRule.appendRule('to { left: 300px }');
+
+  // Check nothing (except the play state) changed
+  assert_equals(
+    animation.effect.getTiming().duration,
+    200 * MS_PER_SEC,
+    'duration should be the value set by the API'
+  );
+  assert_equals(
+    animation.effect.getTiming().iterations,
+    1,
+    'iterations should be the value set by the API'
+  );
+  assert_equals(
+    animation.effect.getTiming().direction,
+    'normal',
+    'direction should be the value set by the API'
+  );
+  assert_equals(
+    animation.effect.getTiming().delay,
+    0,
+    'delay should be the value set by the API'
+  );
+  assert_equals(
+    animation.effect.getTiming().fill,
+    'auto',
+    'fill should be the value set by the API'
+  );
+  assert_equals(
+    animation.effect.getKeyframes()[0].left,
+    '200px',
+    'keyframes should be the value set by the API'
+  );
+  assert_equals(
+    animation.effect.composite,
+    'replace',
+    'composite should be the value set by the API'
+  );
+
+  // Unlike the other properties animation-play-state maps to the Animation
+  // not the KeyframeEffect so it should be overridden.
+  assert_equals(
+    animation.playState,
+    'paused',
+    'play state should be the value set by style'
+  );
+}, 'Replacing the effect of a CSSAnimation causes subsequent changes to'
+   + ' corresponding animation-* properties to be ignored');
+
+</script>

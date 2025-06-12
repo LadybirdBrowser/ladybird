@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const {writable, readable} = new TransformStream();
+        const writer = writable.getWriter();
+        writer.write(new Uint8Array([0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45]));
+        writer.write(new Uint8Array([0x2A, 0x2B, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F]));
+        writer.close();
+        const reader = readable.getReader();
+        reader.read().then(function processText({done, value}) {
+            println(`Done: ${done}`);
+            if (done)
+                return;
+
+            println(value);
+            reader.read().then(processText);
+        });
+    });
+</script>

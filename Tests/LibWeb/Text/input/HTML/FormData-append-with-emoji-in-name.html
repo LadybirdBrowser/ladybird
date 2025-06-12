@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<div id=test></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const formData = new FormData();
+        formData.append("🧐", "");
+        println("PASS (Didn't crash)");
+    });
+</script>

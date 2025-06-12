@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CEReactions on Element interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="String attributes of AriaAttributes interface must have CEReactions">
+<meta name="help" content="https://dom.spec.whatwg.org/#element">
+<meta name="help" content="https://w3c.github.io/DOM-Parsing/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../resources/custom-elements-helpers.js"></script>
+<script src="./resources/reactions.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<div id="container"></div>
+<script>
+
+// tentative -> AriaMixin-string-attributes.tentative.html
+// testReflectAttribute('role', 'role', 'foo', 'bar', 'role on Element');
+
+testReflectAttribute('ariaAtomic', 'aria-atomic', 'foo', 'bar', 'ariaAtomic on Element');
+testReflectAttribute('ariaAutoComplete', 'aria-autocomplete', 'foo', 'bar', 'ariaAutoComplete on Element');
+testReflectAttribute('ariaBrailleLabel', 'aria-braillelabel', 'foo', 'bar', 'ariaBrailleLabel on Element');
+testReflectAttribute('ariaBrailleRoleDescription', 'aria-brailleroledescription', 'foo', 'bar', 'ariaBrailleRoleDescription on Element');
+testReflectAttribute('ariaBusy', 'aria-busy', 'foo', 'bar', 'ariaBusy on Element');
+testReflectAttribute('ariaChecked', 'aria-checked', 'foo', 'bar', 'ariaChecked on Element');
+testReflectAttribute('ariaColCount', 'aria-colcount', 'foo', 'bar', 'ariaColCount on Element');
+testReflectAttribute('ariaColIndex', 'aria-colindex', 'foo', 'bar', 'ariaColIndex on Element');
+
+// tentative -> AriaMixin-string-attributes.tentative.html
+// testReflectAttribute('ariaColIndexText', 'aria-colindextext', 'foo', 'bar', 'ariaColIndexText on Element');
+
+testReflectAttribute('ariaColSpan', 'aria-colspan', 'foo', 'bar', 'ariaColSpan on Element');
+testReflectAttribute('ariaCurrent', 'aria-current', 'foo', 'bar', 'ariaCurrent on Element');
+
+// tentative -> AriaMixin-string-attributes.tentative.html
+// testReflectAttribute('ariaDescription', 'aria-description', 'foo', 'bar', 'ariaDescription on Element');
+
+testReflectAttribute('ariaDisabled', 'aria-disabled', 'foo', 'bar', 'ariaDisabled on Element');
+testReflectAttribute('ariaExpanded', 'aria-expanded', 'foo', 'bar', 'ariaExpanded on Element');
+testReflectAttribute('ariaHasPopup', 'aria-haspopup', 'foo', 'bar', 'ariaHasPopup on Element');
+testReflectAttribute('ariaHidden', 'aria-hidden', 'foo', 'bar', 'ariaHidden on Element');
+testReflectAttribute('ariaInvalid', 'aria-invalid', 'foo', 'bar', 'ariaInvalid on Element');
+testReflectAttribute('ariaKeyShortcuts', 'aria-keyshortcuts', 'foo', 'bar', 'ariaKeyShortcuts on Element');
+testReflectAttribute('ariaLabel', 'aria-label', 'foo', 'bar', 'ariaLabel on Element');
+testReflectAttribute('ariaLevel', 'aria-level', 'foo', 'bar', 'ariaLevel on Element');
+testReflectAttribute('ariaLive', 'aria-live', 'foo', 'bar', 'ariaLive on Element');
+testReflectAttribute('ariaModal', 'aria-modal', 'foo', 'bar', 'ariaModal on Element');
+testReflectAttribute('ariaMultiLine', 'aria-multiline', 'foo', 'bar', 'ariaMultiLine on Element');
+testReflectAttribute('ariaMultiSelectable', 'aria-multiselectable', 'foo', 'bar', 'ariaMultiSelectable on Element');
+testReflectAttribute('ariaOrientation', 'aria-orientation', 'foo', 'bar', 'ariaOrientation on Element');
+testReflectAttribute('ariaPlaceholder', 'aria-placeholder', 'foo', 'bar', 'ariaPlaceholder on Element');
+testReflectAttribute('ariaPosInSet', 'aria-posinset', 'foo', 'bar', 'ariaPosInSet on Element');
+testReflectAttribute('ariaPressed', 'aria-pressed', 'foo', 'bar', 'ariaPressed on Element');
+testReflectAttribute('ariaReadOnly', 'aria-readonly', 'foo', 'bar', 'ariaReadOnly on Element');
+testReflectAttribute('ariaRelevant', 'aria-relevant', 'foo', 'bar', 'ariaRelevant on Element');
+testReflectAttribute('ariaRequired', 'aria-required', 'foo', 'bar', 'ariaRequired on Element');
+testReflectAttribute('ariaRoleDescription', 'aria-roledescription', 'foo', 'bar', 'ariaRoleDescription on Element');
+testReflectAttribute('ariaRowCount', 'aria-rowcount', 'foo', 'bar', 'ariaRowCount on Element');
+testReflectAttribute('ariaRowIndex', 'aria-rowindex', 'foo', 'bar', 'ariaRowIndex on Element');
+
+// tentative -> AriaMixin-string-attributes.tentative.html
+// testReflectAttribute('ariaRowIndexText', 'aria-rowindextext', 'foo', 'bar', 'ariaRowIndexText on Element');
+
+testReflectAttribute('ariaRowSpan', 'aria-rowspan', 'foo', 'bar', 'ariaRowSpan on Element');
+testReflectAttribute('ariaSelected', 'aria-selected', 'foo', 'bar', 'ariaSelected on Element');
+testReflectAttribute('ariaSetSize', 'aria-setsize', 'foo', 'bar', 'ariaSetSize on Element');
+testReflectAttribute('ariaSort', 'aria-sort', 'foo', 'bar', 'ariaSort on Element');
+testReflectAttribute('ariaValueMax', 'aria-valuemax', 'foo', 'bar', 'ariaValueMax on Element');
+testReflectAttribute('ariaValueMin', 'aria-valuemin', 'foo', 'bar', 'ariaValueMin on Element');
+testReflectAttribute('ariaValueNow', 'aria-valuenow', 'foo', 'bar', 'ariaValueNow on Element');
+testReflectAttribute('ariaValueText', 'aria-valuetext', 'foo', 'bar', 'ariaValueText on Element');
+</script>
+</body>
+</html>

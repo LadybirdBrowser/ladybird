@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const str = 'Next 🙃';
+        let text = new Text(str);
+        text.data = str;
+        println(text.data);
+    });
+</script>

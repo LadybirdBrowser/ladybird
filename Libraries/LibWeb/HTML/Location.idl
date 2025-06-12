@@ -1,0 +1,22 @@
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#location
+[Exposed=Window]
+interface Location { // but see also additional creation steps and overridden internal methods
+    [LegacyUnforgeable] stringifier attribute USVString href;
+    [LegacyUnforgeable] readonly attribute USVString origin;
+    [LegacyUnforgeable] attribute USVString protocol;
+    [LegacyUnforgeable] attribute USVString host;
+    [LegacyUnforgeable] attribute USVString hostname;
+    [LegacyUnforgeable] attribute USVString port;
+    [LegacyUnforgeable] attribute USVString pathname;
+    [LegacyUnforgeable] attribute USVString search;
+    [LegacyUnforgeable] attribute USVString hash;
+
+    [LegacyUnforgeable] undefined assign(USVString url);
+    [LegacyUnforgeable] undefined replace(USVString url);
+    [LegacyUnforgeable] undefined reload();
+
+    // Intentionally not implemented at this stage due to https://github.com/whatwg/html/issues/1918
+    // This is not currently implemented by Firefox due to the above, and only seems to be used by
+    // ad tech on real sites.
+    // [LegacyUnforgeable, SameObject] readonly attribute DOMStringList ancestorOrigins;
+};

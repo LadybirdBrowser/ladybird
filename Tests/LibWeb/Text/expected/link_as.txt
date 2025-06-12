@@ -1,0 +1,2 @@
+Link.as: style
+Link.as: empty

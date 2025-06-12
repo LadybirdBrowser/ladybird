@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Lists: parsing counter-reset with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#propdef-counter-reset">
+<meta name="assert" content="counter-reset supports only the grammar '[ <counter-name> <integer>? | <reversed-counter-name> <integer>? ]+ | none'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('counter-reset', 'none chapter');
+test_invalid_value('counter-reset', 'reversed(none)');
+test_invalid_value('counter-reset', 'reversed(chapter) none');
+test_invalid_value('counter-reset', '3');
+test_invalid_value('counter-reset', 'reversed(3)');
+test_invalid_value('counter-reset', '99 imagenum');
+test_invalid_value('counter-reset', '99 reversed(imagenum)');
+test_invalid_value('counter-reset', 'section -1, imagenum 99');
+test_invalid_value('counter-reset', 'section 3.14');
+test_invalid_value('counter-reset', 'inherit 0');
+test_invalid_value('counter-reset', 'initial 0');
+test_invalid_value('counter-reset', 'unset 0');
+test_invalid_value('counter-reset', 'default 0');
+test_invalid_value('counter-reset', 'revert 0');
+test_invalid_value('counter-reset', 'revert-layer 0');
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['touch-action'] = "auto none" should not set the property value
+Pass	e.style['touch-action'] = "manipulation pan-x" should not set the property value
+Pass	e.style['touch-action'] = "pan-y pan-x pan-y" should not set the property value

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let iframe = document.querySelector("iframe")
+        let w = iframe.contentWindow;
+        println(w.getSelection());
+        iframe.remove();
+        println(w.getSelection());
+        println("PASS (didn't crash)");
+    })
+</script><iframe></iframe>

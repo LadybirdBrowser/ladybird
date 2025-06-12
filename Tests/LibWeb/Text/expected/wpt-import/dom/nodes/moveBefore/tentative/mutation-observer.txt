@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	[Connected move] MutationObserver removal + insertion is tracked by moveBefore()
+Pass	[Disconnected move] MutationObserver removal + insertion is tracked by moveBefore()

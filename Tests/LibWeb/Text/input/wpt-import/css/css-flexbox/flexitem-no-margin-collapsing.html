@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: flex items don't collapse margins</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#item-margins">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="This test ensures that flex items don't collapse margins
+with their children.">
+<style>
+.flexbox {
+    background-color: lightgrey;
+}
+.flexbox p {
+    height: 100px;
+    width: 100px;
+    margin: 10px;
+    background-color: blue;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+</head>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox" style="position: relative">
+  <div data-offset-x="0" data-offset-y="0" data-expected-width="120" data-expected-height="120">
+    <p data-offset-x="10" data-offset-y="10" data-expected-width="100" data-expected-height="100"></p>
+  </div>
+</div>
+
+</body>
+</html>

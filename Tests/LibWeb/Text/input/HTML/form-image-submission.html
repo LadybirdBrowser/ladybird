@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<head>
+    <!--
+        These style rules ensure the (x,y) coordinates clicked below are the same as the resulting
+        coordinates in the form submission event.
+     -->
+    <style type="text/css">
+        dialog {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<dialog id="dialog" open>
+    <form id="form" method="dialog">
+        <input value="well hello friends!" />
+        <input id="image" type="image" src="../../../Assets/120.png" />
+    </form>
+</dialog>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let dialog = document.getElementById("dialog");
+        let image = document.getElementById("image");
+
+        dialog.addEventListener("close", e => {
+            println(dialog.returnValue);
+            done();
+        });
+
+        window.addEventListener("load", () => {
+            const imageRect = image.getBoundingClientRect();
+            internals.click(imageRect.x + 10, imageRect.y + 20);
+        });
+    });
+</script>

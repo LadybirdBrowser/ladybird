@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-image-slice interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-image-slice">
+<meta name="assert" content="border-image-slice supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  border-image-slice: 50%;
+}
+.target {
+  width: 50px;
+  height: 50px;
+  background-color: black;
+  display: inline-block;
+  border: 25px;
+  border-image-source: linear-gradient(45deg, red, blue, green);
+  border-image-slice: 20%;
+}
+.expected {
+  background-color: green;
+  margin-right: 2px;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'border-image-slice',
+  from: neutralKeyframe,
+  to: '10%',
+}, [
+  {at: -0.3, expect: '23%'},
+  {at: 0, expect: '20%'},
+  {at: 0.3, expect: '17%'},
+  {at: 0.5, expect: '15%'},
+  {at: 0.6, expect: '14%'},
+  {at: 1, expect: '10%'},
+  {at: 1.5, expect: '5%'},
+]);
+
+test_interpolation({
+  property: 'border-image-slice',
+  from: 'initial',
+  to: '10%',
+}, [
+  {at: -0.3, expect: '127%'},
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '73%'},
+  {at: 0.5, expect: '55%'},
+  {at: 0.6, expect: '46%'},
+  {at: 1, expect: '10%'},
+  {at: 1.5, expect: '0%'},
+]);
+
+test_interpolation({
+  property: 'border-image-slice',
+  from: 'inherit',
+  to: '10%',
+}, [
+  {at: -0.3, expect: '62%'},
+  {at: 0, expect: '50%'},
+  {at: 0.3, expect: '38%'},
+  {at: 0.5, expect: '30%'},
+  {at: 0.6, expect: '26%'},
+  {at: 1, expect: '10%'},
+  {at: 1.5, expect: '0%'},
+]);
+
+test_interpolation({
+  property: 'border-image-slice',
+  from: 'unset',
+  to: '10%',
+}, [
+  {at: -0.3, expect: '127%'},
+  {at: 0, expect: '100%'},
+  {at: 0.3, expect: '73%'},
+  {at: 0.5, expect: '55%'},
+  {at: 0.6, expect: '46%'},
+  {at: 1, expect: '10%'},
+  {at: 1.5, expect: '0%'},
+]);
+
+test_interpolation({
+  property: 'border-image-slice',
+  from: '0%',
+  to: '50%',
+}, [
+  {at: -0.3, expect: '0%'}, // CSS border-image-slice can't be negative.
+  {at: 0, expect: '0%'},
+  {at: 0.3, expect: '15%'},
+  {at: 0.5, expect: '25%'},
+  {at: 0.6, expect: '30%'},
+  {at: 1, expect: '50%'},
+  {at: 1.5, expect: '75%'},
+]);
+
+test_interpolation({
+  property: 'border-image-slice',
+  from: '0% 10% 20% 30%',
+  to: '40% 50% 60% 70%',
+}, [
+  {at: -0.5, expect: '0% 0% 0% 10%'},
+  {at: 0, expect: '0% 10% 20% 30%'},
+  {at: 0.3, expect: '12% 22% 32% 42%'},
+  {at: 0.5, expect: '20% 30% 40% 50%'},
+  {at: 0.6, expect: '24% 34% 44% 54%'},
+  {at: 1, expect: '40% 50% 60% 70%'},
+  {at: 1.5, expect: '60% 70% 80% 90%'},
+]);
+
+test_interpolation({
+  property: 'border-image-slice',
+  from: '0 10 20 30 fill',
+  to: '40 50 60 70 fill',
+}, [
+  {at: -0.5, expect: '0 0 0 10 fill'}, // CSS border-image-slice can't be negative.
+  {at: 0, expect: '0 10 20 30 fill'},
+  {at: 0.3, expect: '12 22 32 42 fill'},
+  {at: 0.5, expect: '20 30 40 50 fill'},
+  {at: 0.6, expect: '24 34 44 54 fill'},
+  {at: 1, expect: '40 50 60 70 fill'},
+  {at: 1.5, expect: '60 70 80 90 fill'},
+]);
+
+test_interpolation({
+  property: 'border-image-slice',
+  from: '0% 10 20% 30 fill',
+  to: '40% 50 60% 70 fill',
+}, [
+  {at: -0.5, expect: '0% 0 0% 10 fill'}, // CSS border-image-slice can't be negative.
+  {at: 0, expect: '0% 10 20% 30 fill'},
+  {at: 0.3, expect: '12% 22 32% 42 fill'},
+  {at: 0.5, expect: '20% 30 40% 50 fill'},
+  {at: 0.6, expect: '24% 34 44% 54 fill'},
+  {at: 1, expect: '40% 50 60% 70 fill'},
+  {at: 1.5, expect: '60% 70 80% 90 fill'},
+]);
+
+test_no_interpolation({
+  property: 'border-image-slice',
+  from: '0% fill',
+  to: '50%',
+});
+
+test_no_interpolation({
+  property: 'border-image-slice',
+  from: '50%',
+  to: '100',
+});
+
+test_no_interpolation({
+  property: 'border-image-slice',
+  from: '50% fill',
+  to: '100 fill',
+});
+
+test_no_interpolation({
+  property: 'border-image-slice',
+  from: '0% 10 20% 30 fill',
+  to: '40% 50 60% 70',
+});
+
+test_no_interpolation({
+  property: 'border-image-slice',
+  from: '0% 10 20 30 fill',
+  to: '40 50 60% 70',
+});
+</script>
+</body>

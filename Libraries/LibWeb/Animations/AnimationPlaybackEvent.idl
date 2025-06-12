@@ -1,0 +1,15 @@
+#import <DOM/Event.idl>
+
+// https://www.w3.org/TR/web-animations-1/#animationplaybackevent
+[Exposed=Window]
+interface AnimationPlaybackEvent : Event {
+    constructor(DOMString type, optional AnimationPlaybackEventInit eventInitDict = {});
+    readonly attribute double? currentTime;
+    readonly attribute double? timelineTime;
+};
+
+// https://www.w3.org/TR/web-animations-1/#dictdef-animationplaybackeventinit
+dictionary AnimationPlaybackEventInit : EventInit {
+    double? currentTime = null;
+    double? timelineTime = null;
+};

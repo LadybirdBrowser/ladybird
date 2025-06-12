@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Media Queries Test: min-aspect-ratio - 59/79 ('aspect-ratio' property with prefix 'min')</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link name="author" title="Xin Liu" href="mailto:xinx.liu@intel.com">
+<link rel="help" title="4.6. aspect-ratio" href="http://www.w3.org/TR/css3-mediaqueries/#aspect-ratio">
+<link rel="match" href="../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="The 'aspect-ratio' property with prefix 'min' set '59/79' means that the minimum of ratio is '59/79',
+only and only if the value of the 'width' to the value of the 'height' is greater than value of 'min-aspect-ratio', the style sheet will be applied.
+The test runner will run this test in a 800/600 viewport (https://github.com/web-platform-tests/wpt/pull/12695).">
+<style>
+  div {
+    background-color: red;
+    height: 100px;
+    width: 100px;
+  }
+  @media screen and (min-aspect-ratio: 59/79) {
+    div {
+      background-color: green;
+    }
+  }
+</style>
+<body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div></div>
+</body>

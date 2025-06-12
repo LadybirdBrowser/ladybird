@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. DOMMatrix to Float32Array
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).toFloat32Array());
+
+        // 2. DOMMatrix to Float32Array
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).toFloat32Array());
+
+        // 3. DOMMatrix to Float64Array
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).toFloat64Array());
+
+        // 4. DOMMatrix to Float64Array
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]).toFloat64Array());
+    });
+</script>

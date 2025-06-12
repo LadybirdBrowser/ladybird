@@ -1,0 +1,16 @@
+<!doctype html>
+<style>
+    #foo {
+        transition:
+            color 0.6s cubic-bezier(0.19, 1, 0.22, 1),
+            background-size calc(0.3s) cubic-bezier(0.19, 1, 0.22, 1);
+    }
+</style>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        println("PASS! (Didn't crash)");
+        // FIXME: It would be good if this test case could verify the serialized CSS - but that isn't correct right now.
+    });
+</script>

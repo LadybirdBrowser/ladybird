@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<body>
+<title>Crash with lazy parsing child rules and stylesheet copy-on-write</title>
+<link rel="help" href="https://crbug.com/1404879">
+<link href="../support/delete-other-rule-crash.css" rel="stylesheet">
+<script src="../../common/gc.js"></script>
+<script>
+addEventListener('DOMContentLoaded', async () => {
+  requestAnimationFrame(async () => {
+    document.styleSheets[0].deleteRule(0);
+    await garbageCollect();
+    document.styleSheets[0].cssRules[0].cssText;
+  });
+});
+</script>

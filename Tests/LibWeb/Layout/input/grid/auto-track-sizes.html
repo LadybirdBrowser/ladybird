@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- https://wpt.live/css/css-grid/grid-definition/grid-auto-explicit-rows-001.html -->
+<style>
+.grid {
+    display: grid;
+    grid-template-areas: "a b c" "d e f" "g e h";
+    grid-template-rows: 11px 13px;
+    grid-auto-rows: 17px 19px;
+    grid-template-columns: 23px 29px;
+    grid-auto-columns: 31px 37px;
+}
+
+.grid > div {
+    background: rgba(0, 0, 0, 0.2);
+}
+#c1 {
+    grid-area: 1 / 1 / 2 / 2;
+}
+#c2 {
+    grid-area: 1 / 1 / 3 / 3;
+}
+#c3 {
+    grid-area: 1 / 1 / 4 / 4;
+}
+#c4 {
+    grid-area: 1 / 1 / 5 / 5;
+}
+</style><div class="grid"><div id="c1"></div><div id="c2"></div><div id="c3"></div><div id="c4"></div></div>

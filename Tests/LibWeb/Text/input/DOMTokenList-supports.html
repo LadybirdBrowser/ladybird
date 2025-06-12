@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>    
+    test(() => {
+        for (const tagName of ["a", "area", "form", "link"]) {
+            const element = document.createElement(tagName);
+            const relList = element.relList;
+            for (const propertyValue of ["alternate", "stylesheet", "preload", "dns-prefetch", "preconnect", "icon", "STYLESHEET", "never-supported"]) {
+                println(`${tagName}.relList.supports("${propertyValue}"): ${relList.supports(propertyValue)}`);
+            }
+        }
+
+        const documentElement = document.documentElement
+        const classList = documentElement.classList;
+        try {
+            classList.supports("foo");
+            println("FAIL");
+        } catch (e) {
+            println(`${documentElement.tagName.toLowerCase()}.classList.supports("foo") throws: ${e.name}`);
+        }
+    });
+</script>

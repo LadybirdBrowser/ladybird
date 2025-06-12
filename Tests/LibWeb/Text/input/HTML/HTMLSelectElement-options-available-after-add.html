@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<select id="select-test"></select>
+<script>
+    test(() => {
+        const s = document.getElementById("select-test");
+
+        const opt1 = document.createElement("option");
+        opt1.innerText = "Option 1";
+        s.add(opt1);
+
+        const opt2 = document.createElement("option");
+        opt2.innerText = "Option 2";
+        s.add(opt2);
+
+        if (s.value === "Option 1" && s.selectedOptions[0].selected) {
+            println("PASS (correct value)");
+        }
+    });
+</script>

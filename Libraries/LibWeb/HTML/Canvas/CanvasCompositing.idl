@@ -1,0 +1,6 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#canvascompositing
+interface mixin CanvasCompositing {
+    // compositing
+    attribute unrestricted double globalAlpha; // (default 1.0)
+    attribute DOMString globalCompositeOperation; // (default "source-over")
+};

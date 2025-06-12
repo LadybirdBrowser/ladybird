@@ -1,0 +1,66 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Test: 'contain: layout' with stacking contents. Z-index is defined only for siblings and children.</title>
+  <link rel="author" title="Yusuf Sermet" href="mailto:ysermet@mozilla.com">
+  <link rel="author" title="Morgan Rae Reschenberg" href="mailto:mreschenberg@berkeley.edu">
+  <link rel="help" href="https://drafts.csswg.org/css2/visuren.html#x43">
+  <link rel="help" href="https://drafts.csswg.org/css-contain/#containment-layout">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/contain-paint-stacking-context-001-ref.html">
+  <style>
+    div {
+      position: relative;
+      width: 100px;
+    }
+    #div1,
+    #div3 {
+      background-color: #cfc;
+    }
+    #div1 {
+      z-index: 5;
+    }
+    #div2 {
+      contain: layout;
+      background-color: #fdd;
+      height: 100px;
+      top: -20px;
+    }
+    #div2_1 {
+      background-color: #ffc;
+      z-index: 6;
+      top: -10px;
+    }
+    #div2_2 {
+      z-index: 3;
+      position: absolute;
+      top: -15px;
+      width: 40px;
+      height: 100px;
+      background-color: #ddf;
+    }
+    #div3 {
+      z-index: 2;
+      top: -50px;
+    }
+  </style>
+</head>
+<body>
+  <div id="div1">
+    <br/><br/>
+  </div>
+
+  <div id="div2">
+    <div id="div2_1">
+      <br/><br/>
+    </div>
+
+    <div id="div2_2">
+    </div>
+  </div>
+
+  <div id="div3">
+    <br/><br/>
+  </div>
+</body>
+</html>

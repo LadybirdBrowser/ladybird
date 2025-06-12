@@ -1,0 +1,81 @@
+Harness status: OK
+
+Found 76 tests
+
+76 Pass
+Pass	nav with invalid role name foo
+Pass	nav with two invalid role names
+Pass	nav with three invalid role names
+Pass	button with invalid role name foo
+Pass	button with two invalid role names
+Pass	button with three invalid role names
+Pass	nav with empty character as role
+Pass	nav with line break () character as role
+Pass	nav with tab (	) as role (should be treated as whitespace)
+Pass	nav with zero-width space as role (should be treated as whitespace)
+Pass	nav with braille space (10240) as role
+Pass	nav with braille space (x2800) as role
+Pass	nav with non-breaking space (nbsp) as role
+Pass	nav with standard space (nbsp) as role
+Pass	link with role set to tilde diacritic
+Pass	link with role foo that has tilde diacritic
+Pass	link with role set to overline diacritic
+Pass	link with role foo that has overline diacritic
+Pass	link with role set to circumflex diacritic below
+Pass	link with role foo that has circumflex diacritic below
+Pass	link with role set to button with tilde diacritic
+Pass	button with role set to zero-width joiner
+Pass	button with role set to foo with zero-width joiner
+Pass	nav with role set to theta (Θ)
+Pass	nav with role set to Persian character (ژ)
+Pass	nav with multiple non-latin character roles, Persian character (ژ) and ♮
+Pass	nav with role set to Japanese kanji
+Pass	nav with role set to Arabic text
+Pass	nav with multiple role assignments set to Arabic text
+Pass	nav with role set to Hebrew text
+Pass	nav with multiple role assignments set to Hebrew text
+Pass	link with role set to ampersand character
+Pass	link with role set to less than angle bracket character
+Pass	nav with role set to region followed by backslash
+Pass	nav with role set to backslash followed by region
+Pass	nav with role set to region with backslash after e character
+Pass	span with invalid role name foo
+Pass	span with two invalid role names
+Pass	span with three invalid role names
+Pass	div with invalid role name foo
+Pass	div with two invalid role names
+Pass	div with three invalid role names
+Pass	span with escaped empty character as role
+Pass	span with escaped line break () character as role
+Pass	span with escaped tab (	) as role (should be treated as whitespace)
+Pass	span with escaped zero-width space as role (should be treated as whitespace)
+Pass	span with escaped braille space (10240) as role
+Pass	span with escaped braille space (x2800) as role
+Pass	span with escaped non-breaking space (nbsp) as role
+Pass	span with escaped standard space (nbsp) as role
+Pass	span with empty character as role
+Pass	span with line break () character as role
+Pass	span with tab (	) as role (should be treated as whitespace)
+Pass	span with zero-width space as role (should be treated as whitespace)
+Pass	span with braille space (10240) as role
+Pass	span with non-breaking space (nbsp) as role
+Pass	span with standard space as role
+Pass	div with role set to tilde diacritic
+Pass	div with role foo that has tilde diacritic
+Pass	div with role set to button with tilde diacritic
+Pass	div with role set to button with unescaped tilde diacritic
+Pass	span with role set to theta (Θ)
+Pass	span with role set to Persian character (ژ)
+Pass	span with multiple non-latin character roles, Persian character (ژ) and ♮
+Pass	span with role set to Japanese kanji
+Pass	div with role set to Arabic text
+Pass	div with multiple role assignments set to Arabic text
+Pass	div with role set to Hebrew text
+Pass	div with multiple role assignments set to Hebrew text
+Pass	span with role set to ampersand character
+Pass	span with role set to less than angle bracket character
+Pass	span with role set to unescaped ampersand character
+Pass	span with role set to unescaped less than angle bracket character
+Pass	span with role set to region followed by backslash
+Pass	span with role set to backslash followed by region
+Pass	span with role set to region with forward slash after e character

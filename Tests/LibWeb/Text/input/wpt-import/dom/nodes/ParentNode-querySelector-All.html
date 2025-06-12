@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<meta name=timeout content=long>
+<title>Selectors-API Test Suite: HTML</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="selectors.js"></script>
+<script src="ParentNode-querySelector-All.js"></script>
+<style>iframe { visibility: hidden; position: absolute; }</style>
+
+<div id="log">This test requires JavaScript.</div>
+
+<script>
+async_test(function() {
+  var frame = document.createElement("iframe");
+  var self = this;
+  frame.onload = function() {
+    // :target doesn't work before a page rendering on some browsers.  We run
+    // tests after an animation frame because it may be later than the first
+    // page rendering.
+    requestAnimationFrame(self.step_func_done(init.bind(self, frame)));
+  };
+  frame.src = "../../../../data/ParentNode-querySelector-All-content.html#target";
+  document.body.appendChild(frame);
+});
+
+function init(target) {
+  /*
+   * This test suite tests Selectors API methods in 4 different contexts:
+   * 1. Document node
+   * 2. In-document Element node
+   * 3. Detached Element node (an element with no parent, not in the document)
+   * 4. Document Fragment node
+   *
+   * For each context, the following tests are run:
+   *
+   * The interface check tests ensure that each type of node exposes the Selectors API methods
+   *
+   * The special selector tests verify the result of passing special values for the selector parameter,
+   * to ensure that the correct WebIDL processing is performed, such as stringification of null and
+   * undefined and missing parameter. The universal selector is also tested here, rather than with the
+   * rest of ordinary selectors for practical reasons.
+   *
+   * The static list verification tests ensure that the node lists returned by the method remain unchanged
+   * due to subsequent document modication, and that a new list is generated each time the method is
+   * invoked based on the current state of the document.
+   *
+   * The invalid selector tests ensure that SyntaxError is thrown for invalid forms of selectors
+   *
+   * The valid selector tests check the result from querying many different types of selectors, with a
+   * list of expected elements. This checks that querySelector() always returns the first result from
+   * querySelectorAll(), and that all matching elements are correctly returned in tree-order. The tests
+   * can be limited by specifying the test types to run, using the testType variable. The constants for this
+   * can be found in selectors.js.
+   *
+   * All the selectors tested for both the valid and invalid selector tests are found in selectors.js.
+   * See comments in that file for documentation of the format used.
+   *
+   * The ParentNode-querySelector-All.js file contains all the common test functions for running each of the aforementioned tests
+   */
+
+  var testType = TEST_QSA;
+  var docType  = "html"; // Only run tests suitable for HTML
+
+  // Prepare the nodes for testing
+  var doc = target.contentDocument;                 // Document Node tests
+
+  var element = doc.getElementById("root");   // In-document Element Node tests
+
+  //Setup the namespace tests
+  setupSpecialElements(doc, element);
+
+  var outOfScope = element.cloneNode(true);   // Append this to the body before running the in-document
+                                               // Element tests, but after running the Document tests. This
+                                               // tests that no elements that are not descendants of element
+                                               // are selected.
+
+  traverse(outOfScope, function(elem) {        // Annotate each element as being a clone; used for verifying
+    elem.setAttribute("data-clone", "");     // that none of these elements ever match.
+  });
+
+
+  var detached = element.cloneNode(true);     // Detached Element Node tests
+
+  var fragment = doc.createDocumentFragment(); // Fragment Node tests
+  fragment.appendChild(element.cloneNode(true));
+
+  var empty = document.createElement("div"); // Empty Node tests
+
+  // Setup Tests
+  interfaceCheck("Document", doc);
+  interfaceCheck("Detached Element", detached);
+  interfaceCheck("Fragment", fragment);
+  interfaceCheck("In-document Element", element);
+
+  runSpecialSelectorTests("Document", doc);
+  runSpecialSelectorTests("Detached Element", detached);
+  runSpecialSelectorTests("Fragment", fragment);
+  runSpecialSelectorTests("In-document Element", element);
+
+  verifyStaticList("Document", doc, doc);
+  verifyStaticList("Detached Element", doc, detached);
+  verifyStaticList("Fragment", doc, fragment);
+  verifyStaticList("In-document Element", doc, element);
+
+  runInvalidSelectorTest("Document", doc, invalidSelectors);
+  runInvalidSelectorTest("Detached Element", detached, invalidSelectors);
+  runInvalidSelectorTest("Fragment", fragment, invalidSelectors);
+  runInvalidSelectorTest("In-document Element", element, invalidSelectors);
+  runInvalidSelectorTest("Empty Element", empty, invalidSelectors);
+
+  runValidSelectorTest("Document", doc, validSelectors, testType, docType);
+  runValidSelectorTest("Detached Element", detached, validSelectors, testType, docType);
+  runValidSelectorTest("Fragment", fragment, validSelectors, testType, docType);
+
+  doc.body.appendChild(outOfScope); // Append before in-document Element tests.
+                                    // None of these elements should match
+  runValidSelectorTest("In-document Element", element, validSelectors, testType, docType);
+}
+</script>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<title>CSS Test: Absolutely positioned children of flexboxes</title>
+<link rel="author" title="Google Inc." href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+<meta name="flags" content="dom">
+<meta name="assert" content="Checks that we correctly handle border and
+padding in combination with abspos items">
+<style>
+.rect {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background-color: green;
+}
+
+.flexbox {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  outline: 3px solid black;
+}
+</style>
+
+<link rel="stylesheet" href="../support/flexbox.css">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.rect')">
+<div id=log></div>
+
+<div class="flexbox" style="padding-top: 10px; padding-left: 20px;">
+  <div class="rect" data-offset-x="20" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox column" style="padding-top: 10px; padding-left: 20px;">
+  <div class="rect" data-offset-x="20" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox" style="writing-mode: vertical-lr; padding-top: 10px; padding-left: 20px;">
+  <div class="rect" data-offset-x="20" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox column" style="writing-mode: vertical-lr; padding-top: 10px; padding-left: 20px;">
+  <div class="rect" data-offset-x="20" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox" style="direction: rtl; padding-top: 10px; padding-right: 20px;">
+  <div class="rect" data-offset-x="50" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox column" style="direction: rtl; padding-top: 10px; padding-right: 20px;">
+  <div class="rect" data-offset-x="50" data-offset-y="10"></div>
+</div>
+
+<div class="flexbox" style="direction: rtl; writing-mode: vertical-lr; padding-bottom: 10px; padding-left: 20px;">
+  <div class="rect" data-offset-x="20" data-offset-y="50"></div>
+</div>
+
+<div class="flexbox column" style="direction: rtl; writing-mode: vertical-lr; padding-bottom: 10px; padding-left: 20px;">
+  <div class="rect" data-offset-x="20" data-offset-y="50"></div>
+</div>
+
+<hr>
+<div class="flexbox" style="border-top: 10px solid; border-left: 20px solid;">
+  <div class="rect" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox column" style="border-top: 10px solid; border-left: 20px solid;">
+  <div class="rect" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox" style="writing-mode: vertical-lr; border-top: 10px solid; border-left: 20px solid;">
+  <div class="rect" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox column" style="writing-mode: vertical-lr; border-top: 10px solid; border-left: 20px solid;">
+  <div class="rect" data-offset-x="0" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox" style="direction: rtl; border-top: 10px solid; border-right: 20px solid;">
+  <div class="rect" data-offset-x="50" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox column" style="direction: rtl; border-top: 10px solid; border-right: 20px solid;">
+  <div class="rect" data-offset-x="50" data-offset-y="0"></div>
+</div>
+
+<div class="flexbox" style="direction: rtl; writing-mode: vertical-lr; border-bottom: 10px solid; border-left: 20px solid;">
+  <div class="rect" data-offset-x="0" data-offset-y="50"></div>
+</div>
+
+<div class="flexbox column" style="direction: rtl; writing-mode: vertical-lr; border-bottom: 10px solid; border-left: 20px solid;">
+  <div class="rect" data-offset-x="0" data-offset-y="50"></div>
+</div>

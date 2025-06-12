@@ -1,0 +1,15 @@
+#import <WebGL/Types.idl>
+
+// https://registry.khronos.org/webgl/extensions/ANGLE_instanced_arrays/
+// NOTE: Original ANGLE_instanced_arrays name is changed to title case,
+//       so it matches corresponding C++ class name, and does not require
+//       IDL generator to handle snake_case to TitleCase conversion.
+//       Having a different name is totally fine, because LegacyNoInterfaceObject
+//       prevents the name from being exposed to JavaScript.
+[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+interface ANGLEInstancedArrays {
+    const GLenum VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE = 0x88FE;
+    undefined drawArraysInstancedANGLE(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
+    undefined drawElementsInstancedANGLE(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei primcount);
+    undefined vertexAttribDivisorANGLE(GLuint index, GLuint divisor);
+};

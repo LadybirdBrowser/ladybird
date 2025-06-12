@@ -1,0 +1,3 @@
+Sheets in old doc: 0
+Sheets in new doc: 0
+PASS (didn't crash)

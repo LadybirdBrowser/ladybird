@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+.grid {
+    display: grid;
+    background-color: lightsalmon;
+    grid-template-columns: [c] 1fr [b] 1fr [a] 1fr;
+    grid-template-areas: "a b c";
+}
+
+.item-left {
+    background-color: lightblue;
+    grid-column-start: a;
+    grid-column-end: a;
+}
+
+/* FIXME: This item should start at [b] and end at [c]. Currently it starts at [c] and ends at [c]. */
+.item-right {
+    background-color: yellowgreen;
+    grid-column-start: b;
+    grid-column-end: c;
+}
+</style><div class="grid"><div class="item-left">1fr</div><div class="item-right">1fr</div></div>

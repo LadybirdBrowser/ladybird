@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/button-inside-scroll-container-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+    
+    #scrollable {
+        height: 300px;
+        overflow: scroll;
+    }
+
+    input[type="submit"] {
+        display: block;
+        width: 100px;
+        height: 100px;
+        background-color: green;
+        outline: none;
+        border: 5px solid magenta;
+        box-sizing: border-box;
+    }
+</style>
+<div id="scrollable">
+    <input type="submit" value="1" />
+    <input type="submit" value="2" />
+    <input type="submit" value="3" />
+    <input type="submit" value="4" />
+    <input type="submit" value="5" />
+    <input type="submit" value="6" />
+    <input type="submit" value="7" />
+    <input type="submit" value="8" />
+    <input type="submit" value="9" />
+    <input type="submit" value="10" />
+</div>
+<script>
+    const scrollContainer = document.getElementById("scrollable");
+    scrollContainer.scrollTop = 100;
+</script>

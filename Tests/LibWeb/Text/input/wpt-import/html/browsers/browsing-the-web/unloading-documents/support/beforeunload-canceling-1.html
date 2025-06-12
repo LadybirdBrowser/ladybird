@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Support page for beforeunload-canceling.html</title>
+
+<h1>If this goes away, it navigated</h1>
+
+<script>
+"use strict";
+
+window.runTest = (t, { valueToReturn, expectCancelation, setReturnValue, expectedReturnValue, cancel }) => {
+  window.onbeforeunload = t.step_func(e => {
+    if (cancel) {
+      e.preventDefault();
+    }
+
+    if (setReturnValue !== undefined) {
+      e.returnValue = setReturnValue;
+    }
+
+    return valueToReturn;
+  });
+
+  const listener = t.step_func(e => {
+    top.assert_equals(e.defaultPrevented, expectCancelation, "canceled");
+    top.assert_equals(e.returnValue, expectedReturnValue, "returnValue");
+    window.onbeforeunload = null;
+
+    t.done();
+  });
+
+  window.addEventListener("beforeunload", listener);
+
+  window.location.href = "about:blank";
+};
+</script>

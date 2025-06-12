@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    * {
+        outline: 1px solid black;
+    }
+
+    .scrollable {
+        height: 300px;
+        overflow-y: auto;
+    }
+
+    span {
+        width: 100px;
+        height: 100px;
+        display: block
+    }
+</style>
+<div class="scrollable"><span>Item 1</span><span>Item 2</span><span>Item 3</span><span>Item 4</span><span>Item 5</span><span>Item 6</span><span>Item 7</span><span>Item 8</span><span>Item 9</span><span>Item 10</span><span>Item 11</span><span>Item 12</span></div>
+<script>
+    test(() => {
+        const scrollable = document.querySelector(".scrollable");
+        println(scrollable.scrollHeight);
+    });
+</script>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>SVG root as flex item</title>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#algo-main-item" title="Part E">
+<link rel="help" href="https://crbug.com/965672">
+<meta name="assert"
+  content="When SVG has aspect ratio and no intrinsic height its flex-basis is available width * ratio, not 150px, when in a column flexbox." />
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+The test passes if you see a 600x300 blue rectangle.
+
+<div style="display: flex; flex-direction: column; width: 600px;">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" data-expected-bounding-client-rect-width=600
+    data-expected-bounding-client-rect-height=300>
+    <rect x="0" y="0" width="200" height="100" fill="blue" />
+  </svg>
+</div>
+
+<script>
+  checkLayout('svg');
+</script>

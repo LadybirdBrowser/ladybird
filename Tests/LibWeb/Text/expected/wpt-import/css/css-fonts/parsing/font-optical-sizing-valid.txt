@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	e.style['font-optical-sizing'] = "auto" should set the property value
+Fail	e.style['font-optical-sizing'] = "none" should set the property value

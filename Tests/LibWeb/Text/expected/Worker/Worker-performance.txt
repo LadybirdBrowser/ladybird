@@ -1,0 +1,1 @@
+performance global object is available: true

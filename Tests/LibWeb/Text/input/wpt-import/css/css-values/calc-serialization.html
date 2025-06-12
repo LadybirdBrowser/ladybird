@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Values and Units: calc() serialization.</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-values/#calc-serialize">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/1731">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="content"></div>
+<script>
+test(function() {
+  // specified -> expected
+  var values = {
+    "calc(10px + 1vmin + 10%)": "calc(10% + 10px + 1vmin)",
+    "calc(10px + 1vmin)": "calc(10px + 1vmin)",
+    "calc(10px + 1em)": "calc(1em + 10px)",
+    "calc(1vmin - 10px)": "calc(-10px + 1vmin)",
+    "calc(-10px + 1em)": "calc(1em - 10px)",
+    "calc(-10px)": "calc(-10px)",
+  };
+
+  var content = document.getElementById("content");
+
+  for (var prop in values) {
+    content.style.width = '';
+    content.style.width = prop;
+    assert_equals(content.style.width, values[prop], "Serialization of " + prop);
+  }
+}, "calc() serialization")
+</script>

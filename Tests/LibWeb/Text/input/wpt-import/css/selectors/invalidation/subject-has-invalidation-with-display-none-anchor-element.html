@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: subject :has() invalidation with display: none anchor element</title>
+<link rel="author" title="Byungwoo Lee" href="blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #target:has(~ input:checked) { display: none; }
+</style>
+<p>Click checkbox</p>
+<div id="target">PASS</div>
+<input type="checkbox" id="checkme">
+<label for="checkme">Check me!</label>
+<script>
+  test(function() {
+    checkme.checked = false;
+    assert_equals(getComputedStyle(target).display, "block",
+                  "target display should be empty");
+
+    checkme.checked = true;
+    assert_equals(getComputedStyle(target).display, "none",
+                  "target display should be none");
+
+    checkme.checked = false;
+    assert_equals(getComputedStyle(target).display, "block",
+                  "target display should be empty again");
+  });
+</script>

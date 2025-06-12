@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_innerHTML_math.html</title>
+    <meta name="timeout" content="long">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['0e7e70d0dcf0c26593203b36cac4fa7f6325613e','fa7d4a31838dbcc16bf73672f2f4486cca185673','d9d2e4c0e926a91f5e704846cdbc855e3cb21949','c04b203803f6b3bec3db65db16854e7e624d13ef','4f95d47164955a6b163935fd8ac89ea200767330','e942ee6666e1dc938aab10fc2374a2240806b439','3537413f7f8166cb0c3a324fef8261be5628611d','c0186fb0fe26b48bcd82d58ebe0c90a423f26c28',];
+      var tests = {
+          "0e7e70d0dcf0c26593203b36cac4fa7f6325613e":[async_test('html5lib_innerHTML_math.html 0e7e70d0dcf0c26593203b36cac4fa7f6325613e'), "%3Cmath%3E%3Ctr%3E%3Ctd%3E%3Cmo%3E%3Ctr%3E", "%23document%0A%7C%20%3Cmath%20math%3E%0A%7C%20%20%20%3Cmath%20tr%3E%0A%7C%20%20%20%20%20%3Cmath%20td%3E%0A%7C%20%20%20%20%20%20%20%3Cmath%20mo%3E", 'td'],"fa7d4a31838dbcc16bf73672f2f4486cca185673":[async_test('html5lib_innerHTML_math.html fa7d4a31838dbcc16bf73672f2f4486cca185673'), "%3Cmath%3E%3Ctr%3E%3Ctd%3E%3Cmo%3E%3Ctr%3E", "%23document%0A%7C%20%3Cmath%20math%3E%0A%7C%20%20%20%3Cmath%20tr%3E%0A%7C%20%20%20%20%20%3Cmath%20td%3E%0A%7C%20%20%20%20%20%20%20%3Cmath%20mo%3E", 'tr'],"d9d2e4c0e926a91f5e704846cdbc855e3cb21949":[async_test('html5lib_innerHTML_math.html d9d2e4c0e926a91f5e704846cdbc855e3cb21949'), "%3Cmath%3E%3Cthead%3E%3Cmo%3E%3Ctbody%3E", "%23document%0A%7C%20%3Cmath%20math%3E%0A%7C%20%20%20%3Cmath%20thead%3E%0A%7C%20%20%20%20%20%3Cmath%20mo%3E", 'thead'],"c04b203803f6b3bec3db65db16854e7e624d13ef":[async_test('html5lib_innerHTML_math.html c04b203803f6b3bec3db65db16854e7e624d13ef'), "%3Cmath%3E%3Ctfoot%3E%3Cmo%3E%3Ctbody%3E", "%23document%0A%7C%20%3Cmath%20math%3E%0A%7C%20%20%20%3Cmath%20tfoot%3E%0A%7C%20%20%20%20%20%3Cmath%20mo%3E", 'tfoot'],"4f95d47164955a6b163935fd8ac89ea200767330":[async_test('html5lib_innerHTML_math.html 4f95d47164955a6b163935fd8ac89ea200767330'), "%3Cmath%3E%3Ctbody%3E%3Cmo%3E%3Ctfoot%3E", "%23document%0A%7C%20%3Cmath%20math%3E%0A%7C%20%20%20%3Cmath%20tbody%3E%0A%7C%20%20%20%20%20%3Cmath%20mo%3E", 'tbody'],"e942ee6666e1dc938aab10fc2374a2240806b439":[async_test('html5lib_innerHTML_math.html e942ee6666e1dc938aab10fc2374a2240806b439'), "%3Cmath%3E%3Ctbody%3E%3Cmo%3E%3C/table%3E", "%23document%0A%7C%20%3Cmath%20math%3E%0A%7C%20%20%20%3Cmath%20tbody%3E%0A%7C%20%20%20%20%20%3Cmath%20mo%3E", 'tbody'],"3537413f7f8166cb0c3a324fef8261be5628611d":[async_test('html5lib_innerHTML_math.html 3537413f7f8166cb0c3a324fef8261be5628611d'), "%3Cmath%3E%3Cthead%3E%3Cmo%3E%3C/table%3E", "%23document%0A%7C%20%3Cmath%20math%3E%0A%7C%20%20%20%3Cmath%20thead%3E%0A%7C%20%20%20%20%20%3Cmath%20mo%3E", 'tbody'],"c0186fb0fe26b48bcd82d58ebe0c90a423f26c28":[async_test('html5lib_innerHTML_math.html c0186fb0fe26b48bcd82d58ebe0c90a423f26c28'), "%3Cmath%3E%3Ctfoot%3E%3Cmo%3E%3C/table%3E", "%23document%0A%7C%20%3Cmath%20math%3E%0A%7C%20%20%20%3Cmath%20tfoot%3E%0A%7C%20%20%20%20%20%3Cmath%20mo%3E", 'tbody'],
+      }
+      init_tests("innerHTML");
+    </script>
+  </body>
+</html>

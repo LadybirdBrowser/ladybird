@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // 1. Export a canvas to PNG data URL
+        testPart(() => {
+            const canvas = document.createElement('canvas');
+            return canvas.toDataURL('image/png').substring(5, 14);
+        });
+
+        // 2. Export a canvas to JPEG data URL
+        testPart(() => {
+            const canvas = document.createElement('canvas');
+            return canvas.toDataURL('image/jpeg').substring(5, 15);
+        });
+    });
+</script>

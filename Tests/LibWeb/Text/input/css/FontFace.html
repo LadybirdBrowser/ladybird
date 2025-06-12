@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let face = new FontFace("Some font family", "url(some_font_family.ttf)");
+
+        println(`face.family: ${face.family}`);
+        println(`face.style: ${face.style}`);
+        println(`face.weight: ${face.weight}`);
+        println(`face.stretch: ${face.stretch}`);
+
+        // FIXME: Implement setters for the following props:
+        println(`face.unicodeRange: ${face.unicodeRange}`);
+        println(`face.featureSettings: ${face.featureSettings}`);
+        println(`face.variationSettings: ${face.variationSettings}`);
+        println(`face.display: ${face.display}`);
+        println(`face.ascentOverride: ${face.ascentOverride}`);
+        println(`face.descentOverride: ${face.descentOverride}`);
+        println(`face.lineGapOverride: ${face.lineGapOverride}`);
+
+        // Set valid values
+        face.family = "Another font family";
+        face.style = "italic";
+        face.weight = "bold";
+        face.stretch = "condensed";
+
+        println(`face.family: ${face.family}`);
+        println(`face.style: ${face.style}`);
+        println(`face.weight: ${face.weight}`);
+        println(`face.stretch: ${face.stretch}`);
+
+        // Set invalid values and expect exception
+        try {
+            face.family = 1;
+        } catch (e) {
+            println(`face.family = 1: ${e}`);
+        }
+
+        try {
+            face.style = 1;
+        } catch (e) {
+            println(`face.style = 1: ${e}`);
+        }
+
+        try {
+            face.weight = "500kg";
+        } catch (e) {
+            println(`face.weight = 500kg: ${e}`);
+        }
+
+        try {
+            face.stretch = "super stretched";
+        } catch (e) {
+            println(`face.stretch = super stretched: ${e}`);
+        }
+
+    });
+</script>

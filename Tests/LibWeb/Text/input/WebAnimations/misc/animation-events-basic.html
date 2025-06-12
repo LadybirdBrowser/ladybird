@@ -1,0 +1,46 @@
+<!doctype html><style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        div {
+            width: 100px;
+            height: 100px;
+            background-color: #3498db;
+            position: relative;
+            animation: moveRight 0.1s linear;
+            animation-play-state: paused;
+        }
+
+        @keyframes moveRight {
+            0% {
+                left: 0;
+            }
+            100% {
+                left: 100px;
+            }
+        }
+</style>
+<body>
+<script src="../../include.js"></script>
+<div id="d"></div>
+<script>
+    asyncTest(done => {
+        let div = document.getElementById("d");
+        div.addEventListener("animationstart", () => {
+            println("animationstart");
+        });
+        div.addEventListener("animationend", () => {
+            println("animationend");
+            div.style.animationPlayState = "paused";
+            div.style.display = "none";
+            done();
+        });
+    });
+</script>
+</body>

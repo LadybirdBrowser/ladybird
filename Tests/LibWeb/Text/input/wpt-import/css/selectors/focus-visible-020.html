@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Test (Selectors): :focus-visible doesn't match on ShadowRoot</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<style>
+  #warning {
+    display: none;
+    background: red;
+  }
+
+  @supports not selector(:focus-visible) {
+    #instructions {
+      display: none;
+    }
+
+    #warning {
+      display: block;
+    }
+  }
+
+  #host:focus-visible {
+    outline: 0;
+    background-color: red;
+  }
+</style>
+
+<p>This test checks that <code>:focus-visible</code> doesn't math on ShadowRoot.</p>
+<ol id="instructions">
+  <li>The input should be focused on load, if it's not focused, focus it via mouse or keyboard.</li>
+  <li>If you see no red the test result is SUCCESS.</li>
+</ol>
+<p id="warning">Your user-agent does not support <code>:focus-visible</code> pseudo-class, please SKIP this test.</p>
+
+<div id="host" style="height: 100px;"></div>
+
+<script>
+  const shadowRoot = host.attachShadow({mode: 'open', delegatesFocus: true});
+  shadowRoot.innerHTML = '<input id="target" autofocus value="Focus me">';
+
+  // Check that :focus-visible is supported.
+  test_valid_selector(':focus-visible');
+
+  async_test((t) => {
+    host.focus();
+    window.requestAnimationFrame(t.step_func_done(() => {
+      assert_not_equals(getComputedStyle(host).backgroundColor, "rgb(255, 0, 0)", `backgroundColor for ${host.tagName}#${host.id} should NOT be red`);
+
+      let focusVisiblePseudoAll = document.querySelectorAll(':focus-visible');
+      assert_equals(focusVisiblePseudoAll.length, 0, "No element matches ':focus-visible'");
+
+      let focusVisibleShadowDOMPseudoAll = shadowRoot.querySelectorAll(':focus-visible');
+      assert_equals(focusVisibleShadowDOMPseudoAll.length, 1, "Only one element matches ':focus-visible' in the Shadow DOM");
+
+      let target = shadowRoot.getElementById("target");
+      assert_equals(target, focusVisibleShadowDOMPseudoAll[0], "${target.tagName}#${target.id} matches ':focus-visible'");
+    }));
+  }, ":focus-visible doesn't match on ShadowRoot");
+</script>

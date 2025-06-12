@@ -1,0 +1,15 @@
+#import <DOM/Event.idl>
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#popstateevent
+[Exposed=Window]
+interface PopStateEvent : Event {
+    constructor(DOMString type, optional PopStateEventInit eventInitDict = {});
+
+    readonly attribute any state;
+    [FIXME] readonly attribute boolean hasUAVisualTransition;
+};
+
+dictionary PopStateEventInit : EventInit {
+    any state = null;
+  // FIXME: boolean hasUAVisualTransition = false;
+};

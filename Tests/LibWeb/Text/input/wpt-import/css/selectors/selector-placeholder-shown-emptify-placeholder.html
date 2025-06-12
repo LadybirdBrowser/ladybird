@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>When non-empty placeholder becomes empty, :placeholder-shown test</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#placeholder">
+<input id="myinput" type="text" placeholder="FAIL">
+<textarea id="mytextarea" placeholder="FAIL"></textarea>
+<script>
+test(() => {
+  const input = document.querySelector("input");
+  input.placeholder = "";
+  input.value = "NO RED";
+  assert_false(input.matches(":placeholder-shown"));
+}, "input:placeholder-shown should not be matched");
+
+test(() => {
+  const textarea = document.querySelector("textarea");
+  textarea.placeholder = "";
+  textarea.value = "No RED";
+  assert_false(textarea.matches(":placeholder-shown"));
+}, "textarea:placeholder-shown should not be matched");
+</script>

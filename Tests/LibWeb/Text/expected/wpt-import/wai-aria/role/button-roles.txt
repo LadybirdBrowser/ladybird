@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	button aria-haspopup false
+Pass	button aria-haspopup true
+Pass	button aria-haspopup menu
+Pass	button aria-haspopup dialog
+Pass	button aria-haspopup listbox
+Pass	button aria-haspopup tree
+Pass	button aria-haspopup grid
+Pass	button aria-pressed true
+Pass	button aria-pressed false
+Pass	button aria-pressed undefined

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Throwing in event listener with a single listeners
+Pass	Throwing in event listener with multiple listeners

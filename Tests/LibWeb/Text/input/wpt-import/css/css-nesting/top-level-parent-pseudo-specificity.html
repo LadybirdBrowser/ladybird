@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS Nesting: Specificity of top-level '&'</title>
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/10196">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  /* Note: at the top level, '&' matches like ':root'. */
+
+  /* Should have zero specificity: */
+  & { color: red; }
+  /* Should also have zero specificity: */
+  :where(&) { color: green; }
+</style>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(document.documentElement).color, 'rgb(0, 128, 0)');
+  });
+</script>

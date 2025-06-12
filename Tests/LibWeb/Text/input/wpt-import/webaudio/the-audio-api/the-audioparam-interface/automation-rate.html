@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+  <head>
+    <title>AudioParam.automationRate tests</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // For each node that has an AudioParam, verify that the default
+      // |automationRate| has the expected value and that we can change it or
+      // throw an error if it can't be changed.
+
+      // Any valid sample rate is fine; we don't actually render anything in the
+      // tests.
+      let sampleRate = 8000;
+
+      let audit = Audit.createTaskRunner();
+
+      // Array of tests.  Each test is a dictonary consisting of the name of the
+      // node and an array specifying the AudioParam's of the node.  This array
+      // in turn gives the name of the AudioParam, the default value for the
+      // |automationRate|, and whether it is fixed (isFixed).
+      const tests = [
+        {
+          nodeName: 'AudioBufferSourceNode',
+          audioParams: [
+            {name: 'detune', defaultRate: 'k-rate', isFixed: true},
+            {name: 'playbackRate', defaultRate: 'k-rate', isFixed: true}
+          ]
+        },
+        {
+          nodeName: 'BiquadFilterNode',
+          audioParams: [
+            {name: 'frequency', defaultRate: 'a-rate', isFixed: false},
+            {name: 'detune', defaultRate: 'a-rate', isFixed: false},
+            {name: 'Q', defaultRate: 'a-rate', isFixed: false},
+            {name: 'gain', defaultRate: 'a-rate', isFixed: false},
+          ]
+        },
+        {
+          nodeName: 'ConstantSourceNode',
+          audioParams: [{name: 'offset', defaultRate: 'a-rate', isFixed: false}]
+        },
+        {
+          nodeName: 'DelayNode',
+          audioParams:
+              [{name: 'delayTime', defaultRate: 'a-rate', isFixed: false}]
+        },
+        {
+          nodeName: 'DynamicsCompressorNode',
+          audioParams: [
+            {name: 'threshold', defaultRate: 'k-rate', isFixed: true},
+            {name: 'knee', defaultRate: 'k-rate', isFixed: true},
+            {name: 'ratio', defaultRate: 'k-rate', isFixed: true},
+            {name: 'attack', defaultRate: 'k-rate', isFixed: true},
+            {name: 'release', defaultRate: 'k-rate', isFixed: true}
+          ]
+        },
+        {
+          nodeName: 'GainNode',
+          audioParams: [{name: 'gain', defaultRate: 'a-rate', isFixed: false}]
+        },
+        {
+          nodeName: 'OscillatorNode',
+          audioParams: [
+            {name: 'frequency', defaultRate: 'a-rate', isFixed: false},
+            {name: 'detune', defaultRate: 'a-rate', isFixed: false}
+          ]
+        },
+        {
+          nodeName: 'PannerNode',
+          audioParams: [
+            {name: 'positionX', defaultRate: 'a-rate', isFixed: false},
+            {name: 'positionY', defaultRate: 'a-rate', isFixed: false},
+            {name: 'positionZ', defaultRate: 'a-rate', isFixed: false},
+            {name: 'orientationX', defaultRate: 'a-rate', isFixed: false},
+            {name: 'orientationY', defaultRate: 'a-rate', isFixed: false},
+            {name: 'orientationZ', defaultRate: 'a-rate', isFixed: false},
+          ]
+        },
+        {
+          nodeName: 'StereoPannerNode',
+          audioParams: [{name: 'pan', defaultRate: 'a-rate', isFixed: false}]
+        },
+      ];
+
+      tests.forEach(test => {
+        // Define a separate test for each test entry.
+        audit.define(test.nodeName, (task, should) => {
+          let context = new OfflineAudioContext(
+              {length: sampleRate, sampleRate: sampleRate});
+          // Construct the node and test each AudioParam of the node.
+          let node = new window[test.nodeName](context);
+          test.audioParams.forEach(param => {
+            testAudioParam(
+                should, {nodeName: test.nodeName, node: node, param: param});
+          });
+
+          task.done();
+        });
+      });
+
+      // AudioListener needs it's own special test since it's not a node.
+      audit.define('AudioListener', (task, should) => {
+        let context = new OfflineAudioContext(
+            {length: sampleRate, sampleRate: sampleRate});
+
+        [{name: 'positionX', defaultRate: 'a-rate', isFixed: false},
+         {name: 'positionY', defaultRate: 'a-rate', isFixed: false},
+         {name: 'positionZ', defaultRate: 'a-rate', isFixed: false},
+         {name: 'forwardX', defaultRate: 'a-rate', isFixed: false},
+         {name: 'forwardY', defaultRate: 'a-rate', isFixed: false},
+         {name: 'forwardZ', defaultRate: 'a-rate', isFixed: false},
+         {name: 'upX', defaultRate: 'a-rate', isFixed: false},
+         {name: 'upY', defaultRate: 'a-rate', isFixed: false},
+         {name: 'upZ', defaultRate: 'a-rate', isFixed: false},
+        ].forEach(param => {
+          testAudioParam(should, {
+            nodeName: 'AudioListener',
+            node: context.listener,
+            param: param
+          });
+        });
+        task.done();
+      });
+
+      audit.run();
+
+      function testAudioParam(should, options) {
+        let param = options.param;
+        let audioParam = options.node[param.name];
+        let defaultRate = param.defaultRate;
+
+        // Verify that the default value is correct.
+        should(
+            audioParam.automationRate,
+            `Default ${options.nodeName}.${param.name}.automationRate`)
+            .beEqualTo(defaultRate);
+
+        // Try setting the rate to a different rate.  If the |automationRate|
+        // is fixed, expect an error.  Otherwise, expect no error and expect
+        // the value is changed to the new value.
+        let newRate = defaultRate === 'a-rate' ? 'k-rate' : 'a-rate';
+        let setMessage = `Set ${
+                                options.nodeName
+                              }.${param.name}.automationRate to "${newRate}"`
+
+        if (param.isFixed) {
+          should(() => audioParam.automationRate = newRate, setMessage)
+              .throw(DOMException, 'InvalidStateError');
+        }
+        else {
+          should(() => audioParam.automationRate = newRate, setMessage)
+              .notThrow();
+          should(
+              audioParam.automationRate,
+              `${options.nodeName}.${param.name}.automationRate`)
+              .beEqualTo(newRate);
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Create an empty AudioBuffer
+        let audioBuffer = new AudioBuffer({
+            numberOfChannels: 2,
+            length: 7,
+            sampleRate: 8000,
+        });
+
+        // Fill channel 0 with 5
+        let channel0Data = audioBuffer.getChannelData(0);
+        for (let i = 0; i < channel0Data.length; i++) {
+            channel0Data[i] = 5;
+        }
+
+        // Fill channel 1 with 2
+        let channel1Data = audioBuffer.getChannelData(1);
+        for (let i = 0; i < channel1Data.length; i++) {
+            channel1Data[i] = 2;
+        }
+
+        // Copy to out of range channel
+        try {
+            let errorBuffer = new Float32Array(channel0Data.length);
+            audioBuffer.copyToChannel(errorBuffer, 2);
+        } catch (e) {
+            println(`Error calling copyToChannel: ${e}`);
+        }
+
+        // Copy from a non-Float32Array
+        try {
+            let notFloatArray = new Uint8Array(channel0Data.length);
+            audioBuffer.copyToChannel(notFloatArray, 1, 2);
+        } catch (e) {
+            println(`Error calling copyToChannel: ${e}`);
+        }
+
+        // Copy full buffer into channel 0
+        let fullBuffer = new Float32Array(channel0Data.length);
+        for (let i = 0; i < fullBuffer.length; i++) {
+            fullBuffer[i] = 1;
+        }
+        println(channel0Data);
+        audioBuffer.copyToChannel(fullBuffer, 0);
+        println(audioBuffer.getChannelData(0));
+
+        // Copy buffer with bigger size into channel 0
+        let biggerBuffer = new Float32Array(channel0Data.length + 3);
+        for (let i = 0; i < biggerBuffer.length; i++) {
+            biggerBuffer[i] = 1;
+        }
+        println(channel0Data);
+        audioBuffer.copyToChannel(biggerBuffer, 0);
+        println(audioBuffer.getChannelData(0));
+
+        // Copy buffer into channel 1 with offset
+        let offsetBuffer = new Float32Array(channel1Data.length);
+        for (let i = 0; i < offsetBuffer.length; i++) {
+            offsetBuffer[i] = 3;
+        }
+        audioBuffer.copyToChannel(offsetBuffer, 1, 2);
+        println(audioBuffer.getChannelData(1));
+
+        // Copy buffer into channel 1 with offset bigger than channel size.
+        audioBuffer.copyToChannel(offsetBuffer, 1, channel1Data.length + 1);
+        println(audioBuffer.getChannelData(1));
+
+        // Copy buffer into detached buffer (no crash)
+        let detachedBuffer = new Float32Array(channel0Data.length);
+        const transferred = detachedBuffer.buffer.transfer();
+        audioBuffer.copyToChannel(detachedBuffer, 0);
+        println("Done.");
+    });
+</script>

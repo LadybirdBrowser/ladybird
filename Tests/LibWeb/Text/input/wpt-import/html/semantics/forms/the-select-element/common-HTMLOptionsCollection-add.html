@@ -1,0 +1,89 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title id='title'>HTMLOptionsCollection</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<select id="selly">
+  <option id="id1" name="name1">1</option>
+  <option id="id2" name="name2">2</option>
+  <option id="id3" name="name3">3</option>
+  <option id="id4" name="name4">4</option>
+  <optgroup id="og1">
+    <option name="nameonly">n1</option>
+    <option id="id5">5</option>
+  </optgroup>
+  <optgroup id="og2">
+    <option name="nameonly">n2</option>
+    <option id="id6">6</option>
+  </optgroup>
+
+</select>
+
+<script>
+var selly;
+setup(function() {
+    selly = document.getElementById('selly');
+});
+
+test(function () {
+    var option = document.getElementById('id1');
+    var optgroup = document.getElementById('og1');
+    selly.options.add(option, option);
+    selly.options.add(optgroup, optgroup);
+    assert_equals(selly.children.length, 6);
+    assert_equals(selly.length, 8);
+}, "if before and node are the same element nothing should be done");
+
+test(function () {
+    var o1 = document.createElement("option");
+    o1.value = "a";
+    var o2 = document.createElement("option");
+    o2.value = "b";
+    var o3 = document.createElement("option");
+    o3.value = "c";
+    var optgroup = document.getElementById('og1');
+    selly.options.add(o1, null);
+    selly.options.add(o2, optgroup);
+    selly.options.add(o3, 0);
+
+    var elarray = [];
+    for (var i = 0; i < selly.length; i++) {
+        elarray.push(selly[i].value);
+    }
+    assert_array_equals(elarray, ["c", "1", "2", "3", "4", "b", "n1", "5", "n2", "6", "a"]);
+}, "add method should add option elements correctly");
+
+test(function () {
+    var og1 = document.createElement("optgroup");
+    var o1 = document.createElement("option");
+    o1.value = "a";
+    o1.appendChild(og1);
+    var og2 = document.createElement("optgroup");
+    var o2 = document.createElement("option");
+    o2.value = "b";
+    o2.appendChild(og2);
+    var og3 = document.createElement("optgroup");
+    var o3 = document.createElement("option");
+    o3.value = "c";
+    o3.appendChild(og3);
+
+    var optgroup = document.getElementById('og1');
+    selly.options.add(og1, null);
+    selly.options.add(og2, optgroup);
+    selly.options.add(og3, 0);
+
+    var elarray = [];
+    for (var i = 0; i < selly.length; i++) {
+        elarray.push(selly[i].value);
+    }
+    assert_array_equals(elarray, ["c", "1", "2", "3", "4", "b", "n1", "5", "n2", "6", "a"]);
+}, "add method should add option groups correctly");
+
+</script>
+</body>
+</html>

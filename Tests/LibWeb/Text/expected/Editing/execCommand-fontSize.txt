@@ -1,0 +1,6 @@
+div: "foobar"
+fontSize value: 3
+div: "foo<font size="5" style="font-size: x-large;">bar</font>"
+fontSize value: 5
+div: "<font size="4" style="font-size: large;">foo</font><font style=""><font size="4" style="font-size: large;"><font size="4" style="font-size: large;">bar</font></font></font>"
+fontSize value: 4

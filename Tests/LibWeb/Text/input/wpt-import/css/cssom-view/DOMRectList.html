@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>CSSOM View APIs that return a DOMRectList</title>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<div id=x>x</div>
+<script>
+setup(() => {
+  window.element = document.getElementById('x');
+});
+
+test(() => {
+  const domRectList = element.getClientRects();
+  assert_class_string(domRectList, 'DOMRectList');
+  assert_class_string(domRectList.item(0), 'DOMRect');
+}, 'Element getClientRects()');
+
+test(() => {
+  const range = new Range();
+  range.selectNodeContents(element);
+  const domRectList = range.getClientRects();
+  assert_class_string(domRectList, 'DOMRectList');
+  assert_class_string(domRectList.item(0), 'DOMRect');
+}, 'Range getClientRects()');
+</script>

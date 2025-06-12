@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+        const timeline = internals.createInternalAnimationTimeline();
+        let animation = foo.animate({ opacity: [0, 1] }, { duration: 100, timeline });
+        let finishedPromise = animation.finished;
+
+        timeline.setTime(100);
+
+        // This should finish. If not, the test will time out and result in a failure
+        await finishedPromise;
+
+        println(`finished promise remains after finishing: ${Object.is(finishedPromise, animation.finished)}`);
+
+        animation.play();
+        println(`finished promise updates after playing: ${!Object.is(finishedPromise, animation.finished)}`);
+        finishedPromise = animation.finished;
+
+        // Upon cancellation, the finished promise should be rejected
+        animation.cancel();
+        println(`cancel() updates finished promise: ${!Object.is(finishedPromise, animation.finished)}`);
+        try {
+            await finishedPromise;
+            println("Unexpected finished promise resolution");
+        } catch {
+            println("Expected finished promise cancellation");
+        }
+    });
+</script>

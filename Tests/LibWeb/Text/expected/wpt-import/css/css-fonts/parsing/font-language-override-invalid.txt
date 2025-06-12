@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	e.style['font-language-override'] = "auto" should not set the property value
+Pass	e.style['font-language-override'] = "normal \"ksw\"" should not set the property value
+Pass	e.style['font-language-override'] = "\"turkish\"" should not set the property value
+Fail	e.style['font-language-override'] = "\"xøx\"" should not set the property value
+Fail	e.style['font-language-override'] = "\"\"" should not set the property value
+Pass	e.style['font-language-override'] = "\"ENG  \"" should not set the property value

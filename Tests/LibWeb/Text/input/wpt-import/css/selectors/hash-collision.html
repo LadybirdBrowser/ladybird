@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test string hash collision in bucketing</title>
+    <meta rel="author" href="mailto:sesse@chromium.org" title="Steinar H. Gunderson">
+    <link rel="help" href="https://www.w3.org/TR/css3-selectors/#selectors"/>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+      /* These strings all collide in Blink's AtomicString hash function. */
+      .abetfx { --a: a; }
+      .adqcne { --b: b; }
+      .anztgy { --c: c; }
+      .jkeyea { --d: d; }
+      .ltjjvc { --e: e; }
+      .osniry { --f: f; }
+      .otgvil { --g: g; }
+      .ppvdzg { --h: h; }
+      .pwkbxn { --i: i; }
+      .rkefup { --j: j; }
+      .wsqwrf { --k: k; }
+      .zzpnvg { --l: l; }
+    </style>
+  </head>
+  <body>
+    <div id="d" class="abetfx adqcne anztgy jkeyea ltjjvc osniry otgvil ppvdzg pwkbxn rkefup wsqwrf zzpnvg">Some text</div>
+    <script>
+test(() => {
+  const cs = getComputedStyle(d);
+  assert_equals('a', cs.getPropertyValue('--a'));
+  assert_equals('b', cs.getPropertyValue('--b'));
+  assert_equals('c', cs.getPropertyValue('--c'));
+  assert_equals('d', cs.getPropertyValue('--d'));
+  assert_equals('e', cs.getPropertyValue('--e'));
+  assert_equals('f', cs.getPropertyValue('--f'));
+  assert_equals('g', cs.getPropertyValue('--g'));
+  assert_equals('h', cs.getPropertyValue('--h'));
+  assert_equals('i', cs.getPropertyValue('--i'));
+  assert_equals('j', cs.getPropertyValue('--j'));
+  assert_equals('k', cs.getPropertyValue('--k'));
+  assert_equals('l', cs.getPropertyValue('--l'));
+});
+    </script>
+  </body>
+</html>

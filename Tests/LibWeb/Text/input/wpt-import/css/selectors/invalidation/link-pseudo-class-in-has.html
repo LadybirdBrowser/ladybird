@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :any-link and :link pseudo class in :has()</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+
+<style>
+    /* :any-link and :link should match similarly */
+    #subject:has(#target:link:any-link) { color: green; }
+    #subject:has(#svgTarget:link:any-link) { color: blue; }
+</style>
+
+<div id="subject">
+    This is some text.
+    <a id="target">This is an anchor element</a>
+    <svg xmlns="http://www.w3.org/2000/svg">
+        <a id="svgTarget"><text>This is an SVG anchor element</text></a>
+    </svg>
+</div>
+
+<script>
+test(function() {
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    target.setAttribute("href", "/");
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 128, 0)",
+                  "ancestor should be green since target is a link");
+    target.removeAttribute("href");
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black since target is no longer a link");
+}, ":any-link & :link pseudo-class invalidation with an HTML link");
+
+test(function() {
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black");
+    svgTarget.setAttribute("href", "/")
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 255)",
+                  "ancestor should be blue since target is a link");
+    svgTarget.removeAttribute("href");
+    assert_equals(getComputedStyle(subject).color, "rgb(0, 0, 0)",
+                  "ancestor should be black since target is no longer a link");
+}, ":any-link & :link pseudo-class invalidation with an SVG link");
+</script>

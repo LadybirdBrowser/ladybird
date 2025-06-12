@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString('<svg></svg>', "text/xml");
+        println(xmlDoc.constructor.name);
+    });
+</script>

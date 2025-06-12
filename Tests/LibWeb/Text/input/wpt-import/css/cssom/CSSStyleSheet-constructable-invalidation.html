@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSStyleSheet rule mutation invalidation</title>
+<link rel="author" href="mailto:wpt@keithcirkel.co.uk" title="Keith Cirkel">
+<link rel="help" href="https://drafts.csswg.org/cssom/#extensions-to-the-document-or-shadow-root-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<span id="span1">Should be green.</span>
+<span id="span2">Should be green.</span>
+<script>
+promise_test(async function(t) {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync('span {color:var(--color, red);}');
+  document.adoptedStyleSheets = [sheet];
+  t.add_cleanup(() => {
+    document.adoptedStyleSheets = [];
+  })
+  assert_equals(getComputedStyle(span1).color, "rgb(255, 0, 0)", "Sheet should apply");
+  sheet.rules[0].style.setProperty('--color', 'green');
+  assert_equals(getComputedStyle(span1).color, "rgb(0, 128, 0)", "Sheet should invalidate style");
+  document.adoptedStyleSheets = [];
+  assert_equals(getComputedStyle(span1).color, "rgb(0, 0, 0)", "Removing sheet should apply");
+}, "mutating constructed CSSStyleSheet applied to root invalidates styles");
+
+promise_test(async function() {
+  span1.attachShadow({mode:'open'})
+  span1.shadowRoot.append(document.createElement('slot'))
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(':host {color:var(--color, red);}');
+  span1.shadowRoot.adoptedStyleSheets = [sheet];
+  assert_equals(getComputedStyle(span1).color, "rgb(255, 0, 0)", "Sheet should apply");
+  sheet.rules[0].style.setProperty('--color', 'green');
+  assert_equals(getComputedStyle(span1).color, "rgb(0, 128, 0)", "Sheet should invalidate style");
+}, "mutating constructed CSSStyleSheet applied to shadowdom invalidates styles");
+
+promise_test(async function() {
+  span2.attachShadow({mode:'open'})
+  span2.shadowRoot.append(document.createElement('slot'))
+  const sheet1 = new CSSStyleSheet();
+  const sheet2 = new CSSStyleSheet();
+  sheet1.replaceSync(':host {color:var(--color, hotpink);}');
+  sheet2.replaceSync(':host {--color: blue}');
+  const style2 = sheet2.rules[0].style;
+  span2.shadowRoot.adoptedStyleSheets = [sheet1, sheet2];
+  assert_equals(getComputedStyle(span2).color, "rgb(0, 0, 255)", "Sheet should apply");
+  style2.setProperty('--color', 'green');
+  assert_equals(getComputedStyle(span2).color, "rgb(0, 128, 0)", "Sheet should invalidate style");
+}, "mutating dependent constructed CSSStyleSheet applied to shadowdom invalidates styles");
+</script>

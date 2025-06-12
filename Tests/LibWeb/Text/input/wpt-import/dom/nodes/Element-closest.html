@@ -1,0 +1,73 @@
+<!DOCTYPE HTML>
+<meta charset=utf8>
+<title>Test for Element.closest</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body id="body">
+  <div id="test8" class="div3" style="display:none">
+    <div id="test7" class="div2">
+      <div id="test6" class="div1">
+        <form id="test10" class="form2"></form>
+        <form id="test5" class="form1" name="form-a">
+          <input id="test1" class="input1" required>
+          <fieldset class="fieldset2" id="test2">
+            <select id="test3" class="select1" required>
+              <option default id="test4" value="">Test4</option>
+              <option selected id="test11">Test11</option>
+              <option id="test12">Test12</option>
+              <option id="test13">Test13</option>
+            </select>
+            <input id="test9" type="text" required>
+          </fieldset>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div id=log></div>
+<script>
+  do_test("select"                     , "test12", "test3");
+  do_test("fieldset"                   , "test13", "test2");
+  do_test("div"                        , "test13", "test6");
+  do_test("body"                       , "test3" , "body");
+
+  do_test("[default]"                  , "test4" , "test4");
+  do_test("[selected]"                 , "test4" , "");
+  do_test("[selected]"                 , "test11", "test11");
+  do_test('[name="form-a"]'            , "test12", "test5");
+  do_test('form[name="form-a"]'        , "test13", "test5");
+  do_test("input[required]"            , "test9" , "test9");
+  do_test("select[required]"           , "test9" , "");
+
+  do_test("div:not(.div1)"             , "test13", "test7");
+  do_test("div.div3"                   , "test6" , "test8");
+  do_test("div#test7"                  , "test1" , "test7");
+
+  do_test(".div3 > .div2"              , "test12", "test7");
+  do_test(".div3 > .div1"              , "test12", "");
+  do_test("form > input[required]"     , "test9" , "");
+  do_test("fieldset > select[required]", "test12", "test3");
+
+  do_test("input + fieldset"           , "test6" , "");
+  do_test("form + form"                , "test3" , "test5");
+  do_test("form + form"                , "test5" , "test5");
+
+  do_test(":empty"                     , "test10", "test10");
+  do_test(":last-child"                , "test11", "test2");
+  do_test(":first-child"               , "test12", "test3");
+  do_test(":invalid"                   , "test11", "test2");
+
+  do_test(":scope"                     , "test4",  "test4");
+  do_test("select > :scope"            , "test4",  "test4");
+  do_test("div > :scope"               , "test4",  "");
+  do_test(":has(> :scope)"             , "test4",  "test3");
+function do_test(aSelector, aElementId, aTargetId) {
+  test(function() {
+    var el = document.getElementById(aElementId).closest(aSelector);
+    if (el === null) {
+      assert_equals("", aTargetId, aSelector);
+    } else {
+      assert_equals(el.id, aTargetId, aSelector);
+    }
+  }, "Element.closest with context node '" + aElementId + "' and selector '" + aSelector + "'");
+}
+</script>

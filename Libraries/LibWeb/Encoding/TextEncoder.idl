@@ -1,0 +1,18 @@
+#import <Encoding/TextEncoderCommon.idl>
+
+// https://encoding.spec.whatwg.org/#dictdef-textencoderencodeintoresult
+dictionary TextEncoderEncodeIntoResult {
+    [GenerateAsRequired] unsigned long long read;
+    [GenerateAsRequired] unsigned long long written;
+};
+
+// https://encoding.spec.whatwg.org/#textencoder
+[Exposed=*]
+interface TextEncoder {
+    constructor();
+
+    [NewObject] Uint8Array encode(optional USVString input = "");
+    TextEncoderEncodeIntoResult encodeInto(USVString source, [AllowShared] Uint8Array destination);
+};
+
+TextEncoder includes TextEncoderCommon;

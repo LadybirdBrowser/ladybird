@@ -1,0 +1,3 @@
+form.action initial value: http://www.example.com/
+Final segment of form.action after setting to the empty string: HTMLFormElement-action.html
+Final segment of form.action after setting to "../test.html": test.html

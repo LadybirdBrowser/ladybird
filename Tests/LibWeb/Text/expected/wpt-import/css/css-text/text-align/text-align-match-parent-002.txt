@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	CSS Text Test: text-align - computed value for match-parent on the root element

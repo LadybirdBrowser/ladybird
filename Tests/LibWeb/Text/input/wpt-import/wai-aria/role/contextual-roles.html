@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+  <title>Contextual Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+    <p>Verifies Required Accessibility Parent Roles from <a href="https://w3c.github.io/aria/#scope">5.2.7 Required Accessibility Parent Role</a></p>
+    <p>Also verifies Allowed Accessibility Child Roles from <a href="https://w3c.github.io/aria/#mustContain">5.2.6 Allowed Accessibility Child Roles</a></p>
+
+<!-- Notes for "required context" testing:
+
+    - See Computed Role for more details on role computation when an element lacks required context:
+    https://w3c.github.io/core-aam/#roleMappingComputedRole
+
+    - See ARIA spec for full listing of "Required Accessibility Parent Role" for each element:
+    https://w3c.github.io/aria/#scope
+
+    Identified roles with "Required Context" excluding abstract roles (e.g., child -> parent):
+
+    - caption -> {figure, grid, table, treegrid}
+    - cell -> row
+    - columnheader -> row
+    - gridcell -> row
+    - listitem -> {list, directory} *Note: directory role is deprecated as of ARIA 1.2
+    - menuitem -> {group, menu, menubar}
+    - menuitemcheckbox -> {group, menu, menubar}
+    - menuitemradio -> {group, menu, menubar}
+    - option -> {group, listbox}
+    - row -> {grid, rowgroup, table, treegrid}
+    - rowgroup -> {grid, table, treegrid}
+    - rowheader -> row
+    - tab -> tablist
+    - treeitem -> {group, tree}
+
+    -->
+
+<!-- Required Context Roles Testing  -->
+
+    <!-- caption -> ./table-roles.html -->
+
+    <!-- cell -> ./table-roles.html -->
+
+    <!-- columnheader -> ./grid-roles.html, ./table-roles.html -->
+
+    <!-- gridcell -> ./grid-roles.html -->
+
+    <!-- listitem -> ./list-roles.html -->
+
+    <!-- menuitem, menuitemcheckbox, menuitemradio -> ./menu-roles.html -->
+
+    <!-- option -> ./listbox-roles.html -->
+
+    <!-- row -> ./grid-roles.html, ./table-roles.html  -->
+
+    <!-- rowgroup -> ./grid-roles.html, ./table-roles.html -->
+
+    <!-- rowheader -> ./grid-roles.html, ./table-roles.html -->
+
+    <!-- tab -> ./tab-roles.html -->
+
+    <!-- treeitem -> ./tree-roles.html -->
+
+<!-- Misc Contextual Role Testing  -->
+
+    <!-- Testing contentinfo role computation when scoped to <main> or not:
+    1. If <footer> is a descendant of <main>, it should become 'generic'
+    2. If <footer> is scoped to <body>, it should be 'contentinfo' as expected
+
+    see: https://w3c.github.io/html-aam/#el-footer-ancestorbody -->
+    <!-- main>footer -> ./roles-contextual.tentative.html -->
+
+    <footer data-testname="footer scoped to body element is contentinfo" data-expectedrole="contentinfo" class="ex">x</footer>
+    <div role="contentinfo" data-testname="contentinfo region scoped to body element is contentinfo" data-expectedrole="contentinfo" class="ex">x</div>
+
+<script>
+    AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

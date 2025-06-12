@@ -1,0 +1,4 @@
+Successfully created GET request with body set to null
+Successfully created HEAD request with body set to null
+Successfully started GET fetch with body set to null
+Successfully started HEAD fetch with body set to null

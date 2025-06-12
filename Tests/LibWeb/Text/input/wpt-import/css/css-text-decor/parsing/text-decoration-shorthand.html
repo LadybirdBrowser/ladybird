@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Decoration: text-decoration sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#propdef-text-decoration">
+<meta name="assert" content="text-decoration supports the full grammar '<‘text-decoration-line’> || <‘text-decoration-style’> || <‘text-decoration-color’>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('text-decoration', 'overline from-font dotted green', {
+  'text-decoration-line': 'overline',
+  'text-decoration-thickness': 'from-font',
+  'text-decoration-style': 'dotted',
+  'text-decoration-color': 'green'
+});
+</script>
+</body>
+</html>

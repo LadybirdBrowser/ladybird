@@ -1,0 +1,5 @@
+GainNode
+AudioNode
+EventTarget
+Object
+[object AudioParam] current: 1, default: 1, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate

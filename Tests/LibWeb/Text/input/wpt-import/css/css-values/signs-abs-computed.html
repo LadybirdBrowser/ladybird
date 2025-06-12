@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Apple Inc">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/numeric-testcommon.js"></script>
+<div id="container" style="font-size: 20px; width: 100px">
+  <div id="target"></div>
+</div>
+<script>
+function test_zero(expression, { is_negative }) {
+  test_math_used(`calc(${expression})`, '0', {type:'integer'});
+  // to test zero sign, make it to negative infinity and clamp it between -1 and 1
+  test_math_used(`clamp(-1, calc( 1 / sign(${expression})), 1)`, (is_negative)? '-1' : '1', {type:'integer'});
+}
+
+function test_length_equals(value, expected, msgExtra) {
+  test_math_used(value, expected, {msgExtra, type: 'integer'});
+}
+
+// Identity tests
+test_math_used('abs(1)', '1', {type:'integer'});
+test_math_used('sign(1)', '1', {type:'integer'});
+test_math_used('abs(-1)', '1', {type:'integer'});
+test_math_used('sign(-1)', '-1', {type:'integer'});
+
+// Nestings
+test_math_used('abs(sign(1))', '1', {type:'integer'});
+test_math_used('abs(sign(sign(1)))', '1', {type:'integer'});
+test_math_used('sign(sign(sign(1) + sign(1)))', '1', {type:'integer'});
+
+// General calculations
+test_math_used('calc(abs(0.1 + 0.2) + 0.05)', '0.35', {type:'number', approx:0.1});
+test_math_used('calc(sign(0.1 + 0.2) - 0.05)', '0.95', {type:'number', approx:0.1});
+test_math_used('calc(abs(0.1 + 0.2) * 2)', '0.6', {type:'number', approx:0.1});
+test_math_used('calc(abs(sign(0.1) + 0.2) / 2)', '0.6', {type:'number', approx:0.1});
+test_math_used('calc(abs(0.1 + 0.2) * -2)', '-0.6', {type:'number', approx:0.1});
+test_math_used('calc(sign(0.1 - 0.2) - 0.05)', '-1.05', {type:'number', approx:0.1});
+test_math_used('calc(sign(1) + sign(1) - 0.05)', '1.95', {type:'number', approx:0.1});
+
+// Test with <length-percentage>
+test_math_used('abs(10px)', '10px', {type:'length'});
+test_math_used('abs(10%)', '10px', {type:'length'});
+test_math_used('abs(10px + 10%)', '20px', {type:'length'});
+test_math_used('calc(10px + abs(10%))', '20px', {type:'length'});
+test_math_used('abs(-10px)', '10px', {type:'length'});
+test_math_used('abs(-10%)', '10px', {type:'length'});
+// (20px + 1px) * (sign(20px - 10px - 10px) + 1)
+test_math_used('calc((1em + 1px) * (sign(1em - 10px - 10%) + 1))', '21px', {type:'length'});
+
+// Test sign for zero
+test_zero('calc(sign(-0))', {is_negative: true});
+test_zero('calc(sign(0))', {is_negative: false});
+
+// Test with NaN and inf
+test_math_used('abs(infinity)', 'calc(infinity)', {type:'number'});
+test_math_used('abs(-infinity)', 'calc(infinity)', {type:'number'});
+test_math_used('abs(NaN)', 'calc(NaN)', {type:'number'});
+
+// Test abs/sign with negate
+test_math_used('calc(20 - abs(-10))', '10', {type:'number'});
+test_math_used('calc(20 - abs(10))', '10', {type:'number'});
+test_math_used('calc(10 - abs(10 - abs(-30))', '-10', {type:'number'});
+test_math_used('calc(2 - sign(1))', '1', {type:'number'});
+test_math_used('calc(2 - sign(-1))', '3', {type:'number'});
+test_math_used('calc(2 - sign(1 - sign(-1)))', '1', {type:'number'});
+test_math_used('calc(10 - abs(20 - sign(2 - abs(-20))))', '-11', {type:'number'});
+
+// Type checking sign
+test_math_used('sign(1px)', '1', {type:'integer'});
+test_math_used('sign(1cm)', '1', {type:'integer'});
+test_math_used('sign(1mm)', '1', {type:'integer'});
+test_math_used('sign(1Q)', '1', {type:'integer'});
+test_math_used('sign(1in)', '1', {type:'integer'});
+test_math_used('sign(1pc)', '1', {type:'integer'});
+test_math_used('sign(1pt)', '1', {type:'integer'});
+test_math_used('sign(1em)', '1', {type:'integer'});
+test_math_used('sign(1ex)', '1', {type:'integer'});
+test_math_used('sign(1ch)', '1', {type:'integer'});
+test_math_used('sign(1rem)', '1', {type:'integer'});
+test_math_used('sign(1vh)', '1', {type:'integer'});
+test_math_used('sign(1vw)', '1', {type:'integer'});
+test_math_used('sign(1vmin)', '1', {type:'integer'});
+test_math_used('sign(1vmax)', '1', {type:'integer'});
+test_math_used('sign(-1px)', '-1', {type:'integer'});
+test_math_used('sign(-1cm)', '-1', {type:'integer'});
+test_math_used('sign(-1mm)', '-1', {type:'integer'});
+test_math_used('sign(-1Q)', '-1', {type:'integer'});
+test_math_used('sign(-1in)', '-1', {type:'integer'});
+test_math_used('sign(-1pc)', '-1', {type:'integer'});
+test_math_used('sign(-1pt)', '-1', {type:'integer'});
+test_math_used('sign(-1em)', '-1', {type:'integer'});
+test_math_used('sign(-1ex)', '-1', {type:'integer'});
+test_math_used('sign(-1ch)', '-1', {type:'integer'});
+test_math_used('sign(-1rem)', '-1', {type:'integer'});
+test_math_used('sign(-1vh)', '-1', {type:'integer'});
+test_math_used('sign(-1vw)', '-1', {type:'integer'});
+test_math_used('sign(-1vmin)', '-1', {type:'integer'});
+test_math_used('sign(-1vmax)', '-1', {type:'integer'});
+test_math_used('sign(1s)', '1', {type:'integer'});
+test_math_used('sign(1ms)', '1', {type:'integer'});
+test_math_used('sign(-1s)', '-1', {type:'integer'});
+test_math_used('sign(-1ms)', '-1', {type:'integer'});
+test_math_used('sign(1deg)', '1', {type:'integer'});
+test_math_used('sign(1grad)', '1', {type:'integer'});
+test_math_used('sign(1rad)', '1', {type:'integer'});
+test_math_used('sign(1turn)', '1', {type:'integer'});
+test_math_used('sign(-1deg)', '-1', {type:'integer'});
+test_math_used('sign(-1grad)', '-1', {type:'integer'});
+test_math_used('sign(-1rad)', '-1', {type:'integer'});
+test_math_used('sign(-1turn)', '-1', {type:'integer'});
+test_zero('sign(0px)', {is_negative: false});
+test_zero('sign(0cm)', {is_negative: false});
+test_zero('sign(0mm)', {is_negative: false});
+test_zero('sign(0Q)', {is_negative: false});
+test_zero('sign(0in)', {is_negative: false});
+test_zero('sign(0pc)', {is_negative: false});
+test_zero('sign(0pt)', {is_negative: false});
+test_zero('sign(0em)', {is_negative: false});
+test_zero('sign(0ex)', {is_negative: false});
+test_zero('sign(0ch)', {is_negative: false});
+test_zero('sign(0rem)', {is_negative: false});
+test_zero('sign(0vh)', {is_negative: false});
+test_zero('sign(0vw)', {is_negative: false});
+test_zero('sign(0vmin)', {is_negative: false});
+test_zero('sign(0vmax)', {is_negative: false});
+test_zero('sign(-0px)', {is_negative: true});
+test_zero('sign(-0cm)', {is_negative: true});
+test_zero('sign(-0mm)', {is_negative: true});
+test_zero('sign(-0Q)', {is_negative: true});
+test_zero('sign(-0in)', {is_negative: true});
+test_zero('sign(-0pc)', {is_negative: true});
+test_zero('sign(-0pt)', {is_negative: true});
+test_zero('sign(-0em)', {is_negative: true});
+test_zero('sign(-0ex)', {is_negative: true});
+test_zero('sign(-0ch)', {is_negative: true});
+test_zero('sign(-0rem)', {is_negative: true});
+test_zero('sign(-0vh)', {is_negative: true});
+test_zero('sign(-0vw)', {is_negative: true});
+test_zero('sign(-0vmin)', {is_negative: true});
+test_zero('sign(-0vmax)', {is_negative: true});
+test_zero('sign(0s)', {is_negative: false});
+test_zero('sign(0ms)', {is_negative: false});
+test_zero('sign(-0s)', {is_negative: true});
+test_zero('sign(-0ms)', {is_negative: true});
+test_zero('sign(0deg)', {is_negative: false});
+test_zero('sign(0grad)', {is_negative: false});
+test_zero('sign(0rad)', {is_negative: false});
+test_zero('sign(0turn)', {is_negative: false});
+test_zero('sign(-0deg)', {is_negative: true});
+test_zero('sign(-0grad)', {is_negative: true});
+test_zero('sign(-0rad)', {is_negative: true});
+test_zero('sign(-0turn)', {is_negative: true});
+
+// Type checking abs
+test_math_used('abs(1px)', '1px');
+test_math_used('abs(1cm)', '1cm');
+test_math_used('abs(1mm)', '1mm');
+test_math_used('abs(1Q)', '1Q');
+test_math_used('abs(1in)', '1in');
+test_math_used('abs(1pc)', '1pc');
+test_math_used('abs(1pt)', '1pt');
+test_math_used('abs(1em)', '1em');
+test_math_used('abs(1ex)', '1ex');
+test_math_used('abs(1ch)', '1ch');
+test_math_used('abs(1rem)', '1rem');
+test_math_used('abs(1vh)', '1vh');
+test_math_used('abs(1vw)', '1vw');
+test_math_used('abs(1vmin)', '1vmin');
+test_math_used('abs(1vmax)', '1vmax');
+test_math_used('abs(-1px)', '1px');
+test_math_used('abs(-1cm)', '1cm');
+test_math_used('abs(-1mm)', '1mm');
+test_math_used('abs(-1Q)', '1Q');
+test_math_used('abs(-1in)', '1in');
+test_math_used('abs(-1pc)', '1pc');
+test_math_used('abs(-1pt)', '1pt');
+test_math_used('abs(-1em)', '1em');
+test_math_used('abs(-1ex)', '1ex');
+test_math_used('abs(-1ch)', '1ch');
+test_math_used('abs(-1rem)', '1rem');
+test_math_used('abs(-1vh)', '1vh');
+test_math_used('abs(-1vw)', '1vw');
+test_math_used('abs(-1vmin)', '1vmin');
+test_math_used('abs(-1vmax)', '1vmax');
+test_math_used('abs(1s)', '1s', {type:'time'});
+test_math_used('abs(1ms)', '1ms', {type:'time'});
+test_math_used('abs(-1s)', '1s', {type:'time'});
+test_math_used('abs(-1ms)', '1ms', {type:'time'});
+test_math_used('abs(1deg)', '1deg', {type:'angle', approx:0.001});
+test_math_used('abs(1grad)', '1grad', {type:'angle', approx:0.001});
+test_math_used('abs(1rad)', '1rad', {type:'angle', approx:0.001});
+test_math_used('abs(1turn)', '1turn', {type:'angle', approx:0.001});
+test_math_used('abs(-1deg)', '1deg', {type:'angle', approx:0.001});
+test_math_used('abs(-1grad)', '1grad', {type:'angle', approx:0.001});
+test_math_used('abs(-1rad)', '1rad', {type:'angle', approx:0.001});
+test_math_used('abs(-1turn)', '1turn', {type:'angle', approx:0.001});
+
+// with relative length
+document.getElementById('container').style.fontSize = '10px';
+test_length_equals('sign(10px - 1em)', '0', 'fontSize=10px');
+test_length_equals('sign(10px - 2em)', '-1', 'fontSize=10px');
+document.getElementById('container').style.fontSize = '20px';
+
+test_math_used('calc(sign(10%) * 100px)', '100px');
+
+// Basic tests (just px and em) for sign() interaction with units not
+// otherwise used by the property.
+test_math_used('calc(2.5 - sign(41px - 2em) / 2)', '2', {type:'number'});
+test_math_used('calc(2.5 - sign(40px - 2em) / 2)', '2.5', {type:'number'});
+test_math_used('calc(2.5 - sign(39px - 2em) / 2)', '3', {type:'number'});
+test_math_used('calc(3 + sign(42px - 2em))', '4', {type:'integer'});
+test_math_used('calc(3 + sign(40px - 2em))', '3', {type:'integer'});
+test_math_used('calc(3 + sign(38px - 2em))', '2', {type:'integer'});
+test_math_used('calc(50px + 100px * sign(42px - 2em))', '150px', {type:'length'});
+test_math_used('calc(50px + 100px * sign(40px - 2em))', '50px', {type:'length'});
+test_math_used('calc(50px + 100px * sign(38px - 2em))', '-50px', {type:'length'});
+test_math_used('calc(90deg + 30deg * sign(42px - 2em))', '120deg', {type:'angle'});
+test_math_used('calc(90deg + 30deg * sign(40px - 2em))', '90deg', {type:'angle'});
+test_math_used('calc(90deg + 30deg * sign(38px - 2em))', '60deg', {type:'angle'});
+test_math_used('calc(5s + 15s * sign(42px - 2em))', '20s', {type:'time'});
+test_math_used('calc(5s + 15s * sign(40px - 2em))', '5s', {type:'time'});
+test_math_used('calc(5s + 15s * sign(38px - 2em))', '-10s', {type:'time'});
+test_math_used('calc(100dpi + 20dpi * sign(42px - 2em))', '120dpi', {type:'resolution'});
+test_math_used('calc(100dpi + 20dpi * sign(40px - 2em))', '100dpi', {type:'resolution'});
+test_math_used('calc(100dpi + 20dpi * sign(38px - 2em))', '80dpi', {type:'resolution'});
+test_math_used('calc(3fr + 1fr * sign(42px - 2em))', '4fr', {type:'flex'});
+test_math_used('calc(3fr + 1fr * sign(40px - 2em))', '3fr', {type:'flex'});
+test_math_used('calc(3fr + 1fr * sign(38px - 2em))', '2fr', {type:'flex'});
+// repeat a few with px and rem
+test_math_used('calc(2.5 - sign(33px - 2rem) / 2)', '2', {type:'number'});
+test_math_used('calc(2.5 - sign(32px - 2rem) / 2)', '2.5', {type:'number'});
+test_math_used('calc(2.5 - sign(31px - 2rem) / 2)', '3', {type:'number'});
+test_math_used('calc(50px + 100px * sign(34px - 2rem))', '150px', {type:'length'});
+test_math_used('calc(50px + 100px * sign(32px - 2rem))', '50px', {type:'length'});
+test_math_used('calc(50px + 100px * sign(30px - 2rem))', '-50px', {type:'length'});
+
+</script>

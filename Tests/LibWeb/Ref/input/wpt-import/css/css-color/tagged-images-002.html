@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: Color Space of Tagged Images. HTML img</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#tagged-images">
+<link rel="help" href="https://w3c.github.io/PNG-spec/#11sRGB">
+<meta name="assert" content="Tagged RGB images... if the color profile or other identifying information is valid, must be treated as being in the specified color space.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/009900-image-ref.html">
+
+<body>
+    <p>Test passes if you see a green square, and no red.</p>
+    <!-- solid color #009900 PNG image, sRGB chunk, relative colorimetric -->
+    <p><img src="./support/009900-sRGB.png" alt="should be green"/></p>
+</body>

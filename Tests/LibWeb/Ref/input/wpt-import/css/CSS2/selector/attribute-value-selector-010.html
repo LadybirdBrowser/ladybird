@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test: lang attribute selector - att |= val</title>
+    <link rel="author" title="Richard Ishida" href="mailto:ishida@w3.org">
+    <link rel="author" title="Eira Monstad, Opera Software ASA" href="mailto:public-testsuites@opera.com">
+    <link rel="help" href="http://www.w3.org/TR/CSS21/selector.html#attribute-selectors">
+    <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/selector/attribute-value-selector-010-ref.html" />
+    <meta name="flags" content="HTMLonly">
+    <meta name="assert" content="lang attribute selector with 'att |= val' in HTML should not be case sensitive, and match hyphen-separated list">
+    <style type="text/css">
+      div[lang |= "es"] { color:white;background-color:green; }
+      p[lang |= "es"] { color:white;background-color:green; }
+      div[lang |= "en-GB"] { color:white;background-color:green; }
+      p[lang |= "fr"] { color:white;background-color:green; }
+      em[lang |= "de"] { color:white;background-color:green; }
+      div[xml:lang |= "it"] { color:white;background-color:green; }
+      div[lang |= "ch"] { color:white;background-color:green; }
+      div[lang=" no"] { color:white;background-color:green; }
+    </style>
+  </head>
+  <body>
+
+    <div lang="es">This line should be green</div>
+    <div lang="es-MX">This line should be green</div>
+    <div lang="ES">This line should be green</div>
+
+    <div lang="en-GB">This line should be green</div>
+    <div lang="en-GB-scouse">This line should be green</div>
+
+    <p lang="es">This line should be green <em>and this should be green too</em></p>
+
+    <div lang="no">This line should NOT be green</div>
+    <div lang="MX-es">This line should NOT be green</div>
+
+    <div lang="en-US">This line should NOT be green</div>
+    <div lang="en">This line should NOT be green</div>
+
+    <div lang="fr">This line should NOT be green<p>This line should NOT be green</p></div>
+    <p lang="de">This line should NOT be green <em>and this should not be green either</em></p>
+</body>
+</html>

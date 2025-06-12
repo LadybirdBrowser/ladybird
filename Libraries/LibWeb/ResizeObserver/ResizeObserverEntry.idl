@@ -1,0 +1,12 @@
+#import <Geometry/DOMRectReadOnly.idl>
+#import <DOM/Element.idl>
+
+// https://drafts.csswg.org/resize-observer-1/#resize-observer-entry-interface
+[Exposed=Window]
+interface ResizeObserverEntry {
+    readonly attribute Element target;
+    readonly attribute DOMRectReadOnly contentRect;
+    readonly attribute FrozenArray<ResizeObserverSize> borderBoxSize;
+    readonly attribute FrozenArray<ResizeObserverSize> contentBoxSize;
+    readonly attribute FrozenArray<ResizeObserverSize> devicePixelContentBoxSize;
+};

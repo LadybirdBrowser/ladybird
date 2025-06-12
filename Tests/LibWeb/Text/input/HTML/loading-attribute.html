@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const elementName of ["img", "iframe"]) {
+            const element = document.createElement(elementName);
+            println(`${elementName} loading initial value: ${element.loading}`);
+            element.loading = "invalid";
+            println(`${elementName} loading value after setting to "invalid": ${element.loading}`);
+            element.loading = "lazy";
+            println(`${elementName} loading value after setting to "lazy": ${element.loading}`);
+            element.loading = null;
+            println(`${elementName} loading value after setting to null: ${element.loading}`);
+            element.loading = "LAZY";
+            println(`${elementName} loading value after setting to "LAZY": ${element.loading}`);
+            element.loading = "";
+            println(`${elementName} loading value after setting to "": ${element.loading}`);
+            element.removeAttribute("loading");
+            println(`${elementName} loading value after calling removeAttribute: ${element.loading}`);
+        }
+    });
+</script>

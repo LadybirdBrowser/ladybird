@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CSS Test (Selectors): Keyboard focus enables :focus-visible</title>
+  <link rel="author" title="Alice Boxhall" href="aboxhall@chromium.org" />
+  <link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <style>
+    @supports not selector(:focus-visible) {
+      :focus {
+        outline: red solid 5px;
+        background-color: red;
+      }
+    }
+
+    :focus-visible {
+      outline: green solid 5px;
+    }
+
+    :focus:not(:focus-visible) {
+      background-color: red;
+      outline: 0;
+    }
+  </style>
+</head>
+<body>
+  This test checks that any element focused programmatically on page load will have <code>:focus-visible</code> matching enabled.
+  <ul id="instructions">
+    <li>If the element that says "I will be focused automatically" has a red background, then the test result is FAILURE. If the element has a green outline, then the test result is SUCCESS.</li>
+  </ul>
+  <br />
+  <div id="el" tabindex="-1">I will be focused automatically.</div>
+  <script>
+    window.addEventListener('load', () => {
+      el.focus();
+    });
+
+    async_test(function(t) {
+      el.addEventListener("focus", t.step_func(function() {
+        assert_equals(getComputedStyle(el).outlineColor, "rgb(0, 128, 0)", `outlineColor for ${el.tagName}#${el.id} should be green`);
+        assert_not_equals(getComputedStyle(el).backgroundColor, "rgb(255, 0, 0)", `backgroundColor for ${el.tagName}#${el.id} should NOT be red`);
+        t.done();
+      }));
+    }, "Programmatic focus on page load should match :focus-visible");
+  </script>
+</body>
+</html>

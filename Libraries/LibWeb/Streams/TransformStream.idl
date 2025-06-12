@@ -1,0 +1,12 @@
+#import <Streams/QueuingStrategy.idl>
+#import <Streams/ReadableStream.idl>
+#import <Streams/WritableStream.idl>
+
+// https://streams.spec.whatwg.org/#transformstream
+[Exposed=*, Transferable]
+interface TransformStream {
+    constructor(optional object transformer, optional QueuingStrategy writableStrategy = {}, optional QueuingStrategy readableStrategy = {});
+
+    readonly attribute ReadableStream readable;
+    readonly attribute WritableStream writable;
+};

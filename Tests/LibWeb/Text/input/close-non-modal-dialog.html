@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<dialog id="test-dialog" open></dialog>
+<script>
+    asyncTest((done) => {
+        const dialog = document.getElementById("test-dialog");
+        println(`dialog.open state before close(): ${dialog.open}`);
+        dialog.addEventListener("close", (event) => {
+            println(`dialog.open state after close(): ${dialog.open}`);
+            println(`dialog.returnValue state after close(): ${dialog.returnValue}`);
+            done();
+        });
+        dialog.close("after-close");
+    });
+</script>

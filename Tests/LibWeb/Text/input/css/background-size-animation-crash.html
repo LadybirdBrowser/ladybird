@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- FIXME: Ideally this would be a crash test, but the test harness doesn't wait long enough for the crash to occur -->
+<script src="../include.js"></script>
+<div></div>
+<script>
+    asyncTest(done => {
+        const element = document.querySelector('div');
+        const animation = element.animate([
+            { backgroundSize: '10% 10%, 20% 20%' },
+            { backgroundSize: 'auto auto' }
+        ], {
+            duration: 1000,
+        });
+        animation.finished.then(() => {
+            println("PASS (didn't crash!)");
+            done();
+        });
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                animation.finish();
+            });
+        });
+    });
+</script>

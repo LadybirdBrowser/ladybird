@@ -1,0 +1,21 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmlframeelement
+[Exposed=Window]
+interface HTMLFrameElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute DOMString scrolling;
+    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;
+    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+    [CEReactions, Reflect=noresize] attribute boolean noResize;
+    readonly attribute Document? contentDocument;
+    readonly attribute WindowProxy? contentWindow;
+
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute DOMString marginHeight;
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute DOMString marginWidth;
+
+};

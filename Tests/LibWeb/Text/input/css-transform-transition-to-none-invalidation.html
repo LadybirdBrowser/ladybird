@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background-color: skyblue;
+        margin: 50px;
+    }
+</style>
+<script src="include.js"></script>
+<div id="box"></div>
+<script>
+    test(() => {
+        const box = document.getElementById('box');
+        box.style.transform = 'translate(50px, 30px)';
+        const before = box.getBoundingClientRect();
+        println(`before x=${before.x}, y=${before.y}, width=${before.width}, height=${before.height}`);
+        box.style.transform = 'none';
+        const after = box.getBoundingClientRect();
+        println(`after x=${after.x}, y=${after.y}, width=${after.width}, height=${after.height}`);
+    });
+</script>

@@ -1,0 +1,29 @@
+<!DOCTYPE html SYSTEM "about:legacy-compat">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>CSS Media Queries Test: min-width length value approximation</title>
+    <link rel="author" title="Chris Rebert" href="http://chrisrebert.com" />
+    <link rel="help" href="http://www.w3.org/TR/css3-mediaqueries/#width" />
+    <link rel="help" href="http://www.w3.org/TR/mediaqueries-4/#width" />
+    <link rel="help" href="http://www.w3.org/TR/css3-values/#length-value" />
+    <link rel="match" href="../reference/ref-filled-green-100px-square.xht" />
+    <meta name="assert" content="min-width length values that are too large to be supported must be clamped, rounded to infinity, or approximated, but not overflowed to a small or negative value." />
+    <style>
+div {
+    width: 100px;
+    height: 100px;
+    background-color: green;
+}
+@media (min-width: 9999999999px) {
+    div {
+        background-color: red;
+    }
+}
+    </style>
+</head>
+<body>
+    <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+    <div></div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#valdef-flex-direction-column-reverse">
+<link rel="help" href="https://drafts.csswg.org/css-align/#gap-shorthand">
+<style>
+  .flexbox {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 5px;
+    position: relative;
+    background-color: blue;
+  }
+  .flexbox > * {
+    height: 10px;
+    background-color: green;
+  }
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+<div class="flexbox" data-expected-height="40">
+  <div data-offset-y="30"></div>
+  <div data-offset-y="15"></div>
+  <div data-offset-y="0"></div>
+</div>
+</body>

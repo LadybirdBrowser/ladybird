@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement('div');
+        element.style.fontLanguageOverride = '"eng"';
+        document.body.appendChild(element);
+        println("PASS (didn't crash)");
+    });
+</script>

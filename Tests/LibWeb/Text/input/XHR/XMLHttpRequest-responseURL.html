@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "data:text/html,hello", true);
+        println("responseURL before: '" + xhr.responseURL + "'");
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                println("responseURL after: '" + xhr.responseURL + "'");
+                done();
+            }
+        };
+        xhr.send();
+    });
+</script>

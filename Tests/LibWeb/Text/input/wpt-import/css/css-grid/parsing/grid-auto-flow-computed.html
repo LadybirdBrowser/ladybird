@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridAutoFlow</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-auto-flow">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("grid-auto-flow", "row");
+test_computed_value("grid-auto-flow", "column");
+test_computed_value("grid-auto-flow", "row dense", "dense");
+test_computed_value("grid-auto-flow", "column dense");
+
+test_computed_value("grid-auto-flow", "dense row", "dense");
+test_computed_value("grid-auto-flow", "dense column", "column dense");
+
+test_computed_value("grid-auto-flow", "dense", "dense");
+</script>
+</body>
+</html>

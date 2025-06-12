@@ -1,0 +1,6 @@
+// https://streams.spec.whatwg.org/#readablestreamgenericreader
+interface mixin ReadableStreamGenericReader {
+    readonly attribute Promise<undefined> closed;
+
+    Promise<undefined> cancel(optional any reason);
+};

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: align-content initial value.</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#align-content-property">
+<meta name="assert" content="This test ensures that a flexbox container's align-content value default to 'stretch'."/>
+<style>
+.flex-container {
+  display: flex;
+  height: 100px;
+  width: 200px;
+  background-color: pink;
+  flex-wrap: wrap;
+}
+.flex-item1 {
+  width: 100%;
+  background-color: blue;
+  border: 1px solid;
+  border-color: red;
+}
+.flex-item2 {
+  width: 100%;
+  background-color: blue;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flex-container')">
+  <div id="flexContainer" class="flex-container">
+    <div id="flexItem1" class="flex-item1" data-expected-height=51></div>
+    <div id="flexItem2" class="flex-item2" data-expected-height=49></div>
+  </div>
+</body>

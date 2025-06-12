@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Constructor: AnalyserNode
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/audionodeoptions.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let context;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('initialize', (task, should) => {
+        context = initializeContext(should);
+        task.done();
+      });
+
+      audit.define('invalid constructor', (task, should) => {
+        testInvalidConstructor(should, 'AnalyserNode', context);
+        task.done();
+      });
+
+      audit.define('default constructor', (task, should) => {
+        let prefix = 'node0';
+        let node = testDefaultConstructor(should, 'AnalyserNode', context, {
+          prefix: prefix,
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          channelCount: 2,
+          channelCountMode: 'max',
+          channelInterpretation: 'speakers'
+        });
+
+        testDefaultAttributes(should, node, prefix, [
+          {name: 'fftSize', value: 2048},
+          {name: 'frequencyBinCount', value: 1024},
+          {name: 'minDecibels', value: -100}, {name: 'maxDecibels', value: -30},
+          {name: 'smoothingTimeConstant', value: 0.8}
+        ]);
+
+        task.done();
+      });
+
+      audit.define('test AudioNodeOptions', (task, should) => {
+        testAudioNodeOptions(should, context, 'AnalyserNode');
+        task.done();
+      });
+
+      audit.define('constructor with options', (task, should) => {
+        let options = {
+          fftSize: 32,
+          maxDecibels: 1,
+          minDecibels: -13,
+          // Choose a value that can be represented the same as a float and as a
+          // double.
+          smoothingTimeConstant: 0.125
+        };
+
+        let node;
+        should(
+            () => {
+              node = new AnalyserNode(context, options);
+            },
+            'node1 = new AnalyserNode(c, ' + JSON.stringify(options) + ')')
+            .notThrow();
+
+        should(node instanceof AnalyserNode, 'node1 instanceof AnalyserNode')
+            .beEqualTo(true);
+        should(node.fftSize, 'node1.fftSize').beEqualTo(options.fftSize);
+        should(node.maxDecibels, 'node1.maxDecibels')
+            .beEqualTo(options.maxDecibels);
+        should(node.minDecibels, 'node1.minDecibels')
+            .beEqualTo(options.minDecibels);
+        should(node.smoothingTimeConstant, 'node1.smoothingTimeConstant')
+            .beEqualTo(options.smoothingTimeConstant);
+
+        task.done();
+      });
+
+      audit.define('construct invalid options', (task, should) => {
+        let node;
+
+        should(
+            () => {
+              node = new AnalyserNode(context, {fftSize: 33});
+            },
+            'node = new AnalyserNode(c, { fftSize: 33 })')
+            .throw(DOMException, 'IndexSizeError');
+        should(
+            () => {
+              node = new AnalyserNode(context, {maxDecibels: -500});
+            },
+            'node = new AnalyserNode(c, { maxDecibels: -500 })')
+            .throw(DOMException, 'IndexSizeError');
+        should(
+            () => {
+              node = new AnalyserNode(context, {minDecibels: -10});
+            },
+            'node = new AnalyserNode(c, { minDecibels: -10 })')
+            .throw(DOMException, 'IndexSizeError');
+        should(
+            () => {
+              node = new AnalyserNode(context, {smoothingTimeConstant: 2});
+            },
+            'node = new AnalyserNode(c, { smoothingTimeConstant: 2 })')
+            .throw(DOMException, 'IndexSizeError');
+        should(function() {
+          node = new AnalyserNode(context, {frequencyBinCount: 33});
+        }, 'node = new AnalyserNode(c, { frequencyBinCount: 33 })').notThrow();
+        should(node.frequencyBinCount, 'node.frequencyBinCount')
+            .beEqualTo(1024);
+
+        task.done();
+      });
+
+      audit.define('setting min/max', (task, should) => {
+        let node;
+
+        // Recall the default values of minDecibels and maxDecibels are -100,
+        // and -30, respectively.  Setting both values in the constructor should
+        // not signal an error in any of the following cases.
+        let options = {minDecibels: -10, maxDecibels: 20};
+        should(
+            () => {
+              node = new AnalyserNode(context, options);
+            },
+            'node = new AnalyserNode(c, ' + JSON.stringify(options) + ')')
+            .notThrow();
+
+        options = {maxDecibels: 20, minDecibels: -10};
+        should(
+            () => {
+              node = new AnalyserNode(context, options);
+            },
+            'node = new AnalyserNode(c, ' + JSON.stringify(options) + ')')
+            .notThrow();
+
+        options = {minDecibels: -200, maxDecibels: -150};
+        should(
+            () => {
+              node = new AnalyserNode(context, options);
+            },
+            'node = new AnalyserNode(c, ' + JSON.stringify(options) + ')')
+            .notThrow();
+
+        options = {maxDecibels: -150, minDecibels: -200};
+        should(
+            () => {
+              node = new AnalyserNode(context, options);
+            },
+            'node = new AnalyserNode(c, ' + JSON.stringify(options) + ')')
+            .notThrow();
+
+        // But these should signal because minDecibel > maxDecibel
+        options = {maxDecibels: -150, minDecibels: -10};
+        should(
+            () => {
+              node = new AnalyserNode(context, options);
+            },
+            'node = new AnalyserNode(c, ' + JSON.stringify(options) + ')')
+            .throw(DOMException, 'IndexSizeError');
+
+        options = {minDecibels: -10, maxDecibels: -150};
+        should(
+            () => {
+              node = new AnalyserNode(context, options);
+            },
+            'node = new AnalyserNode(c, ' + JSON.stringify(options) + ')')
+            .throw(DOMException, 'IndexSizeError');
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

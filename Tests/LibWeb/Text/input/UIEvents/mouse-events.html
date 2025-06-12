@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0px;
+    padding: 5px;
+    width: 200px;
+    height: 200px;
+}
+
+#outer {
+    width: 100px;
+    height: 100px;
+    background-color: yellowgreen;
+}
+
+#inner {
+    width: 50px;
+    height: 50px;
+    background-color: magenta;
+}
+</style>
+<body id="body"><div id="outer"><div id="inner"></div></div></body>
+<script src="../include.js"></script>
+<script>
+function handleMouseOver(e) {
+    println(`mouseover target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), relatedTarget.id=(${e.relatedTarget.id})`);
+}
+function handleMouseOut(e) {
+    println(`mouseout target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), relatedTarget.id=(${e.relatedTarget.id})`);
+}
+function handleMouseEnter(e) {
+    println(`mouseenter target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), relatedTarget.id=(${e.relatedTarget.id})`);
+}
+function handleMouseLeave(e) {
+    println(`mouseleave target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), relatedTarget.id=(${e.relatedTarget.id})`);
+}
+function handleClick(e) {
+    println(`click target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), button=${e.button}`);
+}
+function handleAuxClick(e) {
+    println(`auxclick target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), button=${e.button}`);
+}
+
+outer.onmouseover = handleMouseOver;
+outer.onmouseout = handleMouseOut;
+outer.onmouseenter = handleMouseEnter;
+outer.onmouseleave = handleMouseLeave;
+outer.onclick = handleClick;
+outer.onauxclick = handleAuxClick;
+
+inner.onmouseover = handleMouseOver;
+inner.onmouseout = handleMouseOut;
+inner.onmouseenter = handleMouseEnter;
+inner.onmouseleave = handleMouseLeave;
+inner.onclick = handleClick;
+inner.onauxclick = handleAuxClick;
+
+const clickOnBody = () => {
+    return new Promise(resolve => {
+        document.body.onclick = () => { resolve(); };
+        internals.click(1, 1);
+    });
+}
+
+const clickOnOuterBox = (button) => {
+    return new Promise((resolve, reject) => {
+        if (button == 0) {
+            document.body.onclick = () => { resolve(); };
+            internals.click(80, 80);
+        } else if (button == 1) {
+            document.body.onauxclick = () => { resolve(); };
+            internals.middleClick(80, 80);
+        } else {
+            println(`Unimplemented button click: ${button}`);
+            reject();
+        }
+    });
+};
+
+asyncTest(async done => {
+    // First move the mouse outside #outer to populate the MouseEvent.relatedTarget property
+    internals.movePointerTo(150, 150);
+    println("> move pointer over #inner");
+    internals.movePointerTo(10, 10);
+    println("> move pointer over #outer");
+    internals.movePointerTo(60, 60);
+    println("> click #outer");
+    await clickOnOuterBox(0);
+    println("> auxclick #outer");
+    await clickOnOuterBox(1);
+    println("> click document.body");
+    await clickOnBody();
+    done();
+});
+</script>

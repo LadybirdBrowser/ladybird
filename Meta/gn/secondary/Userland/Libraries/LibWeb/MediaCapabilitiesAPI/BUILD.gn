@@ -1,0 +1,5 @@
+source_set("MediaCapabilitiesAPI") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [ "MediaCapabilities.cpp" ]
+}

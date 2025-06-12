@@ -1,0 +1,22 @@
+source_set("Animations") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "Animatable.cpp",
+    "Animatable.h",
+    "Animation.cpp",
+    "Animation.h",
+    "AnimationEffect.cpp",
+    "AnimationEffect.h",
+    "AnimationPlaybackEvent.cpp",
+    "AnimationPlaybackEvent.h",
+    "AnimationTimeline.cpp",
+    "AnimationTimeline.h",
+    "DocumentTimeline.cpp",
+    "DocumentTimeline.h",
+    "KeyframeEffect.cpp",
+    "KeyframeEffect.h",
+    "PseudoElementParsing.cpp",
+    "PseudoElementParsing.h",
+  ]
+}

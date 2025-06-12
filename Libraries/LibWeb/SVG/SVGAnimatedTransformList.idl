@@ -1,0 +1,8 @@
+#import <SVG/SVGTransformList.idl>
+
+// https://svgwg.org/svg2-draft/single-page.html#coords-InterfaceSVGAnimatedTransformList
+[Exposed=Window]
+interface SVGAnimatedTransformList {
+    [SameObject] readonly attribute SVGTransformList baseVal;
+    [SameObject] readonly attribute SVGTransformList animVal;
+};

@@ -1,0 +1,43 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 04ab422..5ae82e5 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -913,6 +913,7 @@ optional("gpu_shared") {
+   }
+
+   if (skia_use_vulkan) {
++    public_deps += [ "//third_party/externals/vulkan-headers:vulkan_headers" ]
+     public_defines += [ "SK_VULKAN" ]
+     sources += skia_shared_vk_sources
+     if (skia_enable_vulkan_debug_layers) {
+diff --git a/include/private/gpu/vk/SkiaVulkan.h b/include/private/gpu/vk/SkiaVulkan.h
+index 412dbf535f..93608dc2be 100644
+--- a/include/private/gpu/vk/SkiaVulkan.h
++++ b/include/private/gpu/vk/SkiaVulkan.h
+@@ -12,6 +12,10 @@
+
+ // IWYU pragma: begin_exports
+
++#ifndef SK_USE_EXTERNAL_VULKAN_HEADERS
++# define SK_USE_EXTERNAL_VULKAN_HEADERS
++#endif
++
+ #if (SKIA_IMPLEMENTATION || !defined(SK_VULKAN)) && !defined(SK_USE_EXTERNAL_VULKAN_HEADERS)
+ #include "include/third_party/vulkan/vulkan/vulkan_core.h"
+ #else
+diff --git a/src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorWrapper.h b/src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorWrapper.h
+index 487ea7c..9662c8c 100644
+--- a/src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorWrapper.h
++++ b/src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorWrapper.h
+@@ -39,7 +39,11 @@
+ // VMA outside of Skia, the client should instead tell Skia not to use VMA.
+ // Then they should wrap their own instance of VMA into an implementation of
+ // Skia's VulkanMemoryAllocator interface, and pass that object into context creation.
++#ifdef _WIN32
++#include "vma/vk_mem_alloc.h"  // NO_G3_REWRITE
++#else
+ #include "vk_mem_alloc.h"  // NO_G3_REWRITE
++#endif
+ #ifdef GR_NEEDED_TO_DEFINE_VULKAN_H
+ #undef VULKAN_H_
+ #endif

@@ -1,0 +1,16 @@
+shared_library("LibRIFF") {
+  output_name = "riff"
+
+  include_dirs = [ "//Userland/Libraries" ]
+
+  sources = [
+    "ChunkID.h",
+    "Decoding.cpp",
+    "Details.cpp",
+    "Details.h",
+    "IFF.h",
+    "RIFF.h",
+  ]
+
+  deps = [ "//AK" ]
+}

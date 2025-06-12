@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :nth-child(... of S) with ancestor in S</title>
+<link rel="author" title="Steinar H. Gunderson" href="sesse@chromium.org">
+<link rel="match" href="../../../../../expected/wpt-import/css/selectors/invalidation/nth-child-containing-ancestor-ref.html">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<style>
+  div:nth-child(odd of .a .b) {
+    color: green;
+  }
+</style>
+<div id="toggler">
+  <div>
+    <div>
+      <div class="b">Should be green</div>
+    </div>
+  </div>
+</div>
+<script>
+  document.documentElement.offsetTop;
+  toggler.classList.toggle("a");
+</script>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>Specificity for complex :has selectors</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#specificity-rules">
+<style>
+  main :has(#foo) { --t0:PASS; }
+  main :has(.foo) { --t0:FAIL; }
+
+  main :has(span#foo) { --t1:PASS; }
+  main :has(#foo) { --t1:FAIL; }
+
+  main :has(.bar, #foo) { --t2:FAIL; }
+  main :has(#foo, .bar) { --t2:PASS; }
+
+  main :has(.bar, #foo) { --t3:PASS; }
+  main :has(.foo, .bar) { --t3:FAIL; }
+
+  main :has(span + span) { --t4:PASS; }
+  main :has(span) { --t4:FAIL; }
+
+  main :has(span, li, #foo) { --t5:PASS; }
+  main :has(span, li, p) { --t5:FAIL; }
+
+  main div:has(.foo) { --t6:FAIL; }
+  main div.baz { --t6:PASS; }
+
+  main div.baz { --t7:FAIL; }
+  main div:has(.foo) { --t7:PASS; }
+</style>
+<main id=main>
+  <div id=div class=baz><p><span id=foo class=foo></span><span class=bar></span><li></li></p></div>
+</main>
+<script>
+  function test_value(name, description) {
+    test(function() {
+      let actual = getComputedStyle(div).getPropertyValue(name);
+      assert_equals(actual, 'PASS');
+    }, description);
+  }
+
+  test_value('--t0', ':has(#foo) wins over :has(.foo)');
+  test_value('--t1', ':has(span#foo) wins over :has(#foo)');
+  test_value('--t2', ':has(.bar, #foo) has same specificity as :has(#foo, .bar)');
+  test_value('--t3', ':has(.bar, #foo) wins over :has(.foo, .bar)');
+  test_value('--t4', ':has(span + span) wins over :has(span)');
+  test_value('--t5', ':has(span, li, p) wins over :has(span, lo, p)');
+  test_value('--t6', 'latter .baz wins over :has(.foo)');
+  test_value('--t7', 'latter :has(.foo) wins over .baz');
+</script>

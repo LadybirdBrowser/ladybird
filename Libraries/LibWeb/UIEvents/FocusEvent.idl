@@ -1,0 +1,17 @@
+#import <UIEvents/UIEvent.idl>
+
+// https://www.w3.org/TR/uievents/#idl-focusevent
+[Exposed=Window]
+interface FocusEvent : UIEvent {
+
+    constructor(DOMString type, optional FocusEventInit eventInitDict = {});
+    readonly attribute EventTarget? relatedTarget;
+
+};
+
+// https://www.w3.org/TR/uievents/#idl-focuseventinit
+dictionary FocusEventInit : UIEventInit {
+
+    EventTarget? relatedTarget = null;
+
+};

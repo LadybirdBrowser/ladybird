@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<title>FormData: constructor (with form element)</title>
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<link rel="help" href="https://xhr.spec.whatwg.org/#dom-formdata">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#constructing-form-data-set">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<form>
+  <output name="do-not-submit-me-1"></output>
+
+  <datalist>
+    <input type="text" name="do-not-submit-me-2" value="bad">
+    <select name="do-not-submit-me-3">
+      <option value="bad" selected></option>
+    </select>
+    <input type="checkbox" name="do-not-submit-me-4" checked>
+  </datalist>
+
+  <input type="text" name="do-not-submit-me-5" disabled value="bad">
+  <fieldset disabled>
+    <input type="text" name="do-not-submit-me-6" value="bad">
+  </fieldset>
+
+  <button name="do-not-submit-me-7">bad</button>
+  <input type="submit" name="do-not-submit-me-8" value="bad">
+  <input type="reset" name="do-not-submit-me-9" value="bad">
+  <input type="image" name="do-not-submit-me-10" value="bad">
+
+  <input type="checkbox" name="do-not-submit-me-11">
+  <input type="radio" name="do-not-submit-me-12">
+
+  <input type="text" value="do-not-submit-me-13">
+  <input type="text" name="" value="do-not-submit-me-14">
+
+  <object name="do-not-submit-me-15"></object>
+
+  <select name="select-1">
+    <option disabled value="do-not-submit-me-16"></option>
+    <option value="do-not-submit-me-17"></option>
+    <option disabled value="do-not-submit-me-18" selected></option>
+  </select>
+
+  <select name="select-2">
+    <option value="do-not-submit-me-19"></option>
+    <option value="submit-me-1" selected></option>
+  </select>
+
+  <select name="select-3" multiple>
+    <option value="do-not-submit-me-20"></option>
+    <option value="submit-me-2" selected></option>
+    <option value="do-not-submit-me-21"></option>
+    <option value="submit-me-3" selected></option>
+  </select>
+
+  <input type="checkbox" name="submit-me-4" value="checkbox-1" checked>
+  <input type="checkbox" name="submit-me-5" checked>
+
+  <input type="radio" name="submit-me-6" value="radio-1" checked>
+  <input type="radio" name="submit-me-7" checked>
+
+  <!-- not tested: <input type="file"> with selected files -->
+
+  <input type="file" name="file-1">
+
+  <!-- not tested: <object>s that allow form submission -->
+
+  <input type="text" name="submit-me-8" value="text-1">
+  <input type="text" name="submit-me-8" value="text-2">
+  <input type="search" name="submit-me-9" value="search-1">
+  <input type="url" name="submit-me-10" value="url-1">
+  <input type="hidden" name="submit-me-11" value="hidden-1">
+  <input type="password" name="submit-me-12" value="password-1">
+  <input type="number" name="submit-me-13" value="11">
+  <input type="range" name="submit-me-14" value="11">
+  <input type="color" name="submit-me-15" value="#123456">
+
+  <textarea name="submit-me-16">textarea value
+with linebreaks set to LF</textarea>
+
+  <!-- this generates two form data entries! -->
+  <input type="text" name="dirname-is-special" dirname="submit-me-17" value="dirname-value">
+
+  <input type="text" name="submit-me-21">
+</form>
+
+<script>
+"use strict";
+
+test(() => {
+
+  const form = document.querySelector("form");
+
+  const input = document.createElement("input");
+  input.name = "submit-me-18-\uDC01";
+  input.value = "value-\uDC01";
+  assert_equals(input.name, "submit-me-18-\uDC01", "input.name accepts unpaired surrogates");
+  assert_equals(input.value, "value-\uDC01", "input.value accepts unpaired surrogates");
+  form.appendChild(input);
+
+  const input2 = document.createElement("input");
+  input2.name = "submit-me-\r19\n";
+  input2.value = "value\n\r";
+  assert_equals(input2.name, "submit-me-\r19\n", "input.name accepts \\r and \\n");
+  assert_equals(input2.value, "value", "input.value when type=text should not contain newlines");
+  form.appendChild(input2);
+
+  const formData = new FormData(form);
+
+  const expected = [
+    ["select-2", "submit-me-1"],
+    ["select-3", ["submit-me-2", "submit-me-3"]],
+    ["submit-me-4", "checkbox-1"],
+    ["submit-me-5", "on"],
+    ["submit-me-6", "radio-1"],
+    ["submit-me-7", "on"],
+    ["submit-me-8", ["text-1", "text-2"]],
+    ["submit-me-9", "search-1"],
+    ["submit-me-10", "url-1"],
+    ["submit-me-11", "hidden-1"],
+    ["submit-me-12", "password-1"],
+    ["submit-me-13", "11"],
+    ["submit-me-14", "11"],
+    ["submit-me-15", "#123456"],
+    ["submit-me-16", "textarea value\nwith linebreaks set to LF"],
+    ["dirname-is-special", "dirname-value"],
+    ["submit-me-17", "ltr"],
+    ["submit-me-18-\uFFFD", "value-\uFFFD"],
+    ["submit-me-\r19\n", "value"],
+    ["submit-me-21", ""]
+  ];
+
+  for (const t of expected) {
+    const field = t[0];
+    const valueOrValues = t[1];
+    const values = Array.isArray(valueOrValues) ? valueOrValues : [valueOrValues];
+    assert_array_equals(formData.getAll(field), values, field);
+  }
+
+  const fileEntry = formData.getAll("file-1");
+  assert_equals(fileEntry.length, 1);
+  assert_equals(fileEntry[0], formData.get("file-1"));
+  assert_equals(fileEntry[0].constructor, File);
+  assert_equals(fileEntry[0].size, 0);
+  assert_equals(fileEntry[0].name, "");
+  assert_equals(fileEntry[0].type, "application/octet-stream");
+
+}, "test that FormData is correctly constructed from the form data set");
+</script>

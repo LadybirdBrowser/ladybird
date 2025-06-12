@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	commandForElement reflects invokee HTML element
+Pass	commandForElement reflects set value
+Pass	commandForElement reflects set value across shadow root into light dom
+Pass	commandForElement does not reflect set value inside shadowroot
+Pass	commandForElement throws error on assignment of non Element
+Pass	command reflects '' when attribute empty, setAttribute version
+Pass	command reflects correctly for invalid
+Pass	command reflects '' when attribute empty, IDL version
+Pass	command reflects correctly for invalid when array
+Pass	command reflects '' when attribute set to []
+Pass	command reflects correctly for invalid when object

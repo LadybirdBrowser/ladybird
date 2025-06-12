@@ -1,0 +1,4 @@
+Animation is pending after a call to play(): true
+Animation is not pending after ready promise resolves: true
+Animation is pending after a call to pause(): true
+Animation is not pending after ready promise resolves: true

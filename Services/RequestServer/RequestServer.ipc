@@ -1,0 +1,30 @@
+#include <LibCore/Proxy.h>
+#include <LibHTTP/HeaderMap.h>
+#include <LibURL/URL.h>
+#include <RequestServer/CacheLevel.h>
+
+endpoint RequestServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+    connect_new_client() => (IPC::File client_socket)
+
+    // use_tls: enable DNS over TLS
+    set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) =|
+    set_use_system_dns() =|
+
+    // Test if a specific protocol is supported, e.g "http"
+    is_supported_protocol(ByteString protocol) => (bool supported)
+
+    start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data) =|
+    stop_request(i32 request_id) => (bool success)
+    set_certificate(i32 request_id, ByteString certificate, ByteString key) => (bool success)
+
+    ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) =|
+
+    // Websocket Connection API
+    websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers) =|
+    websocket_send(i64 websocket_id, bool is_text, ByteBuffer data) =|
+    websocket_close(i64 websocket_id, u16 code, ByteString reason) =|
+    websocket_set_certificate(i64 request_id, ByteString certificate, ByteString key) => (bool success)
+
+}

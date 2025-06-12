@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>:has() invalidation with nesting where the selector is shared</title>
+<link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+#outer1:has(.test) {
+  & #subject1_1 {
+    color: red;
+  }
+  & + #subject1_2 {
+    color: orangered;
+  }
+}
+
+#outer2:has(.test) {
+  & .ancestor {
+    & #subject2_1 {
+      color: green;
+    }
+    & + #subject2_2 {
+      color: lightgreen;
+    }
+  }
+}
+
+#outer3:is(:has(.test) .outer) {
+  & #subject3_1 {
+    color: blue;
+  }
+  & + #subject3_2 {
+    color: skyblue;
+  }
+}
+</style>
+<main id="main">
+  <div>
+    <div id="outer1">
+      <div id="trigger1"></div>
+      <div id="subject1_1"></div>
+    </div>
+    <div id="subject1_2"></div>
+  </div>
+  <div id="outer2">
+    <div id="trigger2"></div>
+    <div class="ancestor">
+      <div id="subject2_1"></div>
+    </div>
+    <div id="subject2_2"></div>
+  </div>
+  <div id="trigger3">
+    <div id="outer3" class="outer">
+      <div id="subject3_1"></div>
+    </div>
+    <div id="subject3_2"></div>
+  </div>
+</main>
+<script>
+const grey = 'rgb(128, 128, 128)';
+const red = 'rgb(255, 0, 0)';
+const orangered = 'rgb(255, 69, 0)';
+const green = 'rgb(0, 128, 0)';
+const lightgreen = 'rgb(144, 238, 144)';
+const blue = 'rgb(0, 0, 255)';
+const skyblue = 'rgb(135, 206, 235)';
+
+const colors = {
+  red: {
+    descendant: red,
+    sibling: orangered,
+  },
+  green: {
+    descendant: green,
+    sibling: lightgreen,
+  },
+  blue: {
+    descendant: blue,
+    sibling: skyblue,
+  },
+};
+
+function testColor(testName, element, color) {
+  test(function() {
+    assert_equals(getComputedStyle(element).color, color);
+  }, testName);
+}
+
+function testClassChange(trigger, targetDescendant, targetSibling, expected)
+{
+  trigger.classList.add('test');
+  testColor(`add .test to ${trigger.id} - check ${targetDescendant.id}`, targetDescendant, colors[expected].descendant);
+  testColor(`add .test to ${trigger.id} - check ${targetSibling.id}`, targetSibling, colors[expected].sibling);
+  trigger.classList.remove('test');
+  testColor(`remove .test from ${trigger.id} - check ${targetDescendant.id}`, targetDescendant, grey);
+  testColor(`remove .test from ${trigger.id} - check ${targetSibling.id}`, targetSibling, grey);
+}
+
+testClassChange(trigger1, subject1_1, subject1_2, 'red');
+testClassChange(trigger2, subject2_1, subject2_2, 'green');
+testClassChange(trigger3, subject3_1, subject3_2, 'blue');
+
+</script>

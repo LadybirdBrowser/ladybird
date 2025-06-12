@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: auto;
+        width: 500px;
+    }
+    .left-margin-auto {
+        margin-left: auto;
+    }
+    .right-margin-auto {
+        margin-right: auto;
+    }
+    .fit-content-width {
+        width: fit-content;
+        background-color: lightpink;
+    }
+    .fixed-width {
+        width: 50px;
+        background-color: lightgoldenrodyellow;
+    }
+</style>
+<div class="grid">
+
+<div class="left-margin-auto right-margin-auto">auto horizontal margins and auto width</div>
+<div class="left-margin-auto">auto left margin and auto width</div>
+<div class="right-margin-auto">auto right margin and auto width</div>
+
+<div class="left-margin-auto right-margin-auto fit-content-width">auto horizontal margins and fit-content width</div>
+<div class="left-margin-auto fit-content-width">auto left margin and fit-content width</div>
+<div class="right-margin-auto fit-content-width">auto right margin and fit-content width</div>
+
+<div class="left-margin-auto right-margin-auto fixed-width">auto horizontal margins and fixed width</div>
+<div class="left-margin-auto fixed-width">auto left margin and fixed width</div>
+<div class="right-margin-auto fixed-width">auto right margin and fixed width</div>
+
+</div>

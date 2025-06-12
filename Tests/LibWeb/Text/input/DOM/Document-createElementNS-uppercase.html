@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const HTMLNS = "http://www.w3.org/1999/xhtml";
+        const uppercaseElement = document.createElementNS(HTMLNS, "DIV");
+        println(`document.createElementNS(HTMLNS, "DIV") is instance of HTMLUnknownElement: ${uppercaseElement instanceof HTMLUnknownElement}`);
+        const lowercaseElement = document.createElementNS(HTMLNS, "div");
+        println(`document.createElementNS(HTMLNS, "div") is instance of HTMLDivElement: ${lowercaseElement instanceof HTMLDivElement}`);
+
+        const uppercaseElement2 = document.createElement("DIV");
+        println(`document.createElement("DIV") is instance of HTMLDivElement: ${uppercaseElement2 instanceof HTMLDivElement}`);
+        const lowercaseElement2 = document.createElement( "div");
+        println(`document.createElement("div") is instance of HTMLDivElement: ${lowercaseElement2 instanceof HTMLDivElement}`);
+    });
+</script>

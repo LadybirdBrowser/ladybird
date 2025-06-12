@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	CSS Selectors Invalidation: :nth-child(... of :not()) combined with whole subtree invalidation

@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Reference: overflow:clip can be combined with overflow:visible</title>
+<link rel="author" title="Mats Palmgren" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1531609">
+<style>
+  .wrapper {
+    margin-left: 30px;
+    margin-bottom: 20px;
+    width: 50px;
+    height: 50px;
+  }
+  .outer {
+    width: 50px;
+    height: 50px;
+    background: black;
+  }
+
+  .inner {
+    position: relative;
+    top: -10px;
+    left: -10px;
+    height: 100px;
+    width: 100px;
+    background: blue;
+    opacity: 0.5;
+  }
+</style>
+<!-- there should be no scrollbars -->
+<div class="wrapper" style="overflow: hidden">
+<div class="outer">
+  <div class="inner"></div>
+</div>
+</div>
+
+<!-- there should be no white areas inside the outline -->
+<div class="wrapper" style="outline: solid">
+<div class="outer">
+  <div class="inner" style="left:0; width:50px"></div>
+</div>
+</div>
+
+<!-- there should be a vertical scrollbar, but not a horizontal one -->
+<div class="wrapper" style="overflow: hidden scroll; margin-top:50px">
+<div class="outer">
+  <div class="inner" style="width:1px"></div>
+</div>
+</div>
+
+<!-- there should be no white areas inside the outline -->
+<div class="wrapper" style="outline: solid">
+<div class="outer">
+  <div class="inner" style="top:0; height:50px"></div>
+</div>
+</div>
+
+<!-- there should be horizontal scrollbar, but not a vertical one -->
+<div class="wrapper" style="overflow: scroll hidden">
+<div class="outer">
+  <div class="inner" style="height:1px"></div>
+</div>
+</div>

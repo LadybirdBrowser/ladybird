@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js" id="include-script"></script>
+<script>
+    test(() => {
+        const includeScript = document.querySelector("#include-script");
+        println(`includeScript.async = ${includeScript.async}`);
+
+        const script = document.createElement("script");
+        println(`script.async = ${script.async}`);
+
+        script.setAttribute("async", "true");
+        script.removeAttribute("async");
+        println(`script.async = ${script.async}`);
+    });
+</script>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-image-outset composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-image-outset">
+<meta name="assert" content="border-image-outset supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_composition({
+  property: 'border-image-outset',
+  underlying: '1 2 3 4',
+  addFrom: '1 2 3 4',
+  addTo: '101 102 103 104',
+}, [
+  {at: -0.25, expect: '0'}, // Non-negative.
+  {at: 0, expect: '2 4 6 8'},
+  {at: 0.25, expect: '27 29 31 33'},
+  {at: 0.5, expect: '52 54 56 58'},
+  {at: 0.75, expect: '77 79 81 83'},
+  {at: 1, expect: '102 104 106 108'},
+  {at: 1.25, expect: '127 129 131 133'},
+]);
+
+test_composition({
+  property: 'border-image-outset',
+  underlying: '100 200 300 400',
+  addFrom: '100',
+  addTo: '200 300 500',
+}, [
+  {at: -0.25, expect: '175 250 300 450'},
+  {at: 0, expect: '200 300 400 500'},
+  {at: 0.25, expect: '225 350 500 550'},
+  {at: 0.5, expect: '250 400 600 600'},
+  {at: 0.75, expect: '275 450 700 650'},
+  {at: 1, expect: '300 500 800 700'},
+  {at: 1.25, expect: '325 550 900 750'},
+]);
+
+test_composition({
+  property: 'border-image-outset',
+  underlying: '1 2 3px 4px',
+  addFrom: '1 2 3px 4px',
+  addTo: '101 102 103px 104px',
+}, [
+  {at: -0.25, expect: '0 0 0px 0px'}, // Non-negative.
+  {at: 0, expect: '2 4 6px 8px'},
+  {at: 0.25, expect: '27 29 31px 33px'},
+  {at: 0.5, expect: '52 54 56px 58px'},
+  {at: 0.75, expect: '77 79 81px 83px'},
+  {at: 1, expect: '102 104 106px 108px'},
+  {at: 1.25, expect: '127 129 131px 133px'},
+]);
+
+test_composition({
+  property: 'border-image-outset',
+  underlying: '10px 20px',
+  addFrom: '190px 180px 290px 280px',
+  addTo: '90px 80px',
+}, [
+  {at: -0.25, expect: '225px 225px 350px 350px'},
+  {at: 0, expect: '200px 200px 300px 300px'},
+  {at: 0.25, expect: '175px 175px 250px 250px'},
+  {at: 0.5, expect: '150px 150px 200px 200px'},
+  {at: 0.75, expect: '125px 125px 150px 150px'},
+  {at: 1, expect: '100px'},
+  {at: 1.25, expect: '75px 75px 50px 50px'},
+]);
+
+test_composition({
+  property: 'border-image-outset',
+  underlying: '10 20px',
+  replaceFrom: '100 100px',
+  addTo: '190 180px',
+}, [
+  {at: -0.25, expect: '75 75px'},
+  {at: 0, expect: '100 100px'},
+  {at: 0.25, expect: '125 125px'},
+  {at: 0.5, expect: '150 150px'},
+  {at: 0.75, expect: '175 175px'},
+  {at: 1, expect: '200 200px'},
+  {at: 1.25, expect: '225 225px'},
+]);
+
+test_composition({
+  property: 'border-image-outset',
+  underlying: '10px 20',
+  addFrom: '90px 80',
+  replaceTo: '0px 0 0px 0',
+}, [
+  {at: -0.25, expect: '125px 125'},
+  {at: 0, expect: '100px 100'},
+  {at: 0.25, expect: '75px 75'},
+  {at: 0.5, expect: '50px 50'},
+  {at: 0.75, expect: '25px 25'},
+  {at: 1, expect: '0px 0'},
+  {at: 1.25, expect: '0px 0'}, // Non-negative.
+]);
+
+test_composition({
+  property: 'border-image-outset',
+  underlying: '10 20',
+  addFrom: '100px 150px',
+  addTo: '200px 250px',
+}, [
+  {at: -0.25, expect: '75px 125px'},
+  {at: 0, expect: '100px 150px'},
+  {at: 0.25, expect: '125px 175px'},
+  {at: 0.5, expect: '150px 200px'},
+  {at: 0.75, expect: '175px 225px'},
+  {at: 1, expect: '200px 250px'},
+  {at: 1.25, expect: '225px 275px'},
+]);
+
+test_composition({
+  property: 'border-image-outset',
+  underlying: '10 20',
+  addFrom: '100 150px',
+  addTo: '200px 250',
+}, [
+  {at: -0.25, expect: '100 150px'},
+  {at: 0, expect: '100 150px'},
+  {at: 0.25, expect: '100 150px'},
+  {at: 0.5, expect: '200px 250'},
+  {at: 0.75, expect: '200px 250'},
+  {at: 1, expect: '200px 250'},
+  {at: 1.25, expect: '200px 250'},
+]);
+</script>
+</body>

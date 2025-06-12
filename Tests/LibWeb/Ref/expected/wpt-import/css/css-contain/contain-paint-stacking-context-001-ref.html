@@ -1,0 +1,62 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Yusuf Sermet" href="mailto:ysermet@mozilla.com">
+  <style>
+    div {
+      position: relative;
+      width: 100px;
+    }
+    #div1,
+    #div3 {
+      background-color: #cfc;
+    }
+    #div1 {
+      z-index: 5;
+    }
+    #div2 {
+      z-index: 1;
+      background-color: #fdd;
+      height: 100px;
+      top: -20px;
+    }
+    #div2_1 {
+      background-color: #ffc;
+      z-index: 6;
+      top: -10px;
+    }
+    #div2_2 {
+      z-index: 3;
+      position: absolute;
+      top: -15px;
+      width: 40px;
+      height: 100px;
+      background-color: #ddf;
+    }
+    #div3 {
+      z-index: 2;
+      top: -50px;
+    }
+  </style>
+</head>
+<body>
+  <div id="div1">
+    <br/><br/>
+  </div>
+
+  <div id="div2">
+    <div id="div2_1">
+      <br/><br/>
+    </div>
+
+    <div id="div2_2">
+    </div>
+  </div>
+
+  <div id="div3">
+    <br/><br/>
+  </div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+style.getPropertyValue(--redcolor)=red
+style.getPropertyPriority(--redcolor)=
+rgb(255, 0, 0)
+rgba(0, 0, 0, 0)

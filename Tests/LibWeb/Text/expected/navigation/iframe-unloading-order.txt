@@ -1,0 +1,1 @@
+Test passes if it is possible to navigate away without crashing.

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	.box 1
+Pass	.box 2
+Pass	.box 3
+Pass	.box 4
+Pass	.box 5
+Pass	.box 6

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const e = document.createElement("div");
+        document.body.appendChild(e);
+        function checkDisplay(display) {
+            e.style.display = display;
+            const computedStyle = getComputedStyle(e);
+            const serialized = computedStyle.display;
+            println(display + " => " + serialized);
+        }
+        for (display of [
+            "none",
+            "block",
+            "flow-root",
+            "inline",
+            "inline-block",
+            "run-in",
+            "list-item",
+            "flex",
+            "inline-flex",
+            "grid",
+            "inline-grid",
+            "ruby",
+            "table",
+            "inline-table",
+        ]) {
+            checkDisplay(display);
+        }
+        e.remove();
+    });
+</script>

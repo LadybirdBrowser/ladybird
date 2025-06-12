@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document);
+        println(document instanceof HTMLDocument);
+        let newDocument = document.implementation.createHTMLDocument();
+        println(newDocument);
+        println(newDocument instanceof HTMLDocument);
+    });
+</script>
+</body>

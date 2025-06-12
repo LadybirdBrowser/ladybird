@@ -1,0 +1,19 @@
+shared_library("LibURL") {
+  output_name = "url"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "Forward.h",
+    "Host.h",
+    "Origin.cpp",
+    "Origin.h",
+    "Parser.cpp",
+    "Parser.h",
+    "URL.cpp",
+    "URL.h",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibTextCodec",
+    "//Userland/Libraries/LibUnicode",
+  ]
+}

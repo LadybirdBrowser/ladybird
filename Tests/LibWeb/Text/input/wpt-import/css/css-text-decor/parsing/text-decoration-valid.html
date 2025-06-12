@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-decoration with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#propdef-text-decoration">
+<meta name="assert" content="text-decoration supports the full grammar '<‘text-decoration-line’> ||
+ <'text-decoration-thickness'> || <‘text-decoration-style’> || <‘text-decoration-color’>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_valid_value("text-decoration", "none");
+test_valid_value("text-decoration", "line-through");
+test_valid_value("text-decoration", "solid", "none");
+test_valid_value("text-decoration", "currentcolor", "none");
+test_valid_value("text-decoration", "auto", "none");
+test_valid_value("text-decoration", "from-font");
+test_valid_value("text-decoration", "10px");
+
+test_valid_value("text-decoration", "double overline underline", "underline overline double");
+test_valid_value("text-decoration", "underline overline line-through red");
+test_valid_value("text-decoration", "rgba(10, 20, 30, 0.4) dotted", "dotted rgba(10, 20, 30, 0.4)");
+test_valid_value("text-decoration", "overline green from-font", "overline from-font green");
+test_valid_value("text-decoration", "underline dashed green");
+test_valid_value("text-decoration", "underline auto", "underline");
+test_valid_value("text-decoration", "line-through 20px");
+test_valid_value("text-decoration", "overline 3em");
+</script>

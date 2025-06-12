@@ -1,0 +1,3 @@
+endpoint WebUIServer {
+    send_message(String name, JsonValue data) =|
+}

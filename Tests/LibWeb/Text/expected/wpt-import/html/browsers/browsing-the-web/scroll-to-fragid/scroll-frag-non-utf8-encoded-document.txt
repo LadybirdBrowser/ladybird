@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Fragment Navigation: fragment id should not be found in non UTF8 document

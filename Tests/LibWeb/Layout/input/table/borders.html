@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<style>
+  * {
+    font-family: 'SerenitySans';
+  }
+
+  .border-black {
+    border: 1px solid black;
+  }
+
+  .thick-border-black {
+    border: 10px solid black;
+  }
+
+  .table-border-black,
+  table.table-border-black tr,
+  table.table-border-black td {
+    border: 1px solid black;
+  }
+
+  .table {
+    display: table;
+  }
+
+  .table-row {
+    display: table-row;
+  }
+
+  .table-cell {
+    display: table-cell;
+  }
+</style>
+
+<table class="table-border-black">
+  <tr>
+    <td>Firstname</td>
+    <td>Lastname</td>
+  </tr>
+  <tr>
+    <td>Peter</td>
+    <td>Griffin</td>
+  </tr>
+  <tr>
+    <td>Lois</td>
+    <td>Griffin</td>
+  </tr>
+</table>
+
+<!-- Border-collapse and hidden -->
+<table class="table-border-black" style="border-collapse: collapse; border-style: hidden;">
+  <tr>
+    <td>Firstname</td>
+    <td>Lastname</td>
+  </tr>
+  <tr>
+    <td>Peter</td>
+    <td>Griffin</td>
+  </tr>
+  <tr>
+    <td>Lois</td>
+    <td>Griffin</td>
+  </tr>
+</table>
+
+<!-- Border-collapse and hidden with divs -->
+<div class="table border-black" style="border-collapse: collapse; border-style: hidden;">
+  <div class="table-row border-black">
+    <div class="table-cell border-black">Firstname</div>
+    <div class="table-cell border-black">Lastname</div>
+  </div>
+  <div class="table-row border-black">
+    <div class="table-cell border-black">Peter</div>
+    <div class="table-cell border-black">Griffin</div>
+  </div>
+  <div class="table-row border-black">
+    <div class="table-cell border-black">Lois</div>
+    <div class="table-cell border-black">Griffin</div>
+  </div>
+</div>
+
+<!-- Border-collapse and hidden with divs -->
+<div class="table thick-border-black" style="border-collapse: collapse; border-style: hidden;">
+  <div class="table-row thick-border-black">
+    <div class="table-cell thick-border-black">Firstname</div>
+    <div class="table-cell thick-border-black">Lastname</div>
+  </div>
+  <div class="table-row thick-border-black">
+    <div class="table-cell thick-border-black">Peter</div>
+    <div class="table-cell thick-border-black">Griffin</div>
+  </div>
+  <div class="table-row thick-border-black">
+    <div class="table-cell thick-border-black">Lois</div>
+    <div class="table-cell thick-border-black">Griffin</div>
+  </div>
+</div>

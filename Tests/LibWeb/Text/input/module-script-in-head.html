@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<head>
+    <script type="module">
+        const __outputElement = document.createElement("pre");
+        __outputElement.setAttribute("id", "out");
+        __outputElement.appendChild(document.createTextNode("passed\n"))
+        document.body.appendChild(__outputElement);
+        internals.signalTestIsDone(document.body.innerText);
+    </script>
+</head>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>PNG test: cICP chunk</title>
+<link rel="help" href="https://w3c.github.io/PNG-spec/#cICP-chunk">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../html/canvas/resources/canvas-tests.js"></script>
+<body>
+
+<h1>cICP chunk</h1>
+<p class="desc">test pixel values of a display-p3 PNG</p>
+
+<p class="output">Actual output:</p>
+<canvas id="c" class="output" width="100" height="50"><p class="fallback">FAIL (fallback content)</p></canvas>
+
+<ul id="d"></ul>
+<script>
+var t = async_test("test pixel values of a display-p3 PNG");
+const img = new Image();
+img.onload = () => {
+  _addTest(function(canvas, ctx) {
+    ctx.drawImage(img, 0, 0);
+
+    var pixel = ctx.getImageData(5, 5, 1, 1, {colorSpace: "srgb"}).data;
+
+    // The pixel values stored are (51 red, 102 green, 153 blue).
+    // These numbers are chosen because 0.2 * 255 = 51.
+    // The image has a cICP chunk indicating the Display P3 color space.
+    // This results in decoded pixel values of (27 red, 104 green, 157 blue).
+    const pixel_expected = [27, 104, 157, 255];
+    const epsilon = 2;
+
+    _assertSame(pixel.length, pixel_expected.length, "pixel.length", "pixel_expected.length");
+    assert_approx_equals(pixel[0], pixel_expected[0], epsilon);
+    assert_approx_equals(pixel[1], pixel_expected[1], epsilon);
+    assert_approx_equals(pixel[2], pixel_expected[2], epsilon);
+    assert_approx_equals(pixel[3], pixel_expected[3], epsilon);
+  }, {colorSpace: "display-p3"});
+};
+img.src = "support/cicp-display-p3.png";
+</script>

@@ -1,0 +1,10 @@
+Testing window.document:
+selectorText initial value: .green-background
+container element backgroundColor initial value: rgb(255, 0, 0)
+selectorText after setting selectorText value to #container: #container
+container element backgroundColor after setting selectorText value to #container: rgb(0, 255, 0)
+Testing iframe.contentDocument:
+selectorText initial value: .green-background
+container element backgroundColor initial value: rgb(255, 0, 0)
+selectorText after setting selectorText value to #container: #container
+container element backgroundColor after setting selectorText value to #container: rgb(0, 255, 0)

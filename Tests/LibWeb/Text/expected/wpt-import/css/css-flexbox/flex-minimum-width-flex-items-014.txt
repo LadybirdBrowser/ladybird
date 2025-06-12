@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	body > div 1
+Pass	body > div 2
+Pass	body > div 3
+Pass	body > div 4
+Pass	body > div 5
+Pass	body > div 6

@@ -1,0 +1,8 @@
+#import <DOM/AbortSignal.idl>
+
+// https://streams.spec.whatwg.org/#writablestreamdefaultcontroller
+[Exposed=*]
+interface WritableStreamDefaultController {
+    readonly attribute AbortSignal signal;
+    undefined error(optional any e);
+};

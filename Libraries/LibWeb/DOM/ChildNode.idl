@@ -1,0 +1,10 @@
+// FIXME: This #import causes a circular import-related error
+// #import <DOM/Node.idl>
+
+// https://dom.spec.whatwg.org/#childnode
+interface mixin ChildNode {
+    [CEReactions, Unscopable] undefined before((Node or DOMString)... nodes);
+    [CEReactions, Unscopable] undefined after((Node or DOMString)... nodes);
+    [CEReactions, Unscopable] undefined replaceWith((Node or DOMString)... nodes);
+    [CEReactions, Unscopable, ImplementedAs=remove_binding] undefined remove();
+};

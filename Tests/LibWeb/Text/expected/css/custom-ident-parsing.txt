@@ -1,0 +1,16 @@
+Before testing: none
+badger: badger
+none: none
+BANANA: BANANA
+NONE: none
+InHeRiT: none
+revert: none
+initial: none
+unset: none
+george: george
+REVERT: none
+NaCl: NaCl
+default: INVALID
+string: string
+32: INVALID
+done: done

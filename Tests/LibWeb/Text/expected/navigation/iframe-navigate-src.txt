@@ -1,0 +1,2 @@
+message from test iframe (1)
+message from test iframe (2)

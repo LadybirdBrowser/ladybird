@@ -1,0 +1,19 @@
+attr: [object Attr]
+attr.ownerElement: [object HTMLDivElement]
+attr.namespaceURI: null
+attr.localName: foo
+attr.name: foo
+attr.value: bar
+attr.specified: true
+
+clone: [object Attr]
+clone.ownerElement: null
+clone.namespaceURI: null
+clone.localName: foo
+clone.name: foo
+clone.value: bar
+clone.specified: true
+
+attr === clone -> false
+attr.isEqualNode(clone) -> true
+attr.isEqualNode(other) -> false

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        function checkException(name, cb) {
+            try {
+                cb();
+                println(`${name}: did not throw an exception`);
+            } catch (e) {
+                println(`${name}: threw an exception`);
+            }
+        }
+
+        // Test invalid values
+        checkException('KeyframeEffect with NaN options value', () => new KeyframeEffect(null, null, NaN));
+        checkException('KeyframeEffect with infinite delay value', () => new KeyframeEffect(null, null, { delay: -Infinity }));;
+        checkException('KeyframeEffect with NaN delay value', () => new KeyframeEffect(null, null, { delay: NaN }));
+        checkException('KeyframeEffect with infinite endDelay value', () => new KeyframeEffect(null, null, { endDelay: Infinity }));
+        checkException('KeyframeEffect with NaN endDelay value', () => new KeyframeEffect(null, null, { endDelay: NaN }));
+        checkException('KeyframeEffect with NaN iterations', () => new KeyframeEffect(null, null, { iterations: NaN }));
+        checkException('KeyframeEffect with non-"auto" string duration', () => new KeyframeEffect(null, null, { duration: 'abc' }))
+        checkException('KeyframeEffect with non-numeric offset', () => new KeyframeEffect(null, [{ offset: 'abc' }], {}));
+        checkException('KeyframeEffect with invalid numeric offset', () => new KeyframeEffect(null, [{ offset: -1 }], {}));
+
+        println('');
+
+        // Test valid values
+        checkException('KeyframeEffect with infinite options value', () => new KeyframeEffect(null, null, Infinity));
+        checkException('KeyframeEffect with finite options value', () => new KeyframeEffect(null, null, 1234.5));
+        checkException('KeyframeEffect with infinite iterations', () => new KeyframeEffect(null, null, { iterations: Infinity }));
+        checkException('KeyframeEffect with infinite duration', () => new KeyframeEffect(null, null, { duration: Infinity }));
+        checkException('KeyframeEffect with "auto" string duration', () => new KeyframeEffect(null, null, { duration: 'auto' }))
+    });
+</script>

@@ -1,0 +1,13 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x60 [BFC] children: not-inline
+    BlockContainer <body> at (5,5) content-size 150x50 children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [5,5 100x50] baseline: 50
+      frag 1 from BlockContainer start: 0, length: 0, rect: [105,5 100x50] baseline: 50
+      BlockContainer <div.foo> at (5,5) content-size 100x50 inline-block [BFC] children: not-inline
+      BlockContainer <div.bar> at (105,5) content-size 100x50 inline-block [BFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x60]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 160x60] overflow: [5,5 200x50]
+      PaintableWithLines (BlockContainer<DIV>.foo) [5,5 100x50]
+      PaintableWithLines (BlockContainer<DIV>.bar) [105,5 100x50]

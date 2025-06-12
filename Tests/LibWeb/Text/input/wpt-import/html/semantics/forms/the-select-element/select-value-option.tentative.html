@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/openui/open-ui/issues/664">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<select id=select>
+  <option id=optone>innertext one</option>
+  <option id=opttwo value=valueattribute>innertext two</option>
+</select>
+
+<style>
+  select, ::picker(select) {
+    appearance: base-select;
+  }
+</style>
+
+<script>
+test(() => {
+  assert_equals(select.value, 'innertext one',
+    'The first option should be selected initially.');
+  select.value = 'valueattribute';
+  assert_equals(select.value, 'valueattribute',
+    'Assigning value should look at the options value, not innertext');
+}, 'select.value should reflect option.value');
+</script>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script type="text/javascript">
+    const SOURCES = [
+        "data:",
+        "file:///i-do-no-exist-i-swear",
+        "https://something.invalid",
+    ];
+
+    const runTest = source => {
+        let video = document.createElement("video");
+
+        return new Promise((resolve, reject) => {
+            video.addEventListener("loadedmetadata", () => {
+                reject(`successfully loaded: "${video.src}"`);
+            });
+
+            video.addEventListener("error", () => {
+                resolve(`failed to load: "${video.src}"`);
+            });
+
+            video.src = source;
+        });
+    };
+
+    asyncTest(done => {
+        let promises = SOURCES.map(source => runTest(source));
+
+        Promise.allSettled(promises)
+            .then(results => {
+                const values = results.map(result => result.value);
+                values.sort().forEach(println);
+            })
+            .finally(done);
+    });
+</script>

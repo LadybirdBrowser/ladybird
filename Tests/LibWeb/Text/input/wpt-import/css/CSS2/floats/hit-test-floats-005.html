@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#floats">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visufx.html#propdef-overflow">
+<div id="target" style="height:200px;">
+  <div style="overflow:hidden; width:100px; height:100px;">
+    <div id="error" style="float:left; width:100px; height:200px;"></div>
+  </div>
+</div>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  test(()=> {
+      var elm = document.elementFromPoint(50, 150);
+      assert_equals(elm.id, "target");
+  }, "Miss clipped float");
+</script>

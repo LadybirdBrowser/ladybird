@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing box-shadow with invalid values</title>
+<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact"/>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#box-shadow">
+<meta name="assert" content="box-shadow supports only the grammar 'none | <shadow>#'.">
+<meta name="assert" content="Lengths must stay adjacent." />
+<meta name="assert" content="<blur-radius> must be non-negative." />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("box-shadow", "auto");
+test_invalid_value("box-shadow", "1 2");
+test_invalid_value("box-shadow", "1% 2%");
+test_invalid_value("box-shadow", "1px calc(2px + 2%)");
+
+test_invalid_value("box-shadow", "1px");
+
+test_invalid_value("box-shadow", "1px 2px 3px 4px 5px");
+test_invalid_value("box-shadow", "red 1px 2px blue");
+
+
+test_invalid_value("box-shadow", "red");
+test_invalid_value("box-shadow", "4px red");
+test_invalid_value("box-shadow", "red 4px");
+test_invalid_value("box-shadow", "-4px red 4px");
+test_invalid_value("box-shadow", "red -4px 4px red");
+test_invalid_value("box-shadow", "-4px 4px red 0");
+test_invalid_value("box-shadow", "-4px 4px 0 red 0");
+test_invalid_value("box-shadow", "inset");
+test_invalid_value("box-shadow", "inset 4px");
+test_invalid_value("box-shadow", "4px inset");
+test_invalid_value("box-shadow", "4px inset -4px");
+test_invalid_value("box-shadow", "inset 4px -4px inset");
+test_invalid_value("box-shadow", "4px -4px inset 0");
+test_invalid_value("box-shadow", "4px -4px 0 inset 0");
+test_invalid_value("box-shadow", "red inset");
+test_invalid_value("box-shadow", "inset red");
+test_invalid_value("box-shadow", "4px red inset");
+test_invalid_value("box-shadow", "red inset 4px");
+test_invalid_value("box-shadow", "4px inset red");
+test_invalid_value("box-shadow", "inset red 4px");
+test_invalid_value("box-shadow", "4px red inset -4px");
+test_invalid_value("box-shadow", "4px inset red -4px");
+test_invalid_value("box-shadow", "inset 4px red -4px");
+test_invalid_value("box-shadow", "4px red 4px inset");
+test_invalid_value("box-shadow", "red 4px inset -4px");
+test_invalid_value("box-shadow", "4px inset -4px red");
+test_invalid_value("box-shadow", "4px -4px red inset 0");
+test_invalid_value("box-shadow", "4px -4px inset red 0");
+test_invalid_value("box-shadow", "inset 4px -4px red 0");
+test_invalid_value("box-shadow", "4px -4px red 0 inset");
+test_invalid_value("box-shadow", "red 4px -4px inset 0");
+test_invalid_value("box-shadow", "4px -4px inset 0 red");
+
+// <blur-radius> must be non-negative
+test_invalid_value("box-shadow", "1px 1px -1px");
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+shared_library("LibCompress") {
+  output_name = "compress"
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "Deflate.cpp",
+    "Gzip.cpp",
+    "PackBitsDecoder.cpp",
+    "Zlib.cpp",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibCrypto",
+  ]
+}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CSS Test: SVG element is blended.</title>
+        <link rel="author" title="Mihai Tica" href="mailto:mitica@adobe.com">
+        <link rel="help" href="https://drafts.fxtf.org/compositing-1/#mix-blend-mode">
+        <meta name="assert" content="Test checks that an SVG element blends with the parent container.">
+        <meta name="flags" content="svg">
+        <meta name="fuzzy" content="0-1;0-10">
+        <link rel="reviewer" title="Rik Cabanier" href="mailto:cabanier@adobe.com">
+        <link rel="reviewer" title="Mirela Budaes" href="mailto:mbudaes@adobe.com">
+        <link rel="match" href="../../../../../expected/wpt-import/css/compositing/mix-blend-mode/reference/mix-blend-mode-svg-ref.html">
+        <style type="text/css">
+            div {
+                width: 100px;
+                height: 100px;
+                background: #FF0;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if you can see a green box.</p>
+        <div>
+            <svg width="100" height="100" style="mix-blend-mode: difference;">
+              <rect width="100" height="100" style="fill: #F00;">
+            </svg>
+        </div>
+    </body>
+</html>

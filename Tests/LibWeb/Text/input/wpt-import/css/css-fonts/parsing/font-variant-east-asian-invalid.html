@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: parsing font-variant-east-asian with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-variant-east-asian-prop">
+<meta name="assert" content="font-variant-east-asian supports only the grammar 'normal | [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-variant-east-asian', 'normal ruby');
+
+test_invalid_value('font-variant-east-asian', 'jis78 jis83');
+
+test_invalid_value('font-variant-east-asian', 'full-width proportional-width');
+
+test_invalid_value('font-variant-east-asian', 'normal garbage');
+test_invalid_value('font-variant-east-asian', 'normal none');
+test_invalid_value('font-variant-east-asian', 'normal 30px');
+
+test_invalid_value('font-variant-east-asian', 'full-width garbage');
+test_invalid_value('font-variant-east-asian', 'full-width none');
+test_invalid_value('font-variant-east-asian', 'full-width 30px');
+</script>
+</body>
+</html>

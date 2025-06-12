@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSSOM: resolved values of the inset properties for absolute positioning</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#resolved-value">
+<link rel="help" href="https://drafts.csswg.org/css-position/#pos-sch">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script type="module">
+import {runTests, containerForAbspos} from "./support/getComputedStyle-insets.js";
+runTests({
+  style: "position: absolute",
+  containingBlockElement: containerForAbspos,
+  containingBlockArea: "padding",
+  preservesPercentages: false,
+  preservesAuto: false,
+  canStretchAutoSize: true,
+  staticPositionY: 1 + 2 + 4 + 8,
+  staticPositionX: 2 + 4 + 8 + 16,
+});
+</script>

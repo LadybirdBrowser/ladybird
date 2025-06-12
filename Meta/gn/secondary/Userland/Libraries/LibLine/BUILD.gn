@@ -1,0 +1,16 @@
+shared_library("LibLine") {
+  output_name = "line"
+  include_dirs = [ "//Userland/Libraries" ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibUnicode",
+  ]
+  sources = [
+    "Editor.cpp",
+    "InternalFunctions.cpp",
+    "KeyCallbackMachine.cpp",
+    "SuggestionManager.cpp",
+    "XtermSuggestionDisplay.cpp",
+  ]
+}

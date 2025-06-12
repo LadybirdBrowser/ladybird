@@ -1,0 +1,32 @@
+<!DOCTYPE html><style>
+* {
+    font: 20px SerenitySans;
+}
+:root {
+    --bg: red;
+    --width: 100px;
+}
+div::before {
+    display: inline-block;
+    height: 100px;
+    content: "";
+    background: var(--bg);
+    width: var(--width);
+}
+.b {
+    --bg: green;
+    --width: 200px;
+}
+.c::before {
+    --bg: green;
+    --width: 200px;
+}
+</style>
+Variable set by inline style of element:<br>
+<div class="a" style="--bg: green; --width: 200px;"></div>
+<br><br>
+Variable set by CSS rule matching element:<br>
+<div class="b"></div>
+<br><br>
+Variable set by CSS rule matching pseudo element:<br>
+<div class="c"></div>

@@ -1,0 +1,8 @@
+display-none visible: false
+content-visibility-parent visible: true
+content-visibility-child visible: false
+opacity-hidden visible: false
+opacity-visible visible: true
+visibility-hidden visible: false
+visibility-visible visible: true
+content-visibility-auto-hidden visible: true

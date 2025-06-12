@@ -1,0 +1,52 @@
+-------------
+ArrayBuffer
+-------------
+Hello from wasm!!!!!!
+-------------
+Uint8Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Uint8ClampedArray
+-------------
+Hello from wasm!!!!!!
+-------------
+Uint16Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Uint32Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Int8Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Int16Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Float32Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Float64Array
+-------------
+Hello from wasm!!!!!!
+-------------
+BigUint64Array
+-------------
+Hello from wasm!!!!!!
+-------------
+BigInt64Array
+-------------
+Hello from wasm!!!!!!
+-------------
+DataView
+-------------
+Hello from wasm!!!!!!
+-------------
+WebAssembly.Module
+-------------
+Hello from wasm!!!!!!

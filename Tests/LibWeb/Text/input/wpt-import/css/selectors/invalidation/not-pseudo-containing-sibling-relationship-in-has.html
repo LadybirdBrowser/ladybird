@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selectors Test: :has(:not()) invalidation for sibling change</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+  #test-container > div { background-color: green; }
+  #target1:has(:not(.item, :nth-child(3))) { background-color: red; }
+  #target2:has(:not(.item, :nth-last-child(3))) { background-color: red; }
+</style>
+<div id="test-container">
+  <div id="target1">
+    <div class="item"></div>
+    <div id="item1">This text should have a green background</div>
+  </div>
+  <div id="target2">
+    <div id="item2">This text should have a green background</div>
+    <div class="item"></div>
+  </div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target1).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target2).backgroundColor, "rgb(255, 0, 0)");
+  }, "Initially red");
+
+  function insertDivItemBefore(item) {
+    let div = document.createElement("div");
+    div.classList.add("item");
+    item.parentElement.insertBefore(div, item);
+  }
+
+  function insertDivItemAfter(item) {
+    let div = document.createElement("div");
+    div.classList.add("item");
+    item.parentElement.append(div, item.nextSibling);
+  }
+
+  test(() => {
+    insertDivItemBefore(item1);
+    assert_equals(getComputedStyle(target1).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-child() enclosed by :not() matching after insertion");
+
+  test(() => {
+    insertDivItemAfter(item2);
+    assert_equals(getComputedStyle(target2).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-last-child() enclosed by :not() matching after insertion");
+</script>

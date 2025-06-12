@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<body>
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-4/#mf-dimensions">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+
+async function createFrameAndUpdateLayout(test) {
+    const iframe = await new Promise((resolve) => {
+        const iframe = document.createElement('iframe');
+        iframe.style.width = '100px';
+        iframe.style.height = '100px';
+        iframe.onload = () => resolve(iframe);
+        document.body.appendChild(iframe);
+        test.add_cleanup(() => iframe.remove());
+    });
+    iframe.contentDocument.body.innerHTML = '<span>some content</span>';
+    window.preventOptimization1 = iframe.getBoundingClientRect();
+    window.preventOptimization2 = iframe.contentDocument.querySelector('span').getBoundingClientRect();
+    return iframe;
+}
+
+for (const query of ['(max-width: 150px)', '(width: 100px)', '(orientation: portrait)', '(aspect-ratio: 1/1)', '(max-aspect-ratio: 4/3)']) {
+    promise_test(async function () {
+        const iframe = await createFrameAndUpdateLayout(this);
+        const mediaQuery = iframe.contentWindow.matchMedia(query);
+        assert_true(mediaQuery.matches);
+        iframe.style.width = '200px';
+        assert_false(mediaQuery.matches);
+    }, `matchMedia('${query}').matches should update immediately`);
+}
+
+for (const query of ['(height: 100px)', '(max-height: 150px)', '(min-aspect-ratio: 3/4)']) {
+    promise_test(async function () {
+        const iframe = await createFrameAndUpdateLayout(this);
+        const mediaQuery = iframe.contentWindow.matchMedia(query);
+        assert_true(mediaQuery.matches);
+        iframe.style.height = '200px';
+        assert_false(mediaQuery.matches);
+    }, `matchMedia('${query}').matches should update immediately`);
+}
+
+for (const query of ['(min-height: 150px)', '(aspect-ratio: 1/2)']) {
+    promise_test(async function () {
+        const iframe = await createFrameAndUpdateLayout(this);
+        const mediaQuery = iframe.contentWindow.matchMedia(query);
+        assert_false(mediaQuery.matches);
+        iframe.style.height = '200px';
+        assert_true(mediaQuery.matches);
+    }, `matchMedia('${query}').matches should update immediately`);
+}
+
+for (const query of ['(min-width: 150px)', '(min-aspect-ratio: 4/3)']) {
+    promise_test(async function () {
+        const iframe = await createFrameAndUpdateLayout(this);
+        const mediaQuery = iframe.contentWindow.matchMedia(query);
+        assert_false(mediaQuery.matches);
+        iframe.style.width = '200px';
+        assert_true(mediaQuery.matches);
+    }, `matchMedia('${query}').matches should update immediately`);
+}
+
+for (const query of ['(max-width: 150px)', '(width: 100px)', '(orientation: portrait)', '(aspect-ratio: 1/1)', '(max-aspect-ratio: 4/3)']) {
+    promise_test(async function () {
+        const iframe = await createFrameAndUpdateLayout(this);
+        const mediaQuery = iframe.contentWindow.matchMedia(query);
+        let changes = 0;
+        mediaQuery.addEventListener('change', () => ++changes);
+        assert_true(mediaQuery.matches);
+        assert_equals(changes, 0);
+        iframe.style.width = '200px';
+        assert_false(mediaQuery.matches);
+        assert_equals(changes, 0);
+        await new Promise(requestAnimationFrame);
+        assert_false(mediaQuery.matches);
+        assert_equals(changes, 1);
+    }, `matchMedia('${query}') should not receive a change event until update the rendering step of HTML5 event loop`);
+}
+
+for (const query of ['(max-width: 150px)', '(width: 100px)', '(orientation: portrait)', '(aspect-ratio: 1/1)', '(max-aspect-ratio: 4/3)']) {
+    promise_test(async function () {
+        const iframe = await createFrameAndUpdateLayout(this);
+        const mediaQuery = iframe.contentWindow.matchMedia(query);
+        const events = [];
+        iframe.contentWindow.addEventListener('resize', () => {
+            assert_array_equals(events, []);
+            events.push('resize');
+        });
+        mediaQuery.addEventListener('change', () => events.push('change'));
+        assert_true(mediaQuery.matches);
+        assert_array_equals(events, []);
+        iframe.style.width = '200px';
+        assert_false(mediaQuery.matches);
+        assert_array_equals(events, []);
+        await new Promise(requestAnimationFrame);
+        assert_false(mediaQuery.matches);
+        assert_array_equals(events, ['resize', 'change']);
+    }, `matchMedia('${query}') should receive a change event after resize event on the window but before a requestAnimationFrame callback is called`);
+}
+
+</script>
+</body>
+</html>

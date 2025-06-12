@@ -1,0 +1,18 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 0x0 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 0x0 children: not-inline
+      BlockContainer <div.pow> at (8,8) content-size 80x0 children: not-inline
+        BlockContainer <div.sqrt> at (8,8) content-size 100x0 children: not-inline
+          BlockContainer <div.hypot> at (8,8) content-size 120x0 children: not-inline
+            BlockContainer <div.log> at (8,8) content-size 140x0 children: not-inline
+              BlockContainer <div.exp> at (8,8) content-size 160x0 children: inline
+                TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 0x0]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 0x0]
+      PaintableWithLines (BlockContainer<DIV>.pow) [8,8 80x0]
+        PaintableWithLines (BlockContainer<DIV>.sqrt) [8,8 100x0]
+          PaintableWithLines (BlockContainer<DIV>.hypot) [8,8 120x0]
+            PaintableWithLines (BlockContainer<DIV>.log) [8,8 140x0]
+              PaintableWithLines (BlockContainer<DIV>.exp) [8,8 160x0]

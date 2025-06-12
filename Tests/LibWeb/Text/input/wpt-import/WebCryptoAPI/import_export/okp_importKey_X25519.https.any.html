@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>WebCryptoAPI: importKey() for OKP keys</title>
+<meta name="timeout" content="long">
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../util/helpers.js"></script>
+<script src="okp_importKey_fixtures.js"></script>
+<script src="okp_importKey.js"></script>
+<div id=log></div>
+<script src="../../WebCryptoAPI/import_export/okp_importKey_X25519.https.any.js"></script>

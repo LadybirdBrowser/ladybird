@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Containment Test: Paint containment absolutely positioned descendants</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-paint">
+<link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+<meta name=assert content="Paint containment doesn't apply to non-atomic inline elements so they don't act as containing block for absolutely positioned descendants.">
+<style>
+#containing-block {
+  position: relative;
+  background: red;
+  width: 100px;
+  height: 100px;
+}
+
+#contain-paint {
+  contain: paint;
+}
+
+#abspos {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: green;
+  width: 100%;
+  height: 100%;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="containing-block">
+  <span id="contain-paint">
+    <div id="abspos"></div>
+  </span>
+</div>

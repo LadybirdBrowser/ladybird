@@ -1,0 +1,15 @@
+<!doctype html>
+<div id="target" style="background: yellow">Hello</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let target = document.getElementById("target");
+        let style = target.style;
+        println(`style.cssText = ${style.cssText}`);
+        println(`style.length = ${style.length}`);
+        println(`style[] =`);
+        for (let i = 0; i < style.length; ++i) {
+            println(`${i+1}. ${style[i]}`);
+        }
+    });
+</script>

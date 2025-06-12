@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: image stretch</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="This test ensures that flexbox stretches a given image
+to fit the size of flexitem according to flex values.">
+<style>
+.flexbox {
+    width: 600px;
+    display: flex;
+    background-color: #aaa;
+    position: relative;
+    min-height: 10px;
+}
+.flexbox > * {
+    margin: 0;
+    border: 0;
+    padding: 0;
+    min-width: 0;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox">
+  <img data-expected-display="block" data-expected-width="345" data-expected-height="345" style="flex: 1 0 auto;" src="support/100x100-blue.png">
+  <img data-expected-display="block" data-expected-width="255" data-expected-height="345" style="flex: 1 0 auto;" src="support/10x10-green.png">
+</div>
+
+</body>

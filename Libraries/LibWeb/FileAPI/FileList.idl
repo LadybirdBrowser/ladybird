@@ -1,0 +1,8 @@
+#import <FileAPI/File.idl>
+
+// https://w3c.github.io/FileAPI/#filelist-section
+[Exposed=(Window,Worker), Serializable]
+interface FileList {
+    getter File? item(unsigned long index);
+    readonly attribute unsigned long length;
+};

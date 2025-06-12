@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#valdef-justify-self-last-baseline">
+<style>
+.target {
+  display: flex;
+  inline-size: 100px;
+  position: relative;
+  line-height: 0;
+  padding: 10px;
+}
+.target > div {
+  background: hotpink;
+  font-size: 30px;
+}
+.line-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  border: solid 10px;
+  font-size: 40px !important;
+  overflow: hidden;
+}
+.line-clamp div {
+  background: orange;
+}
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cyan 3px;
+  outline-offset: -3px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target > *')">
+
+<!-- Five lines -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="30"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><br><span></span><br><span></span><br><span></span><br><span></span>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="110"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><br><span></span><br><span></span><br><span></span><br><span></span>
+  </div>
+</div>
+
+<!-- Two lines -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="30"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><br><span></span>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="70"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><br><span></span>
+  </div>
+</div>
+
+<!-- Three lines -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="30"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><br><span></span><br><span></span>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="110"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><br><span></span><br><span></span>
+  </div>
+</div>
+
+
+<!-- Wrapping div -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="30"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <div><span></span><br><span></span><br><span></span><br><span></span><br><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="110"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <div><span></span><br><span></span><br><span></span><br><span></span><br><span></span></div>
+  </div>
+</div>
+
+<!-- Nested div after first line -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="30"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><div><span></span><br><span></span><br><span></span><br><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="110"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><div><span></span><br><span></span><br><span></span><br><span></span></div>
+  </div>
+</div>
+
+<!-- Block within inline. -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-y="30"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><br><i><span></span><div><span></span><br><span></span><br><span></span></div></i>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-y="110"><span></span></div>
+  <div class="line-clamp" data-offset-y="10">
+    <span></span><br><i><span></span><div><span></span><br><span></span><br><span></span></div></i>
+  </div>
+</div>

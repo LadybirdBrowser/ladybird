@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+div { height: 200vh; }
+</style>
+<div></div>
+<script>
+    window.scrollTo(0, 200);
+    test(() => {
+        println(`Scroll position: ${window.scrollY}px`);
+    });
+</script>

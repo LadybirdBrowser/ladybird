@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: location pseudo classes in :has() argument</title>
+<link rel="author" title="Byungwoo Lee" href="blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #parent1:has(:link) { color: green }
+  #parent1:has(:visited) { color: yellowgreen }
+</style>
+<div id=parent1>
+  <div>parent color must be blue with
+    <a id=link1 href="#unvisited">visited link</a>
+  </div>
+</div>
+<script>
+  test(() => {
+    history.replaceState({}, "", "#visited");
+
+    assert_equals(getComputedStyle(parent1).color, "rgb(0, 128, 0)",
+                  "parent should be green");
+
+    link1.href = "#visited";
+
+    assert_equals(getComputedStyle(parent1).color, "rgb(0, 128, 0)",
+                  "parent should be still green");
+  });
+</script>

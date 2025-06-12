@@ -1,0 +1,26 @@
+<style>
+* {
+  counter-reset: reversed(counter_3) reversed(counter_4) 64 reversed(counter_5) -8772;
+  contain: layout paint style inline-size !important;
+}
+</style>
+<script>
+window.addEventListener("load", () => {
+  let a = document.documentElement
+  let b = document.getElementById("o1")
+  let c = document.getElementById("o3")
+  let d = new Range()
+  document.documentElement.style.display = "none"
+  document.documentElement.getBoundingClientRect()
+  document.documentElement.style.display = ""
+  d.setStartAfter(document.getElementById("o2"))
+  try { document.prepend("", document.documentElement) } catch (e) {}
+  d.surroundContents(b)
+  try { b.prepend(a, c) } catch (e) {}
+  b.scrollIntoView({ })
+  a.style.display = "none"
+})
+</script>
+<br id="o1">
+<li id="o2">
+<input id="o3">

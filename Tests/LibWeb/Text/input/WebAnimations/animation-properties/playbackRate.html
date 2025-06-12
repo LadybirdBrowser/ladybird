@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+        const timeline = internals.createInternalAnimationTimeline();
+        const animation = foo.animate({ opacity: [0, 1] }, { duration: 1000, timeline });
+        animation.playbackRate = 2;
+
+        timeline.setTime(100);
+        if (animation.currentTime === 200)
+            println("Animation has expected currentTime value after 100ms");
+
+        animation.playbackRate = 0.5;
+        timeline.setTime(200);
+        if (animation.currentTime === 250)
+            println("Animation has expected currentTime value after 200ms");
+
+        animation.playbackRate = -1;
+        timeline.setTime(300);
+        if (animation.currentTime === 150)
+            println("Animation has expected currentTime value after 300ms");
+
+        animation.playbackRate = 0;
+        const originalTime = animation.currentTime;
+        timeline.setTime(400);
+        if (animation.currentTime === originalTime)
+            println("Animation has expected currentTime value after 400ms");
+    });
+</script>

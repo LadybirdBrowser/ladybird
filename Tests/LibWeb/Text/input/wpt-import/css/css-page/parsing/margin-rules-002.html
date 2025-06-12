@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-page-3/#margin-at-rules">
+<meta name="assert" content="Test parsing of margin rule with/without preceding/following @page properties">
+<style id="nothing">
+  @page {
+    @top-center {
+      content: "PASS";
+    }
+  }
+</style>
+<style id="propertiesAfter">
+  @page {
+    @top-center {
+      content: "PASS";
+    }
+    padding-left: 10px;
+  }
+</style>
+<style id="propertiesBefore">
+  @page {
+    padding-left: 10px;
+    @top-center {
+      content: "PASS";
+    }
+  }
+</style>
+<style id="propertiesBetween">
+  @page {
+    padding-left: 666px;
+    @top-left {
+      content: "left";
+    }
+    padding-left: 10px;
+    @top-right {
+      content: "right";
+    }
+  }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  test(()=>{
+    assert_equals(nothing.sheet.rules.length, 1);
+    let pagerule = nothing.sheet.rules[0];
+    assert_equals(pagerule.cssRules.length, 1);
+    let marginrule = pagerule.cssRules[0];
+    assert_equals(marginrule.style.content, "\"PASS\"");
+  }, "margin rule without any preceding @page properties");
+
+  test(()=>{
+    assert_equals(propertiesAfter.sheet.rules.length, 1);
+    let pagerule = propertiesAfter.sheet.rules[0];
+    assert_equals(pagerule.cssRules.length, 1);
+    let marginrule = pagerule.cssRules[0];
+    assert_equals(marginrule.style.content, "\"PASS\"");
+    assert_equals(pagerule.style.paddingLeft, "10px");
+  }, "margin rule followed by @page properties");
+
+  test(()=>{
+    assert_equals(propertiesAfter.sheet.rules.length, 1);
+    let pagerule = propertiesAfter.sheet.rules[0];
+    assert_equals(pagerule.cssRules.length, 1);
+    let marginrule = pagerule.cssRules[0];
+    assert_equals(marginrule.style.content, "\"PASS\"");
+    assert_equals(pagerule.style.paddingLeft, "10px");
+  }, "margin rule preceded by @page properties");
+
+  test(()=>{
+    assert_equals(propertiesBetween.sheet.rules.length, 1);
+    let pagerule = propertiesBetween.sheet.rules[0];
+    assert_equals(pagerule.cssRules.length, 2);
+    let marginrule = pagerule.cssRules[0];
+    assert_equals(marginrule.style.content, "\"left\"");
+    marginrule = pagerule.cssRules[1];
+    assert_equals(marginrule.style.content, "\"right\"");
+    assert_equals(pagerule.style.paddingLeft, "10px");
+  }, "margin rules with @page properties between");
+</script>

@@ -1,0 +1,21 @@
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#OfflineAudioContextOptions
+dictionary OfflineAudioContextOptions {
+    unsigned long numberOfChannels = 1;
+    required unsigned long length;
+    required float sampleRate;
+    // FIXME: (AudioContextRenderSizeCategory or unsigned long) renderSizeHint = "default";
+};
+
+// https://webaudio.github.io/web-audio-api/#OfflineAudioContext
+[Exposed=Window]
+interface OfflineAudioContext : BaseAudioContext {
+    constructor(OfflineAudioContextOptions contextOptions);
+    constructor(unsigned long numberOfChannels, unsigned long length, float sampleRate);
+    Promise<AudioBuffer> startRendering();
+    Promise<undefined> resume();
+    Promise<undefined> suspend(double suspendTime);
+    readonly attribute unsigned long length;
+    attribute EventHandler oncomplete;
+};

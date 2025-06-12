@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS display property</title>
+<link rel="help" href="https://drafts.csswg.org/css-display/#the-display-properties">
+<meta name="assert" content="Property 'display' does not inherit.">
+<meta name="assert" content="Property 'display' has initial value 'inline'.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+<div id="target"></div>
+</div>
+<script>
+assert_not_inherited('display', 'inline', 'table');
+</script>
+</body>
+</html>

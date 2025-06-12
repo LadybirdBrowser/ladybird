@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	::part():lang() invalidation
+Fail	::part():lang() invalidation from setAttribute

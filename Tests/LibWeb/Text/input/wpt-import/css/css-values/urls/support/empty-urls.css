@@ -1,0 +1,9 @@
+#external-unquoted {
+    background-image: url();
+    cursor: url(), pointer;
+}
+
+#external-quoted {
+    background-image: url("");
+    cursor: url(""), pointer;
+}

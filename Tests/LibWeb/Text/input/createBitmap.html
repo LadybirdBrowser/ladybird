@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<canvas id="test" width="2" height="2" hidden="hidden"></canvas>
+<script>
+    asyncTest((done) => {
+        // The blob is a JXL image for a 2x2 checkerboard
+        // Made with the following tree on https://jxl-art.lucaversari.it/:
+        // Width 2
+        // Height 2
+        // Bitdepth 8
+        // if N > 0
+        //   - Set 0
+        //   - Set 255
+
+        let file = new Blob([new Uint8Array([255, 10, 8, 16, 0, 9, 8, 6, 1, 0, 40, 0, 75, 56, 73, 152, 108, 128, 253, 145, 96, 0])]);
+
+        createImageBitmap(file, 0, 0, 0, 0).catch((err) => println(err));
+
+        createImageBitmap(file).then((bitmap) => {
+            if (bitmap.width !== 2 || bitmap.height !== 2)
+                println(`Unexpected size for image bitmap: '${bitmap.width}'x'${bitmap.height}'`);
+
+            const canvas = document.getElementById("test");
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(bitmap, 0, 0)
+
+            function is_pixel_wrong(coord, color) {
+                let pixel = ctx.getImageData(coord[0], coord[1], 1, 1).data;
+
+                if (pixel[3] !== 255)
+                    return true;
+
+                if (color === 'white')
+                    return pixel[0] !== 255 || pixel[1] !== 255 || pixel[2] !== 255;
+
+                return pixel[0] !== 0 || pixel[1] !== 0 || pixel[2] !== 0;
+            }
+
+            if (is_pixel_wrong([0, 0], 'white') || is_pixel_wrong([0, 1], 'black') ||
+                is_pixel_wrong([1, 0], 'black') || is_pixel_wrong([1, 1], 'white'))
+                println(`Invalid value in the bitmap`);
+            else
+                println(`Bitmap is correctly loaded`);
+
+            done();
+        })
+    });
+</script>

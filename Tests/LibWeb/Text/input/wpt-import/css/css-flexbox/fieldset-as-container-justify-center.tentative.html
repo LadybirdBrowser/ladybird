@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://crbug.com/1229458">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/8690">
+<link rel="help" href="https://github.com/whatwg/html/issues/9123">
+<link rel="help"
+  href="https://html.spec.whatwg.org/multipage/rendering.html#anonymous-fieldset-content-box">
+<meta name="assert"
+  content="justify-content: center is ignored in a column flexbox fieldset when the anonymous fieldset content box has no height or min-height.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+  fieldset {
+    display: flex;
+    flex-flow: column;
+    justify-content: center;
+    align-items: center;
+    width: 200px;
+    min-height: 200px;
+    padding: 0px;
+    border: 1px solid;
+    position: relative;
+  }
+
+  .item {
+    height: 100px;
+    width: 100px;
+    background: orange;
+  }
+
+</style>
+<p>Pass Condition: orange square is at top of black square.<br>
+  Safari 16.4 and Firefox 111 fail -- orange box is vertically centered as if
+  the anonymous fieldset content box and the fieldset were the same box.
+</p>
+
+<fieldset>
+  <div class="item" data-offset-y="0"></div>
+</fieldset>
+
+<script>
+  checkLayout('.item');
+</script>

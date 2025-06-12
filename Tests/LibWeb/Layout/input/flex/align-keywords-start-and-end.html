@@ -1,0 +1,28 @@
+<!doctype html><style>
+* { 
+    border: 1px solid black;
+}
+.flex {
+    display: flex;
+    width: 500px;
+    background: pink;
+}
+.row {
+    flex-direction: row;
+    height: 200px;
+}
+.column {
+    flex-direction: column;
+}
+.flex > div {
+    background: orange;
+}
+.align-start {
+    align-items: start;
+}
+.align-end {
+    align-items: end;
+}
+</style>
+<div class="flex row align-start"><div>align-items: start</div></div><div class="flex align-end"><div>align-items: end</div></div>
+<div class="flex align-start"><div>align-items: start</div></div><div class="flex column align-end"><div>align-items: end</div></div>

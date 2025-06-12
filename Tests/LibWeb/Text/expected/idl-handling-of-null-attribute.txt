@@ -1,0 +1,2 @@
+initial type = ''
+after setting to null = 'null'

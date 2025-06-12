@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://html.spec.whatwg.org/#link-type-stylesheet:process-the-linked-resource">
+<link rel="help" href="https://html.spec.whatwg.org/#content-type">
+<link rel="help" href="https://mimesniff.spec.whatwg.org/#mime-type-representation">
+<link rel="match" href="../../../../../../../expected/wpt-import/html/semantics/links/linktypes/link-type-stylesheet/process-stylesheet-linked-resource-ascii-case-insensitive-ref.html">
+<meta name="assert" content="link@type values for stylesheet resources are ASCII case-insensitive">
+<link rel="stylesheet" href="support/process-stylesheet-linked-resource-ascii-case-insensitive.css">
+<link rel="stylesheet" href="support/process-stylesheet-linked-resource-ascii-case-insensitive-lower.css" type="text/css">
+<link rel="stylesheet" href="support/process-stylesheet-linked-resource-ascii-case-insensitive-mixed.css" type="TeXt/CsS">
+<link rel="stylesheet" href="support/process-stylesheet-linked-resource-ascii-case-insensitive-other.css" type="text/cſs">
+<p id="z-lower">text/css treated as CSS?
+<p id="z-mixed">TeXt/CsS treated as CSS?
+<p id="z-other">text/cſs ignored?

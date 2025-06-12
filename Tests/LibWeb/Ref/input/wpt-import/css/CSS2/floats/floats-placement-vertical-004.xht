@@ -1,0 +1,15 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>CSS Test: Test for float placement rules</title>
+<link rel="author" title="Robert O'Callahan" href="mailto:robert@ocallahan.org" />
+<link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+<link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#float-position" />
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-placement-vertical-004-ref.xht"/>
+<meta name="assert" content="A floating box must be placed as high as possible. " />
+</head><body style="width:200px; font-size:5px;">
+<!-- Check that we're actually taking inline content already in the line into account
+     when we check whether the blue float fits -->
+<div style="background:green; width:100px; height:100px; float:left;"></div>
+H
+<div style="background:blue; width:100px; height:100px; float:left;"></div>
+
+
+</body></html>

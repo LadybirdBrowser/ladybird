@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	In the default case, ie. with no translate attribute in the page, javascript will detect the translation mode of text as translate-enabled.

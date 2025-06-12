@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS UI Level 4: parsing user-select with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-ui-4/#content-selection">
+<meta name="assert" content="user-select supports the full grammar 'auto | text | none | contain | all'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("user-select", "auto");
+test_valid_value("user-select", "text");
+test_valid_value("user-select", "none");
+test_valid_value("user-select", "contain");
+test_valid_value("user-select", "all");
+</script>
+</body>
+</html>

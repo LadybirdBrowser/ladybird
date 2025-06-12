@@ -1,0 +1,4 @@
+spanRule: [object CSSStyleRule] ~ span { color: purple; }
+spanRule.style: [object CSSStyleProperties] ~ span { color: purple; }
+spanRule.style.parentRule: [object CSSStyleRule] ~ span { color: purple; }
+spanRule.style.parentRule === spanRule: true

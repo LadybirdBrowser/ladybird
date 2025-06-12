@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Matches :has pseudo class to uninserted elements</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+
+<script>
+  // Test that |selector| returns matching status.
+  function test_matches(node, selector, expected) {
+    test(function() {
+      assert_equals(node.matches(selector), expected);
+    }, `${selector} matches expectedly`);
+  }
+
+  subject = document.createElement('subject');
+
+  subject.innerHTML = '<child></child>';
+  test_matches(subject, ':has(child)', true);
+  test_matches(subject, ':has(> child)', true);
+
+  subject.innerHTML = '<child><descendant></descendant></child>';
+  test_matches(subject, ':has(descendant)', true);
+  test_matches(subject, ':has(> descendant)', false);
+
+  subject.innerHTML = '<child></child><direct_sibling></direct_sibling><indirect_sibling></indirect_sibling>';
+  test_matches(subject.firstChild, ':has(~ direct_sibling)', true);
+  test_matches(subject.firstChild, ':has(+ direct_sibling)', true);
+  test_matches(subject.firstChild, ':has(~ indirect_sibling)', true);
+  test_matches(subject.firstChild, ':has(+ indirect_sibling)', false);
+
+  test_matches(subject, ':has(*)', true);
+  test_matches(subject, ':has(> *)', true);
+  test_matches(subject, ':has(~ *)', false);
+  test_matches(subject, ':has(+ *)', false);
+</script>

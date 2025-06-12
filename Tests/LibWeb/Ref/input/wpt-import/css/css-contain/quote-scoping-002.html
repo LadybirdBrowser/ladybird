@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>CSS-contain test: style containment and close-quote</title>
+  <link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+  <meta name=flags content="">
+  <meta name=assert content="style containment cause the close-quote value of the content property are scoped to the element's subtree">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/quote-scoping-002-ref.html">
+  <link rel=help href="https://drafts.csswg.org/css-contain-1/#containment-style">
+
+<style>
+
+div {
+  quotes: "A" "Z" "1" "9";
+}
+div::before {
+  content: open-quote;
+}
+div::after, span::after {
+  content: close-quote;
+}
+span {
+  contain: style;
+}
+</style>
+
+<p>Test passes if the text below is "AZZ" (not including the quotation marks).<p>
+<div><span></span></div>

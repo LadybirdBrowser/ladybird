@@ -1,0 +1,9 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x16 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x0 [GFC] children: not-inline
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
+    PaintableBox (Box<BODY>) [8,8 784x0]

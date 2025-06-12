@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/invalidate-css-transform-property-ref.html" />
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+    }
+</style>
+<div id="box"></div>
+<script>
+    window.onload = function () {
+        const box = document.getElementById("box");
+        box.style.transform = "translate(50px, 50px)";
+    };
+</script>

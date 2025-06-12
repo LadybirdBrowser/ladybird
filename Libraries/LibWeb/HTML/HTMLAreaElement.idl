@@ -1,0 +1,26 @@
+#import <Fetch/Request.idl>
+#import <HTML/HTMLElement.idl>
+#import <HTML/HTMLHyperlinkElementUtils.idl>
+
+// https://html.spec.whatwg.org/multipage/image-maps.html#htmlareaelement
+[Exposed=Window]
+interface HTMLAreaElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute DOMString alt;
+    [CEReactions, Reflect] attribute DOMString coords;
+    [CEReactions, Reflect] attribute DOMString shape;
+    [CEReactions, Reflect] attribute DOMString target;
+    [CEReactions, Reflect] attribute DOMString download;
+    [CEReactions, Reflect] attribute USVString ping;
+    [CEReactions, Reflect] attribute DOMString rel;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
+
+    // Obsolete
+    [Reflect=nohref] attribute boolean noHref;
+
+};
+
+HTMLAreaElement includes HTMLHyperlinkElementUtils;

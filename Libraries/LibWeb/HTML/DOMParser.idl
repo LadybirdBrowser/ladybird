@@ -1,0 +1,17 @@
+#import <DOM/Document.idl>
+
+enum DOMParserSupportedType {
+    "text/html",
+    "text/xml",
+    "application/xml",
+    "application/xhtml+xml",
+    "image/svg+xml"
+};
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#domparser
+[Exposed=Window]
+interface DOMParser {
+    constructor();
+
+    Document parseFromString(DOMString string, DOMParserSupportedType type);
+};

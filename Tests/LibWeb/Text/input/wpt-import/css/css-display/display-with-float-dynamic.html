@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Computed float value of flex/grid items</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-containers">
+<meta name="assert" content="computed float value of flex/grid items should be as specified">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="flex" style="display:flex;">
+  <div id="flex-item"></div>
+</div>
+<div id="grid" style="display:grid;">
+  <div id="grid-item">
+</div>
+<script>
+  function setFloatFor(id, float) {
+    document.getElementById(id).style.cssFloat = float;
+  }
+  function getFloatFor(id) {
+    return window.getComputedStyle(document.getElementById(id)).getPropertyValue("float");
+  }
+  function setDisplayBlock(id) {
+    document.getElementById(id).style.display = "block";
+  }
+  test(function() {
+    assert_equals(getFloatFor("flex-item"), "none");
+    assert_equals(getFloatFor("grid-item"), "none");
+
+    setFloatFor("flex-item", "left");
+    setFloatFor("grid-item", "right");
+    assert_equals(getFloatFor("flex-item"), "left");
+    assert_equals(getFloatFor("grid-item"), "right");
+
+    setDisplayBlock("grid");
+    setDisplayBlock("flex");
+    assert_equals(getFloatFor("flex-item"), "left");
+    assert_equals(getFloatFor("grid-item"), "right");
+  }, "computed style for float");
+</script>

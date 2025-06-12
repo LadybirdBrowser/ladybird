@@ -1,0 +1,25 @@
+<!doctype html>
+<title>document.write plaintext</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div><script>
+var t = async_test();
+
+t.step(function() {
+  document.write("<plaintext>");
+  assert_equals(document.body.childNodes[2].nodeType, document.ELEMENT_NODE);
+  assert_equals(document.body.childNodes[2].localName, "plaintext");
+  var s = "Filler ";
+  for (var i=0; i<s.length; i++) {
+    document.write(s[i]);
+    assert_equals(document.body.childNodes[2].textContent, s.slice(0,i+1));
+  }
+  document.close();
+});
+
+onload = function() {
+  t.step(function() {
+    assert_equals(document.body.childNodes[2].textContent, "Filler Text\n");
+  });
+  t.done();
+}
+</script>Text

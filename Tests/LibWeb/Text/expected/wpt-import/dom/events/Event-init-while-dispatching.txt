@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Calling initKeyboardEvent while dispatching.
+Pass	Calling initMouseEvent while dispatching.
+Pass	Calling initCustomEvent while dispatching.
+Pass	Calling initUIEvent while dispatching.
+Pass	Calling initEvent while dispatching.

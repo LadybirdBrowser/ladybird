@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-area with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-area">
+<meta name="assert" content="grid-area supports only the grammar '<grid-line> [ / <grid-line> ]{0,3}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("grid-area", "'string'");
+test_invalid_value("grid-row", "1.0");
+test_invalid_value("grid-column", "1 2");
+test_invalid_value("grid-row-start", "+-3");
+test_invalid_value("grid-column-start", "0");
+test_invalid_value("grid-row-end", "span");
+test_invalid_value("grid-column-end", "sPaN");
+test_invalid_value("grid-column-end", '"1st"');
+test_invalid_value("grid-column-end", "1st");
+test_invalid_value("grid-column-start", "auto 1");
+test_invalid_value("grid-row-start", "1 auto");
+
+test_invalid_value("grid-area", "auto / initial");
+test_invalid_value("grid-row", "auto / inherit");
+test_invalid_value("grid-column", "auto / unset");
+
+test_invalid_value("grid-area", "auto / auto / auto / auto / auto");
+test_invalid_value("grid-row", "1 / 2 / 3")
+test_invalid_value("grid-column", "a / b / c");
+test_invalid_value("grid-row-end", "span 1 / span 2");
+test_invalid_value("grid-area", "auto 2 auto 4");
+test_invalid_value("grid-row", "33 -A0 auto");
+test_invalid_value("grid-row", "auto i 2 j span 3 k");
+
+
+// https://github.com/w3c/csswg-drafts/issues/2856
+test_invalid_value("grid-row-end", "1 auto");
+test_invalid_value("grid-row-end", "span 1 auto");
+test_invalid_value("grid-row-end", "span auto 1");
+test_invalid_value("grid-row-end", "1 auto span");
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="one"></div><div id="two"></div><script>
+    test(() => {
+        let one = document.getElementById("one");
+        let two = document.getElementById("two");
+        two.before(one);
+        printElement(one);
+        printElement(one.nextSibling);
+        printElement(two);
+        printElement(two.previousSibling);
+        println("PASS (didn't crash)");
+    });
+</script>

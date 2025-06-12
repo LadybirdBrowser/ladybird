@@ -1,0 +1,7 @@
+Calling cancel() aborts the ready promise with an error of type AbortError: true
+Calling cancel() aborts the finished promise with an error of type AbortError: true
+Calling cancel() recreates the ready promise: true
+Calling cancel() recreates the finished promise: true
+Calling cancel() resets the start time: true
+Calling cancel() sends a cancel event: true
+Calling cancel() does not send a finish or remove event: true

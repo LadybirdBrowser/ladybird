@@ -1,0 +1,8 @@
+.qmake.stash
+Makefile
+*.o
+moc_*
+Build
+build
+CMakeLists.txt.user
+Android/src/main/assets/

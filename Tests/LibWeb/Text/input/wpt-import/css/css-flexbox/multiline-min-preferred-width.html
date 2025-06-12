@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: nested multiline (wrapping) flex boxes.</title>
+<link rel="stylesheet" href="support/flexbox.css" >
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#flex-wrap-property">
+<meta name="assert" content="This test ensures that nested multiline flex boxes with 'flex-wrap: wrap' and the min preferred width set are laid out properly."/>
+<style>
+.item {
+  padding: 7px;
+  background-color: green;
+  border: 4px solid olive;
+  width: min-content;
+}
+
+.square {
+  background-color: lime;
+  width: 20px;
+  height: 20px;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+</head>
+<body onload="checkLayout('.container')">
+<div id=log></div>
+
+<div class="container flexbox wrap" data-expected-height=42>
+  <div class="item flexbox wrap" data-expected-width=42 data-expected-height=42>
+    <div class="square" data-expected-width=20 data-expected-height=20></div>
+  </div>
+</div>
+
+</body>
+</html>

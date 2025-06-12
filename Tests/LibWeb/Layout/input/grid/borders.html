@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<style>
+* {
+    font: 16px SerenitySans;
+}
+  .grid-container {
+    display: grid;
+    background-color: lightsalmon;
+  }
+
+  .grid-item {
+    background-color: lightblue;
+    border: 10px solid black;
+  }
+</style>
+
+<div class="grid-container" style="grid-template-columns: auto auto;">
+  <div class="grid-item">1</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">3</div>
+  <div class="grid-item">4</div>
+</div>
+
+<div class="grid-container" style="grid-template-columns: auto auto;">
+  <div class="grid-item" style="height: 50px;">1</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">3</div>
+  <div class="grid-item">4</div>
+</div>
+
+<div class="grid-container" style="
+    grid-template-columns: auto auto;
+    gap: 10px 50px;
+  ">
+  <div class="grid-item">1</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">3</div>
+  <div class="grid-item">4</div>
+</div>
+
+<div class="grid-container" style="
+    grid-template-columns: auto auto;
+    gap: calc(1vh + 10px) calc(10% - 10px);
+  ">
+  <div class="grid-item" style="grid-column: 2 / span 1">1</div>
+  <div class="grid-item">2</div>
+</div>
+
+<div class="grid-container" style="
+    height: 50px;
+    grid-template-columns: minmax(150px, 300px) minmax(150px, 300px);
+    grid-template-rows: minmax(25px, 50px) minmax(25px, 50px);
+  ">
+  <div class="grid-item">1</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">2</div>
+</div>
+
+<div class="grid-container" style="grid-template-rows: 20px;">
+  <div class="grid-item">1</div>
+</div>

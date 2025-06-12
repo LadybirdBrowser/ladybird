@@ -1,0 +1,25 @@
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#AnalyserOptions
+dictionary AnalyserOptions : AudioNodeOptions {
+    unsigned long fftSize = 2048;
+    double maxDecibels = -30;
+    double minDecibels = -100;
+    double smoothingTimeConstant = 0.8;
+};
+
+// https://webaudio.github.io/web-audio-api/#AnalyserNode
+[Exposed=Window]
+interface AnalyserNode : AudioNode {
+    constructor (BaseAudioContext context, optional AnalyserOptions options = {});
+    undefined getFloatFrequencyData (Float32Array array);
+    undefined getByteFrequencyData (Uint8Array array);
+    undefined getFloatTimeDomainData (Float32Array array);
+    undefined getByteTimeDomainData (Uint8Array array);
+    attribute unsigned long fftSize;
+    readonly attribute unsigned long frequencyBinCount;
+    attribute double minDecibels;
+    attribute double maxDecibels;
+    attribute double smoothingTimeConstant;
+};

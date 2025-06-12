@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: getComputedStyle().fontFeatureSettings</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-feature-settings-prop">
+<meta name="assert" content="The computed value of font-feature-settings is a map, so any duplicates in the specified value must not be preserved.">
+<!-- Note that this conflicts with the computed value being "as specified", which the summary shows.
+     See https://github.com/w3c/csswg-drafts/issues/8296#issuecomment-1377622802 -->
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<style>
+  #container {
+    container-type: inline-size;
+    width: 100px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+test_computed_value('font-feature-settings', 'normal');
+
+test_computed_value('font-feature-settings', '"dlig"');
+test_computed_value('font-feature-settings', '"smcp"');
+test_computed_value('font-feature-settings', '"c2sc"');
+test_computed_value('font-feature-settings', '"liga" 0');
+test_computed_value('font-feature-settings', '"tnum", "hist"', '"hist", "tnum"');
+
+test_computed_value('font-feature-settings', '"PKRN"');
+
+test_computed_value('font-feature-settings', '"dlig", "smcp", "dlig" 0', '"dlig" 0, "smcp"');
+
+test_computed_value('font-feature-settings', '"liga" calc(10 + (sign(2cqw - 10px) * 5))', '"liga" 5');
+test_computed_value('font-feature-settings', '"liga" calc(10 + (sign(2cqw - 10px) * 5)), "dlig" calc(20 + (sign(2cqw - 10px) * 5))', '"dlig" 15, "liga" 5');
+
+</script>
+</body>
+</html>

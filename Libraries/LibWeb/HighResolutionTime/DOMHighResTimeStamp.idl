@@ -1,0 +1,2 @@
+// https://w3c.github.io/hr-time/#dom-domhighrestimestamp
+typedef double DOMHighResTimeStamp;

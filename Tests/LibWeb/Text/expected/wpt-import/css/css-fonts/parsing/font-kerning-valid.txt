@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	e.style['font-kerning'] = "auto" should set the property value
+Fail	e.style['font-kerning'] = "normal" should set the property value
+Fail	e.style['font-kerning'] = "none" should set the property value

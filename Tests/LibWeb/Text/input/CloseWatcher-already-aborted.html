@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let watcher = new CloseWatcher({ signal: AbortSignal.abort() });
+        let oncancel_called = false;
+        let onclose_called = false;
+        watcher.oncancel = () => oncancel_called = true;
+        watcher.onclose = () => onclose_called = true;
+
+        watcher.requestClose();
+
+        println(oncancel_called);
+        println(onclose_called);
+    });
+
+</script>

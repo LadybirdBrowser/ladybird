@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <style>
+    .abspos-box {
+      position: absolute;
+      width: 200px;
+      height: 200px;
+    }
+
+    /* The boxes should stack in the order that I've listed their CSS classes
+       here.  The class names' first word (outside/before/inside/after) refers
+       to the boxes' DOM position, and "background"/"midground"/"foreground"
+       refers to their z-index values. */
+
+    .before-IB-background {
+      background: darkmagenta;
+      z-index: -1;
+      top: 50px;
+      left: 50px;
+    }
+    .after-IB-background {
+      background: magenta;
+      z-index: -1;
+      top: 70px;
+      left: 70px;
+    }
+    .outside-span-midground {
+      background: darkkhaki;
+      top: 90px;
+      left: 90px;
+    }
+    .inside-IB-midground {
+      background: khaki;
+      top: 110px;
+      left: 110px;
+    }
+    .before-IB-foreground {
+      background: darkcyan;
+      z-index: 1;
+      top: 130px;
+      left: 130px;
+    }
+    .after-IB-foreground {
+      background: cyan;
+      z-index: 1;
+      top: 150px;
+      left: 150px;
+    }
+  </style>
+</head>
+<body>
+  <!-- The expectation here is that 'abspos-box' elements will all interact in
+       the same top-level stacking context. That means the box ordering should
+       be (back to front): darkmagenta/magenta/darkkhaki/khaki/darkcyan/cyan,
+       with the boxes stacked (visually) from top-left to bottom-right. -->
+
+  <div class="abspos-box outside-span-midground"></div>
+
+  <!-- Note: this file is identical to the testcase,
+       except for the lack of "contain: layout" on this span. -->
+  <span>
+    <div class="abspos-box before-IB-background"></div>
+    <div class="abspos-box before-IB-foreground"></div>
+    <!-- This unstyled div crates the IB split: -->
+    <div>
+      <div class="abspos-box inside-IB-midground"></div>
+    </div>
+    <div class="abspos-box after-IB-background"></div>
+    <div class="abspos-box after-IB-foreground"></div>
+  </span>
+</body>
+</html>

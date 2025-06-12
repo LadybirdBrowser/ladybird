@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=261421">
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<meta name="assert" content="test should not crash and grid-template for child should be the empty string after disconnecting the element">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<style>
+#child {
+  grid-template: 10px / 10px;
+}
+</style>
+<div>
+  <div id="child"></div>
+</div>
+<script>
+test(() => {
+  let styleDeclaration = window.getComputedStyle(document.getElementById("child"));
+  document.querySelector("body > div:nth-child(1)").textContent = "";
+  assert_equals(styleDeclaration.gridTemplate, "");
+});
+</script>
+</html>

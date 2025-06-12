@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	getBoundingClientRect on a newly-created Element not yet inserted into the DOM should return an all-zeroes DOMRect

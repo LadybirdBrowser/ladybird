@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const runAbortController = ((reason) => {
+            let controller = new AbortController();
+            let signal = controller.signal;
+
+            fetch('data:text/plain,fetched from far', { signal })
+                .catch(err => {
+                    println(err);
+                });
+
+            controller.abort(reason);
+        });
+
+        runAbortController(undefined);
+        runAbortController("Abort with a reason");
+    });
+</script>

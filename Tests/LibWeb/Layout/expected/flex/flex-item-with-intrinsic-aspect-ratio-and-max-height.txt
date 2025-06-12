@@ -1,0 +1,11 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x69.984375 [BFC] children: not-inline
+    Box <body> at (10,10) content-size 780x51.984375 flex-container(row) [FFC] children: not-inline
+      ImageBox <img> at (11,10) content-size 66.65625x50 flex-item children: not-inline
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x71.984375]
+    PaintableBox (Box<BODY>) [9,9 782x53.984375] overflow: [10,9 780x52.984375]
+      ImagePaintable (ImageBox<IMG>) [10,9 68.65625x52]

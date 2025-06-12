@@ -1,0 +1,10 @@
+config("crypt_config") {
+  visibility = [ ":crypt" ]
+  libs = [ "crypt" ]
+}
+
+group("crypt") {
+  if (current_os == "linux") {
+    public_configs = [ ":crypt_config" ]
+  }
+}

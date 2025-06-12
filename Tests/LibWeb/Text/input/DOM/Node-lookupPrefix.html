@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const xmlDoc = new DOMParser().parseFromString(`<root xmlns:ex="test"><!--abc--><child xmlns:abc="def" x="1"></child></root>`, "application/xml");
+        const fragment = document.createDocumentFragment();
+        println(`Prefix for namespace "test" on document: ${xmlDoc.lookupPrefix("test")}`);
+        println(`Prefix for namespace "test" on document fragment: ${fragment.lookupPrefix("test")}`);
+        println(`Prefix for namespace "test" on comment node 0: ${xmlDoc.childNodes[0].lookupPrefix("test")}`);
+        println(`Prefix null on document: ${xmlDoc.lookupPrefix(null)}`);
+        println(`Prefix for absent namespace "no" on document: ${xmlDoc.lookupPrefix("no")}`);
+
+        const child = xmlDoc.querySelector("child");
+        println(`Prefix for namespace "def" on child: ${child.lookupPrefix("def")}`);
+        println(`Prefix null on child: ${child.lookupPrefix(null)}`);
+        println(`Prefix for namespace "test" (in parent) on child: ${child.lookupPrefix("test")}`);
+
+        const attrX = child.getAttributeNode("x");
+        println(`Prefix for namespace "def" (from attribute "x") on child: ${attrX.lookupPrefix("def")}`);
+    });
+</script>

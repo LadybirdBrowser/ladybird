@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	EdDSA Ed448 verification
+Pass	EdDSA Ed448 verification with altered signature after call
+Pass	EdDSA Ed448 with altered data after call
+Pass	EdDSA Ed448 using privateKey to verify
+Pass	EdDSA Ed448 using publicKey to sign
+Pass	EdDSA Ed448 no verify usage
+Pass	EdDSA Ed448 round trip
+Pass	EdDSA Ed448 signing with wrong algorithm name
+Pass	EdDSA Ed448 verifying with wrong algorithm name
+Pass	EdDSA Ed448 verification failure due to altered signature
+Pass	EdDSA Ed448 verification failure due to shortened signature
+Pass	EdDSA Ed448 verification failure due to altered data
+Pass	Sign and verify using generated Ed448 keys.

@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	e.style['font'] = "menu icon" should not set the property value
+Pass	e.style['font'] = "italic oblique xx-small serif" should not set the property value
+Pass	e.style['font'] = "small-caps small-caps medium/normal sans-serif" should not set the property value
+Pass	e.style['font'] = "bold bolder xx-large/1.2 cursive" should not set the property value
+Pass	e.style['font'] = "ultra-condensed extra-condensed larger/calc(120% + 1.2em) fantasy" should not set the property value
+Pass	e.style['font'] = "italic small-caps lighter condensed normal smaller monospace" should not set the property value
+Pass	e.style['font'] = "normal 100 semi-condensed oblique small-caps 10px/normal Menu" should not set the property value
+Pass	e.style['font'] = "normal normal normal normal normal 20%/1.2 \"FB Armada\"" should not set the property value
+Pass	e.style['font'] = "italic small-caps lighter condensed smaller" should not set the property value
+Pass	e.style['font'] = "normal 100 semi-condensed oblique small-caps Menu" should not set the property value
+Pass	e.style['font'] = "100% larger / 2 fantasy" should not set the property value
+Pass	e.style['font'] = "oldstyle-nums medium serif" should not set the property value
+Pass	e.style['font'] = "common-ligatures medium serif" should not set the property value
+Pass	e.style['font'] = "normal full-width medium serif" should not set the property value
+Pass	e.style['font'] = "italic titling-caps medium serif" should not set the property value
+Pass	e.style['font'] = "petite-caps medium serif" should not set the property value

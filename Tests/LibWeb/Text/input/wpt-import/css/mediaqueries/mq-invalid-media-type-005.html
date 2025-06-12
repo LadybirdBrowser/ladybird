@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>Mediaqueries-3 test: parsing hanging-punctuation with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css3-mediaqueries/#error-handling">
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<meta name="flags" content="invalid">
+<meta name="assert" content="media types ''not'', ''and'', ''only'' and ''or'' must not be treated as unknown media types, but rather trigger the malformed query clause.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+    @media not and {
+        div { background-color: red; }
+    }
+    @media and {
+        div { background-color: red; }
+    }
+    @media not or {
+        div { background-color: red; }
+    }
+    @media or {
+        div { background-color: red; }
+    }
+    @media not not {
+        div { background-color: red; }
+    }
+    @media not {
+        div { background-color: red; }
+    }
+    @media not only {
+        div { background-color: red; }
+    }
+    @media only {
+        div { background-color: red; }
+    }
+</style>
+<script>
+var queries = document.styleSheets[0].cssRules;
+test(() => {
+        for (const query of queries) {
+                assert_equals(query.conditionText, "not all");
+        }
+        assert_equals(queries.length, 8, "invalid rules must be treated as 'not all', not dropped");
+    }, "syntactical MQ keywords used as media types are a syntax error");
+</script>

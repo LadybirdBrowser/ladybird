@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['border-inline-start-width'] = "-20px" should not set the property value
+Pass	e.style['border-inline-start-width'] = "auto" should not set the property value
+Pass	e.style['border-inline-start-width'] = "medium 40px" should not set the property value
+Pass	e.style['border-inline-end-width'] = "10" should not set the property value
+Pass	e.style['border-inline-end-width'] = "30%" should not set the property value
+Pass	e.style['border-inline-width'] = "thick, thin" should not set the property value
+Pass	e.style['border-inline-width'] = "10px 20px 30px" should not set the property value

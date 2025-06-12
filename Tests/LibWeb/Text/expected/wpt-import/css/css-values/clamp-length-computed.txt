@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	Property letter-spacing value 'clamp(10px, 20px, 30px)'
+Pass	Property letter-spacing value 'clamp(10px, 5px, 30px)'
+Pass	Property letter-spacing value 'clamp(10px, 35px, 30px)'
+Pass	Property letter-spacing value 'clamp(10px, 35px , 30px)'
+Pass	Property letter-spacing value 'clamp(10px, 35px /*foo*/, 30px)'
+Pass	Property letter-spacing value 'clamp(10px /* foo */ , 35px, 30px)'
+Pass	Property letter-spacing value 'clamp(10px , 35px, 30px)'
+Pass	Property letter-spacing value 'clamp(30px, 100px, 20px)'
+Pass	Property letter-spacing value 'clamp(-30px, -20px, -10px)'
+Pass	Property letter-spacing value 'clamp(-30px, -100px, -10px)'
+Pass	Property letter-spacing value 'clamp(-30px, 100px, -10px)'
+Pass	Property letter-spacing value 'clamp(-10px, 100px, -30px)'
+Pass	Property letter-spacing value 'clamp(-10px, -100px, -30px)'
+Pass	Property letter-spacing value 'calc(0px + clamp(10px, 20px, 30px))'
+Pass	Property letter-spacing value 'calc(0px - clamp(10px, 20px, 30px))'
+Pass	Property letter-spacing value 'calc(0px + clamp(30px, 100px, 20px))'
+Pass	Property letter-spacing value 'calc(0px - clamp(30px, 100px, 20px))'

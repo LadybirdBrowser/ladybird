@@ -1,0 +1,18 @@
+<!doctype html>
+<title>CSS Conditional Test: @supports selector() with -webkit- unknown pseudo-elements and negation.</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://drafts.csswg.org/css-conditional/#at-supports">
+<link rel="match" href="../../../../expected/wpt-import/css/css-conditional/at-supports-001-ref.html">
+<style>
+  div {
+    background-color:red;
+    height:100px;
+    width:100px;
+  }
+  @supports not selector(::-webkit-unknown-pseudo) {
+    div { background: green };
+  }
+</style>
+<p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+<div></div>

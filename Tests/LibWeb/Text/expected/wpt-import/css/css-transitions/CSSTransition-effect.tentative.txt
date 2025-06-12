@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+6 Pass
+4 Fail
+Pass	After setting a transition's effect to null, it still reports the original transition property
+Pass	After setting a transition's effect to null, it becomes finished
+Pass	After setting a transition's effect to null, style is updated
+Fail	After setting a transition's effect to null, a new transition can be started
+Fail	After setting a transition's effect to null, it should be possible to interrupt that transition
+Pass	After setting a new keyframe effect with a shorter duration, the transition becomes finished
+Pass	After setting a new keyframe effect targeting different properties, the transition continues to report the original transition property
+Fail	After setting a new keyframe effect on a play-pending transition, the transition remains pending
+Pass	A transition with no effect still returns the original transitionProperty
+Fail	A transition with a replaced effect still exhibits the regular transition reversing behavior

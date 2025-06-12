@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic & Extrinsic Sizing Test: parsing height with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-height">
+<meta name="assert" content="height supports only the grammar 'auto | <length-percentage> | min-content | max-content | fit-content(<length-percentage>)'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("height", "none");
+test_invalid_value("height", "min-content max-content");
+
+test_invalid_value("height", "-10%");
+test_invalid_value("height", "-0.5em");
+</script>
+</body>
+</html>

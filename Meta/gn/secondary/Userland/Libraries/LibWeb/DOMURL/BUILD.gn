@@ -1,0 +1,9 @@
+source_set("DOMURL") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "DOMURL.cpp",
+    "URLSearchParams.cpp",
+    "URLSearchParamsIterator.cpp",
+  ]
+}

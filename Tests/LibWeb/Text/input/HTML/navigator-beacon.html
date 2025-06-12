@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            try {
+                println(`${testCounter}. ${JSON.stringify(part())}`);
+            } catch (e) {
+                println(`${testCounter}. Exception: ${e.name}`);
+            }
+            testCounter++;
+        }
+
+        // 1. Send beacon
+        testPart(() => navigator.sendBeacon('https://example.com/') == true);
+
+        // 2. Send beacon with wrong URL
+        testPart(() => navigator.sendBeacon('dsfhdsaklfhdasklf'));
+
+        // 3. Send beacon with wrong scheme
+        testPart(() => navigator.sendBeacon('wss://example.com/'));
+    });
+</script>

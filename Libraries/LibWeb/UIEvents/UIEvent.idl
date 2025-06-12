@@ -1,0 +1,20 @@
+#import <DOM/Event.idl>
+#import <HTML/Window.idl>
+
+// https://w3c.github.io/uievents/#uievent
+[Exposed=Window]
+interface UIEvent : Event {
+    constructor(DOMString type, optional UIEventInit eventInitDict = {});
+    readonly attribute WindowProxy? view;
+    readonly attribute long detail;
+
+    // Obsolete
+    [ImplementedAs=init_ui_event] undefined initUIEvent(DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional long detailArg = 0);
+    readonly attribute unsigned long which;
+};
+
+// https://w3c.github.io/uievents/#idl-uieventinit
+dictionary UIEventInit : EventInit {
+    WindowProxy? view = null;
+    long detail = 0;
+};

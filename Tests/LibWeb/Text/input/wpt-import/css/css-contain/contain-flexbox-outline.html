@@ -1,0 +1,24 @@
+<!doctype html>
+<title>Test `contain: strict` to Flexbox does not crash</title>
+<link rel="help" href="https://www.w3.org/TR/css-contain-1/#contain-property">
+<link rel="author" href="mailto:kojii@chromium.org">
+<style>
+body {
+  contain: strict;
+  display: flex;
+}
+html {
+  outline: 1px auto;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="target"></div>
+<div id="log"></div>
+<script>
+test(() => {
+  document.body.offsetTop;
+  target.style.width = '100px';
+  document.body.offsetTop;
+}, "Pass if no crash");
+</script>

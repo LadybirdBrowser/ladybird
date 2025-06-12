@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const h2 = document.querySelector("h2");
+        document.getSelection().collapse(h2, 1);
+        var h3 = document.createElement("h3");
+        h2.insertBefore(h3, h2.firstChild)
+        println(document.getSelection().rangeCount);
+        printElement(document.getSelection().getRangeAt(0).startContainer);
+        println(document.getSelection().getRangeAt(0).startOffset);
+        printElement(document.getSelection().getRangeAt(0).endContainer);
+        println(document.getSelection().getRangeAt(0).endOffset);
+    });
+</script><h2>

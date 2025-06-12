@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="1" class="te st"></div>
+<div id="2" class="st te"></div>
+<div id="3" class="te te st"></div>
+<div id="4" class="te te"></div>
+<div id="5" class="st st"></div>
+<div id="6" class="test"></div>
+<script>
+    test(() => {
+        let elements = document.getElementsByClassName("te st");
+        println(`document.getElementsByClassName("te st").length: ${elements.length}`);
+        for (let element of elements) {
+            printElement(element);
+        }
+    });
+</script>

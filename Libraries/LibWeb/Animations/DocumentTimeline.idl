@@ -1,0 +1,13 @@
+#import <Animations/AnimationTimeline.idl>
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
+
+// https://www.w3.org/TR/web-animations-1/#dictdef-documenttimelineoptions
+dictionary DocumentTimelineOptions {
+    DOMHighResTimeStamp originTime = 0;
+};
+
+// https://www.w3.org/TR/web-animations-1/#documenttimeline
+[Exposed=Window]
+interface DocumentTimeline : AnimationTimeline {
+    constructor(optional DocumentTimelineOptions options = {});
+};

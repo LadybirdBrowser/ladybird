@@ -1,0 +1,21 @@
+link fetchPriority initial value: auto
+link fetchPriority value after setting to "invalid": auto
+link fetchPriority value after setting to "high": high
+link fetchPriority value after setting to null: auto
+link fetchPriority value after setting to "HIGH": high
+link fetchPriority value after setting to "": auto
+link fetchPriority value after calling removeAttribute: auto
+img fetchPriority initial value: auto
+img fetchPriority value after setting to "invalid": auto
+img fetchPriority value after setting to "high": high
+img fetchPriority value after setting to null: auto
+img fetchPriority value after setting to "HIGH": high
+img fetchPriority value after setting to "": auto
+img fetchPriority value after calling removeAttribute: auto
+script fetchPriority initial value: auto
+script fetchPriority value after setting to "invalid": auto
+script fetchPriority value after setting to "high": high
+script fetchPriority value after setting to null: auto
+script fetchPriority value after setting to "HIGH": high
+script fetchPriority value after setting to "": auto
+script fetchPriority value after calling removeAttribute: auto

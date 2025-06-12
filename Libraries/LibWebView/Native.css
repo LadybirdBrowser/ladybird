@@ -1,0 +1,37 @@
+/*
+ * Stylesheet designed to be used as the user stylesheet by apps that want their
+ * web content to look like the native GUI.
+ */
+
+html {
+    background-color: -libweb-palette-base;
+    color: -libweb-palette-base-text;
+}
+
+input, textarea {
+    background-color: -libweb-palette-base;
+    border-color: -libweb-palette-threed-shadow1;
+    color: -libweb-palette-base-text;
+}
+
+button, input[type=submit], input[type=button], input[type=reset], select {
+    background-color: -libweb-palette-button;
+    border-color: -libweb-palette-threed-shadow1;
+    color: -libweb-palette-button-text;
+}
+
+button:hover, input[type=submit]:hover, input[type=button]:hover, input[type=reset]:hover, select:hover {
+    background-color: -libweb-palette-hover-highlight;
+}
+
+:link {
+    color: -libweb-link;
+}
+
+:visited {
+    color: -libweb-palette-visited-link;
+}
+
+:link:active, :visited:active {
+    color: -libweb-palette-active-link;
+}

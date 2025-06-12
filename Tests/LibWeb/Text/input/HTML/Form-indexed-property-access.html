@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<form id="formy">
+    <input type="text" name="foo">
+    <button type="button" name="bar"></button>
+    <object name="baz"></object>
+    <select name="qux"></select>
+    <textarea name="quux"></textarea>
+    <fieldset name="corge">
+        <!-- input elements in the ImageData type state are excluded -->
+        <input type="image" name="grault">
+    </fieldset>
+    <img id="inside" src="" alt="">
+</form>
+
+<input type="text" name="foo2" form="formy">
+<button type="button" name="bar2" form="formy"></button>
+<object name="baz2" form="formy"></object>
+<select name="qux2" form="formy"></select>
+<textarea name="quux2" form="formy"></textarea>
+<fieldset name="corge2" form="formy">
+    <!-- input elements in the ImageData type state are excluded -->
+    <input type="image" name="grault2" form="formy">
+</fieldset>
+<img id="outside" src="" alt="">
+
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let form = document.getElementById("formy");
+
+        let elements = form.elements;
+        for (let i = 0; i < elements.length; i++) {
+            if (elements[i] !== form[i]) {
+                println(`FAIL: elements[${i}] !== form[${i}]`);
+            }
+        }
+
+        println(`form.length: ${form.length}`);
+        println(`elements.length: ${elements.length}`);
+
+        for (let i = 0; i < form.length; i++) {
+            println(`form[${i}].name: ${form[i].name}`);
+        }
+    });
+</script>

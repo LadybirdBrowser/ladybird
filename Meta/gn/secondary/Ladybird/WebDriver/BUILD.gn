@@ -1,0 +1,34 @@
+import("//Ladybird/link_qt.gni")
+
+executable("WebDriver") {
+  configs += [ "//Ladybird:ladybird_config" ]
+  include_dirs = [
+    "//Userland/Services",
+    "//Ladybird",
+  ]
+  data_deps = [
+    "//Ladybird:headless-browser",
+    "//Ladybird:ladybird_executable",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibFileSystem",
+    "//Userland/Libraries/LibGfx",
+    "//Userland/Libraries/LibIPC",
+    "//Userland/Libraries/LibJS",
+    "//Userland/Libraries/LibMain",
+    "//Userland/Libraries/LibURL",
+    "//Userland/Libraries/LibWeb",
+    "//Userland/Libraries/LibWebSocket",
+    "//Userland/Libraries/LibWebView:WebDriverClientEndpoint",
+    "//Userland/Libraries/LibWebView:WebDriverServerEndpoint",
+  ]
+  sources = [
+    "//Ladybird/Utilities.cpp",
+    "//Userland/Services/WebDriver/Client.cpp",
+    "//Userland/Services/WebDriver/Session.cpp",
+    "//Userland/Services/WebDriver/WebContentConnection.cpp",
+    "main.cpp",
+  ]
+}

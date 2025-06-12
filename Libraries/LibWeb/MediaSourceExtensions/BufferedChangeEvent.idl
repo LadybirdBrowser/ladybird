@@ -1,0 +1,17 @@
+#import <DOM/Event.idl>
+#import <HTML/TimeRanges.idl>
+
+// https://w3c.github.io/media-source/#dom-bufferedchangeevent
+[Exposed=(Window,DedicatedWorker)]
+interface BufferedChangeEvent : Event {
+    constructor(DOMString type, optional BufferedChangeEventInit eventInitDict = {});
+
+    [FIXME,SameObject] readonly attribute TimeRanges addedRanges;
+    [FIXME,SameObject] readonly attribute TimeRanges removedRanges;
+};
+
+// https://w3c.github.io/media-source/#dom-bufferedchangeeventinit
+dictionary BufferedChangeEventInit : EventInit {
+    TimeRanges addedRanges;
+    TimeRanges removedRanges;
+};

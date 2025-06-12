@@ -1,0 +1,26 @@
+declare_args() {
+  # Location of Qt6 binaries/libraries/frameworks.
+  # Likely /opt/homebrew on macOS and /usr or /usr/local on Linux
+  # FIXME: We could get these by parsing `qmake -query` or `pkg-config`
+  if (host_os == "mac") {
+    qt_install_prefix = "/opt/homebrew/"
+  } else {
+    qt_install_prefix = "/usr/"
+  }
+}
+
+declare_args() {
+  # Location of Qt6 headers, normally set based on $qt_install_prefix
+  qt_install_headers = qt_install_prefix + "include/"
+  if (current_os == "mac") {
+    # Location of Qt6 frameworks, normally set based on $qt_install_prefix
+    qt_install_frameworks = qt_install_prefix + "Frameworks/"
+  } else {
+    # Location of Qt6 libraries, normally set based on $qt_install_prefix
+    qt_install_lib = qt_install_prefix + "lib"
+  }
+
+  # Location of Qt6 helper programs, normally set based on $qt_install_prefix
+  # Programs such as moc and rcc are expected to be in this location.
+  qt_install_libexec = qt_install_prefix + "share/qt/libexec/"
+}

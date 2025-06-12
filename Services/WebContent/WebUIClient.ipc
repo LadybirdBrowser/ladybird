@@ -1,0 +1,3 @@
+endpoint WebUIClient {
+    received_message(String name, JsonValue data) =|
+}

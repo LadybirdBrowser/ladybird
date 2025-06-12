@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Test: Font-relative length units (ch) in width media queries</title>
+  <link rel="author" title="Chris Rebert" href="http://chrisrebert.com">
+  <link rel="help" href="https://www.w3.org/TR/css3-mediaqueries/#units">
+  <link rel="help" href="https://www.w3.org/TR/mediaqueries-4/#units">
+  <link rel="match" href="../../../../expected/wpt-import/css/mediaqueries/reference/ref-green-body.xht">
+  <meta name="assert" content="Font-relative length units (such as 'ch') in media queries should be calculated based on the initial value of 'font-size', not based on author style declarations, such as: html { font-size: 200%; }">
+  <style>
+:root {
+  font-size: 100000px;/* ~87ft */
+}
+body {
+  background: red;
+}
+p {
+  font-size: 24px;
+}
+  </style>
+</head>
+<body>
+  <p>This should have a green background.</p>
+  <script>
+    document.body.offsetTop;
+  </script>
+  <style>
+    @media (min-width: 1ch) {
+      body {
+        background: green;
+      }
+    }
+  </style>
+</body>
+</html>

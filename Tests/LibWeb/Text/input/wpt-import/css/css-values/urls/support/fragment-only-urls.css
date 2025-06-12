@@ -1,0 +1,19 @@
+:root {
+    --fragment-image-url: url("#foo");
+    --fragment-cursor-url: url("#foo"), pointer;
+}
+
+#external-unquoted {
+    background-image: url(#foo);
+    cursor: url(#foo), pointer;
+}
+
+#external-quoted {
+    background-image: url("#foo");
+    cursor: url("#foo"), pointer;
+}
+
+#external-variable {
+    background-image: var(--fragment-image-url);
+    cursor: var(--fragment-cursor-url);
+}

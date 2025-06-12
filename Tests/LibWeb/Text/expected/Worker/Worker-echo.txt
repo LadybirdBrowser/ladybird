@@ -1,0 +1,4 @@
+Got message from worker: "loaded"
+Got message from port: "Worker got message port!"
+Got message from port: "Extra Port got message: \"Hello from port2\""
+DONE

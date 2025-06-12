@@ -1,0 +1,53 @@
+#import <Fetch/Request.idl>
+#import <HTML/HTMLElement.idl>
+#import <HTML/Scripting/Fetching.idl>
+
+// https://html.spec.whatwg.org/multipage/images.html#image-decoding-hint
+[MissingValueDefault=auto, InvalidValueDefault=auto]
+enum Decoding {
+    "sync",
+    "async",
+    "auto"
+};
+
+// https://html.spec.whatwg.org/multipage/embedded-content.html#htmlimageelement
+[Exposed=Window, LegacyFactoryFunction=Image(optional unsigned long width, optional unsigned long height)]
+interface HTMLImageElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute DOMString alt;
+    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, Reflect] attribute DOMString srcset;
+    [CEReactions, Reflect] attribute DOMString sizes;
+    [CEReactions, Enumerated=CORSSettingsAttribute, Reflect=crossorigin] attribute DOMString? crossOrigin;
+    [CEReactions, Reflect=usemap] attribute DOMString useMap;
+    [CEReactions, Reflect=ismap] attribute boolean isMap;
+    [CEReactions] attribute unsigned long width;
+    [CEReactions] attribute unsigned long height;
+    readonly attribute unsigned long naturalWidth;
+    readonly attribute unsigned long naturalHeight;
+    readonly attribute boolean complete;
+    readonly attribute USVString currentSrc;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
+    [CEReactions, Enumerated=Decoding, Reflect] attribute DOMString decoding;
+    [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute DOMString loading;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
+
+    Promise<undefined> decode();
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect, URL] attribute USVString lowsrc;
+    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect] attribute unsigned long hspace;
+    [CEReactions, Reflect] attribute unsigned long vspace;
+    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+
+    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString border;
+
+    // https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlimageelement-interface
+    [FIXME] readonly attribute long x;
+    [FIXME] readonly attribute long y;
+
+};

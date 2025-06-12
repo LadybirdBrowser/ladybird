@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Has basics
+Pass	has() following delete()
+Pass	Two-argument has()
+Pass	Two-argument has() respects undefined as second arg

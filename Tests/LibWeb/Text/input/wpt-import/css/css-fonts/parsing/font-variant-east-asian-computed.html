@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: getComputedStyle().fontVariantEastAsian</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-variant-east-asian-prop">
+<meta name="assert" content="font-variant-east-asian computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value('font-variant-east-asian', 'normal');
+
+// <east-asian-variant-values> = [ jis78 | jis83 | jis90 | jis04 | simplified | traditional ]
+test_computed_value('font-variant-east-asian', 'jis78');
+test_computed_value('font-variant-east-asian', 'jis83');
+test_computed_value('font-variant-east-asian', 'jis90');
+test_computed_value('font-variant-east-asian', 'jis04');
+test_computed_value('font-variant-east-asian', 'simplified');
+test_computed_value('font-variant-east-asian', 'traditional');
+
+// <east-asian-width-values>   = [ full-width | proportional-width ]
+test_computed_value('font-variant-east-asian', 'full-width');
+test_computed_value('font-variant-east-asian', 'proportional-width');
+
+test_computed_value('font-variant-east-asian', 'ruby');
+
+test_computed_value('font-variant-east-asian', 'jis78 proportional-width');
+test_computed_value('font-variant-east-asian', 'simplified full-width ruby');
+</script>
+</body>
+</html>

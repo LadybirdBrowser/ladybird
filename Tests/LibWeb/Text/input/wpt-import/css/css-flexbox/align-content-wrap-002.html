@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-align-content" />
+<title>css-flexbox: Tests align-content with flex-wrap: wrap</title>
+<style>
+.flex-horizontal {
+    width:600px;
+    display:flex;
+    height:100px;
+    background:gray;
+    margin-bottom:100px;
+}
+.flex-vertical {
+    width:100px;
+    display:flex;
+    flex-direction: column;
+    height:600px;
+    background:gray;
+    margin-top:200px;
+    margin-bottom:100px;
+}
+.item-horizontal {
+    width:150px;
+    background:yellow;
+    margin:10px;
+    flex:none;
+}
+.item-vertical {
+    height:150px;
+    background:yellow;
+    margin:10px;
+    flex:none;
+}
+.content1-horizontal {
+    width:100px;
+    height:150px;
+    background:red;
+}
+.content2-horizontal {
+    width:100px;
+    height:100px;
+    background:red;
+}
+.content3-horizontal {
+    width:100px;
+    height:50px;
+    background:red;
+}
+.content1-vertical {
+    width:150px;
+    height:100px;
+    background:red;
+}
+.content2-vertical {
+    width:100px;
+    height:100px;
+    background:red;
+}
+.content3-vertical {
+    width:50px;
+    height:100px;
+    background:red;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flex-horizontal, .flex-vertical');">
+<div id=log></div>
+<p>Test for crbug.com/362848: Flex box word-wrap is not adhering to spec</p>
+<div class="flex-horizontal">
+    <div class="item-horizontal" data-expected-height="80"><div class="content1-horizontal"></div></div>
+    <div class="item-horizontal" data-expected-height="80"><div class="content2-horizontal"></div></div>
+    <div class="item-horizontal" data-expected-height="80"><div class="content3-horizontal"></div></div>
+</div>
+
+<div class="flex-horizontal" style="flex-wrap:wrap;">
+    <div class="item-horizontal" data-expected-height="150"><div class="content1-horizontal"></div></div>
+    <div class="item-horizontal" data-expected-height="150"><div class="content2-horizontal"></div></div>
+    <div class="item-horizontal" data-expected-height="150"><div class="content3-horizontal"></div></div>
+</div>
+
+<div class="flex-horizontal" style="flex-wrap:wrap;">
+    <div class="item-horizontal" data-expected-height="150"><div class="content1-horizontal"></div></div>
+    <div class="item-horizontal" data-expected-height="150"><div class="content2-horizontal"></div></div>
+    <div class="item-horizontal" data-expected-height="150"><div class="content3-horizontal"></div></div>
+    <div class="item-horizontal" data-expected-height="150"><div class="content1-horizontal"></div></div>
+    <div class="item-horizontal" data-expected-height="150"><div class="content2-horizontal"></div></div>
+</div>
+
+<div class="flex-vertical">
+    <div class="item-vertical" data-expected-width="80"><div class="content1-vertical"></div></div>
+    <div class="item-vertical" data-expected-width="80"><div class="content2-vertical"></div></div>
+    <div class="item-vertical" data-expected-width="80"><div class="content3-vertical"></div></div>
+</div>
+
+<div class="flex-vertical" style="flex-wrap:wrap;">
+    <div class="item-vertical" data-expected-width="150"><div class="content1-vertical"></div></div>
+    <div class="item-vertical" data-expected-width="150"><div class="content2-vertical"></div></div>
+    <div class="item-vertical" data-expected-width="150"><div class="content3-vertical"></div></div>
+</div>
+
+<div class="flex-vertical" style="flex-wrap:wrap;">
+    <div class="item-vertical" data-expected-width="150"><div class="content1-vertical"></div></div>
+    <div class="item-vertical" data-expected-width="150"><div class="content2-vertical"></div></div>
+    <div class="item-vertical" data-expected-width="150"><div class="content3-vertical"></div></div>
+    <div class="item-vertical" data-expected-width="150"><div class="content1-vertical"></div></div>
+    <div class="item-vertical" data-expected-width="150"><div class="content2-vertical"></div></div>
+</div>

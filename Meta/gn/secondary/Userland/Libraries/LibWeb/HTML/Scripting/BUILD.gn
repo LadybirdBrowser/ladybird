@@ -1,0 +1,20 @@
+source_set("Scripting") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "ClassicScript.cpp",
+    "EnvironmentSettingsSnapshot.cpp",
+    "Environments.cpp",
+    "ExceptionReporter.cpp",
+    "Fetching.cpp",
+    "ImportMap.cpp",
+    "ImportMapParseResult.cpp",
+    "ModuleMap.cpp",
+    "ModuleScript.cpp",
+    "Script.cpp",
+    "SerializedEnvironmentSettingsObject.cpp",
+    "TemporaryExecutionContext.cpp",
+    "WindowEnvironmentSettingsObject.cpp",
+    "WorkerEnvironmentSettingsObject.cpp",
+  ]
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+    * {
+        border: 1px solid black;
+    }
+
+    .grid-container {
+        display: grid;
+        grid-template-columns: [main-start] 1fr [content-start] 1fr [content-end] 1fr [main-end];
+        grid-template-rows: [main-start] 25px [content-start] 25px [content-end] 25px [main-end];
+    }
+
+    .grid-item {
+        background-color: palevioletred;
+    }
+
+    .a {
+        grid-column-start: main-start;
+        grid-row-start: main-start;
+        grid-row-end: main-end;
+    }
+
+    .b {
+        grid-column-start: content-end;
+        grid-row-start: main-start;
+        grid-row-end: content-end;
+    }
+
+    .c {
+        grid-column-start: content-start;
+        grid-row-start: main-start;
+    }
+
+    .d {
+        grid-column-start: content-start;
+        grid-column-end: main-end;
+        grid-row-start: content-end;
+    }
+</style><div class="grid-container"><div class="grid-item a">1</div><div class="grid-item b">2</div><div class="grid-item c">3</div><div class="grid-item d">4</div></div>

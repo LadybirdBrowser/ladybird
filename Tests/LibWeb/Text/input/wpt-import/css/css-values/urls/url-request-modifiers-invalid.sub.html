@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#request-url-modifiers">
+<link rel="author" title="Sam Weinig" href="mailto:weinig@webkit.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin())');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(,))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous,))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(,anonymous))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous foobar))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) cross-origin(anonymous))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) cross-origin(use-credentials))');
+test_invalid_value('background-image', 'url(crossorigin(anonymous) "http://wpt.live:80/css/support/1x1-green.png")');
+test_invalid_value('background-image', '"http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous)');
+
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity())');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity(,))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar",))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity(,"sha384-foobar"))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar" foobar))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity(sha384-foobar))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") integrity("sha384-foobar"))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") integrity("sha384-barbaz"))');
+test_invalid_value('background-image', 'url(integrity("sha384-foobar") "http://wpt.live:80/css/support/1x1-green.png")');
+test_invalid_value('background-image', '"http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar")');
+
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy())');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(,))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer,))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(,no-referrer))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer foobar))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer same-origin))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) referrerpolicy(no-referrer))');
+test_invalid_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) referrerpolicy(same-origin))');
+test_invalid_value('background-image', 'url(referrerpolicy(no-referrer) "http://wpt.live:80/css/support/1x1-green.png")');
+test_invalid_value('background-image', '"http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer)');
+
+</script>

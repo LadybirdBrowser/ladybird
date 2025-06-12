@@ -1,0 +1,40 @@
+img.hspace after setting to -1: 0
+img.hspace after setting to 20: 20
+img.hspace after setting to 2147483648: 0
+img.hspace after setting to 50 with a leading vertical tab: 0
+img.vspace after setting to -1: 0
+img.vspace after setting to 20: 20
+img.vspace after setting to 2147483648: 0
+img.vspace after setting to 50 with a leading vertical tab: 0
+marquee.hspace after setting to -1: 0
+marquee.hspace after setting to 20: 20
+marquee.hspace after setting to 2147483648: 0
+marquee.hspace after setting to 50 with a leading vertical tab: 0
+marquee.vspace after setting to -1: 0
+marquee.vspace after setting to 20: 20
+marquee.vspace after setting to 2147483648: 0
+marquee.vspace after setting to 50 with a leading vertical tab: 0
+object.hspace after setting to -1: 0
+object.hspace after setting to 20: 20
+object.hspace after setting to 2147483648: 0
+object.hspace after setting to 50 with a leading vertical tab: 0
+object.vspace after setting to -1: 0
+object.vspace after setting to 20: 20
+object.vspace after setting to 2147483648: 0
+object.vspace after setting to 50 with a leading vertical tab: 0
+source.width after setting to -1: 0
+source.width after setting to 20: 20
+source.width after setting to 2147483648: 0
+source.width after setting to 50 with a leading vertical tab: 0
+source.height after setting to -1: 0
+source.height after setting to 20: 20
+source.height after setting to 2147483648: 0
+source.height after setting to 50 with a leading vertical tab: 0
+video.width after setting to -1: 0
+video.width after setting to 20: 20
+video.width after setting to 2147483648: 0
+video.width after setting to 50 with a leading vertical tab: 0
+video.height after setting to -1: 0
+video.height after setting to 20: 20
+video.height after setting to 2147483648: 0
+video.height after setting to 50 with a leading vertical tab: 0

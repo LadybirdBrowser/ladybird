@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe id="b" src="../data/document.xml"></iframe>
+<script>
+    asyncTest(done => {
+        b.onload = function () {
+            println("load");
+            done();
+        };
+        b.onerror = function () {
+            println("error");
+            done();
+        };
+    });
+</script>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function bufferToHex(buffer) {
+        return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    asyncTest(async done => {
+        // FIXME: Generate a key with module lengths longer than 256, when they don't take an eternity to generate.
+        //        This is #23561
+        let algorithm = {
+            name: "RSA-OAEP",
+            modulusLength: 256,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        };
+
+        println("generateKey with RSA-OAEP algorithm");
+        var key = undefined;
+        try {
+            key = await window.crypto.subtle.generateKey(algorithm, true, [
+                "encrypt",
+                "decrypt",
+                "wrapKey",
+                "unwrapKey",
+            ]);
+        } catch (e) {
+            println(`FAIL: ${e}`);
+        }
+
+        // FIXME: Report bugs to Chrome/Firefox about the order of properties on algorithm not matching us/Safari
+        println(`publicKey: ${key.publicKey}`);
+        println(`publicKey algorithm: ${JSON.stringify(key.publicKey.algorithm)}`);
+        println(`publicKey type: ${key.publicKey.type}`);
+        println(`publicKey extractable: ${key.publicKey.extractable}`);
+        println(`publicKey usages: ${key.publicKey.usages}`);
+
+        println(`privateKey: ${key.privateKey}`);
+        println(`privateKey algorithm: ${JSON.stringify(key.privateKey.algorithm)}`);
+        println(`privateKey type: ${key.privateKey.type}`);
+        println(`privateKey extractable: ${key.privateKey.extractable}`);
+        println(`privateKey usages: ${key.privateKey.usages}`);
+
+        println("invalid usages throw");
+        try {
+            const key2 = await window.crypto.subtle.generateKey(algorithm, true, [
+                "encrypt",
+                "decrypt",
+                "wrapKey",
+                "unwrapKey",
+                "sign",
+            ]);
+        } catch (e) {
+            println(`Error: ${e}`);
+        }
+
+        println("no usages for private key throws");
+        try {
+            const key3 = await window.crypto.subtle.generateKey(algorithm, true, [
+                "encrypt",
+                "wrapKey",
+            ]);
+        } catch (e) {
+            println(`Error: ${e}`);
+        }
+
+        done();
+    });
+</script>

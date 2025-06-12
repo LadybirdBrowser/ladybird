@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#request-url-modifiers">
+<link rel="author" title="Sam Weinig" href="mailto:weinig@webkit.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="container" style="font-size: 20">
+  <div id="target"></div>
+</div>
+<script>
+
+// No modifiers
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png")');
+
+// <crossorigin-modifier> = crossorigin(anonymous | use-credentials)
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(use-credentials))');
+
+// <integrity-modifier> = integrity(<string>)
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar"))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity(""))');
+
+// <referrerpolicy-modifier> = referrerpolicy(no-referrer | no-referrer-when-downgrade | same-origin | origin | strict-origin | origin-when-cross-origin | strict-origin-when-cross-origin | unsafe-url)
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer-when-downgrade))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(same-origin))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(origin))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(strict-origin))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(origin-when-cross-origin))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(strict-origin-when-cross-origin))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(unsafe-url))');
+
+// Multiple modifiers
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar"))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") crossorigin(anonymous))', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar"))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") referrerpolicy(no-referrer))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) integrity("sha384-foobar"))', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") referrerpolicy(no-referrer))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) referrerpolicy(no-referrer))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) crossorigin(anonymous))', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) referrerpolicy(no-referrer))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar") referrerpolicy(no-referrer))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" integrity("sha384-foobar") referrerpolicy(no-referrer) crossorigin(anonymous))', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar") referrerpolicy(no-referrer))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) crossorigin(anonymous) integrity("sha384-foobar"))', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar") referrerpolicy(no-referrer))');
+test_computed_value('background-image', 'url("http://wpt.live:80/css/support/1x1-green.png" referrerpolicy(no-referrer) integrity("sha384-foobar") crossorigin(anonymous))', 'url("http://wpt.live:80/css/support/1x1-green.png" crossorigin(anonymous) integrity("sha384-foobar") referrerpolicy(no-referrer))');
+
+</script>

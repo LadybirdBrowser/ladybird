@@ -1,0 +1,46 @@
+PannerNode
+AudioNode
+EventTarget
+Object
+[object AudioParam] current: 0, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -52, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 100000, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -22051, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 0, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -52, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 100000, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -22051, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 0, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -52, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 100000, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -22051, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 1, default: 1, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -52, default: 1, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 100000, default: 1, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -22051, default: 1, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 0, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -52, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 100000, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -22051, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 0, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -52, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: 100000, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+[object AudioParam] current: -22051, default: 0, min: -3.4028234663852886e+38, max: 3.4028234663852886e+38, rate: a-rate
+default panningModel: equalpower
+default distanceModel: inverse
+default refDistance: 1
+default maxDistance: 10000
+default rolloffFactor: 1
+default coneInnerAngle: 360
+default coneOuterAngle: 360
+default coneOuterGain: 0
+Did throw RangeError: refDistance cannot be negative
+Did throw RangeError: rolloffFactor cannot be negative
+Did throw RangeError: maxDistance cannot be negative
+Did throw InvalidStateError: coneOuterGain must be in the range of [0, 1]
+Did throw InvalidStateError: coneOuterGain must be in the range of [0, 1]
+Did throw RangeError: refDistance cannot be negative
+Did throw RangeError: rolloffFactor cannot be negative
+Did throw RangeError: maxDistance cannot be negative
+Did throw InvalidStateError: coneOuterGain must be in the range of [0, 1]
+Did throw InvalidStateError: coneOuterGain must be in the range of [0, 1]

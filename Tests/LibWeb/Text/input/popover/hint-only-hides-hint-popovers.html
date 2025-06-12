@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<!-- hint popovers only hide other hint popovers -->
+
+<div popover id=auto></div>
+<div popover=hint id=hint1></div>
+<div popover=hint id=hint2></div>
+
+<script>
+    test(() => {
+        const auto = document.getElementById("auto");
+        const hint1 = document.getElementById("hint1");
+        const hint2 = document.getElementById("hint2");
+
+        auto.showPopover();
+        hint1.showPopover();
+
+        if (auto.matches(":popover-open")
+            && hint1.matches(":popover-open")
+            && !hint2.matches(":popover-open"))
+            println("PASS");
+
+        hint2.showPopover();
+
+        if (auto.matches(":popover-open")
+            && !hint1.matches(":popover-open")
+            && hint2.matches(":popover-open"))
+            println("PASS");
+
+        auto.hidePopover();
+        auto.showPopover();
+
+        if (auto.matches(":popover-open")
+            && !hint1.matches(":popover-open")
+            && !hint2.matches(":popover-open"))
+            println("PASS");
+    });
+</script>

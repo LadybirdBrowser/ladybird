@@ -1,0 +1,12 @@
+#import <SVG/SVGElement.idl>
+
+// https://drafts.fxtf.org/css-masking/#InterfaceSVGMaskElement
+[Exposed=Window]
+interface SVGMaskElement : SVGElement {
+    [FIXME] readonly attribute SVGAnimatedEnumeration maskUnits;
+    [FIXME] readonly attribute SVGAnimatedEnumeration maskContentUnits;
+    [FIXME] readonly attribute SVGAnimatedLength x;
+    [FIXME] readonly attribute SVGAnimatedLength y;
+    [FIXME] readonly attribute SVGAnimatedLength width;
+    [FIXME] readonly attribute SVGAnimatedLength height;
+};

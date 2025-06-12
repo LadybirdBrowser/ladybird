@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test of interfaces</title>
+<link rel="author" title="Ms2ger" href="mailto:Ms2ger@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/">
+<link rel="help" href="https://webidl.spec.whatwg.org/#host-objects">
+<link rel="help" href="http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf#page=96">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src=interfaces.js></script>
+<div id="log"></div>
+<script>
+function do_test(local_name, iface, variant) {
+  test(function() {
+    var e;
+    var i = "HTML" + iface + "Element";
+    if (variant === "useNS") {
+      // Use createElementNS here to preserve the case of local_name.
+      e = document.createElementNS("http://www.w3.org/1999/xhtml", local_name);
+    } else if (variant === "useParser") {
+      e = new DOMParser().parseFromString("<" + local_name + ">", "text/html").querySelector(local_name);
+    } else {
+      e = document.createElement(local_name);
+    }
+    assert_class_string(e, i,
+                        "Element " + local_name + " should have " + i +
+                        " as its primary interface.");
+    assert_true(e instanceof window[i],
+                "Element " + local_name + " should implement " + i + ".");
+    assert_true(e instanceof HTMLElement,
+                "Element " + local_name + " should implement HTMLElement.");
+    assert_true(e instanceof Element,
+                "Element " + local_name + " should implement Element.");
+    assert_true(e instanceof Node,
+                "Element " + local_name + " should implement Node.");
+  }, "Interfaces for " + local_name + ": " + variant);
+}
+
+// Some elements have weird parser behavior / insertion modes and would be
+// skipped by the parser, so skip those.
+function should_do_parser_test(local_name) {
+  return ![
+    "foo-BAR",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "å-bar",
+    "caption",
+    "col",
+    "colgroup",
+    "frame",
+    "image",
+    "frameset",
+  ].includes(local_name)
+}
+
+elements.forEach(function(a) {
+  do_test(a[0], a[1], "useNS");
+
+  if (should_do_parser_test(a[0])) {
+    do_test(a[0], a[1], "useParser");
+  }
+
+  // Only run the createElement variant if the input is all-lowercase, because createElement
+  // case-folds to lowercase. Custom elements are required to use all-lowercase to implement
+  // HTMLElement, otherwise they use HTMLUnknownElement per spec. Example: "foo-BAR".
+  if (a[0] === a[0].toLowerCase()) {
+    do_test(a[0].toUpperCase(), a[1], "createElement");
+  }
+})
+</script>

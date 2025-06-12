@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Selectors Invalidation: attribute</title>
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#attribute-selectors">
+    <meta name="assert" content="This tests that the attribute selectors are effective">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+      div {
+        color: gray;
+      }
+
+      #a1[style] {
+        color: blue;
+      }
+      #a1[style] > #b1 {
+        color: green;
+      }
+      #a1[style] #c1 {
+        color: red;
+      }
+      #a1[style] + #d1 {
+        color: yellow;
+      }
+
+      [id=a2] {
+        color: blue;
+      }
+      [id=a2] > #b2 {
+        color: green;
+      }
+      [id=a2] #c2 {
+        color: red;
+      }
+      [id=a2] + #d2 {
+        color: yellow;
+      }
+
+      #a3[class~=q] {
+        color: blue;
+      }
+      #a3[class~=q] > #b3 {
+        color: green;
+      }
+      #a3[class~=q] #c3 {
+        color: red;
+      }
+      #a3[class~=q] + #d3 {
+        color: yellow;
+      }
+
+      #a4[run|=one] {
+        color: blue;
+      }
+      #a4[run|=one] > #b4 {
+        color: green;
+      }
+      #a4[run|=one] #c4 {
+        color: red;
+      }
+      #a4[run|=one] + #d4 {
+        color: yellow;
+      }
+
+      #a5 {
+        color: blue;
+      }
+      #a5 > #b5 {
+        color: green;
+      }
+      #a5 #c5 {
+        color: red;
+      }
+      #a5 + #d5 {
+        color: yellow;
+      }
+
+      #a6.q {
+        color: blue;
+      }
+      #a6.q > #b6 {
+        color: green;
+      }
+      #a6.q #c6 {
+        color: red;
+      }
+      #a6.q + #d6 {
+        color: yellow;
+      }
+
+  </style>
+  </head>
+  <body>
+
+    <div id="a1">
+      <div id="b1">
+        <div id="c1">
+        </div>
+      </div>
+    </div>
+    <div id="d1">
+    </div>
+
+    <div>
+      <div id="b2">
+        <div id="c2">
+        </div>
+      </div>
+    </div>
+    <div id="d2">
+    </div>
+
+    <div id="a3">
+      <div id="b3">
+        <div id="c3">
+        </div>
+      </div>
+    </div>
+    <div id="d3">
+    </div>
+
+    <div id="a4">
+      <div id="b4">
+        <div id="c4">
+        </div>
+      </div>
+    </div>
+    <div id="d4">
+    </div>
+
+    <div>
+      <div id="b5">
+        <div id="c5">
+        </div>
+      </div>
+    </div>
+    <div id="d5">
+    </div>
+
+    <div id="a6">
+      <div id="b6">
+        <div id="c6">
+        </div>
+      </div>
+    </div>
+    <div id="d6">
+    </div>
+
+    <script>
+      const gray = "rgb(128, 128, 128)";
+      const blue = "rgb(0, 0, 255)";
+      const green = "rgb(0, 128, 0)";
+      const red = "rgb(255, 0, 0)";
+      const yellow = "rgb(255, 255, 0)";
+
+      function assertGray(a, b, c, d) {
+        assert_equals(getComputedStyle(a).color, gray);
+        assert_equals(getComputedStyle(b).color, gray);
+        assert_equals(getComputedStyle(c).color, gray);
+        assert_equals(getComputedStyle(d).color, gray);
+      }
+
+      function assertColorful(a, b, c, d) {
+        assert_equals(getComputedStyle(a).color, blue);
+        assert_equals(getComputedStyle(b).color, green);
+        assert_equals(getComputedStyle(c).color, red);
+        assert_equals(getComputedStyle(d).color, yellow);
+      }
+
+      test(() => {
+        assertGray(a1, b1, c1, d1);
+        a1.style.visibility = "visible";
+        assertColorful(a1, b1, c1, d1);
+        a1.removeAttribute('style');
+        assertGray(a1, b1, c1, d1);
+      }, "[att] selector is effective");
+
+      test(() => {
+        const a2 = b2.parentElement;
+        assertGray(a2, b2, c2, d2);
+        a2.id = 'x-a2';
+        assertGray(a2, b2, c2, d2);
+        a2.id = 'a2';
+        assertColorful(a2, b2, c2, d2);
+        a2.id = 'a2-y';
+        assertGray(a2, b2, c2, d2);
+      }, "[att=val] selector is effective");
+
+      test(() => {
+        assertGray(a3, b3, c3, d3);
+        a3.setAttribute('class', 'p q r');
+        assertColorful(a3, b3, c3, d3);
+        a3.setAttribute('class', 'q-r');
+        assertGray(a3, b3, c3, d3);
+      }, "[att~=val] selector is effective");
+
+      test(() => {
+        assertGray(a4, b4, c4, d4);
+        a4.setAttribute('run', 'one');
+        assertColorful(a4, b4, c4, d4);
+        a4.setAttribute('run', 'one two three');
+        assertGray(a4, b4, c4, d4);
+        a4.setAttribute('run', 'one-two-three');
+        assertColorful(a4, b4, c4, d4);
+        a4.setAttribute('run', 'zero-one');
+        assertGray(a4, b4, c4, d4);
+      }, "[att|=val] selector is effective");
+
+      test(() => {
+        const a5 = b5.parentElement;
+        assertGray(a5, b5, c5, d5);
+        a5.setAttribute('id', 'x-a5');
+        assertGray(a5, b5, c5, d5);
+        a5.setAttribute('id', 'a5');
+        assertColorful(a5, b5, c5, d5);
+        a5.setAttribute('id', 'a5-y');
+        assertGray(a5, b5, c5, d5);
+      }, "#id selector is effective");
+
+      test(() => {
+        assertGray(a6, b6, c6, d6);
+        a6.classList.add('p');
+        a6.classList.add('q');
+        a6.classList.add('r');
+        assertColorful(a6, b6, c6, d6);
+        a6.classList.remove('q');
+        a6.classList.add('q-r');
+        assertGray(a6, b6, c6, d6);
+      }, ".class selector is effective");
+
+    </script>
+  </body>
+</html>

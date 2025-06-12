@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    body {
+        background: green;
+    }
+</style>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let link = document.createElement("link");
+        link.setAttribute("rel", "stylesheet");
+        link.setAttribute("href", "body-background-color-red.css");
+        link.setAttribute("media", "print");
+        document.head.appendChild(link);
+
+        window.onload = function () {
+            println("document background: " + getComputedStyle(document.body).backgroundColor);
+            done();
+        };
+    });
+</script>

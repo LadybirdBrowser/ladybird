@@ -1,0 +1,55 @@
+#import <DOM/Document.idl>
+#import <DOM/EventHandler.idl>
+#import <Fetch/BodyInit.idl>
+#import <XHR/XMLHttpRequestEventTarget.idl>
+#import <XHR/XMLHttpRequestUpload.idl>
+
+enum XMLHttpRequestResponseType {
+    "",
+    "arraybuffer",
+    "blob",
+    "document",
+    "json",
+    "text"
+};
+
+// https://xhr.spec.whatwg.org/#xmlhttprequest
+[Exposed=(Window,DedicatedWorker,SharedWorker)]
+interface XMLHttpRequest : XMLHttpRequestEventTarget {
+
+    constructor();
+
+    // event handler
+    attribute EventHandler onreadystatechange;
+
+    // states
+    const unsigned short UNSENT = 0;
+    const unsigned short OPENED = 1;
+    const unsigned short HEADERS_RECEIVED = 2;
+    const unsigned short LOADING = 3;
+    const unsigned short DONE = 4;
+    readonly attribute unsigned short readyState;
+
+    // request
+    undefined open(DOMString method, DOMString url);
+    undefined open(ByteString method, USVString url, boolean async, optional USVString? username = null, optional USVString? password = null);
+    undefined setRequestHeader(ByteString name, ByteString value);
+    attribute unsigned long timeout;
+    attribute boolean withCredentials;
+    [SameObject] readonly attribute XMLHttpRequestUpload upload;
+    undefined send(optional (Document or XMLHttpRequestBodyInit)? body = null);
+    undefined abort();
+
+    // response
+    readonly attribute USVString responseURL;
+    readonly attribute unsigned short status;
+    readonly attribute ByteString statusText;
+    ByteString? getResponseHeader(ByteString name);
+    ByteString getAllResponseHeaders();
+    undefined overrideMimeType(DOMString mime);
+    attribute XMLHttpRequestResponseType responseType;
+    readonly attribute any response;
+    readonly attribute DOMString responseText;
+    readonly attribute Document? responseXML;
+
+};

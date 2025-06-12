@@ -1,0 +1,449 @@
+Harness status: OK
+
+Found 444 tests
+
+444 Pass
+Pass	a: Define a customized built-in element
+Pass	a: Operator 'new' should instantiate a customized built-in element
+Pass	a: document.createElement() should instantiate a customized built-in element
+Pass	a: innerHTML should instantiate a customized built-in element
+Pass	abbr: Define a customized built-in element
+Pass	abbr: Operator 'new' should instantiate a customized built-in element
+Pass	abbr: document.createElement() should instantiate a customized built-in element
+Pass	abbr: innerHTML should instantiate a customized built-in element
+Pass	address: Define a customized built-in element
+Pass	address: Operator 'new' should instantiate a customized built-in element
+Pass	address: document.createElement() should instantiate a customized built-in element
+Pass	address: innerHTML should instantiate a customized built-in element
+Pass	area: Define a customized built-in element
+Pass	area: Operator 'new' should instantiate a customized built-in element
+Pass	area: document.createElement() should instantiate a customized built-in element
+Pass	area: innerHTML should instantiate a customized built-in element
+Pass	article: Define a customized built-in element
+Pass	article: Operator 'new' should instantiate a customized built-in element
+Pass	article: document.createElement() should instantiate a customized built-in element
+Pass	article: innerHTML should instantiate a customized built-in element
+Pass	aside: Define a customized built-in element
+Pass	aside: Operator 'new' should instantiate a customized built-in element
+Pass	aside: document.createElement() should instantiate a customized built-in element
+Pass	aside: innerHTML should instantiate a customized built-in element
+Pass	audio: Define a customized built-in element
+Pass	audio: Operator 'new' should instantiate a customized built-in element
+Pass	audio: document.createElement() should instantiate a customized built-in element
+Pass	audio: innerHTML should instantiate a customized built-in element
+Pass	b: Define a customized built-in element
+Pass	b: Operator 'new' should instantiate a customized built-in element
+Pass	b: document.createElement() should instantiate a customized built-in element
+Pass	b: innerHTML should instantiate a customized built-in element
+Pass	base: Define a customized built-in element
+Pass	base: Operator 'new' should instantiate a customized built-in element
+Pass	base: document.createElement() should instantiate a customized built-in element
+Pass	base: innerHTML should instantiate a customized built-in element
+Pass	bdi: Define a customized built-in element
+Pass	bdi: Operator 'new' should instantiate a customized built-in element
+Pass	bdi: document.createElement() should instantiate a customized built-in element
+Pass	bdi: innerHTML should instantiate a customized built-in element
+Pass	bdo: Define a customized built-in element
+Pass	bdo: Operator 'new' should instantiate a customized built-in element
+Pass	bdo: document.createElement() should instantiate a customized built-in element
+Pass	bdo: innerHTML should instantiate a customized built-in element
+Pass	blockquote: Define a customized built-in element
+Pass	blockquote: Operator 'new' should instantiate a customized built-in element
+Pass	blockquote: document.createElement() should instantiate a customized built-in element
+Pass	blockquote: innerHTML should instantiate a customized built-in element
+Pass	body: Define a customized built-in element
+Pass	body: Operator 'new' should instantiate a customized built-in element
+Pass	body: document.createElement() should instantiate a customized built-in element
+Pass	body: document parser should instantiate a customized built-in element
+Pass	br: Define a customized built-in element
+Pass	br: Operator 'new' should instantiate a customized built-in element
+Pass	br: document.createElement() should instantiate a customized built-in element
+Pass	br: innerHTML should instantiate a customized built-in element
+Pass	button: Define a customized built-in element
+Pass	button: Operator 'new' should instantiate a customized built-in element
+Pass	button: document.createElement() should instantiate a customized built-in element
+Pass	button: innerHTML should instantiate a customized built-in element
+Pass	canvas: Define a customized built-in element
+Pass	canvas: Operator 'new' should instantiate a customized built-in element
+Pass	canvas: document.createElement() should instantiate a customized built-in element
+Pass	canvas: innerHTML should instantiate a customized built-in element
+Pass	caption: Define a customized built-in element
+Pass	caption: Operator 'new' should instantiate a customized built-in element
+Pass	caption: document.createElement() should instantiate a customized built-in element
+Pass	caption: innerHTML should instantiate a customized built-in element
+Pass	cite: Define a customized built-in element
+Pass	cite: Operator 'new' should instantiate a customized built-in element
+Pass	cite: document.createElement() should instantiate a customized built-in element
+Pass	cite: innerHTML should instantiate a customized built-in element
+Pass	code: Define a customized built-in element
+Pass	code: Operator 'new' should instantiate a customized built-in element
+Pass	code: document.createElement() should instantiate a customized built-in element
+Pass	code: innerHTML should instantiate a customized built-in element
+Pass	col: Define a customized built-in element
+Pass	col: Operator 'new' should instantiate a customized built-in element
+Pass	col: document.createElement() should instantiate a customized built-in element
+Pass	col: innerHTML should instantiate a customized built-in element
+Pass	colgroup: Define a customized built-in element
+Pass	colgroup: Operator 'new' should instantiate a customized built-in element
+Pass	colgroup: document.createElement() should instantiate a customized built-in element
+Pass	colgroup: innerHTML should instantiate a customized built-in element
+Pass	data: Define a customized built-in element
+Pass	data: Operator 'new' should instantiate a customized built-in element
+Pass	data: document.createElement() should instantiate a customized built-in element
+Pass	data: innerHTML should instantiate a customized built-in element
+Pass	dd: Define a customized built-in element
+Pass	dd: Operator 'new' should instantiate a customized built-in element
+Pass	dd: document.createElement() should instantiate a customized built-in element
+Pass	dd: innerHTML should instantiate a customized built-in element
+Pass	del: Define a customized built-in element
+Pass	del: Operator 'new' should instantiate a customized built-in element
+Pass	del: document.createElement() should instantiate a customized built-in element
+Pass	del: innerHTML should instantiate a customized built-in element
+Pass	details: Define a customized built-in element
+Pass	details: Operator 'new' should instantiate a customized built-in element
+Pass	details: document.createElement() should instantiate a customized built-in element
+Pass	details: innerHTML should instantiate a customized built-in element
+Pass	dfn: Define a customized built-in element
+Pass	dfn: Operator 'new' should instantiate a customized built-in element
+Pass	dfn: document.createElement() should instantiate a customized built-in element
+Pass	dfn: innerHTML should instantiate a customized built-in element
+Pass	div: Define a customized built-in element
+Pass	div: Operator 'new' should instantiate a customized built-in element
+Pass	div: document.createElement() should instantiate a customized built-in element
+Pass	div: innerHTML should instantiate a customized built-in element
+Pass	dl: Define a customized built-in element
+Pass	dl: Operator 'new' should instantiate a customized built-in element
+Pass	dl: document.createElement() should instantiate a customized built-in element
+Pass	dl: innerHTML should instantiate a customized built-in element
+Pass	dt: Define a customized built-in element
+Pass	dt: Operator 'new' should instantiate a customized built-in element
+Pass	dt: document.createElement() should instantiate a customized built-in element
+Pass	dt: innerHTML should instantiate a customized built-in element
+Pass	em: Define a customized built-in element
+Pass	em: Operator 'new' should instantiate a customized built-in element
+Pass	em: document.createElement() should instantiate a customized built-in element
+Pass	em: innerHTML should instantiate a customized built-in element
+Pass	embed: Define a customized built-in element
+Pass	embed: Operator 'new' should instantiate a customized built-in element
+Pass	embed: document.createElement() should instantiate a customized built-in element
+Pass	embed: innerHTML should instantiate a customized built-in element
+Pass	fieldset: Define a customized built-in element
+Pass	fieldset: Operator 'new' should instantiate a customized built-in element
+Pass	fieldset: document.createElement() should instantiate a customized built-in element
+Pass	fieldset: innerHTML should instantiate a customized built-in element
+Pass	figcaption: Define a customized built-in element
+Pass	figcaption: Operator 'new' should instantiate a customized built-in element
+Pass	figcaption: document.createElement() should instantiate a customized built-in element
+Pass	figcaption: innerHTML should instantiate a customized built-in element
+Pass	figure: Define a customized built-in element
+Pass	figure: Operator 'new' should instantiate a customized built-in element
+Pass	figure: document.createElement() should instantiate a customized built-in element
+Pass	figure: innerHTML should instantiate a customized built-in element
+Pass	footer: Define a customized built-in element
+Pass	footer: Operator 'new' should instantiate a customized built-in element
+Pass	footer: document.createElement() should instantiate a customized built-in element
+Pass	footer: innerHTML should instantiate a customized built-in element
+Pass	form: Define a customized built-in element
+Pass	form: Operator 'new' should instantiate a customized built-in element
+Pass	form: document.createElement() should instantiate a customized built-in element
+Pass	form: innerHTML should instantiate a customized built-in element
+Pass	h1: Define a customized built-in element
+Pass	h1: Operator 'new' should instantiate a customized built-in element
+Pass	h1: document.createElement() should instantiate a customized built-in element
+Pass	h1: innerHTML should instantiate a customized built-in element
+Pass	h2: Define a customized built-in element
+Pass	h2: Operator 'new' should instantiate a customized built-in element
+Pass	h2: document.createElement() should instantiate a customized built-in element
+Pass	h2: innerHTML should instantiate a customized built-in element
+Pass	h3: Define a customized built-in element
+Pass	h3: Operator 'new' should instantiate a customized built-in element
+Pass	h3: document.createElement() should instantiate a customized built-in element
+Pass	h3: innerHTML should instantiate a customized built-in element
+Pass	h4: Define a customized built-in element
+Pass	h4: Operator 'new' should instantiate a customized built-in element
+Pass	h4: document.createElement() should instantiate a customized built-in element
+Pass	h4: innerHTML should instantiate a customized built-in element
+Pass	h5: Define a customized built-in element
+Pass	h5: Operator 'new' should instantiate a customized built-in element
+Pass	h5: document.createElement() should instantiate a customized built-in element
+Pass	h5: innerHTML should instantiate a customized built-in element
+Pass	h6: Define a customized built-in element
+Pass	h6: Operator 'new' should instantiate a customized built-in element
+Pass	h6: document.createElement() should instantiate a customized built-in element
+Pass	h6: innerHTML should instantiate a customized built-in element
+Pass	header: Define a customized built-in element
+Pass	header: Operator 'new' should instantiate a customized built-in element
+Pass	header: document.createElement() should instantiate a customized built-in element
+Pass	header: innerHTML should instantiate a customized built-in element
+Pass	hgroup: Define a customized built-in element
+Pass	hgroup: Operator 'new' should instantiate a customized built-in element
+Pass	hgroup: document.createElement() should instantiate a customized built-in element
+Pass	hgroup: innerHTML should instantiate a customized built-in element
+Pass	hr: Define a customized built-in element
+Pass	hr: Operator 'new' should instantiate a customized built-in element
+Pass	hr: document.createElement() should instantiate a customized built-in element
+Pass	hr: innerHTML should instantiate a customized built-in element
+Pass	html: Define a customized built-in element
+Pass	html: Operator 'new' should instantiate a customized built-in element
+Pass	html: document.createElement() should instantiate a customized built-in element
+Pass	html: document parser should instantiate a customized built-in element
+Pass	i: Define a customized built-in element
+Pass	i: Operator 'new' should instantiate a customized built-in element
+Pass	i: document.createElement() should instantiate a customized built-in element
+Pass	i: innerHTML should instantiate a customized built-in element
+Pass	iframe: Define a customized built-in element
+Pass	iframe: Operator 'new' should instantiate a customized built-in element
+Pass	iframe: document.createElement() should instantiate a customized built-in element
+Pass	iframe: innerHTML should instantiate a customized built-in element
+Pass	img: Define a customized built-in element
+Pass	img: Operator 'new' should instantiate a customized built-in element
+Pass	img: document.createElement() should instantiate a customized built-in element
+Pass	img: innerHTML should instantiate a customized built-in element
+Pass	input: Define a customized built-in element
+Pass	input: Operator 'new' should instantiate a customized built-in element
+Pass	input: document.createElement() should instantiate a customized built-in element
+Pass	input: innerHTML should instantiate a customized built-in element
+Pass	ins: Define a customized built-in element
+Pass	ins: Operator 'new' should instantiate a customized built-in element
+Pass	ins: document.createElement() should instantiate a customized built-in element
+Pass	ins: innerHTML should instantiate a customized built-in element
+Pass	kbd: Define a customized built-in element
+Pass	kbd: Operator 'new' should instantiate a customized built-in element
+Pass	kbd: document.createElement() should instantiate a customized built-in element
+Pass	kbd: innerHTML should instantiate a customized built-in element
+Pass	label: Define a customized built-in element
+Pass	label: Operator 'new' should instantiate a customized built-in element
+Pass	label: document.createElement() should instantiate a customized built-in element
+Pass	label: innerHTML should instantiate a customized built-in element
+Pass	legend: Define a customized built-in element
+Pass	legend: Operator 'new' should instantiate a customized built-in element
+Pass	legend: document.createElement() should instantiate a customized built-in element
+Pass	legend: innerHTML should instantiate a customized built-in element
+Pass	li: Define a customized built-in element
+Pass	li: Operator 'new' should instantiate a customized built-in element
+Pass	li: document.createElement() should instantiate a customized built-in element
+Pass	li: innerHTML should instantiate a customized built-in element
+Pass	link: Define a customized built-in element
+Pass	link: Operator 'new' should instantiate a customized built-in element
+Pass	link: document.createElement() should instantiate a customized built-in element
+Pass	link: innerHTML should instantiate a customized built-in element
+Pass	main: Define a customized built-in element
+Pass	main: Operator 'new' should instantiate a customized built-in element
+Pass	main: document.createElement() should instantiate a customized built-in element
+Pass	main: innerHTML should instantiate a customized built-in element
+Pass	map: Define a customized built-in element
+Pass	map: Operator 'new' should instantiate a customized built-in element
+Pass	map: document.createElement() should instantiate a customized built-in element
+Pass	map: innerHTML should instantiate a customized built-in element
+Pass	mark: Define a customized built-in element
+Pass	mark: Operator 'new' should instantiate a customized built-in element
+Pass	mark: document.createElement() should instantiate a customized built-in element
+Pass	mark: innerHTML should instantiate a customized built-in element
+Pass	menu: Define a customized built-in element
+Pass	menu: Operator 'new' should instantiate a customized built-in element
+Pass	menu: document.createElement() should instantiate a customized built-in element
+Pass	menu: innerHTML should instantiate a customized built-in element
+Pass	meta: Define a customized built-in element
+Pass	meta: Operator 'new' should instantiate a customized built-in element
+Pass	meta: document.createElement() should instantiate a customized built-in element
+Pass	meta: innerHTML should instantiate a customized built-in element
+Pass	meter: Define a customized built-in element
+Pass	meter: Operator 'new' should instantiate a customized built-in element
+Pass	meter: document.createElement() should instantiate a customized built-in element
+Pass	meter: innerHTML should instantiate a customized built-in element
+Pass	nav: Define a customized built-in element
+Pass	nav: Operator 'new' should instantiate a customized built-in element
+Pass	nav: document.createElement() should instantiate a customized built-in element
+Pass	nav: innerHTML should instantiate a customized built-in element
+Pass	noscript: Define a customized built-in element
+Pass	noscript: Operator 'new' should instantiate a customized built-in element
+Pass	noscript: document.createElement() should instantiate a customized built-in element
+Pass	noscript: innerHTML should instantiate a customized built-in element
+Pass	object: Define a customized built-in element
+Pass	object: Operator 'new' should instantiate a customized built-in element
+Pass	object: document.createElement() should instantiate a customized built-in element
+Pass	object: innerHTML should instantiate a customized built-in element
+Pass	ol: Define a customized built-in element
+Pass	ol: Operator 'new' should instantiate a customized built-in element
+Pass	ol: document.createElement() should instantiate a customized built-in element
+Pass	ol: innerHTML should instantiate a customized built-in element
+Pass	optgroup: Define a customized built-in element
+Pass	optgroup: Operator 'new' should instantiate a customized built-in element
+Pass	optgroup: document.createElement() should instantiate a customized built-in element
+Pass	optgroup: innerHTML should instantiate a customized built-in element
+Pass	option: Define a customized built-in element
+Pass	option: Operator 'new' should instantiate a customized built-in element
+Pass	option: document.createElement() should instantiate a customized built-in element
+Pass	option: innerHTML should instantiate a customized built-in element
+Pass	output: Define a customized built-in element
+Pass	output: Operator 'new' should instantiate a customized built-in element
+Pass	output: document.createElement() should instantiate a customized built-in element
+Pass	output: innerHTML should instantiate a customized built-in element
+Pass	p: Define a customized built-in element
+Pass	p: Operator 'new' should instantiate a customized built-in element
+Pass	p: document.createElement() should instantiate a customized built-in element
+Pass	p: innerHTML should instantiate a customized built-in element
+Pass	param: Define a customized built-in element
+Pass	param: Operator 'new' should instantiate a customized built-in element
+Pass	param: document.createElement() should instantiate a customized built-in element
+Pass	param: innerHTML should instantiate a customized built-in element
+Pass	picture: Define a customized built-in element
+Pass	picture: Operator 'new' should instantiate a customized built-in element
+Pass	picture: document.createElement() should instantiate a customized built-in element
+Pass	picture: innerHTML should instantiate a customized built-in element
+Pass	pre: Define a customized built-in element
+Pass	pre: Operator 'new' should instantiate a customized built-in element
+Pass	pre: document.createElement() should instantiate a customized built-in element
+Pass	pre: innerHTML should instantiate a customized built-in element
+Pass	progress: Define a customized built-in element
+Pass	progress: Operator 'new' should instantiate a customized built-in element
+Pass	progress: document.createElement() should instantiate a customized built-in element
+Pass	progress: innerHTML should instantiate a customized built-in element
+Pass	q: Define a customized built-in element
+Pass	q: Operator 'new' should instantiate a customized built-in element
+Pass	q: document.createElement() should instantiate a customized built-in element
+Pass	q: innerHTML should instantiate a customized built-in element
+Pass	rp: Define a customized built-in element
+Pass	rp: Operator 'new' should instantiate a customized built-in element
+Pass	rp: document.createElement() should instantiate a customized built-in element
+Pass	rp: innerHTML should instantiate a customized built-in element
+Pass	rt: Define a customized built-in element
+Pass	rt: Operator 'new' should instantiate a customized built-in element
+Pass	rt: document.createElement() should instantiate a customized built-in element
+Pass	rt: innerHTML should instantiate a customized built-in element
+Pass	ruby: Define a customized built-in element
+Pass	ruby: Operator 'new' should instantiate a customized built-in element
+Pass	ruby: document.createElement() should instantiate a customized built-in element
+Pass	ruby: innerHTML should instantiate a customized built-in element
+Pass	s: Define a customized built-in element
+Pass	s: Operator 'new' should instantiate a customized built-in element
+Pass	s: document.createElement() should instantiate a customized built-in element
+Pass	s: innerHTML should instantiate a customized built-in element
+Pass	samp: Define a customized built-in element
+Pass	samp: Operator 'new' should instantiate a customized built-in element
+Pass	samp: document.createElement() should instantiate a customized built-in element
+Pass	samp: innerHTML should instantiate a customized built-in element
+Pass	script: Define a customized built-in element
+Pass	script: Operator 'new' should instantiate a customized built-in element
+Pass	script: document.createElement() should instantiate a customized built-in element
+Pass	script: innerHTML should instantiate a customized built-in element
+Pass	section: Define a customized built-in element
+Pass	section: Operator 'new' should instantiate a customized built-in element
+Pass	section: document.createElement() should instantiate a customized built-in element
+Pass	section: innerHTML should instantiate a customized built-in element
+Pass	select: Define a customized built-in element
+Pass	select: Operator 'new' should instantiate a customized built-in element
+Pass	select: document.createElement() should instantiate a customized built-in element
+Pass	select: innerHTML should instantiate a customized built-in element
+Pass	small: Define a customized built-in element
+Pass	small: Operator 'new' should instantiate a customized built-in element
+Pass	small: document.createElement() should instantiate a customized built-in element
+Pass	small: innerHTML should instantiate a customized built-in element
+Pass	source: Define a customized built-in element
+Pass	source: Operator 'new' should instantiate a customized built-in element
+Pass	source: document.createElement() should instantiate a customized built-in element
+Pass	source: innerHTML should instantiate a customized built-in element
+Pass	span: Define a customized built-in element
+Pass	span: Operator 'new' should instantiate a customized built-in element
+Pass	span: document.createElement() should instantiate a customized built-in element
+Pass	span: innerHTML should instantiate a customized built-in element
+Pass	strong: Define a customized built-in element
+Pass	strong: Operator 'new' should instantiate a customized built-in element
+Pass	strong: document.createElement() should instantiate a customized built-in element
+Pass	strong: innerHTML should instantiate a customized built-in element
+Pass	style: Define a customized built-in element
+Pass	style: Operator 'new' should instantiate a customized built-in element
+Pass	style: document.createElement() should instantiate a customized built-in element
+Pass	style: innerHTML should instantiate a customized built-in element
+Pass	sub: Define a customized built-in element
+Pass	sub: Operator 'new' should instantiate a customized built-in element
+Pass	sub: document.createElement() should instantiate a customized built-in element
+Pass	sub: innerHTML should instantiate a customized built-in element
+Pass	summary: Define a customized built-in element
+Pass	summary: Operator 'new' should instantiate a customized built-in element
+Pass	summary: document.createElement() should instantiate a customized built-in element
+Pass	summary: innerHTML should instantiate a customized built-in element
+Pass	sup: Define a customized built-in element
+Pass	sup: Operator 'new' should instantiate a customized built-in element
+Pass	sup: document.createElement() should instantiate a customized built-in element
+Pass	sup: innerHTML should instantiate a customized built-in element
+Pass	table: Define a customized built-in element
+Pass	table: Operator 'new' should instantiate a customized built-in element
+Pass	table: document.createElement() should instantiate a customized built-in element
+Pass	table: innerHTML should instantiate a customized built-in element
+Pass	tbody: Define a customized built-in element
+Pass	tbody: Operator 'new' should instantiate a customized built-in element
+Pass	tbody: document.createElement() should instantiate a customized built-in element
+Pass	tbody: innerHTML should instantiate a customized built-in element
+Pass	td: Define a customized built-in element
+Pass	td: Operator 'new' should instantiate a customized built-in element
+Pass	td: document.createElement() should instantiate a customized built-in element
+Pass	td: innerHTML should instantiate a customized built-in element
+Pass	template: Define a customized built-in element
+Pass	template: Operator 'new' should instantiate a customized built-in element
+Pass	template: document.createElement() should instantiate a customized built-in element
+Pass	template: innerHTML should instantiate a customized built-in element
+Pass	textarea: Define a customized built-in element
+Pass	textarea: Operator 'new' should instantiate a customized built-in element
+Pass	textarea: document.createElement() should instantiate a customized built-in element
+Pass	textarea: innerHTML should instantiate a customized built-in element
+Pass	tfoot: Define a customized built-in element
+Pass	tfoot: Operator 'new' should instantiate a customized built-in element
+Pass	tfoot: document.createElement() should instantiate a customized built-in element
+Pass	tfoot: innerHTML should instantiate a customized built-in element
+Pass	th: Define a customized built-in element
+Pass	th: Operator 'new' should instantiate a customized built-in element
+Pass	th: document.createElement() should instantiate a customized built-in element
+Pass	th: innerHTML should instantiate a customized built-in element
+Pass	thead: Define a customized built-in element
+Pass	thead: Operator 'new' should instantiate a customized built-in element
+Pass	thead: document.createElement() should instantiate a customized built-in element
+Pass	thead: innerHTML should instantiate a customized built-in element
+Pass	time: Define a customized built-in element
+Pass	time: Operator 'new' should instantiate a customized built-in element
+Pass	time: document.createElement() should instantiate a customized built-in element
+Pass	time: innerHTML should instantiate a customized built-in element
+Pass	title: Define a customized built-in element
+Pass	title: Operator 'new' should instantiate a customized built-in element
+Pass	title: document.createElement() should instantiate a customized built-in element
+Pass	title: innerHTML should instantiate a customized built-in element
+Pass	tr: Define a customized built-in element
+Pass	tr: Operator 'new' should instantiate a customized built-in element
+Pass	tr: document.createElement() should instantiate a customized built-in element
+Pass	tr: innerHTML should instantiate a customized built-in element
+Pass	track: Define a customized built-in element
+Pass	track: Operator 'new' should instantiate a customized built-in element
+Pass	track: document.createElement() should instantiate a customized built-in element
+Pass	track: innerHTML should instantiate a customized built-in element
+Pass	u: Define a customized built-in element
+Pass	u: Operator 'new' should instantiate a customized built-in element
+Pass	u: document.createElement() should instantiate a customized built-in element
+Pass	u: innerHTML should instantiate a customized built-in element
+Pass	ul: Define a customized built-in element
+Pass	ul: Operator 'new' should instantiate a customized built-in element
+Pass	ul: document.createElement() should instantiate a customized built-in element
+Pass	ul: innerHTML should instantiate a customized built-in element
+Pass	var: Define a customized built-in element
+Pass	var: Operator 'new' should instantiate a customized built-in element
+Pass	var: document.createElement() should instantiate a customized built-in element
+Pass	var: innerHTML should instantiate a customized built-in element
+Pass	video: Define a customized built-in element
+Pass	video: Operator 'new' should instantiate a customized built-in element
+Pass	video: document.createElement() should instantiate a customized built-in element
+Pass	video: innerHTML should instantiate a customized built-in element
+Pass	wbr: Define a customized built-in element
+Pass	wbr: Operator 'new' should instantiate a customized built-in element
+Pass	wbr: document.createElement() should instantiate a customized built-in element
+Pass	wbr: innerHTML should instantiate a customized built-in element
+Pass	datalist: Define a customized built-in element
+Pass	datalist: Operator 'new' should instantiate a customized built-in element
+Pass	datalist: document.createElement() should instantiate a customized built-in element
+Pass	datalist: innerHTML should instantiate a customized built-in element
+Pass	dialog: Define a customized built-in element
+Pass	dialog: Operator 'new' should instantiate a customized built-in element
+Pass	dialog: document.createElement() should instantiate a customized built-in element
+Pass	dialog: innerHTML should instantiate a customized built-in element
+Pass	slot: Define a customized built-in element
+Pass	slot: Operator 'new' should instantiate a customized built-in element
+Pass	slot: document.createElement() should instantiate a customized built-in element
+Pass	slot: innerHTML should instantiate a customized built-in element

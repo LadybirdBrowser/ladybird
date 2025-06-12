@@ -1,0 +1,7 @@
+#import <SVG/SVGGeometryElement.idl>
+
+// https://svgwg.org/svg2-draft/paths.html#InterfaceSVGPathElement
+[Exposed=Window]
+interface SVGPathElement : SVGGeometryElement {
+
+};

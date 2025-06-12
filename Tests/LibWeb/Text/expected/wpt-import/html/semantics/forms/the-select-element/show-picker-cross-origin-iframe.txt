@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Details
+Result	Test Name	MessagePass	Test showPicker() called from cross-origin iframe	
+Fail	Test showPicker() called from cross-origin iframe 1	
+Fail	Test showPicker() called from cross-origin iframe 2	
+Fail	Test showPicker() called from cross-origin iframe 3	

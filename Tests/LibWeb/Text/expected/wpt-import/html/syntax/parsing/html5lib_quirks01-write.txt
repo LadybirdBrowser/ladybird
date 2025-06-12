@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	html5lib_quirks01.html 700e38ecb6ac91e9c5477fd451591b844d51f38e
+Pass	html5lib_quirks01.html d196aec77885a47ff43166960d48c8c9eb2cbee0
+Pass	html5lib_quirks01.html d4b597fe74a7af1b96750e29cb1180af8b97a1f4
+Pass	html5lib_quirks01.html e1bacd20039e6d1bed0de4aff51c37e303762170

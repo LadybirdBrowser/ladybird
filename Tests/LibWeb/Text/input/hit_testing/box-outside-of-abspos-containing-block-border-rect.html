@@ -1,0 +1,28 @@
+<!DOCTYPE html><style>
+body {
+    margin: 0;
+}
+
+* {
+    border: 1px solid black;
+}
+
+nav {
+    position: absolute;
+    height: 600px;
+}
+
+nav > div {
+    height: 100%;
+}
+</style><nav><div></div><button id="btn">Run</button></nav>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        btn.onclick = () => {
+            println("Clicked!");
+            done();
+        };
+        internals.click(20, 615);
+    });
+</script>

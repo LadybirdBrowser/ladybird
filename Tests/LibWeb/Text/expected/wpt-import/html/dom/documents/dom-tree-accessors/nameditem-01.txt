@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	img elements that have a name and id attribute, should be accessible by both values.
+Pass	img elements that have a name and id attribute with same value.
+Pass	Dynamically removing the name attribute from img elements, should not be accessible.
+Pass	Dynamically removing the id attribute from img elements, should still be accessible by name value.
+Pass	Dynamically updating the name attribute from img elements, should be accessible by values.
+Pass	Dynamically updating the id attribute from img elements, should be accessible by values.
+Pass	img elements that is removed, should not be accessible.

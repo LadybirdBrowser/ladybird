@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 24 tests
+
+22 Pass
+2 Fail
+Pass	Property clear has initial value none
+Pass	Property clear does not inherit
+Pass	Property float has initial value none
+Pass	Property float does not inherit
+Pass	Property margin-bottom has initial value 0px
+Pass	Property margin-bottom does not inherit
+Pass	Property margin-left has initial value 0px
+Pass	Property margin-left does not inherit
+Pass	Property margin-right has initial value 0px
+Pass	Property margin-right does not inherit
+Pass	Property margin-top has initial value 0px
+Pass	Property margin-top does not inherit
+Fail	Property margin-trim has initial value none
+Fail	Property margin-trim does not inherit
+Pass	Property padding-bottom has initial value 0px
+Pass	Property padding-bottom does not inherit
+Pass	Property padding-left has initial value 0px
+Pass	Property padding-left does not inherit
+Pass	Property padding-right has initial value 0px
+Pass	Property padding-right does not inherit
+Pass	Property padding-top has initial value 0px
+Pass	Property padding-top does not inherit
+Pass	Property visibility has initial value visible
+Pass	Property visibility inherits

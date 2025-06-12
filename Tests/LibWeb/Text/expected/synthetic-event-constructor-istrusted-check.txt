@@ -1,0 +1,1 @@
+new Event('x').isTrusted is false

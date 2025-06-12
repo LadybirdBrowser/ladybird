@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Name Comp: Text Node</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+<p>Tests the <a href="https://w3c.github.io/accname/#comp_text_node">#comp_text_node</a> portions of the AccName <em>Name Computation</em> algorithm.</p>
+<!--
+
+  Note: some overlap with the tests in:
+  - /accname/name/comp_label.html
+  - /accname/name/comp_name_from_content.html
+
+-->
+<h1>text/element/text nodes, no space</h1>
+<span class="ex" data-expectedlabel="buttonlabel" data-testname="span[role=button] with text/element/text nodes, no space" role="button" tabindex="0">button<span></span>label</span>
+<div class="ex" data-expectedlabel="headinglabel" data-testname="div[role=heading] with text/element/text nodes, no space" role="heading">heading<span></span>label</div>
+<button class="ex" data-expectedlabel="buttonlabel" data-testname="button with text/element/text nodes, no space">button<span></span>label</button>
+<h3 class="ex" data-expectedlabel="headinglabel" data-testname="heading with text/element/text nodes, no space">heading<span></span>label</h3>
+<a class="ex" data-expectedlabel="linklabel" data-testname="link with text/element/text nodes, no space" href="#">link<span></span>label</a>
+<br/>
+<h1>text/comment/text nodes, no space</h1>
+<!-- Note: This set is not currently to spec until https://github.com/w3c/accname/issues/193 is resolved. -->
+<span class="ex" data-expectedlabel="buttonlabel" data-testname="span[role=button] with text/comment/text nodes, no space" role="button" tabindex="0">
+  button<!-- with non-text node splitting concatenated text nodes -->label<!-- [sic] no extra spaces around first comment -->
+</span>
+<div class="ex" data-expectedlabel="headinglabel" data-testname="div[role=heading] with text/comment/text nodes, no space" role="heading">
+  heading<!-- with non-text node splitting concatenated text nodes -->label<!-- [sic] no extra spaces around first comment -->
+</div>
+<button class="ex" data-expectedlabel="buttonlabel" data-testname="button with text/comment/text nodes, no space">
+  button<!-- with non-text node splitting concatenated text nodes -->label<!-- [sic] no extra spaces around first comment -->
+</button>
+<h3 class="ex" data-expectedlabel="headinglabel" data-testname="heading with text/comment/text nodes, no space">
+  heading<!-- with non-text node splitting concatenated text nodes -->label<!-- [sic] no extra spaces around first comment -->
+</h3>
+<a class="ex" data-expectedlabel="linklabel" data-testname="link with text/comment/text nodes, no space" href="#">
+  link<!-- with non-text node splitting concatenated text nodes -->label<!-- [sic] no extra spaces around first comment -->
+</a>
+<br/>
+<h1>text/comment/text nodes, with space</h1>
+<span class="ex" data-expectedlabel="button label" data-testname="span[role=button] with text/comment/text nodes, with space" role="button" tabindex="0">
+  button
+  <!-- comment node between text nodes with leading/trailing whitespace -->
+  label
+</span>
+<div class="ex" data-expectedlabel="heading label" data-testname="div[role=heading] with text/comment/text nodes, with space" role="heading">
+  heading
+  <!-- comment node between text nodes with leading/trailing whitespace -->
+  label
+</div>
+<button class="ex" data-expectedlabel="button label" data-testname="button with text/comment/text nodes, with space">
+  button
+  <!-- comment node between text nodes with leading/trailing whitespace -->
+  label
+</button>
+<h3 class="ex" data-expectedlabel="heading label" data-testname="heading with text/comment/text nodes, with space">
+  heading
+  <!-- comment node between text nodes with leading/trailing whitespace -->
+  label
+</h3>
+<a class="ex" data-expectedlabel="link label" data-testname="link with text/comment/text nodes, with space" href="#">
+  link
+  <!-- comment node between text nodes with leading/trailing whitespace -->
+  label
+</a>
+<br/>
+<h1>text node, with tab char</h1>
+<span class="ex" data-expectedlabel="button label" data-testname="span[role=button] with text node, with tab char" role="button" tabindex="0">button  label</span>
+<div class="ex" data-expectedlabel="heading label" data-testname="div[role=heading] with text node, with tab char" role="heading">heading label</div>
+<button class="ex" data-expectedlabel="button label" data-testname="button with text node, with tab char">button  label</button>
+<h3 class="ex" data-expectedlabel="heading label" data-testname="heading with text node, with tab char">heading label</h3>
+<a class="ex" data-expectedlabel="link label" data-testname="link with text node, with tab char" href="#">link	label</a>
+<br/>
+<h1>text node, with non-breaking space</h1>
+<span class="ex" data-expectedlabel="button label" data-testname="span[role=button] with text node, with non-breaking space" role="button" tabindex="0">button label</span>
+<div class="ex" data-expectedlabel="heading label" data-testname="div[role=heading] with text node, with non-breaking space" role="heading">heading label</div>
+<button class="ex" data-expectedlabel="button label" data-testname="button with text node, with non-breaking space">button label</button>
+<h3 class="ex" data-expectedlabel="heading label" data-testname="heading with text node, with non-breaking space">heading label</h3>
+<a class="ex" data-expectedlabel="link label" data-testname="link with text node, with non-breaking space" href="#">link label</a>
+<br/>
+<h1>text node, with extra non-breaking space</h1>
+<span class="ex" data-expectedlabel="button   label" data-testname="span[role=button] with text node, with extra non-breaking space" role="button" tabindex="0">button   label</span>
+<div class="ex" data-expectedlabel="heading   label" data-testname="div[role=heading] with text node, with extra non-breaking space" role="heading">heading   label</div>
+<button class="ex" data-expectedlabel="button   label" data-testname="button with text node, with extra non-breaking space">button   label</button>
+<h3 class="ex" data-expectedlabel="heading   label" data-testname="heading with text node, with extra non-breaking space">heading   label</h3>
+<a class="ex" data-expectedlabel="link   label" data-testname="link with text node, with extra non-breaking space" href="#">link   label</a>
+<br/>
+<h1>text node, with leading/trailing non-breaking space</h1>
+<span class="ex" data-expectedlabel=" button label " data-testname="span[role=button] with text node, with leading/trailing non-breaking space" role="button" tabindex="0"> button label </span>
+<div class="ex" data-expectedlabel=" heading label " data-testname="div[role=heading] with text node, with leading/trailing non-breaking space" role="heading"> heading label </div>
+<button class="ex" data-expectedlabel=" button label " data-testname="button with text node, with leading/trailing non-breaking space"> button label </button>
+<h3 class="ex" data-expectedlabel=" heading label " data-testname="heading with text node, with leading/trailing non-breaking space"> heading label </h3>
+<a class="ex" data-expectedlabel=" link label " data-testname="link with text node, with leading/trailing non-breaking space" href="#"> link label </a>
+<br/>
+<h1>text node, with mixed space and non-breaking space</h1>
+<span class="ex" data-expectedlabel="button   label" data-testname="span[role=button] with text node, with mixed space and non-breaking space" role="button" tabindex="0">button       label</span>
+<div class="ex" data-expectedlabel="heading   label" data-testname="div[role=heading] with text node, with mixed space and non-breaking space" role="heading">heading       label</div>
+<button class="ex" data-expectedlabel="button   label" data-testname="button with text node, with mixed space and non-breaking space">button       label</button>
+<h3 class="ex" data-expectedlabel="heading   label" data-testname="heading with text node, with mixed space and non-breaking space">heading       label</h3>
+<a class="ex" data-expectedlabel="link   label" data-testname="link with text node, with mixed space and non-breaking space" href="#">link       label</a>
+<br/>
+<h1>text nodes, with deeply nested space</h1>
+<span class="ex" data-expectedlabel="button label" data-testname="span[role=button] with text node, with deeply nested space" role="button" tabindex="0">
+button<span><span><span><span><span><span><span> </span></span></span></span></span></span></span>label
+</span>
+<div class="ex" data-expectedlabel="heading label" data-testname="div[role=heading] with text node, with deeply nested space" role="heading">
+heading<span><span><span><span><span><span><span> </span></span></span></span></span></span></span>label
+</div>
+<button class="ex" data-expectedlabel="button label" data-testname="button with text node, with deeply nested space">
+button<span><span><span><span><span><span><span> </span></span></span></span></span></span></span>label
+</button>
+<h3 class="ex" data-expectedlabel="heading label" data-testname="heading with text node, with deeply nested space">
+heading<span><span><span><span><span><span><span> </span></span></span></span></span></span></span>label
+</h3>
+<a class="ex" data-expectedlabel="link label" data-testname="link with text node, with deeply nested space" href="#">
+link<span><span><span><span><span><span><span> </span></span></span></span></span></span></span>label
+</a>
+<br/>
+<h1>text nodes, with single line break</h1>
+<span class="ex" data-expectedlabel="button label" data-testname="span[role=button] with text node, with single line break" role="button" tabindex="0">button
+label</span>
+<div class="ex" data-expectedlabel="heading label" data-testname="div[role=heading] with text node, with single line break" role="heading">heading
+label</div>
+<button class="ex" data-expectedlabel="button label" data-testname="button with text node, with single line break">button
+label</button>
+<h3 class="ex" data-expectedlabel="heading label" data-testname="heading with text node, with single line break">heading
+label</h3>
+<a class="ex" data-expectedlabel="link label" data-testname="link with text node, with single line break" href="#">link
+label</a>
+<br/>
+<script>
+AriaUtils.verifyLabelsBySelector(".ex");
+</script>
+</body>
+</html>

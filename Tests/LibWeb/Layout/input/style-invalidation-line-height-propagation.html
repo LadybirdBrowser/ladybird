@@ -1,0 +1,13 @@
+<!DOCTYPE html><style>
+* {
+    outline: 1px solid black;
+}
+body {
+    line-height: 20px;
+}
+</style><script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.body.offsetWidth // Force a layout
+        document.body.style.lineHeight = '10px' // Trigger a line-height change that everyone should inherit
+    });
+</script><body><div>foo bar baz</div>foo bar baz

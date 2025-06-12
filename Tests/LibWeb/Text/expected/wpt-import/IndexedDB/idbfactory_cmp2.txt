@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	IDBFactory.cmp() - no argument
+Pass	IDBFactory.cmp() - null
+Pass	IDBFactory.cmp() - NaN

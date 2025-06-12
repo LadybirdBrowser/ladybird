@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#placement-shorthands">
+<meta name="assert" content="Tests invalid values for grid-column"/>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_invalid_value("grid-column", "4 5");
+test_invalid_value("grid-column", "4 /");
+test_invalid_value("grid-column", "5 5");
+test_invalid_value("grid-column", "5 / /");
+
+test_invalid_value("grid-column", "0 / 5");
+test_invalid_value("grid-column", "6 / 0");
+test_invalid_value("grid-column", "0");
+
+test_invalid_value("grid-column", "span");
+test_invalid_value("grid-column", "span / span");
+
+test_invalid_value("grid-column", "span span / span span");
+
+test_invalid_value("grid-column", "5 5 / span 2");
+test_invalid_value("grid-column", "5 first last / span 2");
+test_invalid_value("grid-column", "5 / first last 2");
+test_invalid_value("grid-column", "first last / span 2");
+test_invalid_value("grid-column", "5 / first last");
+test_invalid_value("grid-column", "5 5 span / 2", "span 4 4 / 3");
+test_invalid_value("grid-column", "span 3 5 / 1", "5 span 4 / 3");
+test_invalid_value("grid-column", "span last first / 1", "span first last / 3");
+test_invalid_value("grid-column", "2 / span last first", "3 / span first last");
+test_invalid_value("grid-column", "span 1 last first / 1", "span first last 7 / 3");
+test_invalid_value("grid-column", "2 / span last 3 first", "3 / span first 5 last");
+test_invalid_value("grid-column", "1 span 2 first / 1", "1 span last 7 / 3");
+test_invalid_value("grid-column", "2 / 3 span 3 first", "3 / 5 span first 5");
+
+test_invalid_value("grid-column", "span -1 / -2");
+test_invalid_value("grid-column", "-1 / -2 span");
+test_invalid_value("grid-column", "0 span / 0");
+test_invalid_value("grid-column", "0 / span 0");
+test_invalid_value("grid-column", "span -3 'first' / 3 last");
+
+test_invalid_value("grid-column", "first span 1 / last");
+test_invalid_value("grid-column", "3 first / 2 span last");
+test_invalid_value("grid-column", "3 / 1 span 2");
+</script>
+</body>
+</html>

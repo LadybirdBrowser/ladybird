@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form action="http://www.example.com/"></form>
+<script>
+    test(() => {
+        const formElement = document.querySelector('form');
+        println(`form.action initial value: ${formElement.action}`);
+        formElement.action = "";
+        println(`Final segment of form.action after setting to the empty string: ${formElement.action.split('/').pop()}`);
+        formElement.action = "../test.html";
+        println(`Final segment of form.action after setting to "../test.html": ${formElement.action.split('/').pop()}`);
+        formElement.remove();
+    });
+</script>

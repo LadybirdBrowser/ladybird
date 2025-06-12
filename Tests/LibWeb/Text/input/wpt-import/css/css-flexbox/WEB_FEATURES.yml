@@ -1,0 +1,7 @@
+features:
+- name: flexbox
+  files: "**"
+# TODO: map *gap* to flexbox-gap. This is currently not possible without the
+# tests being associated with both flexbox and flexbox-gap. All but one of the
+# *gap* tests are passing in all browsers, so lumping them in with flexbox is
+# relatively harmless.

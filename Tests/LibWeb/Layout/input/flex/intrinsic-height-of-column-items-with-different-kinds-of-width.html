@@ -1,0 +1,19 @@
+<!doctype html><style>
+    * { border: 1px solid black; }
+    body {
+        display: flex;
+        flex-direction: column;
+    }
+    .auto { width: auto; }
+    .px { width: 200px; }
+    .percentage { width: 50px; }
+    .max-content { width: max-content; }
+    .min-content { width: min-content; }
+    .fit-content { width: fit-content; }
+    .inner { display: flex; }
+</style><body>
+<div class="px"><div class="inner">px</div></div>
+<div class="percentage"><div class="inner">percentage</div></div>
+<div class="fit-content"><div class="inner">fit content</div></div>
+<div class="max-content"><div class="inner">max content</div></div>
+<div class="min-content"><div class="inner">min content</div></div>

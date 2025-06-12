@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	Entry 0 is properly created
+Pass	Entry 1 is properly created
+Pass	Entry 0 has the proper name
+Pass	Entry 0 startTime is approximately correct (up to 20ms difference allowed)
+Pass	Entry 0 has the proper entryType
+Pass	Entry 0 duration == 0
+Pass	getEntriesByName("mark", "mark")[0] returns an object containing a "mark" mark
+Pass	The mark returned by getEntriesByName("mark", "mark")[0] matches the mark returned by getEntriesByName("mark")[0]
+Pass	getEntries()[0] returns an object containing a "mark" mark
+Pass	The mark returned by getEntries()[0] matches the mark returned by getEntriesByName("mark")[0]
+Pass	getEntriesByType("mark")[0] returns an object containing a "mark" mark
+Pass	The mark returned by getEntriesByType("mark")[0] matches the mark returned by getEntriesByName("mark")[0]
+Pass	Entry 1 has the proper name
+Pass	Entry 1 startTime is approximately correct (up to 20ms difference allowed)
+Pass	Entry 1 has the proper entryType
+Pass	Entry 1 duration == 0
+Pass	getEntriesByName("mark", "mark")[1] returns an object containing a "mark" mark
+Pass	The mark returned by getEntriesByName("mark", "mark")[1] matches the mark returned by getEntriesByName("mark")[1]
+Pass	getEntries()[1] returns an object containing a "mark" mark
+Pass	The mark returned by getEntries()[1] matches the mark returned by getEntriesByName("mark")[1]
+Pass	getEntriesByType("mark")[1] returns an object containing a "mark" mark
+Pass	The mark returned by getEntriesByType("mark")[1] matches the mark returned by getEntriesByName("mark")[1]

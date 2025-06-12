@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Table with border conflict resolution with col</title>
+  <style>
+    table {
+      border-collapse: collapse;
+    }
+
+    td {
+      border: 1px solid black;
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <table>
+    <colgroup>
+      <col style="border: 5px solid black">
+    </colgroup>
+    <tbody>
+      <tr>
+        <td>A</td>
+      </tr>
+      <tr>
+        <td>B</td>
+      </tr>
+      <tr>
+        <td>C</td>
+      </tr>
+      <tr>
+        <td>D</td>
+      </tr>
+    </tbody>
+  </table>
+
+
+</body>
+
+</html>

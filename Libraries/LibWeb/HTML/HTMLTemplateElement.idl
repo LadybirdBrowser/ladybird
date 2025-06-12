@@ -1,0 +1,15 @@
+#import <DOM/DocumentFragment.idl>
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/scripting.html#htmltemplateelement
+[Exposed=Window]
+interface HTMLTemplateElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    readonly attribute DocumentFragment content;
+    [Reflect=shadowrootmode, Enumerated=ShadowRootMode, CEReactions] attribute DOMString shadowRootMode;
+    [Reflect=shadowrootdelegatesfocus, CEReactions] attribute boolean shadowRootDelegatesFocus;
+    [Reflect=shadowrootclonable, CEReactions] attribute boolean shadowRootClonable;
+    [Reflect=shadowrootserializable, CEReactions] attribute boolean shadowRootSerializable;
+};

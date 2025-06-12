@@ -1,0 +1,14 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/obsolete.html#htmlparamelement
+[Exposed=Window]
+interface HTMLParamElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute DOMString value;
+    [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect=valuetype] attribute DOMString valueType;
+
+};

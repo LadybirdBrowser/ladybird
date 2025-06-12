@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: margin: auto and overflow: auto with nested flexboxes.</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#auto-margins">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#overflow-properties">
+<link rel="help" href="https://drafts.csswg.org/css-box-3/#margins">
+<link rel="help" href="https://crbug.com/605682">
+<meta name="assert" content="This test checks that 'margin: auto' set on the outer box gets properly handled when the inner box uses 'overflow: auto', in a layout with two nested flexboxes." />
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+.flexbox {
+  display: flex;
+  background: papayawhip;
+  width: 800px;
+}
+
+.flexbox > div {
+  width: 300px;
+  height: 300px;
+  margin: 0 auto;
+  background: olive;
+}
+
+.flexbox > div > div {
+  overflow-y: auto;
+  height: 50px;
+  visibility: hidden;
+}
+
+.elm {
+  height: 10px;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body>
+
+<div id=log></div>
+<p>Below there should be a olive square <em>centered</em> inside a papayawhip box.</p>
+<div class="flexbox">
+    <div data-offset-x="250">
+        <div>
+            <div id="elm"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.body.offsetTop;
+document.getElementById("elm").style.height = "800px";
+checkLayout('.flexbox');
+</script>
+</body>
+</html>

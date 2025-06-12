@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Test: BFCs with large margin, placed next to a float</title>
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<link rel="help" href="https://www.w3.org/TR/CSS21/visuren.html#floats">
+<link rel="help" href="https://www.w3.org/TR/CSS21/visudet.html#blockwidth">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-wrap-bfc-with-margin-003-ref.html">
+<!-- This test exercises the layout of an auto-width BFC with a large positive
+     margin on one side, positioned alongside a float. (Here, "large" = larger
+     than the space that's left when the float's width and the BFC's border
+     are subtracted away from the available space.)
+
+     The scenarios here break down into 3 cases, described below as A/B/C with
+     expected outcomes for each (with expectations based on the observed and
+     interoperably-implemented behavior of Gecko, WebKit, and Blink, aside
+     from some known bugs listed further down[1]):
+
+     (A) If the BFC's margin is on the same side as the float, then that margin
+     can simply overlap the float. In this case, nothing needs to overflow or
+     wrap, and there may even be some space remaining for the BFC's auto-width
+     content box (rendered as aqua).
+
+     (B) If the BFC's margin is on the "line-start" side and the float is on
+     the "line-end" side, then the BFC's margin pushes it into the float's
+     margin-box-area such that it impermissably "collides".  So, the BFC
+     instead gets moved down below the float to avoid this collision.  With
+     this moved-down placement, there may be space remaining for the BFC's
+     auto-width content-box -- precisely the same amount of space as in case A.
+
+     (C) If the BFC's margin is on the "line-end" side and the float is on the
+     "line-start" side, then the BFC is placed adjacent to the float, and its
+     large margin simply runs off the line-end edge of its containing
+     block. The BFC's content-box is 0 width (since there's no free space left
+     over).
+
+     Note: the expected-outcome in case B and C feels somewhat asymmetrical,
+     and in fact Gecko is the only engine that pushes the BFC down in case B.
+     But Blink/WebKit's alternative behavior for case B involves the BFC
+     overlapping the float, which clearly violates the spec, as discussed in
+     their bugs linked below. So I'm making the test expect Gecko's existing
+     and non-spec-violating behavior for case B, at this point. (I'm guessing
+     the asymmetry comes from how overflowing margins are handled at the
+     line-start vs. line-end edge, which makes some sense.)
+
+     Here's how this test's groups (black-bordered sections) map to these cases:
+     * This test's 1st, 4th, 5th, and 8th groups are "case A".
+     * This test's 3rd and 6th groups are in "case B".
+     * This test's 2nd and 7th groups are in "case C".
+
+     [1] Known bugs referenced above, which cause parts of this test to fail in
+     WebKit and Blink:
+     https://bugs.webkit.org/show_bug.cgi?id=240128
+     https://bugs.chromium.org/p/chromium/issues/detail?id=1322774
+     https://bugs.chromium.org/p/chromium/issues/detail?id=1323004
+-->
+<script>
+  const MARGIN_VALS = [15, 22, 28];
+  const HORIZ_SIDES = ["left", "right"]; // Used for 'float:*' and 'margin-*'.
+  const DIRECTION_VALS = ["ltr", "rtl"];
+
+  function newDivWithClassAndParent(className, parent) {
+    let elem = document.createElement("div");
+    if (className) {
+      elem.classList.add(className);
+    }
+    parent.appendChild(elem);
+    return elem;
+  }
+  function generateGroup(directionVal, floatVal, marginPropSuffix) {
+    let group = newDivWithClassAndParent("group", document.body);
+    group.style.direction = directionVal;
+    const marginPropName = "margin-" + marginPropSuffix;
+
+    for (let v of MARGIN_VALS) {
+      let container = newDivWithClassAndParent("container", group);
+      let float = newDivWithClassAndParent("float", container);
+      float.style.cssFloat = floatVal;
+
+      let bfc = newDivWithClassAndParent("bfc", container);
+      bfc.style[marginPropName] = v + "px";
+    }
+  }
+  function go() {
+    for (let directionVal of DIRECTION_VALS) {
+      for (let floatVal of HORIZ_SIDES) {
+        for (let marginPropSuffix of HORIZ_SIDES) {
+          generateGroup(directionVal, floatVal, marginPropSuffix);
+        }
+      }
+    }
+    // Note: the "reftest-wait" usage here isn't strictly necessary; it just
+    // helps ensure that we actually make it through all of the above JS and
+    // populate this document with the content that we want to render.
+    // (Specifically: if we e.g. throw a JS exception somewhere early in both
+    // the testcase and reference case, then the "reftest-wait" class will
+    // never be removed; and that will cause the test run to be classified
+    // as a failure, rather than a trivial "pass" with a visual comparison of
+    // two blank documents.)
+    document.documentElement.removeAttribute("class");
+  }
+</script>
+<style>
+.group {
+  width: 300px;
+  border: 1px solid black;
+}
+.container {
+  /* This is the container that holds our float+bfc.  We make it an
+     inline-block so that we can test a bunch of these in a row.  */
+  display: inline-block;
+  vertical-align: top;
+  width: 30px;
+  height: 40px;
+  /* This border and margin are just cosmetic, to avoid overlap between
+   * adjacent containers within a row. */
+  border: 1px solid gray;
+  margin-left: 30px;
+}
+
+.float {
+  /* We'll set the float property elsewhere (to 'right' or 'left'). */
+  width: 7px;
+  height: 8px;
+  background: fuchsia;
+  border: 1px solid purple;
+  /* Each .float's margin-box (which the corresponding .bfc's border-box cannot
+   * overlap) is 14px wide:
+   *   7px content + 2px horizontal border + 5px horizontal margin
+   * Note that we're intentionally using a nonzero 'margin' here, to be sure
+   * the UA is using the float's margin-box (and not one of its other
+   * boxes) for this non-overlapping calculation. */
+  margin: 1px 3px 1px 2px;
+}
+.bfc {
+  /* Each .bfc's border-box width is 2px (from the border) plus whatever we
+   * resolve 'width:auto' to, which is influenced by the particular choice of
+   * 'margin' values (and the available space). */
+  display: flow-root;
+  background: aqua;
+  height: 15px;
+  border: 1px solid blue;
+}
+</style>
+<body onload="go()">
+</body>
+</html>

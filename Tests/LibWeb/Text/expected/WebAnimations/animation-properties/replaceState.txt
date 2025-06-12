@@ -1,0 +1,4 @@
+Animation's replaceState is active initially: true
+Animation's replaceState is active after finishing: true
+Animation's replaceState is not removed after creating new animation: true
+Animation's replaceState is removed after new animation finishes: true

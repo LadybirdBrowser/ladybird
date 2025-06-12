@@ -1,0 +1,234 @@
+name: Lagom Template
+
+on:
+  workflow_call:
+    inputs:
+      toolchain:
+        required: true
+        type: string
+      os_name:
+        required: true
+        type: string
+      runner_labels:
+        required: true
+        type: string
+      arch:
+        required: true
+        type: string
+      build_preset:
+        required: true
+        type: string
+      clang_plugins:
+        required: false
+        type: boolean
+        default: false
+
+env:
+  # runner.workspace = /home/runner/work/ladybird
+  # github.workspace = /home/runner/work/ladybird/ladybird
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
+
+  # Use the compiler version for the ccache compiler hash. Otherwise, if plugins are enabled, the plugin .so files
+  # are included in the hash. This results in clean builds on every run as the .so files are rebuilt.
+  #
+  # Note: This only works because our plugins do not transform any code. If that becomes untrue, we must revisit this.
+  CCACHE_COMPILERCHECK: "%compiler% -v"
+
+jobs:
+  CI:
+    runs-on: ${{ fromJSON(inputs.runner_labels) }}
+
+    steps:
+      # Pull requests can trail behind `master` and can cause breakage if merging before running the CI checks on an updated branch.
+      # Luckily, GitHub creates and maintains a merge branch that is updated whenever the target or source branch is modified. By
+      # checking this branch out, we gain a stabler `master` at the cost of reproducibility.
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name != 'pull_request' }}
+
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+
+      - name: Set Up Environment
+        uses: ./.github/actions/setup
+        with:
+          os: ${{ inputs.os_name }}
+          arch: ${{ inputs.arch }}
+          toolchain: ${{ inputs.toolchain }}
+
+      # === PREPARE FOR BUILDING ===
+
+      - name: Assign Build Parameters
+        id: 'build-parameters'
+        run: |
+          CMAKE_OPTIONS="-DENABLE_QT=ON"
+          if ${{ inputs.toolchain == 'Swift' }} ; then
+            echo "host_cc=$(swiftly use --print-location)/usr/bin/clang" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=$(swiftly use --print-location)/usr/bin/clang++" >> "$GITHUB_OUTPUT"
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_SWIFT=ON"
+          elif ${{ inputs.os_name == 'Linux' }} ; then
+            if ${{ inputs.toolchain == 'Clang' }} ; then
+              echo "host_cc=clang-20" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=clang++-20" >> "$GITHUB_OUTPUT"
+            elif ${{ inputs.toolchain == 'GNU' }} ; then
+              echo "host_cc=gcc-14" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=g++-14" >> "$GITHUB_OUTPUT"
+            fi
+          elif ${{ inputs.os_name == 'macOS' }} ; then
+            echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
+          fi
+
+          if ${{ inputs.clang_plugins }} ; then
+            echo "ccache_key=${{ inputs.build_preset }}-CLANG_PLUGINS" >> "$GITHUB_OUTPUT"
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_CLANG_PLUGINS=ON"
+          else
+            echo "ccache_key=${{ inputs.build_preset }}" >> "$GITHUB_OUTPUT"
+            if ${{ inputs.os_name == 'Linux' && inputs.arch == 'arm64' }} ; then
+                # FIXME: https://github.com/WebAssembly/wabt/issues/2533
+                #        wabt doesn't have binary releases for arm64 Linux
+                PKGCONFIG=$(which pkg-config)
+                CMAKE_OPTIONS="$CMAKE_OPTIONS -DPKG_CONFIG_EXECUTABLE=$PKGCONFIG"
+            else
+              CMAKE_OPTIONS="$CMAKE_OPTIONS -DINCLUDE_WASM_SPEC_TESTS=ON -DWASM_SPEC_TEST_SKIP_FORMATTING=ON"
+            fi
+          fi
+
+          echo "cmake_options=$CMAKE_OPTIONS" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Caches
+        uses: ./.github/actions/cache-restore
+        id: 'cache-restore'
+        with:
+          runner_labels: ${{ inputs.runner_labels }}
+          os: ${{ inputs.os_name }}
+          arch: ${{ inputs.arch }}
+          toolchain: ${{ inputs.toolchain }}
+          cache_key_extra: ${{ steps.build-parameters.outputs.ccache_key }}
+          ccache_path: ${{ env.CCACHE_DIR }}
+          download_cache_path: ${{ github.workspace }}/Build/caches
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+
+      - name: Set dynamic environment variables
+        run: |
+          # Note: Required for vcpkg to use this compiler for its own builds.
+          echo "CC=${{ steps.build-parameters.outputs.host_cc }}" >> "$GITHUB_ENV"
+          echo "CXX=${{ steps.build-parameters.outputs.host_cxx }}" >> "$GITHUB_ENV"
+
+      # https://github.com/actions/runner-images/issues/9330
+      - name: Enable Microphone Access (macOS 14)
+        if: ${{ inputs.os_name == 'macOS' }}
+        run: sqlite3 $HOME/Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR IGNORE INTO access VALUES ('kTCCServiceMicrophone','/usr/local/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159,NULL,NULL,'UNUSED',1687786159);"
+
+      - name: Create Build Environment
+        if: ${{ inputs.build_preset != 'Fuzzers_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          cmake --preset ${{ inputs.build_preset }} -B Build \
+            ${{ steps.build-parameters.outputs.cmake_options }} \
+            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
+            -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
+            -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
+
+      - name: Create Build Environment
+        if: ${{ inputs.build_preset == 'Fuzzers_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -e
+
+          cmake --preset=Distribution_CI -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
+            -DLAGOM_TOOLS_ONLY=ON \
+            -DINSTALL_LAGOM_TOOLS=ON \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
+            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
+            -Dpackage=LagomTools
+
+          ninja -C ${{ github.workspace }}/Build/tools-build install
+
+          cmake --preset ${{ inputs.build_preset }} -B Build \
+            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
+            -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
+            -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/Build/tools-install
+
+      # === BUILD ===
+
+      - name: Build
+        working-directory: ${{ github.workspace }}/Build
+        run: |
+          set -e
+          cmake --build .
+          cmake --install . --strip --prefix ${{ github.workspace }}/Install
+
+      - name: Enable the Ladybird AppKit chrome
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: cmake -B Build -DENABLE_QT=OFF
+
+      - name: Build the Ladybird AppKit chrome
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
+        working-directory: ${{ github.workspace }}/Build
+        run: cmake --build .
+
+      - name: Save Caches
+        uses: ./.github/actions/cache-save
+        with:
+          runner_labels: ${{ inputs.runner_labels }}
+          arch: ${{ inputs.arch }}
+          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
+
+      # === TEST ===
+
+      - name: Test
+        if: ${{ inputs.build_preset == 'Sanitizer_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --preset Sanitizer --output-on-failure --test-dir Build --timeout 1800
+        env:
+          TESTS_ONLY: 1
+          # NOTE: These are appended to the preset's options.
+          ASAN_OPTIONS: 'log_path=${{ github.workspace }}/asan.log'
+          UBSAN_OPTIONS: 'log_path=${{ github.workspace }}/ubsan.log'
+
+      - name: Test
+        if: ${{ inputs.build_preset != 'Fuzzers_CI' && inputs.build_preset != 'Sanitizer_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --output-on-failure --test-dir Build --timeout 1800
+        env:
+          TESTS_ONLY: 1
+
+      - name: Upload LibWeb Test Artifacts
+        if: ${{ always() && inputs.build_preset != 'Fuzzers_CI' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: libweb-test-artifacts-${{ inputs.os_name }}-${{inputs.build_preset}}-${{inputs.toolchain}}-${{inputs.clang-plugins}}
+          path: ${{ github.workspace }}/Build/UI/Headless/test-dumps
+          retention-days: 0
+          if-no-files-found: ignore
+
+      - name: Sanitizer Output
+        if: ${{ !cancelled() && inputs.build_preset == 'Sanitizer_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          log_output=$(find . -maxdepth 1 \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
+          if [ -z "$log_output" ]; then
+            echo "No sanitizer issues found."
+          else
+            echo "$log_output"
+            echo "Sanitizer errors happened while running tests; see the Test step above."
+          fi
+
+      - name: Lints
+        if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -e
+          git ls-files '*.ipc' | xargs ./Build/bin/IPCMagicLinter
+        env:
+          ASAN_OPTIONS: 'strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1'
+          UBSAN_OPTIONS: 'print_stacktrace=1:print_summary=1:halt_on_error=1'

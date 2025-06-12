@@ -1,0 +1,398 @@
+<!doctype html>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<link rel='stylesheet' href='./support/base.css' />
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#table-structure">
+<!--
+Quote from the spec link above:
+
+"Authors should not assign a display type from the previous list to replaced elements (eg: input fields or images). When the display property of a replaced element computes to one of these values, it is handled instead as though the author had declared either block (for table display) or inline (for all other values). Whitespace collapsing and box generation must happen around those replaced elements like if they never had any table-internal display value applied to them, and had always been block or inline."
+
+So, all the replaced elements tested below should behave as 'inline', except the ones with a computed value of 'table' which should behave as 'block'.
+
+Per CSSWG resolution in: https://github.com/w3c/csswg-drafts/issues/508#issuecomment-319891999
+-->
+<style>
+    [inline] { display: inline !important; }
+    [block] { display: block !important; }
+    [inline-table] { display: inline-table !important; }
+    [table] { display: table !important; }
+    [table-row] { display: table-row !important; }
+    [table-cell] { display: table-cell !important; }
+    [table-column] { display: table-column !important; }
+    [table-row-group] { display: table-row-group !important; }
+    [table-header-group] { display: table-header-group !important; }
+    [table-footer-group] { display: table-footer-group !important; }
+    [table-column-group] { display: table-column-group !important; }
+    [table-caption] { display: table-caption !important; }
+    div > x-table { background: yellow; border-spacing: 10px }
+    div input { width: 100px; }
+</style>
+<script>
+    window.addEventListener("DOMContentLoaded", function(){
+        var tests = document.getElementsByTagName("hr");
+        for (var i = 0; i < tests.length; i++) {
+            (function(){
+                var desc = tests[i].nextElementSibling.nextElementSibling;
+                var root = desc.nextElementSibling;
+                var t = async_test(desc.textContent);
+                window.addEventListener("load", t.step_func_done(function() {
+                    var a = root.querySelector("[target=a]");
+                    var b = root.querySelector("[target=b]");
+                    var offset = root.getAttribute("offset");
+                    var a_offset = a.getBoundingClientRect()[offset];
+                    var b_offset = b.getBoundingClientRect()[offset];
+                    if (root.hasAttribute("unequal")) {
+                        assert_not_equals(b_offset, a_offset);
+                    } else {
+                        assert_equals(b_offset, a_offset);
+                    }
+                }));
+            })();
+        }
+    });
+</script>
+
+<main>
+
+    <h1>Table fixup</h1>
+    <p>Check that replaced elements display types are handled properly in fixup</p>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both input fields should look identical, on their own line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-row</mark> and are considered <mark>inline</mark> -- input elements (width)</p>
+    <div offset=width>
+        <x-table style="width: 400px">
+            <x-tr><x-td><input block target=a /></x-tr>
+            <input table-row target=b />
+        </x-table>
+    </div>
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both input fields should look identical and be on the same line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-row</mark> and are considered <mark>inline</mark> -- input elements (top)</p>
+    <div offset=top>
+        <x-table style="width: 400px">
+            <x-tr><x-td></x-tr>
+            <input table-row target=a /><input table-row target=b />
+        </x-table>
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should look identical, on their own line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-row</mark> and are considered <mark>inline</mark> -- img elements (width)</p>
+    <div offset=width>
+        <x-table style="width: 400px">
+            <x-tr><x-td><img block src="../support/blue32x32.ico" target=a /></x-tr>
+            <img src="../support/blue32x32.ico" table-row target=b />
+        </x-table>
+    </div>
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should look identical and be on the same line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-row</mark> and are considered <mark>inline</mark> -- img elements (top)</p>
+    <div offset=top>
+        <x-table style="width: 400px">
+            <x-tr><x-td></x-tr>
+            <img table-row src="../support/blue32x32.ico" target=a /><img src="../support/blue32x32.ico" table-row target=b />
+        </x-table>
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both input fields should look identical, on their own line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-column</mark> and are considered <mark>inline</mark> -- input elements (width)</p>
+    <div offset=width>
+        <x-table style="width: 400px">
+            <x-tr><x-td><input inline target=a /></x-tr>
+            <input table-column target=b />
+        </x-table>
+    </div>
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both input fields should look identical and be on the same line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-column</mark> and are considered <mark>inline</mark> -- input elements (top)</p>
+    <div offset=top>
+        <x-table style="width: 400px">
+            <x-tr><x-td></x-tr>
+            <input table-column target=a /><input table-column target=b />
+        </x-table>
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should look identical, on their own line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-column</mark> and are considered <mark>inline</mark> -- img elements (width)</p>
+    <div offset=width>
+        <x-table style="width: 400px">
+            <x-tr><x-td><img inline src="../support/blue32x32.ico" target=a /></x-tr>
+            <img src="../support/blue32x32.ico" table-column target=b />
+        </x-table>
+    </div>
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should look identical and be on the same line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-column</mark> and are considered <mark>inline</mark> -- img elements (top)</p>
+    <div offset=top>
+        <x-table style="width: 400px">
+            <x-tr><x-td></x-tr>
+            <img table-column src="../support/blue32x32.ico" target=a /><img src="../support/blue32x32.ico" table-column target=b />
+        </x-table>
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both input fields should look identical, on their own line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-cell</mark> and are considered <mark>inline</mark> -- input elements (width)</p>
+    <div offset=width>
+        <x-table style="width: 400px">
+            <x-tr><x-td><input inline target=a /></x-tr>
+            <x-tr><input table-cell target=b /></x-tr>
+        </x-table>
+    </div>
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both input fields should look identical and be on the same line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-cell</mark> and are considered <mark>inline</mark> -- input elements (top)</p>
+    <div offset=top>
+        <x-table style="width: 400px">
+            <x-tr><input table-cell target=a /><input table-cell target=b /></x-tr>
+        </x-table>
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should look identical, on their own line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-cell</mark> and are considered <mark>inline</mark> -- img elements (width)</p>
+    <div offset=width>
+        <x-table style="width: 400px">
+            <x-tr><x-td><img inline src="../support/blue32x32.ico" target=a /></x-tr>
+            <x-tr><img src="../support/blue32x32.ico" table-cell target=b /></x-tr>
+        </x-table>
+    </div>
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should look identical and be on the same line:</p>
+    <p>Replaced elements inside a table cannot be <mark>table-cell</mark> and are considered <mark>inline</mark> -- img elements (top)</p>
+    <div offset=top>
+        <x-table style="width: 400px">
+            <x-tr><x-td></x-tr>
+            <x-tr><img table-cell src="../support/blue32x32.ico" target=a /><img src="../support/blue32x32.ico" table-cell target=b /></x-tr>
+        </x-table>
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both text inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>inline-table</mark> and are considered <mark>inline</mark> -- input=text elements</p>
+    <div offset=top>
+        <input inline-table target=a />
+        <input inline-table target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both button inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>inline-table</mark> and are considered <mark>inline</mark> -- input=button elements</p>
+    <div offset=top>
+        <input type=button inline-table target=a />
+        <input type=button inline-table target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both file inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>inline-table</mark> and are considered <mark>inline</mark> -- input=file elements</p>
+    <div offset=top>
+        <input type=file inline-table target=a />
+        <input type=file inline-table target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>inline-table</mark> and are considered <mark>inline</mark> -- img elements</p>
+    <div offset=top>
+        <img src="../support/blue32x32.ico" inline-table target=a />
+        <img src="../support/blue32x32.ico" inline-table target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both text inputs should stand on their own line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table</mark> and are considered <mark>block</mark> -- input=text elements</p>
+    <div offset=top unequal>
+        <input type=text table target=a />
+        <input type=text table target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both button inputs should stand on their own line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table</mark> and are considered <mark>block</mark> -- input=button elements</p>
+    <div offset=top unequal>
+        <input type=button table target=a />
+        <input type=button table target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both file inputs should stand on their own line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table</mark> and are considered <mark>block</mark> -- input=file elements</p>
+    <div offset=top unequal>
+        <input type=file table target=a />
+        <input type=file table target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should stand on their own line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table</mark> and are considered <mark>block</mark> -- img elements</p>
+    <div offset=top unequal>
+        <img src="../support/blue32x32.ico" table target=a />
+        <img src="../support/blue32x32.ico" table target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both text inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-row</mark> and are considered <mark>inline</mark> -- input=text elements</p>
+    <div offset=top>
+        <input type=text table-row target=a />
+        <input type=text table-row target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both button inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-row</mark> and are considered <mark>inline</mark> -- input=button elements</p>
+    <div offset=top>
+        <input type=button table-row target=a />
+        <input type=button table-row target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both file inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-row</mark> and are considered <mark>inline</mark> -- input=file elements</p>
+    <div offset=top>
+        <input type=file table-row target=a />
+        <input type=file table-row target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-row</mark> and are considered <mark>inline</mark> -- img elements</p>
+    <div offset=top>
+        <img src="../support/blue32x32.ico" table-row target=a />
+        <img src="../support/blue32x32.ico" table-row target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both text inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-row-group</mark> and are considered <mark>inline</mark> -- input=text elements</p>
+    <div offset=top>
+        <input type=text table-row-group target=a />
+        <input type=text table-row-group target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both button inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-row-group</mark> and are considered <mark>inline</mark> -- input=button elements</p>
+    <div offset=top>
+        <input type=button table-row-group target=a />
+        <input type=button table-row-group target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both file inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-row-group</mark> and are considered <mark>inline</mark> -- input=file elements</p>
+    <div offset=top>
+        <input type=file table-row-group target=a />
+        <input type=file table-row-group target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-row-group</mark> and are considered <mark>inline</mark> -- img elements</p>
+    <div offset=top>
+        <img src="../support/blue32x32.ico" table-row-group target=a />
+        <img src="../support/blue32x32.ico" table-row-group target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both text inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-column</mark> and are considered <mark>inline</mark> inline -- input=text elements</p>
+    <div offset=top>
+        <input table-column target=a />
+        <input table-column target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both button inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-column</mark> and are considered <mark>inline</mark> -- input=button elements</p>
+    <div offset=top>
+        <input type=button table-column target=a />
+        <input type=button table-column target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both file inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-column</mark> and are considered <mark>inline</mark> -- input=file elements</p>
+    <div offset=top>
+        <input type=file table-column target=a />
+        <input type=file table-column target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-column</mark> and are considered <mark>inline</mark> -- img elements</p>
+    <div offset=top>
+        <img src="../support/blue32x32.ico" table-column target=a />
+        <img src="../support/blue32x32.ico" table-column target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both text inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-cell</mark> and are considered <mark>inline</mark> -- input=text elements</p>
+    <div offset=top>
+        <input table-cell target=a />
+        <input table-cell target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both button inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-cell</mark> and are considered <mark>inline</mark> -- input=button elements</p>
+    <div offset=top>
+        <input type=button table-cell target=a />
+        <input type=button table-cell target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both file inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-cell</mark> and are considered <mark>inline</mark> -- input=file elements</p>
+    <div offset=top>
+        <input type=file table-cell target=a />
+        <input type=file table-cell target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-cell</mark> and are considered <mark>inline</mark> -- img elements</p>
+    <div offset=top>
+        <img src="../support/blue32x32.ico" table-cell target=a />
+        <img src="../support/blue32x32.ico" table-cell target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both text inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-caption</mark> and are considered <mark>inline</mark> -- input=text elements</p>
+    <div offset=top>
+        <input table-caption target=a />
+        <input table-caption target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both button inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-caption</mark> and are considered <mark>inline</mark> -- input=button elements</p>
+    <div offset=top>
+        <input type=button table-caption target=a />
+        <input type=button table-caption target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both file inputs should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-caption</mark> and are considered <mark>inline</mark> -- input=file elements</p>
+    <div offset=top>
+        <input type=file table-caption target=a />
+        <input type=file table-caption target=b />
+    </div>
+
+    <hr/><!------------------------------------------------------------------------------------------------------------>
+    <p>Both images should share the same line:</p>
+    <p>Replaced elements outside a table cannot be <mark>table-caption</mark> and are considered <mark>inline</mark> -- img elements</p>
+    <div offset=top>
+        <img src="../support/blue32x32.ico" table-caption target=a />
+        <img src="../support/blue32x32.ico" table-caption target=b />
+    </div>
+
+</main>

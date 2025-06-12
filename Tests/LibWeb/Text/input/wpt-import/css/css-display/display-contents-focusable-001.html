@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>CSS Test (Display): Elements with display:contents should be focusable</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-display-3/#box-generation">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/2632">
+<link rel="help" href="https://github.com/whatwg/html/issues/1837">
+<link rel="help" href="https://github.com/whatwg/html/pull/9425">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1366037">
+<!--
+
+  This requirement may not be crystal-clear from CSS specs, but
+  discussion in https://github.com/w3c/csswg-drafts/issues/2632
+  concluded it was correct and that no spec changes were needed.
+
+  https://github.com/whatwg/html/pull/9425 makes this clearer in the
+  HTML spec.
+
+-->
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+
+#test       { --test-var: test-not-focused; }
+#test:focus { --test-var: test-focused; }
+
+</style>
+
+<div id="test" style="display: contents" tabindex="1">Hello</div>
+
+<script>
+
+  test(
+    function() {
+      var e = document.getElementById("test");
+      var cs = getComputedStyle(e);
+      assert_not_equals(document.activeElement, e, "precondition");
+      assert_equals(cs.getPropertyValue("--test-var"), "test-not-focused", "precondition (style)");
+      e.focus();
+      assert_equals(document.activeElement, e, "e is now focused");
+      assert_equals(cs.getPropertyValue("--test-var"), "test-focused", "e is now focused (style)");
+    }, "element with display:contents is focusable");
+
+</script>
+

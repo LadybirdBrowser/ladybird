@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<test-element></test-element>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        removeTestErrorHandler()
+        window.addEventListener("error", (event) => { println(`${event.message}`); })
+        class TestElement extends HTMLElement {
+            constructor() {
+                super();
+                println("Entered TestElement constructor, throwing.");
+                throw "test";
+            }
+
+            connectedCallback() {
+                println("connectedCallback");
+            }
+        }
+
+        customElements.define("test-element", TestElement);
+        println("PASS! (Didn't crash)");
+    });
+</script>

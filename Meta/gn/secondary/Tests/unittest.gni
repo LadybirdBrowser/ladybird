@@ -1,0 +1,29 @@
+template("unittest") {
+  executable(target_name) {
+    has_custom_main = false
+    use_js_main = false
+
+    # Foward everything (has_custom_main if set; configs, sources, deps, ...).
+    forward_variables_from(invoker, "*")
+    assert(!defined(invoker.output_dir), "cannot set unittest output_dir")
+    assert(!defined(invoker.testonly), "cannot set unittest testonly")
+
+    if (!defined(invoker.deps)) {
+      deps = []
+    }
+
+    deps += [
+      "//AK",
+      "//Userland/Libraries/LibCore",
+    ]
+    if (has_custom_main) {
+      deps += [ "//Userland/Libraries/LibTest" ]
+    } else if (use_js_main) {
+      deps += [ "//Userland/Libraries/LibTest:test_js_main" ]
+    } else {
+      deps += [ "//Userland/Libraries/LibTest:test_main" ]
+    }
+
+    testonly = true
+  }
+}

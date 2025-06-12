@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: getComputedStyle().fontVariationSettings</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-variation-settings">
+<meta name="assert" content="font-variation-settings computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value('font-variation-settings', 'normal');
+
+test_computed_value('font-variation-settings', '"wght" 700');
+test_computed_value('font-variation-settings', '"AB@D" 0.5');
+
+test_computed_value('font-variation-settings', '"wght" 700, "wght" 500', '"wght" 500',
+    "duplicate values should be removed, keeping the rightmost occurrence.");
+
+test_computed_value('font-variation-settings', '"wght" 700, "XHGT" 0.7',
+    ['"wght" 700, "XHGT" 0.7', '"XHGT" 0.7, "wght" 700']);
+
+test_computed_value('font-variation-settings', '"wght" 100, "wdth" 200', '"wdth" 200, "wght" 100',
+    "values should be sorted alphabetically by tag.");
+
+test_computed_value('font-variation-settings', '"wght" 100, "wdth" 200, "wght" 300, "wdth" 400', '"wdth" 400, "wght" 300',
+    "duplicate values should be removed, keeping the rightmost occurrence, and sorted alphabetically by tag.");
+
+test_computed_value('font-variation-settings', '"XHGT" calc(0.4 + 0.3)', '"XHGT" 0.7');
+</script>
+</body>
+</html>

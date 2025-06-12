@@ -1,0 +1,29 @@
+#import <DOM/DocumentFragment.idl>
+#import <DOM/DocumentOrShadowRoot.idl>
+#import <DOM/Element.idl>
+
+// https://dom.spec.whatwg.org/#shadowroot
+[Exposed=Window]
+interface ShadowRoot : DocumentFragment {
+    readonly attribute ShadowRootMode mode;
+    readonly attribute boolean delegatesFocus;
+    readonly attribute SlotAssignmentMode slotAssignment;
+    readonly attribute boolean clonable;
+    readonly attribute boolean serializable;
+    readonly attribute Element host;
+    attribute EventHandler onslotchange;
+
+    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
+
+    // FIXME: [CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
+    [CEReactions] undefined setHTMLUnsafe(DOMString html);
+    DOMString getHTML(optional GetHTMLOptions options = {});
+
+    // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) innerHTML;
+    [CEReactions, LegacyNullToEmptyString] attribute DOMString innerHTML;
+};
+
+ShadowRoot includes DocumentOrShadowRoot;
+
+enum ShadowRootMode { "open", "closed" };
+enum SlotAssignmentMode { "manual", "named" };

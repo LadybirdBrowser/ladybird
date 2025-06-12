@@ -1,0 +1,16 @@
+<!doctype html>
+<title>CSS Test: Floats in nowrap context</title>
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#float-position">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=488725">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://www.mozilla.org" title="Mozilla">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/float-nowrap-5-ref.html">
+<style>
+  div {
+    white-space: nowrap;
+  }
+  span {
+    float: left;
+  }
+</style>
+<div><span>Hello&nbsp;</span>Kittie

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout: getComputedStyle().flexGrow</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex-grow">
+<meta name="assert" content="flex-grow computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("flex-grow", "1");
+test_computed_value("flex-grow", "2.34e+06", ["2.34e+06", "2340000"]);
+test_computed_value("flex-grow", "6.78e+08", ["6.78e+08", "678000000"]);
+test_computed_value("flex-grow", "0");
+</script>
+</body>
+</html>

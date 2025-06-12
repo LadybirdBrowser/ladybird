@@ -1,0 +1,15 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x220 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x204 children: not-inline
+      BlockContainer <div> at (9,9) content-size 200x100 children: not-inline
+      BlockContainer <(anonymous)> at (8,110) content-size 784x102 children: inline
+        frag 0 from ImageBox start: 0, length: 0, rect: [9,111 200x100] baseline: 102
+        ImageBox <img> at (9,111) content-size 200x100 children: not-inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x220]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x204]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 202x102]
+      PaintableWithLines (BlockContainer(anonymous)) [8,110 784x102]
+        ImagePaintable (ImageBox<IMG>) [8,110 202x102]

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Pointer Events: parsing touch-action with invalid values</title>
+<link rel="help" href="https://w3c.github.io/pointerevents/#the-touch-action-css-property">
+<meta name="assert" content="touch-action supports only the grammar 'auto | none | [ pan-x || pan-y ] | manipulation'.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("touch-action", "auto none");
+test_invalid_value("touch-action", "manipulation pan-x");
+test_invalid_value("touch-action", "pan-y pan-x pan-y");
+</script>
+</body>
+</html>

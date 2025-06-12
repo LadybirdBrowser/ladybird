@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>WebCryptoAPI: encrypt() Using RSA-OAEP</title>
+<meta name="timeout" content="long">
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="rsa_vectors.js"></script>
+<script src="rsa.js"></script>
+<div id=log></div>
+<script src="../../WebCryptoAPI/encrypt_decrypt/rsa_oaep.https.any.js"></script>

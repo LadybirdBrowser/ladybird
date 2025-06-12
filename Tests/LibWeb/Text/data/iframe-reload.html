@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script>
+    window.addEventListener('message', event => {
+        if (event.data && event.data.action === 'reload') {
+            window.parent.postMessage({ action: 'acknowledge-asked-to-reload' });
+            location.reload();
+        }
+    });
+
+    window.addEventListener('load', () => {
+        window.parent.postMessage({ action: 'loaded' });
+    });
+</script>

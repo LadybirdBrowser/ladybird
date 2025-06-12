@@ -1,0 +1,25 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x268 [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x250 children: not-inline
+      Box <div.flexbox> at (11,11) content-size 100x248 flex-container(row) [FFC] children: not-inline
+        BlockContainer <div> at (12,12) content-size 30x30 flex-item [BFC] children: not-inline
+        BlockContainer <div> at (64,12) content-size 30x30 flex-item [BFC] children: not-inline
+        BlockContainer <div> at (12,84) content-size 30x30 flex-item [BFC] children: not-inline
+        BlockContainer <div> at (64,84) content-size 30x30 flex-item [BFC] children: not-inline
+        BlockContainer <div> at (12,156) content-size 30x30 flex-item [BFC] children: not-inline
+        BlockContainer <div> at (64,156) content-size 30x30 flex-item [BFC] children: not-inline
+        BlockContainer <div> at (12,228) content-size 30x30 flex-item [BFC] children: not-inline
+        BlockContainer <div> at (64,228) content-size 30x30 flex-item [BFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x270]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x252]
+      PaintableBox (Box<DIV>.flexbox) [10,10 102x250]
+        PaintableWithLines (BlockContainer<DIV>) [11,11 32x32]
+        PaintableWithLines (BlockContainer<DIV>) [63,11 32x32]
+        PaintableWithLines (BlockContainer<DIV>) [11,83 32x32]
+        PaintableWithLines (BlockContainer<DIV>) [63,83 32x32]
+        PaintableWithLines (BlockContainer<DIV>) [11,155 32x32]
+        PaintableWithLines (BlockContainer<DIV>) [63,155 32x32]
+        PaintableWithLines (BlockContainer<DIV>) [11,227 32x32]
+        PaintableWithLines (BlockContainer<DIV>) [63,227 32x32]

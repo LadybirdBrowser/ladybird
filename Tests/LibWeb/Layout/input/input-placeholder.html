@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><style>
+* {
+    font: 20px 'SerenitySans';
+}
+input {
+    width: 200px;
+}
+</style></head><body><input type="text" value="text" />
+<input type="text" placeholder="This placeholder should be visible" />
+<input type="text" value="text" placeholder="This placeholder should not be visible" />
+<input id="placeholder" type="text" />
+<script type="text/javascript">
+    document.addEventListener("DOMContentLoaded", () => {
+        let input = document.querySelector("#placeholder");
+        input.placeholder = "This placeholder should also be visisble";
+    });
+</script>

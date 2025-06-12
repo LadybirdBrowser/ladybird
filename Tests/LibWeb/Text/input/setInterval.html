@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let count = 0;
+        let intervalId = setInterval(() => {
+            println("setInterval completed count=" + count++);
+            if (count === 3) {
+                clearInterval(intervalId);
+                done();
+            }
+        }, 0);
+    });
+</script>

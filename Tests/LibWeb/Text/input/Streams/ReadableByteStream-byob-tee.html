@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const CHUNK1 = "abcdefghijklmnopqrstuvwxyz";
+    const CHUNK2 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const CHUNK3 = "0123456789!@#$%^&*()-=_+,<";
+
+    const readStream = (stream, name) => {
+        const reader = stream.getReader({ mode: "byob" });
+
+        let buffer = new ArrayBuffer(256);
+        let offset = 0;
+
+        return new Promise((resolve, reject) => {
+            const processText = ({ done, value }) => {
+                if (done) {
+                    println(`${name}: Done!`);
+                    resolve();
+                    return;
+                }
+
+                buffer = value.buffer;
+                offset += value.byteLength;
+
+                value = new TextDecoder().decode(value);
+                println(`${name}: ${value}`);
+
+                return reader
+                    .read(new Uint8Array(buffer, offset, buffer.byteLength - offset))
+                    .then(processText);
+            };
+
+            reader
+                .read(new Uint8Array(buffer, offset, buffer.byteLength - offset))
+                .then(processText);
+        });
+    };
+
+    const writeStream = (controller, data) => {
+        const view = controller.byobRequest.view;
+
+        const target = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+        const source = Uint8Array.from(Array.from(data).map(ch => ch.charCodeAt(0)));
+
+        for (let i = 0; i < source.length; ++i) {
+            target[i] = source[i];
+        }
+
+        controller.byobRequest.respond(source.length);
+    };
+
+    asyncTest(done => {
+        const stream = new ReadableStream({
+            type: "bytes",
+
+            start(controller) {
+                pullCount = 0;
+            },
+
+            pull(controller) {
+                const view = controller.byobRequest.view;
+                ++pullCount;
+
+                if (pullCount == 1) {
+                    writeStream(controller, CHUNK1);
+                } else if (pullCount == 2) {
+                    writeStream(controller, CHUNK2);
+                } else if (pullCount == 3) {
+                    writeStream(controller, CHUNK3);
+                } else {
+                    controller.close();
+                    controller.byobRequest.respond(0);
+                }
+            },
+
+            cancel() {},
+        });
+
+        const teed = stream.tee();
+
+        readStream(teed[0], "stream1").then(() => {
+            readStream(teed[1], "stream2").then(done);
+        });
+    });
+</script>

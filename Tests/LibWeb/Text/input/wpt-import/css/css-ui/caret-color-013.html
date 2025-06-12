@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Basic User Interface Test: caret-color dynamic changes</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/css3-ui/#caret-color">
+<link rel="help" href="https://www.w3.org/TR/css3-color/#color0">
+<meta name="flags" content="dom">
+<meta name="assert" content="Test checks checks that carret-color can be correctly changed using the style attribute, and that the computed value is done correctly.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+<div id="wrapper">
+  <textarea id="textarea"></textarea>
+</div>
+
+<script>
+  function testStyleCaretColor(element, value) {
+    assert_equals(element.style.caretColor, value, "The style attribute's caret-color should be '" + value + "'");
+  }
+
+  function testComputedStyleCaretColor(element, value) {
+    assert_equals(getComputedStyle(element).getPropertyValue("caret-color"), value, "caret-color computed style should be '" + value + "'");
+  }
+
+  function setAndCheckCaretColor(element, caretColor, styleValue, computedStyleValue, description) {
+    element.style.caretColor = caretColor;
+    test(function() {
+      testStyleCaretColor(element, styleValue);
+      testComputedStyleCaretColor(element, computedStyleValue);
+    }, description);
+  }
+
+  var textarea = document.getElementById("textarea");
+  setAndCheckCaretColor(textarea, "", "", "rgb(0, 0, 0)", "Test default caret-color");
+  setAndCheckCaretColor(textarea, "initial", "initial", "rgb(0, 0, 0)", "Test caret-color: initial");
+  setAndCheckCaretColor(textarea, "inherit", "inherit", "rgb(0, 0, 0)", "Test caret-color: inherit");
+  setAndCheckCaretColor(textarea, "auto", "auto", "rgb(0, 0, 0)", "Test caret-color: auto");
+  setAndCheckCaretColor(textarea, "currentcolor", "currentcolor", "rgb(0, 0, 0)", "Test caret-color: currentcolor");
+  setAndCheckCaretColor(textarea, "lime", "lime", "rgb(0, 255, 0)", "Test caret-color: lime");
+  setAndCheckCaretColor(textarea, "initial", "initial", "rgb(0, 0, 0)", "Reset caret-color: initial");
+  setAndCheckCaretColor(textarea, "rgb(0, 100, 100)", "rgb(0, 100, 100)", "rgb(0, 100, 100)", "Test caret-color: rgb(0, 100, 100)");
+
+  var wrapper = document.getElementById("wrapper");
+  wrapper.style.caretColor = "green";
+
+  setAndCheckCaretColor(textarea, "initial", "initial", "rgb(0, 0, 0)", "Test caret-color: initial (inherited)");
+  setAndCheckCaretColor(textarea, "inherit", "inherit", "rgb(0, 128, 0)", "Test caret-color: inherit (inherited)");
+  setAndCheckCaretColor(textarea, "blue", "blue", "rgb(0, 0, 255)", "Test caret-color: blue (inherited)");
+</script>

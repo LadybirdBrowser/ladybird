@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    body {
+        height: 2000px;
+        margin: 0;
+    }
+
+    #box {
+        margin-top: 500px;
+        width: 100px;
+        height: 100px;
+        background-color: red;
+    }
+
+    #scrollable {
+        width: 400px;
+        height: 400px;
+        overflow: scroll;
+        border: 10px solid black;
+    }
+</style>
+<div id="scrollable">
+    <div id="box"></div>
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        internals.wheel(10, 10, 0, 1000);
+        const scrollable = document.getElementById("scrollable");
+        println("scrollable.scrollTop: " + scrollable.scrollTop);
+        println("window.scrollY: " + window.scrollY);
+    });
+</script>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: container widths & ortho items</title>
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#flex-containers">
+<link rel="help" href="https://www.w3.org/TR/css-writing-modes-4/#block-flow">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="the correct width/height of ortho children is used to size flex containers">
+<style>
+.vertical {
+    writing-mode: vertical-lr;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.inline-flexbox')">
+<div id=log></div>
+
+<div class="inline-flexbox" data-expected-width="20">
+    <div class="vertical" style="width: 20px; height: 50px;"></div>
+</div>
+
+<div class="inline-flexbox" data-expected-width="20">
+    <div class="vertical" style="line-height: 20px;">Some text</div>
+</div>
+
+<div class="inline-flexbox" data-expected-width="20">
+    <span class="vertical" data-expected-width="20" style="line-height: 20px;">Some text</span>
+</div>
+</body>

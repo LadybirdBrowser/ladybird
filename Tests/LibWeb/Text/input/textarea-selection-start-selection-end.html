@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<textarea id="textarea"></textarea>
+<script src="include.js"></script>
+<script type="text/javascript">
+    test(() => {
+        let textarea = document.getElementById("textarea");
+        textarea.focus();
+
+        println(`selectionStart: ${textarea.selectionStart}`);
+        println(`selectionEnd: ${textarea.selectionEnd}`);
+
+        textarea.value = "Well hello friends";
+        println(`selectionStart: ${textarea.selectionStart}`);
+        println(`selectionEnd: ${textarea.selectionEnd}`);
+    });
+</script>

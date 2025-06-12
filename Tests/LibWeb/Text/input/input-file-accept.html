@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<input id="input1" type="file" accept="text/plain" />
+<input id="input2" type="file" accept="text/plain" multiple />
+<input id="input3" type="file" accept=".cpp" />
+<input id="input4" type="file" accept=".cpp" multiple />
+<script src="./include.js"></script>
+<script type="text/javascript">
+    const runTest = async id => {
+        let input = document.getElementById(id);
+
+        return new Promise(resolve => {
+            input.addEventListener("input", async () => {
+                println(`${id}:`);
+
+                for (let file of input.files) {
+                    const text = await file.text();
+                    println(`${file.name}: ${file.type}: ${text}`);
+                }
+
+                resolve();
+            });
+
+            internals.dispatchUserActivatedEvent(input, new Event("mousedown"));
+            input.showPicker();
+        });
+    };
+
+    asyncTest(async done => {
+        await runTest("input1");
+        await runTest("input2");
+        await runTest("input3");
+        await runTest("input4");
+        done();
+    });
+</script>

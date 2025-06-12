@@ -1,0 +1,12 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#htmllegendelement
+[Exposed=Window]
+interface HTMLLegendElement : HTMLElement {
+    [HTMLConstructor] constructor();
+
+    readonly attribute HTMLFormElement? form;
+
+    // Obsolete
+    [CEReactions, Reflect] attribute DOMString align;
+};

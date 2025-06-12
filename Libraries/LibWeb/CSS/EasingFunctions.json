@@ -1,0 +1,23 @@
+{
+  "linear": {},
+  "ease": {},
+  "ease-in": {},
+  "ease-out": {},
+  "ease-in-out": {},
+  "cubic-bezier": {
+    "parameters": [
+      "<number [0, 1]>",
+      "<number>",
+      "<number [0, 1]>",
+      "<number>"
+    ]
+  },
+  "step-start": {},
+  "step-end": {},
+  "steps": {
+    "parameters": [
+      "<integer>",
+      "<step-position>?"
+    ]
+  }
+}

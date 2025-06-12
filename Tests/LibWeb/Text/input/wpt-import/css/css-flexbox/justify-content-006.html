@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#justify-content-property">
+<meta name="assert" content="Flex item in nested column flexbox is justified properly.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+.outer {
+  display: flex;
+  flex-direction: column;
+  width: 100px;
+  border: 2px solid black;
+  position: relative;
+}
+.middle {
+  flex: 0 0 50px;
+  min-height: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+</style>
+
+Test passes if orange square is in bottom left corner of rectangle.
+
+<div class="outer">
+  <div class="middle">
+    <div style="width: 30px; height: 30px; background: orange" data-offset-y=20></div>
+  </div>
+</div>
+
+<script>
+checkLayout('.middle > div');
+</script>

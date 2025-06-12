@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: parsing font-variant-numeric with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-variant-numeric-prop">
+<meta name="assert" content="font-variant-numeric supports only the grammar 'normal | [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-variant-numeric', 'auto');
+
+test_invalid_value('font-variant-numeric', 'normal lining-nums');
+test_invalid_value('font-variant-numeric', 'lining-nums oldstyle-nums');
+
+test_invalid_value('font-variant-numeric', 'proportional-nums normal');
+test_invalid_value('font-variant-numeric', 'tabular-nums proportional-nums');
+
+test_invalid_value('font-variant-numeric', 'normal diagonal-fractions');
+test_invalid_value('font-variant-numeric', 'diagonal-fractions stacked-fractions');
+
+test_invalid_value('font-variant-numeric', 'ordinal normal');
+
+test_invalid_value('font-variant-numeric', 'normal slashed-zero');
+</script>
+</body>
+</html>

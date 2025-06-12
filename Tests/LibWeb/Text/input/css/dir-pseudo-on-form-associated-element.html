@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<style>
+    .test {
+        font-size: 12px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function testSelectorMatch(input, selector) {
+            println(`Input matches ${selector}: ${input.matches(selector)}`);
+        }
+
+        function testElementDirectionality(element) {
+            element.value = "Well hello friends!"
+            testSelectorMatch(element, ":dir(ltr)");
+            testSelectorMatch(element, ":dir(rtl)");
+
+            element.dir = "invalid";
+            testSelectorMatch(element, ":dir(ltr)");
+            testSelectorMatch(element, ":dir(rtl)");
+
+            element.dir = "rtl";
+            testSelectorMatch(element, ":dir(ltr)");
+            testSelectorMatch(element, ":dir(rtl)");
+
+            element.dir = "auto"
+            testSelectorMatch(element, ":dir(ltr)");
+            testSelectorMatch(element, ":dir(rtl)");
+
+            element.value = "حسنًا ، مرحباً أيها الأصدقاء";
+            testSelectorMatch(element, ":dir(ltr)");
+            testSelectorMatch(element, ":dir(rtl)");
+
+            element.dir = "ltr"
+            testSelectorMatch(element, ":dir(ltr)");
+            testSelectorMatch(element, ":dir(rtl)");
+
+            element.removeAttribute("dir");
+            testSelectorMatch(element, ":dir(ltr)");
+            testSelectorMatch(element, ":dir(rtl)");
+        }
+        
+        println("Testing input element with type=text");
+        const textInput = document.createElement("input");
+        textInput.type = "text";
+        testElementDirectionality(textInput);
+        
+        println("Testing textarea element");
+        const textAreaElement = document.createElement("textarea");
+        testElementDirectionality(textAreaElement);
+    });
+</script>

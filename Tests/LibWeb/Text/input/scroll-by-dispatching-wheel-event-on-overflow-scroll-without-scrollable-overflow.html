@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<script src="include.js"></script>
+<head>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        .scroll-container {
+            height: 300px;
+            width: 300px;
+            overflow: auto;
+            border: 2px solid #333;
+            background-color: #f0f0f0;
+        }
+
+        .box {
+            overflow: scroll;
+        }
+
+        .nested {
+            border: 2px solid #777;
+            background-color: white;
+            height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-container">
+        <div class="box"><div class="nested">Box 1</div></div>
+        <div class="box"><div class="nested">Box 2</div></div>
+        <div class="box"><div class="nested">Box 3</div></div>
+        <div class="box"><div class="nested">Box 4</div></div>
+        <div class="box"><div class="nested">Box 5</div></div>
+        <div class="box"><div class="nested">Box 6</div></div>
+        <div class="box"><div class="nested">Box 7</div></div>
+        <div class="box"><div class="nested">Box 8</div></div>
+    </div>
+</body>
+<script>
+    asyncTest(done => {
+        const container = document.querySelector(".scroll-container");
+        container.onscroll = () => {
+            println(`new scrollY: ${container.scrollTop}`);
+            done();
+        };
+        internals.wheel(50, 50, 0, 100);
+    });
+</script>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html PUBLIC "STAFF" "staffNS.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>DocumentType literals</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-documenttype-name"/>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-documenttype-publicid"/>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-documenttype-systemid"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"/>
+<script>
+test(function() {
+  var doctype = document.firstChild;
+  assert_true(doctype instanceof DocumentType)
+  assert_equals(doctype.name, "html")
+  assert_equals(doctype.publicId, 'STAFF')
+  assert_equals(doctype.systemId, 'staffNS.dtd')
+})
+</script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" id="svg-element">
+    <use class="no-xlink-href"></use>
+    <use class="explicit-xlink-href" xlink:href="test1"></use>
+    <use class="implicit-xlink-href" href="test2"></use>
+    <text class="ignore">
+        <textPath class="no-xlink-href"></textPath>
+        <textPath class="explicit-xlink-href" xlink:href="test1"></textPath>
+        <textPath class="implicit-xlink-href" href="test2"></textPath>
+    </text>
+</svg>
+<script>
+    function dumpAttribute(element) {
+        "use strict";
+        println("---------------");
+        println(`${element.tagName} - ${element.getAttribute("class")}`);
+        println("---------------");
+        println(`element.href instanceof SVGAnimatedString -> ${element.href instanceof SVGAnimatedString}`);
+        println(`element.href === element.href -> ${element.href === element.href}`);
+        println(`element.href.baseVal -> ${element.href.baseVal}`);
+        println(`element.href.animVal -> ${element.href.animVal}`);
+        println(`element.href.baseVal === element.href.animVal -> ${element.href.baseVal === element.href.animVal}`);
+        println(`element.getAttribute("xlink:href") -> ${element.getAttribute("xlink:href")}`);
+        println(`element.getAttribute("href") -> ${element.getAttribute("href")}`);
+        println("setting baseVal...");
+        element.href.baseVal = "testSet";
+        println("done, new values:");
+        println(`element.href.baseVal -> ${element.href.baseVal}`);
+        println(`element.href.animVal -> ${element.href.animVal}`);
+        println(`element.href.baseVal === element.href.animVal -> ${element.href.baseVal === element.href.animVal}`);
+        println(`element.getAttribute("xlink:href") -> ${element.getAttribute("xlink:href")}`);
+        println(`element.getAttribute("href") -> ${element.getAttribute("href")}`);
+        println("animVal should be readonly:")
+        try {
+            element.href.animVal = "invalid";
+        } catch (e) {
+            println(`${e.name}: ${e.message}`);
+        }
+    }
+
+    function dumpTree(element) {
+        for (const child of Array.from(element.children))
+        {
+            if (child.getAttribute("class") !== "ignore")
+            {
+                dumpAttribute(child);
+            }
+
+            dumpTree(child);
+        }
+    }
+
+    test(() => {
+        const svgElement = document.getElementById("svg-element");
+        dumpTree(svgElement);
+    });
+</script>

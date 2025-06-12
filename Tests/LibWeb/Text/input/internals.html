@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        println(window.internals);
+        println(internals.gc);
+        internals.gc();
+        println("OK");
+    });
+</script>

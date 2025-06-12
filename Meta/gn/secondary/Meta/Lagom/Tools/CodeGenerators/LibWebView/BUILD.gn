@@ -1,0 +1,6 @@
+import("//Meta/Lagom/Tools/lagom_tool.gni")
+
+lagom_tool("GeneratePublicSuffixData") {
+  sources = [ "GeneratePublicSuffixData.cpp" ]
+  deps = [ "//Userland/Libraries/LibMain" ]
+}

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const badFace = new FontFace("My Cool Font", new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]));
+
+        await badFace.loaded.then(() => {
+            println("FAILED");
+        },
+        () => {
+            println(`badFace.status: ${badFace.status}`); // "error"
+            println(`badFace.family: ${badFace.family}`); // "My Cool Font"
+        });
+
+        const zeroBytesFace = new FontFace("Empty Font", new ArrayBuffer(0));
+        await zeroBytesFace.loaded.then(() => {
+                println("FAILED");
+            },
+            () => {
+                println(`zeroBytesFace.status: ${zeroBytesFace.status}`); // "error"
+                println(`zeroBytesFace.family: ${zeroBytesFace.family}`); // "Empty Font"
+            });
+
+        const fontData = await fetch("../../../Assets/HashSans.woff").then(
+            response => response.arrayBuffer(),
+            (reason) => {
+                println(`FAILED to fetch font from local file ${reason}`);
+                return new ArrayBuffer(0);
+            });
+
+        const hashSans = new FontFace("Hash Sans", fontData);
+        await hashSans.loaded.then(() => {
+            println(`face.status: ${hashSans.status}`); // "loaded"
+            println(`face.family: ${hashSans.family}`); // "Hash Sans"
+        },
+        () => {
+            println("FAILED");
+        });
+
+        done();
+    });
+</script>

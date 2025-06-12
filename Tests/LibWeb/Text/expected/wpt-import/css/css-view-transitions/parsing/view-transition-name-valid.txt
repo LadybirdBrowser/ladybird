@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	e.style['view-transition-name'] = "none" should set the property value
+Fail	e.style['view-transition-name'] = "auto" should set the property value
+Pass	e.style['view-transition-name'] = "match-element" should set the property value
+Pass	e.style['view-transition-name'] = "foo" should set the property value
+Pass	e.style['view-transition-name'] = "bar" should set the property value
+Pass	e.style['view-transition-name'] = "baz" should set the property value

@@ -1,0 +1,5 @@
+text: "pass"
+hidden: "pass"
+button: "pass"
+checkbox: "pass"
+file: "" (threw exception)

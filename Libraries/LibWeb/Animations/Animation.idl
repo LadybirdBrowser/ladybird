@@ -1,0 +1,41 @@
+#import <Animations/AnimationEffect.idl>
+#import <Animations/AnimationTimeline.idl>
+#import <DOM/EventTarget.idl>
+
+// https://www.w3.org/TR/web-animations-1/#the-animation-interface
+[Exposed=Window]
+interface Animation : EventTarget {
+    constructor(optional AnimationEffect? effect = null,
+                [ExplicitNull] optional AnimationTimeline? timeline);
+
+    attribute DOMString id;
+    attribute AnimationEffect? effect;
+    attribute AnimationTimeline? timeline;
+    attribute double? startTime;
+    attribute double? currentTime;
+    attribute double playbackRate;
+    readonly attribute AnimationPlayState playState;
+    readonly attribute AnimationReplaceState replaceState;
+    readonly attribute boolean pending;
+    readonly attribute Promise<Animation> ready;
+    readonly attribute Promise<Animation> finished;
+
+    attribute EventHandler onfinish;
+    attribute EventHandler oncancel;
+    attribute EventHandler onremove;
+
+    undefined cancel();
+    undefined finish();
+    undefined play();
+    undefined pause();
+    undefined updatePlaybackRate(double playbackRate);
+    undefined reverse();
+    undefined persist();
+    [FIXME, CEReactions] undefined commitStyles();
+};
+
+// https://www.w3.org/TR/web-animations-1/#the-animationplaystate-enumeration
+enum AnimationPlayState { "idle", "running", "paused", "finished" };
+
+// https://www.w3.org/TR/web-animations-1/#the-animationreplacestate-enumeration
+enum AnimationReplaceState { "active", "removed", "persisted" };

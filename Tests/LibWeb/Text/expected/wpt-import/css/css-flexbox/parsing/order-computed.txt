@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property order value '0'
+Pass	Property order value '123'
+Pass	Property order value '-45'

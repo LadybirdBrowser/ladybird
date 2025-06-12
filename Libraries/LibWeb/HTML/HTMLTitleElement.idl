@@ -1,0 +1,11 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/semantics.html#htmltitleelement
+[Exposed=Window]
+interface HTMLTitleElement : HTMLElement {
+
+    [HTMLConstructor] constructor();
+
+    [CEReactions] attribute DOMString text;
+
+};

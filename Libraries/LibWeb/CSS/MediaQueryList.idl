@@ -1,0 +1,12 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+
+// https://drafts.csswg.org/cssom-view/#the-mediaquerylist-interface
+[Exposed=Window]
+interface MediaQueryList : EventTarget {
+    readonly attribute CSSOMString media;
+    readonly attribute boolean matches;
+    undefined addListener(EventListener? callback);
+    undefined removeListener(EventListener? callback);
+    attribute EventHandler onchange;
+};

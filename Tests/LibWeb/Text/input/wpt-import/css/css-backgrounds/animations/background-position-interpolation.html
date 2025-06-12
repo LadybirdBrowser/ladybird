@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#background-position">
+<meta name="test" content="background-position supports animation as a repeatable list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  background-position: 60px 60px;
+}
+.target {
+  width: 120px;
+  height: 120px;
+  display: inline-block;
+  border: 2px solid black;
+  background-repeat: no-repeat;
+  background-image: radial-gradient(20px circle at 20px 20px, red 18px, transparent),
+                    radial-gradient(20px circle at 20px 20px, yellow 18px, transparent),
+                    radial-gradient(20px circle at 20px 20px, lime 18px, transparent),
+                    radial-gradient(20px circle at 20px 20px, blue 18px, transparent);
+  background-position: 40px 40px;
+}
+.expected {
+  margin-right: 10px;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'background-position',
+  from: neutralKeyframe,
+  to: '80px 80px, 80px 80px, 80px 80px, 80px 80px',
+}, [
+  {at: -0.25, expect: '30px 30px, 30px 30px, 30px 30px, 30px 30px'},
+  {at: 0, expect:     '40px 40px, 40px 40px, 40px 40px, 40px 40px'},
+  {at: 0.25, expect:  '50px 50px, 50px 50px, 50px 50px, 50px 50px'},
+  {at: 0.5, expect:   '60px 60px, 60px 60px, 60px 60px, 60px 60px'},
+  {at: 0.75, expect:  '70px 70px, 70px 70px, 70px 70px, 70px 70px'},
+  {at: 1, expect:     '80px 80px, 80px 80px, 80px 80px, 80px 80px'},
+  {at: 1.25, expect:  '90px 90px, 90px 90px, 90px 90px, 90px 90px'},
+]);
+
+// background-position's initial value is 0% 0%, and calcs involving percentages
+// are never resolved by the calc spec (even when the percentage is 0%).
+test_interpolation({
+  property: 'background-position',
+  from: 'initial',
+  to: '80px 80px, 80px 80px, 80px 80px, 80px 80px',
+}, [
+  {at: -0.25, expect: 'calc(0% - 20px)  calc(0% - 20px),  calc(0% - 20px)  calc(0% - 20px),  calc(0% - 20px)  calc(0% - 20px),  calc(0% - 20px)  calc(0% - 20px)'},
+  {at: 0, expect:     '0% 0%, 0% 0%, 0% 0%, 0% 0%'},
+  {at: 0.25, expect:  'calc(0% + 20px)  calc(0% + 20px),  calc(0% + 20px)  calc(0% + 20px),  calc(0% + 20px)  calc(0% + 20px),  calc(0% + 20px)  calc(0% + 20px)'},
+  {at: 0.5, expect:   'calc(0% + 40px)  calc(0% + 40px),  calc(0% + 40px)  calc(0% + 40px),  calc(0% + 40px)  calc(0% + 40px),  calc(0% + 40px)  calc(0% + 40px)'},
+  {at: 0.75, expect:  'calc(0% + 60px)  calc(0% + 60px),  calc(0% + 60px)  calc(0% + 60px),  calc(0% + 60px)  calc(0% + 60px),  calc(0% + 60px)  calc(0% + 60px)'},
+  {at: 1, expect:     'calc(0% + 80px)  calc(0% + 80px),  calc(0% + 80px)  calc(0% + 80px),  calc(0% + 80px)  calc(0% + 80px),  calc(0% + 80px)  calc(0% + 80px)'},
+  {at: 1.25, expect:  'calc(0% + 100px) calc(0% + 100px), calc(0% + 100px) calc(0% + 100px), calc(0% + 100px) calc(0% + 100px), calc(0% + 100px) calc(0% + 100px)'},
+]);
+
+test_interpolation({
+  property: 'background-position',
+  from: 'inherit',
+  to: '80px 80px, 80px 80px, 80px 80px, 80px 80px',
+}, [
+  {at: -0.25, expect: '55px 55px, 55px 55px, 55px 55px, 55px 55px'},
+  {at: 0, expect:     '60px 60px, 60px 60px, 60px 60px, 60px 60px'},
+  {at: 0.25, expect:  '65px 65px, 65px 65px, 65px 65px, 65px 65px'},
+  {at: 0.5, expect:   '70px 70px, 70px 70px, 70px 70px, 70px 70px'},
+  {at: 0.75, expect:  '75px 75px, 75px 75px, 75px 75px, 75px 75px'},
+  {at: 1, expect:     '80px 80px, 80px 80px, 80px 80px, 80px 80px'},
+  {at: 1.25, expect:  '85px 85px, 85px 85px, 85px 85px, 85px 85px'},
+]);
+
+// background-position is not inherited, so 'unset' is equivalent to initial.
+test_interpolation({
+  property: 'background-position',
+  from: 'unset',
+  to: '80px 80px, 80px 80px, 80px 80px, 80px 80px',
+}, [
+  {at: -0.25, expect: 'calc(0% - 20px)  calc(0% - 20px),  calc(0% - 20px)  calc(0% - 20px),  calc(0% - 20px)  calc(0% - 20px),  calc(0% - 20px)  calc(0% - 20px)'},
+  {at: 0, expect:     '0% 0%, 0% 0%, 0% 0%, 0% 0%'},
+  {at: 0.25, expect:  'calc(0% + 20px)  calc(0% + 20px),  calc(0% + 20px)  calc(0% + 20px),  calc(0% + 20px)  calc(0% + 20px),  calc(0% + 20px)  calc(0% + 20px)'},
+  {at: 0.5, expect:   'calc(0% + 40px)  calc(0% + 40px),  calc(0% + 40px)  calc(0% + 40px),  calc(0% + 40px)  calc(0% + 40px),  calc(0% + 40px)  calc(0% + 40px)'},
+  {at: 0.75, expect:  'calc(0% + 60px)  calc(0% + 60px),  calc(0% + 60px)  calc(0% + 60px),  calc(0% + 60px)  calc(0% + 60px),  calc(0% + 60px)  calc(0% + 60px)'},
+  {at: 1, expect:     'calc(0% + 80px)  calc(0% + 80px),  calc(0% + 80px)  calc(0% + 80px),  calc(0% + 80px)  calc(0% + 80px),  calc(0% + 80px)  calc(0% + 80px)'},
+  {at: 1.25, expect:  'calc(0% + 100px) calc(0% + 100px), calc(0% + 100px) calc(0% + 100px), calc(0% + 100px) calc(0% + 100px), calc(0% + 100px) calc(0% + 100px)'},
+]);
+
+// Test equal number of position values as background images.
+test_interpolation({
+  property: 'background-position',
+  from: '0px 0px, 0px 0px, 0px 0px, 0px 0px',
+  to: '80px 80px, 80px 80px, 80px 80px, 80px 80px',
+}, [
+  {at: -0.25, expect: '-20px -20px, -20px -20px, -20px -20px, -20px -20px'},
+  {at: 0, expect:     '  0px   0px,   0px   0px,   0px   0px,   0px   0px'},
+  {at: 0.25, expect:  ' 20px  20px,  20px  20px,  20px  20px,  20px  20px'},
+  {at: 0.5, expect:   ' 40px  40px,  40px  40px,  40px  40px,  40px  40px'},
+  {at: 0.75, expect:  ' 60px  60px,  60px  60px,  60px  60px,  60px  60px'},
+  {at: 1, expect:     ' 80px  80px,  80px  80px,  80px  80px,  80px  80px'},
+  {at: 1.25, expect:  '100px 100px, 100px 100px, 100px 100px, 100px 100px'},
+]);
+
+// Test single position value repeated over background images.
+test_interpolation({
+  property: 'background-position',
+  from: 'top 0px left 0px',
+  to: 'left 80px top 80px',
+}, [
+  {at: -0.25, expect: '-20px -20px, -20px -20px, -20px -20px, -20px -20px'},
+  {at: 0, expect:     '  0px   0px,   0px   0px,   0px   0px,   0px   0px'},
+  {at: 0.25, expect:  ' 20px  20px,  20px  20px,  20px  20px,  20px  20px'},
+  {at: 0.5, expect:   ' 40px  40px,  40px  40px,  40px  40px,  40px  40px'},
+  {at: 0.75, expect:  ' 60px  60px,  60px  60px,  60px  60px,  60px  60px'},
+  {at: 1, expect:     ' 80px  80px,  80px  80px,  80px  80px,  80px  80px'},
+  {at: 1.25, expect:  '100px 100px, 100px 100px, 100px 100px, 100px 100px'},
+]);
+
+// Test mismatched numbers of position values.
+test_interpolation({
+  property: 'background-position',
+  from: '0px 0px, 80px 0px',
+  to: '40px 40px, 80px 80px, 0px 80px',
+}, [
+  {at: -0.25, expect: '-10px -10px, 80px -20px, 0px -20px, 90px -10px'},
+  {at: 0, expect:     '  0px   0px, 80px   0px, 0px   0px, 80px   0px'},
+  {at: 0.25, expect:  ' 10px  10px, 80px  20px, 0px  20px, 70px  10px'},
+  {at: 0.5, expect:   ' 20px  20px, 80px  40px, 0px  40px, 60px  20px'},
+  {at: 0.75, expect:  ' 30px  30px, 80px  60px, 0px  60px, 50px  30px'},
+  {at: 1, expect:     ' 40px  40px, 80px  80px, 0px  80px, 40px  40px'},
+  {at: 1.25, expect:  ' 50px  50px, 80px 100px, 0px 100px, 30px  50px'},
+]);
+</script>

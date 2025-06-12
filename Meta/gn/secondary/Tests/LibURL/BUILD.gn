@@ -1,0 +1,15 @@
+import("//Tests/unittest.gni")
+
+unittest("TestURL") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TestURL.cpp" ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibURL",
+  ]
+}
+
+group("LibURL") {
+  testonly = true
+  deps = [ ":TestURL" ]
+}

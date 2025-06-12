@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const stream = new WritableStream({
+            write(chunk) {
+                return new Promise(resolve => {
+                    println(chunk);
+                    resolve();
+                });
+            },
+
+            close() {
+                done();
+            }
+        });
+
+        function sendMessage(message) {
+            const writer = stream.getWriter();
+
+            for (const chunk of message) {
+                writer.ready.then(() => writer.write(chunk));
+            }
+
+            writer.ready.then(() => {
+                writer.close();
+            });
+        }
+
+        sendMessage("Well-hello-friends!");
+    });
+</script>

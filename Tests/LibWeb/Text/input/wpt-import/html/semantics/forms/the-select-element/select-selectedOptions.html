@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>HTMLSelectElement.selectedOptions</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/forms.html#dom-select-selectedoptions">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+
+<select id="select-none-selected">
+  <option>One</option>
+  <option>Two</option>
+  <option>Three</option>
+</select>
+
+<select id="select-one-selected">
+  <option>One</option>
+  <option selected>Two</option>
+  <option>Three</option>
+</select>
+
+<select multiple id="multiple-select-none-selected">
+  <option>One</option>
+  <option>Two</option>
+  <option>Three</option>
+</select>
+
+<select multiple id="multiple-select-two-selected">
+  <option>One</option>
+  <option selected>Two</option>
+  <option selected>Three</option>
+</select>
+
+<select id="select-named-selected">
+  <option>One</option>
+  <option>Two</option>
+  <option id="named-option" selected>Three</option>
+</select>
+
+<select id="invalid-select">
+  <option selected>One</option>
+  <option selected>Two</option>
+  <option>Three</option>
+</select>
+
+<select id="select-same-object">
+  <option>One</option>
+  <option selected>Two</option>
+  <option>Three</option>
+</select>
+
+<select multiple id="select-same-object-change">
+  <option selected>One</option>
+  <option selected>Two</option>
+  <option selected>Three</option>
+</select>
+
+<script>
+"use strict";
+
+test(() => {
+  const select = document.getElementById("select-none-selected");
+
+  assert_array_equals(select.selectedOptions, [select.children[0]]);
+  assert_equals(select.selectedOptions.length, 1);
+
+}, ".selectedOptions with no selected option");
+
+test(() => {
+  const select = document.getElementById("select-one-selected");
+
+  assert_array_equals(select.selectedOptions, [select.children[1]]);
+  assert_equals(select.selectedOptions.length, 1);
+}, ".selectedOptions with one selected option");
+
+test(() => {
+  const select = document.getElementById("multiple-select-none-selected");
+
+  assert_equals(select.selectedOptions.item(0), null);
+  assert_equals(select.selectedOptions.length, 0);
+}, ".selectedOptions using the 'multiple' attribute with no selected options");
+
+test(() => {
+  const select = document.getElementById("multiple-select-two-selected");
+
+  assert_equals(select.selectedOptions.item(0), select.children[1]);
+  assert_equals(select.selectedOptions.item(1), select.children[2]);
+  assert_equals(select.selectedOptions.length, 2);
+}, ".selectedOptions using the 'multiple' attribute with two selected options");
+
+// "A select element whose multiple attribute is not specified must not have
+// more than one descendant option element with its selected attribute set."
+// - https://html.spec.whatwg.org/multipage/forms.html#the-option-element:the-select-element-6
+
+// "If two or more option elements in the select element's list of options
+//  have their selectedness set to true, set the selectedness of all but
+// the last option element with its selectedness set to true in the list of
+// options in tree order to false."
+// - https://html.spec.whatwg.org/multipage/forms.html#the-select-element:the-option-element-21
+test(() => {
+  const select = document.getElementById("invalid-select");
+
+  assert_array_equals(select.selectedOptions, [select.children[1]]);
+  assert_equals(select.selectedOptions.length, 1);
+
+}, ".selectedOptions without the 'multiple' attribute but " +
+   "more than one selected option should return the last one");
+
+test(() => {
+  const select = document.getElementById("select-named-selected");
+
+  assert_equals(select.selectedOptions.constructor, HTMLCollection);
+  assert_equals(select.selectedOptions.namedItem("named-option"), select.children[2]);
+}, ".selectedOptions should return `HTMLCollection` instance");
+
+test(() => {
+  const select = document.getElementById("select-same-object");
+  const selectAgain = document.getElementById("select-same-object");
+
+  assert_equals(select.selectedOptions, selectAgain.selectedOptions);
+
+}, ".selectedOptions should always return the same value - [SameObject]");
+
+test(() => {
+  const select = document.getElementById("select-same-object-change");
+  const before = select.selectedOptions;
+  assert_equals(before.length, 3);
+
+  select.selectedOptions[1].selected = false;
+
+  const after = select.selectedOptions;
+
+  assert_equals(before, after);
+  assert_equals(before.length, 2);
+  assert_equals(after.length, 2);
+
+}, ".selectedOptions should return the same object after selection changes - [SameObject]");
+</script>
+</body>
+</html>

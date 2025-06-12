@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS UI Level 4: parsing cursor with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-ui-4/#cursor">
+<meta name="assert" content="cursor supports the full required grammar.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("cursor", "auto");
+test_valid_value("cursor", "default");
+test_valid_value("cursor", "none");
+test_valid_value("cursor", "context-menu");
+test_valid_value("cursor", "help");
+test_valid_value("cursor", "pointer");
+test_valid_value("cursor", "progress");
+test_valid_value("cursor", "wait");
+test_valid_value("cursor", "cell");
+test_valid_value("cursor", "crosshair");
+test_valid_value("cursor", "text");
+test_valid_value("cursor", "vertical-text");
+test_valid_value("cursor", "alias");
+test_valid_value("cursor", "copy");
+test_valid_value("cursor", "move");
+test_valid_value("cursor", "no-drop");
+test_valid_value("cursor", "not-allowed");
+test_valid_value("cursor", "grab");
+test_valid_value("cursor", "grabbing");
+test_valid_value("cursor", "e-resize");
+test_valid_value("cursor", "n-resize");
+test_valid_value("cursor", "ne-resize");
+test_valid_value("cursor", "nw-resize");
+test_valid_value("cursor", "s-resize");
+test_valid_value("cursor", "se-resize");
+test_valid_value("cursor", "sw-resize");
+test_valid_value("cursor", "w-resize");
+test_valid_value("cursor", "ew-resize");
+test_valid_value("cursor", "ns-resize");
+test_valid_value("cursor", "nesw-resize");
+test_valid_value("cursor", "nwse-resize");
+test_valid_value("cursor", "col-resize");
+test_valid_value("cursor", "row-resize");
+test_valid_value("cursor", "all-scroll");
+test_valid_value("cursor", "zoom-in");
+test_valid_value("cursor", "zoom-out");
+
+test_valid_value(
+  "cursor",
+  'url("https://example.com/"), alias',
+  [
+    'url("https://example.com/"), alias',
+    'url(https://example.com/), alias'
+  ]
+);
+
+test_valid_value(
+  "cursor",
+  'url("https://example.com/") 1 calc(2 + 0), copy',
+  [
+    'url("https://example.com/") 1 calc(2), copy',
+    'url("https://example.com/") 1 2, copy',
+    'url(https://example.com/) 1 2, copy'
+  ]
+);
+
+test_valid_value(
+  "cursor",
+  'url("https://example.com/"), url("https://example.com/") 3 -4, move',
+  [
+    'url("https://example.com/"), url("https://example.com/") 3 -4, move',
+    'url(https://example.com/), url(https://example.com/) 3 -4, move'
+  ]
+);
+
+test_valid_value(
+  "cursor",
+  'url("https://example.com/") 5 6, grab',
+  [
+    'url("https://example.com/") 5 6, grab',
+    'url(https://example.com/) 5 6, grab'
+  ]
+);
+
+test_valid_value(
+  "cursor",
+  'image-set("https://example.com/" 1x) 5 6, grab',
+  [
+    'image-set(url("https://example.com/") 1x) 5 6, grab',
+    'image-set(url(https://example.com/) 1x) 5 6, grab'
+  ]
+);
+
+test_valid_value(
+  "cursor",
+  'image-set("https://example.com/" 1x, "https://example.com/highres" 2x) 5 6, grab',
+  [
+    'image-set(url("https://example.com/") 1x, url("https://example.com/highres") 2x) 5 6, grab',
+    'image-set(url(https://example.com/) 1x, url(https://example.com/highres) 2x) 5 6, grab'
+  ]
+);
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	role is grid
+Pass	role is row (in grid)
+Pass	role is columnheader (in row, in grid)
+Pass	role is rowheader (in row, in grid)
+Pass	role is gridcell (in row, in grid)
+Pass	role is rowgroup (in grid)
+Pass	role is row (in rowgroup, in grid)
+Pass	role is columnheader (in row, in rowgroup, in grid)
+Pass	role is rowheader (in row, in rowgroup, in grid)
+Pass	role is gridcell (in row, in rowgroup, in grid)

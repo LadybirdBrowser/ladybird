@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe name="testFrame"></iframe>
+<script>    
+    asyncTest(done => {
+        println(`window.opener initial value: ${window.opener}`);
+        window.opener = "test";
+        println(`window.opener after setting to "test": ${window.opener}`);
+        const frame = document.querySelector("iframe");
+        frame.onload = () => {
+            println(`iframe contentWindow.opener initial value is the current window object: ${frame.contentWindow.opener === window}`);
+            frame.contentWindow.opener = null;
+            println(`iframe contentWindow.opener after setting to null: ${frame.contentWindow.opener}`);
+            frame.contentWindow.opener = "test";
+            println(`iframe contentWindow.opener after setting to "test": ${frame.contentWindow.opener}`);
+            done();
+        }
+        window.open("about:srcdoc", "testFrame");
+    });
+</script>

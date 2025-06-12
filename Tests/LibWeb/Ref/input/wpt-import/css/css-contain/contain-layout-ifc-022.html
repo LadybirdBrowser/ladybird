@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Containment Test: 'contain: layout' and creation of an independent formating context: text no longer flowing around a float</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-contain-1/#containment-layout">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/contain-layout-ifc-022-ref.html">
+
+  <meta content="This test checks that an element with 'contain: layout' will make such element create its own formatting context. In this test, the element with 'contain: layout' acts as if it has its own formatting context independent from div#floated-left element. In other words, the div#with-contain-layout is no longer required to flow its content around the div#floated-left element and current line boxes next to the float are no longer shortened to make room for the margin box of the float." name="assert">
+
+  <style>
+  div
+    {
+      color: transparent;
+      font-size: 16px;
+      padding: 8px;
+    }
+
+  div#floated-left
+    {
+      background-color: blue;
+      float: left;
+      margin: 8px;
+      width: 6em;
+    }
+
+  div#with-contain-layout
+    {
+      background-color: orange;
+      contain: layout;
+      width: 12em;
+    }
+  </style>
+
+  <p>Test passes if the orange rectangle and blue rectangle do not overlap.
+
+  <!--
+
+  or
+
+  <p>Test passes if the orange rectangle and blue rectangle are side by side.
+
+  or
+
+  <p>Test passes if the orange rectangle and blue rectangle are apart from each other.
+
+  -->
+
+  <div id="floated-left">Some text in a blue rectangle.</div>
+
+  <div id="with-contain-layout">Some text in an orange rectangle. Some text in an orange rectangle. Some text in an orange rectangle.</div>

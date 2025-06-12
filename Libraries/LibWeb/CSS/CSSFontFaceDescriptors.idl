@@ -1,0 +1,35 @@
+#import <CSS/CSSStyleDeclaration.idl>
+
+// https://drafts.csswg.org/css-fonts-4/#cssfontfacedescriptors
+[Exposed=Window]
+interface CSSFontFaceDescriptors : CSSStyleDeclaration {
+    [LegacyNullToEmptyString] attribute CSSOMString src;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_family_regular, ImplementedAs=font_family] attribute CSSOMString fontFamily;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_family_dashed, ImplementedAs=font_family] attribute CSSOMString font-family;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_style_regular, ImplementedAs=font_style] attribute CSSOMString fontStyle;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_style_dashed, ImplementedAs=font_style] attribute CSSOMString font-style;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_weight_regular, ImplementedAs=font_weight] attribute CSSOMString fontWeight;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_weight_dashed, ImplementedAs=font_weight] attribute CSSOMString font-weight;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_stretch_regular, ImplementedAs=font_width] attribute CSSOMString fontStretch;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_stretch_dashed, ImplementedAs=font_width] attribute CSSOMString font-stretch;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_width_regular, ImplementedAs=font_width] attribute CSSOMString fontWidth;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_width_dashed, ImplementedAs=font_width] attribute CSSOMString font-width;
+    [LegacyNullToEmptyString, AttributeCallbackName=unicode_range_regular, ImplementedAs=unicode_range] attribute CSSOMString unicodeRange;
+    [LegacyNullToEmptyString, AttributeCallbackName=unicode_range_dashed, ImplementedAs=unicode_range] attribute CSSOMString unicode-range;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_feature_settings_regular, ImplementedAs=font_feature_settings] attribute CSSOMString fontFeatureSettings;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_feature_settings_dashed, ImplementedAs=font_feature_settings] attribute CSSOMString font-feature-settings;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_variation_settings_regular, ImplementedAs=font_variation_settings] attribute CSSOMString fontVariationSettings;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_variation_settings_dashed, ImplementedAs=font_variation_settings] attribute CSSOMString font-variation-settings;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_named_instance_regular, ImplementedAs=font_named_instance] attribute CSSOMString fontNamedInstance;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_named_instance_dashed, ImplementedAs=font_named_instance] attribute CSSOMString font-named-instance;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_display_regular, ImplementedAs=font_display] attribute CSSOMString fontDisplay;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_display_dashed, ImplementedAs=font_display] attribute CSSOMString font-display;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_language_override_regular, ImplementedAs=font_language_override] attribute CSSOMString fontLanguageOverride;
+    [LegacyNullToEmptyString, AttributeCallbackName=font_language_override_dashed, ImplementedAs=font_language_override] attribute CSSOMString font-language-override;
+    [LegacyNullToEmptyString, AttributeCallbackName=ascent_override_regular, ImplementedAs=ascent_override] attribute CSSOMString ascentOverride;
+    [LegacyNullToEmptyString, AttributeCallbackName=ascent_override_dashed, ImplementedAs=ascent_override] attribute CSSOMString ascent-override;
+    [LegacyNullToEmptyString, AttributeCallbackName=descent_override_regular, ImplementedAs=descent_override] attribute CSSOMString descentOverride;
+    [LegacyNullToEmptyString, AttributeCallbackName=descent_override_dashed, ImplementedAs=descent_override] attribute CSSOMString descent-override;
+    [LegacyNullToEmptyString, AttributeCallbackName=line_gap_override_regular, ImplementedAs=line_gap_override] attribute CSSOMString lineGapOverride;
+    [LegacyNullToEmptyString, AttributeCallbackName=line_gap_override_dashed, ImplementedAs=line_gap_override] attribute CSSOMString line-gap-override;
+};

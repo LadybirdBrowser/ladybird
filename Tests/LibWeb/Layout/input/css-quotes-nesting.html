@@ -1,0 +1,21 @@
+<!doctype html>
+<style>
+    span::before {
+        content: open-quote;
+    }
+    span::after {
+        content: close-quote;
+    }
+    .a {
+        quotes: none;
+    }
+    .b {
+        quotes: auto;
+    }
+    .c {
+        quotes: "(" ")" "{" "}" "[" "]";
+    }
+</style>
+<div class="a"><span>a<span>b<span>c<span>d<span>e</span>f</span>g</span>h</span>i</span></div>
+<div class="b"><span>a<span>b<span>c<span>d<span>e</span>f</span>g</span>h</span>i</span></div>
+<div class="c"><span>a<span>b<span>c<span>d<span>e</span>f</span>g</span>h</span>i</span></div>

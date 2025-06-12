@@ -1,0 +1,28 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/AbstractWorker.idl>
+#import <HTML/MessagePort.idl>
+
+// https://w3c.github.io/ServiceWorker/#serviceworker-interface
+[SecureContext, Exposed=(Window,Worker)]
+interface ServiceWorker : EventTarget {
+    readonly attribute USVString scriptURL;
+    [ImplementedAs=service_worker_state] readonly attribute ServiceWorkerState state;
+
+    [FIXME] undefined postMessage(any message, sequence<object> transfer);
+    [FIXME] undefined postMessage(any message, optional StructuredSerializeOptions options = {});
+
+    // event
+    attribute EventHandler onstatechange;
+};
+
+ServiceWorker includes AbstractWorker;
+
+enum ServiceWorkerState {
+    "parsed",
+    "installing",
+    "installed",
+    "activating",
+    "activated",
+    "redundant"
+};

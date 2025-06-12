@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #box {
+        width: 200px;
+        height: 200px;
+        background-color: magenta;
+    }
+</style>
+<div style="height: 1000px"></div>
+<div style="margin-left: 500px" onclick="clickHandler(event)" id="box"></div>
+<div style="height: 1000px"></div>
+<script>
+    function clickHandler(event) {
+        document.getElementById("box").scrollIntoView({ block: "end" });
+    }
+
+    asyncTest(done => {
+        document.addEventListener("scroll", event => {
+            println("The page has been scrolled to y: " + window.scrollY);
+            done();
+        });
+
+        document.getElementById("box").dispatchEvent(new Event("click"));
+    });
+</script>

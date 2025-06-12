@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    div {
+        white-space: pre;
+        font-family: monospace;
+        tab-size: 8; /* the initial value, but since we're measuring against it, we might as well be sure */
+    }
+    span {
+        display: inline-block;
+    }
+
+    #s1 {
+        width: 6ch;
+    }
+    #s2 {
+        width: 7ch;
+    }
+    #s3 {
+        width: 7.3ch;
+    }
+</style>
+
+<div><span id="s1"></span>&#9;A</div>
+<div><span id="s2"></span>&#9;A</div>
+<div><span id="s3"></span>&#9;A</div>
+<div>        A</div>

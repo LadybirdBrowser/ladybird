@@ -1,0 +1,9 @@
+#import <DOM/Element.idl>
+
+// https://dom.spec.whatwg.org/#interface-htmlcollection
+[Exposed=Window, LegacyUnenumerableNamedProperties]
+interface HTMLCollection {
+    readonly attribute unsigned long length;
+    getter Element? item(unsigned long index);
+    getter Element? namedItem(DOMString name);
+};

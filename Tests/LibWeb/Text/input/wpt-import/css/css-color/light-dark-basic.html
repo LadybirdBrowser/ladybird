@@ -1,0 +1,26 @@
+<!doctype html>
+<title>light-dark() color-scheme propagation</title>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<link rel="help" href="https://drafts.csswg.org/css-color-adjust/#color-scheme-effect">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7561">
+<div id="system"></div>
+<div id="light" style="color-scheme: light"></div>
+<div id="dark" style="color-scheme: dark"></div>
+<script>
+const system_is_dark = matchMedia("(prefers-color-scheme: dark)").matches;
+const elements = ["system", "light", "dark"].map(document.getElementById.bind(document));
+function test_light_dark(color, expected_light, expected_dark) {
+  test(() => {
+    for (let element of elements) {
+      let should_be_dark = element.id == "dark" || (element.id == "system" && system_is_dark);
+      element.style.backgroundColor = color;
+      assert_not_equals(element.style.backgroundColor, "", "Should be valid");
+      assert_equals(getComputedStyle(element).backgroundColor, should_be_dark ? expected_dark : expected_light);
+    }
+  }, color);
+}
+
+test_light_dark("light-dark(white, black)", "rgb(255, 255, 255)", "rgb(0, 0, 0)");
+test_light_dark("light-dark(light-dark(white, red), red)", "rgb(255, 255, 255)", "rgb(255, 0, 0)");
+</script>

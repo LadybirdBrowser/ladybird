@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    div {
+        position: absolute;
+        animation: moveRight 2s linear;
+    }
+
+    @keyframes moveRight {
+        from {
+            left: 0;
+        }
+        to {
+            left: 100%;
+            transform: translateX(-100%);
+        }
+    }
+</style>
+<body>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const foo = document.getElementById("foo");
+        const timeline = internals.createInternalAnimationTimeline();
+        const anim = foo.getAnimations()[0];
+        anim.timeline = timeline;
+        timeline.setTime(1000);
+
+        await animationFrame();
+        const bounds = foo.getBoundingClientRect();
+        println(`box is moving in the correct direction: ${bounds.left > 0}`);
+    });
+</script>
+</body>

@@ -1,0 +1,19 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x36 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x20 children: not-inline
+      BlockContainer <div> at (8,8) content-size 784x10 children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [8,8 98x10] baseline: 9.796875
+            "foo bar baz"
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,18) content-size 784x10 children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [8,18 98x10] baseline: 9.796875
+            "foo bar baz"
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x20]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x10]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,18 784x10]
+        TextPaintable (TextNode<#text>)

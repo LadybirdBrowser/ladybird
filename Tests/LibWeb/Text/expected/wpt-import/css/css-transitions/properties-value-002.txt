@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+16 Pass
+2 Fail
+Pass	margin-bottom percentage(%) / values
+Pass	margin-bottom percentage(%) / events
+Pass	margin-left percentage(%) / values
+Pass	margin-left percentage(%) / events
+Pass	margin-right percentage(%) / values
+Pass	margin-right percentage(%) / events
+Pass	margin-top percentage(%) / values
+Pass	margin-top percentage(%) / events
+Pass	padding-bottom percentage(%) / values
+Pass	padding-bottom percentage(%) / events
+Pass	padding-left percentage(%) / values
+Pass	padding-left percentage(%) / events
+Pass	padding-right percentage(%) / values
+Pass	padding-right percentage(%) / events
+Pass	padding-top percentage(%) / values
+Pass	padding-top percentage(%) / events
+Fail	vertical-align vertical(keyword) / values
+Fail	vertical-align vertical(keyword) / events

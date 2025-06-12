@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Array v.s. Binary
+Pass	Binary v.s. String
+Pass	String v.s. Date
+Pass	Date v.s. Number

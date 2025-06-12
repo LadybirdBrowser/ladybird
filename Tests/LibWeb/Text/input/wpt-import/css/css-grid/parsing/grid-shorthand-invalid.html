@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing 'grid' with invalid values</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#propdef-grid">
+<meta name="assert" content="grid-template supports only the grammar `<'grid-template'> | <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>? | [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>`.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+
+test_invalid_value("grid", 'none none');
+test_invalid_value("grid", 'none []');
+test_invalid_value("grid", '10px');
+test_invalid_value("grid", '20%');
+test_invalid_value("grid", '5fr');
+test_invalid_value("grid", '[a]');
+test_invalid_value("grid", '[a] 10px');
+test_invalid_value("grid", '[a] 10px []');
+test_invalid_value("grid", '[]');
+test_invalid_value("grid", '10px "a"');
+test_invalid_value("grid", '[] 10px "a"');
+test_invalid_value("grid", '10px [] "a"');
+test_invalid_value("grid", '[] [] "a"');
+test_invalid_value("grid", '"a" none');
+test_invalid_value("grid", '"a" 10px 10px');
+test_invalid_value("grid", '"a" [a] 10px');
+test_invalid_value("grid", '"a" [a] 10px [a]');
+test_invalid_value("grid", '"a" [a] [a] 10px');
+test_invalid_value("grid", '"a" 10px [a] [a]');
+test_invalid_value("grid", '"a" [a] [a]');
+test_invalid_value("grid", '[a] "a" [a] [a]');
+test_invalid_value("grid", '"a" "a" [a] [a]');
+test_invalid_value("grid", '"a" [a] [a] / none');
+test_invalid_value("grid", '"a" "a" [a] [a] / none');
+test_invalid_value("grid", 'none / "a"');
+test_invalid_value("grid", '"a" / none');
+test_invalid_value("grid", 'none / [] "a"');
+test_invalid_value("grid", 'none / "a" []');
+test_invalid_value("grid", 'none / "a" [] 10px');
+test_invalid_value("grid", 'auto-flow 100px');
+test_invalid_value("grid", 'auto-flow / auto-flow');
+test_invalid_value("grid", 'auto-flow 1fr / auto-flow 1fr');
+test_invalid_value("grid", 'dense auto-flow / dense auto-flow');
+test_invalid_value("grid", 'auto / auto-flow foo()');
+// FIXME: add more values to test full syntax
+
+</script>
+</body>
+</html>

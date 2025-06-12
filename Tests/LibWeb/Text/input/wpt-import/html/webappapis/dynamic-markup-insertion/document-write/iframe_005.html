@@ -1,0 +1,25 @@
+<!doctype html>
+<title>document.write external script into iframe write back into parent</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<iframe id="test"></iframe>
+<script>
+var t = async_test();
+var iframe = document.getElementById("test");
+var order = [];
+t.step(function() {
+  order.push(1);
+  var s = "<script src='iframe_005.js'></script" + ">";
+  iframe.contentDocument.write(s);
+  iframe.contentDocument.close();
+  order.push(2);
+  assert_array_equals(order, [1,2])
+}
+);
+addEventListener("load", function() {
+    t.step(function() {
+      assert_array_equals(order, [1,2,3,4,5])
+    });
+    t.done();
+}, false);
+</script>
+<div id="log"></div>

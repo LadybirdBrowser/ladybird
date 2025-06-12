@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+19 Pass
+2 Fail
+Pass	xx-small <= x-small
+Pass	x-small <= small
+Pass	small <= medium
+Pass	medium <= large
+Pass	large <= x-large
+Pass	x-large <= xx-large
+Pass	xx-large <= xxx-large
+Pass	inherit <= larger
+Pass	smaller <= inherit
+Pass	Property font-size value '10px'
+Pass	Property font-size value '20%'
+Fail	Property font-size value 'calc(30% - 40px)'
+Pass	Property font-size value 'calc(30% + 40px)'
+Fail	Property font-size value 'calc(10px - 0.5em)'
+Pass	Property font-size value 'calc(10px + 0.5em)'
+Pass	<font size="2"> is font-size: small
+Pass	<font size="3"> is font-size: medium
+Pass	<font size="4"> is font-size: large
+Pass	<font size="5"> is font-size: x-large
+Pass	<font size="6"> is font-size: xx-large
+Pass	<font size="7"> is font-size: xxx-large

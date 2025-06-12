@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <script id="with-xlink-href" xlink:href="test"></script>
+    <script id="no-xlink-href" href="test"></script>
+</svg>
+<script id="svg-script-element">
+    test(() => {
+        const namespace = "http://www.w3.org/1999/xlink"
+        const xlinkNS = document.getElementById("with-xlink-href");
+        const noNS = document.getElementById("no-xlink-href");
+
+        println("Original values");
+        println(`xlink:href getAttributeNS = '${xlinkNS.getAttributeNS(namespace, "href")}'`);
+        println(`href getAttribute = '${noNS.getAttribute("href")}'`);
+
+        println("Non-matching namespace");
+        xlinkNS.removeAttributeNS(null, "href");
+        noNS.removeAttributeNS(namespace, "href");
+
+        println(`xlink:href getAttributeNS = '${xlinkNS.getAttributeNS(namespace, "href")}'`);
+        println(`href getAttribute = '${noNS.getAttribute("href")}'`);
+
+        println("Non-matching name");
+        xlinkNS.removeAttributeNS(namespace, "thing");
+        noNS.removeAttributeNS(null, "thing");
+
+        println(`xlink:href getAttributeNS = '${xlinkNS.getAttributeNS(namespace, "href")}'`);
+        println(`href getAttribute = '${noNS.getAttribute("href")}'`);
+
+        println("Matching");
+        xlinkNS.removeAttributeNS(namespace, "href");
+        noNS.removeAttributeNS(null, "href");
+
+        println(`xlink:href getAttributeNS = '${xlinkNS.getAttributeNS(namespace, "href")}'`);
+        println(`href getAttribute = '${noNS.getAttribute("href")}'`);
+    });
+</script>

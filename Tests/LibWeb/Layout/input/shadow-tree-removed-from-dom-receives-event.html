@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<div id=container>
+    <details open>
+        <summary>summary</summary>
+        <span id=node></span>
+    </details>
+</div>
+<script type="text/javascript">
+    let node = document.getElementById("node");
+
+    let container = document.getElementById("container");
+    container.innerHTML = "<span>Pass!</span>";
+
+    node.click();
+</script>

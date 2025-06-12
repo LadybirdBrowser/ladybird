@@ -1,0 +1,3 @@
+oldBox='<p>A box.</p>'
+newBox='<p>Changed box.</p>'
+NoModificationAllowedError: Cannot set outer HTML on document

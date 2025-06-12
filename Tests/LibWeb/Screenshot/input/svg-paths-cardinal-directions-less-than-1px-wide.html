@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="match" href="../expected/svg-paths-cardinal-directions-less-than-1px-wide-ref.html"/>
+    <style>
+img, svg {
+  width: 24px;
+  height: 24px;
+}
+    </style>
+  </head>
+  <body>
+    <!-- horizontal between two pixels -->
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 23.5h40v1h-40z" fill="currentColor"/>
+    </svg>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 24h40" stroke="currentColor" stroke-width="1"/>
+    </svg>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <line x1="4" y1="24" x2="44" y2="24" stroke="currentColor" stroke-width="1"/>
+    </svg>
+    <br>
+    <!-- horizontal on a single pixel -->
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 24h40v1h-40z" fill="currentColor"/>
+    </svg>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 24.5h40" stroke="currentColor" stroke-width="1"/>
+    </svg>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <line x1="4" y1="24.5" x2="44" y2="24.5" stroke="currentColor" stroke-width="1"/>
+    </svg>
+    <br>
+    <!-- vertical between two pixels -->
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path d="M23.5 4v40h1v-40z" fill="currentColor"/>
+    </svg>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path d="M24 4v40" stroke="currentColor" stroke-width="1"/>
+    </svg>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <line x1="24" y1="4" x2="24" y2="44" stroke="currentColor" stroke-width="1"/>
+    </svg>
+    <br>
+    <!-- vertical on a single pixel -->
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path d="M24 4v40h1v-40z" fill="currentColor"/>
+    </svg>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path d="M24.5 4v40" stroke="currentColor" stroke-width="1"/>
+    </svg>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <line x1="24.5" y1="4" x2="24.5" y2="44" stroke="currentColor" stroke-width="1"/>
+    </svg>
+  </body>
+</html>

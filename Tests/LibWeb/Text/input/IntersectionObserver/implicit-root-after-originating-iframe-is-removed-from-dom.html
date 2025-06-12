@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<body>
+<iframe></iframe>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let iframe = document.querySelector("iframe");
+        iframe.src =
+            "data:text/html," +
+            encodeURI("<script>new IntersectionObserver(function() { }, { })<" + "/script>");
+        iframe.onload = function () {
+            iframe.remove();
+            println("PASS if we didn't crash!");
+            done();
+        };
+    });
+</script>
+</body>

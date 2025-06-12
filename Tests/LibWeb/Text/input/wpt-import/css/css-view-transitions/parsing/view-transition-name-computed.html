@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS View Transitions: view-transition-name with computed values</title>
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/">
+<meta name="assert" content="view-transition-name supports custom keywords.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id=target></div>
+<script>
+test_computed_value("view-transition-name", "none");
+test_computed_value("view-transition-name", "foo");
+test_computed_value("view-transition-name", "bar");
+test_computed_value("view-transition-name", "baz");
+test_computed_value("view-transition-name", "unset", "none");
+test_computed_value("view-transition-name", "initial", "none");
+test_computed_value("view-transition-name", "inherit", "none");
+test_computed_value("view-transition-name", "revert", "none");
+test_computed_value("view-transition-name", "revert-layer", "none");
+</script>
+</body>
+</html>

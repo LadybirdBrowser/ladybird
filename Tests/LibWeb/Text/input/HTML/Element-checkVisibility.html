@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<style>
+    .display-none {
+        display: none;
+    }
+
+    .content-visibility-parent {
+        content-visibility: hidden;
+    }
+
+    .opacity-hidden {
+        opacity: 0;
+    }
+    .opacity-visible {
+        opacity: 0.1;
+    }
+
+    .visibility-hidden {
+        visibility: hidden;
+    }
+    .visibility-visible {
+        visibility: visible;
+    }
+
+    .content-visibility-auto-hidden {
+        content-visibility: auto;
+    }
+</style>
+
+<div class="display-none"></div>
+
+<div class="content-visibility-parent">
+    <div class="content-visibility-child"></div>
+</div>
+
+<div class="opacity-hidden"></div>
+<div class="opacity-visible"></div>
+
+<div class="visibility-hidden"></div>
+<div class="visibility-visible"></div>
+
+<div class="content-visibility-auto-hidden"></div>
+
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const displayNone = document.querySelector('.display-none');
+        println("display-none visible: " + displayNone.checkVisibility());
+
+        const contentVisibilityParent = document.querySelector('.content-visibility-parent');
+        println("content-visibility-parent visible: " + contentVisibilityParent.checkVisibility());
+
+        const contentVisibilityChild = document.querySelector('.content-visibility-child');
+        println("content-visibility-child visible: " + contentVisibilityChild.checkVisibility());
+
+        const opacityHidden = document.querySelector('.opacity-hidden');
+        println("opacity-hidden visible: " + opacityHidden.checkVisibility({opacityProperty: true}));
+
+        const opacityVisible = document.querySelector('.opacity-visible');
+        println("opacity-visible visible: " + opacityVisible.checkVisibility({opacityProperty: true}));
+
+        const visibilityHidden = document.querySelector('.visibility-hidden');
+        println("visibility-hidden visible: " + visibilityHidden.checkVisibility({visibilityProperty: true}));
+
+        const visibilityVisible = document.querySelector('.visibility-visible');
+        println("visibility-visible visible: " + visibilityVisible.checkVisibility({visibilityProperty: true}));
+
+        const contentVisibilityAutoHidden = document.querySelector('.content-visibility-auto-hidden');
+        println("content-visibility-auto-hidden visible: " + contentVisibilityAutoHidden.checkVisibility({contentVisibilityAuto: true}));
+    });
+</script>

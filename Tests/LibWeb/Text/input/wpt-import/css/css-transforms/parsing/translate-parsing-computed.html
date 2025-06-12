@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: translate computed values.</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-translate">
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<meta name="assert" content="translate supports the full grammar 'none | <length-percentage> [ <length-percentage> <length>? ]?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("translate", "none");
+
+test_computed_value("translate", "0px");
+test_computed_value("translate", "100%");
+
+test_computed_value("translate", "100px 0px", "100px");
+test_computed_value("translate", "100px 0.1px", "100px 0.1px");
+test_computed_value("translate", "100px 0%");
+test_computed_value("translate", "100px calc(10px - 10%)", "100px calc(-10% + 10px)");
+test_computed_value("translate", "100px 200%");
+test_computed_value("translate", "100% 200px");
+
+test_computed_value("translate", "100px 200px 0px", "100px 200px");
+test_computed_value("translate", "100px 0px 300px", "100px 0px 300px");
+test_computed_value("translate", "100px 0px 0px", "100px");
+test_computed_value("translate", "100px 200px 300px");
+test_computed_value("translate", "100% 200% 300px");
+
+test_computed_value("translate", "100% 0% 200px", "100% 0% 200px");
+test_computed_value("translate", "0% 0% 100px", "0% 0% 100px");
+test_computed_value("translate", "0em 0em 100px", "0px 0px 100px");
+
+test_computed_value("translate", "0", "0px");
+test_computed_value("translate", "1px 2px 0", "1px 2px");
+</script>
+</body>
+</html>

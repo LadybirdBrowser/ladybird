@@ -1,0 +1,22 @@
+<!doctype html>
+<title>CSS Test: 'x-' prefixed pseudo-elements don't parse correctly</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#pseudo-elements">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  p {
+    color: green;
+  }
+  ::x-something-nobody-would-think-of, p {
+    color: red;
+  }
+</style>
+<p>Should be green
+<script>
+  test(function() {
+    let p = document.querySelector('p');
+    assert_equals(getComputedStyle(p).color, "rgb(0, 128, 0)");
+  }, "x-prefixed pseudo-elements should make the whole rule invalid")
+</script>

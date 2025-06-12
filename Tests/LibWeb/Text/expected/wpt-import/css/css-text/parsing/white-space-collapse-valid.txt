@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	e.style['white-space-collapse'] = "collapse" should set the property value
+Pass	e.style['white-space-collapse'] = "preserve" should set the property value
+Pass	e.style['white-space-collapse'] = "preserve-breaks" should set the property value
+Pass	e.style['white-space-collapse'] = "break-spaces" should set the property value
+Pass	e.style['white-space-collapse'] = "initial" should set the property value
+Pass	e.style['white-space-collapse'] = "inherit" should set the property value
+Pass	e.style['white-space-collapse'] = "unset" should set the property value
+Pass	e.style['white-space-collapse'] = "revert" should set the property value
+Pass	e.style['white-space-collapse'] = "revert-layer" should set the property value

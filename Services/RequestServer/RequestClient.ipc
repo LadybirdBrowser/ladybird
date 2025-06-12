@@ -1,0 +1,24 @@
+#include <LibHTTP/HeaderMap.h>
+#include <LibRequests/NetworkError.h>
+#include <LibRequests/RequestTimingInfo.h>
+#include <LibURL/URL.h>
+
+endpoint RequestClient
+{
+    request_started(i32 request_id, IPC::File fd) =|
+    request_finished(i32 request_id, u64 total_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|
+    headers_became_available(i32 request_id, HTTP::HeaderMap response_headers, Optional<u32> status_code, Optional<String> reason_phrase) =|
+
+    // Websocket API
+    // FIXME: See if this can be merged with the regular APIs
+    websocket_connected(i64 websocket_id) =|
+    websocket_received(i64 websocket_id, bool is_text, ByteBuffer data) =|
+    websocket_errored(i64 websocket_id, i32 message) =|
+    websocket_closed(i64 websocket_id, u16 code, ByteString reason, bool clean) =|
+    websocket_ready_state_changed(i64 websocket_id, u32 ready_state) =|
+    websocket_subprotocol(i64 websocket_id, ByteString subprotocol) =|
+    websocket_certificate_requested(i64 websocket_id) =|
+
+    // Certificate requests
+    certificate_requested(i32 request_id) =|
+}

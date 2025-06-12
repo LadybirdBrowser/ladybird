@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const array = ['This is some data to be read! 🦬'];
+        let blob = new Blob(array, { type: "application/octet-stream"});
+        let fileReader = new FileReader();
+
+        let count = 0;
+
+        // Trigger events in order of readAs Text->DataURL->ArrayBuffer
+        fileReader.addEventListener("loadend", () => {
+            ++count;
+
+            if (count === 1) {
+                println(`${count}: readAsText(): '${fileReader.result}' error: '${fileReader.error}'`);
+                fileReader.readAsDataURL(blob);
+            } else if (count === 2) {
+                println(`${count}: readAsDataURL(): '${fileReader.result}' error: '${fileReader.error}'`);
+                fileReader.readAsArrayBuffer(blob);
+            } else if (count === 3) {
+                println(`${count}: readAsArrayBuffer(): '${new TextDecoder().decode(fileReader.result)}' error: '${fileReader.error}'`);
+                done();
+            }
+        });
+
+        fileReader.readAsText(blob);
+    });
+</script>

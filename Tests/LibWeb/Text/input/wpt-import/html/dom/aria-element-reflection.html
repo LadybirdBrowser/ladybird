@@ -1,0 +1,846 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Element Reflection for aria-activedescendant and aria-errormessage</title>
+    <link rel=help href="https://whatpr.org/html/3917/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:element">
+    <link rel="author" title="Meredith Lane" href="meredithl@chromium.org">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+
+  <div id="activedescendant" aria-activedescendant="x"></div>
+
+  <div id="parentListbox" role="listbox" aria-activedescendant="i1">
+    <div role="option" id="i1">Item 1</div>
+    <div role="option" id="i2">Item 2</div>
+  </div>
+
+  <script>
+  test(function(t) {
+    assert_equals(activedescendant.ariaActiveDescendantElement, null,
+                  "invalid ID for relationship returns null");
+
+    // Element reference should be set if the content attribute was included.
+    assert_equals(parentListbox.getAttribute("aria-activedescendant"), "i1", "check content attribute after parsing.");
+    assert_equals(parentListbox.ariaActiveDescendantElement, i1, "check idl attribute after parsing.");
+    assert_equals(parentListbox.ariaActiveDescendantElement, parentListbox.ariaActiveDescendantElement, "check idl attribute caching after parsing.");
+
+    // If we set the content attribute, the element reference should reflect this.
+    parentListbox.setAttribute("aria-activedescendant", "i2");
+    assert_equals(parentListbox.ariaActiveDescendantElement, i2, "setting the content attribute updates the element reference.");
+    assert_equals(parentListbox.ariaActiveDescendantElement, parentListbox.ariaActiveDescendantElement, "check idl attribute caching after update.");
+
+    // Setting the element reference should set the empty string in the content attribute.
+    parentListbox.ariaActiveDescendantElement = i1;
+    assert_equals(parentListbox.ariaActiveDescendantElement, i1, "getter should return the right element reference.");
+    assert_equals(parentListbox.getAttribute("aria-activedescendant"), "", "content attribute should be empty.");
+
+    // Both content and IDL attribute should be nullable.
+    parentListbox.ariaActiveDescendantElement = null;
+    assert_equals(parentListbox.ariaActiveDescendantElement, null);
+    assert_false(parentListbox.hasAttribute("aria-activedescendant"));
+    assert_equals(parentListbox.getAttribute("aria-activedescendant"), null, "nullifying the idl attribute removes the content attribute.");
+
+    // Setting content attribute to non-existent or non compatible element should nullify the IDL attribute.
+    // Reset the element to an existant one.
+    parentListbox.setAttribute("aria-activedescendant", "i1");
+    assert_equals(parentListbox.ariaActiveDescendantElement, i1, "reset attribute.");
+
+    parentListbox.setAttribute("aria-activedescendant", "non-existent-element");
+    assert_equals(parentListbox.getAttribute("aria-activedescendant"), "non-existent-element");
+    assert_equals(parentListbox.ariaActiveDescendantElement, null,"non-DOM content attribute should null the element reference");
+  }, "aria-activedescendant element reflection");
+  </script>
+
+  <div id="parentListbox2" role="listbox" aria-activedescendant="option1">
+    <div role="option" id="option1">Item 1</div>
+    <div role="option" id="option2">Item 2</div>
+  </div>
+
+  <script>
+  test(function(t) {
+    const option1 = document.getElementById("option1");
+    const option2 = document.getElementById("option2");
+    assert_equals(parentListbox2.ariaActiveDescendantElement, option1);
+    option1.removeAttribute("id");
+    option2.setAttribute("id", "option1");
+    const option2Duplicate = document.getElementById("option1");
+    assert_equals(option2, option2Duplicate);
+
+    assert_equals(parentListbox2.ariaActiveDescendantElement, option2);
+  }, "aria-activedescendant If the content attribute is set directly, the IDL attribute getter always returns the first element whose ID matches the content attribute.");
+  </script>
+
+  <div id="blankIdParent" role="listbox">
+    <div role="option" id="multiple-id"></div>
+    <div role="option" id="multiple-id"></div>
+  </div>
+
+  <script>
+  test(function(t) {
+    // Get second child of parent. This violates the setting of a reflected element
+    // as it will not be the first child of the parent with that ID, which should
+    // result in an empty string for the content attribute.
+    blankIdParent.ariaActiveDescendantElement = blankIdParent.children[1];
+    assert_true(blankIdParent.hasAttribute("aria-activedescendant"));
+    assert_equals(blankIdParent.getAttribute("aria-activedescendant"), "");
+    assert_equals(blankIdParent.ariaActiveDescendantElement, blankIdParent.children[1]);
+  }, "aria-activedescendant Setting the IDL attribute to an element which is not the first element in DOM order with its ID causes the content attribute to be an empty string");
+  </script>
+
+  <div id="outerContainer">
+    <p id="lightParagraph">Hello world!</p>
+    <span id="shadowHost">
+    </span>
+  </div>
+
+  <script>
+  test(function(t) {
+    const shadow = shadowHost.attachShadow({mode: "open"});
+    const link = document.createElement("a");
+    shadow.appendChild(link);
+
+    assert_equals(lightParagraph.ariaActiveDescendantElement, null);
+
+    // The given element crosses a shadow dom boundary, so it cannot be
+    // set as an element reference.
+    lightParagraph.ariaActiveDescendantElement = link;
+    assert_equals(lightParagraph.ariaActiveDescendantElement, null);
+
+    // The given element crosses a shadow dom boundary (upwards), so
+    // can be used as an element reference, but the content attribute
+    // should reflect the empty string.
+    link.ariaActiveDescendantElement = lightParagraph;
+    assert_equals(link.ariaActiveDescendantElement, lightParagraph);
+    assert_equals(link.getAttribute("aria-activedescendant"), "");
+  }, "aria-activedescendant Setting an element reference that crosses into a shadow tree is disallowed, but setting one that is in a shadow inclusive ancestor is allowed.");
+  </script>
+
+  <input id="startTime" ></input>
+  <span id="errorMessage">Invalid Time</span>
+
+  <script>
+  test(function(t) {
+    startTime.ariaErrorMessageElements = [errorMessage];
+    assert_equals(startTime.getAttribute("aria-errormessage"), "");
+    assert_array_equals(startTime.ariaErrorMessageElements, [errorMessage]);
+
+    startTime.ariaErrorMessageElements = [];
+    assert_array_equals(startTime.ariaErrorMessageElements, []);
+    assert_equals(startTime.getAttribute("aria-errormessage"), "");
+
+    startTime.setAttribute("aria-errormessage", "errorMessage");
+    assert_array_equals(startTime.ariaErrorMessageElements, [errorMessage]);
+
+  }, "aria-errormessage");
+
+  test(function (t) {
+      assert_false('ariaErrorMessageElement' in startTime);
+  }, 'ariaErrorMessageElement is not defined')
+
+  </script>
+
+  <label>
+    Password:
+    <input id="passwordField" type="password" aria-details="pw">
+  </label>
+
+  <ul>
+    <li id="listItem1">First description.</li>
+    <li id="listItem2">Second description.</li>
+  </ul>
+
+  <script>
+
+  test(function(t) {
+    assert_array_equals(passwordField.ariaDetailsElements, []);
+    passwordField.ariaDetailsElements = [ listItem1 ];
+    assert_equals(passwordField.getAttribute("aria-details"), "");
+    assert_array_equals(passwordField.ariaDetailsElements, [ listItem1 ]);
+
+    passwordField.ariaDetailsElements = [ listItem2 ];
+    assert_equals(passwordField.getAttribute("aria-details"), "");
+    assert_array_equals(passwordField.ariaDetailsElements, [ listItem2 ]);
+  }, "aria-details");
+  </script>
+
+  <div id="deletionParent" role="listbox" aria-activedescendant="contentAttrElement">
+    <div role="option" id="contentAttrElement">Item 1</div>
+    <div role="option" id="idlAttrElement">Item 2</div>
+  </div>
+
+  <script>
+
+  test(function(t) {
+    const contentAttrElement = document.getElementById("contentAttrElement");
+    const idlAttrElement = document.getElementById("idlAttrElement");
+
+    assert_equals(deletionParent.getAttribute("aria-activedescendant"), "contentAttrElement");
+    assert_equals(deletionParent.ariaActiveDescendantElement, contentAttrElement);
+
+    // Deleting an element set via the content attribute.
+    deletionParent.removeChild(contentAttrElement);
+    assert_equals(deletionParent.getAttribute("aria-activedescendant"), "contentAttrElement");
+
+    // As it was not explitly set, the attr-associated-element is computed from the content attribute,
+    // and since descendant1 has been removed from the DOM, it is not valid.
+    assert_equals(deletionParent.ariaActiveDescendantElement, null);
+
+    // Deleting an element set via the IDL attribute.
+    deletionParent.ariaActiveDescendantElement = idlAttrElement;
+    assert_equals(deletionParent.getAttribute("aria-activedescendant"), "");
+
+    deletionParent.removeChild(idlAttrElement);
+    assert_equals(deletionParent.ariaActiveDescendantElement, null);
+
+    // The content attribute is still empty.
+    assert_equals(deletionParent.getAttribute("aria-activedescendant"), "");
+  }, "aria-activedescendant Deleting a reflected element should return null for the IDL attribute and the content attribute will be empty.");
+  </script>
+
+  <div id="parentNode" role="listbox" aria-activedescendant="changingIdElement">
+    <div role="option" id="changingIdElement">Item 1</div>
+    <div role="option" id="persistantIDElement">Item 2</div>
+  </div>
+
+  <script>
+  test(function(t) {
+    const changingIdElement = document.getElementById("changingIdElement");
+    assert_equals(parentNode.ariaActiveDescendantElement, changingIdElement);
+
+    // Modify the id attribute.
+    changingIdElement.setAttribute("id", "new-id");
+
+    // The content attribute still reflects the old id, and we expect the
+    // Element reference to be null as there is no DOM node with id "original"
+    assert_equals(parentNode.getAttribute("aria-activedescendant"), "changingIdElement");
+    assert_equals(parentNode.ariaActiveDescendantElement, null, "Element set via content attribute with a changed id will return null on getting");
+
+    parentNode.ariaActiveDescendantElement = changingIdElement;
+    assert_equals(parentNode.getAttribute("aria-activedescendant"), "");
+    assert_equals(parentNode.ariaActiveDescendantElement, changingIdElement);
+
+    // The explicitly set element takes precendance over the content attribute.
+    // This means that we still return the same element reference, but the
+    // content attribute is empty.
+    changingIdElement.setAttribute("id", "newer-id");
+    assert_equals(parentNode.ariaActiveDescendantElement, changingIdElement, "explicitly set element is still present even after the id has been changed");
+    assert_equals(parentNode.getAttribute("aria-activedescendant"), "", "content attribute is empty.");
+  }, "aria-activedescendant Changing the ID of an element doesn't lose the reference.");
+  </script>
+
+  <!-- TODO(chrishall): change naming scheme to inner/outer -->
+  <div id="lightParent" role="listbox">
+    <div id="lightElement" role="option">Hello world!</div>
+  </div>
+  <div id="shadowHostElement"></div>
+
+  <script>
+  test(function(t) {
+    const lightElement = document.getElementById("lightElement");
+    const shadowRoot = shadowHostElement.attachShadow({mode: "open"});
+
+    assert_equals(lightParent.ariaActiveDescendantElement, null, 'null before');
+    assert_equals(lightParent.getAttribute('aria-activedescendant'), null, 'null before');
+
+    lightParent.ariaActiveDescendantElement = lightElement;
+    assert_equals(lightParent.ariaActiveDescendantElement, lightElement);
+    assert_equals(lightParent.getAttribute('aria-activedescendant'), "");
+
+    // Move the referenced element into shadow DOM.
+    // This will cause the computed attr-associated element to be null as the
+    // referenced element will no longer be in a valid scope.
+    // The underlying reference is kept intact, so if the referenced element is
+    // later restored to a valid scope the computed attr-associated element will
+    // then reflect
+    shadowRoot.appendChild(lightElement);
+    assert_equals(lightParent.ariaActiveDescendantElement, null, "computed attr-assoc element should be null as referenced element is in an invalid scope");
+    assert_equals(lightParent.getAttribute("aria-activedescendant"), "");
+
+    // Move the referenced element back into light DOM.
+    // Since the underlying reference was kept intact, after moving the
+    // referenced element back to a valid scope should be reflected in the
+    // computed attr-associated element.
+    lightParent.appendChild(lightElement);
+    assert_equals(lightParent.ariaActiveDescendantElement, lightElement, "computed attr-assoc element should be restored as referenced element is back in a valid scope");
+    assert_equals(lightParent.getAttribute("aria-activedescendant"), "");
+  }, "aria-activedescendant Reparenting an element into a descendant shadow scope hides the element reference.");
+  </script>
+
+  <div id='fruitbowl' role='listbox'>
+    <div id='apple' role='option'>I am an apple</div>
+    <div id='pear' role='option'>I am a pear</div>
+    <div id='banana' role='option'>I am a banana</div>
+  </div>
+  <div id='shadowFridge'></div>
+
+  <script>
+  test(function(t) {
+    const shadowRoot = shadowFridge.attachShadow({mode: "open"});
+    const banana = document.getElementById("banana");
+
+    fruitbowl.ariaActiveDescendantElement = apple;
+    assert_equals(fruitbowl.ariaActiveDescendantElement, apple);
+    assert_equals(fruitbowl.getAttribute("aria-activedescendant"), "");
+
+    // Move the referenced element into shadow DOM.
+    shadowRoot.appendChild(apple);
+    assert_equals(fruitbowl.ariaActiveDescendantElement, null, "computed attr-assoc element should be null as referenced element is in an invalid scope");
+    // The content attribute is still empty.
+    assert_equals(fruitbowl.getAttribute("aria-activedescendant"), "");
+
+    // let us rename our banana to an apple
+    banana.setAttribute("id", "apple");
+    const lyingBanana = document.getElementById("apple");
+    assert_equals(lyingBanana, banana);
+
+    // our ariaActiveDescendantElement thankfully isn't tricked.
+    // this is thanks to the underlying reference being kept intact, it is
+    // checked and found to be in an invalid scope.
+    assert_equals(fruitbowl.ariaActiveDescendantElement, null);
+    // our content attribute is empty.
+    assert_equals(fruitbowl.getAttribute("aria-activedescendant"), "");
+
+    // when we remove our IDL attribute, the content attribute is also thankfully cleared.
+    fruitbowl.ariaActiveDescendantElement = null;
+    assert_equals(fruitbowl.ariaActiveDescendantElement, null);
+    assert_equals(fruitbowl.getAttribute("aria-activedescendant"), null);
+  }, "aria-activedescendant Reparenting referenced element cannot cause retargeting of reference.");
+  </script>
+
+  <div id='toaster' role='listbox'></div>
+  <div id='shadowPantry'></div>
+
+  <script>
+  test(function(t) {
+    const shadowRoot = shadowPantry.attachShadow({mode: "open"});
+
+    // Our toast starts in the shadowPantry.
+    const toast = document.createElement("div");
+    toast.setAttribute("id", "toast");
+    shadowRoot.appendChild(toast);
+
+    // Prepare my toast for toasting
+    toaster.ariaActiveDescendantElement = toast;
+    assert_equals(toaster.ariaActiveDescendantElement, null);
+    assert_equals(toaster.getAttribute("aria-activedescendant"), "");
+
+    // Time to make some toast
+    toaster.appendChild(toast);
+    assert_equals(toaster.ariaActiveDescendantElement, toast);
+    // Current spec behaviour:
+    assert_equals(toaster.getAttribute("aria-activedescendant"), "");
+  }, "aria-activedescendant Element reference set in invalid scope remains intact throughout move to valid scope.");
+  </script>
+
+  <div id="billingElementContainer">
+      <div id="billingElement">Billing</div>
+  </div>
+  <div>
+      <div id="nameElement">Name</div>
+      <input type="text" id="input1" aria-labelledby="billingElement nameElement"/>
+  </div>
+  <div>
+      <div id="addressElement">Address</div>
+      <input type="text" id="input2"/>
+  </div>
+
+  <script>
+  test(function(t) {
+    const billingElement = document.getElementById("billingElement")
+    assert_array_equals(input1.ariaLabelledByElements, [billingElement, nameElement], "parsed content attribute sets element references.");
+    assert_equals(input1.ariaLabelledByElements, input1.ariaLabelledByElements, "check idl attribute caching after parsing");
+    assert_equals(input2.ariaLabelledByElements, null, "Testing missing content attribute after parsing.");
+
+    input2.ariaLabelledByElements = [billingElement, addressElement];
+    assert_array_equals(input2.ariaLabelledByElements, [billingElement, addressElement], "Testing IDL setter/getter.");
+    assert_equals(input1.ariaLabelledByElements, input1.ariaLabelledByElements, "check idl attribute caching after update");
+    assert_equals(input2.getAttribute("aria-labelledby"), "");
+
+    // Remove the billingElement from the DOM.
+    // As it was explicitly set the underlying association will remain intact,
+    // but it will be hidden until the element is moved back into a valid scope.
+    billingElement.remove();
+    assert_array_equals(input2.ariaLabelledByElements, [addressElement], "Computed ariaLabelledByElements shouldn't include billing when out of scope.");
+
+    // Insert the billingElement back into the DOM and check that it is visible
+    // again, as the underlying association should have been kept intact.
+    billingElementContainer.appendChild(billingElement);
+    assert_array_equals(input2.ariaLabelledByElements, [billingElement, addressElement], "Billing element back in scope.");
+
+    input2.ariaLabelledByElements = [];
+    assert_array_equals(input2.ariaLabelledByElements, [], "Testing IDL setter/getter for empty array.");
+    assert_equals(input2.getAttribute("aria-labelledby"), "");
+
+    input1.removeAttribute("aria-labelledby");
+    assert_equals(input1.ariaLabelledByElements, null);
+
+    input1.setAttribute("aria-labelledby", "nameElement addressElement");
+    assert_array_equals(input1.ariaLabelledByElements, [nameElement, addressElement],
+      "computed value after setting attribute directly");
+
+    input1.ariaLabelledByElements = null;
+    assert_false(input1.hasAttribute("aria-labelledby", "Nullifying the IDL attribute should remove the content attribute."));
+  }, "aria-labelledby.");
+  </script>
+
+  <ul role="tablist">
+    <li role="presentation"><a id="link1" role="tab" aria-controls="panel1">Tab 1</a></li>
+    <li role="presentation"><a id="link2" role="tab">Tab 2</a></li>
+  </ul>
+
+  <div role="tabpanel" id="panel1"></div>
+  <div role="tabpanel" id="panel2"></div>
+
+  <script>
+  test(function(t) {
+    assert_array_equals(link1.ariaControlsElements, [panel1]);
+    assert_equals(link2.ariaControlsElements, null);
+
+    link2.setAttribute("aria-controls", "panel1 panel2");
+    assert_array_equals(link2.ariaControlsElements, [panel1, panel2]);
+
+    link1.ariaControlsElements = [];
+    assert_equals(link1.getAttribute("aria-controls"), "");
+
+    link2.ariaControlsElements = [panel1, panel2];
+    assert_equals(link2.getAttribute("aria-controls"), "");
+    assert_array_equals(link2.ariaControlsElements, [panel1, panel2]);
+
+    link2.removeAttribute("aria-controls");
+    assert_equals(link2.ariaControlsElements, null);
+
+    link2.ariaControlsElements = [panel1, panel2];
+    assert_equals(link2.getAttribute("aria-controls"), "");
+    assert_array_equals(link2.ariaControlsElements, [panel1, panel2]);
+
+    link2.ariaControlsElements = null;
+    assert_false(link2.hasAttribute("aria-controls", "Nullifying the IDL attribute should remove the content attribute."));
+  }, "aria-controls.");
+  </script>
+
+  <a id="describedLink" aria-describedby="description1 description2">Fruit</a>
+  <div id="description1">Delicious</div>
+  <div id="description2">Nutritious</div>
+
+  <script>
+  test(function(t) {
+    assert_array_equals(describedLink.ariaDescribedByElements, [description1, description2]);
+
+    describedLink.ariaDescribedByElements = [description1, description2];
+    assert_equals(describedLink.getAttribute("aria-describedby"), "");
+    assert_array_equals(describedLink.ariaDescribedByElements, [description1, description2]);
+
+    describedLink.ariaDescribedByElements = [];
+    assert_equals(describedLink.getAttribute("aria-describedby"), "");
+
+    describedLink.setAttribute("aria-describedby", "description1");
+    assert_array_equals(describedLink.ariaDescribedByElements, [description1]);
+
+    describedLink.removeAttribute("aria-describedby");
+    assert_equals(describedLink.ariaDescribedByElements, null);
+
+    describedLink.ariaDescribedByElements = [description1, description2];
+    assert_equals(describedLink.getAttribute("aria-describedby"), "");
+    assert_array_equals(describedLink.ariaDescribedByElements, [description1, description2]);
+
+    describedLink.ariaDescribedByElements = null;
+    assert_false(describedLink.hasAttribute("aria-describedby", "Nullifying the IDL attribute should remove the content attribute."));
+  }, "aria-describedby.");
+  </script>
+
+  <h2 id="titleHeading" aria-flowto="article1 article2">Title</h2>
+  <div>Next</div>
+  <article id="article2">Content2</article>
+  <article id="article1">Content1</article>
+
+  <script>
+  test(function(t) {
+    const article1 = document.getElementById("article1");
+    const article2 = document.getElementById("article2");
+
+    assert_array_equals(titleHeading.ariaFlowToElements, [article1, article2]);
+
+    titleHeading.ariaFlowToElements = [article1, article2];
+    assert_equals(titleHeading.getAttribute("aria-flowto"), "");
+    assert_array_equals(titleHeading.ariaFlowToElements, [article1, article2]);
+
+    titleHeading.ariaFlowToElements = [];
+    assert_equals(titleHeading.getAttribute("aria-flowto"), "");
+
+    titleHeading.setAttribute("aria-flowto", "article1");
+    assert_array_equals(titleHeading.ariaFlowToElements, [article1]);
+
+    titleHeading.removeAttribute("aria-flowto");
+    assert_equals(titleHeading.ariaFlowToElements, null);
+
+    titleHeading.ariaFlowToElements = [article1, article2];
+    assert_equals(titleHeading.getAttribute("aria-flowto"), "");
+    assert_array_equals(titleHeading.ariaFlowToElements, [article1, article2]);
+
+    titleHeading.ariaFlowToElements = null;
+    assert_false(titleHeading.hasAttribute("aria-flowto", "Nullifying the IDL attribute should remove the content attribute."));
+  }, "aria-flowto.");
+  </script>
+
+  <ul>
+    <li id="listItemOwner" aria-owns="child1 child2">Parent</li>
+  </ul>
+  <ul>
+    <li id="child1">Child 1</li>
+    <li id="child2">Child 2</li>
+  </ul>
+  <script>
+  test(function(t) {
+    assert_array_equals(listItemOwner.ariaOwnsElements, [child1, child2]);
+
+    listItemOwner.removeAttribute("aria-owns");
+    assert_equals(listItemOwner.ariaOwnsElements, null);
+
+    listItemOwner.ariaOwnsElements = [child1, child2];
+    assert_equals(listItemOwner.getAttribute("aria-owns"), "");
+    assert_array_equals(listItemOwner.ariaOwnsElements, [child1, child2]);
+
+    listItemOwner.ariaOwnsElements = [];
+    assert_equals(listItemOwner.getAttribute("aria-owns"), "");
+
+    listItemOwner.setAttribute("aria-owns", "child1");
+    assert_array_equals(listItemOwner.ariaOwnsElements, [child1]);
+
+    listItemOwner.ariaOwnsElements = [child1, child2];
+    assert_equals(listItemOwner.getAttribute("aria-owns"), "");
+    assert_array_equals(listItemOwner.ariaOwnsElements, [child1, child2]);
+
+    listItemOwner.ariaOwnsElements = null;
+    assert_false(listItemOwner.hasAttribute("aria-owns", "Nullifying the IDL attribute should remove the content attribute."));
+  }, "aria-owns.");
+  </script>
+
+  <div id="lightDomContainer">
+    <h2 id="lightDomHeading" aria-flowto="shadowChild1 shadowChild2">Light DOM Heading</h2>
+    <div id="host"></div>
+    <p id="lightDomText1">Light DOM text</p>
+    <p id="lightDomText2">Light DOM text</p>
+  </div>
+
+  <script>
+  test(function(t) {
+    const shadowRoot = host.attachShadow({mode: "open"});
+    const shadowChild1 = document.createElement("article");
+    shadowChild1.setAttribute("id", "shadowChild1");
+    shadowRoot.appendChild(shadowChild1);
+    const shadowChild2 = document.createElement("article");
+    shadowChild2.setAttribute("id", "shadowChild1");
+    shadowRoot.appendChild(shadowChild2);
+
+    // The elements in the content attribute are in a "darker" tree - they
+    // enter a shadow encapsulation boundary, so not be associated any more.
+    assert_array_equals(lightDomHeading.ariaFlowToElements, []);
+
+    // These elements are in a shadow including ancestor, i.e "lighter" tree.
+    // Valid for the IDL attribute, but content attribute should be null.
+    shadowChild1.ariaFlowToElements = [lightDomText1, lightDomText2];
+    assert_equals(shadowChild1.getAttribute("aria-flowto"), "", "empty content attribute for elements that cross shadow boundaries.");
+
+    // These IDs belong to a different scope, so the attr-associated-element
+    // cannot be computed.
+    shadowChild2.setAttribute("aria-flowto", "lightDomText1 lightDomText2");
+    assert_array_equals(shadowChild2.ariaFlowToElements, []);
+
+    // Elements that cross into shadow DOM are dropped, only reflect the valid
+    // elements in IDL and in the content attribute.
+    lightDomHeading.ariaFlowToElements = [shadowChild1, shadowChild2, lightDomText1, lightDomText2];
+    assert_array_equals(lightDomHeading.ariaFlowToElements, [lightDomText1, lightDomText2], "IDL should only include valid elements");
+    assert_equals(lightDomHeading.getAttribute("aria-flowto"), "", "empty content attribute if any given elements cross shadow boundaries");
+
+    // Using a mixture of elements in the same scope and in a shadow including
+    // ancestor should set the IDL attribute, but should reflect the empty
+    // string in the content attribute.
+    shadowChild1.removeAttribute("aria-flowto");
+    shadowChild1.ariaFlowToElements = [shadowChild1, lightDomText1];
+    assert_equals(shadowChild1.getAttribute("aria-flowto"), "", "Setting IDL elements with a mix of scopes should reflect an empty string in the content attribute")
+
+  }, "shadow DOM behaviour for FrozenArray element reflection.");
+  </script>
+
+  <div id="describedButtonContainer">
+    <div id="buttonDescription1">Delicious</div>
+    <div id="buttonDescription2">Nutritious</div>
+    <div id="outerShadowHost"></div>
+  </div>
+
+  <script>
+  test(function(t) {
+    const description1 = document.getElementById("buttonDescription1");
+    const description2 = document.getElementById("buttonDescription2");
+    const outerShadowRoot = outerShadowHost.attachShadow({mode: "open"});
+    const innerShadowHost = document.createElement("div");
+    outerShadowRoot.appendChild(innerShadowHost);
+    const innerShadowRoot = innerShadowHost.attachShadow({mode: "open"});
+
+    // Create an element, add some attr associated light DOM elements and append it to the outer shadow root.
+    const describedElement = document.createElement("button");
+    describedButtonContainer.appendChild(describedElement);
+    describedElement.ariaDescribedByElements = [description1, description2];
+
+    // All elements were in the same scope, so elements are gettable and the content attribute is empty.
+    assert_array_equals(describedElement.ariaDescribedByElements, [description1, description2], "same scope reference");
+    assert_equals(describedElement.getAttribute("aria-describedby"), "");
+
+    outerShadowRoot.appendChild(describedElement);
+
+    // Explicitly set attr-associated-elements should still be gettable because we are referencing elements in a lighter scope.
+    // The content attr is empty.
+    assert_array_equals(describedElement.ariaDescribedByElements, [description1, description2], "lighter scope reference");
+    assert_equals(describedElement.getAttribute("aria-describedby"), "");
+
+    // Move the explicitly set elements into a deeper shadow DOM to test the relationship should not be gettable.
+    innerShadowRoot.appendChild(description1);
+    innerShadowRoot.appendChild(description2);
+
+    // Explicitly set elements are no longer retrievable, because they are no longer in a valid scope.
+    assert_array_equals(describedElement.ariaDescribedByElements, [], "invalid scope reference");
+    assert_equals(describedElement.getAttribute("aria-describedby"), "");
+
+    // Move into the same shadow scope as the explicitly set elements to test that the elements are gettable.
+    innerShadowRoot.appendChild(describedElement);
+    assert_array_equals(describedElement.ariaDescribedByElements, [description1, description2], "restored valid scope reference");
+    assert_equals(describedElement.getAttribute("aria-describedby"), "");
+  }, "Moving explicitly set elements across shadow DOM boundaries.");
+  </script>
+
+  <div id="sameScopeContainer">
+    <div id="labelledby" aria-labelledby="headingLabel1 headingLabel2">Misspelling</div>
+    <div id="headingLabel1">Wonderful</div>
+    <div id="headingLabel2">Fantastic</div>
+
+    <div id="headingShadowHost"></div>
+  </div>
+
+    <script>
+    test(function(t) {
+      const shadowRoot = headingShadowHost.attachShadow({mode: "open"});
+      const headingElement = document.createElement("h1");
+      const headingLabel1 = document.getElementById("headingLabel1")
+      const headingLabel2 = document.getElementById("headingLabel2")
+      shadowRoot.appendChild(headingElement);
+
+      assert_array_equals(labelledby.ariaLabelledByElements, [headingLabel1, headingLabel2], "aria-labelledby is supported by IDL getter.");
+
+      // Explicitly set elements are in a lighter shadow DOM, so that's ok.
+      headingElement.ariaLabelledByElements = [headingLabel1, headingLabel2];
+      assert_array_equals(headingElement.ariaLabelledByElements, [headingLabel1, headingLabel2], "Lighter elements are gettable when explicitly set.");
+      assert_equals(headingElement.getAttribute("aria-labelledby"), "");
+
+      // Move into Light DOM, explicitly set elements should still be gettable.
+      // Note that the content attribute is still empty.
+      sameScopeContainer.appendChild(headingElement);
+      assert_array_equals(headingElement.ariaLabelledByElements, [headingLabel1, headingLabel2], "Elements are all in same scope, so gettable.");
+      assert_equals(headingElement.getAttribute("aria-labelledby"), "", "Content attribute is empty.");
+
+      // Reset the association, the content attribute is sitll empty.
+      headingElement.ariaLabelledByElements = [headingLabel1, headingLabel2];
+      assert_equals(headingElement.getAttribute("aria-labelledby"), "");
+
+      // Remove the referring element from the DOM, elements are no longer longer exposed,
+      // underlying internal reference is still kept intact.
+      headingElement.remove();
+      assert_array_equals(headingElement.ariaLabelledByElements, [], "Element is no longer in the document, so references should no longer be exposed.");
+      assert_equals(headingElement.getAttribute("aria-labelledby"), "");
+
+      // Insert it back in.
+      sameScopeContainer.appendChild(headingElement);
+      assert_array_equals(headingElement.ariaLabelledByElements, [headingLabel1, headingLabel2], "Element is restored to valid scope, so should be gettable.");
+      assert_equals(headingElement.getAttribute("aria-labelledby"), "");
+
+      // Remove everything from the DOM, nothing is exposed again.
+      headingLabel1.remove();
+      headingLabel2.remove();
+      assert_array_equals(headingElement.ariaLabelledByElements, []);
+      assert_equals(headingElement.getAttribute("aria-labelledby"), "");
+      assert_equals(document.getElementById("headingLabel1"), null);
+      assert_equals(document.getElementById("headingLabel2"), null);
+
+      // Reset the association.
+      headingElement.ariaLabelledByElements = [headingLabel1, headingLabel2];
+      assert_array_equals(headingElement.ariaLabelledByElements, []);
+      assert_equals(headingElement.getAttribute("aria-labelledby"), "");
+    }, "Moving explicitly set elements around within the same scope, and removing from the DOM.");
+    </script>
+
+  <input id="input">
+    <optgroup>
+      <option id="first">First option</option>
+      <option id="second">Second option</option>
+    </optgroup>
+
+  <script>
+    test(function(t) {
+      input.ariaActiveDescendantElement = first;
+      first.parentElement.appendChild(first);
+
+      assert_equals(input.ariaActiveDescendantElement, first);
+    }, "aria-activedescendant Reparenting.");
+  </script>
+
+  <div id='fromDiv'></div>
+
+  <script>
+    test(function(t) {
+      const toSpan = document.createElement('span');
+      toSpan.setAttribute("id", "toSpan");
+      fromDiv.ariaActiveDescendantElement = toSpan;
+
+      assert_equals(fromDiv.ariaActiveDescendantElement, null, "Referenced element not inserted into document, so is in an invalid scope.");
+      assert_equals(fromDiv.getAttribute("aria-activedescendant"), "", "Invalid scope, so content attribute not set.");
+
+      fromDiv.appendChild(toSpan);
+      assert_equals(fromDiv.ariaActiveDescendantElement, toSpan, "Referenced element now inserted into the document.");
+      assert_equals(fromDiv.getAttribute("aria-activedescendant"), "", "Content attribute remains empty, as it is only updated at set time.");
+
+    }, "aria-activedescendant Attaching element reference before it's inserted into the DOM.");
+  </script>
+
+  <div id='originalDocumentDiv'></div>
+
+  <script>
+    test(function(t) {
+      const newDoc = document.implementation.createHTMLDocument('new document');
+      const newDocSpan = newDoc.createElement('span');
+      newDoc.body.appendChild(newDocSpan);
+
+      // Create a reference across documents.
+      originalDocumentDiv.ariaActiveDescendantElement = newDocSpan;
+
+      assert_equals(originalDocumentDiv.ariaActiveDescendantElement, null, "Cross-document is an invalid scope, so reference will not be visible.");
+      assert_equals(fromDiv.getAttribute("aria-activedescendant"), "", "Invalid scope when set, so content attribute not set.");
+
+      // "Move" span to first document.
+      originalDocumentDiv.appendChild(newDocSpan);
+
+      // Implementation defined: moving object into same document from other document may cause reference to become visible.
+      assert_equals(originalDocumentDiv.ariaActiveDescendantElement, newDocSpan, "Implementation defined: moving object back *may* make reference visible.");
+      assert_equals(fromDiv.getAttribute("aria-activedescendant"), "", "Invalid scope when set, so content attribute not set.");
+    }, "aria-activedescendant Cross-document references and moves.");
+  </script>
+
+
+  <script>
+    test(function(t) {
+      const otherDoc = document.implementation.createHTMLDocument('otherDoc');
+      const otherDocDiv = otherDoc.createElement('div');
+      const otherDocSpan = otherDoc.createElement('span');
+      otherDocDiv.appendChild(otherDocSpan);
+      otherDoc.body.appendChild(otherDocDiv);
+
+      otherDocDiv.ariaActiveDescendantElement = otherDocSpan;
+      assert_equals(otherDocDiv.ariaActiveDescendantElement, otherDocSpan, "Setting reference on a different document.");
+
+      // Adopt element from other oducment.
+      document.body.appendChild(document.adoptNode(otherDocDiv));
+      assert_equals(otherDocDiv.ariaActiveDescendantElement, otherDocSpan, "Reference should be kept on the new document too.");
+    }, "aria-activedescendant Adopting element keeps references.");
+  </script>
+
+  <div id="cachingInvariantMain"></div>
+  <div id="cachingInvariantElement1"></div>
+  <div id="cachingInvariantElement2"></div>
+  <div id="cachingInvariantElement3"></div>
+  <div id="cachingInvariantElement4"></div>
+  <div id="cachingInvariantElement5"></div>
+
+  <script>
+    test(function(t) {
+      cachingInvariantMain.ariaControlsElements = [cachingInvariantElement1, cachingInvariantElement2];
+      cachingInvariantMain.ariaDescribedByElements = [cachingInvariantElement3, cachingInvariantElement4];
+      cachingInvariantMain.ariaDetailsElements = [cachingInvariantElement5];
+      cachingInvariantMain.ariaFlowToElements = [cachingInvariantElement1, cachingInvariantElement3];
+      cachingInvariantMain.ariaLabelledByElements = [cachingInvariantElement2, cachingInvariantElement4];
+      cachingInvariantMain.ariaOwnsElements = [cachingInvariantElement1, cachingInvariantElement2, cachingInvariantElement3];
+
+      let ariaControlsElementsArray = cachingInvariantMain.ariaControlsElements;
+      let ariaDescribedByElementsArray = cachingInvariantMain.ariaDescribedByElements;
+      let ariaDetailsElementsArray = cachingInvariantMain.ariaDetailsElements;
+      let ariaFlowToElementsArray = cachingInvariantMain.ariaFlowToElements;
+      let ariaLabelledByElementsArray = cachingInvariantMain.ariaLabelledByElements;
+      let ariaOwnsElementsArray = cachingInvariantMain.ariaOwnsElements;
+
+      assert_equals(ariaControlsElementsArray, cachingInvariantMain.ariaControlsElements, "Caching invariant for ariaControlsElements");
+      assert_equals(ariaDescribedByElementsArray, cachingInvariantMain.ariaDescribedByElements, "Caching invariant for ariaDescribedByElements");
+      assert_equals(ariaDetailsElementsArray, cachingInvariantMain.ariaDetailsElements, "Caching invariant for ariaDetailsElements");
+      assert_equals(ariaFlowToElementsArray, cachingInvariantMain.ariaFlowToElements, "Caching invariant for ariaFlowToElements");
+      assert_equals(ariaLabelledByElementsArray, cachingInvariantMain.ariaLabelledByElements, "Caching invariant for ariaLabelledByElements");
+      assert_equals(ariaOwnsElementsArray, cachingInvariantMain.ariaOwnsElements, "Caching invariant for ariaOwnsElements");
+
+      // Ensure that stale values don't continue to be cached
+      cachingInvariantMain.ariaControlsElements = [cachingInvariantElement4, cachingInvariantElement5];
+      cachingInvariantMain.ariaDescribedByElements = [cachingInvariantElement1, cachingInvariantElement2];
+      cachingInvariantMain.ariaDetailsElements = [cachingInvariantElement3];
+      cachingInvariantMain.ariaFlowToElements = [cachingInvariantElement4, cachingInvariantElement5];
+      cachingInvariantMain.ariaLabelledByElements = [cachingInvariantElement1, cachingInvariantElement2];
+      cachingInvariantMain.ariaOwnsElements = [cachingInvariantElement3, cachingInvariantElement4, cachingInvariantElement1];
+
+      ariaControlsElementsArray = cachingInvariantMain.ariaControlsElements;
+      ariaDescribedByElementsArray = cachingInvariantMain.ariaDescribedByElements;
+      ariaDetailsElementsArray = cachingInvariantMain.ariaDetailsElements;
+      ariaFlowToElementsArray = cachingInvariantMain.ariaFlowToElements;
+      ariaLabelledByElementsArray = cachingInvariantMain.ariaLabelledByElements;
+      ariaOwnsElementsArray = cachingInvariantMain.ariaOwnsElements;
+
+      assert_equals(ariaControlsElementsArray, cachingInvariantMain.ariaControlsElements, "Caching invariant for ariaControlsElements");
+      assert_equals(ariaDescribedByElementsArray, cachingInvariantMain.ariaDescribedByElements, "Caching invariant for ariaDescribedByElements");
+      assert_equals(ariaDetailsElementsArray, cachingInvariantMain.ariaDetailsElements, "Caching invariant for ariaDetailsElements");
+      assert_equals(ariaFlowToElementsArray, cachingInvariantMain.ariaFlowToElements, "Caching invariant for ariaFlowToElements");
+      assert_equals(ariaLabelledByElementsArray, cachingInvariantMain.ariaLabelledByElements, "Caching invariant for ariaLabelledByElements");
+      assert_equals(ariaOwnsElementsArray, cachingInvariantMain.ariaOwnsElements, "Caching invariant for ariaOwnsElements");
+
+    }, "Caching invariant different attributes.");
+  </script>
+
+  <div id="cachingInvariantMain1"></div>
+  <div id="cachingInvariantMain2"></div>
+
+  <script>
+    test(function(t) {
+      cachingInvariantMain1.ariaDescribedByElements = [cachingInvariantElement1, cachingInvariantElement2];
+      cachingInvariantMain2.ariaDescribedByElements = [cachingInvariantElement3, cachingInvariantElement4];
+
+      let ariaDescribedByElementsArray1 = cachingInvariantMain1.ariaDescribedByElements;
+      let ariaDescribedByElementsArray2 = cachingInvariantMain2.ariaDescribedByElements;
+
+      assert_equals(ariaDescribedByElementsArray1, cachingInvariantMain1.ariaDescribedByElements, "Caching invariant for ariaDescribedByElements in one elemnt");
+      assert_equals(ariaDescribedByElementsArray2, cachingInvariantMain2.ariaDescribedByElements, "Caching invariant for ariaDescribedByElements in onother elemnt");
+    }, "Caching invariant different elements.");
+  </script>
+
+  <div id="badInputValues"></div>
+  <div id="badInputValues2"></div>
+
+  <script>
+    test(function(t) {
+      assert_throws_js(TypeError, () => { badInputValues.ariaActiveDescendantElement = "a string"; });
+      assert_throws_js(TypeError, () => { badInputValues.ariaActiveDescendantElement = 1; });
+      assert_throws_js(TypeError, () => { badInputValues.ariaActiveDescendantElement = [ badInputValues2 ]; });
+
+      assert_throws_js(TypeError, () => { badInputValues.ariaControlsElements = "a string" });
+      assert_throws_js(TypeError, () => { badInputValues.ariaControlsElements = 1 });
+      assert_throws_js(TypeError, () => { badInputValues.ariaControlsElements = [1, 2, 3] });
+      assert_throws_js(TypeError, () => { badInputValues.ariaControlsElements = badInputValues2 });
+    }, "Passing values of the wrong type should throw a TypeError");
+  </script>
+
+  <!-- TODO(chrishall): add additional GC test covering:
+       if an element is in an invalid scope but attached to the document, it's
+       not GC'd;
+  -->
+
+  <!-- TODO(chrishall): add additional GC test covering:
+       if an element is not attached to the document, but is in a tree fragment
+       which is not GC'd because there is a script reference to another element
+       in the tree fragment, and the relationship is valid because it is between
+       two elements in that tree fragment, the relationship is exposed *and* the
+       element is not GC'd
+  -->
+
+</html>

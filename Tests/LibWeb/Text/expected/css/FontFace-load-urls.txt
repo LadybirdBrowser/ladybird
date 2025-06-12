@@ -1,0 +1,5 @@
+hashSans.family: Hash Sans
+hashSans.status: unloaded
+hashSans.status: loaded
+font load failed because: NetworkError: Failed to load font
+notExistFont.status: error

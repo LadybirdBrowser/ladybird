@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(structuredClone(new Boolean(true)));
+        println(structuredClone(new Boolean(false)));
+        println(structuredClone(new Number(123)));
+        println(structuredClone(new Number(123.456)));
+        println(structuredClone(new String("This is a String object")));
+        println(structuredClone(new String("")));
+        println(structuredClone(BigInt("0x1fffffffffffff")));
+        println(structuredClone(Date.UTC(2023, 7, 23)));
+        println(structuredClone(/abc/gimsuy));
+        println(structuredClone(new Error()));
+        println(structuredClone(new URIError("hello")));
+        println(structuredClone(JSON.stringify({"a": "b", 1: 2})));
+        println(structuredClone([1, 4, "aaaa"]));
+        println(structuredClone([]));
+        println(structuredClone(new Set(["a", "b", "c"])).has("b"));
+        println(structuredClone(new Map([["a", 0], ["b", 1], ["c", 2]])).get("b"));
+
+        const obj = {"a": 1, "c": 3};
+        obj["b"] = obj;
+        const result = structuredClone(obj);
+        println(result === result["b"]);
+
+        {
+            let arrayBuffer = new Uint8Array([1, 2, 3, 4, 5, 6 ]);
+            let arrayClone = structuredClone(arrayBuffer);
+            for (let i = 0; i < arrayBuffer.byteLength; ++i) {
+                if (arrayClone[i] !== arrayBuffer[i]) {
+                    println("FAILED");
+                }
+            }
+            println(arrayClone.buffer);
+        }
+
+        try {
+            structuredClone(Symbol("foo"));
+            println("FAILED")
+        }
+        catch(e) {
+            println("ERROR: " + e.name + ": " + e.message)
+        }
+    });
+</script>

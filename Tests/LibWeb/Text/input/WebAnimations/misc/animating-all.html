@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="foo"></div>
+<script>
+    test(() => {
+        const div = document.getElementById("foo");
+        div.style.opacity = '0';
+
+        const animation = div.animate({ all: 'initial' }, 100);
+        animation.currentTime = 50
+        println(`opacity value: ${getComputedStyle(div).opacity}`);
+    })
+</script>

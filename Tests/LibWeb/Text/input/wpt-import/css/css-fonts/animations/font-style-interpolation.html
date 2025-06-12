@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-style interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-3/#propdef-font-style">
+<meta name="assert" content="Font-style should be animated smoothly.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.container {
+  font-style: oblique 20deg;
+}
+.container2 {
+  font-style: oblique 5deg;
+}
+.target {
+  display: inline-block;
+  font: 100px sans-serif;
+  font-style: normal;
+}
+.expected {
+  color: green;
+  margin-right: 30px;
+}
+</style>
+
+<body>
+<template id="target-template">
+  <span class="container">
+    <div class="target">TT</div>
+  </span>
+</template>
+
+<span id="inv-container" class="container">
+  <div id="inv-target" class="target">TT</div>
+</span>
+</body>
+
+<script>
+test_interpolation({
+  property: 'font-style',
+  from: 'normal',
+  to: 'oblique 10deg'
+}, [
+  {at: -2, expect: 'oblique -20deg'},
+  {at: -0.25, expect: 'oblique -2.5deg'},
+  {at: 0, expect: 'normal'},
+  {at: 0.3, expect: 'oblique 3deg'},
+  {at: 0.6, expect: 'oblique 6deg'},
+  {at: 1, expect: 'oblique 10deg'},
+  {at: 1.5, expect: 'oblique 15deg'},
+]);
+
+test_interpolation({
+  property: 'font-style',
+  from: 'oblique 5deg',
+  to: 'oblique 15deg'
+}, [
+  { at: -2, expect: 'oblique -15deg' },
+  { at: -0.25, expect: 'oblique 2.5deg' },
+  { at: 0, expect: 'oblique 5deg' },
+  { at: 0.3, expect: 'oblique 8deg' },
+  { at: 0.6, expect: 'oblique 11deg' },
+  { at: 1, expect: 'oblique 15deg' },
+  { at: 1.5, expect: 'oblique 20deg' },
+]);
+
+test_interpolation({
+  property: 'font-style',
+  from: 'initial',
+  to: 'inherit'
+}, [
+  { at: -2, expect: 'oblique -40deg' },
+  { at: -0.25, expect: 'oblique -5deg' },
+  { at: 0, expect: 'normal' },
+  { at: 0.3, expect: 'oblique 6deg' },
+  { at: 0.6, expect: 'oblique 12deg' },
+  { at: 1, expect: 'oblique 20deg' },
+  { at: 1.5, expect: 'oblique 30deg' },
+]);
+
+test_interpolation({
+  property: 'font-style',
+  from: 'oblique 20deg',
+  to: 'normal'
+}, [
+  { at: -1, expect: 'oblique 40deg' },
+  { at: 0, expect: 'oblique 20deg' },
+  { at: 0.5, expect: 'oblique 10deg' },
+  { at: 1, expect: 'normal' },
+  { at: 1.5, expect: 'oblique -10deg' },
+]);
+
+test_interpolation({
+  property: 'font-style',
+  from: 'oblique -90deg',
+  to: 'oblique 90deg'
+}, [
+  { at: -2, expect: 'oblique -90deg' },
+  { at: -1, expect: 'oblique -90deg' },
+  { at: 0, expect: 'oblique -90deg' },
+  { at: 0.5, expect: 'normal' },
+  { at: 1, expect: 'oblique 90deg' },
+  { at: 1.5, expect: 'oblique 90deg' },
+]);
+
+test(t => {
+  var container = document.getElementById('inv-container');
+  var target = document.getElementById('inv-target');
+  var anim = target.animate({ fontStyle: ['normal', 'inherit'] }, 1000);
+  anim.pause();
+  anim.currentTime = 500;
+  assert_equals(getComputedStyle(target).fontStyle, 'oblique 10deg');
+
+  container.setAttribute('class', 'container2');
+  assert_equals(getComputedStyle(target).fontStyle, 'oblique 2.5deg');
+}, "An interpolation to inherit updates correctly on a parent style change.");
+
+</script>
+
