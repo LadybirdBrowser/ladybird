@@ -182,13 +182,6 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm
 
     // 9. End the synchronous section, continuing the remaining steps in parallel.
 
-    auto fire_error_event = [&]() {
-        queue_an_element_task(Task::Source::DOMManipulation, [this, &realm]() {
-            m_track->set_readiness_state(TextTrack::ReadinessState::FailedToLoad);
-            dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
-        });
-    };
-
     // 10. If URL is not the empty string, then:
     if (!url.is_empty()) {
         // 1. Let request be the result of creating a potential-CORS request given URL, "track", and corsAttributeState,
@@ -204,14 +197,14 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Track);
 
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-        fetch_algorithms_input.process_response_consume_body = [this, &realm, &fire_error_event](auto response, auto body_bytes) {
+        fetch_algorithms_input.process_response_consume_body = [this, &realm](auto response, auto body_bytes) {
             m_loading = false;
 
             // If fetching fails for any reason (network error, the server returns an error code, CORS fails, etc.),
             // or if URL is the empty string, then queue an element task on the DOM manipulation task source given the media element
             // to first change the text track readiness state to failed to load and then fire an event named error at the track element.
             if (!response->url().has_value() || body_bytes.template has<Empty>() || body_bytes.template has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>() || !Fetch::Infrastructure::is_ok_status(response->status()) || response->is_network_error()) {
-                fire_error_event();
+                track_failed_to_load();
                 return;
             }
 
@@ -220,10 +213,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm
             // then the task that is queued on the networking task source in which the aforementioned problem is found must change the text track readiness state to failed to
             // load and fire an event named error at the track element.
             // FIXME: Currently we always fail here, since we don't support loading any track formats.
-            queue_an_element_task(Task::Source::Networking, [this, &realm]() {
-                m_track->set_readiness_state(TextTrack::ReadinessState::FailedToLoad);
-                dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
-            });
+            track_failed_to_load();
 
             // If fetching does not fail, and the file was successfully processed, then the final task that is queued by the networking task source,
             // after it has finished parsing the data, must change the text track readiness state to loaded, and fire an event named load at the track element.
@@ -240,7 +230,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm
         m_fetch_algorithms = Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input));
         m_fetch_controller = MUST(Fetch::Fetching::fetch(realm, request, *m_fetch_algorithms));
     } else {
-        fire_error_event();
+        track_failed_to_load();
         return;
     }
 
@@ -256,6 +246,16 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm
 
     // 13. Jump to the step labeled top.
     start_the_track_processing_model_parallel_steps(realm);
+}
+
+void HTMLTrackElement::track_failed_to_load()
+{
+    queue_an_element_task(Task::Source::DOMManipulation, [this]() {
+        auto& realm = this->realm();
+
+        m_track->set_readiness_state(TextTrack::ReadinessState::FailedToLoad);
+        dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+    });
 }
 
 }
