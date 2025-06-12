@@ -307,6 +307,18 @@ TEST_CASE(decode_invalid_utf16)
     }
 }
 
+TEST_CASE(is_ascii)
+{
+    EXPECT(Utf16View {}.is_ascii());
+    EXPECT(Utf16View { u"a" }.is_ascii());
+    EXPECT(Utf16View { u"foo" }.is_ascii());
+    EXPECT(Utf16View { u"foo\t\n\rbar\v\b123" }.is_ascii());
+
+    EXPECT(!Utf16View { u"😀" }.is_ascii());
+    EXPECT(!Utf16View { u"foo 😀" }.is_ascii());
+    EXPECT(!Utf16View { u"😀 foo" }.is_ascii());
+}
+
 TEST_CASE(equals_ignoring_case)
 {
     auto string1 = MUST(AK::utf8_to_utf16("foobar"sv));
