@@ -58,11 +58,12 @@ ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView utf8_view, Endianness en
 
 ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const& utf8_view, Endianness endianness)
 {
+    if (utf8_view.is_empty())
+        return Utf16ConversionResult { Utf16Data {}, 0 };
+
     // All callers want to allow lonely surrogates, which simdutf does not permit.
     if (!utf8_view.validate(Utf8View::AllowSurrogates::No)) [[unlikely]]
         return to_utf16_slow(utf8_view, endianness);
-    if (utf8_view.is_empty())
-        return Utf16ConversionResult { Utf16Data {}, 0 };
 
     auto const* data = reinterpret_cast<char const*>(utf8_view.bytes());
     auto length = utf8_view.byte_length();
