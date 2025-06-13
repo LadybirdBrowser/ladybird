@@ -547,8 +547,12 @@ struct Formatter<char> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder&, char);
 };
 template<>
+struct Formatter<char16_t> : StandardFormatter {
+    ErrorOr<void> format(FormatBuilder&, char16_t);
+};
+template<>
 struct Formatter<char32_t> : StandardFormatter {
-    ErrorOr<void> format(FormatBuilder& builder, char32_t);
+    ErrorOr<void> format(FormatBuilder&, char32_t);
 };
 template<>
 struct Formatter<bool> : StandardFormatter {
