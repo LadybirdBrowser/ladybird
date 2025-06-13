@@ -3830,15 +3830,15 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
         if (value->is_keyword()) {
             switch (value->to_keyword()) {
             case Keyword::Top:
-                return AxisOffset { Axis::Y, PercentageStyleValue::create(Percentage(0)) };
+                return AxisOffset { Axis::Y, value.release_nonnull() };
             case Keyword::Left:
-                return AxisOffset { Axis::X, PercentageStyleValue::create(Percentage(0)) };
+                return AxisOffset { Axis::X, value.release_nonnull() };
             case Keyword::Center:
-                return AxisOffset { Axis::None, PercentageStyleValue::create(Percentage(50)) };
+                return AxisOffset { Axis::None, value.release_nonnull() };
             case Keyword::Bottom:
-                return AxisOffset { Axis::Y, PercentageStyleValue::create(Percentage(100)) };
+                return AxisOffset { Axis::Y, value.release_nonnull() };
             case Keyword::Right:
-                return AxisOffset { Axis::X, PercentageStyleValue::create(Percentage(100)) };
+                return AxisOffset { Axis::X, value.release_nonnull() };
             default:
                 return OptionalNone {};
             }
@@ -3866,9 +3866,9 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
         switch (single_value->axis) {
         case Axis::None:
         case Axis::X:
-            return make_list(single_value->offset, PercentageStyleValue::create(Percentage(50)));
+            return make_list(single_value->offset, CSSKeywordValue::create(Keyword::Center));
         case Axis::Y:
-            return make_list(PercentageStyleValue::create(Percentage(50)), single_value->offset);
+            return make_list(CSSKeywordValue::create(Keyword::Center), single_value->offset);
         }
         VERIFY_NOT_REACHED();
     }

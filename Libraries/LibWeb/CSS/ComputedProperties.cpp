@@ -640,15 +640,30 @@ TransformBox ComputedProperties::transform_box() const
 
 TransformOrigin ComputedProperties::transform_origin() const
 {
+    auto length_percentage_with_keywords_resolved = [](CSSStyleValue const& value) -> Optional<LengthPercentage> {
+        if (value.is_keyword()) {
+            auto keyword = value.to_keyword();
+            if (keyword == Keyword::Left || keyword == Keyword::Top)
+                return Percentage(0);
+            if (keyword == Keyword::Center)
+                return Percentage(50);
+            if (keyword == Keyword::Right || keyword == Keyword::Bottom)
+                return Percentage(100);
+
+            VERIFY_NOT_REACHED();
+        }
+        return length_percentage_for_style_value(value);
+    };
+
     auto const& value = property(PropertyID::TransformOrigin);
     if (!value.is_value_list() || value.as_value_list().size() != 2)
         return {};
     auto const& list = value.as_value_list();
-    auto x_value = length_percentage_for_style_value(list.values()[0]);
-    auto y_value = length_percentage_for_style_value(list.values()[1]);
-    if (!x_value.has_value() || !y_value.has_value()) {
+
+    auto x_value = length_percentage_with_keywords_resolved(list.values()[0]);
+    auto y_value = length_percentage_with_keywords_resolved(list.values()[1]);
+    if (!x_value.has_value() || !y_value.has_value())
         return {};
-    }
     return { x_value.value(), y_value.value() };
 }
 
