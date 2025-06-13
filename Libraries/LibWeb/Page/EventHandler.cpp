@@ -1001,7 +1001,7 @@ EventResult EventHandler::focus_next_element()
 
         for (; element; element = element->next_element_in_pre_order()) {
             if (element->is_focusable()) {
-                m_navigable->active_document()->set_focused_element(element);
+                HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
                 return EventResult::Handled;
             }
         }
@@ -1019,7 +1019,7 @@ EventResult EventHandler::focus_next_element()
     if (!element)
         return set_focus_to_first_focusable_element();
 
-    m_navigable->active_document()->set_focused_element(element);
+    HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
     return EventResult::Handled;
 }
 
@@ -1036,7 +1036,7 @@ EventResult EventHandler::focus_previous_element()
 
         for (; element; element = element->previous_element_in_pre_order()) {
             if (element->is_focusable()) {
-                m_navigable->active_document()->set_focused_element(element);
+                HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
                 return EventResult::Handled;
             }
         }
@@ -1054,7 +1054,7 @@ EventResult EventHandler::focus_previous_element()
     if (!element)
         return set_focus_to_last_focusable_element();
 
-    m_navigable->active_document()->set_focused_element(element);
+    HTML::run_focusing_steps(element, nullptr, HTML::FocusTrigger::Key);
     return EventResult::Handled;
 }
 
