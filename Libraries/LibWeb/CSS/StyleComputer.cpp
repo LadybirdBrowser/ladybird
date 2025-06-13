@@ -1170,6 +1170,11 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 continue;
             }
 
+            // If the style value is a PendingSubstitutionStyleValue we should skip it to avoid overwriting any value
+            // already set by resolving the relevant shorthand's value.
+            if (style_value->is_pending_substitution())
+                continue;
+
             if (style_value->is_revert() || style_value->is_revert_layer())
                 style_value = computed_properties.property(property_id);
             if (style_value->is_unresolved())
