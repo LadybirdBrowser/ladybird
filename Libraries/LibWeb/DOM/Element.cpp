@@ -3967,4 +3967,41 @@ void Element::play_or_cancel_animations_after_display_property_change()
     }
 }
 
+// https://drafts.csswg.org/selectors/#indicate-focus
+bool Element::should_indicate_focus() const
+{
+    // User agents can choose their own heuristics for when to indicate focus; however, the following (non-normative)
+    // suggestions can be used as a starting point for when to indicate focus on the currently focused element:
+
+    // FIXME: * If the user has expressed a preference (such as via a system preference or a browser setting) to always see a
+    //   visible focus indicator, indicate focus regardless of any other factors. (Another option may be for the user
+    //   agent to show its own focus indicator regardless of author styles.)
+
+    // * If the element which supports keyboard input (such as an input element, or any other element that would
+    //   triggers a virtual keyboard to be shown on focus if a physical keyboard were not present), indicate focus.
+    if (is<HTML::FormAssociatedElement>(this))
+        return true;
+
+    // * If the user interacts with the page via keyboard or some other non-pointing device, indicate focus. (This means
+    //   keyboard usage may change whether this pseudo-class matches even if it doesn’t affect :focus).
+    if (document().last_focus_trigger() == HTML::FocusTrigger::Key)
+        return true;
+
+    // FIXME: * If the user interacts with the page via a pointing device (mouse, touchscreen, etc.) and the focused element
+    //   does not support keyboard input, don’t indicate focus.
+
+    // * If the previously-focused element indicated focus, and a script causes focus to move elsewhere, indicate focus
+    //   on the newly focused element.
+    //   Conversely, if the previously-focused element did not indicate focus, and a script causes focus to move
+    //   elsewhere, don’t indicate focus on the newly focused element.
+    // AD-HOC: Other browsers seem to always indicate focus on programmatically focused elements.
+    if (document().last_focus_trigger() == HTML::FocusTrigger::Script)
+        return true;
+
+    // FIXME: * If a newly-displayed element automatically gains focus (such as an action button in a freshly opened dialog),
+    //   that element should indicate focus.
+
+    return false;
+}
+
 }

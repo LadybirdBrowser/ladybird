@@ -549,8 +549,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Focus:
         return element.is_focused();
     case CSS::PseudoClass::FocusVisible:
-        // FIXME: We should only apply this when a visible focus is useful. Decide when that is!
-        return element.is_focused();
+        return element.is_focused() && element.should_indicate_focus();
     case CSS::PseudoClass::FocusWithin: {
         auto* focused_element = element.document().focused_element();
         return focused_element && element.is_inclusive_ancestor_of(*focused_element);

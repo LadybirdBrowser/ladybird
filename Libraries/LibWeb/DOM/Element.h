@@ -272,6 +272,7 @@ public:
 
     virtual void did_receive_focus() { }
     virtual void did_lose_focus() { }
+    bool should_indicate_focus() const;
 
     static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, GC::Ref<CSS::ComputedProperties>, Element*);
 
