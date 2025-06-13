@@ -107,7 +107,7 @@ public:
     static GridTrackSizeList make_none();
 
     Vector<CSS::ExplicitGridTrack> track_list() const;
-    Vector<Variant<ExplicitGridTrack, GridLineNames>> list() const { return m_list; }
+    auto const& list() const { return m_list; }
 
     String to_string() const;
     bool operator==(GridTrackSizeList const& other) const;
