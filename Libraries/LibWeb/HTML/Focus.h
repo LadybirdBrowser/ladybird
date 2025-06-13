@@ -12,7 +12,14 @@
 
 namespace Web::HTML {
 
-void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target = nullptr, Optional<ByteString> focus_trigger = {});
+enum class FocusTrigger : u8 {
+    Click,
+    Key,
+    Script,
+    Other,
+};
+
+void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target = nullptr, FocusTrigger focus_trigger = FocusTrigger::Other);
 void run_unfocusing_steps(DOM::Node* old_focus_target);
 
 }

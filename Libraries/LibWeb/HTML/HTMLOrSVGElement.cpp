@@ -31,7 +31,7 @@ void HTMLOrSVGElement<ElementBase>::focus()
         return;
 
     // 2. Run the focusing steps for this.
-    run_focusing_steps(static_cast<ElementBase*>(this));
+    run_focusing_steps(static_cast<ElementBase*>(this), nullptr, FocusTrigger::Script);
 
     // FIXME: 3. If options["focusVisible"] is true, or does not exist but in an implementation-defined way the user agent determines it would be best to do so, then indicate focus.
 

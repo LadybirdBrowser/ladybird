@@ -193,7 +193,7 @@ static Vector<GC::Root<DOM::Node>> focus_chain(DOM::Node* subject)
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focusing-steps
 // FIXME: This should accept more types.
-void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target, [[maybe_unused]] Optional<ByteString> focus_trigger)
+void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target, FocusTrigger focus_trigger)
 {
     // FIXME: 1. If new focus target is not a focusable area, then set new focus target
     //           to the result of getting the focusable area for new focus target,
@@ -233,6 +233,9 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
 
     // 7. Let new chain be the focus chain of new focus target.
     auto new_chain = focus_chain(new_focus_target);
+
+    // AD-HOC: Remember last focus trigger for :focus-visible / focus indication.
+    new_focus_target->document().set_last_focus_trigger(focus_trigger);
 
     // 8. Run the focus update steps with old chain, new chain, and new focus target respectively.
     run_focus_update_steps(old_chain, new_chain, new_focus_target);
