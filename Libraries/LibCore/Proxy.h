@@ -9,7 +9,6 @@
 #include <AK/Error.h>
 #include <AK/IPv4Address.h>
 #include <AK/Types.h>
-#include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
 
 namespace Core {
@@ -46,15 +45,5 @@ struct ProxyData {
         return proxy_data;
     }
 };
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder&, Core::ProxyData const&);
-
-template<>
-ErrorOr<Core::ProxyData> decode(Decoder&);
 
 }

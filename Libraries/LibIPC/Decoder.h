@@ -17,6 +17,7 @@
 #include <AK/Try.h>
 #include <AK/TypeList.h>
 #include <AK/Variant.h>
+#include <LibCore/Forward.h>
 #include <LibCore/SharedCircularQueue.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/Concepts.h>
@@ -116,6 +117,15 @@ ErrorOr<File> decode(Decoder&);
 
 template<>
 ErrorOr<Empty> decode(Decoder&);
+
+template<>
+ErrorOr<Core::AnonymousBuffer> decode(Decoder&);
+
+template<>
+ErrorOr<Core::DateTime> decode(Decoder&);
+
+template<>
+ErrorOr<Core::ProxyData> decode(Decoder&);
 
 template<Concepts::Array T>
 ErrorOr<T> decode(Decoder& decoder)

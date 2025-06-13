@@ -8,7 +8,6 @@
 
 #include <AK/ByteString.h>
 #include <AK/StringView.h>
-#include <LibIPC/Forward.h>
 #include <time.h>
 
 namespace Core {
@@ -105,15 +104,5 @@ struct Formatter<Core::DateTime> : StandardFormatter {
             value.hour(), value.minute(), value.second());
     }
 };
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder&, Core::DateTime const&);
-
-template<>
-ErrorOr<Core::DateTime> decode(Decoder&);
 
 }
