@@ -135,7 +135,7 @@ public:
         VERIFY(is_default());
         return m_repeat_count;
     }
-    GridTrackSizeList grid_track_size_list() const& { return m_grid_track_size_list; }
+    GridTrackSizeList const& grid_track_size_list() const& { return m_grid_track_size_list; }
     Type type() const& { return m_type; }
 
     String to_string() const;
