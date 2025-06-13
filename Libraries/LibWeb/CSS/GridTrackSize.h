@@ -67,7 +67,7 @@ public:
     GridFitContent(GridSize);
     GridFitContent();
 
-    GridSize max_grid_size() const& { return m_max_grid_size; }
+    GridSize const& max_grid_size() const& { return m_max_grid_size; }
 
     String to_string() const;
     bool operator==(GridFitContent const& other) const = default;
