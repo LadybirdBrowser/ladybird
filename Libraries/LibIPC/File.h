@@ -22,7 +22,7 @@ public:
 
     static File adopt_file(NonnullOwnPtr<Core::File> file)
     {
-        return File(file->leak_fd(Badge<File> {}));
+        return File(file->leak_fd());
     }
 
     static File adopt_fd(int fd)

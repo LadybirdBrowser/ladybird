@@ -7,13 +7,11 @@
 
 #pragma once
 
-#include <AK/Badge.h>
 #include <AK/BufferedStream.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Stream.h>
 #include <LibCore/Forward.h>
-#include <LibIPC/Forward.h>
 
 namespace Core {
 
@@ -77,8 +75,7 @@ public:
     // See also Socket::set_blocking.
     ErrorOr<void> set_blocking(bool enabled);
 
-    template<OneOf<::IPC::File, ::Core::MappedFile> VIP>
-    int leak_fd(Badge<VIP>)
+    int leak_fd()
     {
         m_should_close_file_descriptor = ShouldCloseFileDescriptor::No;
         return m_fd;
