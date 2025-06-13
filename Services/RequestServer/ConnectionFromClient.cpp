@@ -128,7 +128,9 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     {
         write_notifier->set_enabled(false);
         write_notifier->on_activation = [this] {
-            write_queued_bytes_without_blocking();
+            if (auto maybe_error = write_queued_bytes_without_blocking(); maybe_error.is_error()) {
+                dbgln("Warning: Failed to write buffered request data (it's likely the client disappeared): {}", maybe_error.error());
+            }
         };
     }
 
@@ -142,7 +144,7 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         });
     }
 
-    void write_queued_bytes_without_blocking()
+    ErrorOr<void> write_queued_bytes_without_blocking()
     {
         Vector<u8> bytes_to_send;
         bytes_to_send.resize(send_buffer.used_buffer_size());
@@ -150,16 +152,18 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         auto result = Core::System::write(this->writer_fd, bytes_to_send);
         if (result.is_error()) {
             if (result.error().code() != EAGAIN) {
-                VERIFY_NOT_REACHED();
+                return result.release_error();
             }
             write_notifier->set_enabled(true);
-            return;
+            return {};
         }
 
         MUST(send_buffer.discard(result.value()));
         write_notifier->set_enabled(!send_buffer.is_eof());
         if (send_buffer.is_eof() && done_fetching)
             schedule_self_destruction();
+
+        return {};
     }
 
     void notify_about_fetching_completion()
@@ -171,7 +175,9 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
 
     ~ActiveRequest()
     {
-        VERIFY(send_buffer.is_eof());
+        if (!send_buffer.is_eof()) {
+            dbgln("Warning: Request destroyed with buffered data (it's likely that the client disappeared or the request was cancelled)");
+        }
 
         if (writer_fd > 0)
             MUST(Core::System::close(writer_fd));
@@ -235,8 +241,17 @@ size_t ConnectionFromClient::on_data_received(void* buffer, size_t size, size_t 
 
     size_t total_size = size * nmemb;
     ReadonlyBytes bytes { static_cast<u8 const*>(buffer), total_size };
-    MUST(request->send_buffer.write_some(bytes));
-    request->write_queued_bytes_without_blocking();
+
+    auto maybe_write_error = [&] -> ErrorOr<void> {
+        TRY(request->send_buffer.write_some(bytes));
+        return request->write_queued_bytes_without_blocking();
+    }();
+
+    if (maybe_write_error.is_error()) {
+        dbgln("ConnectionFromClient::on_data_received: Aborting request because error occurred whilst writing data to the client: {}", maybe_write_error.error());
+        return CURL_WRITEFUNC_ERROR;
+    }
+
     request->downloaded_so_far += total_size;
     return total_size;
 }
