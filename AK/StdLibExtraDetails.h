@@ -521,7 +521,7 @@ template<typename T>
 inline constexpr bool IsDestructible = requires { declval<T>().~T(); };
 
 template<typename T>
-#if defined(AK_COMPILER_CLANG)
+#if __has_builtin(__is_trivially_destructible)
 inline constexpr bool IsTriviallyDestructible = __is_trivially_destructible(T);
 #else
 inline constexpr bool IsTriviallyDestructible = __has_trivial_destructor(T) && IsDestructible<T>;
