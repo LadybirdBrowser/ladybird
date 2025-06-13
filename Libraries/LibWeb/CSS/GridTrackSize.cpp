@@ -243,15 +243,6 @@ Vector<ExplicitGridTrack> GridTrackSizeList::track_list() const
     return track_list;
 }
 
-bool GridTrackSizeList::operator==(GridTrackSizeList const& other) const
-{
-    if (m_list.size() != other.m_list.size())
-        return false;
-    for (size_t i = 0; i < m_list.size(); ++i) {
-        if (m_list[i] != other.m_list[i])
-            return false;
-    }
-    return true;
-}
+bool GridTrackSizeList::operator==(GridTrackSizeList const& other) const = default;
 
 }

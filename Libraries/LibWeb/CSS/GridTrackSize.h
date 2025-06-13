@@ -55,11 +55,7 @@ public:
     Size css_size() const;
 
     String to_string() const;
-    bool operator==(GridSize const& other) const
-    {
-        return m_type == other.type()
-            && m_value == other.m_value;
-    }
+    bool operator==(GridSize const& other) const = default;
 
 private:
     Type m_type;
@@ -74,10 +70,7 @@ public:
     GridSize max_grid_size() const& { return m_max_grid_size; }
 
     String to_string() const;
-    bool operator==(GridFitContent const& other) const
-    {
-        return m_max_grid_size == other.m_max_grid_size;
-    }
+    bool operator==(GridFitContent const& other) const = default;
 
 private:
     GridSize m_max_grid_size;
@@ -92,11 +85,7 @@ public:
     GridSize max_grid_size() const& { return m_max_grid_size; }
 
     String to_string() const;
-    bool operator==(GridMinMax const& other) const
-    {
-        return m_min_grid_size == other.min_grid_size()
-            && m_max_grid_size == other.max_grid_size();
-    }
+    bool operator==(GridMinMax const& other) const = default;
 
 private:
     GridSize m_min_grid_size;
@@ -107,7 +96,7 @@ struct GridLineNames {
     Vector<String> names;
 
     String to_string() const;
-    bool operator==(GridLineNames const& other) const { return names == other.names; }
+    bool operator==(GridLineNames const& other) const = default;
 };
 
 class GridTrackSizeList {
@@ -150,14 +139,7 @@ public:
     Type type() const& { return m_type; }
 
     String to_string() const;
-    bool operator==(GridRepeat const& other) const
-    {
-        if (m_type != other.type())
-            return false;
-        if (m_type == Type::Default && m_repeat_count != other.repeat_count())
-            return false;
-        return m_grid_track_size_list == other.grid_track_size_list();
-    }
+    bool operator==(GridRepeat const& other) const = default;
 
 private:
     Type m_type;
