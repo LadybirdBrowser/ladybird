@@ -81,8 +81,8 @@ public:
     GridMinMax(CSS::GridSize min_grid_size, CSS::GridSize max_grid_size);
     GridMinMax() = default;
 
-    GridSize min_grid_size() const& { return m_min_grid_size; }
-    GridSize max_grid_size() const& { return m_max_grid_size; }
+    GridSize const& min_grid_size() const& { return m_min_grid_size; }
+    GridSize const& max_grid_size() const& { return m_max_grid_size; }
 
     String to_string() const;
     bool operator==(GridMinMax const& other) const = default;
