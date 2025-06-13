@@ -167,67 +167,25 @@ private:
 
 class ExplicitGridTrack {
 public:
-    enum class Type {
-        FitContent,
-        MinMax,
-        Repeat,
-        Default,
-    };
-    ExplicitGridTrack(CSS::GridFitContent);
-    ExplicitGridTrack(CSS::GridRepeat);
-    ExplicitGridTrack(CSS::GridMinMax);
-    ExplicitGridTrack(CSS::GridSize);
+    ExplicitGridTrack(Variant<GridFitContent, GridRepeat, GridMinMax, GridSize>&& value);
 
-    bool is_fit_content() const { return m_type == Type::FitContent; }
-    GridFitContent fit_content() const
-    {
-        VERIFY(is_fit_content());
-        return m_grid_fit_content;
-    }
+    bool is_fit_content() const { return m_value.has<GridFitContent>(); }
+    GridFitContent const& fit_content() const { return m_value.get<GridFitContent>(); }
 
-    bool is_repeat() const { return m_type == Type::Repeat; }
-    GridRepeat repeat() const
-    {
-        VERIFY(is_repeat());
-        return m_grid_repeat;
-    }
+    bool is_repeat() const { return m_value.has<GridRepeat>(); }
+    GridRepeat const& repeat() const { return m_value.get<GridRepeat>(); }
 
-    bool is_minmax() const { return m_type == Type::MinMax; }
-    GridMinMax minmax() const
-    {
-        VERIFY(is_minmax());
-        return m_grid_minmax;
-    }
+    bool is_minmax() const { return m_value.has<GridMinMax>(); }
+    GridMinMax const& minmax() const { return m_value.get<GridMinMax>(); }
 
-    bool is_default() const { return m_type == Type::Default; }
-    GridSize grid_size() const
-    {
-        VERIFY(is_default());
-        return m_grid_size;
-    }
-
-    Type type() const { return m_type; }
+    bool is_default() const { return m_value.has<GridSize>(); }
+    GridSize const& grid_size() const { return m_value.get<GridSize>(); }
 
     String to_string() const;
-    bool operator==(ExplicitGridTrack const& other) const
-    {
-        if (is_fit_content() && other.is_fit_content())
-            return m_grid_fit_content == other.fit_content();
-        if (is_repeat() && other.is_repeat())
-            return m_grid_repeat == other.repeat();
-        if (is_minmax() && other.is_minmax())
-            return m_grid_minmax == other.minmax();
-        if (is_default() && other.is_default())
-            return m_grid_size == other.grid_size();
-        return false;
-    }
+    bool operator==(ExplicitGridTrack const& other) const = default;
 
 private:
-    Type m_type;
-    GridFitContent m_grid_fit_content;
-    GridRepeat m_grid_repeat;
-    GridMinMax m_grid_minmax;
-    GridSize m_grid_size;
+    Variant<GridFitContent, GridRepeat, GridMinMax, GridSize> m_value;
 };
 
 }
