@@ -46,8 +46,8 @@ public:
     Unicode::Segmenter& word_segmenter();
 
 private:
-    bool focus_next_element();
-    bool focus_previous_element();
+    EventResult focus_next_element();
+    EventResult focus_previous_element();
 
     EventResult fire_keyboard_event(FlyString const& event_name, HTML::Navigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable&, u32 code_point);
