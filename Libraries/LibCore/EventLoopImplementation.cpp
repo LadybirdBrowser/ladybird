@@ -23,7 +23,7 @@ EventLoopImplementation::EventLoopImplementation()
 
 EventLoopImplementation::~EventLoopImplementation() = default;
 
-static EventLoopManager* s_event_loop_manager;
+static EventLoopManager* s_event_loop_manager = nullptr;
 EventLoopManager& EventLoopManager::the()
 {
     if (!s_event_loop_manager)
@@ -33,6 +33,7 @@ EventLoopManager& EventLoopManager::the()
 
 void EventLoopManager::install(Core::EventLoopManager& manager)
 {
+    VERIFY(!s_event_loop_manager);
     s_event_loop_manager = &manager;
 }
 
