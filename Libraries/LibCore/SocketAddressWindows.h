@@ -49,6 +49,8 @@ struct in6_addr {
     } u;
 };
 
+#define s6_addr u.Byte
+
 struct SCOPE_ID {
     union {
         struct {
