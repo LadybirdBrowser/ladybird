@@ -221,7 +221,7 @@ top: auto
 touch-action: auto
 transform: none
 transform-box: view-box
-transform-origin: 50% 50%
+transform-origin: 50% 50% 0px
 transition-behavior: normal
 transition-delay: 0s
 transition-duration: 0s

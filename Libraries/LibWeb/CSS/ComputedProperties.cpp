@@ -656,15 +656,16 @@ TransformOrigin ComputedProperties::transform_origin() const
     };
 
     auto const& value = property(PropertyID::TransformOrigin);
-    if (!value.is_value_list() || value.as_value_list().size() != 2)
+    if (!value.is_value_list() || value.as_value_list().size() != 3)
         return {};
     auto const& list = value.as_value_list();
 
     auto x_value = length_percentage_with_keywords_resolved(list.values()[0]);
     auto y_value = length_percentage_with_keywords_resolved(list.values()[1]);
-    if (!x_value.has_value() || !y_value.has_value())
+    auto z_value = length_percentage_for_style_value(list.values()[2]);
+    if (!x_value.has_value() || !y_value.has_value() || !z_value.has_value())
         return {};
-    return { x_value.value(), y_value.value() };
+    return { x_value.value(), y_value.value(), z_value.value() };
 }
 
 Optional<Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& node) const

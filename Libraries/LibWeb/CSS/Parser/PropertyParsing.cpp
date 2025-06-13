@@ -3729,7 +3729,6 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_value(TokenStream<ComponentV
 }
 
 // https://www.w3.org/TR/css-transforms-1/#propdef-transform-origin
-// FIXME: This only supports a 2D position
 RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<ComponentValue>& tokens)
 {
     enum class Axis {
@@ -3774,13 +3773,14 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
 
     auto transaction = tokens.begin_transaction();
 
-    auto make_list = [&transaction](NonnullRefPtr<CSSStyleValue const> const& x_value, NonnullRefPtr<CSSStyleValue const> const& y_value) -> NonnullRefPtr<StyleValueList> {
+    auto make_list = [&transaction](NonnullRefPtr<CSSStyleValue const> const& x_value, NonnullRefPtr<CSSStyleValue const> const& y_value, NonnullRefPtr<CSSStyleValue const> const& z_value) -> NonnullRefPtr<StyleValueList> {
         transaction.commit();
-        return StyleValueList::create(StyleValueVector { x_value, y_value }, StyleValueList::Separator::Space);
+        return StyleValueList::create(StyleValueVector { x_value, y_value, z_value }, StyleValueList::Separator::Space);
     };
 
-    switch (tokens.remaining_token_count()) {
-    case 1: {
+    static CSSStyleValue const& zero_value = LengthStyleValue::create(Length::make_px(0));
+
+    if (tokens.remaining_token_count() == 1) {
         auto single_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
         if (!single_value.has_value())
             return nullptr;
@@ -3789,60 +3789,70 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
         switch (single_value->axis) {
         case Axis::None:
         case Axis::X:
-            return make_list(single_value->offset, CSSKeywordValue::create(Keyword::Center));
+            return make_list(single_value->offset, CSSKeywordValue::create(Keyword::Center), zero_value);
         case Axis::Y:
-            return make_list(CSSKeywordValue::create(Keyword::Center), single_value->offset);
+            return make_list(CSSKeywordValue::create(Keyword::Center), single_value->offset, zero_value);
         }
         VERIFY_NOT_REACHED();
     }
-    case 2: {
-        auto first_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
-        auto second_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
-        if (!first_value.has_value() || !second_value.has_value())
+
+    if (tokens.remaining_token_count() > 3)
+        return nullptr;
+
+    auto first_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
+    auto second_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
+    auto third_value = parse_length_value(tokens);
+
+    if ((first_value->offset->is_length() || first_value->offset->is_percentage()) && second_value->axis == Axis::X)
+        return nullptr;
+    if ((second_value->offset->is_length() || second_value->offset->is_percentage()) && first_value->axis == Axis::Y)
+        return nullptr;
+
+    if (!first_value.has_value() || !second_value.has_value())
+        return nullptr;
+
+    if (!third_value)
+        third_value = zero_value;
+
+    RefPtr<CSSStyleValue const> x_value;
+    RefPtr<CSSStyleValue const> y_value;
+
+    if (first_value->axis == Axis::X) {
+        x_value = first_value->offset;
+    } else if (first_value->axis == Axis::Y) {
+        y_value = first_value->offset;
+    }
+
+    if (second_value->axis == Axis::X) {
+        if (x_value)
             return nullptr;
-
-        RefPtr<CSSStyleValue const> x_value;
-        RefPtr<CSSStyleValue const> y_value;
-
-        if (first_value->axis == Axis::X) {
-            x_value = first_value->offset;
-        } else if (first_value->axis == Axis::Y) {
-            y_value = first_value->offset;
-        }
-
-        if (second_value->axis == Axis::X) {
-            if (x_value)
-                return nullptr;
-            x_value = second_value->offset;
-            // Put the other in Y since its axis can't have been X
-            y_value = first_value->offset;
-        } else if (second_value->axis == Axis::Y) {
-            if (y_value)
-                return nullptr;
+        x_value = second_value->offset;
+        // Put the other in Y since its axis can't have been X
+        y_value = first_value->offset;
+    } else if (second_value->axis == Axis::Y) {
+        if (y_value)
+            return nullptr;
+        y_value = second_value->offset;
+        // Put the other in X since its axis can't have been Y
+        x_value = first_value->offset;
+    } else {
+        if (x_value) {
+            VERIFY(!y_value);
             y_value = second_value->offset;
-            // Put the other in X since its axis can't have been Y
-            x_value = first_value->offset;
         } else {
-            if (x_value) {
-                VERIFY(!y_value);
-                y_value = second_value->offset;
-            } else {
-                VERIFY(!x_value);
-                x_value = second_value->offset;
-            }
+            VERIFY(!x_value);
+            x_value = second_value->offset;
         }
-        // If two or more values are defined and either no value is a keyword, or the only used keyword is center,
-        // then the first value represents the horizontal position (or offset) and the second represents the vertical position (or offset).
-        // FIXME: A third value always represents the Z position (or offset) and must be of type <length>.
-        if (first_value->axis == Axis::None && second_value->axis == Axis::None) {
-            x_value = first_value->offset;
-            y_value = second_value->offset;
-        }
-        return make_list(x_value.release_nonnull(), y_value.release_nonnull());
     }
+    // If two or more values are defined and either no value is a keyword, or the only used keyword is center,
+    // then the first value represents the horizontal position (or offset) and the second represents the vertical position (or offset).
+    // A third value always represents the Z position (or offset) and must be of type <length>.
+    if (first_value->axis == Axis::None && second_value->axis == Axis::None) {
+        x_value = first_value->offset;
+        y_value = second_value->offset;
     }
 
-    return nullptr;
+    return make_list(x_value.release_nonnull(), y_value.release_nonnull(), third_value.release_nonnull());
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<ComponentValue>& tokens)
