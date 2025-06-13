@@ -179,44 +179,16 @@ String GridRepeat::to_string() const
     return MUST(builder.to_string());
 }
 
-ExplicitGridTrack::ExplicitGridTrack(CSS::GridFitContent grid_fit_content)
-    : m_type(Type::FitContent)
-    , m_grid_fit_content(grid_fit_content)
-{
-}
-
-ExplicitGridTrack::ExplicitGridTrack(CSS::GridMinMax grid_minmax)
-    : m_type(Type::MinMax)
-    , m_grid_minmax(grid_minmax)
-{
-}
-
-ExplicitGridTrack::ExplicitGridTrack(CSS::GridRepeat grid_repeat)
-    : m_type(Type::Repeat)
-    , m_grid_repeat(grid_repeat)
-{
-}
-
-ExplicitGridTrack::ExplicitGridTrack(CSS::GridSize grid_size)
-    : m_type(Type::Default)
-    , m_grid_size(grid_size)
+ExplicitGridTrack::ExplicitGridTrack(Variant<GridFitContent, GridRepeat, GridMinMax, GridSize>&& value)
+    : m_value(move(value))
 {
 }
 
 String ExplicitGridTrack::to_string() const
 {
-    switch (m_type) {
-    case Type::FitContent:
-        return m_grid_fit_content.to_string();
-    case Type::MinMax:
-        return m_grid_minmax.to_string();
-    case Type::Repeat:
-        return m_grid_repeat.to_string();
-    case Type::Default:
-        return m_grid_size.to_string();
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    return m_value.visit([](auto const& track) {
+        return track.to_string();
+    });
 }
 
 String GridLineNames::to_string() const

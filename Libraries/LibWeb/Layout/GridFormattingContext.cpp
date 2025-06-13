@@ -577,18 +577,13 @@ void GridFormattingContext::initialize_grid_tracks_from_definition(GridDimension
                 repeat_count = track_definition.repeat().repeat_count();
         }
         for (auto _ = 0; _ < repeat_count; _++) {
-            switch (track_definition.type()) {
-            case CSS::ExplicitGridTrack::Type::Default:
-            case CSS::ExplicitGridTrack::Type::FitContent:
-            case CSS::ExplicitGridTrack::Type::MinMax:
+            if (track_definition.is_default() || track_definition.is_fit_content() || track_definition.is_minmax()) {
                 tracks.append(GridTrack::create_from_definition(track_definition));
-                break;
-            case CSS::ExplicitGridTrack::Type::Repeat:
+            } else if (track_definition.is_repeat()) {
                 for (auto& explicit_grid_track : track_definition.repeat().grid_track_size_list().track_list()) {
                     tracks.append(GridTrack::create_from_definition(explicit_grid_track));
                 }
-                break;
-            default:
+            } else {
                 VERIFY_NOT_REACHED();
             }
         }
