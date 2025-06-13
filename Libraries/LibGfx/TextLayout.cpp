@@ -84,9 +84,9 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf
     auto* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
     Vector<Gfx::DrawGlyph> glyph_run;
+    glyph_run.ensure_capacity(glyph_count);
     FloatPoint point = baseline_start;
     for (size_t i = 0; i < glyph_count; ++i) {
-
         auto position = point
             - FloatPoint { 0, font.pixel_metrics().ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
@@ -98,10 +98,9 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf
         if (i != (glyph_count - 1))
             point.translate_by(letter_spacing, 0);
     }
-
-    auto run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
     hb_buffer_reset(buffer);
-    return run;
+
+    return adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
 }
 
 float measure_text_width(Utf8View const& string, Gfx::Font const& font, ShapeFeatures const& features)
