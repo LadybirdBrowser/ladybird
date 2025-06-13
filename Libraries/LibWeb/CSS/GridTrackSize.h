@@ -40,7 +40,7 @@ public:
     bool is_max_content() const { return m_type == Type::MaxContent; }
     bool is_min_content() const { return m_type == Type::MinContent; }
 
-    LengthPercentage length_percentage() const { return m_value.get<LengthPercentage>(); }
+    LengthPercentage const& length_percentage() const { return m_value.get<LengthPercentage>(); }
     double flex_factor() const { return m_value.get<Flex>().to_fr(); }
 
     // https://www.w3.org/TR/css-grid-2/#layout-algorithm
