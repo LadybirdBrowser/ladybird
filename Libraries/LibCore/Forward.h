@@ -49,6 +49,8 @@ class TimeZoneWatcher;
 class UDPServer;
 class UDPSocket;
 
+struct ProxyData;
+
 enum class TimerShouldFireWhenNotVisible;
 
 #ifdef AK_OS_MACH

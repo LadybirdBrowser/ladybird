@@ -7,7 +7,6 @@
 #include <AK/Try.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/System.h>
-#include <LibIPC/File.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 
