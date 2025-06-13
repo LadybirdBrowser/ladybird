@@ -36,12 +36,6 @@ GridSize::GridSize(Type type)
     m_type = type;
 }
 
-GridSize::GridSize()
-    : m_type(Type::LengthPercentage)
-    , m_value { Length::make_auto() }
-{
-}
-
 GridSize::~GridSize() = default;
 
 bool GridSize::is_auto(Layout::AvailableSize const& available_size) const
@@ -129,11 +123,6 @@ GridFitContent::GridFitContent(GridSize max_grid_size)
 {
 }
 
-GridFitContent::GridFitContent()
-    : m_max_grid_size(GridSize::make_auto())
-{
-}
-
 String GridFitContent::to_string() const
 {
     return MUST(String::formatted("fit-content({})", m_max_grid_size.to_string()));
@@ -149,10 +138,6 @@ GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, int repeat_count)
 GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, Type type)
     : m_type(type)
     , m_grid_track_size_list(grid_track_size_list)
-{
-}
-
-GridRepeat::GridRepeat()
 {
 }
 
