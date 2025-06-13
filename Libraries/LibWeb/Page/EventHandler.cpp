@@ -679,7 +679,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
                 // When a user activates a click focusable focusable area, the user agent must run the focusing steps on the focusable area with focus trigger set to "click".
                 // Spec Note: Note that focusing is not an activation behavior, i.e. calling the click() method on an element or dispatching a synthetic click event on it won't cause the element to get focused.
                 if (focus_candidate)
-                    HTML::run_focusing_steps(focus_candidate, nullptr, "click"sv);
+                    HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
                 else if (auto* focused_element = document->focused_element())
                     HTML::run_unfocusing_steps(focused_element);
 

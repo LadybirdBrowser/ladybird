@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
+#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
@@ -432,6 +433,9 @@ public:
     Element const* focused_element() const { return m_focused_element.ptr(); }
 
     void set_focused_element(GC::Ptr<Element>);
+
+    HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
+    void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }
 
     Element const* active_element() const { return m_active_element.ptr(); }
     void set_active_element(GC::Ptr<Element>);
@@ -1013,6 +1017,8 @@ private:
     bool m_editable { false };
 
     GC::Ptr<Element> m_focused_element;
+    HTML::FocusTrigger m_last_focus_trigger { HTML::FocusTrigger::Other };
+
     GC::Ptr<Element> m_active_element;
     GC::Ptr<Element> m_target_element;
 
