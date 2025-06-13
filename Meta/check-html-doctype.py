@@ -5,13 +5,20 @@ import re
 import subprocess
 import sys
 
-# FIXME: Include Layout tests in general.
-#        They are currently deferred to a later PR to make review easier for now.
-RE_RELEVANT_FILE = re.compile("^Tests/LibWeb/(Ref|Screenshot|Text)/(.(?!wpt-import/))*\\.html$")
+RE_RELEVANT_FILE = re.compile("^Tests/LibWeb/(Layout|Ref|Screenshot|Text)/(.(?!wpt-import/))*\\.html$")
+# Exclude files with encodings that would cause python to error out.
+# FIXME: Ideally, these should be supported.
+EXCLUDED_FILES = [
+    "Tests/LibWeb/Layout/input/html-encoding-detection-crash.html",
+    "Tests/LibWeb/Layout/input/utf-16-be-xhtml-file-should-decode-correctly.html",
+]
 RE_DOCTYPE = re.compile("^<!doctype .*>", re.IGNORECASE)
 
 
 def should_check_file(filename):
+    if filename in EXCLUDED_FILES:
+        return False
+
     return RE_RELEVANT_FILE.match(filename) is not None
 
 
