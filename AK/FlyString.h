@@ -65,6 +65,7 @@ public:
 
     [[nodiscard]] FlyString to_ascii_lowercase() const;
     [[nodiscard]] FlyString to_ascii_uppercase() const;
+    [[nodiscard]] bool is_ascii() const { return bytes_as_string_view().is_ascii(); }
 
     [[nodiscard]] bool starts_with_bytes(StringView, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
 
