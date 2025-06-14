@@ -3537,7 +3537,7 @@ RefPtr<CSSStyleValue const> Parser::parse_text_decoration_line_value(TokenStream
                 includes_spelling_or_grammar_error_value = true;
             }
             if (style_values.contains_slow(value))
-                break;
+                return nullptr;
             style_values.append(move(value));
             continue;
         }
