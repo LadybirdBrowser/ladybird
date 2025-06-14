@@ -1012,6 +1012,8 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP
 
 if (APPLE)
     target_link_libraries(LibWeb PRIVATE unofficial::angle::libEGL unofficial::angle::libGLESv2)
+else()
+    target_link_libraries(LibWeb PRIVATE GL)
 endif()
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
