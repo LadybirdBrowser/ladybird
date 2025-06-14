@@ -214,71 +214,108 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     // <integer>/<number> come before <length>, so that 0 is not interpreted as a <length> in case both are allowed.
     if (auto property = any_property_accepts_type(property_ids, ValueType::Integer); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (auto value = parse_integer_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_integer() && property_accepts_integer(*property, value->as_integer().integer()))
+            }
+            if (value->is_integer() && property_accepts_integer(*property, value->as_integer().integer())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Number); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (auto value = parse_number_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_number() && property_accepts_number(*property, value->as_number().number()))
+            }
+            if (value->is_number() && property_accepts_number(*property, value->as_number().number())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Angle); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_angle_percentage_value(tokens)) {
-                if (value->is_calculated())
+                if (value->is_calculated()) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
-                if (value->is_angle() && property_accepts_angle(*property, value->as_angle().angle()))
+                }
+                if (value->is_angle() && property_accepts_angle(*property, value->as_angle().angle())) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
-                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                }
+                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage())) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
+                }
             }
         }
         if (auto value = parse_angle_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_angle() && property_accepts_angle(*property, value->as_angle().angle()))
+            }
+            if (value->is_angle() && property_accepts_angle(*property, value->as_angle().angle())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Flex); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (auto value = parse_flex_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_flex() && property_accepts_flex(*property, value->as_flex().flex()))
+            }
+            if (value->is_flex() && property_accepts_flex(*property, value->as_flex().flex())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Frequency); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_frequency_percentage_value(tokens)) {
-                if (value->is_calculated())
+                if (value->is_calculated()) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
-                if (value->is_frequency() && property_accepts_frequency(*property, value->as_frequency().frequency()))
+                }
+                if (value->is_frequency() && property_accepts_frequency(*property, value->as_frequency().frequency())) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
-                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                }
+                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage())) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
+                }
             }
         }
         if (auto value = parse_frequency_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_frequency() && property_accepts_frequency(*property, value->as_frequency().frequency()))
+            }
+            if (value->is_frequency() && property_accepts_frequency(*property, value->as_frequency().frequency())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
@@ -290,62 +327,94 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_length_percentage_value(tokens)) {
-                if (value->is_calculated())
+                if (value->is_calculated()) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
-                if (value->is_length() && property_accepts_length(*property, value->as_length().length()))
+                }
+                if (value->is_length() && property_accepts_length(*property, value->as_length().length())) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
-                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                }
+                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage())) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
+                }
             }
         }
         if (auto value = parse_length_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_length() && property_accepts_length(*property, value->as_length().length()))
+            }
+            if (value->is_length() && property_accepts_length(*property, value->as_length().length())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Resolution); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (auto value = parse_resolution_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_resolution() && property_accepts_resolution(*property, value->as_resolution().resolution()))
+            }
+            if (value->is_resolution() && property_accepts_resolution(*property, value->as_resolution().resolution())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Time); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_time_percentage_value(tokens)) {
-                if (value->is_calculated())
+                if (value->is_calculated()) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
-                if (value->is_time() && property_accepts_time(*property, value->as_time().time()))
+                }
+                if (value->is_time() && property_accepts_time(*property, value->as_time().time())) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
-                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                }
+                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage())) {
+                    transaction.commit();
                     return PropertyAndValue { *property, value };
+                }
             }
         }
         if (auto value = parse_time_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_time() && property_accepts_time(*property, value->as_time().time()))
+            }
+            if (value->is_time() && property_accepts_time(*property, value->as_time().time())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
     // <percentage> is checked after the <foo-percentage> types.
     if (auto property = any_property_accepts_type(property_ids, ValueType::Percentage); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
+        auto transaction = tokens.begin_transaction();
         if (auto value = parse_percentage_value(tokens)) {
-            if (value->is_calculated())
+            if (value->is_calculated()) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
-            if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+            }
+            if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage())) {
+                transaction.commit();
                 return PropertyAndValue { *property, value };
+            }
         }
     }
 
