@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	e.style['text-shadow'] = "none" should set the property value
+Pass	e.style['text-shadow'] = "10px 20px" should set the property value
+Pass	e.style['text-shadow'] = "10px 20px 30px" should set the property value
+Pass	e.style['text-shadow'] = "calc(1em + 2px) calc(3em + 4px) calc(5em + 6px)" should set the property value
+Pass	e.style['text-shadow'] = "-10px 20px 30px" should set the property value
+Pass	e.style['text-shadow'] = "10px -20px 30px" should set the property value
+Pass	e.style['text-shadow'] = "rgb(255, 0, 0) 10px 20px" should set the property value
+Pass	e.style['text-shadow'] = "10px 20px 30px lime" should set the property value
+Pass	e.style['text-shadow'] = "10px 20px, 30px 40px" should set the property value
+Pass	e.style['text-shadow'] = "lime 10px 20px 30px, blue 40px 50px" should set the property value
