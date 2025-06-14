@@ -15,13 +15,13 @@ namespace Unicode {
 
 NormalizationForm normalization_form_from_string(StringView form)
 {
-    if (form == "NFD"sv)
+    if (form == "NFD"_sv)
         return NormalizationForm::NFD;
-    if (form == "NFC"sv)
+    if (form == "NFC"_sv)
         return NormalizationForm::NFC;
-    if (form == "NFKD"sv)
+    if (form == "NFKD"_sv)
         return NormalizationForm::NFKD;
-    if (form == "NFKC"sv)
+    if (form == "NFKC"_sv)
         return NormalizationForm::NFKC;
     VERIFY_NOT_REACHED();
 }
@@ -30,13 +30,13 @@ StringView normalization_form_to_string(NormalizationForm form)
 {
     switch (form) {
     case NormalizationForm::NFD:
-        return "NFD"sv;
+        return "NFD"_sv;
     case NormalizationForm::NFC:
-        return "NFC"sv;
+        return "NFC"_sv;
     case NormalizationForm::NFKD:
-        return "NFKD"sv;
+        return "NFKD"_sv;
     case NormalizationForm::NFKC:
-        return "NFKC"sv;
+        return "NFKC"_sv;
     }
     VERIFY_NOT_REACHED();
 }

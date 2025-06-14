@@ -159,10 +159,10 @@ struct Formatter<Web::WebIDL::Exception> : Formatter<FormatString> {
     {
         return exception.visit(
             [&](Web::WebIDL::SimpleException const& simple_exception) -> ErrorOr<void> {
-                return Formatter<FormatString>::format(builder, "{}"sv, simple_exception);
+                return Formatter<FormatString>::format(builder, "{}"_sv, simple_exception);
             },
             [&](GC::Ref<Web::WebIDL::DOMException> const& dom_exception) -> ErrorOr<void> {
-                return Formatter<FormatString>::format(builder, "{}"sv, *dom_exception);
+                return Formatter<FormatString>::format(builder, "{}"_sv, *dom_exception);
             },
             [&](JS::Completion const& completion) -> ErrorOr<void> {
                 VERIFY(completion.is_error());

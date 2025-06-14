@@ -49,9 +49,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 Array<u8, 1024> buffer;
                 auto line = TRY(file->read_line(buffer));
 
-                if (!line.starts_with("endpoint "sv))
+                if (!line.starts_with("endpoint "_sv))
                     continue;
-                auto line_endpoint_name = line.substring_view("endpoint "sv.length());
+                auto line_endpoint_name = line.substring_view("endpoint "_sv.length());
                 if (!endpoint_name.is_empty()) {
                     // Note: If there are three or more endpoints defined in a file, these errors will look a bit wonky.
                     // However, that's fine, because it shouldn't happen in the first place.

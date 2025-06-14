@@ -42,7 +42,7 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaBrailleRoleDescription:
         return aria_data.aria_braille_role_description_or_default();
     case StateAndProperties::AriaBusy:
-        return String::from_utf8(aria_data.aria_busy_or_default() ? "true"sv : "false"sv);
+        return String::from_utf8(aria_data.aria_busy_or_default() ? "true"_sv : "false"_sv);
     case StateAndProperties::AriaChecked:
         return ARIA::tristate_to_string(aria_data.aria_checked_or_default());
     case StateAndProperties::AriaColCount:
@@ -91,28 +91,28 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
             StringView to_add;
             switch (drop_effect) {
             case AriaDropEffect::Copy:
-                to_add = "copy"sv;
+                to_add = "copy"_sv;
                 break;
             case AriaDropEffect::Execute:
-                to_add = "execute"sv;
+                to_add = "execute"_sv;
                 break;
             case AriaDropEffect::Link:
-                to_add = "link"sv;
+                to_add = "link"_sv;
                 break;
             case AriaDropEffect::Move:
-                to_add = "move"sv;
+                to_add = "move"_sv;
                 break;
             case AriaDropEffect::None:
-                to_add = "none"sv;
+                to_add = "none"_sv;
                 break;
             case AriaDropEffect::Popup:
-                to_add = "popup"sv;
+                to_add = "popup"_sv;
                 break;
             }
             if (builder.is_empty())
                 builder.append(to_add);
             else {
-                builder.append(" "sv);
+                builder.append(" "_sv);
                 builder.append(to_add);
             }
         }
@@ -228,32 +228,32 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
             StringView to_add;
             switch (relevant) {
             case AriaRelevant::Additions:
-                to_add = "additions"sv;
+                to_add = "additions"_sv;
                 break;
             case AriaRelevant::AdditionsText:
-                to_add = "additions text"sv;
+                to_add = "additions text"_sv;
                 break;
             case AriaRelevant::All:
-                to_add = "all"sv;
+                to_add = "all"_sv;
                 break;
             case AriaRelevant::Removals:
-                to_add = "removals"sv;
+                to_add = "removals"_sv;
                 break;
             case AriaRelevant::Text:
-                to_add = "text"sv;
+                to_add = "text"_sv;
                 break;
             }
             if (builder.is_empty())
                 builder.append(to_add);
             else {
-                builder.append(" "sv);
+                builder.append(" "_sv);
                 builder.append(to_add);
             }
         }
         return builder.to_string();
     }
     case StateAndProperties::AriaRequired:
-        return String::from_utf8(aria_data.aria_required_or_default() ? "true"sv : "false"sv);
+        return String::from_utf8(aria_data.aria_required_or_default() ? "true"_sv : "false"_sv);
     case StateAndProperties::AriaRoleDescription:
         return aria_data.aria_role_description_or_default();
     case StateAndProperties::AriaRowCount:
@@ -345,7 +345,7 @@ ErrorOr<String> id_reference_list_to_string(Vector<String> const& value)
         if (builder.is_empty()) {
             builder.append(id);
         } else {
-            builder.append(" "sv);
+            builder.append(" "_sv);
             builder.append(id);
         }
     }
@@ -356,111 +356,111 @@ StringView state_or_property_to_string(StateAndProperties value)
 {
     switch (value) {
     case StateAndProperties::AriaActiveDescendant:
-        return "aria-activedescendant"sv;
+        return "aria-activedescendant"_sv;
     case StateAndProperties::AriaAtomic:
-        return "aria-atomic"sv;
+        return "aria-atomic"_sv;
     case StateAndProperties::AriaAutoComplete:
-        return "aria-autocomplete"sv;
+        return "aria-autocomplete"_sv;
     case StateAndProperties::AriaBrailleLabel:
-        return "aria-braillelabel"sv;
+        return "aria-braillelabel"_sv;
     case StateAndProperties::AriaBrailleRoleDescription:
-        return "aria-brailleroledescription"sv;
+        return "aria-brailleroledescription"_sv;
     case StateAndProperties::AriaBusy:
-        return "aria-busy"sv;
+        return "aria-busy"_sv;
     case StateAndProperties::AriaChecked:
-        return "aria-checked"sv;
+        return "aria-checked"_sv;
     case StateAndProperties::AriaColCount:
-        return "aria-colcount"sv;
+        return "aria-colcount"_sv;
     case StateAndProperties::AriaColIndex:
-        return "aria-colindex"sv;
+        return "aria-colindex"_sv;
     case StateAndProperties::AriaColIndexText:
-        return "aria-colindextext"sv;
+        return "aria-colindextext"_sv;
     case StateAndProperties::AriaColSpan:
-        return "aria-colspan"sv;
+        return "aria-colspan"_sv;
     case StateAndProperties::AriaControls:
-        return "aria-controls"sv;
+        return "aria-controls"_sv;
     case StateAndProperties::AriaCurrent:
-        return "aria-current"sv;
+        return "aria-current"_sv;
     case StateAndProperties::AriaDescribedBy:
-        return "aria-describedby"sv;
+        return "aria-describedby"_sv;
     case StateAndProperties::AriaDescription:
-        return "aria-description"sv;
+        return "aria-description"_sv;
     case StateAndProperties::AriaDetails:
-        return "aria-details"sv;
+        return "aria-details"_sv;
     case StateAndProperties::AriaDisabled:
-        return "aria-disabled"sv;
+        return "aria-disabled"_sv;
     case StateAndProperties::AriaDropEffect:
-        return "aria-dropeffect"sv;
+        return "aria-dropeffect"_sv;
     case StateAndProperties::AriaErrorMessage:
-        return "aria-errormessage"sv;
+        return "aria-errormessage"_sv;
     case StateAndProperties::AriaExpanded:
-        return "aria-expanded"sv;
+        return "aria-expanded"_sv;
     case StateAndProperties::AriaFlowTo:
-        return "aria-flowto"sv;
+        return "aria-flowto"_sv;
     case StateAndProperties::AriaGrabbed:
-        return "aria-grabbed"sv;
+        return "aria-grabbed"_sv;
     case StateAndProperties::AriaHasPopup:
-        return "aria-haspopup"sv;
+        return "aria-haspopup"_sv;
     case StateAndProperties::AriaHidden:
-        return "aria-hidden"sv;
+        return "aria-hidden"_sv;
     case StateAndProperties::AriaInvalid:
-        return "aria-invalid"sv;
+        return "aria-invalid"_sv;
     case StateAndProperties::AriaKeyShortcuts:
-        return "aria-keyshortcuts"sv;
+        return "aria-keyshortcuts"_sv;
     case StateAndProperties::AriaLabel:
-        return "aria-label"sv;
+        return "aria-label"_sv;
     case StateAndProperties::AriaLabelledBy:
-        return "aria-labelledby"sv;
+        return "aria-labelledby"_sv;
     case StateAndProperties::AriaLevel:
-        return "aria-level"sv;
+        return "aria-level"_sv;
     case StateAndProperties::AriaLive:
-        return "aria-live"sv;
+        return "aria-live"_sv;
     case StateAndProperties::AriaModal:
-        return "aria-modal"sv;
+        return "aria-modal"_sv;
     case StateAndProperties::AriaMultiLine:
-        return "aria-multiline"sv;
+        return "aria-multiline"_sv;
     case StateAndProperties::AriaMultiSelectable:
-        return "aria-multiselectable"sv;
+        return "aria-multiselectable"_sv;
     case StateAndProperties::AriaOrientation:
-        return "aria-orientation"sv;
+        return "aria-orientation"_sv;
     case StateAndProperties::AriaOwns:
-        return "aria-owns"sv;
+        return "aria-owns"_sv;
     case StateAndProperties::AriaPlaceholder:
-        return "aria-placeholder"sv;
+        return "aria-placeholder"_sv;
     case StateAndProperties::AriaPosInSet:
-        return "aria-posinset"sv;
+        return "aria-posinset"_sv;
     case StateAndProperties::AriaPressed:
-        return "aria-pressed"sv;
+        return "aria-pressed"_sv;
     case StateAndProperties::AriaReadOnly:
-        return "aria-readonly"sv;
+        return "aria-readonly"_sv;
     case StateAndProperties::AriaRelevant:
-        return "aria-relevant"sv;
+        return "aria-relevant"_sv;
     case StateAndProperties::AriaRequired:
-        return "aria-required"sv;
+        return "aria-required"_sv;
     case StateAndProperties::AriaRoleDescription:
-        return "aria-roledescription"sv;
+        return "aria-roledescription"_sv;
     case StateAndProperties::AriaRowCount:
-        return "aria-rowcount"sv;
+        return "aria-rowcount"_sv;
     case StateAndProperties::AriaRowIndex:
-        return "aria-rowindex"sv;
+        return "aria-rowindex"_sv;
     case StateAndProperties::AriaRowIndexText:
-        return "aria-rowindextext"sv;
+        return "aria-rowindextext"_sv;
     case StateAndProperties::AriaRowSpan:
-        return "aria-rowspan"sv;
+        return "aria-rowspan"_sv;
     case StateAndProperties::AriaSelected:
-        return "aria-selected"sv;
+        return "aria-selected"_sv;
     case StateAndProperties::AriaSetSize:
-        return "aria-setsize"sv;
+        return "aria-setsize"_sv;
     case StateAndProperties::AriaSort:
-        return "aria-sort"sv;
+        return "aria-sort"_sv;
     case StateAndProperties::AriaValueMax:
-        return "aria-valuemax"sv;
+        return "aria-valuemax"_sv;
     case StateAndProperties::AriaValueMin:
-        return "aria-valuemin"sv;
+        return "aria-valuemin"_sv;
     case StateAndProperties::AriaValueNow:
-        return "aria-valuenow"sv;
+        return "aria-valuenow"_sv;
     case StateAndProperties::AriaValueText:
-        return "aria-valuetext"sv;
+        return "aria-valuetext"_sv;
     }
     VERIFY_NOT_REACHED();
 }

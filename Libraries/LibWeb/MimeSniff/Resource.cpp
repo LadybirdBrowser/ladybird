@@ -97,29 +97,29 @@ Optional<MimeType> match_an_image_type_pattern(ReadonlyBytes input)
     // 1. Execute the following steps for each row row in the following table:
     static Array<BytePatternTableRow, 8> constexpr pattern_table {
         // A Windows Icon signature.
-        BytePatternTableRow { "\x00\x00\x01\x00"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "image/x-icon"sv },
+        BytePatternTableRow { "\x00\x00\x01\x00"_sv, "\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "image/x-icon"_sv },
 
         // A Windows Cursor signature.
-        BytePatternTableRow { "\x00\x00\x02\x00"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "image/x-icon"sv },
+        BytePatternTableRow { "\x00\x00\x02\x00"_sv, "\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "image/x-icon"_sv },
 
         // The string "BM", a BMP signature.
-        BytePatternTableRow { "\x42\x4D"sv, "\xFF\xFF"sv, no_ignored_bytes, "image/bmp"sv },
+        BytePatternTableRow { "\x42\x4D"_sv, "\xFF\xFF"_sv, no_ignored_bytes, "image/bmp"_sv },
 
         // The string "GIF87a", a GIF signature.
-        BytePatternTableRow { "\x47\x49\x46\x38\x37\x61"sv, "\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "image/gif"sv },
+        BytePatternTableRow { "\x47\x49\x46\x38\x37\x61"_sv, "\xFF\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "image/gif"_sv },
 
         // The string "GIF89a", a GIF signature.
-        BytePatternTableRow { "\x47\x49\x46\x38\x39\x61"sv, "\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "image/gif"sv },
+        BytePatternTableRow { "\x47\x49\x46\x38\x39\x61"_sv, "\xFF\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "image/gif"_sv },
 
         // The string "RIFF" followed by four bytes followed by the string "WEBPVP".
-        BytePatternTableRow { "\x52\x49\x46\x46\x00\x00\x00\x00\x57\x45\x42\x50\x56\x50"sv,
-            "\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "image/webp"sv },
+        BytePatternTableRow { "\x52\x49\x46\x46\x00\x00\x00\x00\x57\x45\x42\x50\x56\x50"_sv,
+            "\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "image/webp"_sv },
 
         // An error-checking byte followed by the string "PNG" followed by CR LF SUB LF, the PNG signature.
-        BytePatternTableRow { "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A"sv, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "image/png"sv },
+        BytePatternTableRow { "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A"_sv, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "image/png"_sv },
 
         // The JPEG Start of Image marker followed by the indicator byte of another marker.
-        BytePatternTableRow { "\xFF\xD8\xFF"sv, "\xFF\xFF\xFF"sv, no_ignored_bytes, "image/jpeg"sv },
+        BytePatternTableRow { "\xFF\xD8\xFF"_sv, "\xFF\xFF\xFF"_sv, no_ignored_bytes, "image/jpeg"_sv },
     };
 
     for (auto const& row : pattern_table) {
@@ -161,11 +161,11 @@ bool matches_mp4_signature(ReadonlyBytes sequence)
         return false;
 
     // 6. If the four bytes from sequence[4] to sequence[7] are not equal to 0x66 0x74 0x79 0x70 ("ftyp"), return false.
-    if (sequence.slice(4, 4) != "\x66\x74\x79\x70"sv.bytes())
+    if (sequence.slice(4, 4) != "\x66\x74\x79\x70"_sv.bytes())
         return false;
 
     // 7. If the three bytes from sequence[8] to sequence[10] are equal to 0x6D 0x70 0x34 ("mp4"), return true.
-    if (sequence.slice(8, 3) == "\x6D\x70\x34"sv.bytes())
+    if (sequence.slice(8, 3) == "\x6D\x70\x34"_sv.bytes())
         return true;
 
     // 8. Let bytes-read be 16.
@@ -175,7 +175,7 @@ bool matches_mp4_signature(ReadonlyBytes sequence)
     //      1. If the three bytes from sequence[bytes-read] to sequence[bytes-read + 2] are equal to 0x6D 0x70 0x34 ("mp4"), return true.
     //      2. Increment bytes-read by 4.
     while (bytes_read < box_size) {
-        if (sequence.slice(bytes_read, 3) == "\x6D\x70\x34"sv.bytes())
+        if (sequence.slice(bytes_read, 3) == "\x6D\x70\x34"_sv.bytes())
             return true;
         bytes_read += 4;
     }
@@ -267,7 +267,7 @@ bool matches_webm_signature(ReadonlyBytes sequence)
         return false;
 
     // 4. If the four bytes from sequence[0] to sequence[3], are not equal to 0x1A 0x45 0xDF 0xA3, return false.
-    static auto constexpr webm_signature = "\x1A\x45\xDF\xA3"sv;
+    static auto constexpr webm_signature = "\x1A\x45\xDF\xA3"_sv;
     if (!sequence.starts_with(webm_signature.bytes()))
         return false;
 
@@ -281,7 +281,7 @@ bool matches_webm_signature(ReadonlyBytes sequence)
             break;
 
         // 1. If the two bytes from sequence[iter] to sequence[iter + 1] are equal to 0x42 0x82,
-        if (sequence.slice(iter, 2) == "\x42\x82"sv.bytes()) {
+        if (sequence.slice(iter, 2) == "\x42\x82"_sv.bytes()) {
             // 1. increment iter by 2.
             iter += 2;
 
@@ -301,7 +301,7 @@ bool matches_webm_signature(ReadonlyBytes sequence)
                 break;
 
             // 6. Let matched be the result of matching a padded sequence 0x77 0x65 0x62 0x6D ("webm") on sequence at offset iter.
-            bool matched = sequence.slice(iter, 4) == "\x77\x65\x62\x6D"sv.bytes();
+            bool matched = sequence.slice(iter, 4) == "\x77\x65\x62\x6D"_sv.bytes();
 
             // 7. If matched is true, abort these steps and return true.
             if (matched)
@@ -395,25 +395,25 @@ Optional<MimeType> match_an_audio_or_video_type_pattern(ReadonlyBytes input)
     // 1. Execute the following steps for each row row in the following table:
     static Array<BytePatternTableRow, 6> constexpr pattern_table {
         // The string "FORM" followed by four bytes followed by the string "AIFF", the AIFF signature.
-        BytePatternTableRow { "\x46\x4F\x52\x4D\x00\x00\x00\x00\x41\x49\x46\x46"sv,
-            "\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "audio/aiff"sv },
+        BytePatternTableRow { "\x46\x4F\x52\x4D\x00\x00\x00\x00\x41\x49\x46\x46"_sv,
+            "\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "audio/aiff"_sv },
 
         //  The string "ID3", the ID3v2-tagged MP3 signature.
-        BytePatternTableRow { "\x49\x44\x33"sv, "\xFF\xFF\xFF"sv, no_ignored_bytes, "audio/mpeg"sv },
+        BytePatternTableRow { "\x49\x44\x33"_sv, "\xFF\xFF\xFF"_sv, no_ignored_bytes, "audio/mpeg"_sv },
 
         // The string "OggS" followed by NUL, the Ogg container signature.
-        BytePatternTableRow { "\x4F\x67\x67\x53\x00"sv, "\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "application/ogg"sv },
+        BytePatternTableRow { "\x4F\x67\x67\x53\x00"_sv, "\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "application/ogg"_sv },
 
         // The string "MThd" followed by four bytes representing the number 6 in 32 bits (big-endian), the MIDI signature.
-        BytePatternTableRow { "\x4D\x54\x68\x64\x00\x00\x00\x06"sv, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "audio/midi"sv },
+        BytePatternTableRow { "\x4D\x54\x68\x64\x00\x00\x00\x06"_sv, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "audio/midi"_sv },
 
         // The string "RIFF" followed by four bytes followed by the string "AVI ", the AVI signature.
-        BytePatternTableRow { "\x52\x49\x46\x46\x00\x00\x00\x00\x41\x56\x49\x20"sv,
-            "\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "video/avi"sv },
+        BytePatternTableRow { "\x52\x49\x46\x46\x00\x00\x00\x00\x41\x56\x49\x20"_sv,
+            "\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "video/avi"_sv },
 
         // The string "RIFF" followed by four bytes followed by the string "WAVE", the WAVE signature.
-        BytePatternTableRow { "\x52\x49\x46\x46\x00\x00\x00\x00\x57\x41\x56\x45"sv,
-            "\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "audio/wave"sv }
+        BytePatternTableRow { "\x52\x49\x46\x46\x00\x00\x00\x00\x57\x41\x56\x45"_sv,
+            "\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "audio/wave"_sv }
     };
 
     for (auto const& row : pattern_table) {
@@ -450,26 +450,26 @@ Optional<MimeType> match_a_font_type_pattern(ReadonlyBytes input)
     static Array<BytePatternTableRow, 6> constexpr pattern_table {
         // 34 bytes followed by the string "LP", the Embedded OpenType signature.
         BytePatternTableRow {
-            .byte_pattern = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x4C\x50"sv,
-            .pattern_mask = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF"sv,
+            .byte_pattern = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x4C\x50"_sv,
+            .pattern_mask = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF"_sv,
             .ignored_leading_bytes = no_ignored_bytes,
-            .mime_type = "application/vnd.ms-fontobject"sv,
+            .mime_type = "application/vnd.ms-fontobject"_sv,
         },
 
         // 4 bytes representing the version number 1.0, a TrueType signature.
-        BytePatternTableRow { "\x00\x01\x00\x00"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "font/ttf"sv },
+        BytePatternTableRow { "\x00\x01\x00\x00"_sv, "\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "font/ttf"_sv },
 
         // The string "OTTO", the OpenType signature.
-        BytePatternTableRow { "\x4F\x54\x54\x4F"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "font/otf"sv },
+        BytePatternTableRow { "\x4F\x54\x54\x4F"_sv, "\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "font/otf"_sv },
 
         // The string "ttcf", the TrueType Collection signature.
-        BytePatternTableRow { "\x74\x74\x63\x66"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "font/collection"sv },
+        BytePatternTableRow { "\x74\x74\x63\x66"_sv, "\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "font/collection"_sv },
 
         // The string "wOFF", the Web Open Font Format 1.0 signature.
-        BytePatternTableRow { "\x77\x4F\x46\x46"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "font/woff"sv },
+        BytePatternTableRow { "\x77\x4F\x46\x46"_sv, "\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "font/woff"_sv },
 
         // The string "wOF2", the Web Open Font Format 2.0 signature.
-        BytePatternTableRow { "\x77\x4F\x46\x32"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "font/woff2"sv },
+        BytePatternTableRow { "\x77\x4F\x46\x32"_sv, "\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "font/woff2"_sv },
     };
 
     for (auto const& row : pattern_table) {
@@ -493,13 +493,13 @@ Optional<MimeType> match_an_archive_type_pattern(ReadonlyBytes input)
     // 1. Execute the following steps for each row row in the following table:
     static Array<BytePatternTableRow, 3> constexpr pattern_table {
         // The GZIP archive signature.
-        BytePatternTableRow { "\x1F\x8B\x08"sv, "\xFF\xFF\xFF"sv, no_ignored_bytes, "application/x-gzip"sv },
+        BytePatternTableRow { "\x1F\x8B\x08"_sv, "\xFF\xFF\xFF"_sv, no_ignored_bytes, "application/x-gzip"_sv },
 
         // The string "PK" followed by ETX EOT, the ZIP archive signature.
-        BytePatternTableRow { "\x50\x4B\x03\x04"sv, "\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "application/zip"sv },
+        BytePatternTableRow { "\x50\x4B\x03\x04"_sv, "\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "application/zip"_sv },
 
         // The string "Rar " followed by SUB BEL NUL, the RAR archive signature.
-        BytePatternTableRow { "\x52\x61\x72\x20\x1A\x07\x00"sv, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "application/x-rar-compressed"sv },
+        BytePatternTableRow { "\x52\x61\x72\x20\x1A\x07\x00"_sv, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "application/x-rar-compressed"_sv },
     };
 
     for (auto const& row : pattern_table) {
@@ -522,73 +522,73 @@ MimeType rules_for_identifying_an_unknown_mime_type(Resource const& resource, bo
 {
     // 1. If the sniff-scriptable flag is set, execute the following steps for each row row in the following table:
     if (sniff_scriptable) {
-        static auto constexpr text_html_mime_type = "text/html"sv;
+        static auto constexpr text_html_mime_type = "text/html"_sv;
 
         // https://mimesniff.spec.whatwg.org/#whitespace-byte
         // A whitespace byte (abbreviated 0xWS) is any one of the following bytes: 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), 0x20 (SP).
         static Array<u8, 5> constexpr ignored_whitespace_bytes { 0x09, 0x0A, 0x0C, 0x0D, 0x20 };
         static Array<BytePatternTableRow, 19> constexpr pattern_table {
             // The case-insensitive string "<!DOCTYPE HTML" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x21\x44\x4F\x43\x54\x59\x50\x45\x20\x48\x54\x4D\x4C\x00"sv,
-                "\xFF\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xDF\xFF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x21\x44\x4F\x43\x54\x59\x50\x45\x20\x48\x54\x4D\x4C\x00"_sv,
+                "\xFF\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xDF\xFF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<HTML" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x48\x54\x4D\x4C\x00"sv, "\xFF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x48\x54\x4D\x4C\x00"_sv, "\xFF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<HEAD" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x48\x45\x41\x44\x00"sv, "\xFF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x48\x45\x41\x44\x00"_sv, "\xFF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<SCRIPT" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x53\x43\x52\x49\x50\x54\x00"sv,
-                "\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x53\x43\x52\x49\x50\x54\x00"_sv,
+                "\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<IFRAME" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x49\x46\x52\x41\x4D\x45\x00"sv,
-                "\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x49\x46\x52\x41\x4D\x45\x00"_sv,
+                "\xFF\xDF\xDF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<H1" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x48\x31\x00"sv, "\xFF\xDF\xFF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x48\x31\x00"_sv, "\xFF\xDF\xFF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<DIV" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x44\x49\x56\x00"sv, "\xFF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x44\x49\x56\x00"_sv, "\xFF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<FONT" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x46\x4F\x4E\x54\x00"sv, "\xFF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x46\x4F\x4E\x54\x00"_sv, "\xFF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<TABLE" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x54\x41\x42\x4C\x45\x00"sv, "\xFF\xDF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x54\x41\x42\x4C\x45\x00"_sv, "\xFF\xDF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<A" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x41\x00"sv, "\xFF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x41\x00"_sv, "\xFF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<STYLE" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x53\x54\x59\x4C\x45\x00"sv,
-                "\xFF\xDF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x53\x54\x59\x4C\x45\x00"_sv,
+                "\xFF\xDF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<TITLE" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x54\x49\x54\x4C\x45\x00"sv,
-                "\xFF\xDF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x54\x49\x54\x4C\x45\x00"_sv,
+                "\xFF\xDF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<B" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x42\x00"sv, "\xFF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x42\x00"_sv, "\xFF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<BODY" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x42\x4F\x44\x59\x00"sv, "\xFF\xDF\xDF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x42\x4F\x44\x59\x00"_sv, "\xFF\xDF\xDF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<BR" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x42\x52\x00"sv, "\xFF\xDF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x42\x52\x00"_sv, "\xFF\xDF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The case-insensitive string "<P" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x50\x00"sv, "\xFF\xDF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x50\x00"_sv, "\xFF\xDF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The string "<!--" followed by a tag-terminating byte.
-            BytePatternTableRow { "\x3C\x21\x2D\x2D\x00"sv, "\xFF\xFF\xFF\xFF\xFF"sv, ignored_whitespace_bytes, text_html_mime_type, true },
+            BytePatternTableRow { "\x3C\x21\x2D\x2D\x00"_sv, "\xFF\xFF\xFF\xFF\xFF"_sv, ignored_whitespace_bytes, text_html_mime_type, true },
 
             // The string "<?xml".
-            BytePatternTableRow { "\x3C\x3F\x78\x6D\x6C"sv, "\xFF\xFF\xFF\xFF\xFF"sv, ignored_whitespace_bytes, "text/xml"sv },
+            BytePatternTableRow { "\x3C\x3F\x78\x6D\x6C"_sv, "\xFF\xFF\xFF\xFF\xFF"_sv, ignored_whitespace_bytes, "text/xml"_sv },
 
             // The string "%PDF-", the PDF signature.
-            BytePatternTableRow { "\x25\x50\x44\x46\x2D"sv, "\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "application/pdf"sv },
+            BytePatternTableRow { "\x25\x50\x44\x46\x2D"_sv, "\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "application/pdf"_sv },
         };
 
         for (auto const& row : pattern_table) {
@@ -606,20 +606,20 @@ MimeType rules_for_identifying_an_unknown_mime_type(Resource const& resource, bo
     }
 
     // 2. Execute the following steps for each row row in the following table:
-    static auto constexpr text_plain_mime_type = "text/plain"sv;
+    static auto constexpr text_plain_mime_type = "text/plain"_sv;
     static Array<BytePatternTableRow, 4> constexpr pattern_table {
         // The string "%!PS-Adobe-", the PostScript signature.
-        BytePatternTableRow { "\x25\x21\x50\x53\x2D\x41\x64\x6F\x62\x65\x2D"sv,
-            "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"sv, no_ignored_bytes, "application/postscript"sv },
+        BytePatternTableRow { "\x25\x21\x50\x53\x2D\x41\x64\x6F\x62\x65\x2D"_sv,
+            "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"_sv, no_ignored_bytes, "application/postscript"_sv },
 
         // UTF-16BE BOM
-        BytePatternTableRow { "\xFE\xFF\x00\x00"sv, "\xFF\xFF\x00\x00"sv, no_ignored_bytes, text_plain_mime_type },
+        BytePatternTableRow { "\xFE\xFF\x00\x00"_sv, "\xFF\xFF\x00\x00"_sv, no_ignored_bytes, text_plain_mime_type },
 
         // UTF-16LE BOM
-        BytePatternTableRow { "\xFF\xFE\x00\x00"sv, "\xFF\xFF\x00\x00"sv, no_ignored_bytes, text_plain_mime_type },
+        BytePatternTableRow { "\xFF\xFE\x00\x00"_sv, "\xFF\xFF\x00\x00"_sv, no_ignored_bytes, text_plain_mime_type },
 
         // UTF-8 BOM
-        BytePatternTableRow { "\xEF\xBB\xBF\x00"sv, "\xFF\xFF\xFF\x00"sv, no_ignored_bytes, text_plain_mime_type },
+        BytePatternTableRow { "\xEF\xBB\xBF\x00"_sv, "\xFF\xFF\xFF\x00"_sv, no_ignored_bytes, text_plain_mime_type },
     };
 
     for (auto const& row : pattern_table) {
@@ -710,10 +710,10 @@ void Resource::supplied_mime_type_detection_algorithm(StringView scheme, Optiona
             // NOTE: The spec expects a space between the semicolon and the start of the charset parameter. However, we will lose this
             //       space because MimeType::parse() ignores any spaces found there.
             static Array<StringView, 4> constexpr apache_bug_mime_types = {
-                "text/plain"sv,
-                "text/plain;charset=ISO-8859-1"sv,
-                "text/plain;charset=iso-8859-1"sv,
-                "text/plain;charset=UTF-8"sv
+                "text/plain"_sv,
+                "text/plain;charset=ISO-8859-1"_sv,
+                "text/plain;charset=iso-8859-1"_sv,
+                "text/plain;charset=UTF-8"_sv
             };
 
             auto serialized_supplied_type = supplied_type->serialized();
@@ -828,8 +828,8 @@ void Resource::rules_for_distinguishing_if_a_resource_is_text_or_binary()
     //    resource header are equal to 0xFE 0xFF (UTF-16BE BOM) or 0xFF 0xFE (UTF-16LE BOM), the computed MIME type is "text/plain".
     //    Abort these steps.
     auto resource_header_span = m_resource_header.span();
-    auto utf_16_be_bom = "\xFE\xFF"sv.bytes();
-    auto utf_16_le_bom = "\xFF\xFE"sv.bytes();
+    auto utf_16_be_bom = "\xFE\xFF"_sv.bytes();
+    auto utf_16_le_bom = "\xFF\xFE"_sv.bytes();
     if (length >= 2
         && (resource_header_span.starts_with(utf_16_be_bom)
             || resource_header_span.starts_with(utf_16_le_bom))) {
@@ -840,7 +840,7 @@ void Resource::rules_for_distinguishing_if_a_resource_is_text_or_binary()
     // 3. If length is greater than or equal to 3 and the first 3 bytes of the resource header are equal to 0xEF 0xBB 0xBF (UTF-8 BOM),
     //    the computed MIME type is "text/plain".
     //    Abort these steps.
-    auto utf_8_bom = "\xEF\xBB\xBF"sv.bytes();
+    auto utf_8_bom = "\xEF\xBB\xBF"_sv.bytes();
     if (length >= 3 && resource_header_span.starts_with(utf_8_bom)) {
         m_computed_mime_type = MimeType::create("text"_string, "plain"_string);
         return;

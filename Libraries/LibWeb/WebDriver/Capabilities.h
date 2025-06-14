@@ -28,11 +28,11 @@ enum class PageLoadStrategy {
 
 constexpr PageLoadStrategy page_load_strategy_from_string(StringView strategy)
 {
-    if (strategy == "none"sv)
+    if (strategy == "none"_sv)
         return PageLoadStrategy::None;
-    if (strategy == "eager"sv)
+    if (strategy == "eager"_sv)
         return PageLoadStrategy::Eager;
-    if (strategy == "normal"sv)
+    if (strategy == "normal"_sv)
         return PageLoadStrategy::Normal;
     VERIFY_NOT_REACHED();
 }

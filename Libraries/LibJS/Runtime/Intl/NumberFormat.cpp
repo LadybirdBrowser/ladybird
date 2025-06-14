@@ -41,7 +41,7 @@ void NumberFormat::visit_edges(Cell::Visitor& visitor)
 ReadonlySpan<StringView> NumberFormat::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
-    static constexpr AK::Array keys { "nu"sv };
+    static constexpr AK::Array keys { "nu"_sv };
     return keys;
 }
 
@@ -50,7 +50,7 @@ ReadonlySpan<ResolutionOptionDescriptor> NumberFormat::resolution_option_descrip
 {
     // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "nu", [[Property]]: "numberingSystem" } ».
     static auto descriptors = to_array<ResolutionOptionDescriptor>({
-        { .key = "nu"sv, .property = vm.names.numberingSystem },
+        { .key = "nu"_sv, .property = vm.names.numberingSystem },
     });
 
     return descriptors;
@@ -60,11 +60,11 @@ StringView NumberFormatBase::computed_rounding_priority_string() const
 {
     switch (m_computed_rounding_priority) {
     case ComputedRoundingPriority::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     case ComputedRoundingPriority::MorePrecision:
-        return "morePrecision"sv;
+        return "morePrecision"_sv;
     case ComputedRoundingPriority::LessPrecision:
-        return "lessPrecision"sv;
+        return "lessPrecision"_sv;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -240,11 +240,11 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
         return MathematicalValue::Symbol::NegativeZero;
 
     // 8. If mv is 10^10000 and str contains Infinity, return positive-infinity.
-    if (mathematical_value == pow(10, 10000) && string.contains("Infinity"sv))
+    if (mathematical_value == pow(10, 10000) && string.contains("Infinity"_sv))
         return MathematicalValue::Symbol::PositiveInfinity;
 
     // 9. If mv is -10^10000 and str contains Infinity, return negative-infinity.
-    if (mathematical_value == pow(-10, 10000) && string.contains("Infinity"sv))
+    if (mathematical_value == pow(-10, 10000) && string.contains("Infinity"_sv))
         return MathematicalValue::Symbol::NegativeInfinity;
 
     // 10. Return mv.
@@ -256,9 +256,9 @@ ThrowCompletionOr<Vector<Unicode::NumberFormat::Partition>> partition_number_ran
 {
     // 1. If x is NaN or y is NaN, throw a RangeError exception.
     if (start.is_nan())
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "start"sv);
+        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "start"_sv);
     if (end.is_nan())
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "end"sv);
+        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "end"_sv);
 
     return number_format.formatter().format_range_to_parts(start.to_value(), end.to_value());
 }
@@ -273,9 +273,9 @@ ThrowCompletionOr<String> format_numeric_range(VM& vm, NumberFormat const& numbe
 
         // 1. If x is NaN or y is NaN, throw a RangeError exception.
         if (start.is_nan())
-            return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "start"sv);
+            return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "start"_sv);
         if (end.is_nan())
-            return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "end"sv);
+            return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "end"_sv);
     }
 
     // 2. Let result be the empty String.

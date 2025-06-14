@@ -71,7 +71,7 @@ String Site::serialize() const
     result.append(scheme);
 
     // 3. Append "://" to result.
-    result.append("://"sv);
+    result.append("://"_sv);
 
     // 4. Append site[1], serialized, to result.
     result.append(host.serialize());

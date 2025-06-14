@@ -41,13 +41,13 @@ void HTMLHeadingElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropert
     HTMLElement::apply_presentational_hints(cascaded_properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
-            if (value == "left"sv)
+            if (value == "left"_sv)
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Left));
-            else if (value == "right"sv)
+            else if (value == "right"_sv)
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Right));
-            else if (value == "center"sv)
+            else if (value == "center"_sv)
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
-            else if (value == "justify"sv)
+            else if (value == "justify"_sv)
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Justify));
         }
     });

@@ -990,7 +990,7 @@ WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<double> 
         if (current_time().has_value()) {
             return WebIDL::SimpleException {
                 WebIDL::SimpleExceptionType::TypeError,
-                "Cannot change an animation's current time from a resolve value to an unresolved value"sv
+                "Cannot change an animation's current time from a resolve value to an unresolved value"_sv
             };
         }
 

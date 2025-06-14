@@ -25,20 +25,20 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
     if (browser_options.profile_helper_process == process_type) {
         arguments.prepend({
-            "--tool=callgrind"sv,
-            "--instr-atstart=no"sv,
-            ""sv, // Placeholder for the process path.
+            "--tool=callgrind"_sv,
+            "--instr-atstart=no"_sv,
+            ""_sv, // Placeholder for the process path.
         });
     }
 
     if (browser_options.debug_helper_process == process_type)
-        arguments.append("--wait-for-debugger"sv);
+        arguments.append("--wait-for-debugger"_sv);
 
     for (auto [i, path] : enumerate(candidate_server_paths)) {
         Core::ProcessSpawnOptions options { .name = server_name, .arguments = arguments };
 
         if (browser_options.profile_helper_process == process_type) {
-            options.executable = "valgrind"sv;
+            options.executable = "valgrind"_sv;
             options.search_for_executable_in_path = true;
             arguments[2] = path;
         } else {
@@ -89,58 +89,58 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
     auto const& web_content_options = WebView::Application::web_content_options();
 
     Vector<ByteString> arguments {
-        "--command-line"sv,
+        "--command-line"_sv,
         web_content_options.command_line.to_byte_string(),
-        "--executable-path"sv,
+        "--executable-path"_sv,
         web_content_options.executable_path.to_byte_string(),
     };
 
     if (browser_options.headless_mode.has_value())
-        arguments.append("--headless"sv);
+        arguments.append("--headless"_sv);
 
     if (web_content_options.config_path.has_value()) {
-        arguments.append("--config-path"sv);
+        arguments.append("--config-path"_sv);
         arguments.append(web_content_options.config_path.value());
     }
     if (web_content_options.is_layout_test_mode == WebView::IsLayoutTestMode::Yes)
-        arguments.append("--layout-test-mode"sv);
+        arguments.append("--layout-test-mode"_sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
-        arguments.append("--log-all-js-exceptions"sv);
+        arguments.append("--log-all-js-exceptions"_sv);
     if (web_content_options.disable_site_isolation == WebView::DisableSiteIsolation::Yes)
-        arguments.append("--disable-site-isolation"sv);
+        arguments.append("--disable-site-isolation"_sv);
     if (web_content_options.enable_idl_tracing == WebView::EnableIDLTracing::Yes)
-        arguments.append("--enable-idl-tracing"sv);
+        arguments.append("--enable-idl-tracing"_sv);
     if (web_content_options.enable_http_cache == WebView::EnableHTTPCache::Yes)
-        arguments.append("--enable-http-cache"sv);
+        arguments.append("--enable-http-cache"_sv);
     if (web_content_options.expose_internals_object == WebView::ExposeInternalsObject::Yes)
-        arguments.append("--expose-internals-object"sv);
+        arguments.append("--expose-internals-object"_sv);
     if (web_content_options.force_cpu_painting == WebView::ForceCPUPainting::Yes)
-        arguments.append("--force-cpu-painting"sv);
+        arguments.append("--force-cpu-painting"_sv);
     if (web_content_options.force_fontconfig == WebView::ForceFontconfig::Yes)
-        arguments.append("--force-fontconfig"sv);
+        arguments.append("--force-fontconfig"_sv);
     if (web_content_options.collect_garbage_on_every_allocation == WebView::CollectGarbageOnEveryAllocation::Yes)
-        arguments.append("--collect-garbage-on-every-allocation"sv);
+        arguments.append("--collect-garbage-on-every-allocation"_sv);
     if (web_content_options.paint_viewport_scrollbars == PaintViewportScrollbars::No)
-        arguments.append("--disable-scrollbar-painting"sv);
+        arguments.append("--disable-scrollbar-painting"_sv);
 
     if (auto const maybe_echo_server_port = web_content_options.echo_server_port; maybe_echo_server_port.has_value()) {
-        arguments.append("--echo-server-port"sv);
+        arguments.append("--echo-server-port"_sv);
         arguments.append(ByteString::number(maybe_echo_server_port.value()));
     }
 
     if (auto server = mach_server_name(); server.has_value()) {
-        arguments.append("--mach-server-name"sv);
+        arguments.append("--mach-server-name"_sv);
         arguments.append(server.value());
     }
     if (request_server_socket.has_value()) {
-        arguments.append("--request-server-socket"sv);
+        arguments.append("--request-server-socket"_sv);
         arguments.append(ByteString::number(request_server_socket->fd()));
     }
 
-    arguments.append("--image-decoder-socket"sv);
+    arguments.append("--image-decoder-socket"_sv);
     arguments.append(ByteString::number(image_decoder_socket.fd()));
 
-    return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), forward<ClientArguments>(client_arguments)...);
+    return launch_server_process<WebView::WebContentClient>("WebContent"_sv, move(arguments), forward<ClientArguments>(client_arguments)...);
 }
 
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
@@ -162,11 +162,11 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
 {
     Vector<ByteString> arguments;
     if (auto server = mach_server_name(); server.has_value()) {
-        arguments.append("--mach-server-name"sv);
+        arguments.append("--mach-server-name"_sv);
         arguments.append(server.value());
     }
 
-    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, arguments);
+    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"_sv, arguments);
 }
 
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type)
@@ -174,29 +174,29 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
     Vector<ByteString> arguments;
 
     auto request_server_socket = TRY(connect_new_request_server_client());
-    arguments.append("--request-server-socket"sv);
+    arguments.append("--request-server-socket"_sv);
     arguments.append(ByteString::number(request_server_socket.fd()));
 
     auto image_decoder_socket = TRY(connect_new_image_decoder_client());
-    arguments.append("--image-decoder-socket"sv);
+    arguments.append("--image-decoder-socket"_sv);
     arguments.append(ByteString::number(image_decoder_socket.fd()));
 
-    arguments.append("--type"sv);
+    arguments.append("--type"_sv);
     switch (type) {
     case Web::Bindings::AgentType::DedicatedWorker:
-        arguments.append("dedicated"sv);
+        arguments.append("dedicated"_sv);
         break;
     case Web::Bindings::AgentType::SharedWorker:
-        arguments.append("shared"sv);
+        arguments.append("shared"_sv);
         break;
     case Web::Bindings::AgentType::ServiceWorker:
-        arguments.append("service"sv);
+        arguments.append("service"_sv);
         break;
     default:
         VERIFY_NOT_REACHED();
     }
 
-    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, move(arguments));
+    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"_sv, move(arguments));
 }
 
 ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
@@ -204,7 +204,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     Vector<ByteString> arguments;
 
     if (!s_ladybird_resource_root.is_empty()) {
-        arguments.append("--serenity-resource-root"sv);
+        arguments.append("--serenity-resource-root"_sv);
         arguments.append(s_ladybird_resource_root);
     }
 
@@ -212,11 +212,11 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
         arguments.append(ByteString::formatted("--certificate={}", certificate));
 
     if (auto server = mach_server_name(); server.has_value()) {
-        arguments.append("--mach-server-name"sv);
+        arguments.append("--mach-server-name"_sv);
         arguments.append(server.value());
     }
 
-    auto client = TRY(launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments)));
+    auto client = TRY(launch_server_process<Requests::RequestClient>("RequestServer"_sv, move(arguments)));
     WebView::Application::settings().dns_settings().visit(
         [](WebView::SystemDNS) {},
         [&](WebView::DNSOverTLS const& dns_over_tls) {

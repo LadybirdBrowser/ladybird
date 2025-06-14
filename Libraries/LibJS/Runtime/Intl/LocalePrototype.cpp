@@ -246,12 +246,12 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::get_text_info)
     auto info = Object::create(realm, realm.intrinsics().object_prototype());
 
     // 4. Let dir be "ltr".
-    auto direction = "ltr"sv;
+    auto direction = "ltr"_sv;
 
     // 5. If LocaleIsRightToLeft(loc) is true, then
     if (Unicode::is_locale_character_ordering_right_to_left(locale_object->locale())) {
         // a. Set dir to "rtl".
-        direction = "rtl"sv;
+        direction = "rtl"_sv;
     }
 
     // 6. Perform ! CreateDataPropertyOrThrow(info, "direction", dir).

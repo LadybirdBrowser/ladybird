@@ -29,21 +29,21 @@ namespace Web::WebDriver {
 
 static Optional<ActionObject::Subtype> action_object_subtype_from_string(StringView action_subtype)
 {
-    if (action_subtype == "pause"sv)
+    if (action_subtype == "pause"_sv)
         return ActionObject::Subtype::Pause;
-    if (action_subtype == "keyUp"sv)
+    if (action_subtype == "keyUp"_sv)
         return ActionObject::Subtype::KeyUp;
-    if (action_subtype == "keyDown"sv)
+    if (action_subtype == "keyDown"_sv)
         return ActionObject::Subtype::KeyDown;
-    if (action_subtype == "pointerUp"sv)
+    if (action_subtype == "pointerUp"_sv)
         return ActionObject::Subtype::PointerUp;
-    if (action_subtype == "pointerDown"sv)
+    if (action_subtype == "pointerDown"_sv)
         return ActionObject::Subtype::PointerDown;
-    if (action_subtype == "pointerMove"sv)
+    if (action_subtype == "pointerMove"_sv)
         return ActionObject::Subtype::PointerMove;
-    if (action_subtype == "pointerCancel"sv)
+    if (action_subtype == "pointerCancel"_sv)
         return ActionObject::Subtype::PointerCancel;
-    if (action_subtype == "scroll"sv)
+    if (action_subtype == "scroll"_sv)
         return ActionObject::Subtype::Scroll;
     return {};
 }
@@ -98,9 +98,9 @@ static Optional<ActionObject::Origin> determine_origin(ActionsOptions const& act
         return ActionObject::OriginType::Viewport;
 
     if (origin->is_string()) {
-        if (origin->as_string() == "viewport"sv)
+        if (origin->as_string() == "viewport"_sv)
             return ActionObject::OriginType::Viewport;
-        if (origin->as_string() == "pointer"sv)
+        if (origin->as_string() == "pointer"_sv)
             return ActionObject::OriginType::Pointer;
     }
 
@@ -229,10 +229,10 @@ static ErrorOr<PointerParameters, WebDriver::Error> process_pointer_parameters(O
 
     // 3. If parameters data is not an Object, return error with error code invalid argument.
     if (!parameters_data->is_object())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'parameters' is not an Object"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'parameters' is not an Object"_sv);
 
     // 4. Let pointer type be the result of getting a property named "pointerType" from parameters data.
-    auto pointer_type = TRY(get_optional_property(parameters_data->as_object(), "pointerType"sv));
+    auto pointer_type = TRY(get_optional_property(parameters_data->as_object(), "pointerType"_sv));
 
     // 5. If pointer type is not undefined:
     if (pointer_type.has_value()) {
@@ -241,7 +241,7 @@ static ErrorOr<PointerParameters, WebDriver::Error> process_pointer_parameters(O
         auto parsed_pointer_type = pointer_input_source_subtype_from_string(*pointer_type);
 
         if (!parsed_pointer_type.has_value())
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'pointerType' must be one of 'mouse', 'pen', or 'touch'"sv);
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'pointerType' must be one of 'mouse', 'pen', or 'touch'"_sv);
 
         // 2. Set the pointerType property of parameters to pointer type.
         parameters.pointer_type = *parsed_pointer_type;
@@ -257,7 +257,7 @@ static ErrorOr<void, WebDriver::Error> process_pause_action(JsonObject const& ac
     // 1. Let duration be the result of getting the property "duration" from action item.
     // 2. If duration is not undefined and duration is not an Integer greater than or equal to 0, return error with error code invalid argument.
     // 3. Set the duration property of action to duration.
-    if (auto duration = TRY(get_optional_property_with_limits<i64>(action_item, "duration"sv, 0, {})); duration.has_value())
+    if (auto duration = TRY(get_optional_property_with_limits<i64>(action_item, "duration"_sv, 0, {})); duration.has_value())
         action.pause_fields().duration = AK::Duration::from_milliseconds(*duration);
 
     // 4. Return success with data action.
@@ -268,11 +268,11 @@ static ErrorOr<void, WebDriver::Error> process_pause_action(JsonObject const& ac
 static ErrorOr<ActionObject, WebDriver::Error> process_null_action(String id, JsonObject const& action_item)
 {
     // 1. Let subtype be the result of getting a property named "type" from action item.
-    auto subtype = action_object_subtype_from_string(TRY(get_property(action_item, "type"sv)));
+    auto subtype = action_object_subtype_from_string(TRY(get_property(action_item, "type"_sv)));
 
     // 2. If subtype is not "pause", return error with error code invalid argument.
     if (subtype != ActionObject::Subtype::Pause)
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be 'pause'"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be 'pause'"_sv);
 
     // 3. Let action be an action object constructed with arguments id, "none", and subtype.
     ActionObject action { move(id), InputSourceType::None, *subtype };
@@ -290,11 +290,11 @@ static ErrorOr<ActionObject, WebDriver::Error> process_key_action(String id, Jso
     using enum ActionObject::Subtype;
 
     // 1. Let subtype be the result of getting a property named "type" from action item.
-    auto subtype = action_object_subtype_from_string(TRY(get_property(action_item, "type"sv)));
+    auto subtype = action_object_subtype_from_string(TRY(get_property(action_item, "type"_sv)));
 
     // 2. If subtype is not one of the values "keyUp", "keyDown", or "pause", return an error with error code invalid argument.
     if (!first_is_one_of(subtype, KeyUp, KeyDown, Pause))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'keyUp', 'keyDown', or 'pause'"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'keyUp', 'keyDown', or 'pause'"_sv);
 
     // 3. Let action be an action object constructed with arguments id, "key", and subtype.
     ActionObject action { move(id), InputSourceType::Key, *subtype };
@@ -307,7 +307,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_key_action(String id, Jso
     }
 
     // 5. Let key be the result of getting a property named "value" from action item.
-    auto key = TRY(get_property(action_item, "value"sv));
+    auto key = TRY(get_property(action_item, "value"_sv));
 
     // 6. If key is not a String containing a single unicode code point [or grapheme cluster?] return error with error
     //    code invalid argument.
@@ -317,7 +317,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_key_action(String id, Jso
         // FIXME: The spec seems undecided on whether grapheme clusters should be supported. Update this step to check
         //        for graphemes if we end up needing to support them. We would also need to update Page's key event
         //        handlers to support multi-code point events.
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'value' must be a single code point"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'value' must be a single code point"_sv);
     }
 
     // 7. Set the value property on action to key.
@@ -335,47 +335,47 @@ static ErrorOr<void, WebDriver::Error> process_pointer_action_common(JsonObject 
     // 4. Let width be the result of getting the property width from action item.
     // 5. If width is not undefined and width is not a Number greater than or equal to 0 return error with error code invalid argument.
     // 6. Set the width property of action to width.
-    fields.width = TRY(get_optional_property_with_limits<double>(action_item, "width"sv, 0.0, {}));
+    fields.width = TRY(get_optional_property_with_limits<double>(action_item, "width"_sv, 0.0, {}));
 
     // 7. Let height be the result of getting the property height from action item.
     // 8. If height is not undefined and height is not a Number greater than or equal to 0 return error with error code invalid argument.
     // 9. Set the height property of action to height.
-    fields.height = TRY(get_optional_property_with_limits<double>(action_item, "height"sv, 0.0, {}));
+    fields.height = TRY(get_optional_property_with_limits<double>(action_item, "height"_sv, 0.0, {}));
 
     // 10. Let pressure be the result of getting the property pressure from action item.
     // 11. If pressure is not undefined and pressure is not a Number greater than or equal to 0 and less than or equal to 1 return error with error code invalid argument.
     // 12. Set the pressure property of action to pressure.
-    fields.pressure = TRY(get_optional_property_with_limits<double>(action_item, "pressure"sv, 0.0, 1.0));
+    fields.pressure = TRY(get_optional_property_with_limits<double>(action_item, "pressure"_sv, 0.0, 1.0));
 
     // 13. Let tangentialPressure be the result of getting the property tangentialPressure from action item.
     // 14. If tangentialPressure is not undefined and tangentialPressure is not a Number greater than or equal to -1 and less than or equal to 1 return error with error code invalid argument.
     // 15. Set the tangentialPressure property of action to tangentialPressure.
-    fields.tangential_pressure = TRY(get_optional_property_with_limits<double>(action_item, "tangentialPressure"sv, -1.0, 1.0));
+    fields.tangential_pressure = TRY(get_optional_property_with_limits<double>(action_item, "tangentialPressure"_sv, -1.0, 1.0));
 
     // 16. Let tiltX be the result of getting the property tiltX from action item.
     // 17. If tiltX is not undefined and tiltX is not an Integer greater than or equal to -90 and less than or equal to 90 return error with error code invalid argument.
     // 18. Set the tiltX property of action to tiltX.
-    fields.tilt_x = TRY(get_optional_property_with_limits<i32>(action_item, "tiltX"sv, -90, 90));
+    fields.tilt_x = TRY(get_optional_property_with_limits<i32>(action_item, "tiltX"_sv, -90, 90));
 
     // 19. Let tiltY be the result of getting the property tiltY from action item.
     // 20. If tiltY is not undefined and tiltY is not an Integer greater than or equal to -90 and less than or equal to 90 return error with error code invalid argument.
     // 21. Set the tiltY property of action to tiltY.
-    fields.tilt_y = TRY(get_optional_property_with_limits<i32>(action_item, "tiltY"sv, -90, 90));
+    fields.tilt_y = TRY(get_optional_property_with_limits<i32>(action_item, "tiltY"_sv, -90, 90));
 
     // 22. Let twist be the result of getting the property twist from action item.
     // 23. If twist is not undefined and twist is not an Integer greater than or equal to 0 and less than or equal to 359 return error with error code invalid argument.
     // 24. Set the twist property of action to twist.
-    fields.twist = TRY(get_optional_property_with_limits<u32>(action_item, "twist"sv, 0, 359));
+    fields.twist = TRY(get_optional_property_with_limits<u32>(action_item, "twist"_sv, 0, 359));
 
     // 25. Let altitudeAngle be the result of getting the property altitudeAngle from action item.
     // 26. If altitudeAngle is not undefined and altitudeAngle is not a Number greater than or equal to 0 and less than or equal to π/2 return error with error code invalid argument.
     // 27. Set the altitudeAngle property of action to altitudeAngle.
-    fields.altitude_angle = TRY(get_optional_property_with_limits<double>(action_item, "altitudeAngle"sv, 0.0, AK::Pi<double> / 2.0));
+    fields.altitude_angle = TRY(get_optional_property_with_limits<double>(action_item, "altitudeAngle"_sv, 0.0, AK::Pi<double> / 2.0));
 
     // 28. Let azimuthAngle be the result of getting the property azimuthAngle from action item.
     // 29. If azimuthAngle is not undefined and azimuthAngle is not a Number greater than or equal to 0 and less than or equal to 2π return error with error code invalid argument.
     // 30. Set the azimuthAngle property of action to azimuthAngle.
-    fields.azimuth_angle = TRY(get_optional_property_with_limits<double>(action_item, "azimuthAngle"sv, 0.0, AK::Pi<double> * 2.0));
+    fields.azimuth_angle = TRY(get_optional_property_with_limits<double>(action_item, "azimuthAngle"_sv, 0.0, AK::Pi<double> * 2.0));
 
     // 31. Return success with data null.
     return {};
@@ -389,7 +389,7 @@ static ErrorOr<void, WebDriver::Error> process_pointer_up_or_down_action(JsonObj
     // 1. Let button be the result of getting the property button from action item.
     // 2. If button is not an Integer greater than or equal to 0 return error with error code invalid argument.
     // 3. Set the button property of action to button.
-    fields.button = UIEvents::button_code_to_mouse_button(TRY(get_property_with_limits<i16>(action_item, "button"sv, 0, {})));
+    fields.button = UIEvents::button_code_to_mouse_button(TRY(get_property_with_limits<i16>(action_item, "button"_sv, 0, {})));
 
     return process_pointer_action_common(action_item, fields);
 }
@@ -402,31 +402,31 @@ static ErrorOr<void, WebDriver::Error> process_pointer_move_action(JsonObject co
     // 1. Let duration be the result of getting the property duration from action item.
     // 2. If duration is not undefined and duration is not an Integer greater than or equal to 0, return error with error code invalid argument.
     // 3. Set the duration property of action to duration.
-    if (auto duration = TRY(get_optional_property_with_limits<i64>(action_item, "duration"sv, 0, {})); duration.has_value())
+    if (auto duration = TRY(get_optional_property_with_limits<i64>(action_item, "duration"_sv, 0, {})); duration.has_value())
         fields.duration = AK::Duration::from_milliseconds(*duration);
 
     // 4. Let origin be the result of getting the property origin from action item.
     // 5. If origin is undefined let origin equal "viewport".
-    auto origin = determine_origin(actions_options, action_item.get("origin"sv));
+    auto origin = determine_origin(actions_options, action_item.get("origin"_sv));
 
     // 6. If origin is not equal to "viewport" or "pointer", and actions options is element origin steps given origin
     //    return false, return error with error code invalid argument.
     if (!origin.has_value())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'origin' must be 'viewport', 'pointer', or an element origin"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'origin' must be 'viewport', 'pointer', or an element origin"_sv);
 
     // 7. Set the origin property of action to origin.
     fields.origin = origin.release_value();
 
     // 8. Let x be the result of getting the property x from action item.
     // 9. If x is not a Number, return error with error code invalid argument.
-    auto x = TRY(get_property<double>(action_item, "x"sv));
+    auto x = TRY(get_property<double>(action_item, "x"_sv));
 
     // 10. Set the x property of action to x.
     fields.position.set_x(CSSPixels { x });
 
     // 11. Let y be the result of getting the property y from action item.
     // 12. If y is not a Number, return error with error code invalid argument.
-    auto y = TRY(get_property<double>(action_item, "y"sv));
+    auto y = TRY(get_property<double>(action_item, "y"_sv));
 
     // 13. Set the y property of action to y.
     fields.position.set_y(CSSPixels { y });
@@ -440,11 +440,11 @@ static ErrorOr<ActionObject, WebDriver::Error> process_pointer_action(String id,
     using enum ActionObject::Subtype;
 
     // 1. Let subtype be the result of getting a property named "type" from action item.
-    auto subtype = action_object_subtype_from_string(TRY(get_property(action_item, "type"sv)));
+    auto subtype = action_object_subtype_from_string(TRY(get_property(action_item, "type"_sv)));
 
     // 2. If subtype is not one of the values "pause", "pointerUp", "pointerDown", "pointerMove", or "pointerCancel", return an error with error code invalid argument.
     if (!first_is_one_of(subtype, Pause, PointerUp, PointerDown, PointerMove, PointerCancel))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'pause', 'pointerUp', 'pointerDown', 'pointerMove', or 'pointerCancel'"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'pause', 'pointerUp', 'pointerDown', 'pointerMove', or 'pointerCancel'"_sv);
 
     // 3. Let action be an action object constructed with arguments id, "pointer", and subtype.
     ActionObject action { move(id), InputSourceType::Pointer, *subtype };
@@ -474,7 +474,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_pointer_action(String id,
     // 8. If subtype is "pointerCancel" process a pointer cancel action. If doing so results in an error, return that error.
     else if (subtype == PointerCancel) {
         // FIXME: There are no spec steps to "process a pointer cancel action" yet.
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "pointerCancel events not implemented"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "pointerCancel events not implemented"_sv);
     }
 
     // 9. Return success with data action.
@@ -487,11 +487,11 @@ static ErrorOr<ActionObject, WebDriver::Error> process_wheel_action(String id, J
     using enum ActionObject::Subtype;
 
     // 1. Let subtype be the result of getting a property named "type" from action item.
-    auto subtype = action_object_subtype_from_string(TRY(get_property(action_item, "type"sv)));
+    auto subtype = action_object_subtype_from_string(TRY(get_property(action_item, "type"_sv)));
 
     // 2. If subtype is not the value "pause", or "scroll", return an error with error code invalid argument.
     if (!first_is_one_of(subtype, Pause, Scroll))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'pause' or 'scroll'"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'pause' or 'scroll'"_sv);
 
     // 3. Let action be an action object constructed with arguments id, "wheel", and subtype.
     ActionObject action { move(id), InputSourceType::Wheel, *subtype };
@@ -508,17 +508,17 @@ static ErrorOr<ActionObject, WebDriver::Error> process_wheel_action(String id, J
     // 5. Let duration be the result of getting a property named "duration" from action item.
     // 6. If duration is not undefined and duration is not an Integer greater than or equal to 0, return error with error code invalid argument.
     // 7. Set the duration property of action to duration.
-    if (auto duration = TRY(get_optional_property_with_limits<i64>(action_item, "duration"sv, 0, {})); duration.has_value())
+    if (auto duration = TRY(get_optional_property_with_limits<i64>(action_item, "duration"_sv, 0, {})); duration.has_value())
         fields.duration = AK::Duration::from_milliseconds(*duration);
 
     // 8. Let origin be the result of getting the property origin from action item.
     // 9. If origin is undefined let origin equal "viewport".
-    auto origin = determine_origin(actions_options, action_item.get("origin"sv));
+    auto origin = determine_origin(actions_options, action_item.get("origin"_sv));
 
     // 10. If origin is not equal to "viewport", or actions options' is element origin steps given origin return false,
     //     return error with error code invalid argument.
     if (!origin.has_value() || origin == ActionObject::OriginType::Pointer)
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'origin' must be 'viewport' or an element origin"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'origin' must be 'viewport' or an element origin"_sv);
 
     // 11. Set the origin property of action to origin.
     fields.origin = origin.release_value();
@@ -526,22 +526,22 @@ static ErrorOr<ActionObject, WebDriver::Error> process_wheel_action(String id, J
     // 12. Let x be the result of getting the property x from action item.
     // 13. If x is not an Integer, return error with error code invalid argument.
     // 14. Set the x property of action to x.
-    fields.x = TRY(get_property<i64>(action_item, "x"sv));
+    fields.x = TRY(get_property<i64>(action_item, "x"_sv));
 
     // 15. Let y be the result of getting the property y from action item.
     // 16. If y is not an Integer, return error with error code invalid argument.
     // 17. Set the y property of action to y.
-    fields.y = TRY(get_property<i64>(action_item, "y"sv));
+    fields.y = TRY(get_property<i64>(action_item, "y"_sv));
 
     // 18. Let deltaX be the result of getting the property deltaX from action item.
     // 19. If deltaX is not an Integer, return error with error code invalid argument.
     // 20. Set the deltaX property of action to deltaX.
-    fields.delta_x = TRY(get_property<i64>(action_item, "deltaX"sv));
+    fields.delta_x = TRY(get_property<i64>(action_item, "deltaX"_sv));
 
     // 21. Let deltaY be the result of getting the property deltaY from action item.
     // 22. If deltaY is not an Integer, return error with error code invalid argument.
     // 23. Set the deltaY property of action to deltaY.
-    fields.delta_y = TRY(get_property<i64>(action_item, "deltaY"sv));
+    fields.delta_y = TRY(get_property<i64>(action_item, "deltaY"_sv));
 
     // 24. Return success with data action.
     return action;
@@ -551,15 +551,15 @@ static ErrorOr<ActionObject, WebDriver::Error> process_wheel_action(String id, J
 static ErrorOr<Vector<ActionObject>, WebDriver::Error> process_input_source_action_sequence(InputState& input_state, JsonValue const& action_sequence, ActionsOptions const& actions_options)
 {
     // 1. Let type be the result of getting a property named "type" from action sequence.
-    auto type = input_source_type_from_string(TRY(get_property(action_sequence, "type"sv)));
+    auto type = input_source_type_from_string(TRY(get_property(action_sequence, "type"_sv)));
 
     // 2. If type is not "key", "pointer", "wheel", or "none", return an error with error code invalid argument.
     if (!type.has_value())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'key', 'pointer', 'wheel', or 'none'"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'key', 'pointer', 'wheel', or 'none'"_sv);
 
     // 3. Let id be the result of getting the property "id" from action sequence.
     // 4. If id is undefined or is not a String, return error with error code invalid argument.
-    auto const id = TRY(get_property(action_sequence, "id"sv));
+    auto const id = TRY(get_property(action_sequence, "id"_sv));
 
     // 5. If type is equal to "pointer", let parameters data be the result of getting the property "parameters" from
     //    action sequence. Then let parameters be the result of trying to process pointer parameters with argument
@@ -568,7 +568,7 @@ static ErrorOr<Vector<ActionObject>, WebDriver::Error> process_input_source_acti
     Optional<PointerInputSource::Subtype> subtype;
 
     if (type == InputSourceType::Pointer) {
-        parameters = TRY(process_pointer_parameters(action_sequence.as_object().get("parameters"sv)));
+        parameters = TRY(process_pointer_parameters(action_sequence.as_object().get("parameters"_sv)));
         subtype = parameters->pointer_type;
     }
 
@@ -579,12 +579,12 @@ static ErrorOr<Vector<ActionObject>, WebDriver::Error> process_input_source_acti
     //    return an error with error code invalid argument.
     if (auto const* pointer_input_source = source.get_pointer<PointerInputSource>(); pointer_input_source && parameters.has_value()) {
         if (parameters->pointer_type != pointer_input_source->subtype)
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Invalid 'pointerType' property"sv);
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Invalid 'pointerType' property"_sv);
     }
 
     // 8. Let action items be the result of getting a property named "actions" from action sequence.
     // 9. If action items is not an Array, return error with error code invalid argument.
-    auto const& action_items = *TRY(get_property<JsonArray const*>(action_sequence, "actions"sv));
+    auto const& action_items = *TRY(get_property<JsonArray const*>(action_sequence, "actions"_sv));
 
     // 10. Let actions be a new list.
     Vector<ActionObject> actions;
@@ -593,7 +593,7 @@ static ErrorOr<Vector<ActionObject>, WebDriver::Error> process_input_source_acti
     TRY(action_items.try_for_each([&](auto const& action_item) -> ErrorOr<void, WebDriver::Error> {
         // 1. If action item is not an Object return error with error code invalid argument.
         if (!action_item.is_object())
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'actions' item is not an Object"sv);
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'actions' item is not an Object"_sv);
 
         auto action = TRY([&]() {
             switch (*type) {
@@ -635,7 +635,7 @@ ErrorOr<Vector<Vector<ActionObject>>, WebDriver::Error> extract_an_action_sequen
 {
     // 1. Let actions be the result of getting a property named "actions" from parameters.
     // 2. If actions is undefined or is not an Array, return error with error code invalid argument.
-    auto const& actions = *TRY(get_property<JsonArray const*>(parameters, "actions"sv));
+    auto const& actions = *TRY(get_property<JsonArray const*>(parameters, "actions"_sv));
 
     // 3. Let actions by tick be an empty List.
     Vector<Vector<ActionObject>> actions_by_tick;
@@ -985,25 +985,25 @@ static ErrorOr<void, WebDriver::Error> dispatch_key_down_action(ActionObject::Ke
     auto modifiers = global_key_state.modifiers();
 
     // 7. If key is "Alt", let source's alt property be true.
-    if (key == "Alt"sv) {
+    if (key == "Alt"_sv) {
         modifiers |= UIEvents::KeyModifier::Mod_Alt;
         source.alt = true;
     }
 
     // 8. If key is "Shift", let source's shift property be true.
-    else if (key == "Shift"sv) {
+    else if (key == "Shift"_sv) {
         modifiers |= UIEvents::KeyModifier::Mod_Shift;
         source.shift = true;
     }
 
     // 9. If key is "Control", let source's ctrl property be true.
-    else if (key == "Control"sv) {
+    else if (key == "Control"_sv) {
         modifiers |= UIEvents::KeyModifier::Mod_Ctrl;
         source.ctrl = true;
     }
 
     // 10. If key is "Meta", let source's meta property be true.
-    else if (key == "Meta"sv) {
+    else if (key == "Meta"_sv) {
         modifiers |= UIEvents::KeyModifier::Mod_Super;
         source.meta = true;
     }
@@ -1045,25 +1045,25 @@ static ErrorOr<void, WebDriver::Error> dispatch_key_up_action(ActionObject::KeyF
     auto modifiers = global_key_state.modifiers();
 
     // 7. If key is "Alt", let source's alt property be false.
-    if (key == "Alt"sv) {
+    if (key == "Alt"_sv) {
         modifiers &= ~UIEvents::KeyModifier::Mod_Alt;
         source.alt = false;
     }
 
     // 8. If key is "Shift", let source's shift property be false.
-    else if (key == "Shift"sv) {
+    else if (key == "Shift"_sv) {
         modifiers &= ~UIEvents::KeyModifier::Mod_Shift;
         source.shift = false;
     }
 
     // 9. If key is "Control", let source's ctrl property be false.
-    else if (key == "Control"sv) {
+    else if (key == "Control"_sv) {
         modifiers &= ~UIEvents::KeyModifier::Mod_Ctrl;
         source.ctrl = false;
     }
 
     // 10. If key is "Meta", let source's meta property be false.
-    else if (key == "Meta"sv) {
+    else if (key == "Meta"_sv) {
         modifiers &= ~UIEvents::KeyModifier::Mod_Super;
         source.meta = false;
     }
@@ -1124,9 +1124,9 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_down_action(ActionObject
         browsing_context.page().handle_mousedown(position, position, button, buttons, global_key_state.modifiers());
         break;
     case PointerInputSource::Subtype::Pen:
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"_sv);
     case PointerInputSource::Subtype::Touch:
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"_sv);
     }
 
     // 17. Return success with data null.
@@ -1166,9 +1166,9 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_up_action(ActionObject::
         browsing_context.page().handle_mouseup(position, position, button, buttons, global_key_state.modifiers());
         break;
     case PointerInputSource::Subtype::Pen:
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"_sv);
     case PointerInputSource::Subtype::Touch:
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"_sv);
     }
 
     // 8. Return success with data null.
@@ -1212,9 +1212,9 @@ static ErrorOr<void, WebDriver::Error> perform_pointer_move(ActionObject::Pointe
             browsing_context.page().handle_mousemove(position, position, buttons, global_key_state.modifiers());
             break;
         case PointerInputSource::Subtype::Pen:
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"_sv);
         case PointerInputSource::Subtype::Touch:
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"sv);
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"_sv);
         }
 
         // 3. Let input state's x property equal x and y property equal y.
@@ -1455,9 +1455,9 @@ ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState& input_state, R
             TRY(dispatch_pointer_move_action(action_object.pointer_move_fields(), source->get<PointerInputSource>(), global_key_state, tick_duration, browsing_context, actions_options));
             break;
         case ActionObject::Subtype::PointerCancel:
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pointer cancel events not implemented"sv);
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pointer cancel events not implemented"_sv);
         case ActionObject::Subtype::Scroll:
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Scroll events not implemented"sv);
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Scroll events not implemented"_sv);
         }
 
         // 9. If subtype is "keyDown", append a copy of action object with the subtype property changed to "keyUp" to

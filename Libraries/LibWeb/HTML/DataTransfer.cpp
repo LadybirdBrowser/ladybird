@@ -148,12 +148,12 @@ String DataTransfer::get_data(String const& format_argument) const
     [[maybe_unused]] bool convert_to_url = false;
 
     // 5. If format equals "text", change it to "text/plain".
-    if (format == "text"sv) {
+    if (format == "text"_sv) {
         format = "text/plain"_string;
     }
 
     // 6. If format equals "url", change it to "text/uri-list" and set convert-to-URL to true.
-    else if (format == "url"sv) {
+    else if (format == "url"_sv) {
         format = "text/uri-list"_string;
         convert_to_url = true;
     }

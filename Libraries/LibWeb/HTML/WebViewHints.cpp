@@ -41,7 +41,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
     auto screen_rect = page.web_exposed_screen_area();
 
     // 5. If tokenizedFeatures["left"] exists:
-    if (auto left = tokenized_features.get("left"sv); left.has_value()) {
+    if (auto left = tokenized_features.get("left"_sv); left.has_value()) {
         // 1. Set x to the result of invoking the rules for parsing integers on tokenizedFeatures["left"].
         // 2. If x is an error, set x to 0.
         x = parse_integer(*left).value_or(0);
@@ -55,7 +55,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
     }
 
     // 6. If tokenizedFeatures["top"] exists:
-    if (auto top = tokenized_features.get("top"sv); top.has_value()) {
+    if (auto top = tokenized_features.get("top"_sv); top.has_value()) {
         // 1. Set y to the result of invoking the rules for parsing integers on tokenizedFeatures["top"].
         // 2. If y is an error, set y to 0.
         y = parse_integer(*top).value_or(0);
@@ -69,7 +69,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
     }
 
     // 7. If tokenizedFeatures["width"] exists:
-    if (auto width_token = tokenized_features.get("width"sv); width_token.has_value()) {
+    if (auto width_token = tokenized_features.get("width"_sv); width_token.has_value()) {
         // 1. Set width to the result of invoking the rules for parsing integers on tokenizedFeatures["width"].
         // 2. If width is an error, set width to 0.
         width = parse_integer(*width_token).value_or(0);
@@ -86,7 +86,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
     }
 
     // 8. If tokenizedFeatures["height"] exists:
-    if (auto height_token = tokenized_features.get("height"sv); height_token.has_value()) {
+    if (auto height_token = tokenized_features.get("height"_sv); height_token.has_value()) {
         // 1. Set height to the result of invoking the rules for parsing integers on tokenizedFeatures["height"].
         // 2. If height is an error, set height to 0.
         height = parse_integer(*height_token).value_or(0);

@@ -1289,10 +1289,10 @@ void Object::define_native_accessor(Realm& realm, PropertyKey const& property_ke
 {
     FunctionObject* getter_function = nullptr;
     if (getter)
-        getter_function = NativeFunction::create(realm, move(getter), 0, property_key, &realm, "get"sv);
+        getter_function = NativeFunction::create(realm, move(getter), 0, property_key, &realm, "get"_sv);
     FunctionObject* setter_function = nullptr;
     if (setter)
-        setter_function = NativeFunction::create(realm, move(setter), 1, property_key, &realm, "set"sv);
+        setter_function = NativeFunction::create(realm, move(setter), 1, property_key, &realm, "set"_sv);
     return define_direct_accessor(property_key, getter_function, setter_function, attribute);
 }
 

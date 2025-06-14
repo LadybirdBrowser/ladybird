@@ -101,11 +101,11 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
 {
     // 1. If init["status"] is not in the range 200 to 599, inclusive, then throw a RangeError.
     if (init.status < 200 || init.status > 599)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Status must be in range 200-599"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Status must be in range 200-599"_sv };
 
     // 2. If init["statusText"] is not the empty string and does not match the reason-phrase token production, then throw a TypeError.
     if (!is_valid_status_text(init.status_text))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid statusText: does not match the reason-phrase token production"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid statusText: does not match the reason-phrase token production"_sv };
 
     // 3. Set response’s response’s status to init["status"].
     m_response->set_status(init.status);
@@ -121,15 +121,15 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
     if (body.has_value()) {
         // 1. If response’s status is a null body status, then throw a TypeError.
         if (Infrastructure::is_null_body_status(m_response->status()))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Response with null body status cannot have a body"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Response with null body status cannot have a body"_sv };
 
         // 2. Set response’s body to body’s body.
         m_response->set_body(body->body);
 
         // 3. If body’s type is non-null and response’s header list does not contain `Content-Type`, then append (`Content-Type`, body’s type) to response’s header list.
-        if (body->type.has_value() && !m_response->header_list()->contains("Content-Type"sv.bytes())) {
+        if (body->type.has_value() && !m_response->header_list()->contains("Content-Type"_sv.bytes())) {
             auto header = Infrastructure::Header {
-                .name = MUST(ByteBuffer::copy("Content-Type"sv.bytes())),
+                .name = MUST(ByteBuffer::copy("Content-Type"_sv.bytes())),
                 .value = MUST(ByteBuffer::copy(body->type->span())),
             };
             m_response->header_list()->append(move(header));
@@ -187,11 +187,11 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
 
     // 2. If parsedURL is failure, then throw a TypeError.
     if (!parsed_url.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Redirect URL is not valid"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Redirect URL is not valid"_sv };
 
     // 3. If status is not a redirect status, then throw a RangeError.
     if (!Infrastructure::is_redirect_status(status))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Status must be one of 301, 302, 303, 307, or 308"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Status must be one of 301, 302, 303, 307, or 308"_sv };
 
     // 4. Let responseObject be the result of creating a Response object, given a new response, "immutable", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
@@ -204,7 +204,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
     auto value = parsed_url->serialize();
 
     // 7. Append (`Location`, value) to responseObject’s response’s header list.
-    auto header = Infrastructure::Header::from_string_pair("Location"sv, value);
+    auto header = Infrastructure::Header::from_string_pair("Location"_sv, value);
     response_object->response()->header_list()->append(move(header));
 
     // 8. Return responseObject.
@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::VM& vm, JS::Value data
     // 4. Perform initialize a response given responseObject, init, and (body, "application/json").
     auto body_with_type = Infrastructure::BodyWithType {
         .body = body,
-        .type = MUST(ByteBuffer::copy("application/json"sv.bytes()))
+        .type = MUST(ByteBuffer::copy("application/json"_sv.bytes()))
     };
     TRY(response_object->initialize_response(init, move(body_with_type)));
 
@@ -295,7 +295,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::clone() const
 
     // 1. If this is unusable, then throw a TypeError.
     if (is_unusable())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Response is unusable"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Response is unusable"_sv };
 
     // 2. Let clonedResponse be the result of cloning this’s response.
     auto cloned_response = m_response->clone(realm);

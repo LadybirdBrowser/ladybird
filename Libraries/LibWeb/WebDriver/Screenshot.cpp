@@ -24,7 +24,7 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     // 1. If either the initial viewport's width or height is 0 CSS pixels, return error with error code unable to capture screen.
     auto viewport_rect = browsing_context.top_level_traversable()->viewport_rect();
     if (viewport_rect.is_empty())
-        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Viewport is empty"sv);
+        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Viewport is empty"_sv);
 
     auto viewport_device_rect = browsing_context.page().enclosing_device_rect(viewport_rect).to_type<int>();
 
@@ -46,7 +46,7 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     MUST(canvas.create_2d_context({}));
     canvas.allocate_painting_surface_if_needed();
     if (!canvas.surface())
-        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to allocate painting surface"sv);
+        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to allocate painting surface"_sv);
 
     // 6. Complete implementation specific steps equivalent to drawing the region of the framebuffer specified by the following coordinates onto context:
     //    - X coordinate: rectangle x coordinate
@@ -78,11 +78,11 @@ Response encode_canvas_element(HTML::HTMLCanvasElement& canvas)
 
     // 2. If the canvas element’s bitmap has no pixels (i.e. either its horizontal dimension or vertical dimension is zero) then return error with error code unable to capture screen.
     if (canvas.surface()->size().is_empty())
-        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"sv);
+        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"_sv);
 
     // 3. Let file be a serialization of the canvas element’s bitmap as a file, using "image/png" as an argument.
     // 4. Let data url be a data: URL representing file. [RFC2397]
-    auto data_url = canvas.to_data_url("image/png"sv, JS::js_undefined());
+    auto data_url = canvas.to_data_url("image/png"_sv, JS::js_undefined());
 
     // 5. Let index be the index of "," in data url.
     auto index = data_url.find_byte_offset(',');

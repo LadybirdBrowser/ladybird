@@ -130,11 +130,11 @@ static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, u8 jpeg
 
     auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
 
-    if (out_path.ends_with(".jpg"sv, CaseSensitivity::CaseInsensitive) || out_path.ends_with(".jpeg"sv, CaseSensitivity::CaseInsensitive)) {
+    if (out_path.ends_with(".jpg"_sv, CaseSensitivity::CaseInsensitive) || out_path.ends_with(".jpeg"_sv, CaseSensitivity::CaseInsensitive)) {
         TRY(Gfx::JPEGWriter::encode(*TRY(stream()), *frame, { .icc_data = image.icc_data, .quality = jpeg_quality }));
         return {};
     }
-    if (out_path.ends_with(".webp"sv, CaseSensitivity::CaseInsensitive)) {
+    if (out_path.ends_with(".webp"_sv, CaseSensitivity::CaseInsensitive)) {
         Gfx::WebPWriter::Options options;
         options.icc_data = image.icc_data;
         if (webp_allowed_transforms.has_value())
@@ -144,9 +144,9 @@ static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, u8 jpeg
     }
 
     ByteBuffer bytes;
-    if (out_path.ends_with(".bmp"sv, CaseSensitivity::CaseInsensitive)) {
+    if (out_path.ends_with(".bmp"_sv, CaseSensitivity::CaseInsensitive)) {
         bytes = TRY(Gfx::BMPWriter::encode(*frame, { .icc_data = image.icc_data }));
-    } else if (out_path.ends_with(".png"sv, CaseSensitivity::CaseInsensitive)) {
+    } else if (out_path.ends_with(".png"_sv, CaseSensitivity::CaseInsensitive)) {
         bytes = TRY(Gfx::PNGWriter::encode(*frame, { .icc_data = image.icc_data }));
     } else {
         return Error::from_string_literal("can only write .bmp, .gif, .jpg, .png, and .webp");
@@ -227,7 +227,7 @@ static ErrorOr<Options> parse_options(Main::Arguments arguments)
     args_parser.add_option(options.strip_alpha, "Remove alpha channel", "strip-alpha", {});
     args_parser.add_option(options.assign_color_profile_path, "Load color profile from file and assign it to output image", "assign-color-profile", {}, "FILE");
     args_parser.add_option(options.quality, "Quality used for the JPEG encoder, the default value is 75 on a scale from 0 to 100", "quality", {}, {});
-    StringView webp_allowed_transforms = "default"sv;
+    StringView webp_allowed_transforms = "default"_sv;
     args_parser.add_option(webp_allowed_transforms, "Comma-separated list of allowed transforms (predictor,p,color,c,subtract-green,sg,color-indexing,ci) for WebP output (default: all allowed)", "webp-allowed-transforms", {}, {});
     args_parser.parse(arguments);
 
@@ -236,7 +236,7 @@ static ErrorOr<Options> parse_options(Main::Arguments arguments)
 
     if (!crop_rect_string.is_empty())
         options.crop_rect = TRY(parse_rect_string(crop_rect_string));
-    if (webp_allowed_transforms != "default"sv)
+    if (webp_allowed_transforms != "default"_sv)
         options.webp_allowed_transforms = TRY(parse_webp_allowed_transforms_string(webp_allowed_transforms));
 
     return options;

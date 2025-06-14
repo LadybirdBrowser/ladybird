@@ -62,14 +62,14 @@ ThrowCompletionOr<SetRecord> get_set_record(VM& vm, Value value)
     // 4. NOTE: If rawSize is undefined, then numSize will be NaN.
     // 5. If numSize is NaN, throw a TypeError exception.
     if (number_size.is_nan())
-        return vm.throw_completion<TypeError>(ErrorType::NumberIsNaN, "size"sv);
+        return vm.throw_completion<TypeError>(ErrorType::NumberIsNaN, "size"_sv);
 
     // 6. Let intSize be ! ToIntegerOrInfinity(numSize).
     auto integer_size = MUST(number_size.to_integer_or_infinity(vm));
 
     // 7. If intSize < 0, throw a RangeError exception.
     if (integer_size < 0)
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "size"sv);
+        return vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "size"_sv);
 
     // 8. Let has be ? Get(obj, "has").
     auto has = TRY(object.get(vm.names.has));

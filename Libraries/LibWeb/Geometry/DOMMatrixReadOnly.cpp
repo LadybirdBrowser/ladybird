@@ -573,128 +573,128 @@ WebIDL::ExceptionOr<String> DOMMatrixReadOnly::to_string() const
     // 3. If is 2D is true, then:
     if (m_is_2d) {
         // 1. Append "matrix(" to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append("matrix("sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append("matrix("_sv));
 
         // 2. Append ! ToString(m11 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m11()).to_string_without_side_effects()));
 
         // 3. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 4. Append ! ToString(m12 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m12()).to_string_without_side_effects()));
 
         // 5. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 6. Append ! ToString(m21 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m21()).to_string_without_side_effects()));
 
         // 7. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 8. Append ! ToString(m22 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m22()).to_string_without_side_effects()));
 
         // 9. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 10. Append ! ToString(m41 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m41()).to_string_without_side_effects()));
 
         // 11. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 12. Append ! ToString(m42 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m42()).to_string_without_side_effects()));
 
         // 13. Append ")" to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(")"sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(")"_sv));
     } else {
         // 1. Append "matrix3d(" to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append("matrix3d("sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append("matrix3d("_sv));
 
         // 2. Append ! ToString(m11 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m11())));
 
         // 3. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 4. Append ! ToString(m12 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m12())));
 
         // 5. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 6. Append ! ToString(m13 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m13())));
 
         // 7. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 8. Append ! ToString(m14 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m14())));
 
         // 9. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 10. Append ! ToString(m21 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m21())));
 
         // 11. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 12. Append ! ToString(m22 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m22())));
 
         // 13. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 14. Append ! ToString(m23 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m23())));
 
         // 15. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 16. Append ! ToString(m24 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m24())));
 
         // 17. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // NOTE: The spec doesn't include the steps to append m31 to m34, but they are required as matrix3d requires 16 elements.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m31())));
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m32())));
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m33())));
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m34())));
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 18. Append ! ToString(m41 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m41())));
 
         // 19. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 20. Append ! ToString(m42 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m42())));
 
         // 21. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 22. Append ! ToString(m43 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m43())));
 
         // 23. Append ", " to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(", "_sv));
 
         // 24. Append ! ToString(m44 element) to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m44())));
 
         // 25. Append ")" to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(")"sv));
+        TRY_OR_THROW_OOM(vm, builder.try_append(")"_sv));
     }
 
     // 5. Return string.
@@ -841,27 +841,27 @@ WebIDL::ExceptionOr<void> validate_and_fixup_dom_matrix_2d_init(DOMMatrix2DInit&
     // 1. If at least one of the following conditions are true for dict, then throw a TypeError exception and abort these steps.
     // - a and m11 are both present and SameValueZero(a, m11) is false.
     if (init.a.has_value() && init.m11.has_value() && !JS::same_value_zero(JS::Value(init.a.value()), JS::Value(init.m11.value())))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.a and DOMMatrix2DInit.m11 must have the same value if they are both present"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.a and DOMMatrix2DInit.m11 must have the same value if they are both present"_sv };
 
     // - b and m12 are both present and SameValueZero(b, m12) is false.
     if (init.b.has_value() && init.m12.has_value() && !JS::same_value_zero(JS::Value(init.b.value()), JS::Value(init.m12.value())))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.b and DOMMatrix2DInit.m12 must have the same value if they are both present"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.b and DOMMatrix2DInit.m12 must have the same value if they are both present"_sv };
 
     // - c and m21 are both present and SameValueZero(c, m21) is false.
     if (init.c.has_value() && init.m21.has_value() && !JS::same_value_zero(JS::Value(init.c.value()), JS::Value(init.m21.value())))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.c and DOMMatrix2DInit.m21 must have the same value if they are both present"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.c and DOMMatrix2DInit.m21 must have the same value if they are both present"_sv };
 
     // - d and m22 are both present and SameValueZero(d, m22) is false.
     if (init.d.has_value() && init.m22.has_value() && !JS::same_value_zero(JS::Value(init.d.value()), JS::Value(init.m22.value())))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.d and DOMMatrix2DInit.m22 must have the same value if they are both present"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.d and DOMMatrix2DInit.m22 must have the same value if they are both present"_sv };
 
     // - e and m41 are both present and SameValueZero(e, m41) is false.
     if (init.e.has_value() && init.m41.has_value() && !JS::same_value_zero(JS::Value(init.e.value()), JS::Value(init.m41.value())))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.e and DOMMatrix2DInit.m41 must have the same value if they are both present"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.e and DOMMatrix2DInit.m41 must have the same value if they are both present"_sv };
 
     // - f and m42 are both present and SameValueZero(f, m42) is false.
     if (init.f.has_value() && init.m42.has_value() && !JS::same_value_zero(JS::Value(init.f.value()), JS::Value(init.m42.value())))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.f and DOMMatrix2DInit.m42 must have the same value if they are both present"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrix2DInit.f and DOMMatrix2DInit.m42 must have the same value if they are both present"_sv };
 
     // 2. If m11 is not present then set it to the value of member a, or value 1 if a is also not present.
     if (!init.m11.has_value())
@@ -909,7 +909,7 @@ WebIDL::ExceptionOr<void> validate_and_fixup_dom_matrix_init(DOMMatrixInit& init
             || (init.m43 != 0.0 && init.m43 != -0.0)
             || init.m33 != 1.0
             || init.m44 != 1.0) {
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrixInit.is2D is true, but the given matrix is not a 2D matrix"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "DOMMatrixInit.is2D is true, but the given matrix is not a 2D matrix"_sv };
         }
     }
 
@@ -942,7 +942,7 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
 {
     // 1. If transformList is the empty string, set it to the string "matrix(1, 0, 0, 1, 0, 0)".
     if (transform_list.is_empty())
-        transform_list = "matrix(1, 0, 0, 1, 0, 0)"sv;
+        transform_list = "matrix(1, 0, 0, 1, 0, 0)"_sv;
 
     // 2. Parse transformList into parsedValue given the grammar for the CSS transform property.
     // The result will be a <transform-list>, the keyword none, or failure.

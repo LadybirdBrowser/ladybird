@@ -10,10 +10,10 @@
 
 #define TEST_INPUT(x) ("test-inputs/" x)
 
-auto small_image = Core::File::open(TEST_INPUT("jpg/rgb24.jpg"sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
-auto big_image = Core::File::open(TEST_INPUT("jpg/big_image.jpg"sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
-auto rgb_image = Core::File::open(TEST_INPUT("jpg/rgb_components.jpg"sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
-auto several_scans = Core::File::open(TEST_INPUT("jpg/several_scans.jpg"sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
+auto small_image = Core::File::open(TEST_INPUT("jpg/rgb24.jpg"_sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
+auto big_image = Core::File::open(TEST_INPUT("jpg/big_image.jpg"_sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
+auto rgb_image = Core::File::open(TEST_INPUT("jpg/rgb_components.jpg"_sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
+auto several_scans = Core::File::open(TEST_INPUT("jpg/several_scans.jpg"_sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
 
 BENCHMARK_CASE(small_image)
 {

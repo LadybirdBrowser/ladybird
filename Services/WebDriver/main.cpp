@@ -36,7 +36,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
 static Vector<ByteString> create_arguments(ByteString const& socket_path, bool headless, bool force_cpu_painting, Optional<StringView> debug_process)
 {
     Vector<ByteString> arguments {
-        "--webdriver-content-path"sv,
+        "--webdriver-content-path"_sv,
         socket_path,
     };
 
@@ -47,22 +47,22 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool h
     }
 
     if (headless)
-        arguments.append("--headless"sv);
+        arguments.append("--headless"_sv);
 
-    arguments.append("--allow-popups"sv);
-    arguments.append("--force-new-process"sv);
-    arguments.append("--enable-autoplay"sv);
-    arguments.append("--disable-scrollbar-painting"sv);
+    arguments.append("--allow-popups"_sv);
+    arguments.append("--force-new-process"_sv);
+    arguments.append("--enable-autoplay"_sv);
+    arguments.append("--disable-scrollbar-painting"_sv);
     if (force_cpu_painting)
-        arguments.append("--force-cpu-painting"sv);
+        arguments.append("--force-cpu-painting"_sv);
 
     if (debug_process.has_value())
         arguments.append(ByteString::formatted("--debug-process={}", debug_process.value()));
 
     // FIXME: WebDriver does not yet handle the WebContent process switch brought by site isolation.
-    arguments.append("--disable-site-isolation"sv);
+    arguments.append("--disable-site-isolation"_sv);
 
-    arguments.append("about:blank"sv);
+    arguments.append("about:blank"_sv);
     return arguments;
 }
 
@@ -70,7 +70,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-    auto listen_address = "0.0.0.0"sv;
+    auto listen_address = "0.0.0.0"_sv;
     int port = 8000;
     bool force_cpu_painting = false;
     bool headless = false;
@@ -122,7 +122,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
         auto launch_browser_callback = [&](ByteString const& socket_path, bool headless) {
             auto arguments = create_arguments(socket_path, headless, force_cpu_painting, debug_process);
-            return launch_process("Ladybird"sv, arguments.span());
+            return launch_process("Ladybird"_sv, arguments.span());
         };
 
         auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), move(launch_browser_callback), server);

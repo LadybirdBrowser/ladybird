@@ -98,7 +98,7 @@ TEST_CASE(regex_options_posix)
 
 TEST_CASE(regex_lexer)
 {
-    Lexer l("/[.*+?^${}()|[\\]\\\\]/g"sv);
+    Lexer l("/[.*+?^${}()|[\\]\\\\]/g"_sv);
     EXPECT(l.next().type() == regex::TokenType::Slash);
     EXPECT(l.next().type() == regex::TokenType::LeftBracket);
     EXPECT(l.next().type() == regex::TokenType::Period);
@@ -151,7 +151,7 @@ TEST_CASE(parser_error_special_characters_used_at_wrong_place)
 
         // After vertical line
         b.clear();
-        b.append("a|"sv);
+        b.append("a|"_sv);
         b.append(ch);
         pattern = b.to_byte_string();
         l.set_source(pattern);
@@ -198,25 +198,25 @@ TEST_CASE(parser_error_vertical_line_used_at_wrong_place)
     PosixExtended p(l);
 
     // First in ere
-    l.set_source("|asdf"sv);
+    l.set_source("|asdf"_sv);
     p.parse();
     EXPECT(p.has_error());
     EXPECT(p.error() == regex::Error::EmptySubExpression);
 
     // Last in ere
-    l.set_source("asdf|"sv);
+    l.set_source("asdf|"_sv);
     p.parse();
     EXPECT(p.has_error());
     EXPECT(p.error() == regex::Error::EmptySubExpression);
 
     // After left parens
-    l.set_source("(|asdf)"sv);
+    l.set_source("(|asdf)"_sv);
     p.parse();
     EXPECT(p.has_error());
     EXPECT(p.error() == regex::Error::EmptySubExpression);
 
     // Proceed right parens
-    l.set_source("(asdf)|"sv);
+    l.set_source("(asdf)|"_sv);
     p.parse();
     EXPECT(p.has_error());
     EXPECT(p.error() == regex::Error::EmptySubExpression);
@@ -226,21 +226,21 @@ TEST_CASE(catch_all_first)
 {
     Regex<PosixExtended> re("^.*$");
     RegexResult m;
-    re.match("Hello World"sv, m);
+    re.match("Hello World"_sv, m);
     EXPECT(m.count == 1);
-    EXPECT(re.match("Hello World"sv, m));
+    EXPECT(re.match("Hello World"_sv, m));
 }
 
 TEST_CASE(catch_all)
 {
     Regex<PosixExtended> re("^.*$", PosixFlags::Global);
 
-    EXPECT(re.has_match("Hello World"sv));
-    EXPECT(re.match("Hello World"sv).success);
-    EXPECT(re.match("Hello World"sv).count == 1);
+    EXPECT(re.has_match("Hello World"_sv));
+    EXPECT(re.match("Hello World"_sv).success);
+    EXPECT(re.match("Hello World"_sv).count == 1);
 
-    EXPECT(has_match("Hello World"sv, re));
-    auto res = match("Hello World"sv, re);
+    EXPECT(has_match("Hello World"_sv, re));
+    auto res = match("Hello World"_sv, re);
     EXPECT(res.success);
     EXPECT(res.count == 1);
     EXPECT(res.matches.size() == 1);
@@ -250,7 +250,7 @@ TEST_CASE(catch_all)
 TEST_CASE(catch_all_again)
 {
     Regex<PosixExtended> re("^.*$", PosixFlags::Extra);
-    EXPECT_EQ(has_match("Hello World"sv, re), true);
+    EXPECT_EQ(has_match("Hello World"_sv, re), true);
 }
 
 TEST_CASE(catch_all_newline)
@@ -288,14 +288,14 @@ TEST_CASE(catch_all_newline_2)
 {
     Regex<PosixExtended> re("^.*$");
     RegexResult result;
-    result = match("Hello World\nTest\n1234\n"sv, re, PosixFlags::Multiline);
+    result = match("Hello World\nTest\n1234\n"_sv, re, PosixFlags::Multiline);
     EXPECT_EQ(result.success, true);
     EXPECT_EQ(result.count, 3u);
     EXPECT_EQ(result.matches.at(0).view, "Hello World");
     EXPECT_EQ(result.matches.at(1).view, "Test");
     EXPECT_EQ(result.matches.at(2).view, "1234");
 
-    result = match("Hello World\nTest\n1234\n"sv, re);
+    result = match("Hello World\nTest\n1234\n"_sv, re);
     EXPECT_EQ(result.success, true);
     EXPECT_EQ(result.count, 1u);
     EXPECT_EQ(result.matches.at(0).view, "Hello World\nTest\n1234\n");
@@ -327,16 +327,16 @@ TEST_CASE(match_character_class_with_assertion)
 TEST_CASE(example_for_git_commit)
 {
     Regex<PosixExtended> re("^.*$");
-    auto result = re.match("Well, hello friends!\nHello World!"sv);
+    auto result = re.match("Well, hello friends!\nHello World!"_sv);
 
     EXPECT(result.success);
     EXPECT(result.count == 1);
-    EXPECT(result.matches.at(0).view.starts_with("Well"sv));
+    EXPECT(result.matches.at(0).view.starts_with("Well"_sv));
     EXPECT(result.matches.at(0).view.length() == 33);
 
-    EXPECT(re.has_match("Well,...."sv));
+    EXPECT(re.has_match("Well,...."_sv));
 
-    result = re.match("Well, hello friends!\nHello World!"sv, PosixFlags::Multiline);
+    result = re.match("Well, hello friends!\nHello World!"_sv, PosixFlags::Multiline);
 
     EXPECT(result.success);
     EXPECT(result.count == 2);
@@ -347,8 +347,8 @@ TEST_CASE(example_for_git_commit)
 TEST_CASE(email_address)
 {
     Regex<PosixExtended> re("^[A-Z0-9a-z._%+-]{1,64}@([A-Za-z0-9-]{1,63}\\.){1,125}[A-Za-z]{2,63}$");
-    EXPECT(re.has_match("hello.world@domain.tld"sv));
-    EXPECT(re.has_match("this.is.a.very_long_email_address@world.wide.web"sv));
+    EXPECT(re.has_match("hello.world@domain.tld"_sv));
+    EXPECT(re.has_match("this.is.a.very_long_email_address@world.wide.web"_sv));
 }
 
 TEST_CASE(ini_file_entries)
@@ -473,25 +473,25 @@ TEST_CASE(simple_period_end_benchmark)
 {
     Regex<PosixExtended> re("hello.$");
     RegexResult m;
-    EXPECT_EQ(re.search("Hello1"sv, m), false);
-    EXPECT_EQ(re.search("hello1hello1"sv, m), true);
-    EXPECT_EQ(re.search("hello2hell"sv, m), false);
-    EXPECT_EQ(re.search("hello?"sv, m), true);
+    EXPECT_EQ(re.search("Hello1"_sv, m), false);
+    EXPECT_EQ(re.search("hello1hello1"_sv, m), true);
+    EXPECT_EQ(re.search("hello2hell"_sv, m), false);
+    EXPECT_EQ(re.search("hello?"_sv, m), true);
 }
 
 TEST_CASE(posix_extended_nested_capture_group)
 {
     Regex<PosixExtended> re("(h(e(?<llo>llo)))"); // group 0 -> "hello", group 1 -> "ello", group 2/"llo" -> "llo"
-    auto result = re.match("hello"sv);
+    auto result = re.match("hello"_sv);
     EXPECT(result.success);
     EXPECT_EQ(result.capture_group_matches.size(), 1u);
     EXPECT_EQ(result.capture_group_matches[0].size(), 3u);
-    EXPECT_EQ(result.capture_group_matches[0][0].view, "hello"sv);
-    EXPECT_EQ(result.capture_group_matches[0][1].view, "ello"sv);
-    EXPECT_EQ(result.capture_group_matches[0][2].view, "llo"sv);
+    EXPECT_EQ(result.capture_group_matches[0][0].view, "hello"_sv);
+    EXPECT_EQ(result.capture_group_matches[0][1].view, "ello"_sv);
+    EXPECT_EQ(result.capture_group_matches[0][2].view, "llo"_sv);
 }
 
-auto parse_test_case_long_disjunction_chain = ByteString::repeated("a|"sv, 100000);
+auto parse_test_case_long_disjunction_chain = ByteString::repeated("a|"_sv, 100000);
 
 TEST_CASE(ECMA262_parse)
 {
@@ -502,105 +502,105 @@ TEST_CASE(ECMA262_parse)
     };
 
     _test const tests[] {
-        { "^hello.$"sv },
-        { "^(hello.)$"sv },
-        { "^h{0,1}ello.$"sv },
-        { "^hello\\W$"sv },
-        { "^hell\\w.$"sv },
-        { "^hell\\x6f1$"sv }, // ^hello1$
-        { "^hel(?:l\\w).$"sv },
-        { "^hel(?<LO>l\\w).$"sv },
-        { "^[-a-zA-Z\\w\\s]+$"sv },
-        { "\\bhello\\B"sv },
-        { "^[\\w+/_-]+[=]{0,2}$"sv },                        // #4189
-        { "^(?:[^<]*(<[\\w\\W]+>)[^>]*$|#([\\w\\-]*)$)"sv }, // #4189
-        { "\\/"sv },                                         // #4189
-        { ",/=-:"sv },                                       // #4243
-        { "\\x"sv },                                         // Even invalid escapes are allowed if ~unicode.
-        { "\\x1"sv },                                        // Even invalid escapes are allowed if ~unicode.
-        { "\\x1"sv, regex::Error::InvalidPattern, regex::ECMAScriptFlags::Unicode },
-        { "\\x11"sv },
-        { "\\x11"sv, regex::Error::NoError, regex::ECMAScriptFlags::Unicode },
-        { "\\"sv, regex::Error::InvalidTrailingEscape },
-        { "(?"sv, regex::Error::InvalidCaptureGroup },
-        { "\\u1234"sv, regex::Error::NoError, regex::ECMAScriptFlags::Unicode },
-        { "[\\u1234]"sv, regex::Error::NoError, regex::ECMAScriptFlags::Unicode },
-        { "\\u1"sv, regex::Error::InvalidPattern, regex::ECMAScriptFlags::Unicode },
-        { "[\\u1]"sv, regex::Error::InvalidPattern, regex::ECMAScriptFlags::Unicode },
-        { ",(?"sv, regex::Error::InvalidCaptureGroup }, // #4583
-        { "{1}"sv, regex::Error::InvalidPattern },
-        { "{1,2}"sv, regex::Error::InvalidPattern },
-        { "\\uxxxx"sv, regex::Error::NoError },
-        { "\\uxxxx"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\ud83d"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "\\ud83d\\uxxxx"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\u{0}"sv },
-        { "\\u{0}"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "\\u{10ffff}"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "\\u{10ffff"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\u{10ffffx"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\u{110000}"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\p"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\p{"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\p{}"sv, regex::Error::InvalidNameForProperty, ECMAScriptFlags::Unicode },
-        { "\\p{AsCiI}"sv, regex::Error::InvalidNameForProperty, ECMAScriptFlags::Unicode },
-        { "\\p{hello friends}"sv, regex::Error::InvalidNameForProperty, ECMAScriptFlags::Unicode },
-        { "\\p{Prepended_Concatenation_Mark}"sv, regex::Error::InvalidNameForProperty, ECMAScriptFlags::Unicode },
-        { "\\p{ASCII}"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "\\\\p{1}"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "\\\\p{AsCiI}"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\\\p{ASCII}"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\c"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "\\c"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "[\\c]"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "[\\c]"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\c`"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "\\c`"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "[\\c`]"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "[\\c`]"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\A"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "\\A"sv, regex::Error::InvalidCharacterClass, ECMAScriptFlags::Unicode },
-        { "[\\A]"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "[\\A]"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\0"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "\\0"sv, regex::Error::NoError, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
-        { "\\00"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "\\00"sv, regex::Error::InvalidCharacterClass, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
-        { "[\\0]"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "[\\0]"sv, regex::Error::NoError, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
-        { "[\\00]"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "[\\00]"sv, regex::Error::InvalidPattern, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
-        { "\\^\\$\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|\\/"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "[\\^\\$\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|\\/]"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "]"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "]"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\]"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "}"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
-        { "}"sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
-        { "\\}"sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
-        { "a{9007199254740991}"sv }, // 2^53 - 1
-        { "a{9007199254740991,}"sv },
-        { "a{9007199254740991,9007199254740991}"sv },
-        { "a{9007199254740992}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740991,9007199254740992}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,9007199254740991}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,9007199254740992}"sv, regex::Error::InvalidBraceContent },
-        { "(?<a>a)(?<a>b)"sv, regex::Error::DuplicateNamedCapture },
-        { "(?<a>a)(?<b>b)(?<a>c)"sv, regex::Error::DuplicateNamedCapture },
-        { "(?<a>(?<a>a))"sv, regex::Error::DuplicateNamedCapture },
-        { "(?:(?<x>a)|(?<y>a)(?<x>b))(?:(?<z>c)|(?<z>d))"sv }, // Duplicate named capturing groups in separate alternatives should parse correctly
-        { "(?<1a>a)"sv, regex::Error::InvalidNameForCaptureGroup },
-        { "(?<\\a>a)"sv, regex::Error::InvalidNameForCaptureGroup },
-        { "(?<\ta>a)"sv, regex::Error::InvalidNameForCaptureGroup },
-        { "(?<$$_$$>a)"sv },
-        { "(?<ÿ>a)"sv },
-        { "(?<𝓑𝓻𝓸𝔀𝓷>a)"sv },
-        { "((?=lg)?[vl]k\\-?\\d{3}) bui| 3\\.[-\\w; ]{10}lg?-([06cv9]{3,4})"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended }, // #12373, quantifiable assertions.
-        { parse_test_case_long_disjunction_chain.view() },                                                                                 // A whole lot of disjunctions, should not overflow the stack.
-        { "(\"|')(?:(?!\\2)[^\\\\\\r\\n]|\\\\.)*\\2"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },                         // LegacyOctalEscapeSequence should not consume too many chars (and should not crash)
+        { "^hello.$"_sv },
+        { "^(hello.)$"_sv },
+        { "^h{0,1}ello.$"_sv },
+        { "^hello\\W$"_sv },
+        { "^hell\\w.$"_sv },
+        { "^hell\\x6f1$"_sv }, // ^hello1$
+        { "^hel(?:l\\w).$"_sv },
+        { "^hel(?<LO>l\\w).$"_sv },
+        { "^[-a-zA-Z\\w\\s]+$"_sv },
+        { "\\bhello\\B"_sv },
+        { "^[\\w+/_-]+[=]{0,2}$"_sv },                        // #4189
+        { "^(?:[^<]*(<[\\w\\W]+>)[^>]*$|#([\\w\\-]*)$)"_sv }, // #4189
+        { "\\/"_sv },                                         // #4189
+        { ",/=-:"_sv },                                       // #4243
+        { "\\x"_sv },                                         // Even invalid escapes are allowed if ~unicode.
+        { "\\x1"_sv },                                        // Even invalid escapes are allowed if ~unicode.
+        { "\\x1"_sv, regex::Error::InvalidPattern, regex::ECMAScriptFlags::Unicode },
+        { "\\x11"_sv },
+        { "\\x11"_sv, regex::Error::NoError, regex::ECMAScriptFlags::Unicode },
+        { "\\"_sv, regex::Error::InvalidTrailingEscape },
+        { "(?"_sv, regex::Error::InvalidCaptureGroup },
+        { "\\u1234"_sv, regex::Error::NoError, regex::ECMAScriptFlags::Unicode },
+        { "[\\u1234]"_sv, regex::Error::NoError, regex::ECMAScriptFlags::Unicode },
+        { "\\u1"_sv, regex::Error::InvalidPattern, regex::ECMAScriptFlags::Unicode },
+        { "[\\u1]"_sv, regex::Error::InvalidPattern, regex::ECMAScriptFlags::Unicode },
+        { ",(?"_sv, regex::Error::InvalidCaptureGroup }, // #4583
+        { "{1}"_sv, regex::Error::InvalidPattern },
+        { "{1,2}"_sv, regex::Error::InvalidPattern },
+        { "\\uxxxx"_sv, regex::Error::NoError },
+        { "\\uxxxx"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\ud83d"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "\\ud83d\\uxxxx"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\u{0}"_sv },
+        { "\\u{0}"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "\\u{10ffff}"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "\\u{10ffff"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\u{10ffffx"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\u{110000}"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\p"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\p{"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\p{}"_sv, regex::Error::InvalidNameForProperty, ECMAScriptFlags::Unicode },
+        { "\\p{AsCiI}"_sv, regex::Error::InvalidNameForProperty, ECMAScriptFlags::Unicode },
+        { "\\p{hello friends}"_sv, regex::Error::InvalidNameForProperty, ECMAScriptFlags::Unicode },
+        { "\\p{Prepended_Concatenation_Mark}"_sv, regex::Error::InvalidNameForProperty, ECMAScriptFlags::Unicode },
+        { "\\p{ASCII}"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "\\\\p{1}"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "\\\\p{AsCiI}"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\\\p{ASCII}"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\c"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "\\c"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "[\\c]"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "[\\c]"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\c`"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "\\c`"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "[\\c`]"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "[\\c`]"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\A"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "\\A"_sv, regex::Error::InvalidCharacterClass, ECMAScriptFlags::Unicode },
+        { "[\\A]"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "[\\A]"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\0"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "\\0"_sv, regex::Error::NoError, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
+        { "\\00"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "\\00"_sv, regex::Error::InvalidCharacterClass, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
+        { "[\\0]"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "[\\0]"_sv, regex::Error::NoError, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
+        { "[\\00]"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "[\\00]"_sv, regex::Error::InvalidPattern, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
+        { "\\^\\$\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|\\/"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "[\\^\\$\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|\\/]"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "]"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "]"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\]"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "}"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },
+        { "}"_sv, regex::Error::InvalidPattern, ECMAScriptFlags::Unicode },
+        { "\\}"_sv, regex::Error::NoError, ECMAScriptFlags::Unicode },
+        { "a{9007199254740991}"_sv }, // 2^53 - 1
+        { "a{9007199254740991,}"_sv },
+        { "a{9007199254740991,9007199254740991}"_sv },
+        { "a{9007199254740992}"_sv, regex::Error::InvalidBraceContent },
+        { "a{9007199254740992,}"_sv, regex::Error::InvalidBraceContent },
+        { "a{9007199254740991,9007199254740992}"_sv, regex::Error::InvalidBraceContent },
+        { "a{9007199254740992,9007199254740991}"_sv, regex::Error::InvalidBraceContent },
+        { "a{9007199254740992,9007199254740992}"_sv, regex::Error::InvalidBraceContent },
+        { "(?<a>a)(?<a>b)"_sv, regex::Error::DuplicateNamedCapture },
+        { "(?<a>a)(?<b>b)(?<a>c)"_sv, regex::Error::DuplicateNamedCapture },
+        { "(?<a>(?<a>a))"_sv, regex::Error::DuplicateNamedCapture },
+        { "(?:(?<x>a)|(?<y>a)(?<x>b))(?:(?<z>c)|(?<z>d))"_sv }, // Duplicate named capturing groups in separate alternatives should parse correctly
+        { "(?<1a>a)"_sv, regex::Error::InvalidNameForCaptureGroup },
+        { "(?<\\a>a)"_sv, regex::Error::InvalidNameForCaptureGroup },
+        { "(?<\ta>a)"_sv, regex::Error::InvalidNameForCaptureGroup },
+        { "(?<$$_$$>a)"_sv },
+        { "(?<ÿ>a)"_sv },
+        { "(?<𝓑𝓻𝓸𝔀𝓷>a)"_sv },
+        { "((?=lg)?[vl]k\\-?\\d{3}) bui| 3\\.[-\\w; ]{10}lg?-([06cv9]{3,4})"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended }, // #12373, quantifiable assertions.
+        { parse_test_case_long_disjunction_chain.view() },                                                                                  // A whole lot of disjunctions, should not overflow the stack.
+        { "(\"|')(?:(?!\\2)[^\\\\\\r\\n]|\\\\.)*\\2"_sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },                         // LegacyOctalEscapeSequence should not consume too many chars (and should not crash)
         // #18324, Capture group counter skipped past EOF.
-        { "\\1[\\"sv, regex::Error::InvalidNumber },
+        { "\\1[\\"_sv, regex::Error::InvalidNumber },
     };
 
     for (auto& test : tests) {
@@ -628,114 +628,114 @@ TEST_CASE(ECMA262_match)
         ECMAScriptFlags options {};
     };
     constexpr _test tests[] {
-        { "^hello.$"sv, "hello1"sv },
-        { "^(hello.)$"sv, "hello1"sv },
-        { "^h{0,1}ello.$"sv, "ello1"sv },
-        { "^hello\\W$"sv, "hello!"sv },
-        { "^hell\\w.$"sv, "hellx!"sv },
-        { "^hell\\x6f1$"sv, "hello1"sv },
-        { "^hel(?<LO>l.)1$"sv, "hello1"sv },
-        { "^hel(?<LO>l.)1*\\k<LO>.$"sv, "hello1lo1"sv },
-        { "^[-a-z1-3\\s]+$"sv, "hell2 o1"sv },
-        { "^[\\0-\\x1f]$"sv, "\n"sv },
-        { .pattern = "\\bhello\\B"sv, .subject = "hello1"sv, .options = ECMAScriptFlags::Global },
-        { "\\b.*\\b"sv, "hello1"sv },
-        { "[^\\D\\S]{2}"sv, "1 "sv, false },
-        { "bar(?=f.)foo"sv, "barfoo"sv },
-        { "bar(?=foo)bar"sv, "barbar"sv, false },
-        { "bar(?!foo)bar"sv, "barbar"sv, true },
-        { "bar(?!bar)bar"sv, "barbar"sv, false },
-        { "bar.*(?<=foo)"sv, "barbar"sv, false },
-        { "bar.*(?<!foo)"sv, "barbar"sv, true },
-        { "((...)X)+"sv, "fooXbarXbazX"sv, true },
-        { "(?:)"sv, ""sv, true },
-        { "\\^"sv, "^"sv },
-        { "\\^\\$\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|\\/"sv, "^$\\.*+?()[]{}|/"sv, true, ECMAScriptFlags::Unicode },
-        { "[\\^\\$\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|\\/]{15}"sv, "^$\\.*+?()[]{}|/"sv, true, ECMAScriptFlags::Unicode },
-        { "(a{2}){3}"sv, "aaaaaa"sv },
-        { "(a{2}){3}"sv, "aaaabaa"sv, false },
-        { "(a{2}){4}"sv, "aaaaaaaa"sv },
-        { "(a{2}){4}"sv, "aaaaaabaa"sv, false },
-        { "(a{3}){2}"sv, "aaaaaa"sv },
-        { "(a{3}){2}"sv, "aaaabaa"sv, false },
-        { "(a{4}){2}"sv, "aaaaaaaa"sv },
-        { "(a{4}){2}"sv, "aaaaaabaa"sv, false },
-        { "\\u{4}"sv, "uuuu"sv },
-        { "(?<=.{3})f"sv, "abcdef"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
-        { "(?<=.{3})f"sv, "abc😀ef"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
+        { "^hello.$"_sv, "hello1"_sv },
+        { "^(hello.)$"_sv, "hello1"_sv },
+        { "^h{0,1}ello.$"_sv, "ello1"_sv },
+        { "^hello\\W$"_sv, "hello!"_sv },
+        { "^hell\\w.$"_sv, "hellx!"_sv },
+        { "^hell\\x6f1$"_sv, "hello1"_sv },
+        { "^hel(?<LO>l.)1$"_sv, "hello1"_sv },
+        { "^hel(?<LO>l.)1*\\k<LO>.$"_sv, "hello1lo1"_sv },
+        { "^[-a-z1-3\\s]+$"_sv, "hell2 o1"_sv },
+        { "^[\\0-\\x1f]$"_sv, "\n"_sv },
+        { .pattern = "\\bhello\\B"_sv, .subject = "hello1"_sv, .options = ECMAScriptFlags::Global },
+        { "\\b.*\\b"_sv, "hello1"_sv },
+        { "[^\\D\\S]{2}"_sv, "1 "_sv, false },
+        { "bar(?=f.)foo"_sv, "barfoo"_sv },
+        { "bar(?=foo)bar"_sv, "barbar"_sv, false },
+        { "bar(?!foo)bar"_sv, "barbar"_sv, true },
+        { "bar(?!bar)bar"_sv, "barbar"_sv, false },
+        { "bar.*(?<=foo)"_sv, "barbar"_sv, false },
+        { "bar.*(?<!foo)"_sv, "barbar"_sv, true },
+        { "((...)X)+"_sv, "fooXbarXbazX"_sv, true },
+        { "(?:)"_sv, ""_sv, true },
+        { "\\^"_sv, "^"_sv },
+        { "\\^\\$\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|\\/"_sv, "^$\\.*+?()[]{}|/"_sv, true, ECMAScriptFlags::Unicode },
+        { "[\\^\\$\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|\\/]{15}"_sv, "^$\\.*+?()[]{}|/"_sv, true, ECMAScriptFlags::Unicode },
+        { "(a{2}){3}"_sv, "aaaaaa"_sv },
+        { "(a{2}){3}"_sv, "aaaabaa"_sv, false },
+        { "(a{2}){4}"_sv, "aaaaaaaa"_sv },
+        { "(a{2}){4}"_sv, "aaaaaabaa"_sv, false },
+        { "(a{3}){2}"_sv, "aaaaaa"_sv },
+        { "(a{3}){2}"_sv, "aaaabaa"_sv, false },
+        { "(a{4}){2}"_sv, "aaaaaaaa"_sv },
+        { "(a{4}){2}"_sv, "aaaaaabaa"_sv, false },
+        { "\\u{4}"_sv, "uuuu"_sv },
+        { "(?<=.{3})f"_sv, "abcdef"_sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
+        { "(?<=.{3})f"_sv, "abc😀ef"_sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
         // ECMA262, B.1.4. Regular Expression Pattern extensions for browsers
-        { "{"sv, "{"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\5"sv, "\5"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\05"sv, "\5"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\455"sv, "\0455"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\314"sv, "\314"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\c"sv, "\\c"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\cf"sv, "\06"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\c1"sv, "\\c1"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "[\\c1]"sv, "\x11"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "[\\w-\\d]"sv, "-"sv, true, ECMAScriptFlags::BrowserExtended },
+        { "{"_sv, "{"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\5"_sv, "\5"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\05"_sv, "\5"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\455"_sv, "\0455"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\314"_sv, "\314"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\c"_sv, "\\c"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\cf"_sv, "\06"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\c1"_sv, "\\c1"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "[\\c1]"_sv, "\x11"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "[\\w-\\d]"_sv, "-"_sv, true, ECMAScriptFlags::BrowserExtended },
         // #5517, appears to be matching JS expressions that involve regular expressions...
         {
-            "^(?:^^\\.?|[!+-]|!=|!==|#|%|%=|&|&&|&&=|&=|\\(|\\*|\\*=|\\+=|,|-=|->|\\/|\\/=|:|::|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|[?@[^]|\\^=|\\^\\^|\\^\\^=|{|\\||\\|=|\\|\\||\\|\\|=|~|break|case|continue|delete|do|else|finally|instanceof|return|throw|try|typeof)\\s*(\\/(?=[^*/])(?:[^/[\\\\]|\\\\[\\S\\s]|\\[(?:[^\\\\\\]]|\\\\[\\S\\s])*(?:]|$))+\\/)"sv,
-            "return /xx/"sv,
+            "^(?:^^\\.?|[!+-]|!=|!==|#|%|%=|&|&&|&&=|&=|\\(|\\*|\\*=|\\+=|,|-=|->|\\/|\\/=|:|::|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|[?@[^]|\\^=|\\^\\^|\\^\\^=|{|\\||\\|=|\\|\\||\\|\\|=|~|break|case|continue|delete|do|else|finally|instanceof|return|throw|try|typeof)\\s*(\\/(?=[^*/])(?:[^/[\\\\]|\\\\[\\S\\s]|\\[(?:[^\\\\\\]]|\\\\[\\S\\s])*(?:]|$))+\\/)"_sv,
+            "return /xx/"_sv,
             true,
             ECMAScriptFlags::BrowserExtended,
         },
         // #5518
-        { "a{2,}"sv, "aaaa"sv },
-        { "\\0"sv, "\0"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "\\0"sv, "\0"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
-        { "\\01"sv, "\1"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "[\\0]"sv, "\0"sv, true, ECMAScriptFlags::BrowserExtended },
-        { "[\\0]"sv, "\0"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
-        { "[\\01]"sv, "\1"sv, true, ECMAScriptFlags::BrowserExtended },
+        { "a{2,}"_sv, "aaaa"_sv },
+        { "\\0"_sv, "\0"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "\\0"_sv, "\0"_sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
+        { "\\01"_sv, "\1"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "[\\0]"_sv, "\0"_sv, true, ECMAScriptFlags::BrowserExtended },
+        { "[\\0]"_sv, "\0"_sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::BrowserExtended) },
+        { "[\\01]"_sv, "\1"_sv, true, ECMAScriptFlags::BrowserExtended },
         // #9686, Should allow null bytes in pattern
-        { "(\0|a)"sv, "a"sv, true },
+        { "(\0|a)"_sv, "a"_sv, true },
         // #6042, Groups inside lookarounds may be referenced outside, but their contents appear empty if the pattern in the lookaround fails.
-        { "(.*?)a(?!(a+)b\\2c)\\2(.*)"sv, "baaabaac"sv, true },
+        { "(.*?)a(?!(a+)b\\2c)\\2(.*)"_sv, "baaabaac"_sv, true },
         // #11940, Global (not the 'g' flag) regexps should attempt to match the zero-length end of the string too.
-        { "a|$"sv, "x"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
+        { "a|$"_sv, "x"_sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
         // #12126, ECMA262 regexp should match literal newlines without the 's' flag.
-        { "foo\nbar"sv, "foo\nbar"sv, true },
+        { "foo\nbar"_sv, "foo\nbar"_sv, true },
         // #12126, ECMA262 regexp should match newline with [^].
-        { "foo[^]bar"sv, "foo\nbar"sv, true },
+        { "foo[^]bar"_sv, "foo\nbar"_sv, true },
         // Insensitive lookup table: characters in a range do not necessarily lie in the same range after being converted to lowercase.
-        { "^[_A-Z]+$"sv, "_aA"sv, true, ECMAScriptFlags::Insensitive },
-        { "^[a-sy-z]$"sv, "b"sv, true, ECMAScriptFlags::Insensitive },
-        { "^[a-sy-z]$"sv, "y"sv, true, ECMAScriptFlags::Insensitive },
-        { "^[a-sy-z]$"sv, "u"sv, false, ECMAScriptFlags::Insensitive },
+        { "^[_A-Z]+$"_sv, "_aA"_sv, true, ECMAScriptFlags::Insensitive },
+        { "^[a-sy-z]$"_sv, "b"_sv, true, ECMAScriptFlags::Insensitive },
+        { "^[a-sy-z]$"_sv, "y"_sv, true, ECMAScriptFlags::Insensitive },
+        { "^[a-sy-z]$"_sv, "u"_sv, false, ECMAScriptFlags::Insensitive },
         // Dot should not match any of CR/LF/LS/PS in ECMA262 mode without DotAll.
-        { "."sv, "\n\r\u2028\u2029"sv, false },
+        { "."_sv, "\n\r\u2028\u2029"_sv, false },
         // $ should accept all LineTerminators in ECMA262 mode with Multiline.
-        { "a$"sv, "a\r\n"sv, true, global_multiline.value() },
-        { "^a"sv, "\ra"sv, true, global_multiline.value() },
-        { "^(.*?):[ \\t]*([^\\r\\n]*)$"sv, "content-length: 488\r\ncontent-type: application/json; charset=utf-8\r\n"sv, true, global_multiline.value() },
+        { "a$"_sv, "a\r\n"_sv, true, global_multiline.value() },
+        { "^a"_sv, "\ra"_sv, true, global_multiline.value() },
+        { "^(.*?):[ \\t]*([^\\r\\n]*)$"_sv, "content-length: 488\r\ncontent-type: application/json; charset=utf-8\r\n"_sv, true, global_multiline.value() },
         // ladybird#968, ?+ should not loop forever. */
-        { "^\\?((&?category=[0-9]+)?(&?shippable=1)?(&?ad_type=demand)?(&?page=[0-9]+)?(&?locations=(r|d)_[0-9]+)?)+$"sv, "?category=54&shippable=1&baby_age=p,0,1,3"sv, false },
+        { "^\\?((&?category=[0-9]+)?(&?shippable=1)?(&?ad_type=demand)?(&?page=[0-9]+)?(&?locations=(r|d)_[0-9]+)?)+$"_sv, "?category=54&shippable=1&baby_age=p,0,1,3"_sv, false },
         // optimizer bug, blindly accepting inverted char classes [^x] as atomic rewrite opportunities.
-        { "([^\\s]+):\\s*([^;]+);"sv, "font-family: 'Inter';"sv, true },
+        { "([^\\s]+):\\s*([^;]+);"_sv, "font-family: 'Inter';"_sv, true },
         // Optimizer bug, ignoring references that weren't bound in the current or past block, ladybird#2281
-        { "(a)(?=a*\\1)"sv, "aaaa"sv, true, global_multiline.value() },
+        { "(a)(?=a*\\1)"_sv, "aaaa"_sv, true, global_multiline.value() },
         // Optimizer bug, wrong Repeat basic block splits.
-        { "[ a](b{2})"sv, "abb"sv, true },
+        { "[ a](b{2})"_sv, "abb"_sv, true },
         // See above.
-        { "^ {0,3}(([\\`\\~])\\2{2,})\\s*([\\*_]*)\\s*([^\\*_\\s]*).*$"sv, ""sv, false },
+        { "^ {0,3}(([\\`\\~])\\2{2,})\\s*([\\*_]*)\\s*([^\\*_\\s]*).*$"_sv, ""_sv, false },
         // See above, also ladybird#2931.
         {
-            "^(\\d{4}|[+-]\\d{6})(?:-?(\\d{2})(?:-?(\\d{2}))?)?(?:[ T]?(\\d{2}):?(\\d{2})(?::?(\\d{2})(?:[,.](\\d{1,}))?)?(?:(Z)|([+-])(\\d{2})(?::?(\\d{2}))?)?)?$"sv,
-            ""sv,
+            "^(\\d{4}|[+-]\\d{6})(?:-?(\\d{2})(?:-?(\\d{2}))?)?(?:[ T]?(\\d{2}):?(\\d{2})(?::?(\\d{2})(?:[,.](\\d{1,}))?)?(?:(Z)|([+-])(\\d{2})(?::?(\\d{2}))?)?)?$"_sv,
+            ""_sv,
             false,
         },
         // Optimizer bug, ignoring an enabled trailing 'invert' when comparing blocks, ladybird#3421.
-        { "[^]*[^]"sv, "i"sv, true },
-        { "xx|...|...."sv, "cd"sv, false },
+        { "[^]*[^]"_sv, "i"_sv, true },
+        { "xx|...|...."_sv, "cd"_sv, false },
         // Tests nested lookahead with alternation - verifies proper save/restore stack cleanup
-        { "a(?=.(?=c)|b)b"sv, "ab"sv, true },
-        { "(?=)(?=\\d)"sv, "smart"sv, false },
+        { "a(?=.(?=c)|b)b"_sv, "ab"_sv, true },
+        { "(?=)(?=\\d)"_sv, "smart"_sv, false },
         // Backrefs are cleared after lookaheads, the indices should be checked before lookup.
-        { "(?!(b))\\1"sv, "a"sv, false },
+        { "(?!(b))\\1"_sv, "a"_sv, false },
         // String table merge bug: inverse map should be merged regardless of available direct mappings.
-        { "((?<x>a)|(?<x>b))"sv, "aa"sv, false },
+        { "((?<x>a)|(?<x>b))"_sv, "aa"_sv, false },
     };
 
     for (auto& test : tests) {
@@ -769,36 +769,36 @@ TEST_CASE(ECMA262_unicode_match)
         ECMAScriptFlags options {};
     };
     _test tests[] {
-        { "\xf0\x9d\x8c\x86"sv, "abcdef"sv, false, ECMAScriptFlags::Unicode },
-        { "[\xf0\x9d\x8c\x86]"sv, "abcdef"sv, false, ECMAScriptFlags::Unicode },
-        { "\\ud83d"sv, "😀"sv, true },
-        { "\\ud83d"sv, "😀"sv, false, ECMAScriptFlags::Unicode },
-        { "\\ude00"sv, "😀"sv, true },
-        { "\\ude00"sv, "😀"sv, false, ECMAScriptFlags::Unicode },
-        { "\\ud83d\\ude00"sv, "😀"sv, true },
-        { "\\ud83d\\ude00"sv, "😀"sv, true, ECMAScriptFlags::Unicode },
-        { "\\u{1f600}"sv, "😀"sv, true, ECMAScriptFlags::Unicode },
-        { "\\ud83d\\ud83d"sv, "\xed\xa0\xbd\xed\xa0\xbd"sv, true },
-        { "\\ud83d\\ud83d"sv, "\xed\xa0\xbd\xed\xa0\xbd"sv, true, ECMAScriptFlags::Unicode },
-        { "(?<=.{3})f"sv, "abcdef"sv, true, ECMAScriptFlags::Unicode },
-        { "(?<=.{3})f"sv, "abc😀ef"sv, true, ECMAScriptFlags::Unicode },
-        { "(?<𝓑𝓻𝓸𝔀𝓷>brown)"sv, "brown"sv, true, ECMAScriptFlags::Unicode },
-        { "(?<\\u{1d4d1}\\u{1d4fb}\\u{1d4f8}\\u{1d500}\\u{1d4f7}>brown)"sv, "brown"sv, true, ECMAScriptFlags::Unicode },
-        { "(?<\\ud835\\udcd1\\ud835\\udcfb\\ud835\\udcf8\\ud835\\udd00\\ud835\\udcf7>brown)"sv, "brown"sv, true, ECMAScriptFlags::Unicode },
-        { "^\\s+$"sv, space_and_line_terminators },
-        { "^\\s+$"sv, space_and_line_terminators, true, ECMAScriptFlags::Unicode },
-        { "[\\u0390]"sv, "\u1fd3"sv, false, ECMAScriptFlags::Unicode },
-        { "[\\u1fd3]"sv, "\u0390"sv, false, ECMAScriptFlags::Unicode },
-        { "[\\u0390]"sv, "\u1fd3"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
-        { "[\\u1fd3]"sv, "\u0390"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
-        { "[\\u03b0]"sv, "\u1fe3"sv, false, ECMAScriptFlags::Unicode },
-        { "[\\u1fe3]"sv, "\u03b0"sv, false, ECMAScriptFlags::Unicode },
-        { "[\\u03b0]"sv, "\u1fe3"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
-        { "[\\u1fe3]"sv, "\u03b0"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
-        { "[\\ufb05]"sv, "\ufb06"sv, false, ECMAScriptFlags::Unicode },
-        { "[\\ufb06]"sv, "\ufb05"sv, false, ECMAScriptFlags::Unicode },
-        { "[\\ufb05]"sv, "\ufb06"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
-        { "[\\ufb06]"sv, "\ufb05"sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+        { "\xf0\x9d\x8c\x86"_sv, "abcdef"_sv, false, ECMAScriptFlags::Unicode },
+        { "[\xf0\x9d\x8c\x86]"_sv, "abcdef"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\ud83d"_sv, "😀"_sv, true },
+        { "\\ud83d"_sv, "😀"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\ude00"_sv, "😀"_sv, true },
+        { "\\ude00"_sv, "😀"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\ud83d\\ude00"_sv, "😀"_sv, true },
+        { "\\ud83d\\ude00"_sv, "😀"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\u{1f600}"_sv, "😀"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\ud83d\\ud83d"_sv, "\xed\xa0\xbd\xed\xa0\xbd"_sv, true },
+        { "\\ud83d\\ud83d"_sv, "\xed\xa0\xbd\xed\xa0\xbd"_sv, true, ECMAScriptFlags::Unicode },
+        { "(?<=.{3})f"_sv, "abcdef"_sv, true, ECMAScriptFlags::Unicode },
+        { "(?<=.{3})f"_sv, "abc😀ef"_sv, true, ECMAScriptFlags::Unicode },
+        { "(?<𝓑𝓻𝓸𝔀𝓷>brown)"_sv, "brown"_sv, true, ECMAScriptFlags::Unicode },
+        { "(?<\\u{1d4d1}\\u{1d4fb}\\u{1d4f8}\\u{1d500}\\u{1d4f7}>brown)"_sv, "brown"_sv, true, ECMAScriptFlags::Unicode },
+        { "(?<\\ud835\\udcd1\\ud835\\udcfb\\ud835\\udcf8\\ud835\\udd00\\ud835\\udcf7>brown)"_sv, "brown"_sv, true, ECMAScriptFlags::Unicode },
+        { "^\\s+$"_sv, space_and_line_terminators },
+        { "^\\s+$"_sv, space_and_line_terminators, true, ECMAScriptFlags::Unicode },
+        { "[\\u0390]"_sv, "\u1fd3"_sv, false, ECMAScriptFlags::Unicode },
+        { "[\\u1fd3]"_sv, "\u0390"_sv, false, ECMAScriptFlags::Unicode },
+        { "[\\u0390]"_sv, "\u1fd3"_sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+        { "[\\u1fd3]"_sv, "\u0390"_sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+        { "[\\u03b0]"_sv, "\u1fe3"_sv, false, ECMAScriptFlags::Unicode },
+        { "[\\u1fe3]"_sv, "\u03b0"_sv, false, ECMAScriptFlags::Unicode },
+        { "[\\u03b0]"_sv, "\u1fe3"_sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+        { "[\\u1fe3]"_sv, "\u03b0"_sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+        { "[\\ufb05]"_sv, "\ufb06"_sv, false, ECMAScriptFlags::Unicode },
+        { "[\\ufb06]"_sv, "\ufb05"_sv, false, ECMAScriptFlags::Unicode },
+        { "[\\ufb05]"_sv, "\ufb06"_sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
+        { "[\\ufb06]"_sv, "\ufb05"_sv, true, combine_flags(ECMAScriptFlags::Unicode, ECMAScriptFlags::Insensitive) },
     };
 
     for (auto& test : tests) {
@@ -829,8 +829,8 @@ TEST_CASE(ECMA262_unicode_sets_parser_error)
     };
 
     constexpr _test tests[] {
-        { "[[]"sv, regex::Error::InvalidPattern },
-        { "[[x[]]]"sv, regex::Error::NoError }, // #23691, should not crash on empty charclass within AndOr.
+        { "[[]"_sv, regex::Error::InvalidPattern },
+        { "[[x[]]]"_sv, regex::Error::NoError }, // #23691, should not crash on empty charclass within AndOr.
     };
 
     for (auto test : tests) {
@@ -849,16 +849,16 @@ TEST_CASE(ECMA262_unicode_sets_match)
     };
 
     constexpr _test tests[] {
-        { "[\\w--x]"sv, "x"sv, false },
-        { "[\\w&&x]"sv, "y"sv, false },
-        { "[\\w--x]"sv, "y"sv, true },
-        { "[\\w&&x]"sv, "x"sv, true },
-        { "[[0-9\\w]--x--6]"sv, "6"sv, false },
-        { "[[0-9\\w]--x--6]"sv, "x"sv, false },
-        { "[[0-9\\w]--x--6]"sv, "y"sv, true },
-        { "[[0-9\\w]--x--6]"sv, "9"sv, true },
-        { "[\\w&&\\d]"sv, "a"sv, false },
-        { "[\\w&&\\d]"sv, "4"sv, true },
+        { "[\\w--x]"_sv, "x"_sv, false },
+        { "[\\w&&x]"_sv, "y"_sv, false },
+        { "[\\w--x]"_sv, "y"_sv, true },
+        { "[\\w&&x]"_sv, "x"_sv, true },
+        { "[[0-9\\w]--x--6]"_sv, "6"_sv, false },
+        { "[[0-9\\w]--x--6]"_sv, "x"_sv, false },
+        { "[[0-9\\w]--x--6]"_sv, "y"_sv, true },
+        { "[[0-9\\w]--x--6]"_sv, "9"_sv, true },
+        { "[\\w&&\\d]"_sv, "a"_sv, false },
+        { "[\\w&&\\d]"_sv, "4"_sv, true },
     };
 
     for (auto& test : tests) {
@@ -888,49 +888,49 @@ TEST_CASE(ECMA262_property_match)
     };
 
     constexpr _test tests[] {
-        { "\\p{ASCII}"sv, "a"sv, false },
-        { "\\p{ASCII}"sv, "p{ASCII}"sv, true },
-        { "\\p{ASCII}"sv, "a"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{ASCII}"sv, "😀"sv, false, ECMAScriptFlags::Unicode },
-        { "\\P{ASCII}"sv, "a"sv, false, ECMAScriptFlags::Unicode },
-        { "\\P{ASCII}"sv, "😀"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{ASCII_Hex_Digit}"sv, "1"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{ASCII_Hex_Digit}"sv, "a"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{ASCII_Hex_Digit}"sv, "x"sv, false, ECMAScriptFlags::Unicode },
-        { "\\P{ASCII_Hex_Digit}"sv, "1"sv, false, ECMAScriptFlags::Unicode },
-        { "\\P{ASCII_Hex_Digit}"sv, "a"sv, false, ECMAScriptFlags::Unicode },
-        { "\\P{ASCII_Hex_Digit}"sv, "x"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{Any}"sv, "\xcd\xb8"sv, true, ECMAScriptFlags::Unicode },       // U+0378, which is an unassigned code point.
-        { "\\P{Any}"sv, "\xcd\xb8"sv, false, ECMAScriptFlags::Unicode },      // U+0378, which is an unassigned code point.
-        { "\\p{Assigned}"sv, "\xcd\xb8"sv, false, ECMAScriptFlags::Unicode }, // U+0378, which is an unassigned code point.
-        { "\\P{Assigned}"sv, "\xcd\xb8"sv, true, ECMAScriptFlags::Unicode },  // U+0378, which is an unassigned code point.
-        { "\\p{Lu}"sv, "a"sv, false, ECMAScriptFlags::Unicode },
-        { "\\p{Lu}"sv, "A"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{Lu}"sv, "9"sv, false, ECMAScriptFlags::Unicode },
-        { "\\p{Cased_Letter}"sv, "a"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{Cased_Letter}"sv, "A"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{Cased_Letter}"sv, "9"sv, false, ECMAScriptFlags::Unicode },
-        { "\\P{Cased_Letter}"sv, "a"sv, false, ECMAScriptFlags::Unicode },
-        { "\\P{Cased_Letter}"sv, "A"sv, false, ECMAScriptFlags::Unicode },
-        { "\\P{Cased_Letter}"sv, "9"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{General_Category=Cased_Letter}"sv, "a"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{General_Category=Cased_Letter}"sv, "A"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{General_Category=Cased_Letter}"sv, "9"sv, false, ECMAScriptFlags::Unicode },
-        { "\\p{gc=Cased_Letter}"sv, "a"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{gc=Cased_Letter}"sv, "A"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{gc=Cased_Letter}"sv, "9"sv, false, ECMAScriptFlags::Unicode },
-        { "\\p{Script=Latin}"sv, "a"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{Script=Latin}"sv, "A"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{Script=Latin}"sv, "9"sv, false, ECMAScriptFlags::Unicode },
-        { "\\p{sc=Latin}"sv, "a"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{sc=Latin}"sv, "A"sv, true, ECMAScriptFlags::Unicode },
-        { "\\p{sc=Latin}"sv, "9"sv, false, ECMAScriptFlags::Unicode },
-        { "\\p{Script_Extensions=Deva}"sv, "a"sv, false, ECMAScriptFlags::Unicode },
-        { "\\p{Script_Extensions=Beng}"sv, "\xe1\xb3\x95"sv, true, ECMAScriptFlags::Unicode }, // U+01CD5
-        { "\\p{Script_Extensions=Deva}"sv, "\xe1\xb3\x95"sv, true, ECMAScriptFlags::Unicode }, // U+01CD5
-        { "\\p{scx=Deva}"sv, "a"sv, false, ECMAScriptFlags::Unicode },
-        { "\\p{scx=Beng}"sv, "\xe1\xb3\x95"sv, true, ECMAScriptFlags::Unicode }, // U+01CD5
-        { "\\p{scx=Deva}"sv, "\xe1\xb3\x95"sv, true, ECMAScriptFlags::Unicode }, // U+01CD5
+        { "\\p{ASCII}"_sv, "a"_sv, false },
+        { "\\p{ASCII}"_sv, "p{ASCII}"_sv, true },
+        { "\\p{ASCII}"_sv, "a"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{ASCII}"_sv, "😀"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\P{ASCII}"_sv, "a"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\P{ASCII}"_sv, "😀"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{ASCII_Hex_Digit}"_sv, "1"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{ASCII_Hex_Digit}"_sv, "a"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{ASCII_Hex_Digit}"_sv, "x"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\P{ASCII_Hex_Digit}"_sv, "1"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\P{ASCII_Hex_Digit}"_sv, "a"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\P{ASCII_Hex_Digit}"_sv, "x"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{Any}"_sv, "\xcd\xb8"_sv, true, ECMAScriptFlags::Unicode },       // U+0378, which is an unassigned code point.
+        { "\\P{Any}"_sv, "\xcd\xb8"_sv, false, ECMAScriptFlags::Unicode },      // U+0378, which is an unassigned code point.
+        { "\\p{Assigned}"_sv, "\xcd\xb8"_sv, false, ECMAScriptFlags::Unicode }, // U+0378, which is an unassigned code point.
+        { "\\P{Assigned}"_sv, "\xcd\xb8"_sv, true, ECMAScriptFlags::Unicode },  // U+0378, which is an unassigned code point.
+        { "\\p{Lu}"_sv, "a"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\p{Lu}"_sv, "A"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{Lu}"_sv, "9"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\p{Cased_Letter}"_sv, "a"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{Cased_Letter}"_sv, "A"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{Cased_Letter}"_sv, "9"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\P{Cased_Letter}"_sv, "a"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\P{Cased_Letter}"_sv, "A"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\P{Cased_Letter}"_sv, "9"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{General_Category=Cased_Letter}"_sv, "a"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{General_Category=Cased_Letter}"_sv, "A"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{General_Category=Cased_Letter}"_sv, "9"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\p{gc=Cased_Letter}"_sv, "a"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{gc=Cased_Letter}"_sv, "A"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{gc=Cased_Letter}"_sv, "9"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\p{Script=Latin}"_sv, "a"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{Script=Latin}"_sv, "A"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{Script=Latin}"_sv, "9"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\p{sc=Latin}"_sv, "a"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{sc=Latin}"_sv, "A"_sv, true, ECMAScriptFlags::Unicode },
+        { "\\p{sc=Latin}"_sv, "9"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\p{Script_Extensions=Deva}"_sv, "a"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\p{Script_Extensions=Beng}"_sv, "\xe1\xb3\x95"_sv, true, ECMAScriptFlags::Unicode }, // U+01CD5
+        { "\\p{Script_Extensions=Deva}"_sv, "\xe1\xb3\x95"_sv, true, ECMAScriptFlags::Unicode }, // U+01CD5
+        { "\\p{scx=Deva}"_sv, "a"_sv, false, ECMAScriptFlags::Unicode },
+        { "\\p{scx=Beng}"_sv, "\xe1\xb3\x95"_sv, true, ECMAScriptFlags::Unicode }, // U+01CD5
+        { "\\p{scx=Deva}"_sv, "\xe1\xb3\x95"_sv, true, ECMAScriptFlags::Unicode }, // U+01CD5
     };
 
     for (auto& test : tests) {
@@ -964,11 +964,11 @@ TEST_CASE(replace)
     };
 
     constexpr _test tests[] {
-        { "foo(.+)"sv, "aaa"sv, "test"sv, "test"sv },
-        { "foo(.+)"sv, "test\\1"sv, "foobar"sv, "testbar"sv },
-        { "foo(.+)"sv, "\\2\\1"sv, "foobar"sv, "\\2bar"sv },
-        { "foo(.+)"sv, "\\\\\\1"sv, "foobar"sv, "\\bar"sv },
-        { "foo(.)"sv, "a\\1"sv, "fooxfooy"sv, "axay"sv, ECMAScriptFlags::Multiline },
+        { "foo(.+)"_sv, "aaa"_sv, "test"_sv, "test"_sv },
+        { "foo(.+)"_sv, "test\\1"_sv, "foobar"_sv, "testbar"_sv },
+        { "foo(.+)"_sv, "\\2\\1"_sv, "foobar"_sv, "\\2bar"_sv },
+        { "foo(.+)"_sv, "\\\\\\1"_sv, "foobar"_sv, "\\bar"_sv },
+        { "foo(.)"_sv, "a\\1"_sv, "fooxfooy"_sv, "axay"_sv, ECMAScriptFlags::Multiline },
     };
 
     for (auto& test : tests) {
@@ -989,7 +989,7 @@ TEST_CASE(replace)
 TEST_CASE(case_insensitive_match)
 {
     Regex<PosixExtended> re("cd", PosixFlags::Insensitive | PosixFlags::Global);
-    auto result = re.match("AEKFCD"sv);
+    auto result = re.match("AEKFCD"_sv);
 
     EXPECT_EQ(result.success, true);
     if (result.success) {
@@ -1008,22 +1008,22 @@ TEST_CASE(extremely_long_fork_chain)
 TEST_CASE(nullable_quantifiers)
 {
     Regex<ECMA262> re("(a?b?\x3f)*"); // Pattern (a?b??)* isn't written plain to avoid "??)", which is a trigraph.
-    auto result = re.match("ab"sv);
-    EXPECT_EQ(result.matches.at(0).view, "ab"sv);
+    auto result = re.match("ab"_sv);
+    EXPECT_EQ(result.matches.at(0).view, "ab"_sv);
 }
 
 TEST_CASE(theoretically_infinite_loop)
 {
     Array patterns {
-        "(a*)*"sv,  // Infinitely matching empty substrings, the outer loop should short-circuit.
-        "(a*?)*"sv, // Infinitely matching empty substrings, the outer loop should short-circuit.
-        "(a*)*?"sv, // Should match exactly nothing.
-        "(?:)*?"sv, // Should not generate an infinite fork loop.
-        "(a?)+$"sv, // Infinitely matching empty strings, but with '+' instead of '*'.
+        "(a*)*"_sv,  // Infinitely matching empty substrings, the outer loop should short-circuit.
+        "(a*?)*"_sv, // Infinitely matching empty substrings, the outer loop should short-circuit.
+        "(a*)*?"_sv, // Should match exactly nothing.
+        "(?:)*?"_sv, // Should not generate an infinite fork loop.
+        "(a?)+$"_sv, // Infinitely matching empty strings, but with '+' instead of '*'.
     };
     for (auto& pattern : patterns) {
         Regex<ECMA262> re(pattern);
-        auto result = re.match(""sv);
+        auto result = re.match(""_sv);
         EXPECT_EQ(result.success, true);
     }
 }
@@ -1063,36 +1063,36 @@ TEST_CASE(optimizer_atomic_groups)
 {
     Array tests {
         // Fork -> ForkReplace
-        Tuple { "a*b"sv, "aaaaa"sv, false },
-        Tuple { "a+b"sv, "aaaaa"sv, false },
-        Tuple { "\\\\(\\d+)"sv, "\\\\"sv, false }, // Rewrite bug turning a+ to a*, see #10952.
-        Tuple { "[a-z.]+\\."sv, "..."sv, true },   // Rewrite bug, incorrect interpretation of Compare.
-        Tuple { "[.-]+\\."sv, ".-."sv, true },
+        Tuple { "a*b"_sv, "aaaaa"_sv, false },
+        Tuple { "a+b"_sv, "aaaaa"_sv, false },
+        Tuple { "\\\\(\\d+)"_sv, "\\\\"_sv, false }, // Rewrite bug turning a+ to a*, see #10952.
+        Tuple { "[a-z.]+\\."_sv, "..."_sv, true },   // Rewrite bug, incorrect interpretation of Compare.
+        Tuple { "[.-]+\\."_sv, ".-."_sv, true },
         // Alternative fuse
-        Tuple { "(abcfoo|abcbar|abcbaz).*x"sv, "abcbarx"sv, true },
-        Tuple { "(a|a)"sv, "a"sv, true },
-        Tuple { "(a|)"sv, ""sv, true },                   // Ensure that empty alternatives are not outright removed
-        Tuple { "a{2,3}|a{5,8}"sv, "abc"sv, false },      // Optimizer should not mess up the instruction stream by ignoring inter-insn dependencies, see #11247.
-        Tuple { "^(a{2,3}|a{5,8})$"sv, "aaaa"sv, false }, // Optimizer should not mess up the instruction stream by ignoring inter-insn dependencies, see #11247.
+        Tuple { "(abcfoo|abcbar|abcbaz).*x"_sv, "abcbarx"_sv, true },
+        Tuple { "(a|a)"_sv, "a"_sv, true },
+        Tuple { "(a|)"_sv, ""_sv, true },                   // Ensure that empty alternatives are not outright removed
+        Tuple { "a{2,3}|a{5,8}"_sv, "abc"_sv, false },      // Optimizer should not mess up the instruction stream by ignoring inter-insn dependencies, see #11247.
+        Tuple { "^(a{2,3}|a{5,8})$"_sv, "aaaa"_sv, false }, // Optimizer should not mess up the instruction stream by ignoring inter-insn dependencies, see #11247.
         // Optimizer should not chop off *half* of an instruction when fusing instructions.
-        Tuple { "cubic-bezier\\(\\s*(-?\\d+\\.?\\d*|-?\\.\\d+)\\s*,\\s*(-?\\d+\\.?\\d*|-?\\.\\d+)\\s*,\\s*(-?\\d+\\.?\\d*|-?\\.\\d+)\\s*,\\s*(-?\\d+\\.?\\d*|-?\\.\\d+)\\s*\\)"sv, "cubic-bezier(.05, 0, 0, 1)"sv, true },
+        Tuple { "cubic-bezier\\(\\s*(-?\\d+\\.?\\d*|-?\\.\\d+)\\s*,\\s*(-?\\d+\\.?\\d*|-?\\.\\d+)\\s*,\\s*(-?\\d+\\.?\\d*|-?\\.\\d+)\\s*,\\s*(-?\\d+\\.?\\d*|-?\\.\\d+)\\s*\\)"_sv, "cubic-bezier(.05, 0, 0, 1)"_sv, true },
         // ForkReplace shouldn't be applied where it would change the semantics
-        Tuple { "(1+)\\1"sv, "11"sv, true },
-        Tuple { "(1+)1"sv, "11"sv, true },
-        Tuple { "(1+)0"sv, "10"sv, true },
+        Tuple { "(1+)\\1"_sv, "11"_sv, true },
+        Tuple { "(1+)1"_sv, "11"_sv, true },
+        Tuple { "(1+)0"_sv, "10"_sv, true },
         // Rewrite should not skip over first required iteration of <x>+.
-        Tuple { "a+"sv, ""sv, false },
+        Tuple { "a+"_sv, ""_sv, false },
         // 'y' and [^x] have an overlap ('y'), the loop should not be rewritten here.
-        Tuple { "[^x]+y"sv, "ay"sv, true },
+        Tuple { "[^x]+y"_sv, "ay"_sv, true },
         // .+ should not be rewritten here, as it's followed by something that would be matched by `.`.
-        Tuple { ".+(a|b|c)"sv, "xxa"sv, true },
+        Tuple { ".+(a|b|c)"_sv, "xxa"_sv, true },
         // (b+)(b+) produces an intermediate block with no matching ops, the optimiser should ignore that block when looking for following matches and correctly detect the overlap between (b+) and (b+).
         // note that the second loop may be rewritten to a ForkReplace, but the first loop should not be rewritten.
-        Tuple { "(b+)(b+)"sv, "bbb"sv, true },
+        Tuple { "(b+)(b+)"_sv, "bbb"_sv, true },
         // Don't treat [\S] as [\s]; see ladybird#2296.
-        Tuple { "([^\\s]+?)\\(([\\s\\S]*)\\)"sv, "a(b)"sv, true },
+        Tuple { "([^\\s]+?)\\(([\\s\\S]*)\\)"_sv, "a(b)"_sv, true },
         // Follow direct jumps in the optimizer instead of assuming they're a noop.
-        Tuple { "(|[^]*)\\)"sv, "p)"sv, true },
+        Tuple { "(|[^]*)\\)"_sv, "p)"_sv, true },
     };
 
     for (auto& test : tests) {
@@ -1117,30 +1117,30 @@ TEST_CASE(optimizer_char_class_lut)
 
     // This will go through _all_ alternatives in the character class, and then fail.
     for (size_t i = 0; i < 1'000'000; ++i)
-        EXPECT_EQ(re.match("1635488940000"sv).success, false);
+        EXPECT_EQ(re.match("1635488940000"_sv).success, false);
 }
 
 TEST_CASE(optimizer_alternation)
 {
     Array tests {
         // Pattern, Subject, Expected length [0 == fail]
-        Tuple { "a|"sv, "a"sv, 1u },
-        Tuple { "a|a|a|a|a|a|a|a|a|b"sv, "a"sv, 1u },
-        Tuple { "ab|ac|ad|bc"sv, "bc"sv, 2u },
+        Tuple { "a|"_sv, "a"_sv, 1u },
+        Tuple { "a|a|a|a|a|a|a|a|a|b"_sv, "a"_sv, 1u },
+        Tuple { "ab|ac|ad|bc"_sv, "bc"_sv, 2u },
         // Should not crash on backwards jumps introduced by '.*'.
-        Tuple { "\\bDroid\\b.*Build|XT912|XT928|XT926|XT915|XT919|XT925|XT1021|\\bMoto E\\b|XT1068|XT1092|XT1052"sv, "XT1068"sv, 6u },
+        Tuple { "\\bDroid\\b.*Build|XT912|XT928|XT926|XT915|XT919|XT925|XT1021|\\bMoto E\\b|XT1068|XT1092|XT1052"_sv, "XT1068"_sv, 6u },
         // Backwards jumps to IP 0 are normal jumps too.
-        Tuple { "^(\\d+|x)"sv, "42"sv, 2u },
+        Tuple { "^(\\d+|x)"_sv, "42"_sv, 2u },
         // `Repeat' does not add its insn size to the jump target.
-        Tuple { "[0-9]{2}|[0-9]"sv, "92"sv, 2u },
+        Tuple { "[0-9]{2}|[0-9]"_sv, "92"_sv, 2u },
         // Don't ForkJump to the next instruction, rerunning it would produce the same result. see ladybird#2398.
-        Tuple { "(xxxxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxxxxxxxxx)?b"sv, "xxxxxxxxxxxxxxxxxxxxxxx"sv, 0u },
+        Tuple { "(xxxxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxxxxxxxxx)?b"_sv, "xxxxxxxxxxxxxxxxxxxxxxx"_sv, 0u },
         // Don't take the jump in JumpNonEmpty with nonexistent checkpoints (also don't crash).
-        Tuple { "(?!\\d*|[g-ta-r]+|[h-l]|\\S|\\S|\\S){,9}|\\S{7,8}|\\d|(?<wnvdfimiwd>)|[c-mj-tb-o]*|\\s"sv, "rjvogg7pm|li4nmct mjb2|pk7s8e0"sv, 0u },
+        Tuple { "(?!\\d*|[g-ta-r]+|[h-l]|\\S|\\S|\\S){,9}|\\S{7,8}|\\d|(?<wnvdfimiwd>)|[c-mj-tb-o]*|\\s"_sv, "rjvogg7pm|li4nmct mjb2|pk7s8e0"_sv, 0u },
         // Use the right offset when patching jumps through a fork-tree
-        Tuple { "(?!a)|(?!a)b"sv, "b"sv, 0u },
+        Tuple { "(?!a)|(?!a)b"_sv, "b"_sv, 0u },
         // Optimizer should maintain the correct ordering between the alternatives
-        Tuple { "\\\\junk|(\\\\[a-zA-Z@]+)|\\\\[^X]"sv, "\\sqrt"sv, 5u },
+        Tuple { "\\\\junk|(\\\\[a-zA-Z@]+)|\\\\[^X]"_sv, "\\sqrt"_sv, 5u },
     };
 
     for (auto& test : tests) {
@@ -1160,13 +1160,13 @@ TEST_CASE(start_anchor)
     // Ensure that a circumflex at the start only matches the start of the line.
     {
         Regex<PosixBasic> re("^abc");
-        EXPECT_EQ(re.match("123abcdef"sv, PosixFlags::Global).success, false);
-        EXPECT_EQ(re.match("abc123"sv, PosixFlags::Global).success, true);
-        EXPECT_EQ(re.match("123^abcdef"sv, PosixFlags::Global).success, false);
-        EXPECT_EQ(re.match("^abc123"sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abcdef"_sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("abc123"_sv, PosixFlags::Global).success, true);
+        EXPECT_EQ(re.match("123^abcdef"_sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("^abc123"_sv, PosixFlags::Global).success, false);
 
         // Multiple lines
-        EXPECT_EQ(re.match("123\nabc"sv, PosixFlags::Multiline).success, true);
+        EXPECT_EQ(re.match("123\nabc"_sv, PosixFlags::Multiline).success, true);
     }
 }
 
@@ -1175,10 +1175,10 @@ TEST_CASE(posix_basic_dollar_is_end_anchor)
     // Ensure that a dollar sign at the end only matches the end of the line.
     {
         Regex<PosixBasic> re("abc$");
-        EXPECT_EQ(re.match("123abcdef"sv, PosixFlags::Global).success, false);
-        EXPECT_EQ(re.match("123abc"sv, PosixFlags::Global).success, true);
-        EXPECT_EQ(re.match("123abc$def"sv, PosixFlags::Global).success, false);
-        EXPECT_EQ(re.match("123abc$"sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abcdef"_sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abc"_sv, PosixFlags::Global).success, true);
+        EXPECT_EQ(re.match("123abc$def"_sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abc$"_sv, PosixFlags::Global).success, false);
     }
 }
 
@@ -1187,19 +1187,19 @@ TEST_CASE(posix_basic_dollar_is_literal)
     // Ensure that a dollar sign in the middle is treated as a literal.
     {
         Regex<PosixBasic> re("abc$d");
-        EXPECT_EQ(re.match("123abcdef"sv, PosixFlags::Global).success, false);
-        EXPECT_EQ(re.match("123abc"sv, PosixFlags::Global).success, false);
-        EXPECT_EQ(re.match("123abc$def"sv, PosixFlags::Global).success, true);
-        EXPECT_EQ(re.match("123abc$"sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abcdef"_sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abc"_sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abc$def"_sv, PosixFlags::Global).success, true);
+        EXPECT_EQ(re.match("123abc$"_sv, PosixFlags::Global).success, false);
     }
 
     // Ensure that a dollar sign is always treated as a literal if escaped, even if at the end of the pattern.
     {
         Regex<PosixBasic> re("abc\\$");
-        EXPECT_EQ(re.match("123abcdef"sv, PosixFlags::Global).success, false);
-        EXPECT_EQ(re.match("123abc"sv, PosixFlags::Global).success, false);
-        EXPECT_EQ(re.match("123abc$def"sv, PosixFlags::Global).success, true);
-        EXPECT_EQ(re.match("123abc$"sv, PosixFlags::Global).success, true);
+        EXPECT_EQ(re.match("123abcdef"_sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abc"_sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("123abc$def"_sv, PosixFlags::Global).success, true);
+        EXPECT_EQ(re.match("123abc$"_sv, PosixFlags::Global).success, true);
     }
 }
 
@@ -1210,15 +1210,15 @@ TEST_CASE(negative_lookahead)
         auto options = ECMAScriptOptions { ECMAScriptFlags::Global };
         options.reset_flag((ECMAScriptFlags)regex::AllFlags::Internal_Stateful);
         Regex<ECMA262> re(":(?!\\^\\)|1)", options);
-        EXPECT_EQ(re.match(":^)"sv).success, false);
-        EXPECT_EQ(re.match(":1"sv).success, false);
-        EXPECT_EQ(re.match(":foobar"sv).success, true);
+        EXPECT_EQ(re.match(":^)"_sv).success, false);
+        EXPECT_EQ(re.match(":1"_sv).success, false);
+        EXPECT_EQ(re.match(":foobar"_sv).success, true);
     }
     {
         // Correctly count forks with nested groups and optimised loops
         Regex<ECMA262> re("^((?:[^\\n]|\\n(?! *\\n))+)(?:\\n *)+\\n");
-        EXPECT_EQ(re.match("foo\n\n"sv).success, true);
-        EXPECT_EQ(re.match("foo\n"sv).success, false);
+        EXPECT_EQ(re.match("foo\n\n"_sv).success, true);
+        EXPECT_EQ(re.match("foo\n"_sv).success, false);
     }
 }
 
@@ -1226,11 +1226,11 @@ TEST_CASE(single_match_flag)
 {
     {
         // Ensure that only a single match is produced and nothing past that.
-        Regex<ECMA262> re("[\\u0008-\\uffff]"sv, ECMAScriptFlags::Global | (ECMAScriptFlags)regex::AllFlags::SingleMatch);
-        auto result = re.match("ABC"sv);
+        Regex<ECMA262> re("[\\u0008-\\uffff]"_sv, ECMAScriptFlags::Global | (ECMAScriptFlags)regex::AllFlags::SingleMatch);
+        auto result = re.match("ABC"_sv);
         EXPECT_EQ(result.success, true);
         EXPECT_EQ(result.matches.size(), 1u);
-        EXPECT_EQ(result.matches.first().view.to_byte_string(), "A"sv);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "A"_sv);
     }
 }
 
@@ -1238,11 +1238,11 @@ TEST_CASE(empty_string_wildcard_match)
 {
     {
         // Ensure that the wildcard ".*" matches the empty string exactly once
-        Regex<ECMA262> re(".*"sv, ECMAScriptFlags::Global);
-        auto result = re.match(""sv);
+        Regex<ECMA262> re(".*"_sv, ECMAScriptFlags::Global);
+        auto result = re.match(""_sv);
         EXPECT_EQ(result.success, true);
         EXPECT_EQ(result.matches.size(), 1u);
-        EXPECT_EQ(result.matches.first().view.to_byte_string(), ""sv);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), ""_sv);
     }
 }
 
@@ -1252,27 +1252,27 @@ TEST_CASE(inversion_state_in_char_class)
         // #13755, /[\S\s]/.exec("hello") should be [ "h" ], not null.
         Regex<ECMA262> re("[\\S\\s]", ECMAScriptFlags::Global | (ECMAScriptFlags)regex::AllFlags::SingleMatch);
 
-        auto result = re.match("hello"sv);
+        auto result = re.match("hello"_sv);
         EXPECT_EQ(result.success, true);
         EXPECT_EQ(result.matches.size(), 1u);
-        EXPECT_EQ(result.matches.first().view.to_byte_string(), "h"sv);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "h"_sv);
     }
     {
-        Regex<ECMA262> re("^(?:([^\\s!\"#%-,\\./;->@\\[-\\^`\\{-~]+(?=([=~}\\s/.)|]))))"sv, ECMAScriptFlags::Global);
+        Regex<ECMA262> re("^(?:([^\\s!\"#%-,\\./;->@\\[-\\^`\\{-~]+(?=([=~}\\s/.)|]))))"_sv, ECMAScriptFlags::Global);
 
-        auto result = re.match("slideNumbers}}"sv);
+        auto result = re.match("slideNumbers}}"_sv);
         EXPECT_EQ(result.success, true);
         EXPECT_EQ(result.matches.size(), 1u);
-        EXPECT_EQ(result.matches.first().view.to_byte_string(), "slideNumbers"sv);
-        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), "slideNumbers"sv);
-        EXPECT_EQ(result.capture_group_matches.first()[1].view.to_byte_string(), "}"sv);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "slideNumbers"_sv);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), "slideNumbers"_sv);
+        EXPECT_EQ(result.capture_group_matches.first()[1].view.to_byte_string(), "}"_sv);
     }
     {
         // #21786, /[^\S\n]/.exec("\n") should be null, not [ "\n" ].
         // This was a general confusion between the inversion state and the negation state (temp inverse).
         Regex<ECMA262> re("[^\\S\\n]", ECMAScriptFlags::Global | (ECMAScriptFlags)regex::AllFlags::SingleMatch);
 
-        auto result = re.match("\n"sv);
+        auto result = re.match("\n"_sv);
         EXPECT_EQ(result.success, false);
     }
 }
@@ -1280,8 +1280,8 @@ TEST_CASE(inversion_state_in_char_class)
 TEST_CASE(mismatching_brackets)
 {
     auto const test_cases = Array {
-        "["sv,
-        "[ -"sv,
+        "["_sv,
+        "[ -"_sv,
     };
 
     for (auto const& test_case : test_cases) {
@@ -1295,7 +1295,7 @@ TEST_CASE(optimizer_repeat_offset)
     {
         // Miscalculating the repeat offset in table reconstruction of alternatives would lead to crash here
         // make sure that doesn't happen :)
-        Regex<ECMA262> re("\\/?\\??#?([\\/?#]|[\\uD800-\\uDBFF]|%[c-f][0-9a-f](%[89ab][0-9a-f]){0,2}(%[89ab]?)?|%[0-9a-f]?)$"sv);
+        Regex<ECMA262> re("\\/?\\??#?([\\/?#]|[\\uD800-\\uDBFF]|%[c-f][0-9a-f](%[89ab][0-9a-f]){0,2}(%[89ab]?)?|%[0-9a-f]?)$"_sv);
     }
 }
 
@@ -1304,11 +1304,11 @@ TEST_CASE(zero_width_backreference)
     {
         // Ensure that a zero-width backreference will match correctly.
         Regex<ECMA262> re("(a*)b\\1+", ECMAScriptFlags::Global);
-        auto result = re.match("baaac"sv);
+        auto result = re.match("baaac"_sv);
 
         EXPECT_EQ(result.success, true);
         EXPECT_EQ(result.matches.size(), 1u);
-        EXPECT_EQ(result.matches.first().view.to_byte_string(), "b"sv);
-        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), ""sv);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "b"_sv);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), ""_sv);
     }
 }

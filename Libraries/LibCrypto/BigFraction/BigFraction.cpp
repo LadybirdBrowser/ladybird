@@ -31,7 +31,7 @@ ErrorOr<BigFraction> BigFraction::from_string(StringView sv)
     auto maybe_dot_index = sv.find('.');
 
     auto integer_part_view = sv.substring_view(0, maybe_dot_index.value_or(sv.length()));
-    auto fraction_part_view = maybe_dot_index.has_value() ? sv.substring_view(1 + *maybe_dot_index) : "0"sv;
+    auto fraction_part_view = maybe_dot_index.has_value() ? sv.substring_view(1 + *maybe_dot_index) : "0"_sv;
 
     auto integer_part = TRY(SignedBigInteger::from_base(10, integer_part_view));
     auto fractional_part = TRY(SignedBigInteger::from_base(10, fraction_part_view));
@@ -272,8 +272,8 @@ String BigFraction::to_string(unsigned rounding_threshold) const
 
     auto const raw_fractional_value = full_value.substring(split, full_value.length() - split);
 
-    auto const integer_value = split == 0 ? "0"sv : full_value.substring_view(0, split);
-    auto const fractional_value = rounding_threshold == 0 ? "0"sv : remove_trailing_zeros(raw_fractional_value);
+    auto const integer_value = split == 0 ? "0"_sv : full_value.substring_view(0, split);
+    auto const fractional_value = rounding_threshold == 0 ? "0"_sv : remove_trailing_zeros(raw_fractional_value);
 
     builder.append(integer_value);
 

@@ -17,18 +17,18 @@ namespace Web::WebDriver {
 static UserPromptHandler s_user_prompt_handler;
 
 // https://w3c.github.io/webdriver/#dfn-known-prompt-handlers
-static constexpr Array known_prompt_handlers { "dismiss"sv, "accept"sv, "dismiss and notify"sv, "accept and notify"sv, "ignore"sv };
+static constexpr Array known_prompt_handlers { "dismiss"_sv, "accept"_sv, "dismiss and notify"_sv, "accept and notify"_sv, "ignore"_sv };
 
 // https://w3c.github.io/webdriver/#dfn-valid-prompt-types
-static constexpr Array valid_prompt_types { "alert"sv, "beforeUnload"sv, "confirm"sv, "default"sv, "file"sv, "prompt"sv };
+static constexpr Array valid_prompt_types { "alert"_sv, "beforeUnload"_sv, "confirm"_sv, "default"_sv, "file"_sv, "prompt"_sv };
 
 static constexpr PromptHandler prompt_handler_from_string(StringView prompt_handler)
 {
-    if (prompt_handler == "dismiss"sv)
+    if (prompt_handler == "dismiss"_sv)
         return PromptHandler::Dismiss;
-    if (prompt_handler == "accept"sv)
+    if (prompt_handler == "accept"_sv)
         return PromptHandler::Accept;
-    if (prompt_handler == "ignore"sv)
+    if (prompt_handler == "ignore"_sv)
         return PromptHandler::Ignore;
     VERIFY_NOT_REACHED();
 }
@@ -37,47 +37,47 @@ static constexpr StringView prompt_type_to_string(PromptType prompt_type)
 {
     switch (prompt_type) {
     case PromptType::Alert:
-        return "alert"sv;
+        return "alert"_sv;
     case PromptType::BeforeUnload:
-        return "beforeUnload"sv;
+        return "beforeUnload"_sv;
     case PromptType::Confirm:
-        return "confirm"sv;
+        return "confirm"_sv;
     case PromptType::Default:
-        return "default"sv;
+        return "default"_sv;
     case PromptType::File:
-        return "file"sv;
+        return "file"_sv;
     case PromptType::Prompt:
-        return "prompt"sv;
+        return "prompt"_sv;
     case PromptType::FallbackDefault:
-        return "fallbackDefault"sv;
+        return "fallbackDefault"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 static constexpr PromptType prompt_type_from_string(StringView prompt_type)
 {
-    if (prompt_type == "alert"sv)
+    if (prompt_type == "alert"_sv)
         return PromptType::Alert;
-    if (prompt_type == "beforeUnload"sv)
+    if (prompt_type == "beforeUnload"_sv)
         return PromptType::BeforeUnload;
-    if (prompt_type == "confirm"sv)
+    if (prompt_type == "confirm"_sv)
         return PromptType::Confirm;
-    if (prompt_type == "default"sv)
+    if (prompt_type == "default"_sv)
         return PromptType::Default;
-    if (prompt_type == "file"sv)
+    if (prompt_type == "file"_sv)
         return PromptType::File;
-    if (prompt_type == "prompt"sv)
+    if (prompt_type == "prompt"_sv)
         return PromptType::Prompt;
-    if (prompt_type == "fallbackDefault"sv)
+    if (prompt_type == "fallbackDefault"_sv)
         return PromptType::FallbackDefault;
     VERIFY_NOT_REACHED();
 }
 
 PromptHandlerConfiguration PromptHandlerConfiguration::deserialize(JsonValue const& configuration)
 {
-    auto handler = prompt_handler_from_string(*configuration.as_object().get_string("handler"sv));
+    auto handler = prompt_handler_from_string(*configuration.as_object().get_string("handler"_sv));
 
-    auto notify = *configuration.as_object().get_bool("notify"sv)
+    auto notify = *configuration.as_object().get_bool("notify"_sv)
         ? PromptHandlerConfiguration::Notify::Yes
         : PromptHandlerConfiguration::Notify::No;
 
@@ -92,11 +92,11 @@ StringView PromptHandlerConfiguration::serialize() const
     // 3. Return serialized.
     switch (handler) {
     case PromptHandler::Dismiss:
-        return notify == Notify::Yes ? "dismiss and notify"sv : "dismiss"sv;
+        return notify == Notify::Yes ? "dismiss and notify"_sv : "dismiss"_sv;
     case PromptHandler::Accept:
-        return notify == Notify::Yes ? "accept and notify"sv : "accept"sv;
+        return notify == Notify::Yes ? "accept and notify"_sv : "accept"_sv;
     case PromptHandler::Ignore:
-        return "ignore"sv;
+        return "ignore"_sv;
     }
 
     VERIFY_NOT_REACHED();
@@ -125,7 +125,7 @@ Response deserialize_as_an_unhandled_prompt_behavior(JsonValue value)
     // 3. If value is a string set value to the map «["fallbackDefault" → value]» and set is string value to true.
     if (value.is_string()) {
         JsonObject map;
-        map.set("fallbackDefault"sv, move(value));
+        map.set("fallbackDefault"_sv, move(value));
 
         value = move(map);
         is_string_value = true;
@@ -133,7 +133,7 @@ Response deserialize_as_an_unhandled_prompt_behavior(JsonValue value)
 
     // 4. If value is not a map return error with error code invalid argument.
     if (!value.is_object())
-        return WebDriver::Error::from_code(ErrorCode::InvalidArgument, "Capability unhandledPromptBehavior must be a string or object"sv);
+        return WebDriver::Error::from_code(ErrorCode::InvalidArgument, "Capability unhandledPromptBehavior must be a string or object"_sv);
 
     // 5. Let user prompt handler be an empty map.
     JsonObject user_prompt_handler;
@@ -146,7 +146,7 @@ Response deserialize_as_an_unhandled_prompt_behavior(JsonValue value)
 
         // 2. If known prompt handlers does not contain an entry with handler key handler return error with error code invalid argument.
         if (!handler_value.is_string())
-            return WebDriver::Error::from_code(ErrorCode::InvalidArgument, "Prompt handler must be a string"sv);
+            return WebDriver::Error::from_code(ErrorCode::InvalidArgument, "Prompt handler must be a string"_sv);
 
         StringView handler = handler_value.as_string();
 
@@ -157,26 +157,26 @@ Response deserialize_as_an_unhandled_prompt_behavior(JsonValue value)
         bool notify = false;
 
         // 4. If handler is "accept and notify", set handler to "accept" and notify to true.
-        if (handler == "accept and notify"sv) {
-            handler = "accept"sv;
+        if (handler == "accept and notify"_sv) {
+            handler = "accept"_sv;
             notify = true;
         }
 
         // 5. If handler is "dismiss and notify", set handler to "dismiss" and notify to true.
-        else if (handler == "dismiss and notify"sv) {
-            handler = "dismiss"sv;
+        else if (handler == "dismiss and notify"_sv) {
+            handler = "dismiss"_sv;
             notify = true;
         }
 
         // 6. If handler is "ignore", set notify to true.
-        else if (handler == "ignore"sv) {
+        else if (handler == "ignore"_sv) {
             notify = true;
         }
 
         // 7. Let configuration be a prompt handler configuration with handler handler and notify notify.
         JsonObject configuration;
-        configuration.set("handler"sv, handler);
-        configuration.set("notify"sv, notify);
+        configuration.set("handler"_sv, handler);
+        configuration.set("notify"_sv, notify);
 
         // 8. Set user prompt handler[prompt type] to configuration.
         user_prompt_handler.set(prompt_type, move(configuration));
@@ -232,7 +232,7 @@ JsonValue serialize_the_user_prompt_handler()
 {
     // 1. If the user prompt handler is null, return "dismiss and notify".
     if (!s_user_prompt_handler.has_value())
-        return "dismiss and notify"sv;
+        return "dismiss and notify"_sv;
 
     // 2. If the user prompt handler has size 1, and user prompt handler contains "fallbackDefault", return the result
     //    of serialize a prompt handler configuration with user prompt handler["fallbackDefault"].

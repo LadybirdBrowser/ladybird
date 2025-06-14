@@ -16,16 +16,16 @@ constexpr Array supported_hash_functions {
     // These are sorted by strength, low to high.
     // NOTE: We are specifically told to refuse MD5 and SHA1.
     //       https://w3c.github.io/webappsec-subresource-integrity/#hash-functions
-    "sha256"sv,
-    "sha384"sv,
-    "sha512"sv,
+    "sha256"_sv,
+    "sha384"_sv,
+    "sha512"_sv,
 };
 
 // https://w3c.github.io/webappsec-subresource-integrity/#getprioritizedhashfunction
 static StringView get_prioritized_hash_function(StringView a, StringView b)
 {
     if (a == b)
-        return ""sv;
+        return ""_sv;
 
     auto a_priority = supported_hash_functions.first_index_of(a).value();
     auto b_priority = supported_hash_functions.first_index_of(b).value();
@@ -39,7 +39,7 @@ ErrorOr<String> apply_algorithm_to_bytes(StringView algorithm, ByteBuffer const&
 {
     // NOTE: The steps are duplicated here because each hash algorithm returns a different result type.
 
-    if (algorithm == "sha256"sv) {
+    if (algorithm == "sha256"_sv) {
         // 1. Let result be the result of applying algorithm to bytes.
         auto result = Crypto::Hash::SHA256::hash(bytes);
 
@@ -47,7 +47,7 @@ ErrorOr<String> apply_algorithm_to_bytes(StringView algorithm, ByteBuffer const&
         return encode_base64(result.bytes());
     }
 
-    if (algorithm == "sha384"sv) {
+    if (algorithm == "sha384"_sv) {
         // 1. Let result be the result of applying algorithm to bytes.
         auto result = Crypto::Hash::SHA384::hash(bytes);
 
@@ -55,7 +55,7 @@ ErrorOr<String> apply_algorithm_to_bytes(StringView algorithm, ByteBuffer const&
         return encode_base64(result.bytes());
     }
 
-    if (algorithm == "sha512"sv) {
+    if (algorithm == "sha512"_sv) {
         // 1. Let result be the result of applying algorithm to bytes.
         auto result = Crypto::Hash::SHA512::hash(bytes);
 

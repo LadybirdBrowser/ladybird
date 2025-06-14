@@ -41,7 +41,7 @@ void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Strin
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name == "transform"sv) {
+    if (name == "transform"_sv) {
         auto transform_list = AttributeParser::parse_transform(value.value_or(String {}));
         if (transform_list.has_value())
             m_transform = transform_from_transform_list(*transform_list);

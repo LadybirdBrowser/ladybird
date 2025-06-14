@@ -373,7 +373,7 @@ bool PulseAudioStream::is_suspended() const
 StringView pulse_audio_error_to_string(PulseAudioErrorCode code)
 {
     if (code < PulseAudioErrorCode::OK || code >= PulseAudioErrorCode::Sentinel)
-        return "Unknown error code"sv;
+        return "Unknown error code"_sv;
 
     char const* string = pa_strerror(static_cast<int>(code));
     return StringView { string, strlen(string) };
@@ -403,8 +403,8 @@ ErrorOr<void> PulseAudioStream::drain_and_suspend()
     if (pa_stream_is_corked(m_stream) > 0)
         return {};
 
-    TRY(wait_for_operation(pa_stream_drain(m_stream, STREAM_SIGNAL_CALLBACK(this)), "Draining PulseAudio stream failed"sv));
-    TRY(wait_for_operation(pa_stream_cork(m_stream, 1, STREAM_SIGNAL_CALLBACK(this)), "Corking PulseAudio stream after drain failed"sv));
+    TRY(wait_for_operation(pa_stream_drain(m_stream, STREAM_SIGNAL_CALLBACK(this)), "Draining PulseAudio stream failed"_sv));
+    TRY(wait_for_operation(pa_stream_cork(m_stream, 1, STREAM_SIGNAL_CALLBACK(this)), "Corking PulseAudio stream after drain failed"_sv));
     return {};
 }
 
@@ -419,8 +419,8 @@ ErrorOr<void> PulseAudioStream::flush_and_suspend()
     if (pa_stream_is_corked(m_stream) > 0)
         return {};
 
-    TRY(wait_for_operation(pa_stream_flush(m_stream, STREAM_SIGNAL_CALLBACK(this)), "Flushing PulseAudio stream failed"sv));
-    TRY(wait_for_operation(pa_stream_cork(m_stream, 1, STREAM_SIGNAL_CALLBACK(this)), "Corking PulseAudio stream after flush failed"sv));
+    TRY(wait_for_operation(pa_stream_flush(m_stream, STREAM_SIGNAL_CALLBACK(this)), "Flushing PulseAudio stream failed"_sv));
+    TRY(wait_for_operation(pa_stream_cork(m_stream, 1, STREAM_SIGNAL_CALLBACK(this)), "Corking PulseAudio stream after flush failed"_sv));
     return {};
 }
 
@@ -432,7 +432,7 @@ ErrorOr<void> PulseAudioStream::resume()
         return {};
     m_suspended = false;
 
-    TRY(wait_for_operation(pa_stream_cork(m_stream, 0, STREAM_SIGNAL_CALLBACK(this)), "Uncorking PulseAudio stream failed"sv));
+    TRY(wait_for_operation(pa_stream_cork(m_stream, 0, STREAM_SIGNAL_CALLBACK(this)), "Uncorking PulseAudio stream failed"_sv));
 
     // Defer a write to the playback buffer on the PulseAudio main loop. Otherwise, playback will not
     // begin again, despite the fact that we uncorked.
@@ -493,7 +493,7 @@ ErrorOr<void> PulseAudioStream::set_volume(double volume)
     pa_cvolume_set(&per_channel_volumes, channel_count(), pulse_volume);
 
     auto* operation = pa_context_set_sink_input_volume(m_context->m_context, index, &per_channel_volumes, STREAM_SIGNAL_CALLBACK(this));
-    return wait_for_operation(operation, "Failed to set PulseAudio stream volume"sv);
+    return wait_for_operation(operation, "Failed to set PulseAudio stream volume"_sv);
 }
 
 }

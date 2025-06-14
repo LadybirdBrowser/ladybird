@@ -49,11 +49,11 @@ String CSSMediaRule::serialized() const
     StringBuilder builder;
 
     // 1. The string "@media", followed by a single SPACE (U+0020).
-    builder.append("@media "sv);
+    builder.append("@media "_sv);
     // 2. The result of performing serialize a media query list on rule’s media query list.
     builder.append(condition_text());
     // 3. A single SPACE (U+0020), followed by the string "{", i.e., LEFT CURLY BRACKET (U+007B), followed by a newline.
-    builder.append(" {\n"sv);
+    builder.append(" {\n"_sv);
     // 4. The result of performing serialize a CSS rule on each rule in the rule’s cssRules list,
     //    filtering out empty strings, indenting each item with two spaces, all joined with newline.
     for (size_t i = 0; i < css_rules().length(); i++) {
@@ -63,7 +63,7 @@ String CSSMediaRule::serialized() const
         if (result.is_empty())
             continue;
 
-        builder.append("  "sv);
+        builder.append("  "_sv);
         builder.append(result);
         builder.append('\n');
     }

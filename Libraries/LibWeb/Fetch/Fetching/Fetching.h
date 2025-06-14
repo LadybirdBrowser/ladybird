@@ -16,7 +16,7 @@ namespace Web::Fetch::Fetching {
 
 // https://fetch.spec.whatwg.org/#document-accept-header-value
 // The document `Accept` header value is `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`.
-constexpr auto document_accept_header_value = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"sv;
+constexpr auto document_accept_header_value = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"_sv;
 
 // https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
 // If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.

@@ -17,7 +17,7 @@ String OpenTypeTaggedStyleValue::to_string(SerializationMode mode) const
     case Mode::FontFeatureSettings: {
         // For font-feature-settings, a 1 value is implicit, so we shouldn't output it.
         auto value_string = m_value->to_string(mode);
-        if (value_string != "1"sv)
+        if (value_string != "1"_sv)
             builder.appendff(" {}", value_string);
         break;
     }

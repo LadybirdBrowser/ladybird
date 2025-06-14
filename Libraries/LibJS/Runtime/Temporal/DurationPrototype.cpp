@@ -456,7 +456,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
 
     // 3. If totalOf is undefined, throw a TypeError exception.
     if (total_of_value.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "totalOf"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "totalOf"_sv);
 
     GC::Ptr<Object> total_of;
 

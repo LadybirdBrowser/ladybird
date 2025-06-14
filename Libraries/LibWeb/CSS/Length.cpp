@@ -213,184 +213,184 @@ StringView Length::unit_name() const
 {
     switch (m_type) {
     case Type::Em:
-        return "em"sv;
+        return "em"_sv;
     case Type::Rem:
-        return "rem"sv;
+        return "rem"_sv;
     case Type::Ex:
-        return "ex"sv;
+        return "ex"_sv;
     case Type::Rex:
-        return "rex"sv;
+        return "rex"_sv;
     case Type::Cap:
-        return "cap"sv;
+        return "cap"_sv;
     case Type::Rcap:
-        return "rcap"sv;
+        return "rcap"_sv;
     case Type::Ch:
-        return "ch"sv;
+        return "ch"_sv;
     case Type::Rch:
-        return "rch"sv;
+        return "rch"_sv;
     case Type::Ic:
-        return "ic"sv;
+        return "ic"_sv;
     case Type::Ric:
-        return "ric"sv;
+        return "ric"_sv;
     case Type::Lh:
-        return "lh"sv;
+        return "lh"_sv;
     case Type::Rlh:
-        return "rlh"sv;
+        return "rlh"_sv;
     case Type::Vw:
-        return "vw"sv;
+        return "vw"_sv;
     case Type::Svw:
-        return "svw"sv;
+        return "_svw"_sv;
     case Type::Lvw:
-        return "lvw"sv;
+        return "lvw"_sv;
     case Type::Dvw:
-        return "dvw"sv;
+        return "dvw"_sv;
     case Type::Vh:
-        return "vh"sv;
+        return "vh"_sv;
     case Type::Svh:
-        return "svh"sv;
+        return "_svh"_sv;
     case Type::Lvh:
-        return "lvh"sv;
+        return "lvh"_sv;
     case Type::Dvh:
-        return "dvh"sv;
+        return "dvh"_sv;
     case Type::Vi:
-        return "vi"sv;
+        return "vi"_sv;
     case Type::Svi:
-        return "svi"sv;
+        return "_svi"_sv;
     case Type::Lvi:
-        return "lvi"sv;
+        return "lvi"_sv;
     case Type::Dvi:
-        return "dvi"sv;
+        return "dvi"_sv;
     case Type::Vb:
-        return "vb"sv;
+        return "vb"_sv;
     case Type::Svb:
-        return "svb"sv;
+        return "_svb"_sv;
     case Type::Lvb:
-        return "lvb"sv;
+        return "lvb"_sv;
     case Type::Dvb:
-        return "dvb"sv;
+        return "dvb"_sv;
     case Type::Vmin:
-        return "vmin"sv;
+        return "vmin"_sv;
     case Type::Svmin:
-        return "svmin"sv;
+        return "_svmin"_sv;
     case Type::Lvmin:
-        return "lvmin"sv;
+        return "lvmin"_sv;
     case Type::Dvmin:
-        return "dvmin"sv;
+        return "dvmin"_sv;
     case Type::Vmax:
-        return "vmax"sv;
+        return "vmax"_sv;
     case Type::Svmax:
-        return "svmax"sv;
+        return "_svmax"_sv;
     case Type::Lvmax:
-        return "lvmax"sv;
+        return "lvmax"_sv;
     case Type::Dvmax:
-        return "dvmax"sv;
+        return "dvmax"_sv;
     case Type::Cm:
-        return "cm"sv;
+        return "cm"_sv;
     case Type::Mm:
-        return "mm"sv;
+        return "mm"_sv;
     case Type::Q:
-        return "Q"sv;
+        return "Q"_sv;
     case Type::In:
-        return "in"sv;
+        return "in"_sv;
     case Type::Pt:
-        return "pt"sv;
+        return "pt"_sv;
     case Type::Pc:
-        return "pc"sv;
+        return "pc"_sv;
     case Type::Px:
-        return "px"sv;
+        return "px"_sv;
     case Type::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<Length::Type> Length::unit_from_name(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("em"sv)) {
+    if (name.equals_ignoring_ascii_case("em"_sv)) {
         return Length::Type::Em;
-    } else if (name.equals_ignoring_ascii_case("rem"sv)) {
+    } else if (name.equals_ignoring_ascii_case("rem"_sv)) {
         return Length::Type::Rem;
-    } else if (name.equals_ignoring_ascii_case("ex"sv)) {
+    } else if (name.equals_ignoring_ascii_case("ex"_sv)) {
         return Length::Type::Ex;
-    } else if (name.equals_ignoring_ascii_case("rex"sv)) {
+    } else if (name.equals_ignoring_ascii_case("rex"_sv)) {
         return Length::Type::Rex;
-    } else if (name.equals_ignoring_ascii_case("cap"sv)) {
+    } else if (name.equals_ignoring_ascii_case("cap"_sv)) {
         return Length::Type::Cap;
-    } else if (name.equals_ignoring_ascii_case("rcap"sv)) {
+    } else if (name.equals_ignoring_ascii_case("rcap"_sv)) {
         return Length::Type::Rcap;
-    } else if (name.equals_ignoring_ascii_case("ch"sv)) {
+    } else if (name.equals_ignoring_ascii_case("ch"_sv)) {
         return Length::Type::Ch;
-    } else if (name.equals_ignoring_ascii_case("rch"sv)) {
+    } else if (name.equals_ignoring_ascii_case("rch"_sv)) {
         return Length::Type::Rch;
-    } else if (name.equals_ignoring_ascii_case("ic"sv)) {
+    } else if (name.equals_ignoring_ascii_case("ic"_sv)) {
         return Length::Type::Ic;
-    } else if (name.equals_ignoring_ascii_case("ric"sv)) {
+    } else if (name.equals_ignoring_ascii_case("ric"_sv)) {
         return Length::Type::Ric;
-    } else if (name.equals_ignoring_ascii_case("lh"sv)) {
+    } else if (name.equals_ignoring_ascii_case("lh"_sv)) {
         return Length::Type::Lh;
-    } else if (name.equals_ignoring_ascii_case("rlh"sv)) {
+    } else if (name.equals_ignoring_ascii_case("rlh"_sv)) {
         return Length::Type::Rlh;
-    } else if (name.equals_ignoring_ascii_case("vw"sv)) {
+    } else if (name.equals_ignoring_ascii_case("vw"_sv)) {
         return Length::Type::Vw;
-    } else if (name.equals_ignoring_ascii_case("svw"sv)) {
+    } else if (name.equals_ignoring_ascii_case("_svw"_sv)) {
         return Length::Type::Svw;
-    } else if (name.equals_ignoring_ascii_case("lvw"sv)) {
+    } else if (name.equals_ignoring_ascii_case("lvw"_sv)) {
         return Length::Type::Lvw;
-    } else if (name.equals_ignoring_ascii_case("dvw"sv)) {
+    } else if (name.equals_ignoring_ascii_case("dvw"_sv)) {
         return Length::Type::Dvw;
-    } else if (name.equals_ignoring_ascii_case("vh"sv)) {
+    } else if (name.equals_ignoring_ascii_case("vh"_sv)) {
         return Length::Type::Vh;
-    } else if (name.equals_ignoring_ascii_case("svh"sv)) {
+    } else if (name.equals_ignoring_ascii_case("_svh"_sv)) {
         return Length::Type::Svh;
-    } else if (name.equals_ignoring_ascii_case("lvh"sv)) {
+    } else if (name.equals_ignoring_ascii_case("lvh"_sv)) {
         return Length::Type::Lvh;
-    } else if (name.equals_ignoring_ascii_case("dvh"sv)) {
+    } else if (name.equals_ignoring_ascii_case("dvh"_sv)) {
         return Length::Type::Dvh;
-    } else if (name.equals_ignoring_ascii_case("vi"sv)) {
+    } else if (name.equals_ignoring_ascii_case("vi"_sv)) {
         return Length::Type::Vi;
-    } else if (name.equals_ignoring_ascii_case("svi"sv)) {
+    } else if (name.equals_ignoring_ascii_case("_svi"_sv)) {
         return Length::Type::Svi;
-    } else if (name.equals_ignoring_ascii_case("lvi"sv)) {
+    } else if (name.equals_ignoring_ascii_case("lvi"_sv)) {
         return Length::Type::Lvi;
-    } else if (name.equals_ignoring_ascii_case("dvi"sv)) {
+    } else if (name.equals_ignoring_ascii_case("dvi"_sv)) {
         return Length::Type::Dvi;
-    } else if (name.equals_ignoring_ascii_case("vb"sv)) {
+    } else if (name.equals_ignoring_ascii_case("vb"_sv)) {
         return Length::Type::Vb;
-    } else if (name.equals_ignoring_ascii_case("svb"sv)) {
+    } else if (name.equals_ignoring_ascii_case("_svb"_sv)) {
         return Length::Type::Svb;
-    } else if (name.equals_ignoring_ascii_case("lvb"sv)) {
+    } else if (name.equals_ignoring_ascii_case("lvb"_sv)) {
         return Length::Type::Lvb;
-    } else if (name.equals_ignoring_ascii_case("dvb"sv)) {
+    } else if (name.equals_ignoring_ascii_case("dvb"_sv)) {
         return Length::Type::Dvb;
-    } else if (name.equals_ignoring_ascii_case("vmin"sv)) {
+    } else if (name.equals_ignoring_ascii_case("vmin"_sv)) {
         return Length::Type::Vmin;
-    } else if (name.equals_ignoring_ascii_case("svmin"sv)) {
+    } else if (name.equals_ignoring_ascii_case("_svmin"_sv)) {
         return Length::Type::Svmin;
-    } else if (name.equals_ignoring_ascii_case("lvmin"sv)) {
+    } else if (name.equals_ignoring_ascii_case("lvmin"_sv)) {
         return Length::Type::Lvmin;
-    } else if (name.equals_ignoring_ascii_case("dvmin"sv)) {
+    } else if (name.equals_ignoring_ascii_case("dvmin"_sv)) {
         return Length::Type::Dvmin;
-    } else if (name.equals_ignoring_ascii_case("vmax"sv)) {
+    } else if (name.equals_ignoring_ascii_case("vmax"_sv)) {
         return Length::Type::Vmax;
-    } else if (name.equals_ignoring_ascii_case("svmax"sv)) {
+    } else if (name.equals_ignoring_ascii_case("_svmax"_sv)) {
         return Length::Type::Svmax;
-    } else if (name.equals_ignoring_ascii_case("lvmax"sv)) {
+    } else if (name.equals_ignoring_ascii_case("lvmax"_sv)) {
         return Length::Type::Lvmax;
-    } else if (name.equals_ignoring_ascii_case("dvmax"sv)) {
+    } else if (name.equals_ignoring_ascii_case("dvmax"_sv)) {
         return Length::Type::Dvmax;
-    } else if (name.equals_ignoring_ascii_case("cm"sv)) {
+    } else if (name.equals_ignoring_ascii_case("cm"_sv)) {
         return Length::Type::Cm;
-    } else if (name.equals_ignoring_ascii_case("mm"sv)) {
+    } else if (name.equals_ignoring_ascii_case("mm"_sv)) {
         return Length::Type::Mm;
-    } else if (name.equals_ignoring_ascii_case("Q"sv)) {
+    } else if (name.equals_ignoring_ascii_case("Q"_sv)) {
         return Length::Type::Q;
-    } else if (name.equals_ignoring_ascii_case("in"sv)) {
+    } else if (name.equals_ignoring_ascii_case("in"_sv)) {
         return Length::Type::In;
-    } else if (name.equals_ignoring_ascii_case("pt"sv)) {
+    } else if (name.equals_ignoring_ascii_case("pt"_sv)) {
         return Length::Type::Pt;
-    } else if (name.equals_ignoring_ascii_case("pc"sv)) {
+    } else if (name.equals_ignoring_ascii_case("pc"_sv)) {
         return Length::Type::Pc;
-    } else if (name.equals_ignoring_ascii_case("px"sv)) {
+    } else if (name.equals_ignoring_ascii_case("px"_sv)) {
         return Length::Type::Px;
     }
 

@@ -20,7 +20,7 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
     // Read the total time scheduled from /proc/stat, and each process's usage from /proc/pid/stat
     // Calculate the CPU percentage for each process based on the total time scheduled and the time spent in the process
 
-    static auto proc_stat = TRY(Core::File::open("/proc/stat"sv, Core::File::OpenMode::Read));
+    static auto proc_stat = TRY(Core::File::open("/proc/stat"_sv, Core::File::OpenMode::Read));
     TRY(proc_stat->seek(0, SeekMode::SetPosition));
 
     char buf[1024] = {};

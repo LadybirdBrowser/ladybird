@@ -13,7 +13,7 @@ namespace DevTools {
 
 class DeviceActor final : public Actor {
 public:
-    static constexpr auto base_name = "device"sv;
+    static constexpr auto base_name = "device"_sv;
 
     static NonnullRefPtr<DeviceActor> create(DevToolsServer&, String name);
     virtual ~DeviceActor() override;

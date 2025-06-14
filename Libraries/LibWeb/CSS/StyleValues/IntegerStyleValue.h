@@ -19,7 +19,7 @@ public:
 
     i64 integer() const { return m_value; }
     virtual double value() const override { return m_value; }
-    virtual StringView unit() const override { return "number"sv; }
+    virtual StringView unit() const override { return "number"_sv; }
 
     virtual String to_string(SerializationMode) const override;
 

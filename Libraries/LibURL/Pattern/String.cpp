@@ -36,7 +36,7 @@ String escape_a_pattern_string(String const& input)
         //     * U+0029 ()); or
         //     * U+005C (\),
         //    then append U+005C (\) to the end of result.
-        if ("+*?:{}()\\"sv.contains(c))
+        if ("+*?:{}()\\"_sv.contains(c))
             result.append('\\');
 
         // 4. Append c to the end of result.
@@ -79,7 +79,7 @@ String escape_a_regexp_string(String const& input)
         //     * U+002F (/); or
         //     * U+005C (\),
         //    then append "\" to the end of result.
-        if (".+*?^${}()[]|/\\"sv.contains(c))
+        if (".+*?^${}()[]|/\\"_sv.contains(c))
             builder.append('\\');
 
         // 4. Append c to the end of result.
@@ -95,14 +95,14 @@ String generate_a_segment_wildcard_regexp(Options const& options)
 {
     // 1. Let result be "[^".
     StringBuilder result;
-    result.append("[^"sv);
+    result.append("[^"_sv);
 
     // 2. Append the result of running escape a regexp string given options’s delimiter code point to the end of result.
     if (options.delimiter_code_point.has_value())
         result.append(escape_a_regexp_string(String::from_code_point(*options.delimiter_code_point)));
 
     // 3. Append "]+?" to the end of result.
-    result.append("]+?"sv);
+    result.append("]+?"_sv);
 
     // 4. Return result.
     return result.to_string_without_validation();

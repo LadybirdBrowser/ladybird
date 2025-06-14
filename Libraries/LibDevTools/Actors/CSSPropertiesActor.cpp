@@ -28,7 +28,7 @@ void CSSPropertiesActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "getCSSDatabase"sv) {
+    if (message.type == "getCSSDatabase"_sv) {
         auto css_property_list = devtools().delegate().css_property_list();
 
         JsonObject properties;
@@ -38,15 +38,15 @@ void CSSPropertiesActor::handle_message(Message const& message)
             subproperties.must_append(css_property.name);
 
             JsonObject property;
-            property.set("isInherited"sv, css_property.is_inherited);
-            property.set("supports"sv, JsonArray {});
-            property.set("values"sv, JsonArray {});
-            property.set("subproperties"sv, move(subproperties));
+            property.set("isInherited"_sv, css_property.is_inherited);
+            property.set("supports"_sv, JsonArray {});
+            property.set("values"_sv, JsonArray {});
+            property.set("subproperties"_sv, move(subproperties));
 
             properties.set(css_property.name, move(property));
         }
 
-        response.set("properties"sv, move(properties));
+        response.set("properties"_sv, move(properties));
         send_response(message, move(response));
         return;
     }

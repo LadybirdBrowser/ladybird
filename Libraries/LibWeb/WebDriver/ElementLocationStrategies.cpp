@@ -21,7 +21,7 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_css_selector(DOM
     //    If this causes an exception to be thrown, return error with error code invalid selector.
     auto elements = start_node.query_selector_all(selector);
     if (elements.is_exception())
-        return Error::from_code(ErrorCode::InvalidSelector, "querySelectorAll() failed"sv);
+        return Error::from_code(ErrorCode::InvalidSelector, "querySelectorAll() failed"_sv);
 
     // 2.Return success with data elements.
     return elements.release_value();
@@ -34,9 +34,9 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_link_text(DOM::P
 
     // 1. Let elements be the result of calling querySelectorAll() with start node as this and "a" as the argument. If
     //    this throws an exception, return error with error code unknown error.
-    auto elements = start_node.query_selector_all("a"sv);
+    auto elements = start_node.query_selector_all("a"_sv);
     if (elements.is_exception())
-        return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
+        return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"_sv);
 
     // 2. Let result be an empty NodeList.
     Vector<GC::Root<DOM::Node>> result;
@@ -67,9 +67,9 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_partial_link_tex
 
     // 1. Let elements be the result of calling querySelectorAll() with start node as this and "a" as the argument. If
     //    this throws an exception, return error with error code unknown error.
-    auto elements = start_node.query_selector_all("a"sv);
+    auto elements = start_node.query_selector_all("a"_sv);
     if (elements.is_exception())
-        return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
+        return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"_sv);
 
     // 2. Let result be an empty NodeList.
     Vector<GC::Root<DOM::Node>> result;
@@ -113,20 +113,20 @@ static GC::Ref<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNode& start_
 // https://w3c.github.io/webdriver/#xpath
 static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_x_path(DOM::ParentNode&, StringView)
 {
-    return Error::from_code(ErrorCode::UnsupportedOperation, "Not implemented: locate element by XPath"sv);
+    return Error::from_code(ErrorCode::UnsupportedOperation, "Not implemented: locate element by XPath"_sv);
 }
 
 Optional<LocationStrategy> location_strategy_from_string(StringView type)
 {
-    if (type == "css selector"sv)
+    if (type == "css selector"_sv)
         return LocationStrategy::CssSelector;
-    if (type == "link text"sv)
+    if (type == "link text"_sv)
         return LocationStrategy::LinkText;
-    if (type == "partial link text"sv)
+    if (type == "partial link text"_sv)
         return LocationStrategy::PartialLinkText;
-    if (type == "tag name"sv)
+    if (type == "tag name"_sv)
         return LocationStrategy::TagName;
-    if (type == "xpath"sv)
+    if (type == "xpath"_sv)
         return LocationStrategy::XPath;
     return {};
 }

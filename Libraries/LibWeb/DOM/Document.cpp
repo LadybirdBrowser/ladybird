@@ -373,11 +373,11 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_window = window;
 
     // NOTE: Non-standard: Pull out the Last-Modified header for use in the lastModified property.
-    if (auto maybe_last_modified = navigation_params.response->header_list()->get("Last-Modified"sv.bytes()); maybe_last_modified.has_value())
-        document->m_last_modified = Core::DateTime::parse("%a, %d %b %Y %H:%M:%S %Z"sv, maybe_last_modified.value());
+    if (auto maybe_last_modified = navigation_params.response->header_list()->get("Last-Modified"_sv.bytes()); maybe_last_modified.has_value())
+        document->m_last_modified = Core::DateTime::parse("%a, %d %b %Y %H:%M:%S %Z"_sv, maybe_last_modified.value());
 
     // NOTE: Non-standard: Pull out the Content-Language header to determine the document's language.
-    if (auto maybe_http_content_language = navigation_params.response->header_list()->get("Content-Language"sv.bytes()); maybe_http_content_language.has_value()) {
+    if (auto maybe_http_content_language = navigation_params.response->header_list()->get("Content-Language"_sv.bytes()); maybe_http_content_language.has_value()) {
         if (auto maybe_content_language = String::from_utf8(maybe_http_content_language.value()); !maybe_content_language.is_error())
             document->m_http_content_language = maybe_content_language.release_value();
     }
@@ -408,7 +408,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //            navigationParams's response's service worker timing info.
 
     // 15. If navigationParams's response has a `Refresh` header, then:
-    if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv.bytes()); maybe_refresh.has_value()) {
+    if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"_sv.bytes()); maybe_refresh.has_value()) {
         // 1. Let value be the isomorphic decoding of the value of the header.
         auto value = Infra::isomorphic_decode(maybe_refresh.value());
 
@@ -944,7 +944,7 @@ StringView Document::dir() const
     if (auto html = html_element())
         return html->dir();
 
-    return ""sv;
+    return ""_sv;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-dir
@@ -1637,7 +1637,7 @@ void Document::obtain_supported_color_schemes()
 
         // 2. For each element in candidate elements:
         auto content = element.attribute(HTML::AttributeNames::content);
-        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("color-scheme"sv) && content.has_value()) {
+        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("color-scheme"_sv) && content.has_value()) {
             // 1. Let parsed be the result of parsing a list of component values given the value of element's content attribute.
             auto context = CSS::Parser::ParsingParams { document() };
             auto parsed = parse_css_value(context, content.value(), CSS::PropertyID::ColorScheme);
@@ -1668,7 +1668,7 @@ void Document::obtain_theme_color()
 
         // 2. For each element in candidate elements:
         auto content = element.attribute(HTML::AttributeNames::content);
-        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("theme-color"sv) && content.has_value()) {
+        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("theme-color"_sv) && content.has_value()) {
             // 1. If element has a media attribute and the value of element's media attribute does not match the environment, then continue.
             auto context = CSS::Parser::ParsingParams { document() };
             auto media = element.attribute(HTML::AttributeNames::media);
@@ -2123,7 +2123,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& loc
 
     // 5. Let namespace be the HTML namespace, if this is an HTML document or this’s content type is "application/xhtml+xml"; otherwise null.
     Optional<FlyString> namespace_;
-    if (document_type() == Type::HTML || content_type() == "application/xhtml+xml"sv)
+    if (document_type() == Type::HTML || content_type() == "application/xhtml+xml"_sv)
         namespace_ = Namespace::HTML;
 
     // 6. Return the result of creating an element given this, localName, namespace, null, is, and with the synchronous custom elements flag set.
@@ -2169,7 +2169,7 @@ WebIDL::ExceptionOr<GC::Ref<CDATASection>> Document::create_cdata_section(String
         return WebIDL::NotSupportedError::create(realm(), "This operation is not supported for HTML documents"_string);
 
     // 2. If data contains the string "]]>", then throw an "InvalidCharacterError" DOMException.
-    if (data.contains("]]>"sv))
+    if (data.contains("]]>"_sv))
         return WebIDL::InvalidCharacterError::create(realm(), "String may not contain ']]>'"_string);
 
     // 3. Return a new CDATASection node with its data set to data and node document set to this.
@@ -2189,7 +2189,7 @@ WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_
         return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in target name."_string);
 
     // 2. If data contains the string "?>", then throw an "InvalidCharacterError" DOMException.
-    if (data.contains("?>"sv))
+    if (data.contains("?>"_sv))
         return WebIDL::InvalidCharacterError::create(realm(), "String may not contain '?>'"_string);
 
     // 3. Return a new ProcessingInstruction node, with target set to target, data set to data, and node document set to this.
@@ -2212,44 +2212,44 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
 
     // 2. If interface is an ASCII case-insensitive match for any of the strings in the first column in the following table,
     //      then set constructor to the interface in the second column on the same row as the matching string:
-    if (interface.equals_ignoring_ascii_case("beforeunloadevent"sv)) {
+    if (interface.equals_ignoring_ascii_case("beforeunloadevent"_sv)) {
         event = HTML::BeforeUnloadEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("compositionevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("compositionevent"_sv)) {
         event = UIEvents::CompositionEvent::create(realm, String {});
-    } else if (interface.equals_ignoring_ascii_case("customevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("customevent"_sv)) {
         event = CustomEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("devicemotionevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("devicemotionevent"_sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create DeviceMotionEvent
-    } else if (interface.equals_ignoring_ascii_case("deviceorientationevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("deviceorientationevent"_sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create DeviceOrientationEvent
-    } else if (interface.equals_ignoring_ascii_case("dragevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("dragevent"_sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create DragEvent
-    } else if (interface.equals_ignoring_ascii_case("event"sv)
-        || interface.equals_ignoring_ascii_case("events"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("event"_sv)
+        || interface.equals_ignoring_ascii_case("events"_sv)) {
         event = Event::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("focusevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("focusevent"_sv)) {
         event = UIEvents::FocusEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("hashchangeevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("hashchangeevent"_sv)) {
         event = HTML::HashChangeEvent::create(realm, FlyString {}, {});
-    } else if (interface.equals_ignoring_ascii_case("htmlevents"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("htmlevents"_sv)) {
         event = Event::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("keyboardevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("keyboardevent"_sv)) {
         event = UIEvents::KeyboardEvent::create(realm, String {});
-    } else if (interface.equals_ignoring_ascii_case("messageevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("messageevent"_sv)) {
         event = HTML::MessageEvent::create(realm, String {});
-    } else if (interface.equals_ignoring_ascii_case("mouseevent"sv)
-        || interface.equals_ignoring_ascii_case("mouseevents"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("mouseevent"_sv)
+        || interface.equals_ignoring_ascii_case("mouseevents"_sv)) {
         event = UIEvents::MouseEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("storageevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("storageevent"_sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create StorageEvent
-    } else if (interface.equals_ignoring_ascii_case("svgevents"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("svgevents"_sv)) {
         event = Event::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("textevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("textevent"_sv)) {
         event = UIEvents::TextEvent::create(realm, FlyString {});
-    } else if (interface.equals_ignoring_ascii_case("touchevent"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("touchevent"_sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create TouchEvent
-    } else if (interface.equals_ignoring_ascii_case("uievent"sv)
-        || interface.equals_ignoring_ascii_case("uievents"sv)) {
+    } else if (interface.equals_ignoring_ascii_case("uievent"_sv)
+        || interface.equals_ignoring_ascii_case("uievents"_sv)) {
         event = UIEvents::UIEvent::create(realm, FlyString {});
     }
 
@@ -2631,7 +2631,7 @@ Document::IndicatedPart Document::determine_the_indicated_part() const
         return potential_indicated_element;
 
     // 9. If decodedFragment is an ASCII case-insensitive match for the string top, then return the top of the document.
-    if (decoded_fragment.equals_ignoring_ascii_case("top"sv))
+    if (decoded_fragment.equals_ignoring_ascii_case("top"_sv))
         return Document::TopOfTheDocument {};
 
     // 10. Return null.
@@ -2982,11 +2982,11 @@ StringView Document::ready_state() const
 {
     switch (m_readiness) {
     case HTML::DocumentReadyState::Loading:
-        return "loading"sv;
+        return "loading"_sv;
     case HTML::DocumentReadyState::Interactive:
-        return "interactive"sv;
+        return "interactive"_sv;
     case HTML::DocumentReadyState::Complete:
-        return "complete"sv;
+        return "complete"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -3061,7 +3061,7 @@ String Document::last_modified() const
     // of the networking protocols used, e.g. from the value of the HTTP `Last-Modified` header of the document,
     // or from metadata in the file system for local files. If the last modification date and time are not known,
     // the attribute must return the current date and time in the above format.
-    constexpr auto format_string = "%m/%d/%Y %H:%M:%S"sv;
+    constexpr auto format_string = "%m/%d/%Y %H:%M:%S"_sv;
 
     if (m_last_modified.has_value())
         return MUST(m_last_modified.value().to_string(format_string));
@@ -3180,9 +3180,9 @@ bool Document::is_cookie_averse() const
         return true;
 
     // * A Document whose URL's scheme is not an HTTP(S) scheme.
-    if (!url().scheme().is_one_of("http"sv, "https"sv)) {
+    if (!url().scheme().is_one_of("http"_sv, "https"_sv)) {
         // AD-HOC: This allows us to write cookie integration tests.
-        if (!m_enable_cookies_on_file_domains || url().scheme() != "file"sv)
+        if (!m_enable_cookies_on_file_domains || url().scheme() != "file"_sv)
             return true;
     }
 
@@ -3352,9 +3352,9 @@ StringView Document::visibility_state() const
 {
     switch (m_visibility_state) {
     case HTML::VisibilityState::Hidden:
-        return "hidden"sv;
+        return "hidden"_sv;
     case HTML::VisibilityState::Visible:
-        return "visible"sv;
+        return "visible"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -4478,8 +4478,8 @@ String Document::dump_accessibility_tree_as_json()
 
     // Empty document
     if (!accessibility_tree->value()) {
-        MUST(json.add("type"sv, "element"sv));
-        MUST(json.add("role"sv, "document"sv));
+        MUST(json.add("type"_sv, "element"_sv));
+        MUST(json.add("role"_sv, "document"_sv));
     } else {
         accessibility_tree->serialize_tree_as_json(json, *this);
     }
@@ -5542,7 +5542,7 @@ WebIDL::ExceptionOr<void> Document::set_design_mode(String const& design_mode)
     auto value = MUST(design_mode.to_lowercase());
 
     // 2. If value is "on" and this's design mode enabled is false, then:
-    if (value == "on"sv && !m_design_mode_enabled) {
+    if (value == "on"_sv && !m_design_mode_enabled) {
         // 1. Set this's design mode enabled to true.
         set_design_mode_enabled_state(true);
         // 2. Reset this's active range's start and end boundary points to be at the start of this.
@@ -5558,7 +5558,7 @@ WebIDL::ExceptionOr<void> Document::set_design_mode(String const& design_mode)
             HTML::run_focusing_steps(document_element);
     }
     // 3. If value is "off", then set this's design mode enabled to false.
-    else if (value == "off"sv) {
+    else if (value == "off"_sv) {
         set_design_mode_enabled_state(false);
     }
     return {};
@@ -6273,7 +6273,7 @@ void Document::parse_html_from_a_string(StringView html)
     // 2. Create an HTML parser parser, associated with document.
     // 3. Place html into the input stream for parser. The encoding confidence is irrelevant.
     // FIXME: We don't have the concept of encoding confidence yet.
-    auto parser = HTML::HTMLParser::create(*this, html, "UTF-8"sv);
+    auto parser = HTML::HTMLParser::create(*this, html, "UTF-8"_sv);
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
     parser->run(as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().url());
@@ -6595,7 +6595,7 @@ StringView to_string(SetNeedsLayoutReason reason)
     switch (reason) {
 #define ENUMERATE_SET_NEEDS_LAYOUT_REASON(e) \
     case SetNeedsLayoutReason::e:            \
-        return #e##sv;
+        return #e##_sv;
         ENUMERATE_SET_NEEDS_LAYOUT_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_REASON)
 #undef ENUMERATE_SET_NEEDS_LAYOUT_REASON
     }
@@ -6607,7 +6607,7 @@ StringView to_string(SetNeedsLayoutTreeUpdateReason reason)
     switch (reason) {
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON(e) \
     case SetNeedsLayoutTreeUpdateReason::e:              \
-        return #e##sv;
+        return #e##_sv;
         ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON)
 #undef ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON
     }
@@ -6619,7 +6619,7 @@ StringView to_string(InvalidateLayoutTreeReason reason)
     switch (reason) {
 #define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON(e) \
     case InvalidateLayoutTreeReason::e:            \
-        return #e##sv;
+        return #e##_sv;
         ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON)
 #undef ENUMERATE_INVALIDATE_LAYOUT_TREE_REASON
     }
@@ -6631,7 +6631,7 @@ StringView to_string(UpdateLayoutReason reason)
     switch (reason) {
 #define ENUMERATE_UPDATE_LAYOUT_REASON(e) \
     case UpdateLayoutReason::e:           \
-        return #e##sv;
+        return #e##_sv;
         ENUMERATE_UPDATE_LAYOUT_REASONS(ENUMERATE_UPDATE_LAYOUT_REASON)
 #undef ENUMERATE_UPDATE_LAYOUT_REASON
     }

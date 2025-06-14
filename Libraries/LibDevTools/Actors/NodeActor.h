@@ -26,7 +26,7 @@ struct NodeIdentifier {
 
 class NodeActor final : public Actor {
 public:
-    static constexpr auto base_name = "node"sv;
+    static constexpr auto base_name = "node"_sv;
 
     static NonnullRefPtr<NodeActor> create(DevToolsServer&, String name, NodeIdentifier, WeakPtr<WalkerActor>);
     virtual ~NodeActor() override;

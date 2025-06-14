@@ -17,35 +17,35 @@ struct FontStyleMapping {
 };
 
 static constexpr Array<FontStyleMapping, 10> font_weight_names = { {
-    { 100, "Thin"sv },
-    { 200, "Extra Light"sv },
-    { 300, "Light"sv },
-    { 400, "Regular"sv },
-    { 500, "Medium"sv },
-    { 600, "Semi Bold"sv },
-    { 700, "Bold"sv },
-    { 800, "Extra Bold"sv },
-    { 900, "Black"sv },
-    { 950, "Extra Black"sv },
+    { 100, "Thin"_sv },
+    { 200, "Extra Light"_sv },
+    { 300, "Light"_sv },
+    { 400, "Regular"_sv },
+    { 500, "Medium"_sv },
+    { 600, "Semi Bold"_sv },
+    { 700, "Bold"_sv },
+    { 800, "Extra Bold"_sv },
+    { 900, "Black"_sv },
+    { 950, "Extra Black"_sv },
 } };
 
 static constexpr Array<FontStyleMapping, 4> font_slope_names = { {
-    { 0, "Regular"sv },
-    { 1, "Italic"sv },
-    { 2, "Oblique"sv },
-    { 3, "Reclined"sv },
+    { 0, "Regular"_sv },
+    { 1, "Italic"_sv },
+    { 2, "Oblique"_sv },
+    { 3, "Reclined"_sv },
 } };
 
 static constexpr Array<FontStyleMapping, 9> font_width_names = { {
-    { 1, "Ultra Condensed"sv },
-    { 2, "Extra Condensed"sv },
-    { 3, "Condensed"sv },
-    { 4, "Semi Condensed"sv },
-    { 5, "Normal"sv },
-    { 6, "Semi Expanded"sv },
-    { 7, "Expanded"sv },
-    { 8, "Extra Expanded"sv },
-    { 9, "Ultra Expanded"sv },
+    { 1, "Ultra Condensed"_sv },
+    { 2, "Extra Condensed"_sv },
+    { 3, "Condensed"_sv },
+    { 4, "Semi Condensed"_sv },
+    { 5, "Normal"_sv },
+    { 6, "Semi Expanded"_sv },
+    { 7, "Expanded"_sv },
+    { 8, "Extra Expanded"_sv },
+    { 9, "Ultra Expanded"_sv },
 } };
 
 static constexpr StringView weight_to_name(int weight)

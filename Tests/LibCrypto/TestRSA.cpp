@@ -53,7 +53,7 @@ joNOYoR5R9z5oX2cpcyykQ58FC2vKKg+x8N6xczG7qO95tw5UQIhAN354CP/FA+uTeJ6KJ+i
 zCBCl58CjNCzO0s5HTc56el5AiEAsvPKXo5/9gS/S4UzDRP6abq7GreixTfjR8LXidk3FL8C
 IQCTjYI861Y+hjMnlORkGSdvWlTHUj6gjEOh4TlWeJzQoQIgAxMZOQKtxCZUuxFwzRq4xLRG
 nrDlBQpuxz7bwSyQO7UCIHrYMnDohgNbwtA5ZpW3H1cKKQQvueWm6sxW9P5sUrZ3
------END RSA PRIVATE KEY-----)"sv;
+-----END RSA PRIVATE KEY-----)"_sv;
 
     Crypto::PK::RSA rsa(privkey);
     if (rsa.public_key().public_exponent() != 65537) {
@@ -94,7 +94,7 @@ o+7RC7iOkO+rnzTXwxBSBpXMiUTAIx/hrdfPVxQT+wKBgCh7N3OLIOH6EWcW1fif
 UoENh8rkt/kzm89G1JLwBhuBIBPXUEZt2dS/xSUempqVqFGONpP87gvqxkMTtgCA
 73KXn/cxHWM2kmXyHA3kQlOYw6WHjpldQAxLE+TRHXO2JUtZ09Mu4rVXX7lmwbTm
 l3vmuDEF3/Bo1C1HTg0xRV/l
------END PRIVATE KEY-----)"sv;
+-----END PRIVATE KEY-----)"_sv;
 
     Crypto::PK::RSA rsa(privkey);
     if (rsa.public_key().public_exponent() != 65537) {
@@ -118,7 +118,7 @@ RwIhAIDSm8Ajgf7m3RQEoLVrCe/l8WtCqsuWliOsr6rbQq4hAiEAx8R16wvOtZlN
 W4jvSU1+WwAaBZl21lfKf8OhLRXrmNkCIG9IRdcSiNR/Ut8QfD3N9Bb1HsUm+Bvz
 c8yGzl89pYST
 -----END PRIVATE KEY-----
-)"sv;
+)"_sv;
     auto decoded = Crypto::decode_pem(keypem.bytes());
     EXPECT_EQ(decoded.type, Crypto::PEMType::PrivateKey);
     auto decoder = Crypto::ASN1::Decoder { decoded.data };

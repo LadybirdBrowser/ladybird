@@ -40,7 +40,7 @@ TEST_CASE(byte_buffer_vector_contains_slow_bytes)
     ByteBuffer a = ByteBuffer::copy("Hello, friend", 13).release_value();
     vector.append(a);
 
-    ReadonlyBytes b = "Hello, friend"sv.bytes();
+    ReadonlyBytes b = "Hello, friend"_sv.bytes();
     Bytes c = a.bytes();
     EXPECT_EQ(vector.contains_slow(b), true);
     EXPECT_EQ(vector.contains_slow(c), true);

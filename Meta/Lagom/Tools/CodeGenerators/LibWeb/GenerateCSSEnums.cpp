@@ -174,7 +174,7 @@ StringView to_string(@name:titlecase@ value)
 
             member_generator.append(R"~~~(
     case @name:titlecase@::@member:titlecase@:
-        return "@member:css@"sv;)~~~");
+        return "@member:css@"_sv;)~~~");
         }
 
         enum_generator.append(R"~~~(

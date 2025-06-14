@@ -37,9 +37,9 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, String host)
 {
     RefPtr<WebUI> web_ui;
 
-    if (host == "processes"sv)
+    if (host == "processes"_sv)
         web_ui = TRY(create_web_ui<ProcessesUI>(client, move(host)));
-    else if (host == "settings"sv)
+    else if (host == "settings"_sv)
         web_ui = TRY(create_web_ui<SettingsUI>(client, move(host)));
 
     if (web_ui)

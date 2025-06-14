@@ -311,7 +311,7 @@ bool is_scripting_disabled(JS::Realm const& realm)
 bool module_type_allowed(JS::Realm const&, StringView module_type)
 {
     // 1. If moduleType is not "javascript", "css", or "json", then return false.
-    if (module_type != "javascript"sv && module_type != "css"sv && module_type != "json"sv)
+    if (module_type != "javascript"_sv && module_type != "css"_sv && module_type != "json"_sv)
         return false;
 
     // FIXME: 2. If moduleType is "css" and the CSSStyleSheet interface is not exposed in realm, then return false.

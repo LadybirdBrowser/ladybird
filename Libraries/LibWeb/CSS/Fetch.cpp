@@ -40,7 +40,7 @@ static WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::Request>> fetch_a_styl
         [](CSS::URL const& url) { return url.url(); });
     auto parsed_url = ::URL::Parser::basic_parse(url_string, base);
     if (!parsed_url.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::URIError, "Failed to parse URL"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::URIError, "Failed to parse URL"_sv };
 
     // 4. Let req be a new request whose url is parsedUrl, whose destination is destination, mode is corsMode,
     //    origin is environmentSettings’s origin, credentials mode is "same-origin", use-url-credentials flag is set,

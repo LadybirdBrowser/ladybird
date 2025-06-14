@@ -160,10 +160,10 @@ ThrowCompletionOr<ValueFormat> handle_date_time_value(VM&, DateTimeFormat&, Form
 template<typename Callback>
 ThrowCompletionOr<void> for_each_calendar_field(VM& vm, Unicode::CalendarPattern& pattern, Callback&& callback)
 {
-    constexpr auto narrow_short_long = AK::Array { "narrow"sv, "short"sv, "long"sv };
-    constexpr auto two_digit_numeric = AK::Array { "2-digit"sv, "numeric"sv };
-    constexpr auto two_digit_numeric_narrow_short_long = AK::Array { "2-digit"sv, "numeric"sv, "narrow"sv, "short"sv, "long"sv };
-    constexpr auto time_zone = AK::Array { "short"sv, "long"sv, "shortOffset"sv, "longOffset"sv, "shortGeneric"sv, "longGeneric"sv };
+    constexpr auto narrow_short_long = AK::Array { "narrow"_sv, "short"_sv, "long"_sv };
+    constexpr auto two_digit_numeric = AK::Array { "2-digit"_sv, "numeric"_sv };
+    constexpr auto two_digit_numeric_narrow_short_long = AK::Array { "2-digit"_sv, "numeric"_sv, "narrow"_sv, "short"_sv, "long"_sv };
+    constexpr auto time_zone = AK::Array { "short"_sv, "long"_sv, "shortOffset"_sv, "longOffset"_sv, "shortGeneric"_sv, "longGeneric"_sv };
 
     // Table 16: Components of date and time formats, https://tc39.es/ecma402/#table-datetimeformat-components
     TRY(callback(pattern.weekday, vm.names.weekday, narrow_short_long));

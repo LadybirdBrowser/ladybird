@@ -302,19 +302,19 @@ String RegExpObject::escape_regexp_pattern() const
 
         switch (code_point) {
         case '/':
-            builder.append("\\/"sv);
+            builder.append("\\/"_sv);
             break;
         case '\n':
-            builder.append("\\n"sv);
+            builder.append("\\n"_sv);
             break;
         case '\r':
-            builder.append("\\r"sv);
+            builder.append("\\r"_sv);
             break;
         case LINE_SEPARATOR:
-            builder.append("\\u2028"sv);
+            builder.append("\\u2028"_sv);
             break;
         case PARAGRAPH_SEPARATOR:
-            builder.append("\\u2029"sv);
+            builder.append("\\u2029"_sv);
             break;
         default:
             builder.append_code_point(code_point);

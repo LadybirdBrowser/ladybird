@@ -22,7 +22,7 @@ LexicalPath::LexicalPath(ByteString path)
 
     auto last_slash_index = m_string.find_last('\\');
     if (!last_slash_index.has_value())
-        m_dirname = "."sv;
+        m_dirname = "."_sv;
     else
         m_dirname = m_string.substring_view(0, *last_slash_index);
 
@@ -77,7 +77,7 @@ bool LexicalPath::is_child_of(LexicalPath const& possible_parent) const
 
 ByteString LexicalPath::canonicalized_path(ByteString path)
 {
-    path = path.replace("/"sv, "\\"sv);
+    path = path.replace("/"_sv, "\\"_sv);
     auto parts = path.split_view('\\');
     Vector<ByteString> canonical_parts;
 
@@ -136,7 +136,7 @@ Optional<ByteString> LexicalPath::relative_path(StringView abs_path, StringView 
     }
 
     StringBuilder builder;
-    builder.append_repeated("..\\"sv, prefix_parts.size() - first_mismatch);
+    builder.append_repeated("..\\"_sv, prefix_parts.size() - first_mismatch);
     builder.join('\\', path_parts.span().slice(first_mismatch));
     return builder.to_byte_string();
 }
@@ -153,7 +153,7 @@ LexicalPath LexicalPath::prepend(StringView value) const
 
 LexicalPath LexicalPath::parent() const
 {
-    return append(".."sv);
+    return append(".."_sv);
 }
 
 }

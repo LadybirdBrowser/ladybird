@@ -17,11 +17,11 @@ String GridAutoFlowStyleValue::to_string(SerializationMode) const
 {
     StringBuilder builder;
     if (m_row)
-        builder.append("row"sv);
+        builder.append("row"_sv);
     else
-        builder.append("column"sv);
+        builder.append("column"_sv);
     if (m_dense)
-        builder.append(" dense"sv);
+        builder.append(" dense"_sv);
     return MUST(builder.to_string());
 }
 

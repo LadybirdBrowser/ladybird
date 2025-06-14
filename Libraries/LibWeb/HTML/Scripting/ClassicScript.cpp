@@ -30,7 +30,7 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
 
     // 2. If scripting is disabled for realm, then set source to the empty string.
     if (is_scripting_disabled(realm))
-        source = ""sv;
+        source = ""_sv;
 
     // 3. Let script be a new classic script that this algorithm will subsequently initialize.
     // 4. Set script's realm to realm.

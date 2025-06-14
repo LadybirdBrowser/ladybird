@@ -1097,7 +1097,7 @@ ByteString date_string(double time)
     auto year = year_from_time(time);
 
     // 5. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
-    auto year_sign = year >= 0 ? ""sv : "-"sv;
+    auto year_sign = year >= 0 ? ""_sv : "-"_sv;
 
     // 6. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
     // 7. Return the string-concatenation of weekday, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), yearSign, and paddedYear.
@@ -1146,7 +1146,7 @@ ByteString to_date_string(double time)
 {
     // 1. If tv is NaN, return "Invalid Date".
     if (Value(time).is_nan())
-        return "Invalid Date"sv;
+        return "Invalid Date"_sv;
 
     // 2. Let t be LocalTime(tv).
     time = local_time(time);
@@ -1196,7 +1196,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_utc_string)
     auto year = year_from_time(time);
 
     // 8. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
-    auto year_sign = year >= 0 ? ""sv : "-"sv;
+    auto year_sign = year >= 0 ? ""_sv : "-"_sv;
 
     // 9. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
     // 10. Return the string-concatenation of weekday, ",", the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), yearSign, paddedYear, the code unit 0x0020 (SPACE), and TimeString(tv).
@@ -1215,9 +1215,9 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::symbol_to_primitive)
         return vm.throw_completion<TypeError>(ErrorType::InvalidHint, hint_value.to_string_without_side_effects());
     auto hint = hint_value.as_string().utf8_string_view();
     Value::PreferredType try_first;
-    if (hint == "string"sv || hint == "default"sv)
+    if (hint == "string"_sv || hint == "default"_sv)
         try_first = Value::PreferredType::String;
-    else if (hint == "number"sv)
+    else if (hint == "number"_sv)
         try_first = Value::PreferredType::Number;
     else
         return vm.throw_completion<TypeError>(ErrorType::InvalidHint, hint);

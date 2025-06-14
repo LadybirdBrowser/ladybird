@@ -21,13 +21,13 @@ namespace Unicode {
 
 NumberFormatStyle number_format_style_from_string(StringView number_format_style)
 {
-    if (number_format_style == "decimal"sv)
+    if (number_format_style == "decimal"_sv)
         return NumberFormatStyle::Decimal;
-    if (number_format_style == "percent"sv)
+    if (number_format_style == "percent"_sv)
         return NumberFormatStyle::Percent;
-    if (number_format_style == "currency"sv)
+    if (number_format_style == "currency"_sv)
         return NumberFormatStyle::Currency;
-    if (number_format_style == "unit"sv)
+    if (number_format_style == "unit"_sv)
         return NumberFormatStyle::Unit;
     VERIFY_NOT_REACHED();
 }
@@ -36,28 +36,28 @@ StringView number_format_style_to_string(NumberFormatStyle number_format_style)
 {
     switch (number_format_style) {
     case NumberFormatStyle::Decimal:
-        return "decimal"sv;
+        return "decimal"_sv;
     case NumberFormatStyle::Percent:
-        return "percent"sv;
+        return "percent"_sv;
     case NumberFormatStyle::Currency:
-        return "currency"sv;
+        return "currency"_sv;
     case NumberFormatStyle::Unit:
-        return "unit"sv;
+        return "unit"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 SignDisplay sign_display_from_string(StringView sign_display)
 {
-    if (sign_display == "auto"sv)
+    if (sign_display == "auto"_sv)
         return SignDisplay::Auto;
-    if (sign_display == "never"sv)
+    if (sign_display == "never"_sv)
         return SignDisplay::Never;
-    if (sign_display == "always"sv)
+    if (sign_display == "always"_sv)
         return SignDisplay::Always;
-    if (sign_display == "exceptZero"sv)
+    if (sign_display == "exceptZero"_sv)
         return SignDisplay::ExceptZero;
-    if (sign_display == "negative"sv)
+    if (sign_display == "negative"_sv)
         return SignDisplay::Negative;
     VERIFY_NOT_REACHED();
 }
@@ -66,15 +66,15 @@ StringView sign_display_to_string(SignDisplay sign_display)
 {
     switch (sign_display) {
     case SignDisplay::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     case SignDisplay::Never:
-        return "never"sv;
+        return "never"_sv;
     case SignDisplay::Always:
-        return "always"sv;
+        return "always"_sv;
     case SignDisplay::ExceptZero:
-        return "exceptZero"sv;
+        return "exceptZero"_sv;
     case SignDisplay::Negative:
-        return "negative"sv;
+        return "negative"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -98,13 +98,13 @@ static constexpr UNumberSignDisplay icu_sign_display(SignDisplay sign_display, O
 
 Notation notation_from_string(StringView notation)
 {
-    if (notation == "standard"sv)
+    if (notation == "standard"_sv)
         return Notation::Standard;
-    if (notation == "scientific"sv)
+    if (notation == "scientific"_sv)
         return Notation::Scientific;
-    if (notation == "engineering"sv)
+    if (notation == "engineering"_sv)
         return Notation::Engineering;
-    if (notation == "compact"sv)
+    if (notation == "compact"_sv)
         return Notation::Compact;
     VERIFY_NOT_REACHED();
 }
@@ -113,13 +113,13 @@ StringView notation_to_string(Notation notation)
 {
     switch (notation) {
     case Notation::Standard:
-        return "standard"sv;
+        return "standard"_sv;
     case Notation::Scientific:
-        return "scientific"sv;
+        return "scientific"_sv;
     case Notation::Engineering:
-        return "engineering"sv;
+        return "engineering"_sv;
     case Notation::Compact:
-        return "compact"sv;
+        return "compact"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -146,9 +146,9 @@ static icu::number::Notation icu_notation(Notation notation, Optional<CompactDis
 
 CompactDisplay compact_display_from_string(StringView compact_display)
 {
-    if (compact_display == "short"sv)
+    if (compact_display == "short"_sv)
         return CompactDisplay::Short;
-    if (compact_display == "long"sv)
+    if (compact_display == "long"_sv)
         return CompactDisplay::Long;
     VERIFY_NOT_REACHED();
 }
@@ -157,22 +157,22 @@ StringView compact_display_to_string(CompactDisplay compact_display)
 {
     switch (compact_display) {
     case CompactDisplay::Short:
-        return "short"sv;
+        return "short"_sv;
     case CompactDisplay::Long:
-        return "long"sv;
+        return "long"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Grouping grouping_from_string(StringView grouping)
 {
-    if (grouping == "always"sv)
+    if (grouping == "always"_sv)
         return Grouping::Always;
-    if (grouping == "auto"sv)
+    if (grouping == "auto"_sv)
         return Grouping::Auto;
-    if (grouping == "min2"sv)
+    if (grouping == "min2"_sv)
         return Grouping::Min2;
-    if (grouping == "false"sv)
+    if (grouping == "false"_sv)
         return Grouping::False;
     VERIFY_NOT_REACHED();
 }
@@ -181,13 +181,13 @@ StringView grouping_to_string(Grouping grouping)
 {
     switch (grouping) {
     case Grouping::Always:
-        return "always"sv;
+        return "always"_sv;
     case Grouping::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     case Grouping::Min2:
-        return "min2"sv;
+        return "min2"_sv;
     case Grouping::False:
-        return "false"sv;
+        return "false"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -209,13 +209,13 @@ static constexpr UNumberGroupingStrategy icu_grouping_strategy(Grouping grouping
 
 CurrencyDisplay currency_display_from_string(StringView currency_display)
 {
-    if (currency_display == "code"sv)
+    if (currency_display == "code"_sv)
         return CurrencyDisplay::Code;
-    if (currency_display == "symbol"sv)
+    if (currency_display == "symbol"_sv)
         return CurrencyDisplay::Symbol;
-    if (currency_display == "narrowSymbol"sv)
+    if (currency_display == "narrowSymbol"_sv)
         return CurrencyDisplay::NarrowSymbol;
-    if (currency_display == "name"sv)
+    if (currency_display == "name"_sv)
         return CurrencyDisplay::Name;
     VERIFY_NOT_REACHED();
 }
@@ -224,13 +224,13 @@ StringView currency_display_to_string(CurrencyDisplay currency_display)
 {
     switch (currency_display) {
     case CurrencyDisplay::Code:
-        return "code"sv;
+        return "code"_sv;
     case CurrencyDisplay::Symbol:
-        return "symbol"sv;
+        return "symbol"_sv;
     case CurrencyDisplay::NarrowSymbol:
-        return "narrowSymbol"sv;
+        return "narrowSymbol"_sv;
     case CurrencyDisplay::Name:
-        return "name"sv;
+        return "name"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -252,9 +252,9 @@ static constexpr UNumberUnitWidth icu_currency_display(CurrencyDisplay currency_
 
 CurrencySign currency_sign_from_string(StringView currency_sign)
 {
-    if (currency_sign == "standard"sv)
+    if (currency_sign == "standard"_sv)
         return CurrencySign::Standard;
-    if (currency_sign == "accounting"sv)
+    if (currency_sign == "accounting"_sv)
         return CurrencySign::Accounting;
     VERIFY_NOT_REACHED();
 }
@@ -263,22 +263,22 @@ StringView currency_sign_to_string(CurrencySign currency_sign)
 {
     switch (currency_sign) {
     case CurrencySign::Standard:
-        return "standard"sv;
+        return "standard"_sv;
     case CurrencySign::Accounting:
-        return "accounting"sv;
+        return "accounting"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 RoundingType rounding_type_from_string(StringView rounding_type)
 {
-    if (rounding_type == "significantDigits"sv)
+    if (rounding_type == "significantDigits"_sv)
         return RoundingType::SignificantDigits;
-    if (rounding_type == "fractionDigits"sv)
+    if (rounding_type == "fractionDigits"_sv)
         return RoundingType::FractionDigits;
-    if (rounding_type == "morePrecision"sv)
+    if (rounding_type == "morePrecision"_sv)
         return RoundingType::MorePrecision;
-    if (rounding_type == "lessPrecision"sv)
+    if (rounding_type == "lessPrecision"_sv)
         return RoundingType::LessPrecision;
     VERIFY_NOT_REACHED();
 }
@@ -287,36 +287,36 @@ StringView rounding_type_to_string(RoundingType rounding_type)
 {
     switch (rounding_type) {
     case RoundingType::SignificantDigits:
-        return "significantDigits"sv;
+        return "significantDigits"_sv;
     case RoundingType::FractionDigits:
-        return "fractionDigits"sv;
+        return "fractionDigits"_sv;
     case RoundingType::MorePrecision:
-        return "morePrecision"sv;
+        return "morePrecision"_sv;
     case RoundingType::LessPrecision:
-        return "lessPrecision"sv;
+        return "lessPrecision"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 RoundingMode rounding_mode_from_string(StringView rounding_mode)
 {
-    if (rounding_mode == "ceil"sv)
+    if (rounding_mode == "ceil"_sv)
         return RoundingMode::Ceil;
-    if (rounding_mode == "expand"sv)
+    if (rounding_mode == "expand"_sv)
         return RoundingMode::Expand;
-    if (rounding_mode == "floor"sv)
+    if (rounding_mode == "floor"_sv)
         return RoundingMode::Floor;
-    if (rounding_mode == "halfCeil"sv)
+    if (rounding_mode == "halfCeil"_sv)
         return RoundingMode::HalfCeil;
-    if (rounding_mode == "halfEven"sv)
+    if (rounding_mode == "halfEven"_sv)
         return RoundingMode::HalfEven;
-    if (rounding_mode == "halfExpand"sv)
+    if (rounding_mode == "halfExpand"_sv)
         return RoundingMode::HalfExpand;
-    if (rounding_mode == "halfFloor"sv)
+    if (rounding_mode == "halfFloor"_sv)
         return RoundingMode::HalfFloor;
-    if (rounding_mode == "halfTrunc"sv)
+    if (rounding_mode == "halfTrunc"_sv)
         return RoundingMode::HalfTrunc;
-    if (rounding_mode == "trunc"sv)
+    if (rounding_mode == "trunc"_sv)
         return RoundingMode::Trunc;
     VERIFY_NOT_REACHED();
 }
@@ -325,23 +325,23 @@ StringView rounding_mode_to_string(RoundingMode rounding_mode)
 {
     switch (rounding_mode) {
     case RoundingMode::Ceil:
-        return "ceil"sv;
+        return "ceil"_sv;
     case RoundingMode::Expand:
-        return "expand"sv;
+        return "expand"_sv;
     case RoundingMode::Floor:
-        return "floor"sv;
+        return "floor"_sv;
     case RoundingMode::HalfCeil:
-        return "halfCeil"sv;
+        return "halfCeil"_sv;
     case RoundingMode::HalfEven:
-        return "halfEven"sv;
+        return "halfEven"_sv;
     case RoundingMode::HalfExpand:
-        return "halfExpand"sv;
+        return "halfExpand"_sv;
     case RoundingMode::HalfFloor:
-        return "halfFloor"sv;
+        return "halfFloor"_sv;
     case RoundingMode::HalfTrunc:
-        return "halfTrunc"sv;
+        return "halfTrunc"_sv;
     case RoundingMode::Trunc:
-        return "trunc"sv;
+        return "trunc"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -373,9 +373,9 @@ static constexpr UNumberFormatRoundingMode icu_rounding_mode(RoundingMode roundi
 
 TrailingZeroDisplay trailing_zero_display_from_string(StringView trailing_zero_display)
 {
-    if (trailing_zero_display == "auto"sv)
+    if (trailing_zero_display == "auto"_sv)
         return TrailingZeroDisplay::Auto;
-    if (trailing_zero_display == "stripIfInteger"sv)
+    if (trailing_zero_display == "stripIfInteger"_sv)
         return TrailingZeroDisplay::StripIfInteger;
     VERIFY_NOT_REACHED();
 }
@@ -384,9 +384,9 @@ StringView trailing_zero_display_to_string(TrailingZeroDisplay trailing_zero_dis
 {
     switch (trailing_zero_display) {
     case TrailingZeroDisplay::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     case TrailingZeroDisplay::StripIfInteger:
-        return "stripIfInteger"sv;
+        return "stripIfInteger"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -494,43 +494,43 @@ static constexpr StringView icu_number_format_field_to_string(i32 field, NumberF
 {
     switch (field) {
     case PartitionRange::LITERAL_FIELD:
-        return "literal"sv;
+        return "literal"_sv;
     case UNUM_INTEGER_FIELD:
         if (auto const* number = value.get_pointer<double>()) {
             if (isnan(*number))
-                return "nan"sv;
+                return "nan"_sv;
             if (isinf(*number))
-                return "infinity"sv;
+                return "infinity"_sv;
         }
-        return "integer"sv;
+        return "integer"_sv;
     case UNUM_FRACTION_FIELD:
-        return "fraction"sv;
+        return "fraction"_sv;
     case UNUM_DECIMAL_SEPARATOR_FIELD:
-        return "decimal"sv;
+        return "decimal"_sv;
     case UNUM_EXPONENT_SYMBOL_FIELD:
-        return "exponentSeparator"sv;
+        return "exponentSeparator"_sv;
     case UNUM_EXPONENT_SIGN_FIELD:
-        return "exponentMinusSign"sv;
+        return "exponentMinusSign"_sv;
     case UNUM_EXPONENT_FIELD:
-        return "exponentInteger"sv;
+        return "exponentInteger"_sv;
     case UNUM_GROUPING_SEPARATOR_FIELD:
-        return "group"sv;
+        return "group"_sv;
     case UNUM_CURRENCY_FIELD:
-        return "currency"sv;
+        return "currency"_sv;
     case UNUM_PERCENT_FIELD:
-        return is_unit ? "unit"sv : "percentSign"sv;
+        return is_unit ? "unit"_sv : "percentSign"_sv;
     case UNUM_SIGN_FIELD: {
         auto is_negative = value.visit(
             [&](double number) { return signbit(number); },
             [&](String const& number) { return number.starts_with('-'); });
-        return is_negative ? "minusSign"sv : "plusSign"sv;
+        return is_negative ? "minusSign"_sv : "plusSign"_sv;
     }
     case UNUM_MEASURE_UNIT_FIELD:
-        return "unit"sv;
+        return "unit"_sv;
     case UNUM_COMPACT_FIELD:
-        return "compact"sv;
+        return "compact"_sv;
     case UNUM_APPROXIMATELY_SIGN_FIELD:
-        return "approximatelySign"sv;
+        return "approximatelySign"_sv;
     }
 
     VERIFY_NOT_REACHED();
@@ -824,18 +824,18 @@ private:
         auto apply_to_partition = [&](Partition& partition, auto field, auto index) {
             if (start_range.has_value() && start_range->contains(index)) {
                 partition.type = icu_number_format_field_to_string(field, start, m_is_unit);
-                partition.source = "startRange"sv;
+                partition.source = "startRange"_sv;
                 return;
             }
 
             if (end_range.has_value() && end_range->contains(index)) {
                 partition.type = icu_number_format_field_to_string(field, end, m_is_unit);
-                partition.source = "endRange"sv;
+                partition.source = "endRange"_sv;
                 return;
             }
 
             partition.type = icu_number_format_field_to_string(field, end, m_is_unit);
-            partition.source = "shared"sv;
+            partition.source = "shared"_sv;
         };
 
         Vector<Partition> result;

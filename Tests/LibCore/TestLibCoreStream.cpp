@@ -23,7 +23,7 @@
 
 TEST_CASE(file_open)
 {
-    auto maybe_file = Core::File::open("/tmp/file-open-test.txt"sv, Core::File::OpenMode::Write);
+    auto maybe_file = Core::File::open("/tmp/file-open-test.txt"_sv, Core::File::OpenMode::Write);
     if (maybe_file.is_error()) {
         warnln("Failed to open the file: {}", strerror(maybe_file.error().code()));
         VERIFY_NOT_REACHED();
@@ -40,18 +40,18 @@ TEST_CASE(file_open)
 
 TEST_CASE(file_write_bytes)
 {
-    auto file = TRY_OR_FAIL(Core::File::open("/tmp/file-write-bytes-test.txt"sv, Core::File::OpenMode::Write));
+    auto file = TRY_OR_FAIL(Core::File::open("/tmp/file-write-bytes-test.txt"_sv, Core::File::OpenMode::Write));
 
-    constexpr auto some_words = "These are some words"sv;
+    constexpr auto some_words = "These are some words"_sv;
     ReadonlyBytes buffer { some_words.characters_without_null_termination(), some_words.length() };
     TRY_OR_FAIL(file->write_some(buffer));
 }
 
-constexpr auto expected_buffer_contents = "&lt;small&gt;(Please consider translating this message for the benefit of your fellow Wikimedians. Please also consider translating"sv;
+constexpr auto expected_buffer_contents = "&lt;small&gt;(Please consider translating this message for the benefit of your fellow Wikimedians. Please also consider translating"_sv;
 
 TEST_CASE(file_read_bytes)
 {
-    auto file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read));
+    auto file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"_sv, Core::File::OpenMode::Read));
 
     auto buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(131));
 
@@ -62,13 +62,13 @@ TEST_CASE(file_read_bytes)
     EXPECT_EQ(buffer_contents, expected_buffer_contents);
 }
 
-constexpr auto expected_seek_contents1 = "|Lleer esti mens"sv;
-constexpr auto expected_seek_contents2 = "s of advanced ad"sv;
-constexpr auto expected_seek_contents3 = "levels of advanc"sv;
+constexpr auto expected_seek_contents1 = "|Lleer esti mens"_sv;
+constexpr auto expected_seek_contents2 = "s of advanced ad"_sv;
+constexpr auto expected_seek_contents3 = "levels of advanc"_sv;
 
 TEST_CASE(file_seeking_around)
 {
-    auto file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read));
+    auto file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"_sv, Core::File::OpenMode::Read));
 
     EXPECT_EQ(file->size().release_value(), 8702ul);
 
@@ -94,7 +94,7 @@ TEST_CASE(file_seeking_around)
 
 BENCHMARK_CASE(file_tell)
 {
-    auto file = TRY_OR_FAIL(Core::File::open("./10kb.txt"sv, Core::File::OpenMode::Read));
+    auto file = TRY_OR_FAIL(Core::File::open("./10kb.txt"_sv, Core::File::OpenMode::Read));
     auto expected_file_offset = 0u;
     auto ten_byte_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(1));
     for (auto i = 0u; i < 4000; ++i) {
@@ -113,9 +113,9 @@ BENCHMARK_CASE(file_tell)
 
 TEST_CASE(file_buffered_write_and_seek)
 {
-    auto file = TRY_OR_FAIL(Core::OutputBufferedFile::create(TRY_OR_FAIL(Core::File::open("/tmp/file-buffered-write-test.txt"sv, Core::File::OpenMode::Truncate | Core::File::OpenMode::ReadWrite))));
+    auto file = TRY_OR_FAIL(Core::OutputBufferedFile::create(TRY_OR_FAIL(Core::File::open("/tmp/file-buffered-write-test.txt"_sv, Core::File::OpenMode::Truncate | Core::File::OpenMode::ReadWrite))));
 
-    TRY_OR_FAIL(file->write_some("0123456789"sv.bytes()));
+    TRY_OR_FAIL(file->write_some("0123456789"_sv.bytes()));
     EXPECT_EQ(file->tell().release_value(), 10ul);
 
     // Reads don't go through the buffer, so after we seek, the data must be available from the underlying file.
@@ -159,7 +159,7 @@ TEST_CASE(file_adopt_invalid_fd)
 
 TEST_CASE(file_truncate)
 {
-    auto file = TRY_OR_FAIL(Core::File::open("/tmp/file-truncate-test.txt"sv, Core::File::OpenMode::Write));
+    auto file = TRY_OR_FAIL(Core::File::open("/tmp/file-truncate-test.txt"_sv, Core::File::OpenMode::Write));
 
     TRY_OR_FAIL(file->truncate(999));
     EXPECT_EQ(file->size().release_value(), 999ul);
@@ -182,7 +182,7 @@ TEST_CASE(should_error_when_connection_fails)
     EXPECT(maybe_tcp_socket.error().code() == ECONNREFUSED);
 }
 
-constexpr auto sent_data = "Mr. Watson, come here. I want to see you."sv;
+constexpr auto sent_data = "Mr. Watson, come here. I want to see you."_sv;
 
 TEST_CASE(tcp_socket_read)
 {
@@ -263,7 +263,7 @@ TEST_CASE(tcp_socket_eof)
 
 // UDPSocket tests
 
-constexpr auto udp_reply_data = "Well hello friends!"sv;
+constexpr auto udp_reply_data = "Well hello friends!"_sv;
 
 TEST_CASE(udp_socket_read_write)
 {
@@ -398,7 +398,7 @@ TEST_CASE(local_socket_write)
 
 TEST_CASE(buffered_long_file_read)
 {
-    auto raw_file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"sv, Core::File::OpenMode::Read));
+    auto raw_file = TRY_OR_FAIL(Core::File::open("./long_lines.txt"_sv, Core::File::OpenMode::Read));
     auto file = TRY_OR_FAIL(Core::InputBufferedFile::create(move(raw_file)));
 
     auto buffer = ByteBuffer::create_uninitialized(4096).release_value();
@@ -415,14 +415,14 @@ TEST_CASE(buffered_long_file_read)
 
 TEST_CASE(buffered_small_file_read)
 {
-    auto raw_file = TRY_OR_FAIL(Core::File::open("./small.txt"sv, Core::File::OpenMode::Read));
+    auto raw_file = TRY_OR_FAIL(Core::File::open("./small.txt"_sv, Core::File::OpenMode::Read));
     auto file = TRY_OR_FAIL(Core::InputBufferedFile::create(move(raw_file)));
 
     static constexpr StringView expected_lines[] {
-        "Well"sv,
-        "hello"sv,
-        "friends!"sv,
-        ":^)"sv
+        "Well"_sv,
+        "hello"_sv,
+        "friends!"_sv,
+        ":^)"_sv
     };
 
     // Testing that we don't read out of bounds when the entire file fits into the buffer
@@ -440,7 +440,7 @@ TEST_CASE(buffered_small_file_read)
 TEST_CASE(buffered_file_tell_and_seek)
 {
     // We choose a buffer size of 12 bytes to cover half of the input file.
-    auto file = Core::File::open("./small.txt"sv, Core::File::OpenMode::Read).release_value();
+    auto file = Core::File::open("./small.txt"_sv, Core::File::OpenMode::Read).release_value();
     auto buffered_file = Core::InputBufferedFile::create(move(file), 12).release_value();
 
     // Initial state.
@@ -522,11 +522,11 @@ TEST_CASE(buffered_file_tell_and_seek)
     }
 }
 
-constexpr auto new_newlines_message = "Hi, look, no newlines"sv;
+constexpr auto new_newlines_message = "Hi, look, no newlines"_sv;
 
 TEST_CASE(buffered_file_without_newlines)
 {
-    constexpr auto filename = "/tmp/file-without-newlines"sv;
+    constexpr auto filename = "/tmp/file-without-newlines"_sv;
     auto file_wo_newlines = Core::File::open(filename, Core::File::OpenMode::Write).release_value();
     TRY_OR_FAIL(file_wo_newlines->write_until_depleted(new_newlines_message.bytes()));
     file_wo_newlines->close();
@@ -535,15 +535,15 @@ TEST_CASE(buffered_file_without_newlines)
 
     auto can_read_line = TRY_OR_FAIL(ro_file->can_read_line());
     EXPECT(can_read_line);
-    auto can_read_up_to_newline = TRY_OR_FAIL(ro_file->can_read_up_to_delimiter("\n"sv.bytes()));
+    auto can_read_up_to_newline = TRY_OR_FAIL(ro_file->can_read_up_to_delimiter("\n"_sv.bytes()));
     EXPECT(!can_read_up_to_newline);
     Array<u8, new_newlines_message.length() + 1> buffer;
     EXPECT(ro_file->read_line(buffer).release_value() == new_newlines_message);
 }
 
-constexpr auto buffered_sent_data = "Well hello friends!\n:^)\nThis shouldn't be present. :^("sv;
-constexpr auto first_line = "Well hello friends!"sv;
-constexpr auto second_line = ":^)"sv;
+constexpr auto buffered_sent_data = "Well hello friends!\n:^)\nThis shouldn't be present. :^("_sv;
+constexpr auto first_line = "Well hello friends!"_sv;
+constexpr auto second_line = ":^)"_sv;
 
 TEST_CASE(buffered_tcp_socket_read)
 {

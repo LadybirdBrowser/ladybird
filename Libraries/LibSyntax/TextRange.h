@@ -74,7 +74,7 @@ struct AK::Formatter<Syntax::TextRange> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Syntax::TextRange const& value)
     {
         if (value.is_valid())
-            return Formatter<FormatString>::format(builder, "{}-{}"sv, value.start(), value.end());
-        return builder.put_string("TextRange(Invalid)"sv);
+            return Formatter<FormatString>::format(builder, "{}-{}"_sv, value.start(), value.end());
+        return builder.put_string("TextRange(Invalid)"_sv);
     }
 };

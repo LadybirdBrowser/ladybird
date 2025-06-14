@@ -269,7 +269,7 @@ String XMLHttpRequest::get_text_response() const
 
     // 4. If charset is null, then set charset to UTF-8.
     if (!charset.has_value())
-        charset = "UTF-8"sv;
+        charset = "UTF-8"_sv;
 
     // 5. Return the result of running decode on xhr’s received bytes using fallback encoding charset.
     auto decoder = TextCodec::decoder_for(charset.value());
@@ -388,13 +388,13 @@ Optional<StringView> XMLHttpRequest::get_final_encoding() const
     auto response_mime = get_response_mime_type();
 
     // 3. If responseMIME’s parameters["charset"] exists, then set label to it.
-    auto response_mime_charset_it = response_mime.parameters().find("charset"sv);
+    auto response_mime_charset_it = response_mime.parameters().find("charset"_sv);
     if (response_mime_charset_it != response_mime.parameters().end())
         label = response_mime_charset_it->value;
 
     // 4. If xhr’s override MIME type’s parameters["charset"] exists, then set label to it.
     if (m_override_mime_type.has_value()) {
-        auto override_mime_charset_it = m_override_mime_type->parameters().find("charset"sv);
+        auto override_mime_charset_it = m_override_mime_type->parameters().find("charset"_sv);
         if (override_mime_charset_it != m_override_mime_type->parameters().end())
             label = override_mime_charset_it->value;
     }
@@ -563,7 +563,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_string);
 
     // 3. If this’s request method is `GET` or `HEAD`, then set body to null.
-    if (m_request_method.is_one_of("GET"sv, "HEAD"sv))
+    if (m_request_method.is_one_of("GET"_sv, "HEAD"_sv))
         body = {};
 
     // 4. If body is not null, then:
@@ -589,7 +589,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         }
 
         // 4. Let originalAuthorContentType be the result of getting `Content-Type` from this’s author request headers.
-        auto original_author_content_type = m_author_request_headers->get("Content-Type"sv.bytes());
+        auto original_author_content_type = m_author_request_headers->get("Content-Type"_sv.bytes());
 
         // 5. If originalAuthorContentType is non-null, then:
         if (original_author_content_type.has_value()) {
@@ -600,8 +600,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
                 // 2. If contentTypeRecord is not failure, contentTypeRecord’s parameters["charset"] exists, and parameters["charset"] is not an ASCII case-insensitive match for "UTF-8", then:
                 if (content_type_record.has_value()) {
-                    auto charset_parameter_iterator = content_type_record->parameters().find("charset"sv);
-                    if (charset_parameter_iterator != content_type_record->parameters().end() && !charset_parameter_iterator->value.equals_ignoring_ascii_case("UTF-8"sv)) {
+                    auto charset_parameter_iterator = content_type_record->parameters().find("charset"_sv);
+                    if (charset_parameter_iterator != content_type_record->parameters().end() && !charset_parameter_iterator->value.equals_ignoring_ascii_case("UTF-8"_sv)) {
                         // 1. Set contentTypeRecord’s parameters["charset"] to "UTF-8".
                         content_type_record->set_parameter("charset"_string, "UTF-8"_string);
 
@@ -609,7 +609,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                         auto new_content_type_serialized = content_type_record->serialized();
 
                         // 3. Set (`Content-Type`, newContentTypeSerialized) in this’s author request headers.
-                        auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, new_content_type_serialized);
+                        auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"_sv, new_content_type_serialized);
                         m_author_request_headers->set(move(header));
                     }
                 }
@@ -623,12 +623,12 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                 // NOTE: A document can only be an HTML document or XML document.
                 // 1. If body is an HTML document, then set (`Content-Type`, `text/html;charset=UTF-8`) in this’s author request headers.
                 if (document->is_html_document()) {
-                    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html;charset=UTF-8"sv);
+                    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"_sv, "text/html;charset=UTF-8"_sv);
                     m_author_request_headers->set(move(header));
                 }
                 // 2. Otherwise, if body is an XML document, set (`Content-Type`, `application/xml;charset=UTF-8`) in this’s author request headers.
                 else if (document->is_xml_document()) {
-                    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "application/xml;charset=UTF-8"sv);
+                    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"_sv, "application/xml;charset=UTF-8"_sv);
                     m_author_request_headers->set(move(header));
                 } else {
                     VERIFY_NOT_REACHED();
@@ -636,7 +636,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             }
             // 3. Otherwise, if extractedContentType is not null, set (`Content-Type`, extractedContentType) in this’s author request headers.
             else if (extracted_content_type.has_value()) {
-                auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, extracted_content_type.value());
+                auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"_sv, extracted_content_type.value());
                 m_author_request_headers->set(move(header));
             }
         }

@@ -18,8 +18,8 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     if (is_repeating())
-        builder.append("repeating-"sv);
-    builder.append("conic-gradient("sv);
+        builder.append("repeating-"_sv);
+    builder.append("conic-gradient("_sv);
     bool has_from_angle = m_properties.from_angle.to_degrees() != 0;
     bool has_at_position = !m_properties.position->is_center();
     bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
@@ -37,7 +37,7 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
         builder.append(m_properties.interpolation_method.value().to_string());
     }
     if (has_from_angle || has_at_position || has_color_space)
-        builder.append(", "sv);
+        builder.append(", "_sv);
     serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(')');
     return MUST(builder.to_string());

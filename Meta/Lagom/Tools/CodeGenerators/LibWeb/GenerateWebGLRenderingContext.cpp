@@ -17,44 +17,44 @@
 
 static bool is_webgl_object_type(StringView type_name)
 {
-    return type_name == "WebGLBuffer"sv
-        || type_name == "WebGLFramebuffer"sv
-        || type_name == "WebGLProgram"sv
-        || type_name == "WebGLRenderbuffer"sv
-        || type_name == "WebGLSampler"sv
-        || type_name == "WebGLShader"sv
-        || type_name == "WebGLTexture"sv
-        || type_name == "WebGLVertexArrayObject"sv;
+    return type_name == "WebGLBuffer"_sv
+        || type_name == "WebGLFramebuffer"_sv
+        || type_name == "WebGLProgram"_sv
+        || type_name == "WebGLRenderbuffer"_sv
+        || type_name == "WebGLSampler"_sv
+        || type_name == "WebGLShader"_sv
+        || type_name == "WebGLTexture"_sv
+        || type_name == "WebGLVertexArrayObject"_sv;
 }
 
 static bool gl_function_modifies_framebuffer(StringView function_name)
 {
-    return function_name == "clear"sv
-        || function_name == "clearBufferfv"sv
-        || function_name == "clearBufferiv"sv
-        || function_name == "clearBufferuiv"sv
-        || function_name == "clearBufferfi"sv
-        || function_name == "drawArrays"sv
-        || function_name == "drawArraysInstanced"sv
-        || function_name == "drawElements"sv
-        || function_name == "drawElementsInstanced"sv
-        || function_name == "blitFramebuffer"sv
-        || function_name == "invalidateFramebuffer"sv;
+    return function_name == "clear"_sv
+        || function_name == "clearBufferfv"_sv
+        || function_name == "clearBufferiv"_sv
+        || function_name == "clearBufferuiv"_sv
+        || function_name == "clearBufferfi"_sv
+        || function_name == "drawArrays"_sv
+        || function_name == "drawArraysInstanced"_sv
+        || function_name == "drawElements"_sv
+        || function_name == "drawElementsInstanced"_sv
+        || function_name == "blitFramebuffer"_sv
+        || function_name == "invalidateFramebuffer"_sv;
 }
 
 static ByteString to_cpp_type(const IDL::Type& type, const IDL::Interface& interface)
 {
-    if (type.name() == "undefined"sv)
-        return "void"sv;
-    if (type.name() == "object"sv) {
+    if (type.name() == "undefined"_sv)
+        return "void"_sv;
+    if (type.name() == "object"_sv) {
         if (type.is_nullable())
-            return "JS::Object*"sv;
-        return "JS::Object&"sv;
+            return "JS::Object*"_sv;
+        return "JS::Object&"_sv;
     }
-    if (type.name() == "DOMString"sv) {
+    if (type.name() == "DOMString"_sv) {
         if (type.is_nullable())
-            return "Optional<String>"sv;
-        return "String"sv;
+            return "Optional<String>"_sv;
+        return "String"_sv;
     }
     if (type.name() == "sequence") {
         auto& parameterized_type = as<IDL::ParameterizedType>(type);
@@ -73,7 +73,7 @@ static ByteString to_cpp_type(const IDL::Type& type, const IDL::Interface& inter
 static ByteString idl_to_gl_function_name(StringView function_name)
 {
     StringBuilder gl_function_name_builder;
-    gl_function_name_builder.append("gl"sv);
+    gl_function_name_builder.append("gl"_sv);
     for (size_t i = 0; i < function_name.length(); ++i) {
         if (i == 0) {
             gl_function_name_builder.append(to_ascii_uppercase(function_name[i]));
@@ -81,8 +81,8 @@ static ByteString idl_to_gl_function_name(StringView function_name)
             gl_function_name_builder.append(function_name[i]);
         }
     }
-    if (function_name == "clearDepth"sv || function_name == "depthRange"sv) {
-        gl_function_name_builder.append("f"sv);
+    if (function_name == "clearDepth"_sv || function_name == "depthRange"_sv) {
+        gl_function_name_builder.append("f"_sv);
     }
     return gl_function_name_builder.to_byte_string();
 }
@@ -99,131 +99,131 @@ struct NameAndType {
 static void generate_get_parameter(SourceGenerator& generator, int webgl_version)
 {
     Vector<NameAndType> const name_to_type = {
-        { "ACTIVE_TEXTURE"sv, { "GLenum"sv } },
-        { "ALIASED_LINE_WIDTH_RANGE"sv, { "Float32Array"sv, 2 } },
-        { "ALIASED_POINT_SIZE_RANGE"sv, { "Float32Array"sv, 2 } },
-        { "ALPHA_BITS"sv, { "GLint"sv } },
-        { "ARRAY_BUFFER_BINDING"sv, { "WebGLBuffer"sv } },
-        { "BLEND"sv, { "GLboolean"sv } },
-        { "BLEND_COLOR"sv, { "Float32Array"sv, 4 } },
-        { "BLEND_DST_ALPHA"sv, { "GLenum"sv } },
-        { "BLEND_DST_RGB"sv, { "GLenum"sv } },
-        { "BLEND_EQUATION_ALPHA"sv, { "GLenum"sv } },
-        { "BLEND_EQUATION_RGB"sv, { "GLenum"sv } },
-        { "BLEND_SRC_ALPHA"sv, { "GLenum"sv } },
-        { "BLEND_SRC_RGB"sv, { "GLenum"sv } },
-        { "BLUE_BITS"sv, { "GLint"sv } },
-        { "COLOR_CLEAR_VALUE"sv, { "Float32Array"sv, 4 } },
-        // FIXME: { "COLOR_WRITEMASK"sv, { "sequence<GLboolean>"sv, 4 } },
-        // FIXME: { "COMPRESSED_TEXTURE_FORMATS"sv, { "Uint32Array"sv } },
-        { "CULL_FACE"sv, { "GLboolean"sv } },
-        { "CULL_FACE_MODE"sv, { "GLenum"sv } },
-        { "CURRENT_PROGRAM"sv, { "WebGLProgram"sv } },
-        { "DEPTH_BITS"sv, { "GLint"sv } },
-        { "DEPTH_CLEAR_VALUE"sv, { "GLfloat"sv } },
-        { "DEPTH_FUNC"sv, { "GLenum"sv } },
-        { "DEPTH_RANGE"sv, { "Float32Array"sv, 2 } },
-        { "DEPTH_TEST"sv, { "GLboolean"sv } },
-        { "DEPTH_WRITEMASK"sv, { "GLboolean"sv } },
-        { "DITHER"sv, { "GLboolean"sv } },
-        { "ELEMENT_ARRAY_BUFFER_BINDING"sv, { "WebGLBuffer"sv } },
-        { "FRAMEBUFFER_BINDING"sv, { "WebGLFramebuffer"sv } },
-        { "FRONT_FACE"sv, { "GLenum"sv } },
-        { "GENERATE_MIPMAP_HINT"sv, { "GLenum"sv } },
-        { "GREEN_BITS"sv, { "GLint"sv } },
-        { "IMPLEMENTATION_COLOR_READ_FORMAT"sv, { "GLenum"sv } },
-        { "IMPLEMENTATION_COLOR_READ_TYPE"sv, { "GLenum"sv } },
-        { "LINE_WIDTH"sv, { "GLfloat"sv } },
-        { "MAX_COMBINED_TEXTURE_IMAGE_UNITS"sv, { "GLint"sv } },
-        { "MAX_CUBE_MAP_TEXTURE_SIZE"sv, { "GLint"sv } },
-        { "MAX_FRAGMENT_UNIFORM_VECTORS"sv, { "GLint"sv } },
-        { "MAX_RENDERBUFFER_SIZE"sv, { "GLint"sv } },
-        { "MAX_TEXTURE_IMAGE_UNITS"sv, { "GLint"sv } },
-        { "MAX_TEXTURE_SIZE"sv, { "GLint"sv } },
-        { "MAX_VARYING_VECTORS"sv, { "GLint"sv } },
-        { "MAX_VERTEX_ATTRIBS"sv, { "GLint"sv } },
-        { "MAX_VERTEX_TEXTURE_IMAGE_UNITS"sv, { "GLint"sv } },
-        { "MAX_VERTEX_UNIFORM_VECTORS"sv, { "GLint"sv } },
-        { "MAX_VIEWPORT_DIMS"sv, { "Int32Array"sv, 2 } },
-        { "PACK_ALIGNMENT"sv, { "GLint"sv } },
-        { "POLYGON_OFFSET_FACTOR"sv, { "GLfloat"sv } },
-        { "POLYGON_OFFSET_FILL"sv, { "GLboolean"sv } },
-        { "POLYGON_OFFSET_UNITS"sv, { "GLfloat"sv } },
-        { "RED_BITS"sv, { "GLint"sv } },
-        { "RENDERBUFFER_BINDING"sv, { "WebGLRenderbuffer"sv } },
-        { "RENDERER"sv, { "DOMString"sv } },
-        { "SAMPLE_ALPHA_TO_COVERAGE"sv, { "GLboolean"sv } },
-        { "SAMPLE_BUFFERS"sv, { "GLint"sv } },
-        { "SAMPLE_COVERAGE"sv, { "GLboolean"sv } },
-        { "SAMPLE_COVERAGE_INVERT"sv, { "GLboolean"sv } },
-        { "SAMPLE_COVERAGE_VALUE"sv, { "GLfloat"sv } },
-        { "SAMPLES"sv, { "GLint"sv } },
-        { "SCISSOR_BOX"sv, { "Int32Array"sv, 4 } },
-        { "SCISSOR_TEST"sv, { "GLboolean"sv } },
-        { "SHADING_LANGUAGE_VERSION"sv, { "DOMString"sv } },
-        { "STENCIL_BACK_FAIL"sv, { "GLenum"sv } },
-        { "STENCIL_BACK_FUNC"sv, { "GLenum"sv } },
-        { "STENCIL_BACK_PASS_DEPTH_FAIL"sv, { "GLenum"sv } },
-        { "STENCIL_BACK_PASS_DEPTH_PASS"sv, { "GLenum"sv } },
-        { "STENCIL_BACK_REF"sv, { "GLint"sv } },
-        { "STENCIL_BACK_VALUE_MASK"sv, { "GLuint"sv } },
-        { "STENCIL_BACK_WRITEMASK"sv, { "GLuint"sv } },
-        { "STENCIL_BITS"sv, { "GLint"sv } },
-        { "STENCIL_CLEAR_VALUE"sv, { "GLint"sv } },
-        { "STENCIL_FAIL"sv, { "GLenum"sv } },
-        { "STENCIL_FUNC"sv, { "GLenum"sv } },
-        { "STENCIL_PASS_DEPTH_FAIL"sv, { "GLenum"sv } },
-        { "STENCIL_PASS_DEPTH_PASS"sv, { "GLenum"sv } },
-        { "STENCIL_REF"sv, { "GLint"sv } },
-        { "STENCIL_TEST"sv, { "GLboolean"sv } },
-        { "STENCIL_VALUE_MASK"sv, { "GLuint"sv } },
-        { "STENCIL_WRITEMASK"sv, { "GLuint"sv } },
-        { "SUBPIXEL_BITS"sv, { "GLint"sv } },
-        { "TEXTURE_BINDING_2D"sv, { "WebGLTexture"sv } },
-        { "TEXTURE_BINDING_CUBE_MAP"sv, { "WebGLTexture"sv } },
-        { "UNPACK_ALIGNMENT"sv, { "GLint"sv } },
-        // FIXME: { "UNPACK_COLORSPACE_CONVERSION_WEBGL"sv, { "GLenum"sv } },
-        // FIXME: { "UNPACK_FLIP_Y_WEBGL"sv, { "GLboolean"sv } },
-        // FIXME: { "UNPACK_PREMULTIPLY_ALPHA_WEBGL"sv, { "GLboolean"sv } },
-        { "VENDOR"sv, { "DOMString"sv } },
-        { "VERSION"sv, { "DOMString"sv } },
-        { "VIEWPORT"sv, { "Int32Array"sv, 4 } },
-        { "MAX_SAMPLES"sv, { "GLint"sv }, 2 },
-        { "MAX_3D_TEXTURE_SIZE"sv, { "GLint"sv }, 2 },
-        { "MAX_ARRAY_TEXTURE_LAYERS"sv, { "GLint"sv }, 2 },
-        { "MAX_COLOR_ATTACHMENTS"sv, { "GLint"sv }, 2 },
-        { "MAX_VERTEX_UNIFORM_COMPONENTS"sv, { "GLint"sv }, 2 },
-        { "MAX_UNIFORM_BLOCK_SIZE"sv, { "GLint64"sv }, 2 },
-        { "MAX_UNIFORM_BUFFER_BINDINGS"sv, { "GLint"sv }, 2 },
-        { "UNIFORM_BUFFER_OFFSET_ALIGNMENT"sv, { "GLint"sv }, 2 },
-        { "MAX_DRAW_BUFFERS"sv, { "GLint"sv }, 2 },
-        { "MAX_VERTEX_UNIFORM_BLOCKS"sv, { "GLint"sv }, 2 },
-        { "MAX_FRAGMENT_INPUT_COMPONENTS"sv, { "GLint"sv }, 2 },
-        { "MAX_FRAGMENT_UNIFORM_COMPONENTS"sv, { "GLint"sv }, 2 },
-        { "MAX_COMBINED_UNIFORM_BLOCKS"sv, { "GLint"sv }, 2 },
-        { "MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS"sv, { "GLint64"sv }, 2 },
-        { "MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS"sv, { "GLint64"sv }, 2 },
-        { "UNIFORM_BUFFER_BINDING"sv, { "WebGLBuffer"sv }, 2 },
-        { "TEXTURE_BINDING_2D_ARRAY"sv, { "WebGLTexture"sv }, 2 },
-        { "COPY_READ_BUFFER_BINDING"sv, { "WebGLBuffer"sv }, 2 },
-        { "COPY_WRITE_BUFFER_BINDING"sv, { "WebGLBuffer"sv }, 2 },
-        { "MAX_ELEMENT_INDEX"sv, { "GLint64"sv }, 2 },
-        { "MAX_FRAGMENT_UNIFORM_BLOCKS"sv, { "GLint"sv }, 2 },
-        { "MAX_VARYING_COMPONENTS"sv, { "GLint"sv }, 2 },
-        { "MAX_ELEMENTS_INDICES"sv, { "GLint"sv }, 2 },
-        { "MAX_ELEMENTS_VERTICES"sv, { "GLint"sv }, 2 },
-        { "MAX_TEXTURE_LOD_BIAS"sv, { "GLfloat"sv }, 2 },
-        { "MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS"sv, { "GLint"sv }, 2 },
-        { "MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS"sv, { "GLint"sv }, 2 },
-        { "MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS"sv, { "GLint"sv }, 2 },
-        { "MIN_PROGRAM_TEXEL_OFFSET"sv, { "GLint"sv }, 2 },
-        { "MAX_PROGRAM_TEXEL_OFFSET"sv, { "GLint"sv }, 2 },
-        { "MAX_VERTEX_OUTPUT_COMPONENTS"sv, { "GLint"sv }, 2 },
-        { "MAX_SERVER_WAIT_TIMEOUT"sv, { "GLint64"sv }, 2 },
+        { "ACTIVE_TEXTURE"_sv, { "GLenum"_sv } },
+        { "ALIASED_LINE_WIDTH_RANGE"_sv, { "Float32Array"_sv, 2 } },
+        { "ALIASED_POINT_SIZE_RANGE"_sv, { "Float32Array"_sv, 2 } },
+        { "ALPHA_BITS"_sv, { "GLint"_sv } },
+        { "ARRAY_BUFFER_BINDING"_sv, { "WebGLBuffer"_sv } },
+        { "BLEND"_sv, { "GLboolean"_sv } },
+        { "BLEND_COLOR"_sv, { "Float32Array"_sv, 4 } },
+        { "BLEND_DST_ALPHA"_sv, { "GLenum"_sv } },
+        { "BLEND_DST_RGB"_sv, { "GLenum"_sv } },
+        { "BLEND_EQUATION_ALPHA"_sv, { "GLenum"_sv } },
+        { "BLEND_EQUATION_RGB"_sv, { "GLenum"_sv } },
+        { "BLEND_SRC_ALPHA"_sv, { "GLenum"_sv } },
+        { "BLEND_SRC_RGB"_sv, { "GLenum"_sv } },
+        { "BLUE_BITS"_sv, { "GLint"_sv } },
+        { "COLOR_CLEAR_VALUE"_sv, { "Float32Array"_sv, 4 } },
+        // FIXME: { "COLOR_WRITEMASK"_sv, { "sequence<GLboolean>"_sv, 4 } },
+        // FIXME: { "COMPRESSED_TEXTURE_FORMATS"_sv, { "Uint32Array"_sv } },
+        { "CULL_FACE"_sv, { "GLboolean"_sv } },
+        { "CULL_FACE_MODE"_sv, { "GLenum"_sv } },
+        { "CURRENT_PROGRAM"_sv, { "WebGLProgram"_sv } },
+        { "DEPTH_BITS"_sv, { "GLint"_sv } },
+        { "DEPTH_CLEAR_VALUE"_sv, { "GLfloat"_sv } },
+        { "DEPTH_FUNC"_sv, { "GLenum"_sv } },
+        { "DEPTH_RANGE"_sv, { "Float32Array"_sv, 2 } },
+        { "DEPTH_TEST"_sv, { "GLboolean"_sv } },
+        { "DEPTH_WRITEMASK"_sv, { "GLboolean"_sv } },
+        { "DITHER"_sv, { "GLboolean"_sv } },
+        { "ELEMENT_ARRAY_BUFFER_BINDING"_sv, { "WebGLBuffer"_sv } },
+        { "FRAMEBUFFER_BINDING"_sv, { "WebGLFramebuffer"_sv } },
+        { "FRONT_FACE"_sv, { "GLenum"_sv } },
+        { "GENERATE_MIPMAP_HINT"_sv, { "GLenum"_sv } },
+        { "GREEN_BITS"_sv, { "GLint"_sv } },
+        { "IMPLEMENTATION_COLOR_READ_FORMAT"_sv, { "GLenum"_sv } },
+        { "IMPLEMENTATION_COLOR_READ_TYPE"_sv, { "GLenum"_sv } },
+        { "LINE_WIDTH"_sv, { "GLfloat"_sv } },
+        { "MAX_COMBINED_TEXTURE_IMAGE_UNITS"_sv, { "GLint"_sv } },
+        { "MAX_CUBE_MAP_TEXTURE_SIZE"_sv, { "GLint"_sv } },
+        { "MAX_FRAGMENT_UNIFORM_VECTORS"_sv, { "GLint"_sv } },
+        { "MAX_RENDERBUFFER_SIZE"_sv, { "GLint"_sv } },
+        { "MAX_TEXTURE_IMAGE_UNITS"_sv, { "GLint"_sv } },
+        { "MAX_TEXTURE_SIZE"_sv, { "GLint"_sv } },
+        { "MAX_VARYING_VECTORS"_sv, { "GLint"_sv } },
+        { "MAX_VERTEX_ATTRIBS"_sv, { "GLint"_sv } },
+        { "MAX_VERTEX_TEXTURE_IMAGE_UNITS"_sv, { "GLint"_sv } },
+        { "MAX_VERTEX_UNIFORM_VECTORS"_sv, { "GLint"_sv } },
+        { "MAX_VIEWPORT_DIMS"_sv, { "Int32Array"_sv, 2 } },
+        { "PACK_ALIGNMENT"_sv, { "GLint"_sv } },
+        { "POLYGON_OFFSET_FACTOR"_sv, { "GLfloat"_sv } },
+        { "POLYGON_OFFSET_FILL"_sv, { "GLboolean"_sv } },
+        { "POLYGON_OFFSET_UNITS"_sv, { "GLfloat"_sv } },
+        { "RED_BITS"_sv, { "GLint"_sv } },
+        { "RENDERBUFFER_BINDING"_sv, { "WebGLRenderbuffer"_sv } },
+        { "RENDERER"_sv, { "DOMString"_sv } },
+        { "SAMPLE_ALPHA_TO_COVERAGE"_sv, { "GLboolean"_sv } },
+        { "SAMPLE_BUFFERS"_sv, { "GLint"_sv } },
+        { "SAMPLE_COVERAGE"_sv, { "GLboolean"_sv } },
+        { "SAMPLE_COVERAGE_INVERT"_sv, { "GLboolean"_sv } },
+        { "SAMPLE_COVERAGE_VALUE"_sv, { "GLfloat"_sv } },
+        { "SAMPLES"_sv, { "GLint"_sv } },
+        { "SCISSOR_BOX"_sv, { "Int32Array"_sv, 4 } },
+        { "SCISSOR_TEST"_sv, { "GLboolean"_sv } },
+        { "SHADING_LANGUAGE_VERSION"_sv, { "DOMString"_sv } },
+        { "STENCIL_BACK_FAIL"_sv, { "GLenum"_sv } },
+        { "STENCIL_BACK_FUNC"_sv, { "GLenum"_sv } },
+        { "STENCIL_BACK_PASS_DEPTH_FAIL"_sv, { "GLenum"_sv } },
+        { "STENCIL_BACK_PASS_DEPTH_PASS"_sv, { "GLenum"_sv } },
+        { "STENCIL_BACK_REF"_sv, { "GLint"_sv } },
+        { "STENCIL_BACK_VALUE_MASK"_sv, { "GLuint"_sv } },
+        { "STENCIL_BACK_WRITEMASK"_sv, { "GLuint"_sv } },
+        { "STENCIL_BITS"_sv, { "GLint"_sv } },
+        { "STENCIL_CLEAR_VALUE"_sv, { "GLint"_sv } },
+        { "STENCIL_FAIL"_sv, { "GLenum"_sv } },
+        { "STENCIL_FUNC"_sv, { "GLenum"_sv } },
+        { "STENCIL_PASS_DEPTH_FAIL"_sv, { "GLenum"_sv } },
+        { "STENCIL_PASS_DEPTH_PASS"_sv, { "GLenum"_sv } },
+        { "STENCIL_REF"_sv, { "GLint"_sv } },
+        { "STENCIL_TEST"_sv, { "GLboolean"_sv } },
+        { "STENCIL_VALUE_MASK"_sv, { "GLuint"_sv } },
+        { "STENCIL_WRITEMASK"_sv, { "GLuint"_sv } },
+        { "SUBPIXEL_BITS"_sv, { "GLint"_sv } },
+        { "TEXTURE_BINDING_2D"_sv, { "WebGLTexture"_sv } },
+        { "TEXTURE_BINDING_CUBE_MAP"_sv, { "WebGLTexture"_sv } },
+        { "UNPACK_ALIGNMENT"_sv, { "GLint"_sv } },
+        // FIXME: { "UNPACK_COLORSPACE_CONVERSION_WEBGL"_sv, { "GLenum"_sv } },
+        // FIXME: { "UNPACK_FLIP_Y_WEBGL"_sv, { "GLboolean"_sv } },
+        // FIXME: { "UNPACK_PREMULTIPLY_ALPHA_WEBGL"_sv, { "GLboolean"_sv } },
+        { "VENDOR"_sv, { "DOMString"_sv } },
+        { "VERSION"_sv, { "DOMString"_sv } },
+        { "VIEWPORT"_sv, { "Int32Array"_sv, 4 } },
+        { "MAX_SAMPLES"_sv, { "GLint"_sv }, 2 },
+        { "MAX_3D_TEXTURE_SIZE"_sv, { "GLint"_sv }, 2 },
+        { "MAX_ARRAY_TEXTURE_LAYERS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_COLOR_ATTACHMENTS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_VERTEX_UNIFORM_COMPONENTS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_UNIFORM_BLOCK_SIZE"_sv, { "GLint64"_sv }, 2 },
+        { "MAX_UNIFORM_BUFFER_BINDINGS"_sv, { "GLint"_sv }, 2 },
+        { "UNIFORM_BUFFER_OFFSET_ALIGNMENT"_sv, { "GLint"_sv }, 2 },
+        { "MAX_DRAW_BUFFERS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_VERTEX_UNIFORM_BLOCKS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_FRAGMENT_INPUT_COMPONENTS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_FRAGMENT_UNIFORM_COMPONENTS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_COMBINED_UNIFORM_BLOCKS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS"_sv, { "GLint64"_sv }, 2 },
+        { "MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS"_sv, { "GLint64"_sv }, 2 },
+        { "UNIFORM_BUFFER_BINDING"_sv, { "WebGLBuffer"_sv }, 2 },
+        { "TEXTURE_BINDING_2D_ARRAY"_sv, { "WebGLTexture"_sv }, 2 },
+        { "COPY_READ_BUFFER_BINDING"_sv, { "WebGLBuffer"_sv }, 2 },
+        { "COPY_WRITE_BUFFER_BINDING"_sv, { "WebGLBuffer"_sv }, 2 },
+        { "MAX_ELEMENT_INDEX"_sv, { "GLint64"_sv }, 2 },
+        { "MAX_FRAGMENT_UNIFORM_BLOCKS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_VARYING_COMPONENTS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_ELEMENTS_INDICES"_sv, { "GLint"_sv }, 2 },
+        { "MAX_ELEMENTS_VERTICES"_sv, { "GLint"_sv }, 2 },
+        { "MAX_TEXTURE_LOD_BIAS"_sv, { "GLfloat"_sv }, 2 },
+        { "MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS"_sv, { "GLint"_sv }, 2 },
+        { "MIN_PROGRAM_TEXEL_OFFSET"_sv, { "GLint"_sv }, 2 },
+        { "MAX_PROGRAM_TEXEL_OFFSET"_sv, { "GLint"_sv }, 2 },
+        { "MAX_VERTEX_OUTPUT_COMPONENTS"_sv, { "GLint"_sv }, 2 },
+        { "MAX_SERVER_WAIT_TIMEOUT"_sv, { "GLint64"_sv }, 2 },
     };
 
     auto is_integer_type = [](StringView type) {
-        return type == "GLint"sv || type == "GLenum"sv || type == "GLuint"sv;
+        return type == "GLint"_sv || type == "GLenum"_sv || type == "GLuint"_sv;
     };
 
     generator.append("    switch (pname) {");
@@ -246,37 +246,37 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         glGetIntegerv(GL_@parameter_name@, &result);
         return JS::Value(result);
 )~~~");
-        } else if (type_name == "GLfloat"sv) {
+        } else if (type_name == "GLfloat"_sv) {
             impl_generator.append(R"~~~(
         GLfloat result;
         glGetFloatv(GL_@parameter_name@, &result);
         return JS::Value(result);
 )~~~");
-        } else if (type_name == "GLboolean"sv) {
+        } else if (type_name == "GLboolean"_sv) {
             impl_generator.append(R"~~~(
         GLboolean result;
         glGetBooleanv(GL_@parameter_name@, &result);
         return JS::Value(result == GL_TRUE);
 )~~~");
-        } else if (type_name == "GLint64"sv) {
+        } else if (type_name == "GLint64"_sv) {
             impl_generator.append(R"~~~(
         GLint64 result;
         glGetInteger64v(GL_@parameter_name@, &result);
         return JS::Value(static_cast<double>(result));
 )~~~");
-        } else if (type_name == "DOMString"sv) {
+        } else if (type_name == "DOMString"_sv) {
             impl_generator.append(R"~~~(
         auto result = reinterpret_cast<const char*>(glGetString(GL_@parameter_name@));
         return JS::PrimitiveString::create(m_realm->vm(), ByteString { result });)~~~");
-        } else if (type_name == "Float32Array"sv || type_name == "Int32Array"sv) {
+        } else if (type_name == "Float32Array"_sv || type_name == "Int32Array"_sv) {
             auto element_count = name_and_type.return_type.element_count;
             impl_generator.set("element_count", MUST(String::formatted("{}", element_count)));
-            if (type_name == "Int32Array"sv) {
-                impl_generator.set("gl_function_name", "glGetIntegerv"sv);
-                impl_generator.set("element_type", "GLint"sv);
-            } else if (type_name == "Float32Array"sv) {
-                impl_generator.set("gl_function_name", "glGetFloatv"sv);
-                impl_generator.set("element_type", "GLfloat"sv);
+            if (type_name == "Int32Array"_sv) {
+                impl_generator.set("gl_function_name", "glGetIntegerv"_sv);
+                impl_generator.set("element_type", "GLint"_sv);
+            } else if (type_name == "Float32Array"_sv) {
+                impl_generator.set("gl_function_name", "glGetFloatv"_sv);
+                impl_generator.set("element_type", "GLfloat"_sv);
             } else {
                 VERIFY_NOT_REACHED();
             }
@@ -287,7 +287,7 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
         return JS::@type_name@::create(m_realm, @element_count@, array_buffer);
 )~~~");
-        } else if (type_name == "WebGLProgram"sv || type_name == "WebGLBuffer"sv || type_name == "WebGLTexture"sv || type_name == "WebGLFramebuffer"sv || type_name == "WebGLRenderbuffer"sv) {
+        } else if (type_name == "WebGLProgram"_sv || type_name == "WebGLBuffer"_sv || type_name == "WebGLTexture"_sv || type_name == "WebGLFramebuffer"_sv || type_name == "WebGLRenderbuffer"_sv) {
             impl_generator.set("stored_name", name_and_type.name.to_ascii_lowercase_string());
             impl_generator.append(R"~~~(
         if (!m_@stored_name@)
@@ -314,8 +314,8 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
 static void generate_get_buffer_parameter(SourceGenerator& generator)
 {
     Vector<NameAndType> const name_to_type = {
-        { "BUFFER_SIZE"sv, { "GLint"sv } },
-        { "BUFFER_USAGE"sv, { "GLenum"sv } },
+        { "BUFFER_SIZE"_sv, { "GLint"_sv } },
+        { "BUFFER_USAGE"_sv, { "GLenum"_sv } },
     };
 
     generator.append("    switch (pname) {");
@@ -390,7 +390,7 @@ static void generate_webgl_object_handle_unwrap(SourceGenerator& generator, Stri
 
 static void generate_get_active_uniform_block_parameter(SourceGenerator& generator)
 {
-    generate_webgl_object_handle_unwrap(generator, "program"sv, "JS::js_null()"sv);
+    generate_webgl_object_handle_unwrap(generator, "program"_sv, "JS::js_null()"_sv);
     generator.append(R"~~~(
     switch (pname) {
     case GL_UNIFORM_BLOCK_BINDING:
@@ -844,7 +844,7 @@ public:
             continue;
         }
 
-        if (function.name == "getSupportedExtensions"sv || function.name == "getExtension"sv || function.name == "getContextAttributes"sv || function.name == "isContextLost"sv) {
+        if (function.name == "getSupportedExtensions"_sv || function.name == "getExtension"_sv || function.name == "getContextAttributes"_sv || function.name == "isContextLost"_sv) {
             // Implemented in WebGLRenderingContext
             continue;
         }
@@ -855,32 +855,32 @@ public:
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];
             function_parameters.append(to_cpp_type(*parameter.type, interface));
-            function_parameters.append(" "sv);
+            function_parameters.append(" "_sv);
             function_parameters.append(parameter.name.to_snakecase());
             if (i != function.parameters.size() - 1) {
-                function_parameters.append(", "sv);
+                function_parameters.append(", "_sv);
             }
         }
 
         auto function_name = function.name.to_snakecase();
         function_declaration.append(to_cpp_type(*function.return_type, interface));
-        function_declaration.append(" "sv);
+        function_declaration.append(" "_sv);
         function_declaration.append(function_name);
-        function_declaration.append("("sv);
+        function_declaration.append("("_sv);
 
         function_declaration.append(function_parameters.string_view());
-        function_declaration.append(");"sv);
+        function_declaration.append(");"_sv);
 
-        header_file_generator.append("    "sv);
+        header_file_generator.append("    "_sv);
         header_file_generator.append(function_declaration.string_view());
-        header_file_generator.append("\n"sv);
+        header_file_generator.append("\n"_sv);
 
         StringBuilder function_impl;
         SourceGenerator function_impl_generator { function_impl };
         function_impl_generator.set("class_name", class_name);
 
         ScopeGuard function_guard { [&] {
-            function_impl_generator.append("}\n"sv);
+            function_impl_generator.append("}\n"_sv);
             implementation_file_generator.append(function_impl_generator.as_string_view().bytes());
         } };
 
@@ -894,12 +894,12 @@ public:
 )~~~");
 
         if (gl_function_modifies_framebuffer(function.name)) {
-            function_impl_generator.append("    m_context->notify_content_will_change();\n"sv);
+            function_impl_generator.append("    m_context->notify_content_will_change();\n"_sv);
         }
 
-        if (function.name == "attachShader"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, ""sv);
-            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, ""sv);
+        if (function.name == "attachShader"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, ""_sv);
+            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     if (program->attached_vertex_shader() == shader || program->attached_fragment_shader() == shader) {
         dbgln("WebGL: Shader is already attached to program");
@@ -935,8 +935,8 @@ public:
             continue;
         }
 
-        if (function.name == "getUniformLocation"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
+        if (function.name == "getUniformLocation"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, "{}"_sv);
             function_impl_generator.append(R"~~~(
     auto name_null_terminated = null_terminated_string(name);
     return WebGLUniformLocation::create(m_realm, glGetUniformLocation(program_handle, name_null_terminated.data()));
@@ -944,7 +944,7 @@ public:
             continue;
         }
 
-        if (function.name == "createBuffer"sv) {
+        if (function.name == "createBuffer"_sv) {
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenBuffers(1, &handle);
@@ -953,7 +953,7 @@ public:
             continue;
         }
 
-        if (function.name == "createShader"sv) {
+        if (function.name == "createShader"_sv) {
             function_impl_generator.append(R"~~~(
     if (type != GL_VERTEX_SHADER && type != GL_FRAGMENT_SHADER) {
         dbgln("Unknown WebGL shader type: 0x{:04x}", type);
@@ -967,7 +967,7 @@ public:
             continue;
         }
 
-        if (function.name == "createTexture"sv) {
+        if (function.name == "createTexture"_sv) {
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenTextures(1, &handle);
@@ -976,7 +976,7 @@ public:
             continue;
         }
 
-        if (function.name == "createFramebuffer"sv) {
+        if (function.name == "createFramebuffer"_sv) {
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenFramebuffers(1, &handle);
@@ -985,7 +985,7 @@ public:
             continue;
         }
 
-        if (function.name == "createRenderbuffer"sv) {
+        if (function.name == "createRenderbuffer"_sv) {
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenRenderbuffers(1, &handle);
@@ -994,7 +994,7 @@ public:
             continue;
         }
 
-        if (function.name == "invalidateFramebuffer"sv) {
+        if (function.name == "invalidateFramebuffer"_sv) {
             function_impl_generator.append(R"~~~(
     glInvalidateFramebuffer(target, attachments.size(), attachments.data());
     needs_to_present();
@@ -1002,7 +1002,7 @@ public:
             continue;
         }
 
-        if (function.name == "createVertexArray"sv) {
+        if (function.name == "createVertexArray"_sv) {
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenVertexArrays(1, &handle);
@@ -1011,7 +1011,7 @@ public:
             continue;
         }
 
-        if (function.name == "createSampler"sv) {
+        if (function.name == "createSampler"_sv) {
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenSamplers(1, &handle);
@@ -1020,7 +1020,7 @@ public:
             continue;
         }
 
-        if (function.name == "fenceSync"sv) {
+        if (function.name == "fenceSync"_sv) {
             function_impl_generator.append(R"~~~(
     GLsync handle = glFenceSync(condition, flags);
     return WebGLSync::create(m_realm, *this, handle);
@@ -1028,8 +1028,8 @@ public:
             continue;
         }
 
-        if (function.name == "shaderSource"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, ""sv);
+        if (function.name == "shaderSource"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     Vector<GLchar*> strings;
     auto string = null_terminated_string(source);
@@ -1041,7 +1041,7 @@ public:
             continue;
         }
 
-        if (function.name == "vertexAttribPointer"sv) {
+        if (function.name == "vertexAttribPointer"_sv) {
             function_impl_generator.append(R"~~~(
     glVertexAttribPointer(index, size, type, normalized, stride, reinterpret_cast<void*>(offset));
 )~~~");
@@ -1055,7 +1055,7 @@ public:
             continue;
         }
 
-        if (function.name == "texImage2D"sv && function.overload_index == 0) {
+        if (function.name == "texImage2D"_sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
     if (pixels) {
@@ -1068,7 +1068,7 @@ public:
             continue;
         }
 
-        if (function.name == "texImage3D"sv && function.overload_index == 0) {
+        if (function.name == "texImage3D"_sv && function.overload_index == 0) {
             // FIXME: If a WebGLBuffer is bound to the PIXEL_UNPACK_BUFFER target, generates an INVALID_OPERATION error.
             // FIXME: If srcData is null, a buffer of sufficient size initialized to 0 is passed.
             // FIXME: If type is specified as FLOAT_32_UNSIGNED_INT_24_8_REV, srcData must be null; otherwise, generates an INVALID_OPERATION error.
@@ -1087,7 +1087,7 @@ public:
             continue;
         }
 
-        if (function.name == "texImage3D"sv && function.overload_index == 1) {
+        if (function.name == "texImage3D"_sv && function.overload_index == 1) {
             // FIXME: If a WebGLBuffer is bound to the PIXEL_UNPACK_BUFFER target, generates an INVALID_OPERATION error.
             // FIXME: If srcData is null, a buffer of sufficient size initialized to 0 is passed.
             // FIXME: If type is specified as FLOAT_32_UNSIGNED_INT_24_8_REV, srcData must be null; otherwise, generates an INVALID_OPERATION error.
@@ -1106,7 +1106,7 @@ public:
             continue;
         }
 
-        if (function.name == "texImage2D"sv && (function.overload_index == 1 || (webgl_version == 2 && function.overload_index == 2))) {
+        if (function.name == "texImage2D"_sv && (function.overload_index == 1 || (webgl_version == 2 && function.overload_index == 2))) {
             if (webgl_version == 2 && function.overload_index == 2) {
                 function_impl_generator.append(R"~~~(
     auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type, width, height);
@@ -1127,7 +1127,7 @@ public:
             continue;
         }
 
-        if (webgl_version == 2 && function.name == "texImage2D"sv && function.overload_index == 3) {
+        if (webgl_version == 2 && function.name == "texImage2D"_sv && function.overload_index == 3) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
     if (src_data) {
@@ -1140,7 +1140,7 @@ public:
             continue;
         }
 
-        if (function.name == "texSubImage2D"sv && function.overload_index == 0) {
+        if (function.name == "texSubImage2D"_sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
     if (pixels) {
@@ -1173,7 +1173,7 @@ public:
             continue;
         }
 
-        if (webgl_version == 2 && function.name == "texSubImage2D"sv && function.overload_index == 3) {
+        if (webgl_version == 2 && function.name == "texSubImage2D"_sv && function.overload_index == 3) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
     if (src_data) {
@@ -1186,7 +1186,7 @@ public:
             continue;
         }
 
-        if (function.name == "texSubImage3D"sv && function.overload_index == 0) {
+        if (function.name == "texSubImage3D"_sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
     if (src_data) {
@@ -1199,7 +1199,7 @@ public:
             continue;
         }
 
-        if (webgl_version == 2 && function.name == "compressedTexImage2D"sv && function.overload_index == 0) {
+        if (webgl_version == 2 && function.name == "compressedTexImage2D"_sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     u8 const* pixels_ptr = src_data->viewed_array_buffer()->buffer().data();
     size_t count = src_data->byte_length();
@@ -1223,7 +1223,7 @@ public:
             continue;
         }
 
-        if (webgl_version == 2 && function.name == "compressedTexSubImage2D"sv && function.overload_index == 0) {
+        if (webgl_version == 2 && function.name == "compressedTexSubImage2D"_sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     u8 const* pixels_ptr = src_data->viewed_array_buffer()->buffer().data();
     size_t count = src_data->byte_length();
@@ -1247,8 +1247,8 @@ public:
             continue;
         }
 
-        if (function.name == "getShaderParameter"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, "JS::js_null()"sv);
+        if (function.name == "getShaderParameter"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"_sv, "JS::js_null()"_sv);
             function_impl_generator.append(R"~~~(
     GLint result = 0;
     glGetShaderiv(shader_handle, pname, &result);
@@ -1267,8 +1267,8 @@ public:
             continue;
         }
 
-        if (function.name == "getProgramParameter"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "JS::js_null()"sv);
+        if (function.name == "getProgramParameter"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, "JS::js_null()"_sv);
             function_impl_generator.append(R"~~~(
     GLint result = 0;
     glGetProgramiv(program_handle, pname, &result);
@@ -1301,12 +1301,12 @@ public:
             continue;
         }
 
-        if (function.name == "getActiveUniformBlockParameter"sv) {
+        if (function.name == "getActiveUniformBlockParameter"_sv) {
             generate_get_active_uniform_block_parameter(function_impl_generator);
             continue;
         }
 
-        if (function.name == "getSyncParameter"sv) {
+        if (function.name == "getSyncParameter"_sv) {
             // FIXME: In order to ensure consistent behavior across platforms, sync objects may only transition to the
             //        signaled state when the user agent's event loop is not executing a task. In other words:
             //          - A sync object must not become signaled until control has returned to the user agent's main
@@ -1322,8 +1322,8 @@ public:
             continue;
         }
 
-        if (function.name == "getAttachedShaders"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "OptionalNone {}"sv);
+        if (function.name == "getAttachedShaders"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, "OptionalNone {}"_sv);
             function_impl_generator.append(R"~~~(
     (void)program_handle;
 
@@ -1340,14 +1340,14 @@ public:
             continue;
         }
 
-        if (function.name == "bufferData"sv && function.overload_index == 0) {
+        if (function.name == "bufferData"_sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     glBufferData(target, size, 0, usage);
 )~~~");
             continue;
         }
 
-        if (webgl_version == 2 && function.name == "bufferData"sv && function.overload_index == 2) {
+        if (webgl_version == 2 && function.name == "bufferData"_sv && function.overload_index == 2) {
             function_impl_generator.append(R"~~~(
     VERIFY(src_data);
     auto const& viewed_array_buffer = src_data->viewed_array_buffer();
@@ -1375,7 +1375,7 @@ public:
             continue;
         }
 
-        if (webgl_version == 2 && function.name == "bufferSubData"sv && function.overload_index == 1) {
+        if (webgl_version == 2 && function.name == "bufferSubData"_sv && function.overload_index == 1) {
             function_impl_generator.append(R"~~~(
     VERIFY(src_data);
     auto const& viewed_array_buffer = src_data->viewed_array_buffer();
@@ -1403,7 +1403,7 @@ public:
             continue;
         }
 
-        if (function.name == "readPixels"sv) {
+        if (function.name == "readPixels"_sv) {
             function_impl_generator.append(R"~~~(
     if (!pixels) {
         return;
@@ -1415,7 +1415,7 @@ public:
             continue;
         }
 
-        if (function.name == "drawElements"sv) {
+        if (function.name == "drawElements"_sv) {
             function_impl_generator.append(R"~~~(
     glDrawElements(mode, count, type, reinterpret_cast<void*>(offset));
     needs_to_present();
@@ -1423,7 +1423,7 @@ public:
             continue;
         }
 
-        if (function.name == "drawElementsInstanced"sv) {
+        if (function.name == "drawElementsInstanced"_sv) {
             function_impl_generator.append(R"~~~(
     glDrawElementsInstanced(mode, count, type, reinterpret_cast<void*>(offset), instance_count);
     needs_to_present();
@@ -1431,14 +1431,14 @@ public:
             continue;
         }
 
-        if (function.name == "drawBuffers"sv) {
+        if (function.name == "drawBuffers"_sv) {
             function_impl_generator.append(R"~~~(
     glDrawBuffers(buffers.size(), buffers.data());
 )~~~");
             continue;
         }
 
-        if (function.name.starts_with("uniformMatrix"sv)) {
+        if (function.name.starts_with("uniformMatrix"_sv)) {
             auto number_of_matrix_elements = function.name.substring_view(13, 1);
             function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
 
@@ -1490,17 +1490,17 @@ public:
             continue;
         }
 
-        if (function.name == "uniform1fv"sv || function.name == "uniform2fv"sv || function.name == "uniform3fv"sv || function.name == "uniform4fv"sv || function.name == "uniform1iv"sv || function.name == "uniform2iv"sv || function.name == "uniform3iv"sv || function.name == "uniform4iv"sv) {
+        if (function.name == "uniform1fv"_sv || function.name == "uniform2fv"_sv || function.name == "uniform3fv"_sv || function.name == "uniform4fv"_sv || function.name == "uniform1iv"_sv || function.name == "uniform2iv"_sv || function.name == "uniform3iv"_sv || function.name == "uniform4iv"_sv) {
             auto number_of_vector_elements = function.name.substring_view(7, 1);
             auto element_type = function.name.substring_view(8, 1);
-            if (element_type == "f"sv) {
-                function_impl_generator.set("cpp_element_type", "float"sv);
-                function_impl_generator.set("typed_array_type", "Float32Array"sv);
-                function_impl_generator.set("gl_postfix", "f"sv);
-            } else if (element_type == "i"sv) {
-                function_impl_generator.set("cpp_element_type", "int"sv);
-                function_impl_generator.set("typed_array_type", "Int32Array"sv);
-                function_impl_generator.set("gl_postfix", "i"sv);
+            if (element_type == "f"_sv) {
+                function_impl_generator.set("cpp_element_type", "float"_sv);
+                function_impl_generator.set("typed_array_type", "Float32Array"_sv);
+                function_impl_generator.set("gl_postfix", "f"_sv);
+            } else if (element_type == "i"_sv) {
+                function_impl_generator.set("cpp_element_type", "int"_sv);
+                function_impl_generator.set("typed_array_type", "Int32Array"_sv);
+                function_impl_generator.set("gl_postfix", "i"_sv);
             } else {
                 VERIFY_NOT_REACHED();
             }
@@ -1549,7 +1549,7 @@ public:
             continue;
         }
 
-        if (function.name == "vertexAttrib1fv"sv || function.name == "vertexAttrib2fv"sv || function.name == "vertexAttrib3fv"sv || function.name == "vertexAttrib4fv"sv) {
+        if (function.name == "vertexAttrib1fv"_sv || function.name == "vertexAttrib2fv"_sv || function.name == "vertexAttrib3fv"_sv || function.name == "vertexAttrib4fv"_sv) {
             auto number_of_vector_elements = function.name.substring_view(12, 1);
             function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
             function_impl_generator.append(R"~~~(
@@ -1567,19 +1567,19 @@ public:
             continue;
         }
 
-        if (function.name == "vertexAttribIPointer"sv) {
+        if (function.name == "vertexAttribIPointer"_sv) {
             function_impl_generator.append(R"~~~(
     glVertexAttribIPointer(index, size, type, stride, reinterpret_cast<void*>(offset));
 )~~~");
             continue;
         }
 
-        if (function.name == "getParameter"sv) {
+        if (function.name == "getParameter"_sv) {
             generate_get_parameter(function_impl_generator, webgl_version);
             continue;
         }
 
-        if (function.name == "getBufferParameter"sv) {
+        if (function.name == "getBufferParameter"_sv) {
             generate_get_buffer_parameter(function_impl_generator);
             continue;
         }
@@ -1589,8 +1589,8 @@ public:
             continue;
         }
 
-        if (function.name == "getActiveUniform"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
+        if (function.name == "getActiveUniform"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, "{}"_sv);
             function_impl_generator.append(R"~~~(
     GLint size = 0;
     GLenum type = 0;
@@ -1604,8 +1604,8 @@ public:
             continue;
         }
 
-        if (function.name == "getActiveUniforms"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
+        if (function.name == "getActiveUniforms"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, "{}"_sv);
             function_impl_generator.append(R"~~~(
     auto params = MUST(ByteBuffer::create_zeroed(uniform_indices.size() * sizeof(GLint)));
     Span<GLint> params_span(reinterpret_cast<GLint*>(params.data()), uniform_indices.size());
@@ -1642,8 +1642,8 @@ public:
             continue;
         }
 
-        if (function.name == "getActiveAttrib"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
+        if (function.name == "getActiveAttrib"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, "{}"_sv);
             function_impl_generator.append(R"~~~(
     GLint size = 0;
     GLenum type = 0;
@@ -1657,8 +1657,8 @@ public:
             continue;
         }
 
-        if (function.name == "getShaderInfoLog"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, "{}"sv);
+        if (function.name == "getShaderInfoLog"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"_sv, "{}"_sv);
             function_impl_generator.append(R"~~~(
     GLint info_log_length = 0;
     glGetShaderiv(shader_handle, GL_INFO_LOG_LENGTH, &info_log_length);
@@ -1672,8 +1672,8 @@ public:
             continue;
         }
 
-        if (function.name == "getProgramInfoLog"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
+        if (function.name == "getProgramInfoLog"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, "{}"_sv);
             function_impl_generator.append(R"~~~(
     GLint info_log_length = 0;
     glGetProgramiv(program_handle, GL_INFO_LOG_LENGTH, &info_log_length);
@@ -1687,7 +1687,7 @@ public:
             continue;
         }
 
-        if (function.name == "getShaderPrecisionFormat"sv) {
+        if (function.name == "getShaderPrecisionFormat"_sv) {
             function_impl_generator.append(R"~~~(
     GLint range[2];
     GLint precision;
@@ -1697,8 +1697,8 @@ public:
             continue;
         }
 
-        if (function.name == "getActiveUniformBlockName"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "OptionalNone {}"sv);
+        if (function.name == "getActiveUniformBlockName"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, "OptionalNone {}"_sv);
             function_impl_generator.append(R"~~~(
     GLint uniform_block_name_length = 0;
     glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_NAME_LENGTH, &uniform_block_name_length);
@@ -1712,57 +1712,57 @@ public:
             continue;
         }
 
-        if (function.name == "deleteBuffer"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "buffer"sv, ""sv);
+        if (function.name == "deleteBuffer"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "buffer"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glDeleteBuffers(1, &buffer_handle);
 )~~~");
             continue;
         }
 
-        if (function.name == "deleteFramebuffer"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "framebuffer"sv, ""sv);
+        if (function.name == "deleteFramebuffer"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "framebuffer"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glDeleteFramebuffers(1, &framebuffer_handle);
 )~~~");
             continue;
         }
 
-        if (function.name == "deleteRenderbuffer"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "renderbuffer"sv, ""sv);
+        if (function.name == "deleteRenderbuffer"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "renderbuffer"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glDeleteRenderbuffers(1, &renderbuffer_handle);
 )~~~");
             continue;
         }
 
-        if (function.name == "deleteTexture"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "texture"sv, ""sv);
+        if (function.name == "deleteTexture"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "texture"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glDeleteTextures(1, &texture_handle);
 )~~~");
             continue;
         }
 
-        if (function.name == "deleteVertexArray"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "vertex_array"sv, ""sv);
+        if (function.name == "deleteVertexArray"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "vertex_array"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glDeleteVertexArrays(1, &vertex_array_handle);
 )~~~");
             continue;
         }
 
-        if (function.name == "deleteSampler"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "sampler"sv, ""sv);
+        if (function.name == "deleteSampler"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "sampler"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glDeleteSamplers(1, &sampler_handle);
 )~~~");
             continue;
         }
 
-        if (function.name == "bindBuffer"sv) {
+        if (function.name == "bindBuffer"_sv) {
             // FIXME: Implement Buffer Object Binding restrictions.
-            generate_webgl_object_handle_unwrap(function_impl_generator, "buffer"sv, ""sv);
+            generate_webgl_object_handle_unwrap(function_impl_generator, "buffer"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     switch (target) {
     case GL_ELEMENT_ARRAY_BUFFER:
@@ -1799,8 +1799,8 @@ public:
             continue;
         }
 
-        if (function.name == "useProgram"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, ""sv);
+        if (function.name == "useProgram"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glUseProgram(program_handle);
     m_current_program = program;
@@ -1808,8 +1808,8 @@ public:
             continue;
         }
 
-        if (function.name == "bindFramebuffer"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "framebuffer"sv, ""sv);
+        if (function.name == "bindFramebuffer"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "framebuffer"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glBindFramebuffer(target, framebuffer ? framebuffer_handle : m_context->default_framebuffer());
     m_framebuffer_binding = framebuffer;
@@ -1817,8 +1817,8 @@ public:
             continue;
         }
 
-        if (function.name == "bindRenderbuffer"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "renderbuffer"sv, ""sv);
+        if (function.name == "bindRenderbuffer"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "renderbuffer"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     glBindRenderbuffer(target, renderbuffer ? renderbuffer_handle : m_context->default_renderbuffer());
     m_renderbuffer_binding = renderbuffer;
@@ -1826,8 +1826,8 @@ public:
             continue;
         }
 
-        if (function.name == "bindTexture"sv) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "texture"sv, ""sv);
+        if (function.name == "bindTexture"_sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "texture"_sv, ""_sv);
             function_impl_generator.append(R"~~~(
     switch (target) {
     case GL_TEXTURE_2D:
@@ -1860,7 +1860,7 @@ public:
             continue;
         }
 
-        if (function.name == "renderbufferStorage"sv) {
+        if (function.name == "renderbufferStorage"_sv) {
             // To be backward compatible with WebGL 1, also accepts internal format DEPTH_STENCIL, which should be
             // mapped to DEPTH24_STENCIL8 by implementations.
             if (webgl_version == 1) {
@@ -1888,8 +1888,8 @@ public:
             continue;
         }
 
-        if (function.name.starts_with("samplerParameter"sv)) {
-            generate_webgl_object_handle_unwrap(function_impl_generator, "sampler"sv, ""sv);
+        if (function.name.starts_with("samplerParameter"_sv)) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "sampler"_sv, ""_sv);
             function_impl_generator.set("param_type", function.name.substring_view(16, 1));
             // pname is given in the following table:
             // - TEXTURE_COMPARE_FUNC
@@ -1925,20 +1925,20 @@ public:
             continue;
         }
 
-        if (function.name.starts_with("clearBuffer"sv) && function.name.ends_with('v')) {
+        if (function.name.starts_with("clearBuffer"_sv) && function.name.ends_with('v')) {
             auto element_type = function.name.substring_view(11, 2);
-            if (element_type == "fv"sv) {
-                function_impl_generator.set("cpp_element_type", "float"sv);
-                function_impl_generator.set("typed_array_type", "Float32Array"sv);
-                function_impl_generator.set("gl_postfix", "f"sv);
-            } else if (element_type == "iv"sv) {
-                function_impl_generator.set("cpp_element_type", "int"sv);
-                function_impl_generator.set("typed_array_type", "Int32Array"sv);
-                function_impl_generator.set("gl_postfix", "i"sv);
-            } else if (element_type == "ui"sv) {
-                function_impl_generator.set("cpp_element_type", "u32"sv);
-                function_impl_generator.set("typed_array_type", "Uint32Array"sv);
-                function_impl_generator.set("gl_postfix", "ui"sv);
+            if (element_type == "fv"_sv) {
+                function_impl_generator.set("cpp_element_type", "float"_sv);
+                function_impl_generator.set("typed_array_type", "Float32Array"_sv);
+                function_impl_generator.set("gl_postfix", "f"_sv);
+            } else if (element_type == "iv"_sv) {
+                function_impl_generator.set("cpp_element_type", "int"_sv);
+                function_impl_generator.set("typed_array_type", "Int32Array"_sv);
+                function_impl_generator.set("gl_postfix", "i"_sv);
+            } else if (element_type == "ui"_sv) {
+                function_impl_generator.set("cpp_element_type", "u32"_sv);
+                function_impl_generator.set("typed_array_type", "Uint32Array"_sv);
+                function_impl_generator.set("gl_postfix", "ui"_sv);
             } else {
                 VERIFY_NOT_REACHED();
             }
@@ -2002,7 +2002,7 @@ public:
                 continue;
             }
             if (is_webgl_object_type(parameter.type->name())) {
-                if (function.return_type->name() == "undefined"sv) {
+                if (function.return_type->name() == "undefined"_sv) {
                     function_impl_generator.set("early_return_value", "");
                 } else if (function.return_type->is_integer()) {
                     function_impl_generator.set("early_return_value", "-1");
@@ -2026,16 +2026,16 @@ public:
                 gl_call_arguments.append(ByteString::formatted("{}_handle", parameter_name));
                 continue;
             }
-            if (parameter.type->name() == "WebGLUniformLocation"sv) {
+            if (parameter.type->name() == "WebGLUniformLocation"_sv) {
                 gl_call_arguments.append(ByteString::formatted("{} ? {}->handle() : 0", parameter_name, parameter_name));
                 continue;
             }
-            if (parameter.type->name() == "WebGLSync"sv) {
+            if (parameter.type->name() == "WebGLSync"_sv) {
                 // FIXME: Remove the GLsync cast once sync_handle actually returns the proper GLsync type.
                 gl_call_arguments.append(ByteString::formatted("(GLsync)({} ? {}->sync_handle() : nullptr)", parameter_name, parameter_name));
                 continue;
             }
-            if (parameter.type->name() == "BufferSource"sv) {
+            if (parameter.type->name() == "BufferSource"_sv) {
                 function_impl_generator.set("buffer_source_name", parameter_name);
                 function_impl_generator.append(R"~~~(
     void const* ptr = nullptr;
@@ -2060,7 +2060,7 @@ public:
                 gl_call_arguments.append(ByteString::formatted("ptr"));
                 continue;
             }
-            if (parameter.type->name() == "ArrayBufferView"sv) {
+            if (parameter.type->name() == "ArrayBufferView"_sv) {
                 function_impl_generator.set("buffer_source_name", parameter_name);
 
                 function_impl_generator.append(R"~~~(
@@ -2075,27 +2075,27 @@ public:
         }
 
         StringBuilder gl_call_arguments_string_builder;
-        gl_call_arguments_string_builder.join(", "sv, gl_call_arguments);
+        gl_call_arguments_string_builder.join(", "_sv, gl_call_arguments);
 
         auto gl_call_string = ByteString::formatted("{}({})", idl_to_gl_function_name(function.name), gl_call_arguments_string_builder.string_view());
         function_impl_generator.set("call_string", gl_call_string);
 
         if (gl_function_modifies_framebuffer(function.name)) {
-            function_impl_generator.append("    needs_to_present();\n"sv);
+            function_impl_generator.append("    needs_to_present();\n"_sv);
         }
 
-        if (function.return_type->name() == "undefined"sv) {
-            function_impl_generator.append("    @call_string@;"sv);
+        if (function.return_type->name() == "undefined"_sv) {
+            function_impl_generator.append("    @call_string@;"_sv);
         } else if (function.return_type->is_integer() || function.return_type->is_boolean()) {
-            function_impl_generator.append("    return @call_string@;"sv);
+            function_impl_generator.append("    return @call_string@;"_sv);
         } else if (is_webgl_object_type(function.return_type->name())) {
             function_impl_generator.set("return_type_name", function.return_type->name());
-            function_impl_generator.append("    return @return_type_name@::create(m_realm, *this, @call_string@);"sv);
+            function_impl_generator.append("    return @return_type_name@::create(m_realm, *this, @call_string@);"_sv);
         } else {
             VERIFY_NOT_REACHED();
         }
 
-        function_impl_generator.append("\n"sv);
+        function_impl_generator.append("\n"_sv);
     }
 
     header_file_generator.append(R"~~~(

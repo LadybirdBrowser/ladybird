@@ -33,7 +33,7 @@ public:                                            \
     using Base = base_class;                       \
     virtual StringView class_name() const override \
     {                                              \
-        return #class_##sv;                        \
+        return #class_##_sv;                       \
     }                                              \
     friend class GC::Heap;
 
@@ -200,7 +200,7 @@ struct AK::Formatter<GC::Cell> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, GC::Cell const* cell)
     {
         if (!cell)
-            return builder.put_string("Cell{nullptr}"sv);
-        return Formatter<FormatString>::format(builder, "{}({})"sv, cell->class_name(), cell);
+            return builder.put_string("Cell{nullptr}"_sv);
+        return Formatter<FormatString>::format(builder, "{}({})"_sv, cell->class_name(), cell);
     }
 };

@@ -159,9 +159,9 @@ struct DurationInstanceComponent {
 
 // Table 20: Internal slots and property names of DurationFormat instances relevant to Intl.DurationFormat constructor, https://tc39.es/ecma402/#table-durationformat
 // Table 24: DurationFormat instance internal slots and properties relevant to PartitionDurationFormatPattern, https://tc39.es/ecma402/#table-partition-duration-format-pattern
-static constexpr auto date_styles = AK::Array { "long"sv, "short"sv, "narrow"sv };
-static constexpr auto time_styles = AK::Array { "long"sv, "short"sv, "narrow"sv, "numeric"sv, "2-digit"sv };
-static constexpr auto sub_second_styles = AK::Array { "long"sv, "short"sv, "narrow"sv, "numeric"sv };
+static constexpr auto date_styles = AK::Array { "long"_sv, "short"_sv, "narrow"_sv };
+static constexpr auto time_styles = AK::Array { "long"_sv, "short"_sv, "narrow"_sv, "numeric"_sv, "2-digit"_sv };
+static constexpr auto sub_second_styles = AK::Array { "long"_sv, "short"_sv, "narrow"_sv, "numeric"_sv };
 
 static constexpr auto duration_instances_components = to_array<DurationInstanceComponent>({
     { &Temporal::Duration::years, &DurationFormat::years_options, &DurationFormat::set_years_options, DurationFormat::Unit::Years, date_styles, DurationFormat::ValueStyle::Short },

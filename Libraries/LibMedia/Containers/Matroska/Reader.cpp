@@ -128,7 +128,7 @@ static DecoderErrorOr<size_t> parse_master_element(Streamer& streamer, [[maybe_u
             // When the CRC-32 Element is present, the CRC-32 Element MUST be the first ordered
             // EBML Element within its Parent Element for easier reading.
             if (!first_element)
-                return DecoderError::corrupted("CRC32 element must be the first child"sv);
+                return DecoderError::corrupted("CRC32 element must be the first child"_sv);
 
             // All Top-Level Elements of an EBML Document that are Master Elements SHOULD include a
             // CRC-32 Element as a Child Element. The CRC in use is the IEEE-CRC-32 algorithm as used
@@ -169,7 +169,7 @@ static DecoderErrorOr<size_t> parse_master_element(Streamer& streamer, [[maybe_u
 static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer)
 {
     EBMLHeader header;
-    TRY(parse_master_element(streamer, "Header"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "Header"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case DOCTYPE_ELEMENT_ID:
             header.doc_type = TRY_READ(streamer.read_string());
@@ -195,14 +195,14 @@ DecoderErrorOr<void> Reader::parse_initial_data()
     auto first_element_id = TRY_READ(streamer.read_variable_size_integer(false));
     dbgln_if(MATROSKA_TRACE_DEBUG, "First element ID is {:#010x}\n", first_element_id);
     if (first_element_id != EBML_MASTER_ELEMENT_ID)
-        return DecoderError::corrupted("First element was not an EBML header"sv);
+        return DecoderError::corrupted("First element was not an EBML header"_sv);
 
     m_header = TRY(parse_ebml_header(streamer));
     dbgln_if(MATROSKA_DEBUG, "Parsed EBML header");
 
     auto root_element_id = TRY_READ(streamer.read_variable_size_integer(false));
     if (root_element_id != SEGMENT_ELEMENT_ID)
-        return DecoderError::corrupted("Second element was not a segment element"sv);
+        return DecoderError::corrupted("Second element was not a segment element"_sv);
 
     m_segment_contents_size = TRY_READ(streamer.read_variable_size_integer());
     m_segment_contents_position = streamer.position();
@@ -213,11 +213,11 @@ DecoderErrorOr<void> Reader::parse_initial_data()
 
 static DecoderErrorOr<void> parse_seek_head(Streamer& streamer, size_t base_position, HashMap<u32, size_t>& table)
 {
-    TRY(parse_master_element(streamer, "SeekHead"sv, [&](u64 seek_head_child_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "SeekHead"_sv, [&](u64 seek_head_child_id) -> DecoderErrorOr<IterationDecision> {
         if (seek_head_child_id == SEEK_ELEMENT_ID) {
             Optional<u64> seek_id;
             Optional<u64> seek_position;
-            TRY(parse_master_element(streamer, "Seek"sv, [&](u64 seek_entry_child_id) -> DecoderErrorOr<IterationDecision> {
+            TRY(parse_master_element(streamer, "Seek"_sv, [&](u64 seek_entry_child_id) -> DecoderErrorOr<IterationDecision> {
                 switch (seek_entry_child_id) {
                 case SEEK_ID_ELEMENT_ID:
                     seek_id = TRY_READ(streamer.read_u64());
@@ -235,11 +235,11 @@ static DecoderErrorOr<void> parse_seek_head(Streamer& streamer, size_t base_posi
             }));
 
             if (!seek_id.has_value())
-                return DecoderError::corrupted("Seek entry is missing the element ID"sv);
+                return DecoderError::corrupted("Seek entry is missing the element ID"_sv);
             if (!seek_position.has_value())
-                return DecoderError::corrupted("Seek entry is missing the seeking position"sv);
+                return DecoderError::corrupted("Seek entry is missing the seeking position"_sv);
             if (seek_id.value() > NumericLimits<u32>::max())
-                return DecoderError::corrupted("Seek entry's element ID is too large"sv);
+                return DecoderError::corrupted("Seek entry's element ID is too large"_sv);
 
             dbgln_if(MATROSKA_TRACE_DEBUG, "Seek entry found with ID {:#010x} and position {} offset from SeekHead at {}", seek_id.value(), seek_position.value(), base_position);
             // FIXME: SeekHead can reference another SeekHead, we should recursively parse all SeekHeads.
@@ -316,7 +316,7 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id([[
 static DecoderErrorOr<SegmentInformation> parse_information(Streamer& streamer)
 {
     SegmentInformation segment_information;
-    TRY(parse_master_element(streamer, "Segment Information"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "Segment Information"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case TIMESTAMP_SCALE_ID:
             segment_information.set_timestamp_scale(TRY_READ(streamer.read_u64()));
@@ -349,9 +349,9 @@ DecoderErrorOr<SegmentInformation> Reader::segment_information()
     if (m_segment_information.has_value())
         return m_segment_information.value();
 
-    auto position = TRY(find_first_top_level_element_with_id("Segment Information"sv, SEGMENT_INFORMATION_ELEMENT_ID));
+    auto position = TRY(find_first_top_level_element_with_id("Segment Information"_sv, SEGMENT_INFORMATION_ELEMENT_ID));
     if (!position.has_value())
-        return DecoderError::corrupted("No Segment Information element found"sv);
+        return DecoderError::corrupted("No Segment Information element found"_sv);
     Streamer streamer { m_data };
     TRY_READ(streamer.seek_to_position(position.release_value()));
     m_segment_information = TRY(parse_information(streamer));
@@ -362,9 +362,9 @@ DecoderErrorOr<void> Reader::ensure_tracks_are_parsed()
 {
     if (!m_tracks.is_empty())
         return {};
-    auto position = TRY(find_first_top_level_element_with_id("Tracks"sv, TRACK_ELEMENT_ID));
+    auto position = TRY(find_first_top_level_element_with_id("Tracks"_sv, TRACK_ELEMENT_ID));
     if (!position.has_value())
-        return DecoderError::corrupted("No Tracks element found"sv);
+        return DecoderError::corrupted("No Tracks element found"_sv);
     Streamer streamer { m_data };
     TRY_READ(streamer.seek_to_position(position.release_value()));
     TRY(parse_tracks(streamer));
@@ -375,7 +375,7 @@ static DecoderErrorOr<TrackEntry::ColorFormat> parse_video_color_information(Str
 {
     TrackEntry::ColorFormat color_format {};
 
-    TRY(parse_master_element(streamer, "Colour"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "Colour"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case PRIMARIES_ID:
             color_format.color_primaries = static_cast<ColorPrimaries>(TRY_READ(streamer.read_u64()));
@@ -411,7 +411,7 @@ static DecoderErrorOr<TrackEntry::VideoTrack> parse_video_track_information(Stre
 {
     TrackEntry::VideoTrack video_track {};
 
-    TRY(parse_master_element(streamer, "VideoTrack"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "VideoTrack"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case PIXEL_WIDTH_ID:
             video_track.pixel_width = TRY_READ(streamer.read_u64());
@@ -438,7 +438,7 @@ static DecoderErrorOr<TrackEntry::AudioTrack> parse_audio_track_information(Stre
 {
     TrackEntry::AudioTrack audio_track {};
 
-    TRY(parse_master_element(streamer, "AudioTrack"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "AudioTrack"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case CHANNELS_ID:
             audio_track.channels = TRY_READ(streamer.read_u64());
@@ -461,7 +461,7 @@ static DecoderErrorOr<TrackEntry::AudioTrack> parse_audio_track_information(Stre
 static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& streamer)
 {
     auto track_entry = DECODER_TRY_ALLOC(try_make_ref_counted<TrackEntry>());
-    TRY(parse_master_element(streamer, "Track"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "Track"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case TRACK_NUMBER_ID:
             track_entry->set_track_number(TRY_READ(streamer.read_u64()));
@@ -515,7 +515,7 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
 
 DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
 {
-    TRY(parse_master_element(streamer, "Tracks"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "Tracks"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         if (element_id == TRACK_ENTRY_ID) {
             auto track_entry = TRY(parse_track_entry(streamer));
             dbgln_if(MATROSKA_DEBUG, "Parsed track {}", track_entry->track_number());
@@ -573,7 +573,7 @@ static DecoderErrorOr<Cluster> parse_cluster(Streamer& streamer, u64 timestamp_s
 {
     Optional<u64> timestamp;
 
-    auto first_element_position = TRY(parse_master_element(streamer, "Cluster"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    auto first_element_position = TRY(parse_master_element(streamer, "Cluster"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case TIMESTAMP_ID:
             timestamp = TRY_READ(streamer.read_u64());
@@ -586,9 +586,9 @@ static DecoderErrorOr<Cluster> parse_cluster(Streamer& streamer, u64 timestamp_s
     }));
 
     if (!timestamp.has_value())
-        return DecoderError::corrupted("Cluster was missing a timestamp"sv);
+        return DecoderError::corrupted("Cluster was missing a timestamp"_sv);
     if (first_element_position == 0)
-        return DecoderError::corrupted("Cluster had no children"sv);
+        return DecoderError::corrupted("Cluster had no children"_sv);
 
     dbgln_if(MATROSKA_TRACE_DEBUG, "Seeking back to position {}", first_element_position);
     TRY_READ(streamer.seek_to_position(first_element_position));
@@ -683,9 +683,9 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
 
 DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(u64 track_number)
 {
-    auto optional_position = TRY(find_first_top_level_element_with_id("Cluster"sv, CLUSTER_ELEMENT_ID));
+    auto optional_position = TRY(find_first_top_level_element_with_id("Cluster"_sv, CLUSTER_ELEMENT_ID));
     if (!optional_position.has_value())
-        return DecoderError::corrupted("No clusters are present in the segment"sv);
+        return DecoderError::corrupted("No clusters are present in the segment"_sv);
     ReadonlyBytes segment_view = m_data.slice(m_segment_contents_position, m_segment_contents_size);
 
     // We need to have the element ID included so that the iterator knows where it is.
@@ -701,7 +701,7 @@ static DecoderErrorOr<CueTrackPosition> parse_cue_track_position(Streamer& strea
 
     bool had_cluster_position = false;
 
-    TRY_READ(parse_master_element(streamer, "CueTrackPositions"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY_READ(parse_master_element(streamer, "CueTrackPositions"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case CUE_TRACK_ID:
             track_position.set_track_number(TRY_READ(streamer.read_u64()));
@@ -733,10 +733,10 @@ static DecoderErrorOr<CueTrackPosition> parse_cue_track_position(Streamer& strea
     }));
 
     if (track_position.track_number() == 0)
-        return DecoderError::corrupted("Track number was not present or 0"sv);
+        return DecoderError::corrupted("Track number was not present or 0"_sv);
 
     if (!had_cluster_position)
-        return DecoderError::corrupted("Cluster was missing the cluster position"sv);
+        return DecoderError::corrupted("Cluster was missing the cluster position"_sv);
 
     return track_position;
 }
@@ -745,7 +745,7 @@ static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestam
 {
     CuePoint cue_point;
 
-    TRY(parse_master_element(streamer, "CuePoint"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "CuePoint"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case CUE_TIME_ID: {
             // On https://www.matroska.org/technical/elements.html, spec says of the CueTime element:
@@ -776,10 +776,10 @@ static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestam
     }));
 
     if (cue_point.timestamp().is_negative())
-        return DecoderError::corrupted("CuePoint was missing a timestamp"sv);
+        return DecoderError::corrupted("CuePoint was missing a timestamp"_sv);
 
     if (cue_point.track_positions().is_empty())
-        return DecoderError::corrupted("CuePoint was missing track positions"sv);
+        return DecoderError::corrupted("CuePoint was missing track positions"_sv);
 
     return cue_point;
 }
@@ -788,7 +788,7 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
 {
     m_cues.clear();
 
-    TRY(parse_master_element(streamer, "Cues"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+    TRY(parse_master_element(streamer, "Cues"_sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case CUE_POINT_ID: {
             auto cue_point = TRY(parse_cue_point(streamer, TRY(segment_information()).timestamp_scale()));
@@ -818,9 +818,9 @@ DecoderErrorOr<void> Reader::ensure_cues_are_parsed()
 {
     if (m_cues_have_been_parsed)
         return {};
-    auto position = TRY(find_first_top_level_element_with_id("Cues"sv, CUES_ID));
+    auto position = TRY(find_first_top_level_element_with_id("Cues"_sv, CUES_ID));
     if (!position.has_value())
-        return DecoderError::corrupted("No Tracks element found"sv);
+        return DecoderError::corrupted("No Tracks element found"_sv);
     Streamer streamer { m_data };
     TRY_READ(streamer.seek_to_position(position.release_value()));
     TRY(parse_cues(streamer));
@@ -937,7 +937,7 @@ DecoderErrorOr<Optional<Vector<CuePoint> const&>> Reader::cue_points_for_track(u
 DecoderErrorOr<Block> SampleIterator::next_block()
 {
     if (m_position >= m_data.size())
-        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Still at end of stream :^)"sv);
+        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Still at end of stream :^)"_sv);
 
     Streamer streamer { m_data };
     TRY_READ(streamer.seek_to_position(m_position));
@@ -974,7 +974,7 @@ DecoderErrorOr<Block> SampleIterator::next_block()
     }
 
     m_current_cluster.clear();
-    return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of stream"sv);
+    return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of stream"_sv);
 }
 
 DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point)
@@ -986,7 +986,7 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point
 
     auto element_id = TRY_READ(streamer.read_variable_size_integer(false));
     if (element_id != CLUSTER_ELEMENT_ID)
-        return DecoderError::corrupted("Cue point's cluster position didn't point to a cluster"sv);
+        return DecoderError::corrupted("Cue point's cluster position didn't point to a cluster"_sv);
 
     m_current_cluster = TRY(parse_cluster(streamer, m_segment_timestamp_scale));
     dbgln_if(MATROSKA_DEBUG, "SampleIterator set to cue point at timestamp {}ms", m_current_cluster->timestamp().to_milliseconds());

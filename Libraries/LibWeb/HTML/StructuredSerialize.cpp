@@ -143,7 +143,7 @@ enum ErrorType {
 static ErrorType error_name_to_type(String const& name)
 {
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
-    if (name == #ClassName##sv)                                                          \
+    if (name == #ClassName##_sv)                                                         \
         return ErrorType::ClassName;
     JS_ENUMERATE_NATIVE_ERRORS
 #undef __JS_ENUMERATE
@@ -649,10 +649,10 @@ WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Vector<u32>&
     // 1. If IsArrayBufferViewOutOfBounds(value) is true, then throw a "DataCloneError" DOMException.
     if constexpr (IsSame<ViewType, JS::DataView>) {
         if (JS::is_view_out_of_bounds(view_record))
-            return WebIDL::DataCloneError::create(*vm.current_realm(), MUST(String::formatted(JS::ErrorType::BufferOutOfBounds.message(), "DataView"sv)));
+            return WebIDL::DataCloneError::create(*vm.current_realm(), MUST(String::formatted(JS::ErrorType::BufferOutOfBounds.message(), "DataView"_sv)));
     } else {
         if (JS::is_typed_array_out_of_bounds(view_record))
-            return WebIDL::DataCloneError::create(*vm.current_realm(), MUST(String::formatted(JS::ErrorType::BufferOutOfBounds.message(), "TypedArray"sv)));
+            return WebIDL::DataCloneError::create(*vm.current_realm(), MUST(String::formatted(JS::ErrorType::BufferOutOfBounds.message(), "TypedArray"_sv)));
     }
 
     // 2. Let buffer be the value of value's [[ViewedArrayBuffer]] internal slot.
@@ -863,13 +863,13 @@ public:
             u32 byte_length = deserialize_primitive_type<u32>(m_serialized, m_position);
             u32 byte_offset = deserialize_primitive_type<u32>(m_serialized, m_position);
 
-            if (constructor_name == "DataView"sv) {
+            if (constructor_name == "DataView"_sv) {
                 value = JS::DataView::create(*realm, &array_buffer, byte_length, byte_offset);
             } else {
                 u32 array_length = deserialize_primitive_type<u32>(m_serialized, m_position);
                 GC::Ptr<JS::TypedArrayBase> typed_array_ptr;
-#define CREATE_TYPED_ARRAY(ClassName)       \
-    if (constructor_name == #ClassName##sv) \
+#define CREATE_TYPED_ARRAY(ClassName)        \
+    if (constructor_name == #ClassName##_sv) \
         typed_array_ptr = JS::ClassName::create(*realm, array_length, array_buffer);
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
     CREATE_TYPED_ARRAY(ClassName)
@@ -1049,31 +1049,31 @@ private:
 
     static GC::Ref<Bindings::PlatformObject> create_serialized_type(StringView interface_name, JS::Realm& realm)
     {
-        if (interface_name == "Blob"sv)
+        if (interface_name == "Blob"_sv)
             return FileAPI::Blob::create(realm);
-        if (interface_name == "File"sv)
+        if (interface_name == "File"_sv)
             return FileAPI::File::create(realm);
-        if (interface_name == "FileList"sv)
+        if (interface_name == "FileList"_sv)
             return FileAPI::FileList::create(realm);
-        if (interface_name == "DOMException"sv)
+        if (interface_name == "DOMException"_sv)
             return WebIDL::DOMException::create(realm);
-        if (interface_name == "DOMMatrixReadOnly"sv)
+        if (interface_name == "DOMMatrixReadOnly"_sv)
             return Geometry::DOMMatrixReadOnly::create(realm);
-        if (interface_name == "DOMMatrix"sv)
+        if (interface_name == "DOMMatrix"_sv)
             return Geometry::DOMMatrix::create(realm);
-        if (interface_name == "DOMPointReadOnly"sv)
+        if (interface_name == "DOMPointReadOnly"_sv)
             return Geometry::DOMPointReadOnly::create(realm);
-        if (interface_name == "DOMPoint"sv)
+        if (interface_name == "DOMPoint"_sv)
             return Geometry::DOMPoint::create(realm);
-        if (interface_name == "DOMRectReadOnly"sv)
+        if (interface_name == "DOMRectReadOnly"_sv)
             return Geometry::DOMRectReadOnly::create(realm);
-        if (interface_name == "DOMRect"sv)
+        if (interface_name == "DOMRect"_sv)
             return Geometry::DOMRect::create(realm);
-        if (interface_name == "CryptoKey"sv)
+        if (interface_name == "CryptoKey"_sv)
             return Crypto::CryptoKey::create(realm);
-        if (interface_name == "DOMQuad"sv)
+        if (interface_name == "DOMQuad"_sv)
             return Geometry::DOMQuad::create(realm);
-        if (interface_name == "ImageData"sv)
+        if (interface_name == "ImageData"_sv)
             return ImageData::create(realm);
 
         VERIFY_NOT_REACHED();
@@ -1295,13 +1295,13 @@ static bool is_interface_exposed_on_target_realm(TransferType name, JS::Realm& r
     auto const& intrinsics = Bindings::host_defined_intrinsics(realm);
     switch (name) {
     case TransferType::MessagePort:
-        return intrinsics.is_exposed("MessagePort"sv);
+        return intrinsics.is_exposed("MessagePort"_sv);
     case TransferType::ReadableStream:
-        return intrinsics.is_exposed("ReadableStream"sv);
+        return intrinsics.is_exposed("ReadableStream"_sv);
     case TransferType::WritableStream:
-        return intrinsics.is_exposed("WritableStream"sv);
+        return intrinsics.is_exposed("WritableStream"_sv);
     case TransferType::TransformStream:
-        return intrinsics.is_exposed("TransformStream"sv);
+        return intrinsics.is_exposed("TransformStream"_sv);
     case TransferType::Unknown:
         dbgln("Unknown interface type for transfer: {}", to_underlying(name));
         break;

@@ -41,7 +41,7 @@ Color CSSLCH::to_color(Optional<Layout::NodeWithStyle const&>) const
 String CSSLCH::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
-    builder.append("lch("sv);
+    builder.append("lch("_sv);
     serialize_color_component(builder, mode, m_properties.l, 100, 0, 100);
     builder.append(' ');
     serialize_color_component(builder, mode, m_properties.c, 150, 0, 230);
@@ -49,7 +49,7 @@ String CSSLCH::to_string(SerializationMode mode) const
     serialize_hue_component(builder, mode, m_properties.h);
     if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1)
         && (!m_properties.alpha->is_percentage() || m_properties.alpha->as_percentage().percentage().as_fraction() < 1)) {
-        builder.append(" / "sv);
+        builder.append(" / "_sv);
         serialize_alpha_component(builder, mode, m_properties.alpha);
     }
 
@@ -71,7 +71,7 @@ Color CSSOKLCH::to_color(Optional<Layout::NodeWithStyle const&>) const
 String CSSOKLCH::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
-    builder.append("oklch("sv);
+    builder.append("oklch("_sv);
     serialize_color_component(builder, mode, m_properties.l, 1.0f, 0, 1);
     builder.append(' ');
     serialize_color_component(builder, mode, m_properties.c, 0.4f, 0, 2.3);
@@ -79,7 +79,7 @@ String CSSOKLCH::to_string(SerializationMode mode) const
     serialize_hue_component(builder, mode, m_properties.h);
     if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1)
         && (!m_properties.alpha->is_percentage() || m_properties.alpha->as_percentage().percentage().as_fraction() < 1)) {
-        builder.append(" / "sv);
+        builder.append(" / "_sv);
         serialize_alpha_component(builder, mode, m_properties.alpha);
     }
 

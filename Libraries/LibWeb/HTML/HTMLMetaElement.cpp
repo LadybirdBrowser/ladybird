@@ -42,7 +42,7 @@ Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_s
     auto value = get_attribute_value(HTML::AttributeNames::http_equiv);
 
 #define __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(keyword, state) \
-    if (value.equals_ignoring_ascii_case(keyword##sv))             \
+    if (value.equals_ignoring_ascii_case(keyword##_sv))            \
         return HTMLMetaElement::HttpEquivAttributeState::state;
     ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTES
 #undef __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE
@@ -53,18 +53,18 @@ Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_s
 void HTMLMetaElement::update_metadata(Optional<String> const& old_name)
 {
     if (name().has_value()) {
-        if (name()->equals_ignoring_ascii_case("theme-color"sv)) {
+        if (name()->equals_ignoring_ascii_case("theme-color"_sv)) {
             document().obtain_theme_color();
-        } else if (name()->equals_ignoring_ascii_case("color-scheme"sv)) {
+        } else if (name()->equals_ignoring_ascii_case("color-scheme"_sv)) {
             document().obtain_supported_color_schemes();
             return;
         }
     }
 
     if (old_name.has_value()) {
-        if (old_name->equals_ignoring_ascii_case("theme-color"sv)) {
+        if (old_name->equals_ignoring_ascii_case("theme-color"_sv)) {
             document().obtain_theme_color();
-        } else if (old_name->equals_ignoring_ascii_case("color-scheme"sv)) {
+        } else if (old_name->equals_ignoring_ascii_case("color-scheme"_sv)) {
             document().obtain_supported_color_schemes();
             return;
         }
@@ -123,7 +123,7 @@ void HTMLMetaElement::inserted()
 
             // 2. If the element's content attribute contains a U+002C COMMA character (,) then return.
             auto content = get_attribute_value(AttributeNames::content);
-            if (content.contains(","sv))
+            if (content.contains(","_sv))
                 break;
 
             // 3. Let input be the value of the element's content attribute.

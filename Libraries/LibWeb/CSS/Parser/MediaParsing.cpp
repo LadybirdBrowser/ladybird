@@ -71,11 +71,11 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
             return {};
 
         auto ident = token.token().ident();
-        if (ident.equals_ignoring_ascii_case("not"sv)) {
+        if (ident.equals_ignoring_ascii_case("not"_sv)) {
             transaction.commit();
             return true;
         }
-        if (ident.equals_ignoring_ascii_case("only"sv)) {
+        if (ident.equals_ignoring_ascii_case("only"_sv)) {
             transaction.commit();
             return false;
         }
@@ -124,7 +124,7 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
         return media_query;
 
     // `[ and <media-condition-without-or> ]?`
-    if (auto const& maybe_and = tokens.consume_a_token(); maybe_and.is_ident("and"sv)) {
+    if (auto const& maybe_and = tokens.consume_a_token(); maybe_and.is_ident("and"_sv)) {
         if (auto media_condition = parse_media_condition(tokens)) {
             // "or" is disallowed at the top level
             if (is<BooleanOrExpression>(*media_condition))
@@ -175,12 +175,12 @@ OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& to
                 return MediaFeatureName { MediaFeatureName::Type::Normal, id.value() };
             }
 
-            if (allow_min_max_prefix && (name.starts_with_bytes("min-"sv, CaseSensitivity::CaseInsensitive) || name.starts_with_bytes("max-"sv, CaseSensitivity::CaseInsensitive))) {
+            if (allow_min_max_prefix && (name.starts_with_bytes("min-"_sv, CaseSensitivity::CaseInsensitive) || name.starts_with_bytes("max-"_sv, CaseSensitivity::CaseInsensitive))) {
                 auto adjusted_name = name.bytes_as_string_view().substring_view(4);
                 if (auto id = media_feature_id_from_string(adjusted_name); id.has_value() && media_feature_type_is_range(id.value())) {
                     transaction.commit();
                     return MediaFeatureName {
-                        name.starts_with_bytes("min-"sv, CaseSensitivity::CaseInsensitive) ? MediaFeatureName::Type::Min : MediaFeatureName::Type::Max,
+                        name.starts_with_bytes("min-"_sv, CaseSensitivity::CaseInsensitive) ? MediaFeatureName::Type::Min : MediaFeatureName::Type::Max,
                         id.value()
                     };
                 }
@@ -400,7 +400,7 @@ Optional<MediaQuery::MediaType> Parser::parse_media_type(TokenStream<ComponentVa
     // https://drafts.csswg.org/mediaqueries-3/#error-handling
     // "However, an exception is made for media types ‘layer’, ‘not’, ‘and’, ‘only’, and ‘or’. Even though they do match
     // the IDENT production, they must not be treated as unknown media types, but rather trigger the malformed query clause."
-    if (token.is_ident("layer"sv) || token.is_ident("not"sv) || token.is_ident("and"sv) || token.is_ident("only"sv) || token.is_ident("or"sv))
+    if (token.is_ident("layer"_sv) || token.is_ident("not"_sv) || token.is_ident("and"_sv) || token.is_ident("only"_sv) || token.is_ident("or"_sv))
         return {};
 
     transaction.commit();
@@ -552,7 +552,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
 
     if (!unknown_tokens.is_empty()) {
         transaction.commit();
-        dbgln_if(CSS_PARSER_DEBUG, "Creating unknown media value: `{}`", String::join(""sv, unknown_tokens));
+        dbgln_if(CSS_PARSER_DEBUG, "Creating unknown media value: `{}`", String::join(""_sv, unknown_tokens));
         return MediaFeatureValue(move(unknown_tokens));
     }
 

@@ -41,7 +41,7 @@ void HTMLTableCaptionElement::apply_presentational_hints(GC::Ref<CSS::CascadedPr
     HTMLElement::apply_presentational_hints(cascaded_properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
-            if (value == "bottom"sv)
+            if (value == "bottom"_sv)
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::CaptionSide, CSS::CSSKeywordValue::create(CSS::Keyword::Bottom));
         }
     });

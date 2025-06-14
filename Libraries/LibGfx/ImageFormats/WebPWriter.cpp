@@ -20,9 +20,9 @@ namespace Gfx {
 // https://developers.google.com/speed/webp/docs/riff_container#webp_file_header
 static ErrorOr<void> write_webp_header(Stream& stream, unsigned data_size)
 {
-    TRY(stream.write_until_depleted("RIFF"sv));
-    TRY(stream.write_value<LittleEndian<u32>>("WEBP"sv.length() + data_size));
-    TRY(stream.write_until_depleted("WEBP"sv));
+    TRY(stream.write_until_depleted("RIFF"_sv));
+    TRY(stream.write_value<LittleEndian<u32>>("WEBP"_sv.length() + data_size));
+    TRY(stream.write_until_depleted("WEBP"_sv));
     return {};
 }
 
@@ -87,7 +87,7 @@ static size_t compute_VP8L_chunk_size(ByteBuffer const& data)
 static ErrorOr<void> write_VP8L_chunk(Stream& stream, unsigned width, unsigned height, bool alpha_is_used_hint, ByteBuffer const& data)
 {
     size_t const number_of_bytes_written = vp8l_header_size + data.size();
-    TRY(write_chunk_header(stream, "VP8L"sv, number_of_bytes_written));
+    TRY(write_chunk_header(stream, "VP8L"_sv, number_of_bytes_written));
     TRY(write_VP8L_header(stream, width, height, alpha_is_used_hint));
     TRY(stream.write_until_depleted(data));
     TRY(align_to_two(stream, number_of_bytes_written));
@@ -146,7 +146,7 @@ static ErrorOr<void> write_VP8X_chunk(Stream& stream, VP8XHeader const& header)
     if (product >= (1ull << 32))
         return Error::from_string_literal("WebP dimensions too large for VP8X chunk");
 
-    TRY(write_chunk_header(stream, "VP8X"sv, 10));
+    TRY(write_chunk_header(stream, "VP8X"_sv, 10));
 
     LittleEndianOutputBitStream bit_stream { MaybeOwned<Stream>(stream) };
 
@@ -194,7 +194,7 @@ ErrorOr<void> WebPWriter::encode(Stream& stream, Bitmap const& bitmap, Options c
         //        allow saving a few copies.
         dbgln_if(WEBP_DEBUG, "Writing VP8X and ICCP chunks.");
         AllocatingMemoryStream iccp_chunk_stream;
-        TRY(write_chunk_header(iccp_chunk_stream, "ICCP"sv, options.icc_data.value().size()));
+        TRY(write_chunk_header(iccp_chunk_stream, "ICCP"_sv, options.icc_data.value().size()));
         TRY(iccp_chunk_stream.write_until_depleted(options.icc_data.value()));
         TRY(align_to_two(iccp_chunk_stream));
         iccp_chunk_bytes = TRY(iccp_chunk_stream.read_until_eof());
@@ -254,7 +254,7 @@ static ErrorOr<void> write_ANMF_chunk_header(Stream& stream, ANMFChunkHeader con
     dbgln_if(WEBP_DEBUG, "writing ANMF frame_x {} frame_y {} frame_width {} frame_height {} frame_duration {} blending_method {} disposal_method {}",
         chunk.frame_x, chunk.frame_y, chunk.frame_width, chunk.frame_height, chunk.frame_duration_in_milliseconds, (int)chunk.blending_method, (int)chunk.disposal_method);
 
-    TRY(write_chunk_header(stream, "ANMF"sv, 16 + payload_size));
+    TRY(write_chunk_header(stream, "ANMF"_sv, 16 + payload_size));
 
     LittleEndianOutputBitStream bit_stream { MaybeOwned<Stream>(stream) };
 
@@ -360,7 +360,7 @@ ErrorOr<void> WebPAnimationWriter::set_alpha_bit_in_header()
 
 static ErrorOr<void> write_ANIM_chunk(Stream& stream, ANIMChunk const& chunk)
 {
-    TRY(write_chunk_header(stream, "ANIM"sv, 6)); // Size of the ANIM chunk.
+    TRY(write_chunk_header(stream, "ANIM"_sv, 6)); // Size of the ANIM chunk.
     TRY(stream.write_value<LittleEndian<u32>>(chunk.background_color));
     TRY(stream.write_value<LittleEndian<u16>>(chunk.loop_count));
     return {};
@@ -381,7 +381,7 @@ ErrorOr<NonnullOwnPtr<AnimationWriter>> WebPWriter::start_encoding_animation(See
 
     ByteBuffer iccp_chunk_bytes;
     if (options.icc_data.has_value()) {
-        TRY(write_chunk_header(stream, "ICCP"sv, options.icc_data.value().size()));
+        TRY(write_chunk_header(stream, "ICCP"_sv, options.icc_data.value().size()));
         TRY(stream.write_until_depleted(options.icc_data.value()));
         TRY(align_to_two(stream));
     }

@@ -29,13 +29,13 @@ namespace Unicode {
 
 DateTimeStyle date_time_style_from_string(StringView style)
 {
-    if (style == "full"sv)
+    if (style == "full"_sv)
         return DateTimeStyle::Full;
-    if (style == "long"sv)
+    if (style == "long"_sv)
         return DateTimeStyle::Long;
-    if (style == "medium"sv)
+    if (style == "medium"_sv)
         return DateTimeStyle::Medium;
-    if (style == "short"sv)
+    if (style == "short"_sv)
         return DateTimeStyle::Short;
     VERIFY_NOT_REACHED();
 }
@@ -44,13 +44,13 @@ StringView date_time_style_to_string(DateTimeStyle style)
 {
     switch (style) {
     case DateTimeStyle::Full:
-        return "full"sv;
+        return "full"_sv;
     case DateTimeStyle::Long:
-        return "long"sv;
+        return "long"_sv;
     case DateTimeStyle::Medium:
-        return "medium"sv;
+        return "medium"_sv;
     case DateTimeStyle::Short:
-        return "short"sv;
+        return "short"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -72,13 +72,13 @@ static constexpr icu::DateFormat::EStyle icu_date_time_style(DateTimeStyle style
 
 HourCycle hour_cycle_from_string(StringView hour_cycle)
 {
-    if (hour_cycle == "h11"sv)
+    if (hour_cycle == "h11"_sv)
         return HourCycle::H11;
-    if (hour_cycle == "h12"sv)
+    if (hour_cycle == "h12"_sv)
         return HourCycle::H12;
-    if (hour_cycle == "h23"sv)
+    if (hour_cycle == "h23"_sv)
         return HourCycle::H23;
-    if (hour_cycle == "h24"sv)
+    if (hour_cycle == "h24"_sv)
         return HourCycle::H24;
     VERIFY_NOT_REACHED();
 }
@@ -87,13 +87,13 @@ StringView hour_cycle_to_string(HourCycle hour_cycle)
 {
     switch (hour_cycle) {
     case HourCycle::H11:
-        return "h11"sv;
+        return "h11"_sv;
     case HourCycle::H12:
-        return "h12"sv;
+        return "h12"_sv;
     case HourCycle::H23:
-        return "h23"sv;
+        return "h23"_sv;
     case HourCycle::H24:
-        return "h24"sv;
+        return "h24"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -145,23 +145,23 @@ static constexpr char icu_hour_cycle(Optional<HourCycle> const& hour_cycle, Opti
 
 CalendarPatternStyle calendar_pattern_style_from_string(StringView style)
 {
-    if (style == "narrow"sv)
+    if (style == "narrow"_sv)
         return CalendarPatternStyle::Narrow;
-    if (style == "short"sv)
+    if (style == "short"_sv)
         return CalendarPatternStyle::Short;
-    if (style == "long"sv)
+    if (style == "long"_sv)
         return CalendarPatternStyle::Long;
-    if (style == "numeric"sv)
+    if (style == "numeric"_sv)
         return CalendarPatternStyle::Numeric;
-    if (style == "2-digit"sv)
+    if (style == "2-digit"_sv)
         return CalendarPatternStyle::TwoDigit;
-    if (style == "shortOffset"sv)
+    if (style == "shortOffset"_sv)
         return CalendarPatternStyle::ShortOffset;
-    if (style == "longOffset"sv)
+    if (style == "longOffset"_sv)
         return CalendarPatternStyle::LongOffset;
-    if (style == "shortGeneric"sv)
+    if (style == "shortGeneric"_sv)
         return CalendarPatternStyle::ShortGeneric;
-    if (style == "longGeneric"sv)
+    if (style == "longGeneric"_sv)
         return CalendarPatternStyle::LongGeneric;
     VERIFY_NOT_REACHED();
 }
@@ -170,23 +170,23 @@ StringView calendar_pattern_style_to_string(CalendarPatternStyle style)
 {
     switch (style) {
     case CalendarPatternStyle::Narrow:
-        return "narrow"sv;
+        return "narrow"_sv;
     case CalendarPatternStyle::Short:
-        return "short"sv;
+        return "short"_sv;
     case CalendarPatternStyle::Long:
-        return "long"sv;
+        return "long"_sv;
     case CalendarPatternStyle::Numeric:
-        return "numeric"sv;
+        return "numeric"_sv;
     case CalendarPatternStyle::TwoDigit:
-        return "2-digit"sv;
+        return "2-digit"_sv;
     case CalendarPatternStyle::ShortOffset:
-        return "shortOffset"sv;
+        return "shortOffset"_sv;
     case CalendarPatternStyle::LongOffset:
-        return "longOffset"sv;
+        return "longOffset"_sv;
     case CalendarPatternStyle::ShortGeneric:
-        return "shortGeneric"sv;
+        return "shortGeneric"_sv;
     case CalendarPatternStyle::LongGeneric:
-        return "longGeneric"sv;
+        return "longGeneric"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -200,13 +200,13 @@ String CalendarPattern::to_pattern() const
     if (era.has_value()) {
         switch (*era) {
         case CalendarPatternStyle::Narrow:
-            builder.append("GGGGG"sv);
+            builder.append("GGGGG"_sv);
             break;
         case CalendarPatternStyle::Short:
-            builder.append("G"sv);
+            builder.append("G"_sv);
             break;
         case CalendarPatternStyle::Long:
-            builder.append("GGGG"sv);
+            builder.append("GGGG"_sv);
             break;
         default:
             break;
@@ -215,10 +215,10 @@ String CalendarPattern::to_pattern() const
     if (year.has_value()) {
         switch (*year) {
         case CalendarPatternStyle::Numeric:
-            builder.append("y"sv);
+            builder.append("y"_sv);
             break;
         case CalendarPatternStyle::TwoDigit:
-            builder.append("yy"sv);
+            builder.append("yy"_sv);
             break;
         default:
             break;
@@ -227,19 +227,19 @@ String CalendarPattern::to_pattern() const
     if (month.has_value()) {
         switch (*month) {
         case CalendarPatternStyle::Numeric:
-            builder.append("M"sv);
+            builder.append("M"_sv);
             break;
         case CalendarPatternStyle::TwoDigit:
-            builder.append("MM"sv);
+            builder.append("MM"_sv);
             break;
         case CalendarPatternStyle::Narrow:
-            builder.append("MMMMM"sv);
+            builder.append("MMMMM"_sv);
             break;
         case CalendarPatternStyle::Short:
-            builder.append("MMM"sv);
+            builder.append("MMM"_sv);
             break;
         case CalendarPatternStyle::Long:
-            builder.append("MMMM"sv);
+            builder.append("MMMM"_sv);
             break;
         default:
             break;
@@ -248,13 +248,13 @@ String CalendarPattern::to_pattern() const
     if (weekday.has_value()) {
         switch (*weekday) {
         case CalendarPatternStyle::Narrow:
-            builder.append("EEEEE"sv);
+            builder.append("EEEEE"_sv);
             break;
         case CalendarPatternStyle::Short:
-            builder.append("E"sv);
+            builder.append("E"_sv);
             break;
         case CalendarPatternStyle::Long:
-            builder.append("EEEE"sv);
+            builder.append("EEEE"_sv);
             break;
         default:
             break;
@@ -263,10 +263,10 @@ String CalendarPattern::to_pattern() const
     if (day.has_value()) {
         switch (*day) {
         case CalendarPatternStyle::Numeric:
-            builder.append("d"sv);
+            builder.append("d"_sv);
             break;
         case CalendarPatternStyle::TwoDigit:
-            builder.append("dd"sv);
+            builder.append("dd"_sv);
             break;
         default:
             break;
@@ -275,13 +275,13 @@ String CalendarPattern::to_pattern() const
     if (day_period.has_value()) {
         switch (*day_period) {
         case CalendarPatternStyle::Narrow:
-            builder.append("BBBBB"sv);
+            builder.append("BBBBB"_sv);
             break;
         case CalendarPatternStyle::Short:
-            builder.append("B"sv);
+            builder.append("B"_sv);
             break;
         case CalendarPatternStyle::Long:
-            builder.append("BBBB"sv);
+            builder.append("BBBB"_sv);
             break;
         default:
             break;
@@ -304,10 +304,10 @@ String CalendarPattern::to_pattern() const
     if (minute.has_value()) {
         switch (*minute) {
         case CalendarPatternStyle::Numeric:
-            builder.append("m"sv);
+            builder.append("m"_sv);
             break;
         case CalendarPatternStyle::TwoDigit:
-            builder.append("mm"sv);
+            builder.append("mm"_sv);
             break;
         default:
             break;
@@ -316,10 +316,10 @@ String CalendarPattern::to_pattern() const
     if (second.has_value()) {
         switch (*second) {
         case CalendarPatternStyle::Numeric:
-            builder.append("s"sv);
+            builder.append("s"_sv);
             break;
         case CalendarPatternStyle::TwoDigit:
-            builder.append("ss"sv);
+            builder.append("ss"_sv);
             break;
         default:
             break;
@@ -327,27 +327,27 @@ String CalendarPattern::to_pattern() const
     }
     if (fractional_second_digits.has_value()) {
         for (u8 i = 0; i < *fractional_second_digits; ++i)
-            builder.append("S"sv);
+            builder.append("S"_sv);
     }
     if (time_zone_name.has_value()) {
         switch (*time_zone_name) {
         case CalendarPatternStyle::Short:
-            builder.append("z"sv);
+            builder.append("z"_sv);
             break;
         case CalendarPatternStyle::Long:
-            builder.append("zzzz"sv);
+            builder.append("zzzz"_sv);
             break;
         case CalendarPatternStyle::ShortOffset:
-            builder.append("O"sv);
+            builder.append("O"_sv);
             break;
         case CalendarPatternStyle::LongOffset:
-            builder.append("OOOO"sv);
+            builder.append("OOOO"_sv);
             break;
         case CalendarPatternStyle::ShortGeneric:
-            builder.append("v"sv);
+            builder.append("v"_sv);
             break;
         case CalendarPatternStyle::LongGeneric:
-            builder.append("vvvv"sv);
+            builder.append("vvvv"_sv);
             break;
         default:
             break;
@@ -373,7 +373,7 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         auto segment = lexer.consume_while([&](char ch) { return ch == starting_char; });
 
         // Era
-        if (all_of(segment, is_any_of("G"sv))) {
+        if (all_of(segment, is_any_of("G"_sv))) {
             if (segment.length() <= 3)
                 format.era = CalendarPatternStyle::Short;
             else if (segment.length() == 4)
@@ -383,7 +383,7 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         }
 
         // Year
-        else if (all_of(segment, is_any_of("yYuUr"sv))) {
+        else if (all_of(segment, is_any_of("yYuUr"_sv))) {
             if (segment.length() == 2)
                 format.year = CalendarPatternStyle::TwoDigit;
             else
@@ -391,7 +391,7 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         }
 
         // Month
-        else if (all_of(segment, is_any_of("ML"sv))) {
+        else if (all_of(segment, is_any_of("ML"_sv))) {
             if (segment.length() == 1)
                 format.month = CalendarPatternStyle::Numeric;
             else if (segment.length() == 2)
@@ -405,7 +405,7 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         }
 
         // Weekday
-        else if (all_of(segment, is_any_of("ecE"sv))) {
+        else if (all_of(segment, is_any_of("ecE"_sv))) {
             if (segment.length() == 4)
                 format.weekday = CalendarPatternStyle::Long;
             else if (segment.length() == 5)
@@ -415,17 +415,17 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         }
 
         // Day
-        else if (all_of(segment, is_any_of("d"sv))) {
+        else if (all_of(segment, is_any_of("d"_sv))) {
             if (segment.length() == 1)
                 format.day = CalendarPatternStyle::Numeric;
             else
                 format.day = CalendarPatternStyle::TwoDigit;
-        } else if (all_of(segment, is_any_of("DFg"sv))) {
+        } else if (all_of(segment, is_any_of("DFg"_sv))) {
             format.day = CalendarPatternStyle::Numeric;
         }
 
         // Day period
-        else if (all_of(segment, is_any_of("B"sv))) {
+        else if (all_of(segment, is_any_of("B"_sv))) {
             if (segment.length() == 4)
                 format.day_period = CalendarPatternStyle::Long;
             else if (segment.length() == 5)
@@ -435,7 +435,7 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         }
 
         // Hour
-        else if (all_of(segment, is_any_of("hHKk"sv))) {
+        else if (all_of(segment, is_any_of("hHKk"_sv))) {
             switch (starting_char) {
             case 'K':
                 format.hour_cycle = HourCycle::H11;
@@ -458,7 +458,7 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         }
 
         // Minute
-        else if (all_of(segment, is_any_of("m"sv))) {
+        else if (all_of(segment, is_any_of("m"_sv))) {
             if (segment.length() == 1)
                 format.minute = CalendarPatternStyle::Numeric;
             else
@@ -466,27 +466,27 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         }
 
         // Second
-        else if (all_of(segment, is_any_of("s"sv))) {
+        else if (all_of(segment, is_any_of("s"_sv))) {
             if (segment.length() == 1)
                 format.second = CalendarPatternStyle::Numeric;
             else
                 format.second = CalendarPatternStyle::TwoDigit;
-        } else if (all_of(segment, is_any_of("S"sv))) {
+        } else if (all_of(segment, is_any_of("S"_sv))) {
             format.fractional_second_digits = static_cast<u8>(segment.length());
         }
 
         // Zone
-        else if (all_of(segment, is_any_of("zV"sv))) {
+        else if (all_of(segment, is_any_of("zV"_sv))) {
             if (segment.length() < 4)
                 format.time_zone_name = CalendarPatternStyle::Short;
             else
                 format.time_zone_name = CalendarPatternStyle::Long;
-        } else if (all_of(segment, is_any_of("ZOXx"sv))) {
+        } else if (all_of(segment, is_any_of("ZOXx"_sv))) {
             if (segment.length() < 4)
                 format.time_zone_name = CalendarPatternStyle::ShortOffset;
             else
                 format.time_zone_name = CalendarPatternStyle::LongOffset;
-        } else if (all_of(segment, is_any_of("v"sv))) {
+        } else if (all_of(segment, is_any_of("v"_sv))) {
             if (segment.length() < 4)
                 format.time_zone_name = CalendarPatternStyle::ShortGeneric;
             else
@@ -510,7 +510,7 @@ static T find_regional_values_for_locale(StringView locale, GetRegionalValues&& 
     if (auto regional_values = get_regional_values(locale); has_value(regional_values))
         return regional_values;
 
-    auto return_default_values = [&]() { return get_regional_values("001"sv); };
+    auto return_default_values = [&]() { return get_regional_values("001"_sv); };
 
     auto language = parse_unicode_language_id(locale);
     if (!language.has_value())
@@ -538,40 +538,40 @@ static constexpr StringView icu_date_time_format_field_to_string(i32 field)
 {
     switch (field) {
     case LITERAL_FIELD:
-        return "literal"sv;
+        return "literal"_sv;
     case UDAT_ERA_FIELD:
-        return "era"sv;
+        return "era"_sv;
     case UDAT_YEAR_FIELD:
     case UDAT_EXTENDED_YEAR_FIELD:
-        return "year"sv;
+        return "year"_sv;
     case UDAT_YEAR_NAME_FIELD:
-        return "yearName"sv;
+        return "yearName"_sv;
     case UDAT_RELATED_YEAR_FIELD:
-        return "relatedYear"sv;
+        return "relatedYear"_sv;
     case UDAT_MONTH_FIELD:
     case UDAT_STANDALONE_MONTH_FIELD:
-        return "month"sv;
+        return "month"_sv;
     case UDAT_DAY_OF_WEEK_FIELD:
     case UDAT_DOW_LOCAL_FIELD:
     case UDAT_STANDALONE_DAY_FIELD:
-        return "weekday"sv;
+        return "weekday"_sv;
     case UDAT_DATE_FIELD:
-        return "day"sv;
+        return "day"_sv;
     case UDAT_AM_PM_FIELD:
     case UDAT_AM_PM_MIDNIGHT_NOON_FIELD:
     case UDAT_FLEXIBLE_DAY_PERIOD_FIELD:
-        return "dayPeriod"sv;
+        return "dayPeriod"_sv;
     case UDAT_HOUR_OF_DAY1_FIELD:
     case UDAT_HOUR_OF_DAY0_FIELD:
     case UDAT_HOUR1_FIELD:
     case UDAT_HOUR0_FIELD:
-        return "hour"sv;
+        return "hour"_sv;
     case UDAT_MINUTE_FIELD:
-        return "minute"sv;
+        return "minute"_sv;
     case UDAT_SECOND_FIELD:
-        return "second"sv;
+        return "second"_sv;
     case UDAT_FRACTIONAL_SECOND_FIELD:
-        return "fractionalSecond"sv;
+        return "fractionalSecond"_sv;
     case UDAT_TIMEZONE_FIELD:
     case UDAT_TIMEZONE_RFC_FIELD:
     case UDAT_TIMEZONE_GENERIC_FIELD:
@@ -579,9 +579,9 @@ static constexpr StringView icu_date_time_format_field_to_string(i32 field)
     case UDAT_TIMEZONE_LOCALIZED_GMT_OFFSET_FIELD:
     case UDAT_TIMEZONE_ISO_FIELD:
     case UDAT_TIMEZONE_ISO_LOCAL_FIELD:
-        return "timeZoneName"sv;
+        return "timeZoneName"_sv;
     default:
-        return "unknown"sv;
+        return "unknown"_sv;
     }
 }
 
@@ -695,7 +695,7 @@ public:
             Partition partition;
             partition.type = icu_date_time_format_field_to_string(field);
             partition.value = icu_string_to_string(formatted_time->tempSubStringBetween(begin, end));
-            partition.source = "shared"sv;
+            partition.source = "shared"_sv;
             result.append(move(partition));
         };
 
@@ -766,11 +766,11 @@ public:
             partition.value = icu_string_to_string(formatted_time.tempSubStringBetween(begin, end));
 
             if (start_range.has_value() && start_range->contains(begin))
-                partition.source = "startRange"sv;
+                partition.source = "startRange"_sv;
             else if (end_range.has_value() && end_range->contains(begin))
-                partition.source = "endRange"sv;
+                partition.source = "endRange"_sv;
             else
-                partition.source = "shared"sv;
+                partition.source = "shared"_sv;
 
             result.append(move(partition));
         };

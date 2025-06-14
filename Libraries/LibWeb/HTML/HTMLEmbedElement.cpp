@@ -46,9 +46,9 @@ void HTMLEmbedElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
 {
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
-            if (value.equals_ignoring_ascii_case("center"sv))
+            if (value.equals_ignoring_ascii_case("center"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
-            else if (value.equals_ignoring_ascii_case("middle"sv))
+            else if (value.equals_ignoring_ascii_case("middle"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))

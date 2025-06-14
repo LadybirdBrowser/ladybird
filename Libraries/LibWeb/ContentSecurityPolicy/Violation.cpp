@@ -271,7 +271,7 @@ ByteBuffer Violation::obtain_the_deprecated_serialization(JS::Realm& realm) cons
 void Violation::report_a_violation(JS::Realm& realm)
 {
     dbgln("Content Security Policy violation{}: Refusing access to resource '{}' because it does not appear in the '{}' directive.",
-        disposition() == Policy::Disposition::Report ? " (report only)"sv : ""sv,
+        disposition() == Policy::Disposition::Report ? " (report only)"_sv : ""_sv,
         obtain_the_blocked_uri_of_resource(),
         m_effective_directive);
 
@@ -407,7 +407,7 @@ void Violation::report_a_violation(JS::Realm& realm)
 
                         // method
                         //    "POST"
-                        request->set_method(MUST(ByteBuffer::copy("POST"sv.bytes())));
+                        request->set_method(MUST(ByteBuffer::copy("POST"_sv.bytes())));
 
                         // url
                         //    violation’s url
@@ -449,7 +449,7 @@ void Violation::report_a_violation(JS::Realm& realm)
                         //    A header list containing a single header whose name is "Content-Type", and value is
                         //    "application/csp-report"
                         auto header_list = Fetch::Infrastructure::HeaderList::create(vm);
-                        auto content_type_header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "application/csp-report"sv);
+                        auto content_type_header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"_sv, "application/csp-report"_sv);
                         header_list->append(move(content_type_header));
                         request->set_header_list(header_list);
 

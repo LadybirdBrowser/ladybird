@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<void> SVGAnimatedEnumeration::set_base_val(u16 base_val)
     // FIXME: 2. If value is 0 or is not the numeric type value for any value of the reflected attribute, then throw a
     //    TypeError.
     if (value == 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "invalid value for baseVal"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "invalid value for baseVal"_sv };
 
     // FIXME: 3. Otherwise, if the reflecting IDL attribute is orientType and value is SVG_MARKER_ORIENT_ANGLE, then set the
     //    reflected attribute to the string "0".

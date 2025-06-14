@@ -182,17 +182,17 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
         // The resulting tokens are the keywords for the link types that apply to that element.
         auto parts = lowercased_value.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
         for (auto& part : parts) {
-            if (part == "stylesheet"sv)
+            if (part == "stylesheet"_sv)
                 m_relationship |= Relationship::Stylesheet;
-            else if (part == "alternate"sv)
+            else if (part == "alternate"_sv)
                 m_relationship |= Relationship::Alternate;
-            else if (part == "preload"sv)
+            else if (part == "preload"_sv)
                 m_relationship |= Relationship::Preload;
-            else if (part == "dns-prefetch"sv)
+            else if (part == "dns-prefetch"_sv)
                 m_relationship |= Relationship::DNSPrefetch;
-            else if (part == "preconnect"sv)
+            else if (part == "preconnect"_sv)
                 m_relationship |= Relationship::Preconnect;
-            else if (part == "icon"sv)
+            else if (part == "icon"_sv)
                 m_relationship |= Relationship::Icon;
         }
 
@@ -424,7 +424,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             mime_type_string = extracted_mime_type->essence();
     }
 
-    if (mime_type_string != "text/css"sv) {
+    if (mime_type_string != "text/css"_sv) {
         success = false;
     }
 
@@ -633,7 +633,7 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::R
     // user agents may instead run these steps in parallel:
     if (document->has_active_favicon())
         return {};
-    if (!document->url().scheme().is_one_of("http"sv, "https"sv))
+    if (!document->url().scheme().is_one_of("http"_sv, "https"_sv))
         return {};
 
     // 1. Let request be a new request whose URL is the URL record obtained by resolving the URL "/favicon.ico" against
@@ -641,7 +641,7 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::R
     //    synchronous flag is set, credentials mode is "include", and whose use-URL-credentials flag is set.
     // NOTE: Fetch requests no longer have a synchronous flag, see https://github.com/whatwg/fetch/pull/1165
     auto request = Fetch::Infrastructure::Request::create(vm);
-    request->set_url(*document->parse_url("/favicon.ico"sv));
+    request->set_url(*document->parse_url("/favicon.ico"_sv));
     request->set_client(&document->relevant_settings_object());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);

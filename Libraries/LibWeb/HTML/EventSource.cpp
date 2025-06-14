@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
     request->set_client(&settings);
 
     // 10. User agents may set (`Accept`, `text/event-stream`) in request's header list.
-    auto header = Fetch::Infrastructure::Header::from_string_pair("Accept"sv, "text/event-stream"sv);
+    auto header = Fetch::Infrastructure::Header::from_string_pair("Accept"_sv, "text/event-stream"_sv);
     request->header_list()->set(move(header));
 
     // 11. Set request's cache mode to "no-store".
@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
             if (!content_type.has_value())
                 return false;
 
-            return content_type->essence() == "text/event-stream"sv;
+            return content_type->essence() == "text/event-stream"_sv;
         };
 
         // 1. If res is an aborted network error, then fail the connection.
@@ -136,7 +136,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
                 else
                     pending_data.append(body);
 
-                auto last_line_break = AK::StringUtils::find_any_of(pending_data, "\r\n"sv, AK::StringUtils::SearchDirection::Backward);
+                auto last_line_break = AK::StringUtils::find_any_of(pending_data, "\r\n"_sv, AK::StringUtils::SearchDirection::Backward);
                 if (!last_line_break.has_value())
                     return;
 
@@ -323,7 +323,7 @@ void EventSource::reestablish_the_connection()
         if (!m_last_event_id.is_empty()) {
             // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
             // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
-            auto header = Fetch::Infrastructure::Header::from_string_pair("Last-Event-ID"sv, m_last_event_id);
+            auto header = Fetch::Infrastructure::Header::from_string_pair("Last-Event-ID"_sv, m_last_event_id);
             request->header_list()->set(header);
         }
 
@@ -388,25 +388,25 @@ void EventSource::interpret_response(StringView response)
 void EventSource::process_field(StringView field, StringView value)
 {
     // -> If the field name is "event"
-    if (field == "event"sv) {
+    if (field == "event"_sv) {
         // Set the event type buffer to the field value.
         m_event_type = MUST(String::from_utf8(value));
     }
     // -> If the field name is "data"
-    else if (field == "data"sv) {
+    else if (field == "data"_sv) {
         // Append the field value to the data buffer, then append a single U+000A LINE FEED (LF) character to the data buffer.
         m_data.append(value);
         m_data.append('\n');
     }
     // -> If the field name is "id"
-    else if (field == "id"sv) {
+    else if (field == "id"_sv) {
         // If the field value does not contain U+0000 NULL, then set the last event ID buffer to the field value.
         // Otherwise, ignore the field.
         if (!value.contains('\0'))
             m_last_event_id = MUST(String::from_utf8(value));
     }
     // -> If the field name is "retry"
-    else if (field == "retry"sv) {
+    else if (field == "retry"_sv) {
         // If the field value consists of only ASCII digits, then interpret the field value as an integer in base ten,
         // and set the event stream's reconnection time to that integer. Otherwise, ignore the field.
         if (auto retry = value.to_number<i64>(); retry.has_value())

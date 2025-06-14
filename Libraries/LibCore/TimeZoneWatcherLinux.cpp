@@ -15,9 +15,9 @@ static_assert(false, "This file must only be used for Linux");
 namespace Core {
 
 static constexpr auto time_zone_files = Array {
-    "/etc/localtime"sv,
-    "/etc/timezone"sv,
-    "/etc/TZ"sv,
+    "/etc/localtime"_sv,
+    "/etc/timezone"_sv,
+    "/etc/TZ"_sv,
 };
 
 static constexpr auto time_zone_mask = FileWatcherEvent::Type::ContentModified

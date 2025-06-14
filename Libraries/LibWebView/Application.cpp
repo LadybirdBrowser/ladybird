@@ -135,11 +135,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
             if (headless_mode.has_value())
                 return false;
 
-            if (value.is_empty() || value.equals_ignoring_ascii_case("screenshot"sv))
+            if (value.is_empty() || value.equals_ignoring_ascii_case("screenshot"_sv))
                 headless_mode = HeadlessMode::Screenshot;
-            else if (value.equals_ignoring_ascii_case("layout-tree"sv))
+            else if (value.equals_ignoring_ascii_case("layout-tree"_sv))
                 headless_mode = HeadlessMode::LayoutTree;
-            else if (value.equals_ignoring_ascii_case("text"sv))
+            else if (value.equals_ignoring_ascii_case("text"_sv))
                 headless_mode = HeadlessMode::Text;
 
             return headless_mode.has_value();
@@ -333,7 +333,7 @@ ErrorOr<void> Application::launch_services()
     }
 
     // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
-    if (!Core::Environment::has("TZ"sv)) {
+    if (!Core::Environment::has("TZ"_sv)) {
         if (auto time_zone_watcher = Core::TimeZoneWatcher::create(); time_zone_watcher.is_error()) {
             warnln("Unable to monitor system time zone: {}", time_zone_watcher.error());
         } else {
@@ -444,7 +444,7 @@ ErrorOr<int> Application::execute()
     RefPtr<Core::Timer> screenshot_timer;
 
     if (m_browser_options.headless_mode.has_value()) {
-        auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
+        auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"_sv, "Default.ini"_sv);
         auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
 
         view = HeadlessWebView::create(move(theme), { m_browser_options.window_width, m_browser_options.window_height });

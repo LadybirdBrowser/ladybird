@@ -29,7 +29,7 @@ String human_readable_quantity(u64 quantity, HumanReadableBasedOn based_on, Stri
     u64 size_of_unit = based_on == HumanReadableBasedOn::Base2 ? 1024 : 1000;
     constexpr auto unit_prefixes = AK::Array { "", "K", "M", "G", "T", "P", "E" };
     auto full_unit_suffix = [&](int index) {
-        auto binary_infix = (based_on == HumanReadableBasedOn::Base2 && index != 0) ? "i"sv : ""sv;
+        auto binary_infix = (based_on == HumanReadableBasedOn::Base2 && index != 0) ? "i"_sv : ""_sv;
         return MUST(String::formatted("{}{}{}",
             unit_prefixes[index], binary_infix, unit));
     };
@@ -54,7 +54,7 @@ String human_readable_quantity(u64 quantity, HumanReadableBasedOn based_on, Stri
 
 String human_readable_size(u64 size, HumanReadableBasedOn based_on, UseThousandsSeparator use_thousands_separator)
 {
-    return human_readable_quantity(size, based_on, "B"sv, use_thousands_separator);
+    return human_readable_quantity(size, based_on, "B"_sv, use_thousands_separator);
 }
 
 String human_readable_size_long(u64 size, UseThousandsSeparator use_thousands_separator)

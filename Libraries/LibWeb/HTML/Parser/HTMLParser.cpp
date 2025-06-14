@@ -63,61 +63,61 @@ static inline void log_parse_error(SourceLocation const& location = SourceLocati
 }
 
 static Vector<StringView> const s_quirks_public_ids = {
-    "+//Silmaril//dtd html Pro v0r11 19970101//"sv,
-    "-//AS//DTD HTML 3.0 asWedit + extensions//"sv,
-    "-//AdvaSoft Ltd//DTD HTML 3.0 asWedit + extensions//"sv,
-    "-//IETF//DTD HTML 2.0 Level 1//"sv,
-    "-//IETF//DTD HTML 2.0 Level 2//"sv,
-    "-//IETF//DTD HTML 2.0 Strict Level 1//"sv,
-    "-//IETF//DTD HTML 2.0 Strict Level 2//"sv,
-    "-//IETF//DTD HTML 2.0 Strict//"sv,
-    "-//IETF//DTD HTML 2.0//"sv,
-    "-//IETF//DTD HTML 2.1E//"sv,
-    "-//IETF//DTD HTML 3.0//"sv,
-    "-//IETF//DTD HTML 3.2 Final//"sv,
-    "-//IETF//DTD HTML 3.2//"sv,
-    "-//IETF//DTD HTML 3//"sv,
-    "-//IETF//DTD HTML Level 0//"sv,
-    "-//IETF//DTD HTML Level 1//"sv,
-    "-//IETF//DTD HTML Level 2//"sv,
-    "-//IETF//DTD HTML Level 3//"sv,
-    "-//IETF//DTD HTML Strict Level 0//"sv,
-    "-//IETF//DTD HTML Strict Level 1//"sv,
-    "-//IETF//DTD HTML Strict Level 2//"sv,
-    "-//IETF//DTD HTML Strict Level 3//"sv,
-    "-//IETF//DTD HTML Strict//"sv,
-    "-//IETF//DTD HTML//"sv,
-    "-//Metrius//DTD Metrius Presentational//"sv,
-    "-//Microsoft//DTD Internet Explorer 2.0 HTML Strict//"sv,
-    "-//Microsoft//DTD Internet Explorer 2.0 HTML//"sv,
-    "-//Microsoft//DTD Internet Explorer 2.0 Tables//"sv,
-    "-//Microsoft//DTD Internet Explorer 3.0 HTML Strict//"sv,
-    "-//Microsoft//DTD Internet Explorer 3.0 HTML//"sv,
-    "-//Microsoft//DTD Internet Explorer 3.0 Tables//"sv,
-    "-//Netscape Comm. Corp.//DTD HTML//"sv,
-    "-//Netscape Comm. Corp.//DTD Strict HTML//"sv,
-    "-//O'Reilly and Associates//DTD HTML 2.0//"sv,
-    "-//O'Reilly and Associates//DTD HTML Extended 1.0//"sv,
-    "-//O'Reilly and Associates//DTD HTML Extended Relaxed 1.0//"sv,
-    "-//SQ//DTD HTML 2.0 HoTMetaL + extensions//"sv,
-    "-//SoftQuad Software//DTD HoTMetaL PRO 6.0::19990601::extensions to HTML 4.0//"sv,
-    "-//SoftQuad//DTD HoTMetaL PRO 4.0::19971010::extensions to HTML 4.0//"sv,
-    "-//Spyglass//DTD HTML 2.0 Extended//"sv,
-    "-//Sun Microsystems Corp.//DTD HotJava HTML//"sv,
-    "-//Sun Microsystems Corp.//DTD HotJava Strict HTML//"sv,
-    "-//W3C//DTD HTML 3 1995-03-24//"sv,
-    "-//W3C//DTD HTML 3.2 Draft//"sv,
-    "-//W3C//DTD HTML 3.2 Final//"sv,
-    "-//W3C//DTD HTML 3.2//"sv,
-    "-//W3C//DTD HTML 3.2S Draft//"sv,
-    "-//W3C//DTD HTML 4.0 Frameset//"sv,
-    "-//W3C//DTD HTML 4.0 Transitional//"sv,
-    "-//W3C//DTD HTML Experimental 19960712//"sv,
-    "-//W3C//DTD HTML Experimental 970421//"sv,
-    "-//W3C//DTD W3 HTML//"sv,
-    "-//W3O//DTD W3 HTML 3.0//"sv,
-    "-//WebTechs//DTD Mozilla HTML 2.0//"sv,
-    "-//WebTechs//DTD Mozilla HTML//"sv,
+    "+//Silmaril//dtd html Pro v0r11 19970101//"_sv,
+    "-//AS//DTD HTML 3.0 asWedit + extensions//"_sv,
+    "-//AdvaSoft Ltd//DTD HTML 3.0 asWedit + extensions//"_sv,
+    "-//IETF//DTD HTML 2.0 Level 1//"_sv,
+    "-//IETF//DTD HTML 2.0 Level 2//"_sv,
+    "-//IETF//DTD HTML 2.0 Strict Level 1//"_sv,
+    "-//IETF//DTD HTML 2.0 Strict Level 2//"_sv,
+    "-//IETF//DTD HTML 2.0 Strict//"_sv,
+    "-//IETF//DTD HTML 2.0//"_sv,
+    "-//IETF//DTD HTML 2.1E//"_sv,
+    "-//IETF//DTD HTML 3.0//"_sv,
+    "-//IETF//DTD HTML 3.2 Final//"_sv,
+    "-//IETF//DTD HTML 3.2//"_sv,
+    "-//IETF//DTD HTML 3//"_sv,
+    "-//IETF//DTD HTML Level 0//"_sv,
+    "-//IETF//DTD HTML Level 1//"_sv,
+    "-//IETF//DTD HTML Level 2//"_sv,
+    "-//IETF//DTD HTML Level 3//"_sv,
+    "-//IETF//DTD HTML Strict Level 0//"_sv,
+    "-//IETF//DTD HTML Strict Level 1//"_sv,
+    "-//IETF//DTD HTML Strict Level 2//"_sv,
+    "-//IETF//DTD HTML Strict Level 3//"_sv,
+    "-//IETF//DTD HTML Strict//"_sv,
+    "-//IETF//DTD HTML//"_sv,
+    "-//Metrius//DTD Metrius Presentational//"_sv,
+    "-//Microsoft//DTD Internet Explorer 2.0 HTML Strict//"_sv,
+    "-//Microsoft//DTD Internet Explorer 2.0 HTML//"_sv,
+    "-//Microsoft//DTD Internet Explorer 2.0 Tables//"_sv,
+    "-//Microsoft//DTD Internet Explorer 3.0 HTML Strict//"_sv,
+    "-//Microsoft//DTD Internet Explorer 3.0 HTML//"_sv,
+    "-//Microsoft//DTD Internet Explorer 3.0 Tables//"_sv,
+    "-//Netscape Comm. Corp.//DTD HTML//"_sv,
+    "-//Netscape Comm. Corp.//DTD Strict HTML//"_sv,
+    "-//O'Reilly and Associates//DTD HTML 2.0//"_sv,
+    "-//O'Reilly and Associates//DTD HTML Extended 1.0//"_sv,
+    "-//O'Reilly and Associates//DTD HTML Extended Relaxed 1.0//"_sv,
+    "-//SQ//DTD HTML 2.0 HoTMetaL + extensions//"_sv,
+    "-//SoftQuad Software//DTD HoTMetaL PRO 6.0::19990601::extensions to HTML 4.0//"_sv,
+    "-//SoftQuad//DTD HoTMetaL PRO 4.0::19971010::extensions to HTML 4.0//"_sv,
+    "-//Spyglass//DTD HTML 2.0 Extended//"_sv,
+    "-//Sun Microsystems Corp.//DTD HotJava HTML//"_sv,
+    "-//Sun Microsystems Corp.//DTD HotJava Strict HTML//"_sv,
+    "-//W3C//DTD HTML 3 1995-03-24//"_sv,
+    "-//W3C//DTD HTML 3.2 Draft//"_sv,
+    "-//W3C//DTD HTML 3.2 Final//"_sv,
+    "-//W3C//DTD HTML 3.2//"_sv,
+    "-//W3C//DTD HTML 3.2S Draft//"_sv,
+    "-//W3C//DTD HTML 4.0 Frameset//"_sv,
+    "-//W3C//DTD HTML 4.0 Transitional//"_sv,
+    "-//W3C//DTD HTML Experimental 19960712//"_sv,
+    "-//W3C//DTD HTML Experimental 970421//"_sv,
+    "-//W3C//DTD W3 HTML//"_sv,
+    "-//W3O//DTD W3 HTML 3.0//"_sv,
+    "-//WebTechs//DTD Mozilla HTML 2.0//"_sv,
+    "-//WebTechs//DTD Mozilla HTML//"_sv,
 };
 
 // https://html.spec.whatwg.org/multipage/parsing.html#mathml-text-integration-point
@@ -141,7 +141,7 @@ static bool is_html_integration_point(DOM::Element const& element)
     if (element.namespace_uri() == Namespace::MathML
         && element.local_name() == MathML::TagNames::annotation_xml) {
         auto encoding = element.attribute("encoding"_fly_string);
-        if (encoding.has_value() && (encoding->equals_ignoring_ascii_case("text/html"sv) || encoding->equals_ignoring_ascii_case("application/xhtml+xml"sv)))
+        if (encoding.has_value() && (encoding->equals_ignoring_ascii_case("text/html"_sv) || encoding->equals_ignoring_ascii_case("application/xhtml+xml"_sv)))
             return true;
     }
 
@@ -518,16 +518,16 @@ DOM::QuirksMode HTMLParser::which_quirks_mode(HTMLToken const& doctype_token) co
     auto const& public_identifier = doctype_token.doctype_data().public_identifier;
     auto const& system_identifier = doctype_token.doctype_data().system_identifier;
 
-    if (public_identifier.equals_ignoring_ascii_case("-//W3O//DTD W3 HTML Strict 3.0//EN//"sv))
+    if (public_identifier.equals_ignoring_ascii_case("-//W3O//DTD W3 HTML Strict 3.0//EN//"_sv))
         return DOM::QuirksMode::Yes;
 
-    if (public_identifier.equals_ignoring_ascii_case("-/W3C/DTD HTML 4.0 Transitional/EN"sv))
+    if (public_identifier.equals_ignoring_ascii_case("-/W3C/DTD HTML 4.0 Transitional/EN"_sv))
         return DOM::QuirksMode::Yes;
 
-    if (public_identifier.equals_ignoring_ascii_case("HTML"sv))
+    if (public_identifier.equals_ignoring_ascii_case("HTML"_sv))
         return DOM::QuirksMode::Yes;
 
-    if (system_identifier.equals_ignoring_ascii_case("http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd"sv))
+    if (system_identifier.equals_ignoring_ascii_case("http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd"_sv))
         return DOM::QuirksMode::Yes;
 
     for (auto const& public_id : s_quirks_public_ids) {
@@ -536,24 +536,24 @@ DOM::QuirksMode HTMLParser::which_quirks_mode(HTMLToken const& doctype_token) co
     }
 
     if (doctype_token.doctype_data().missing_system_identifier) {
-        if (public_identifier.starts_with_bytes("-//W3C//DTD HTML 4.01 Frameset//"sv, CaseSensitivity::CaseInsensitive))
+        if (public_identifier.starts_with_bytes("-//W3C//DTD HTML 4.01 Frameset//"_sv, CaseSensitivity::CaseInsensitive))
             return DOM::QuirksMode::Yes;
 
-        if (public_identifier.starts_with_bytes("-//W3C//DTD HTML 4.01 Transitional//"sv, CaseSensitivity::CaseInsensitive))
+        if (public_identifier.starts_with_bytes("-//W3C//DTD HTML 4.01 Transitional//"_sv, CaseSensitivity::CaseInsensitive))
             return DOM::QuirksMode::Yes;
     }
 
-    if (public_identifier.starts_with_bytes("-//W3C//DTD XHTML 1.0 Frameset//"sv, CaseSensitivity::CaseInsensitive))
+    if (public_identifier.starts_with_bytes("-//W3C//DTD XHTML 1.0 Frameset//"_sv, CaseSensitivity::CaseInsensitive))
         return DOM::QuirksMode::Limited;
 
-    if (public_identifier.starts_with_bytes("-//W3C//DTD XHTML 1.0 Transitional//"sv, CaseSensitivity::CaseInsensitive))
+    if (public_identifier.starts_with_bytes("-//W3C//DTD XHTML 1.0 Transitional//"_sv, CaseSensitivity::CaseInsensitive))
         return DOM::QuirksMode::Limited;
 
     if (!doctype_token.doctype_data().missing_system_identifier) {
-        if (public_identifier.starts_with_bytes("-//W3C//DTD HTML 4.01 Frameset//"sv, CaseSensitivity::CaseInsensitive))
+        if (public_identifier.starts_with_bytes("-//W3C//DTD HTML 4.01 Frameset//"_sv, CaseSensitivity::CaseInsensitive))
             return DOM::QuirksMode::Limited;
 
-        if (public_identifier.starts_with_bytes("-//W3C//DTD HTML 4.01 Transitional//"sv, CaseSensitivity::CaseInsensitive))
+        if (public_identifier.starts_with_bytes("-//W3C//DTD HTML 4.01 Transitional//"_sv, CaseSensitivity::CaseInsensitive))
             return DOM::QuirksMode::Limited;
     }
 
@@ -1060,9 +1060,9 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         {
             auto shadowrootmode_attribute_value = template_start_tag.attribute(HTML::AttributeNames::shadowrootmode);
             if (shadowrootmode_attribute_value.has_value()) {
-                if (shadowrootmode_attribute_value.value() == "open"sv) {
+                if (shadowrootmode_attribute_value.value() == "open"_sv) {
                     shadowrootmode = Bindings::ShadowRootMode::Open;
-                } else if (shadowrootmode_attribute_value.value() == "closed"sv) {
+                } else if (shadowrootmode_attribute_value.value() == "closed"_sv) {
                     shadowrootmode = Bindings::ShadowRootMode::Closed;
                 }
             }
@@ -2559,7 +2559,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // If the token does not have an attribute with the name "type", or if it does, but that attribute's value is not an ASCII case-insensitive match for the string "hidden", then: set the frameset-ok flag to "not ok".
         auto type_attribute = token.attribute(HTML::AttributeNames::type);
-        if (!type_attribute.has_value() || !type_attribute->equals_ignoring_ascii_case("hidden"sv)) {
+        if (!type_attribute.has_value() || !type_attribute->equals_ignoring_ascii_case("hidden"_sv)) {
             m_frameset_ok = false;
         }
         return;
@@ -3585,7 +3585,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         // or if it does, but that attribute's value is not an ASCII case-insensitive match for the string "hidden",
         // then: act as described in the "anything else" entry below.
         auto type_attribute = token.attribute(HTML::AttributeNames::type);
-        if (!type_attribute.has_value() || !type_attribute->equals_ignoring_ascii_case("hidden"sv)) {
+        if (!type_attribute.has_value() || !type_attribute->equals_ignoring_ascii_case("hidden"_sv)) {
             goto AnythingElse;
         }
 
@@ -4583,7 +4583,7 @@ Vector<GC::Root<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& contex
         temp_document->set_allow_declarative_shadow_roots(true);
 
     // 5. Create a new HTML parser, and associate it with document.
-    auto parser = HTMLParser::create(*temp_document, markup, "utf-8"sv);
+    auto parser = HTMLParser::create(*temp_document, markup, "utf-8"_sv);
     parser->m_context_element = context_element;
     parser->m_parsing_fragment = true;
 
@@ -4694,19 +4694,19 @@ static String escape_string(StringView string, AttributeMode attribute_mode)
     for (auto code_point : Utf8View { string }) {
         // 1. Replace any occurrence of the "&" character by the string "&amp;".
         if (code_point == '&')
-            builder.append("&amp;"sv);
+            builder.append("&amp;"_sv);
         // 2. Replace any occurrences of the U+00A0 NO-BREAK SPACE character by the string "&nbsp;".
         else if (code_point == 0xA0)
-            builder.append("&nbsp;"sv);
+            builder.append("&nbsp;"_sv);
         // 3. Replace any occurrences of the "<" character by the string "&lt;".
         else if (code_point == '<')
-            builder.append("&lt;"sv);
+            builder.append("&lt;"_sv);
         // 4. Replace any occurrences of the ">" character by the string "&gt;".
         else if (code_point == '>')
-            builder.append("&gt;"sv);
+            builder.append("&gt;"_sv);
         // 5. If the algorithm was invoked in the attribute mode, then replace any occurrences of the """ character by the string "&quot;".
         else if (code_point == '"' && attribute_mode == AttributeMode::Yes)
-            builder.append("&quot;"sv);
+            builder.append("&quot;"_sv);
         else
             builder.append_code_point(code_point);
     }
@@ -4742,7 +4742,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // followed by current node's is value escaped as described below in attribute mode,
         // followed by a U+0022 QUOTATION MARK character (").
         if (element.is_value().has_value() && !element.has_attribute(AttributeNames::is)) {
-            builder.append(" is=\""sv);
+            builder.append(" is=\""_sv);
             builder.append(escape_string(element.is_value().value(), AttributeMode::Yes));
             builder.append('"');
         }
@@ -4775,7 +4775,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             //         The attribute's serialized name is the attribute's qualified name.
             builder.append(attribute.name());
 
-            builder.append("=\""sv);
+            builder.append("=\""_sv);
             builder.append(escape_string(attribute.value(), AttributeMode::Yes));
             builder.append('"');
         });
@@ -4794,7 +4794,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // tagname again,
         // and finally a U+003E GREATER-THAN SIGN character (>).
         builder.append(serialize_html_fragment(element, serializable_shadow_roots, shadow_roots));
-        builder.append("</"sv);
+        builder.append("</"_sv);
         builder.append(tag_name);
         builder.append('>');
 
@@ -4835,25 +4835,25 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 || shadow_roots.find_first_index_if([&](auto& entry) { return entry == shadow; }).has_value()) {
                 // then:
                 // 1. Append "<template shadowrootmode="".
-                builder.append("<template shadowrootmode=\""sv);
+                builder.append("<template shadowrootmode=\""_sv);
 
                 // 2. If shadow's mode is "open", then append "open". Otherwise, append "closed".
-                builder.append(shadow->mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv);
+                builder.append(shadow->mode() == Bindings::ShadowRootMode::Open ? "open"_sv : "closed"_sv);
 
                 // 3. Append """.
                 builder.append('"');
 
                 // 4. If shadow's delegates focus is set, then append " shadowrootdelegatesfocus=""".
                 if (shadow->delegates_focus())
-                    builder.append(" shadowrootdelegatesfocus=\"\""sv);
+                    builder.append(" shadowrootdelegatesfocus=\"\""_sv);
 
                 // 5. If shadow's serializable is set, then append " shadowrootserializable=""".
                 if (shadow->serializable())
-                    builder.append(" shadowrootserializable=\"\""sv);
+                    builder.append(" shadowrootserializable=\"\""_sv);
 
                 // 6. If shadow's clonable is set, then append " shadowrootclonable=""".
                 if (shadow->clonable())
-                    builder.append(" shadowrootclonable=\"\""sv);
+                    builder.append(" shadowrootclonable=\"\""_sv);
 
                 // 7. Append ">".
                 builder.append('>');
@@ -4863,7 +4863,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 builder.append(serialize_html_fragment(*shadow, serializable_shadow_roots, shadow_roots));
 
                 // 9. Append "</template>".
-                builder.append("</template>"sv);
+                builder.append("</template>"_sv);
             }
         }
     }
@@ -4908,9 +4908,9 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
             // Append the literal string "<!--" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS),
             // followed by the value of current node's data IDL attribute, followed by the literal string "-->" (U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS, U+003E GREATER-THAN SIGN).
-            builder.append("<!--"sv);
+            builder.append("<!--"_sv);
             builder.append(comment_node.data());
-            builder.append("-->"sv);
+            builder.append("-->"_sv);
             return IterationDecision::Continue;
         }
 
@@ -4920,7 +4920,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
             // Append the literal string "<?" (U+003C LESS-THAN SIGN, U+003F QUESTION MARK), followed by the value of current node's target IDL attribute,
             // followed by a single U+0020 SPACE character, followed by the value of current node's data IDL attribute, followed by a single U+003E GREATER-THAN SIGN character (>).
-            builder.append("<?"sv);
+            builder.append("<?"_sv);
             builder.append(processing_instruction_node.target());
             builder.append(' ');
             builder.append(processing_instruction_node.data());
@@ -4935,7 +4935,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             // Append the literal string "<!DOCTYPE" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+0044 LATIN CAPITAL LETTER D, U+004F LATIN CAPITAL LETTER O,
             // U+0043 LATIN CAPITAL LETTER C, U+0054 LATIN CAPITAL LETTER T, U+0059 LATIN CAPITAL LETTER Y, U+0050 LATIN CAPITAL LETTER P, U+0045 LATIN CAPITAL LETTER E),
             // followed by a space (U+0020 SPACE), followed by the value of current node's name IDL attribute, followed by the literal string ">" (U+003E GREATER-THAN SIGN).
-            builder.append("<!DOCTYPE "sv);
+            builder.append("<!DOCTYPE "_sv);
             builder.append(document_type_node.name());
             builder.append('>');
             return IterationDecision::Continue;
@@ -5072,7 +5072,7 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
     input = input.trim(Infra::ASCII_WHITESPACE);
 
     // 3. If input is an ASCII case-insensitive match for "transparent", then return failure.
-    if (input.equals_ignoring_ascii_case("transparent"sv))
+    if (input.equals_ignoring_ascii_case("transparent"_sv))
         return {};
 
     // 4. If input is an ASCII case-insensitive match for one of the named colors, then return the CSS color corresponding to that keyword. [CSSCOLOR]
@@ -5111,7 +5111,7 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
         StringBuilder builder;
         for (auto code_point : Utf8View { string }) {
             if (code_point > 0xFFFF)
-                builder.append("00"sv);
+                builder.append("00"_sv);
             else
                 builder.append_code_point(code_point);
         }

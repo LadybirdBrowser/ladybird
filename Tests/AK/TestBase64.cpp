@@ -16,17 +16,17 @@ TEST_CASE(test_decode)
         EXPECT_EQ(StringView { decoded }, expected);
     };
 
-    decode_equal(""sv, ""sv);
-    decode_equal("Zg=="sv, "f"sv);
-    decode_equal("Zm8="sv, "fo"sv);
-    decode_equal("Zm9v"sv, "foo"sv);
-    decode_equal("Zm9vYg=="sv, "foob"sv);
-    decode_equal("Zm9vYmE="sv, "fooba"sv);
-    decode_equal("Zm9vYmFy"sv, "foobar"sv);
-    decode_equal(" Zm9vYmFy "sv, "foobar"sv);
-    decode_equal("  \n\r \t Zm   9v   \t YmFy \n"sv, "foobar"sv);
+    decode_equal(""_sv, ""_sv);
+    decode_equal("Zg=="_sv, "f"_sv);
+    decode_equal("Zm8="_sv, "fo"_sv);
+    decode_equal("Zm9v"_sv, "foo"_sv);
+    decode_equal("Zm9vYg=="_sv, "foob"_sv);
+    decode_equal("Zm9vYmE="_sv, "fooba"_sv);
+    decode_equal("Zm9vYmFy"_sv, "foobar"_sv);
+    decode_equal(" Zm9vYmFy "_sv, "foobar"_sv);
+    decode_equal("  \n\r \t Zm   9v   \t YmFy \n"_sv, "foobar"_sv);
 
-    decode_equal("aGVsbG8/d29ybGQ="sv, "hello?world"sv);
+    decode_equal("aGVsbG8/d29ybGQ="_sv, "hello?world"_sv);
 }
 
 TEST_CASE(test_decode_into)
@@ -44,54 +44,54 @@ TEST_CASE(test_decode_into)
         EXPECT_EQ(StringView { buffer }, expected);
     };
 
-    decode_equal(""sv, ""sv);
+    decode_equal(""_sv, ""_sv);
 
-    decode_equal("Zg=="sv, "f"sv);
-    decode_equal("Zm8="sv, "fo"sv);
-    decode_equal("Zm9v"sv, "foo"sv);
-    decode_equal("Zm9vYg=="sv, "foob"sv);
-    decode_equal("Zm9vYmE="sv, "fooba"sv);
-    decode_equal("Zm9vYmFy"sv, "foobar"sv);
-    decode_equal(" Zm9vYmFy "sv, "foobar"sv);
-    decode_equal("  \n\r \t Zm   9v   \t YmFy \n"sv, "foobar"sv);
-    decode_equal("aGVsbG8/d29ybGQ="sv, "hello?world"sv);
+    decode_equal("Zg=="_sv, "f"_sv);
+    decode_equal("Zm8="_sv, "fo"_sv);
+    decode_equal("Zm9v"_sv, "foo"_sv);
+    decode_equal("Zm9vYg=="_sv, "foob"_sv);
+    decode_equal("Zm9vYmE="_sv, "fooba"_sv);
+    decode_equal("Zm9vYmFy"_sv, "foobar"_sv);
+    decode_equal(" Zm9vYmFy "_sv, "foobar"_sv);
+    decode_equal("  \n\r \t Zm   9v   \t YmFy \n"_sv, "foobar"_sv);
+    decode_equal("aGVsbG8/d29ybGQ="_sv, "hello?world"_sv);
 
-    decode_equal("Zm9vYmFy"sv, ""sv, 0);
-    decode_equal("Zm9vYmFy"sv, ""sv, 1);
-    decode_equal("Zm9vYmFy"sv, ""sv, 2);
-    decode_equal("Zm9vYmFy"sv, "foo"sv, 3);
-    decode_equal("Zm9vYmFy"sv, "foo"sv, 4);
-    decode_equal("Zm9vYmFy"sv, "foo"sv, 5);
-    decode_equal("Zm9vYmFy"sv, "foobar"sv, 6);
-    decode_equal("Zm9vYmFy"sv, "foobar"sv, 7);
+    decode_equal("Zm9vYmFy"_sv, ""_sv, 0);
+    decode_equal("Zm9vYmFy"_sv, ""_sv, 1);
+    decode_equal("Zm9vYmFy"_sv, ""_sv, 2);
+    decode_equal("Zm9vYmFy"_sv, "foo"_sv, 3);
+    decode_equal("Zm9vYmFy"_sv, "foo"_sv, 4);
+    decode_equal("Zm9vYmFy"_sv, "foo"_sv, 5);
+    decode_equal("Zm9vYmFy"_sv, "foobar"_sv, 6);
+    decode_equal("Zm9vYmFy"_sv, "foobar"_sv, 7);
 }
 
 TEST_CASE(test_decode_invalid)
 {
-    EXPECT(decode_base64(("asdf\xffqwe"sv)).is_error());
-    EXPECT(decode_base64(("asdf\x80qwe"sv)).is_error());
-    EXPECT(decode_base64(("asdf:qwe"sv)).is_error());
-    EXPECT(decode_base64(("asdf=qwe"sv)).is_error());
+    EXPECT(decode_base64(("asdf\xffqwe"_sv)).is_error());
+    EXPECT(decode_base64(("asdf\x80qwe"_sv)).is_error());
+    EXPECT(decode_base64(("asdf:qwe"_sv)).is_error());
+    EXPECT(decode_base64(("asdf=qwe"_sv)).is_error());
 
-    EXPECT(decode_base64("aGVsbG8_d29ybGQ="sv).is_error());
-    EXPECT(decode_base64url("aGVsbG8/d29ybGQ="sv).is_error());
+    EXPECT(decode_base64("aGVsbG8_d29ybGQ="_sv).is_error());
+    EXPECT(decode_base64url("aGVsbG8/d29ybGQ="_sv).is_error());
 
-    EXPECT(decode_base64("Y"sv).is_error());
-    EXPECT(decode_base64("YQ="sv).is_error());
+    EXPECT(decode_base64("Y"_sv).is_error());
+    EXPECT(decode_base64("YQ="_sv).is_error());
 }
 
 TEST_CASE(test_decode_only_padding)
 {
     // Only padding is not allowed
-    EXPECT(decode_base64("="sv).is_error());
-    EXPECT(decode_base64("=="sv).is_error());
-    EXPECT(decode_base64("==="sv).is_error());
-    EXPECT(decode_base64("===="sv).is_error());
+    EXPECT(decode_base64("="_sv).is_error());
+    EXPECT(decode_base64("=="_sv).is_error());
+    EXPECT(decode_base64("==="_sv).is_error());
+    EXPECT(decode_base64("===="_sv).is_error());
 
-    EXPECT(decode_base64url("="sv).is_error());
-    EXPECT(decode_base64url("=="sv).is_error());
-    EXPECT(decode_base64url("==="sv).is_error());
-    EXPECT(decode_base64url("===="sv).is_error());
+    EXPECT(decode_base64url("="_sv).is_error());
+    EXPECT(decode_base64url("=="_sv).is_error());
+    EXPECT(decode_base64url("==="_sv).is_error());
+    EXPECT(decode_base64url("===="_sv).is_error());
 }
 
 TEST_CASE(test_encode)
@@ -101,13 +101,13 @@ TEST_CASE(test_encode)
         EXPECT_EQ(encoded, expected);
     };
 
-    encode_equal(""sv, ""sv);
-    encode_equal("f"sv, "Zg=="sv);
-    encode_equal("fo"sv, "Zm8="sv);
-    encode_equal("foo"sv, "Zm9v"sv);
-    encode_equal("foob"sv, "Zm9vYg=="sv);
-    encode_equal("fooba"sv, "Zm9vYmE="sv);
-    encode_equal("foobar"sv, "Zm9vYmFy"sv);
+    encode_equal(""_sv, ""_sv);
+    encode_equal("f"_sv, "Zg=="_sv);
+    encode_equal("fo"_sv, "Zm8="_sv);
+    encode_equal("foo"_sv, "Zm9v"_sv);
+    encode_equal("foob"_sv, "Zm9vYg=="_sv);
+    encode_equal("fooba"_sv, "Zm9vYmE="_sv);
+    encode_equal("foobar"_sv, "Zm9vYmFy"_sv);
 }
 
 TEST_CASE(test_encode_omit_padding)
@@ -117,13 +117,13 @@ TEST_CASE(test_encode_omit_padding)
         EXPECT_EQ(encoded, expected);
     };
 
-    encode_equal(""sv, ""sv);
-    encode_equal("f"sv, "Zg"sv);
-    encode_equal("fo"sv, "Zm8"sv);
-    encode_equal("foo"sv, "Zm9v"sv);
-    encode_equal("foob"sv, "Zm9vYg"sv);
-    encode_equal("fooba"sv, "Zm9vYmE"sv);
-    encode_equal("foobar"sv, "Zm9vYmFy"sv);
+    encode_equal(""_sv, ""_sv);
+    encode_equal("f"_sv, "Zg"_sv);
+    encode_equal("fo"_sv, "Zm8"_sv);
+    encode_equal("foo"_sv, "Zm9v"_sv);
+    encode_equal("foob"_sv, "Zm9vYg"_sv);
+    encode_equal("fooba"_sv, "Zm9vYmE"_sv);
+    encode_equal("foobar"_sv, "Zm9vYmFy"_sv);
 }
 
 TEST_CASE(test_urldecode)
@@ -133,18 +133,18 @@ TEST_CASE(test_urldecode)
         EXPECT_EQ(StringView { decoded }, expected);
     };
 
-    decode_equal(""sv, ""sv);
-    decode_equal("Zg=="sv, "f"sv);
-    decode_equal("Zm8="sv, "fo"sv);
-    decode_equal("Zm9v"sv, "foo"sv);
-    decode_equal("Zm9vYg=="sv, "foob"sv);
-    decode_equal("Zm9vYmE="sv, "fooba"sv);
-    decode_equal("Zm9vYmFy"sv, "foobar"sv);
-    decode_equal(" Zm9vYmFy "sv, "foobar"sv);
-    decode_equal("  \n\r \t Zm9vYmFy \n"sv, "foobar"sv);
+    decode_equal(""_sv, ""_sv);
+    decode_equal("Zg=="_sv, "f"_sv);
+    decode_equal("Zm8="_sv, "fo"_sv);
+    decode_equal("Zm9v"_sv, "foo"_sv);
+    decode_equal("Zm9vYg=="_sv, "foob"_sv);
+    decode_equal("Zm9vYmE="_sv, "fooba"_sv);
+    decode_equal("Zm9vYmFy"_sv, "foobar"_sv);
+    decode_equal(" Zm9vYmFy "_sv, "foobar"_sv);
+    decode_equal("  \n\r \t Zm9vYmFy \n"_sv, "foobar"_sv);
 
-    decode_equal("TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFib3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEu"sv, "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."sv);
-    decode_equal("aGVsbG8_d29ybGQ="sv, "hello?world"sv);
+    decode_equal("TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFib3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEu"_sv, "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."_sv);
+    decode_equal("aGVsbG8_d29ybGQ="_sv, "hello?world"_sv);
 }
 
 TEST_CASE(test_urlencode)
@@ -154,18 +154,18 @@ TEST_CASE(test_urlencode)
         EXPECT_EQ(encoded, expected);
     };
 
-    encode_equal(""sv, ""sv);
-    encode_equal("f"sv, "Zg=="sv);
-    encode_equal("fo"sv, "Zm8="sv);
-    encode_equal("foo"sv, "Zm9v"sv);
-    encode_equal("foob"sv, "Zm9vYg=="sv);
-    encode_equal("fooba"sv, "Zm9vYmE="sv);
-    encode_equal("foobar"sv, "Zm9vYmFy"sv);
+    encode_equal(""_sv, ""_sv);
+    encode_equal("f"_sv, "Zg=="_sv);
+    encode_equal("fo"_sv, "Zm8="_sv);
+    encode_equal("foo"_sv, "Zm9v"_sv);
+    encode_equal("foob"_sv, "Zm9vYg=="_sv);
+    encode_equal("fooba"_sv, "Zm9vYmE="_sv);
+    encode_equal("foobar"_sv, "Zm9vYmFy"_sv);
 
-    encode_equal("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."sv, "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFib3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEu"sv);
-    encode_equal("hello?world"sv, "aGVsbG8_d29ybGQ="sv);
+    encode_equal("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."_sv, "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFib3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEu"_sv);
+    encode_equal("hello?world"_sv, "aGVsbG8_d29ybGQ="_sv);
 
-    encode_equal("hello!!world"sv, "aGVsbG8hIXdvcmxk"sv);
+    encode_equal("hello!!world"_sv, "aGVsbG8hIXdvcmxk"_sv);
 }
 
 TEST_CASE(test_urlencode_omit_padding)
@@ -175,16 +175,16 @@ TEST_CASE(test_urlencode_omit_padding)
         EXPECT_EQ(encoded, expected);
     };
 
-    encode_equal(""sv, ""sv);
-    encode_equal("f"sv, "Zg"sv);
-    encode_equal("fo"sv, "Zm8"sv);
-    encode_equal("foo"sv, "Zm9v"sv);
-    encode_equal("foob"sv, "Zm9vYg"sv);
-    encode_equal("fooba"sv, "Zm9vYmE"sv);
-    encode_equal("foobar"sv, "Zm9vYmFy"sv);
+    encode_equal(""_sv, ""_sv);
+    encode_equal("f"_sv, "Zg"_sv);
+    encode_equal("fo"_sv, "Zm8"_sv);
+    encode_equal("foo"_sv, "Zm9v"_sv);
+    encode_equal("foob"_sv, "Zm9vYg"_sv);
+    encode_equal("fooba"_sv, "Zm9vYmE"_sv);
+    encode_equal("foobar"_sv, "Zm9vYmFy"_sv);
 
-    encode_equal("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."sv, "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFib3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEu"sv);
-    encode_equal("hello?world"sv, "aGVsbG8_d29ybGQ"sv);
+    encode_equal("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."_sv, "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFib3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEu"_sv);
+    encode_equal("hello?world"_sv, "aGVsbG8_d29ybGQ"_sv);
 
-    encode_equal("hello!!world"sv, "aGVsbG8hIXdvcmxk"sv);
+    encode_equal("hello!!world"_sv, "aGVsbG8hIXdvcmxk"_sv);
 }

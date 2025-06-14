@@ -13,9 +13,9 @@ namespace Unicode {
 
 Usage usage_from_string(StringView usage)
 {
-    if (usage == "sort"sv)
+    if (usage == "sort"_sv)
         return Usage::Sort;
-    if (usage == "search"sv)
+    if (usage == "search"_sv)
         return Usage::Search;
     VERIFY_NOT_REACHED();
 }
@@ -24,9 +24,9 @@ StringView usage_to_string(Usage usage)
 {
     switch (usage) {
     case Usage::Sort:
-        return "sort"sv;
+        return "sort"_sv;
     case Usage::Search:
-        return "search"sv;
+        return "search"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -51,13 +51,13 @@ static NonnullOwnPtr<icu::Locale> apply_usage_to_locale(icu::Locale const& local
 
 Sensitivity sensitivity_from_string(StringView sensitivity)
 {
-    if (sensitivity == "base"sv)
+    if (sensitivity == "base"_sv)
         return Sensitivity::Base;
-    if (sensitivity == "accent"sv)
+    if (sensitivity == "accent"_sv)
         return Sensitivity::Accent;
-    if (sensitivity == "case"sv)
+    if (sensitivity == "case"_sv)
         return Sensitivity::Case;
-    if (sensitivity == "variant"sv)
+    if (sensitivity == "variant"_sv)
         return Sensitivity::Variant;
     VERIFY_NOT_REACHED();
 }
@@ -66,13 +66,13 @@ StringView sensitivity_to_string(Sensitivity sensitivity)
 {
     switch (sensitivity) {
     case Sensitivity::Base:
-        return "base"sv;
+        return "base"_sv;
     case Sensitivity::Accent:
-        return "accent"sv;
+        return "accent"_sv;
     case Sensitivity::Case:
-        return "case"sv;
+        return "case"_sv;
     case Sensitivity::Variant:
-        return "variant"sv;
+        return "variant"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -116,11 +116,11 @@ static Sensitivity sensitivity_for_collator(icu::Collator const& collator)
 
 CaseFirst case_first_from_string(StringView case_first)
 {
-    if (case_first == "upper"sv)
+    if (case_first == "upper"_sv)
         return CaseFirst::Upper;
-    if (case_first == "lower"sv)
+    if (case_first == "lower"_sv)
         return CaseFirst::Lower;
-    if (case_first == "false"sv)
+    if (case_first == "false"_sv)
         return CaseFirst::False;
     VERIFY_NOT_REACHED();
 }
@@ -129,11 +129,11 @@ StringView case_first_to_string(CaseFirst case_first)
 {
     switch (case_first) {
     case CaseFirst::Upper:
-        return "upper"sv;
+        return "upper"_sv;
     case CaseFirst::Lower:
-        return "lower"sv;
+        return "lower"_sv;
     case CaseFirst::False:
-        return "false"sv;
+        return "false"_sv;
     }
     VERIFY_NOT_REACHED();
 }

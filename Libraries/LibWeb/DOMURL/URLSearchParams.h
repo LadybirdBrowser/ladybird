@@ -16,7 +16,7 @@ struct QueryParam {
     String name;
     String value;
 };
-String url_encode(Vector<QueryParam> const&, StringView encoding = "UTF-8"sv);
+String url_encode(Vector<QueryParam> const&, StringView encoding = "UTF-8"_sv);
 Vector<QueryParam> url_decode(StringView);
 
 class URLSearchParams : public Bindings::PlatformObject {

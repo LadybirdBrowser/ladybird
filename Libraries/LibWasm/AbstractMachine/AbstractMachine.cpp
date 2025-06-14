@@ -168,7 +168,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         auto invalid = import_.description().visit(
             [&](MemoryType const& mem_type) -> Optional<ByteString> {
                 if (!extern_.has<MemoryAddress>())
-                    return "Expected memory import"sv;
+                    return "Expected memory import"_sv;
                 auto other_mem_type = m_store.get(extern_.get<MemoryAddress>())->type();
                 if (other_mem_type.limits().is_subset_of(mem_type.limits()))
                     return {};
@@ -176,7 +176,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             },
             [&](TableType const& table_type) -> Optional<ByteString> {
                 if (!extern_.has<TableAddress>())
-                    return "Expected table import"sv;
+                    return "Expected table import"_sv;
                 auto other_table_type = m_store.get(extern_.get<TableAddress>())->type();
                 if (table_type.element_type() == other_table_type.element_type()
                     && other_table_type.limits().is_subset_of(table_type.limits()))
@@ -186,16 +186,16 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             },
             [&](GlobalType const& global_type) -> Optional<ByteString> {
                 if (!extern_.has<GlobalAddress>())
-                    return "Expected global import"sv;
+                    return "Expected global import"_sv;
                 auto other_global_type = m_store.get(extern_.get<GlobalAddress>())->type();
                 if (global_type.type() == other_global_type.type()
                     && global_type.is_mutable() == other_global_type.is_mutable())
                     return {};
-                return "Global import and extern do not match"sv;
+                return "Global import and extern do not match"_sv;
             },
             [&](FunctionType const& type) -> Optional<ByteString> {
                 if (!extern_.has<FunctionAddress>())
-                    return "Expected function import"sv;
+                    return "Expected function import"_sv;
                 auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
                 if (type.results() != other_type.results())
                     return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
@@ -205,7 +205,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             },
             [&](TypeIndex type_index) -> Optional<ByteString> {
                 if (!extern_.has<FunctionAddress>())
-                    return "Expected function import"sv;
+                    return "Expected function import"_sv;
                 auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
                 auto& type = module.type_section().types()[type_index.value()];
                 if (type.results() != other_type.results())
@@ -354,7 +354,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 }
                 auto maybe_data_address = m_store.allocate_data(data.init);
                 if (!maybe_data_address.has_value()) {
-                    return InstantiationError { "Failed to allocate a data instance for an active data segment"sv };
+                    return InstantiationError { "Failed to allocate a data instance for an active data segment"_sv };
                 }
                 main_module_instance.datas().append(*maybe_data_address);
 
@@ -375,7 +375,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             [&](DataSection::Data::Passive const& passive) -> Optional<InstantiationError> {
                 auto maybe_data_address = m_store.allocate_data(passive.init);
                 if (!maybe_data_address.has_value()) {
-                    return InstantiationError { "Failed to allocate a data instance for a passive data segment"sv };
+                    return InstantiationError { "Failed to allocate a data instance for a passive data segment"_sv };
                 }
                 main_module_instance.datas().append(*maybe_data_address);
                 return {};

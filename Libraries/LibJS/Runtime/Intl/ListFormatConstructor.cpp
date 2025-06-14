@@ -63,13 +63,13 @@ ThrowCompletionOr<GC::Ref<Object>> ListFormatConstructor::construct(FunctionObje
     list_format->set_locale(move(result.locale));
 
     // 7. Let type be ? GetOption(options, "type", string, « "conjunction", "disjunction", "unit" », "conjunction").
-    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, { "conjunction"sv, "disjunction"sv, "unit"sv }, "conjunction"sv));
+    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, { "conjunction"_sv, "disjunction"_sv, "unit"_sv }, "conjunction"_sv));
 
     // 8. Set listFormat.[[Type]] to type.
     list_format->set_type(type.as_string().utf8_string_view());
 
     // 9. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow" », "long").
-    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
+    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"_sv, "short"_sv, "narrow"_sv }, "long"_sv));
 
     // 10. Set listFormat.[[Style]] to style.
     list_format->set_style(style.as_string().utf8_string_view());

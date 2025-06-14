@@ -12,7 +12,7 @@ namespace WebView {
 
 void ProcessesUI::register_interfaces()
 {
-    register_interface("updateProcessStatistics"sv, [this](auto const&) {
+    register_interface("updateProcessStatistics"_sv, [this](auto const&) {
         update_process_statistics();
     });
 }
@@ -22,7 +22,7 @@ void ProcessesUI::update_process_statistics()
     auto& process_manager = Application::process_manager();
     process_manager.update_all_process_statistics();
 
-    async_send_message("loadProcessStatistics"sv, process_manager.serialize_json());
+    async_send_message("loadProcessStatistics"_sv, process_manager.serialize_json());
 }
 
 }

@@ -33,34 +33,34 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
         auto const* element = static_cast<DOM::Element const*>(value().ptr());
 
         if (element->include_in_accessibility_tree()) {
-            MUST(object.add("type"sv, "element"sv));
+            MUST(object.add("type"_sv, "element"_sv));
 
             auto role = element->role_or_default();
             bool has_role = role.has_value() && !ARIA::is_abstract_role(*role);
 
             auto name = MUST(element->accessible_name(document));
-            MUST(object.add("name"sv, name));
+            MUST(object.add("name"_sv, name));
             auto description = MUST(element->accessible_description(document));
-            MUST(object.add("description"sv, description));
-            MUST(object.add("id"sv, element->unique_id().value()));
+            MUST(object.add("description"_sv, description));
+            MUST(object.add("id"_sv, element->unique_id().value()));
 
             if (has_role)
-                MUST(object.add("role"sv, ARIA::role_name(*role)));
+                MUST(object.add("role"_sv, ARIA::role_name(*role)));
             else
-                MUST(object.add("role"sv, ""sv));
+                MUST(object.add("role"_sv, ""_sv));
         } else {
             VERIFY_NOT_REACHED();
         }
 
     } else if (value()->is_text()) {
-        MUST(object.add("type"sv, "text"sv));
+        MUST(object.add("type"_sv, "text"_sv));
 
         auto const* text_node = static_cast<DOM::Text const*>(value().ptr());
-        MUST(object.add("text"sv, text_node->data()));
+        MUST(object.add("text"_sv, text_node->data()));
     }
 
     if (value()->has_child_nodes()) {
-        auto node_children = MUST(object.add_array("children"sv));
+        auto node_children = MUST(object.add_array("children"_sv));
         for (auto& child : children()) {
             if (child->value()->is_uninteresting_whitespace_node())
                 continue;

@@ -22,7 +22,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Core::ArgsParser args_parser;
     StringView path;
     Vector<ByteString> import_base_paths;
-    StringView output_path = "-"sv;
+    StringView output_path = "-"_sv;
     StringView depfile_path;
     StringView depfile_prefix;
 
@@ -62,7 +62,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (IDL::libweb_interface_namespaces.span().contains_slow(namespace_)) {
         StringBuilder builder;
         builder.append(namespace_);
-        builder.append("::"sv);
+        builder.append("::"_sv);
         builder.append(interface.implemented_name);
         interface.fully_qualified_name = builder.to_byte_string();
     } else {
@@ -205,7 +205,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         }
         depfile_builder.append(':');
         for (auto const& path : parser.imported_files()) {
-            depfile_builder.append(" \\\n "sv);
+            depfile_builder.append(" \\\n "_sv);
             depfile_builder.append(path);
         }
         depfile_builder.append('\n');

@@ -60,8 +60,8 @@ void WebUIConnection::send_message(String name, JsonValue data)
         return;
 
     JsonObject detail;
-    detail.set("name"sv, move(name));
-    detail.set("data"sv, move(data));
+    detail.set("name"_sv, move(name));
+    detail.set("data"_sv, move(data));
 
     auto& realm = m_document->realm();
     Web::HTML::TemporaryExecutionContext context { realm };

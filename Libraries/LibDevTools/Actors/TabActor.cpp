@@ -32,20 +32,20 @@ void TabActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "getFavicon"sv) {
+    if (message.type == "getFavicon"_sv) {
         // FIXME: Firefox DevTools wants a favicon URL here, but supplying a URL seems to prevent this tab from being
         //        listed on the about:debugging page. Both Servo and Firefox itself supply `null` here.
-        response.set("favicon"sv, JsonValue {});
+        response.set("favicon"_sv, JsonValue {});
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "getWatcher"sv) {
+    if (message.type == "getWatcher"_sv) {
         if (!m_watcher)
             m_watcher = devtools().register_actor<WatcherActor>(this);
 
-        response.set("actor"sv, m_watcher->name());
-        response.set("traits"sv, m_watcher->serialize_description());
+        response.set("actor"_sv, m_watcher->name());
+        response.set("traits"_sv, m_watcher->serialize_description());
         send_response(message, move(response));
         return;
     }
@@ -56,19 +56,19 @@ void TabActor::handle_message(Message const& message)
 JsonObject TabActor::serialize_description() const
 {
     JsonObject traits;
-    traits.set("watcher"sv, true);
-    traits.set("supportsReloadDescriptor"sv, true);
+    traits.set("watcher"_sv, true);
+    traits.set("supportsReloadDescriptor"_sv, true);
 
     // FIXME: We are using the tab's ID multiple times here. This is likely not correct, as both Firefox and Servo
     //        provide different IDs for browserId, browsingContextID, and outerWindowID.
     JsonObject description;
-    description.set("actor"sv, name());
-    description.set("title"sv, m_description.title);
-    description.set("url"sv, m_description.url);
-    description.set("browserId"sv, m_description.id);
-    description.set("browsingContextID"sv, m_description.id);
-    description.set("outerWindowID"sv, m_description.id);
-    description.set("traits"sv, move(traits));
+    description.set("actor"_sv, name());
+    description.set("title"_sv, m_description.title);
+    description.set("url"_sv, m_description.url);
+    description.set("browserId"_sv, m_description.id);
+    description.set("browsingContextID"_sv, m_description.id);
+    description.set("outerWindowID"_sv, m_description.id);
+    description.set("traits"_sv, move(traits));
     return description;
 }
 

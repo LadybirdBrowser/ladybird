@@ -250,7 +250,7 @@ WebIDL::ExceptionOr<void> transform_stream_default_controller_enqueue(TransformS
 
     // 3. If ! ReadableStreamDefaultControllerCanCloseOrEnqueue(readableController) is false, throw a TypeError exception.
     if (!readable_stream_default_controller_can_close_or_enqueue(readable_controller))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "ReadableController is either closed or not readable."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "ReadableController is either closed or not readable."_sv };
 
     // 4. Let enqueueResult be ReadableStreamDefaultControllerEnqueue(readableController, chunk).
     auto enqueue_result = readable_stream_default_controller_enqueue(readable_controller, chunk);
@@ -322,7 +322,7 @@ void transform_stream_default_controller_terminate(TransformStreamDefaultControl
     readable_stream_default_controller_close(readable_controller);
 
     // 4. Let error be a TypeError exception indicating that the stream has been terminated.
-    auto error = JS::TypeError::create(realm, "Stream has been terminated."sv);
+    auto error = JS::TypeError::create(realm, "Stream has been terminated."_sv);
 
     // 5. Perform ! TransformStreamErrorWritableAndUnblockWrite(stream, error).
     transform_stream_error_writable_and_unblock_write(*stream, error);

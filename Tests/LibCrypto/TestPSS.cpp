@@ -10,7 +10,7 @@
 
 TEST_CASE(test_pss)
 {
-    auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"sv.bytes();
+    auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"_sv.bytes();
 
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
     auto rsa = Crypto::PK::RSA_PSS_EMSA(Crypto::Hash::HashKind::SHA1, keypair);
@@ -23,8 +23,8 @@ TEST_CASE(test_pss)
 
 TEST_CASE(test_pss_tampered_message)
 {
-    auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"sv.bytes();
-    auto msg_tampered = "WellHell0FriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"sv.bytes();
+    auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"_sv.bytes();
+    auto msg_tampered = "WellHell0FriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"_sv.bytes();
 
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
     auto rsa = Crypto::PK::RSA_PSS_EMSA(Crypto::Hash::HashKind::SHA1, keypair);
@@ -37,7 +37,7 @@ TEST_CASE(test_pss_tampered_message)
 
 TEST_CASE(test_pss_tampered_signature)
 {
-    auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"sv.bytes();
+    auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"_sv.bytes();
 
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
     auto rsa = Crypto::PK::RSA_PSS_EMSA(Crypto::Hash::HashKind::SHA1, keypair);

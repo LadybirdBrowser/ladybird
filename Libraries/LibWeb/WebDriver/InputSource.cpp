@@ -73,24 +73,24 @@ UIEvents::KeyModifier GlobalKeyState::modifiers() const
 
 Optional<InputSourceType> input_source_type_from_string(StringView input_source_type)
 {
-    if (input_source_type == "none"sv)
+    if (input_source_type == "none"_sv)
         return InputSourceType::None;
-    if (input_source_type == "key"sv)
+    if (input_source_type == "key"_sv)
         return InputSourceType::Key;
-    if (input_source_type == "pointer"sv)
+    if (input_source_type == "pointer"_sv)
         return InputSourceType::Pointer;
-    if (input_source_type == "wheel"sv)
+    if (input_source_type == "wheel"_sv)
         return InputSourceType::Wheel;
     return {};
 }
 
 Optional<PointerInputSource::Subtype> pointer_input_source_subtype_from_string(StringView pointer_type)
 {
-    if (pointer_type == "mouse"sv)
+    if (pointer_type == "mouse"_sv)
         return PointerInputSource::Subtype::Mouse;
-    if (pointer_type == "pen"sv)
+    if (pointer_type == "pen"_sv)
         return PointerInputSource::Subtype::Pen;
-    if (pointer_type == "touch"sv)
+    if (pointer_type == "touch"_sv)
         return PointerInputSource::Subtype::Touch;
     return {};
 }
@@ -176,7 +176,7 @@ ErrorOr<InputSource*, WebDriver::Error> get_or_create_input_source(InputState& i
         // FIXME: Spec issue: It does not make sense to check if "source is a pointer input source". This would errantly
         //        prevent the ability to perform two pointer actions in a row.
         //        https://github.com/w3c/webdriver/issues/1810
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' does not match existing input source type"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' does not match existing input source type"_sv);
     }
 
     // 3. If source is undefined, set source to the result of trying to create an input source with input state and type.

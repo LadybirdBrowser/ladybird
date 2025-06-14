@@ -55,7 +55,7 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
                 builder.appendff("blur({}", blur.radius.to_string());
             },
             [&](FilterOperation::DropShadow const& drop_shadow) {
-                builder.append("drop-shadow("sv);
+                builder.append("drop-shadow("_sv);
                 if (drop_shadow.color.has_value()) {
                     serialize_a_srgb_value(builder, *drop_shadow.color);
                     builder.append(' ');
@@ -65,13 +65,13 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
                     builder.appendff(" {}", drop_shadow.radius->to_string());
             },
             [&](FilterOperation::HueRotate const& hue_rotate) {
-                builder.append("hue-rotate("sv);
+                builder.append("hue-rotate("_sv);
                 hue_rotate.angle.visit(
                     [&](Angle const& angle) {
                         builder.append(angle.to_string());
                     },
                     [&](auto&) {
-                        builder.append("0deg"sv);
+                        builder.append("0deg"_sv);
                     });
             },
             [&](FilterOperation::Color const& color) {
@@ -79,19 +79,19 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
                     [&] {
                         switch (color.operation) {
                         case Gfx::ColorFilterType::Brightness:
-                            return "brightness"sv;
+                            return "brightness"_sv;
                         case Gfx::ColorFilterType::Contrast:
-                            return "contrast"sv;
+                            return "contrast"_sv;
                         case Gfx::ColorFilterType::Grayscale:
-                            return "grayscale"sv;
+                            return "grayscale"_sv;
                         case Gfx::ColorFilterType::Invert:
-                            return "invert"sv;
+                            return "invert"_sv;
                         case Gfx::ColorFilterType::Opacity:
-                            return "opacity"sv;
+                            return "opacity"_sv;
                         case Gfx::ColorFilterType::Saturate:
-                            return "saturate"sv;
+                            return "saturate"_sv;
                         case Gfx::ColorFilterType::Sepia:
-                            return "sepia"sv;
+                            return "sepia"_sv;
                         default:
                             VERIFY_NOT_REACHED();
                         }

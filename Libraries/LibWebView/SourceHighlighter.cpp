@@ -160,25 +160,25 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
         case Web::CSS::Parser::Token::Type::Invalid:
         case Web::CSS::Parser::Token::Type::BadString:
         case Web::CSS::Parser::Token::Type::BadUrl:
-            return "invalid"sv;
+            return "invalid"_sv;
         case Web::CSS::Parser::Token::Type::Ident:
-            return "identifier"sv;
+            return "identifier"_sv;
         case Web::CSS::Parser::Token::Type::Function:
-            return "function"sv;
+            return "function"_sv;
         case Web::CSS::Parser::Token::Type::AtKeyword:
-            return "at-keyword"sv;
+            return "at-keyword"_sv;
         case Web::CSS::Parser::Token::Type::Hash:
-            return "hash"sv;
+            return "hash"_sv;
         case Web::CSS::Parser::Token::Type::String:
-            return "string"sv;
+            return "string"_sv;
         case Web::CSS::Parser::Token::Type::Url:
-            return "url"sv;
+            return "url"_sv;
         case Web::CSS::Parser::Token::Type::Number:
         case Web::CSS::Parser::Token::Type::Dimension:
         case Web::CSS::Parser::Token::Type::Percentage:
-            return "number"sv;
+            return "number"_sv;
         case Web::CSS::Parser::Token::Type::Whitespace:
-            return "whitespace"sv;
+            return "whitespace"_sv;
         case Web::CSS::Parser::Token::Type::Delim:
         case Web::CSS::Parser::Token::Type::Colon:
         case Web::CSS::Parser::Token::Type::Semicolon:
@@ -189,42 +189,42 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
         case Web::CSS::Parser::Token::Type::CloseParen:
         case Web::CSS::Parser::Token::Type::OpenCurly:
         case Web::CSS::Parser::Token::Type::CloseCurly:
-            return "delimiter"sv;
+            return "delimiter"_sv;
         case Web::CSS::Parser::Token::Type::CDO:
         case Web::CSS::Parser::Token::Type::CDC:
-            return "comment"sv;
+            return "comment"_sv;
         case Web::CSS::Parser::Token::Type::EndOfFile:
         default:
             break;
         }
-        return ""sv;
+        return ""_sv;
     };
 
     auto class_for_js_token = [](u64 token_type) {
         auto category = JS::Token::category(static_cast<JS::TokenType>(token_type));
         switch (category) {
         case JS::TokenCategory::Invalid:
-            return "invalid"sv;
+            return "invalid"_sv;
         case JS::TokenCategory::Trivia:
-            return "comment"sv;
+            return "comment"_sv;
         case JS::TokenCategory::Number:
-            return "number"sv;
+            return "number"_sv;
         case JS::TokenCategory::String:
-            return "string"sv;
+            return "string"_sv;
         case JS::TokenCategory::Punctuation:
-            return "punctuation"sv;
+            return "punctuation"_sv;
         case JS::TokenCategory::Operator:
-            return "operator"sv;
+            return "operator"_sv;
         case JS::TokenCategory::Keyword:
-            return "keyword"sv;
+            return "keyword"_sv;
         case JS::TokenCategory::ControlKeyword:
-            return "control-keyword"sv;
+            return "control-keyword"_sv;
         case JS::TokenCategory::Identifier:
-            return "identifier"sv;
+            return "identifier"_sv;
         default:
             break;
         }
-        return ""sv;
+        return ""_sv;
     };
 
     switch (m_highlighter->language()) {
@@ -239,19 +239,19 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
         if (token_type < Web::HTML::SyntaxHighlighter::JS_TOKEN_START_VALUE) {
             switch (static_cast<Web::HTML::AugmentedTokenKind>(token_type)) {
             case Web::HTML::AugmentedTokenKind::AttributeName:
-                return "attribute-name"sv;
+                return "attribute-name"_sv;
             case Web::HTML::AugmentedTokenKind::AttributeValue:
-                return "attribute-value"sv;
+                return "attribute-value"_sv;
             case Web::HTML::AugmentedTokenKind::OpenTag:
             case Web::HTML::AugmentedTokenKind::CloseTag:
-                return "tag"sv;
+                return "tag"_sv;
             case Web::HTML::AugmentedTokenKind::Comment:
-                return "comment"sv;
+                return "comment"_sv;
             case Web::HTML::AugmentedTokenKind::Doctype:
-                return "doctype"sv;
+                return "doctype"_sv;
             case Web::HTML::AugmentedTokenKind::__Count:
             default:
-                return ""sv;
+                return ""_sv;
             }
         }
 
@@ -264,7 +264,7 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
         return class_for_css_token(token_type - Web::HTML::SyntaxHighlighter::CSS_TOKEN_START_VALUE);
     }
     default:
-        return "unknown"sv;
+        return "unknown"_sv;
     }
 }
 
@@ -275,13 +275,13 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
     auto append_escaped = [&](Utf32View text) {
         for (auto code_point : text) {
             if (code_point == '&') {
-                builder.append("&amp;"sv);
+                builder.append("&amp;"_sv);
             } else if (code_point == 0xA0) {
-                builder.append("&nbsp;"sv);
+                builder.append("&nbsp;"_sv);
             } else if (code_point == '<') {
-                builder.append("&lt;"sv);
+                builder.append("&lt;"_sv);
             } else if (code_point == '>') {
-                builder.append("&gt;"sv);
+                builder.append("&gt;"_sv);
             } else {
                 builder.append_code_point(code_point);
             }
@@ -292,7 +292,7 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
         builder.appendff("<span class=\"{}\">", class_for_token(type));
     };
     auto end_token = [&]() {
-        builder.append("</span>"sv);
+        builder.append("</span>"_sv);
     };
 
     if (mode == HighlightOutputMode::FullDocument) {
@@ -300,19 +300,19 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="color-scheme" content="dark light">)~~~"sv);
+    <meta name="color-scheme" content="dark light">)~~~"_sv);
 
         if (url.has_value())
             builder.appendff("<title>View Source - {}</title>", escape_html_entities(url->serialize_for_display()));
         else
-            builder.append("<title>View Source</title>"sv);
+            builder.append("<title>View Source</title>"_sv);
 
         builder.appendff("<style type=\"text/css\">{}</style>", HTML_HIGHLIGHTER_STYLE);
         builder.append(R"~~~(
 </head>
-<body>)~~~"sv);
+<body>)~~~"_sv);
     }
-    builder.append("<pre class=\"html\">"sv);
+    builder.append("<pre class=\"html\">"_sv);
 
     static constexpr auto href = to_array<u32>({ 'h', 'r', 'e', 'f' });
     static constexpr auto src = to_array<u32>({ 's', 'r', 'c' });
@@ -323,7 +323,7 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
             return {};
 
         auto attribute_url = MUST(String::formatted("{}", attribute_value));
-        auto attribute_url_without_quotes = attribute_url.bytes_as_string_view().trim("\""sv);
+        auto attribute_url_without_quotes = attribute_url.bytes_as_string_view().trim("\""_sv);
 
         return Web::DOMURL::parse(attribute_url_without_quotes, base_url);
     };
@@ -332,7 +332,7 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
     for (size_t line_index = 0; line_index < document().line_count(); ++line_index) {
         auto& line = document().line(line_index);
         auto line_view = line.view();
-        builder.append("<div class=\"line\">"sv);
+        builder.append("<div class=\"line\">"_sv);
 
         size_t next_column = 0;
 
@@ -360,7 +360,7 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
                 end_token();
 
                 if (append_anchor_close)
-                    builder.append("</a>"sv);
+                    builder.append("</a>"_sv);
             } else {
                 append_escaped(text);
             }
@@ -406,15 +406,15 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
             draw_text_helper(next_column, line.length(), {});
         }
 
-        builder.append("</div>"sv);
+        builder.append("</div>"_sv);
     }
 
-    builder.append("</pre>"sv);
+    builder.append("</pre>"_sv);
     if (mode == HighlightOutputMode::FullDocument) {
         builder.append(R"~~~(
 </body>
 </html>
-)~~~"sv);
+)~~~"_sv);
     }
 
     return builder.to_string_without_validation();

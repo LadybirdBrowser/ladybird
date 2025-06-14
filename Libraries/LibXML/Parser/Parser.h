@@ -156,7 +156,7 @@ private:
             [this, position = m_lexer.tell(), location] {
                 m_lexer.retreat(m_lexer.tell() - position);
                 (void)location;
-                dbgln_if(XML_PARSER_DEBUG, "{:->{}}FAIL @ {} -- \x1b[31m{}\x1b[0m", " ", s_debug_indent_level * 2, location, m_lexer.remaining().substring_view(0, min(16, m_lexer.tell_remaining())).replace("\n"sv, "\\n"sv, ReplaceMode::All));
+                dbgln_if(XML_PARSER_DEBUG, "{:->{}}FAIL @ {} -- \x1b[31m{}\x1b[0m", " ", s_debug_indent_level * 2, location, m_lexer.remaining().substring_view(0, min(16, m_lexer.tell_remaining())).replace("\n"_sv, "\\n"_sv, ReplaceMode::All));
             }
         };
     }
@@ -186,8 +186,8 @@ private:
     {
         auto error = ParseError { forward<Ts>(args)... };
         if (m_current_rule.accept) {
-            auto rule_name = m_current_rule.rule.value_or("<?>"sv);
-            if (rule_name.starts_with("parse_"sv))
+            auto rule_name = m_current_rule.rule.value_or("<?>"_sv);
+            if (rule_name.starts_with("parse_"_sv))
                 rule_name = rule_name.substring_view(6);
 
             auto error_string = error.error.visit(
@@ -232,6 +232,6 @@ struct AK::Formatter<XML::ParseError> : public AK::Formatter<FormatString> {
         auto error_string = error.error.visit(
             [](ByteString const& error) -> ByteString { return error; },
             [](XML::Expectation const& expectation) -> ByteString { return ByteString::formatted("Expected {}", expectation.expected); });
-        return Formatter<FormatString>::format(builder, "{} at line: {}, col: {} (offset {})"sv, error_string, error.position.line, error.position.column, error.position.offset);
+        return Formatter<FormatString>::format(builder, "{} at line: {}, col: {} (offset {})"_sv, error_string, error.position.line, error.position.column, error.position.offset);
     }
 };

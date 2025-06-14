@@ -10,11 +10,11 @@ namespace Web::CSS {
 
 PreferredContrast preferred_contrast_from_string(StringView value)
 {
-    if (value.equals_ignoring_ascii_case("less"sv))
+    if (value.equals_ignoring_ascii_case("less"_sv))
         return PreferredContrast::Less;
-    if (value.equals_ignoring_ascii_case("more"sv))
+    if (value.equals_ignoring_ascii_case("more"_sv))
         return PreferredContrast::More;
-    if (value.equals_ignoring_ascii_case("no-preference"sv))
+    if (value.equals_ignoring_ascii_case("no-preference"_sv))
         return PreferredContrast::NoPreference;
     return PreferredContrast::Auto;
 }
@@ -23,13 +23,13 @@ StringView preferred_contrast_to_string(PreferredContrast value)
 {
     switch (value) {
     case PreferredContrast::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     case PreferredContrast::Less:
-        return "less"sv;
+        return "less"_sv;
     case PreferredContrast::More:
-        return "more"sv;
+        return "more"_sv;
     case PreferredContrast::NoPreference:
-        return "no-preference"sv;
+        return "no-preference"_sv;
     }
     VERIFY_NOT_REACHED();
 }

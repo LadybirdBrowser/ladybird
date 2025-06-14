@@ -11,72 +11,72 @@
 
 TEST_CASE(locale_mappings_en)
 {
-    auto language = Unicode::language_display_name("en"sv, "en"sv, Unicode::LanguageDisplay::Standard);
+    auto language = Unicode::language_display_name("en"_sv, "en"_sv, Unicode::LanguageDisplay::Standard);
     EXPECT(language.has_value());
-    EXPECT_EQ(*language, "English"sv);
+    EXPECT_EQ(*language, "English"_sv);
 
-    language = Unicode::language_display_name("en"sv, "i-definitely-don't-exist"sv, Unicode::LanguageDisplay::Standard);
+    language = Unicode::language_display_name("en"_sv, "i-definitely-don't-exist"_sv, Unicode::LanguageDisplay::Standard);
     EXPECT(!language.has_value());
 
-    auto territory = Unicode::region_display_name("en"sv, "US"sv);
+    auto territory = Unicode::region_display_name("en"_sv, "US"_sv);
     EXPECT(territory.has_value());
-    EXPECT_EQ(*territory, "United States"sv);
+    EXPECT_EQ(*territory, "United States"_sv);
 
-    territory = Unicode::region_display_name("en"sv, "i-definitely-don't-exist"sv);
+    territory = Unicode::region_display_name("en"_sv, "i-definitely-don't-exist"_sv);
     EXPECT(!territory.has_value());
 
-    auto script = Unicode::script_display_name("en"sv, "Latn"sv);
+    auto script = Unicode::script_display_name("en"_sv, "Latn"_sv);
     EXPECT(script.has_value());
-    EXPECT_EQ(*script, "Latin"sv);
+    EXPECT_EQ(*script, "Latin"_sv);
 
-    script = Unicode::script_display_name("en"sv, "i-definitely-don't-exist"sv);
+    script = Unicode::script_display_name("en"_sv, "i-definitely-don't-exist"_sv);
     EXPECT(!script.has_value());
 }
 
 TEST_CASE(locale_mappings_fr)
 {
-    auto language = Unicode::language_display_name("fr"sv, "en"sv, Unicode::LanguageDisplay::Standard);
+    auto language = Unicode::language_display_name("fr"_sv, "en"_sv, Unicode::LanguageDisplay::Standard);
     EXPECT(language.has_value());
-    EXPECT_EQ(*language, "anglais"sv);
+    EXPECT_EQ(*language, "anglais"_sv);
 
-    language = Unicode::language_display_name("fr"sv, "i-definitely-don't-exist"sv, Unicode::LanguageDisplay::Standard);
+    language = Unicode::language_display_name("fr"_sv, "i-definitely-don't-exist"_sv, Unicode::LanguageDisplay::Standard);
     EXPECT(!language.has_value());
 
-    auto territory = Unicode::region_display_name("fr"sv, "US"sv);
+    auto territory = Unicode::region_display_name("fr"_sv, "US"_sv);
     EXPECT(territory.has_value());
-    EXPECT_EQ(*territory, "États-Unis"sv);
+    EXPECT_EQ(*territory, "États-Unis"_sv);
 
-    territory = Unicode::region_display_name("fr"sv, "i-definitely-don't-exist"sv);
+    territory = Unicode::region_display_name("fr"_sv, "i-definitely-don't-exist"_sv);
     EXPECT(!territory.has_value());
 
-    auto script = Unicode::script_display_name("fr"sv, "Latn"sv);
+    auto script = Unicode::script_display_name("fr"_sv, "Latn"_sv);
     EXPECT(script.has_value());
-    EXPECT_EQ(*script, "latin"sv);
+    EXPECT_EQ(*script, "latin"_sv);
 
-    script = Unicode::script_display_name("fr"sv, "i-definitely-don't-exist"sv);
+    script = Unicode::script_display_name("fr"_sv, "i-definitely-don't-exist"_sv);
     EXPECT(!script.has_value());
 }
 
 TEST_CASE(locale_mappings_root)
 {
-    auto language = Unicode::language_display_name("und"sv, "en"sv, Unicode::LanguageDisplay::Standard);
+    auto language = Unicode::language_display_name("und"_sv, "en"_sv, Unicode::LanguageDisplay::Standard);
     EXPECT(language.has_value());
-    EXPECT_EQ(*language, "en"sv);
+    EXPECT_EQ(*language, "en"_sv);
 
-    language = Unicode::language_display_name("und"sv, "i-definitely-don't-exist"sv, Unicode::LanguageDisplay::Standard);
+    language = Unicode::language_display_name("und"_sv, "i-definitely-don't-exist"_sv, Unicode::LanguageDisplay::Standard);
     EXPECT(!language.has_value());
 
-    auto territory = Unicode::region_display_name("und"sv, "US"sv);
+    auto territory = Unicode::region_display_name("und"_sv, "US"_sv);
     EXPECT(territory.has_value());
-    EXPECT_EQ(*territory, "US"sv);
+    EXPECT_EQ(*territory, "US"_sv);
 
-    territory = Unicode::region_display_name("und"sv, "i-definitely-don't-exist"sv);
+    territory = Unicode::region_display_name("und"_sv, "i-definitely-don't-exist"_sv);
     EXPECT(!territory.has_value());
 
-    auto script = Unicode::script_display_name("und"sv, "Latn"sv);
+    auto script = Unicode::script_display_name("und"_sv, "Latn"_sv);
     EXPECT(script.has_value());
-    EXPECT_EQ(*script, "Latn"sv);
+    EXPECT_EQ(*script, "Latn"_sv);
 
-    script = Unicode::script_display_name("und"sv, "i-definitely-don't-exist"sv);
+    script = Unicode::script_display_name("und"_sv, "i-definitely-don't-exist"_sv);
     EXPECT(!script.has_value());
 }

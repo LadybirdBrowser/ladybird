@@ -83,7 +83,7 @@ void generate_table(SourceGenerator generator, StringView name, LookupTable& tab
     for (size_t i = 0; i < table.code_points.size(); i++) {
         generator.append(MUST(String::formatted("{:#04x}", table.code_points[i])));
         if (i != table.code_points.size() - 1)
-            generator.append(i % 16 == 15 ? ",\n    "sv : ", "sv);
+            generator.append(i % 16 == 15 ? ",\n    "_sv : ", "_sv);
     }
     generator.appendln("\n};");
     if (table.generate_accessor)
@@ -242,7 +242,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto json_data = TRY(json_file->read_until_eof());
     auto data = TRY(JsonValue::from_string(json_data)).as_object();
 
-    auto gb18030_table = prepare_table(data.get("gb18030"sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes);
+    auto gb18030_table = prepare_table(data.get("gb18030"_sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes);
 
     // FIXME: Encoding specification is not updated to GB-18030-2022 yet (https://github.com/whatwg/encoding/issues/312)
     // NOTE: See https://commits.webkit.org/264918@main
@@ -266,41 +266,41 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     gb18030_table.code_points[23845] = 0x9fbb;
 
     LookupTables tables {
-        .gb18030_ranges = data.get("gb18030-ranges"sv)->as_array(),
+        .gb18030_ranges = data.get("gb18030-ranges"_sv)->as_array(),
         .indexes = {
-            { "gb18030"sv, move(gb18030_table) },
-            { "big5"sv, prepare_table(data.get("big5"sv)->as_array(), GenerateAccessor::Yes) },
-            { "jis0208"sv, prepare_table(data.get("jis0208"sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes) },
-            { "jis0212"sv, prepare_table(data.get("jis0212"sv)->as_array(), GenerateAccessor::Yes) },
-            { "euc_kr"sv, prepare_table(data.get("euc-kr"sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes) },
-            { "ibm866"sv, prepare_table(data.get("ibm866"sv)->as_array()) },
-            { "iso_2022_jp_katakana"sv, prepare_table(data.get("iso-2022-jp-katakana"sv)->as_array(), GenerateAccessor::Yes) },
-            { "iso_8859_2"sv, prepare_table(data.get("iso-8859-2"sv)->as_array()) },
-            { "iso_8859_3"sv, prepare_table(data.get("iso-8859-3"sv)->as_array()) },
-            { "iso_8859_4"sv, prepare_table(data.get("iso-8859-4"sv)->as_array()) },
-            { "iso_8859_5"sv, prepare_table(data.get("iso-8859-5"sv)->as_array()) },
-            { "iso_8859_6"sv, prepare_table(data.get("iso-8859-6"sv)->as_array()) },
-            { "iso_8859_7"sv, prepare_table(data.get("iso-8859-7"sv)->as_array()) },
-            { "iso_8859_8"sv, prepare_table(data.get("iso-8859-8"sv)->as_array()) },
-            { "iso_8859_10"sv, prepare_table(data.get("iso-8859-10"sv)->as_array()) },
-            { "iso_8859_13"sv, prepare_table(data.get("iso-8859-13"sv)->as_array()) },
-            { "iso_8859_14"sv, prepare_table(data.get("iso-8859-14"sv)->as_array()) },
-            { "iso_8859_15"sv, prepare_table(data.get("iso-8859-15"sv)->as_array()) },
-            { "iso_8859_16"sv, prepare_table(data.get("iso-8859-16"sv)->as_array()) },
-            { "koi8_r"sv, prepare_table(data.get("koi8-r"sv)->as_array()) },
-            { "koi8_u"sv, prepare_table(data.get("koi8-u"sv)->as_array()) },
-            { "macintosh"sv, prepare_table(data.get("macintosh"sv)->as_array()) },
-            { "windows_874"sv, prepare_table(data.get("windows-874"sv)->as_array()) },
-            { "windows_1250"sv, prepare_table(data.get("windows-1250"sv)->as_array()) },
-            { "windows_1251"sv, prepare_table(data.get("windows-1251"sv)->as_array()) },
-            { "windows_1252"sv, prepare_table(data.get("windows-1252"sv)->as_array()) },
-            { "windows_1253"sv, prepare_table(data.get("windows-1253"sv)->as_array()) },
-            { "windows_1254"sv, prepare_table(data.get("windows-1254"sv)->as_array()) },
-            { "windows_1255"sv, prepare_table(data.get("windows-1255"sv)->as_array()) },
-            { "windows_1256"sv, prepare_table(data.get("windows-1256"sv)->as_array()) },
-            { "windows_1257"sv, prepare_table(data.get("windows-1257"sv)->as_array()) },
-            { "windows_1258"sv, prepare_table(data.get("windows-1258"sv)->as_array()) },
-            { "x_mac_cyrillic"sv, prepare_table(data.get("x-mac-cyrillic"sv)->as_array()) },
+            { "gb18030"_sv, move(gb18030_table) },
+            { "big5"_sv, prepare_table(data.get("big5"_sv)->as_array(), GenerateAccessor::Yes) },
+            { "jis0208"_sv, prepare_table(data.get("jis0208"_sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes) },
+            { "jis0212"_sv, prepare_table(data.get("jis0212"_sv)->as_array(), GenerateAccessor::Yes) },
+            { "euc_kr"_sv, prepare_table(data.get("euc-kr"_sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes) },
+            { "ibm866"_sv, prepare_table(data.get("ibm866"_sv)->as_array()) },
+            { "iso_2022_jp_katakana"_sv, prepare_table(data.get("iso-2022-jp-katakana"_sv)->as_array(), GenerateAccessor::Yes) },
+            { "iso_8859_2"_sv, prepare_table(data.get("iso-8859-2"_sv)->as_array()) },
+            { "iso_8859_3"_sv, prepare_table(data.get("iso-8859-3"_sv)->as_array()) },
+            { "iso_8859_4"_sv, prepare_table(data.get("iso-8859-4"_sv)->as_array()) },
+            { "iso_8859_5"_sv, prepare_table(data.get("iso-8859-5"_sv)->as_array()) },
+            { "iso_8859_6"_sv, prepare_table(data.get("iso-8859-6"_sv)->as_array()) },
+            { "iso_8859_7"_sv, prepare_table(data.get("iso-8859-7"_sv)->as_array()) },
+            { "iso_8859_8"_sv, prepare_table(data.get("iso-8859-8"_sv)->as_array()) },
+            { "iso_8859_10"_sv, prepare_table(data.get("iso-8859-10"_sv)->as_array()) },
+            { "iso_8859_13"_sv, prepare_table(data.get("iso-8859-13"_sv)->as_array()) },
+            { "iso_8859_14"_sv, prepare_table(data.get("iso-8859-14"_sv)->as_array()) },
+            { "iso_8859_15"_sv, prepare_table(data.get("iso-8859-15"_sv)->as_array()) },
+            { "iso_8859_16"_sv, prepare_table(data.get("iso-8859-16"_sv)->as_array()) },
+            { "koi8_r"_sv, prepare_table(data.get("koi8-r"_sv)->as_array()) },
+            { "koi8_u"_sv, prepare_table(data.get("koi8-u"_sv)->as_array()) },
+            { "macintosh"_sv, prepare_table(data.get("macintosh"_sv)->as_array()) },
+            { "windows_874"_sv, prepare_table(data.get("windows-874"_sv)->as_array()) },
+            { "windows_1250"_sv, prepare_table(data.get("windows-1250"_sv)->as_array()) },
+            { "windows_1251"_sv, prepare_table(data.get("windows-1251"_sv)->as_array()) },
+            { "windows_1252"_sv, prepare_table(data.get("windows-1252"_sv)->as_array()) },
+            { "windows_1253"_sv, prepare_table(data.get("windows-1253"_sv)->as_array()) },
+            { "windows_1254"_sv, prepare_table(data.get("windows-1254"_sv)->as_array()) },
+            { "windows_1255"_sv, prepare_table(data.get("windows-1255"_sv)->as_array()) },
+            { "windows_1256"_sv, prepare_table(data.get("windows-1256"_sv)->as_array()) },
+            { "windows_1257"_sv, prepare_table(data.get("windows-1257"_sv)->as_array()) },
+            { "windows_1258"_sv, prepare_table(data.get("windows-1258"_sv)->as_array()) },
+            { "x_mac_cyrillic"_sv, prepare_table(data.get("x-mac-cyrillic"_sv)->as_array()) },
         },
     };
 

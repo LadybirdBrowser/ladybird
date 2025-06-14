@@ -54,11 +54,11 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
 
     // 2. If options's entryTypes and type members are both omitted, then throw a "TypeError".
     if (!options.entry_types.has_value() && !options.type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Must specify one of entryTypes or type"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Must specify one of entryTypes or type"_sv };
 
     // 3. If options's entryTypes is present and any other member is also present, then throw a "TypeError".
     if (options.entry_types.has_value() && (options.type.has_value() || options.buffered.has_value()))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot specify type or buffered if entryTypes is specified"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot specify type or buffered if entryTypes is specified"_sv };
 
     // 4. Update or check this's observer type by running these steps:
     // 1. If this's observer type is "undefined":

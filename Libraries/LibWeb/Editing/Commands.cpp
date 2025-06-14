@@ -517,20 +517,20 @@ bool command_font_size_action(DOM::Document& document, String const& value)
     // 2. If value is not a valid floating point number, and would not be a valid floating point number if a single
     //    leading "+" character were stripped, return false.
     if (!HTML::is_valid_floating_point_number(resulting_value)) {
-        if (!resulting_value.starts_with_bytes("+"sv)
+        if (!resulting_value.starts_with_bytes("+"_sv)
             || !HTML::is_valid_floating_point_number(MUST(resulting_value.substring_from_byte_offset(1))))
             return false;
     }
 
     // 3. If the first character of value is "+", delete the character and let mode be "relative-plus".
     auto mode = FontSizeMode::Absolute;
-    if (resulting_value.starts_with_bytes("+"sv)) {
+    if (resulting_value.starts_with_bytes("+"_sv)) {
         resulting_value = MUST(resulting_value.substring_from_byte_offset(1));
         mode = FontSizeMode::RelativePlus;
     }
 
     // 4. Otherwise, if the first character of value is "-", delete the character and let mode be "relative-minus".
-    else if (resulting_value.starts_with_bytes("-"sv)) {
+    else if (resulting_value.starts_with_bytes("-"_sv)) {
         resulting_value = MUST(resulting_value.substring_from_byte_offset(1));
         mode = FontSizeMode::RelativeMinus;
     }
@@ -623,7 +623,7 @@ bool command_format_block_action(DOM::Document& document, String const& value)
     // 1. If value begins with a "<" character and ends with a ">" character, remove the first and last characters from
     //    it.
     auto resulting_value = value;
-    if (resulting_value.starts_with_bytes("<"sv) && resulting_value.ends_with_bytes(">"sv))
+    if (resulting_value.starts_with_bytes("<"_sv) && resulting_value.ends_with_bytes(">"_sv))
         resulting_value = MUST(resulting_value.substring_from_byte_offset(1, resulting_value.bytes_as_string_view().length() - 2));
 
     // 2. Let value be converted to ASCII lowercase.
@@ -746,7 +746,7 @@ bool command_format_block_action(DOM::Document& document, String const& value)
         auto result = wrap(
             sublist,
             [&](GC::Ref<DOM::Node> sibling) {
-                if (resulting_value.is_one_of("div"sv, "p"sv))
+                if (resulting_value.is_one_of("div"_sv, "p"_sv))
                     return false;
                 auto const* html_element = as_if<HTML::HTMLElement>(*sibling);
                 return html_element && html_element->local_name() == resulting_value && !html_element->has_attributes();
@@ -1755,7 +1755,7 @@ bool command_insert_text_action(DOM::Document& document, String const& value)
         return true;
 
     // 5. If value is a newline (U+000A), take the action for the insertParagraph command and return true.
-    if (value == "\n"sv) {
+    if (value == "\n"_sv) {
         command_insert_paragraph_action(document, {});
         return true;
     }
@@ -1833,7 +1833,7 @@ bool command_insert_text_action(DOM::Document& document, String const& value)
     canonicalize_whitespace(active_range(document)->end(), false);
 
     // 18. If value is a space character, autolink the active range's start.
-    if (value == " "sv)
+    if (value == " "_sv)
         autolink(active_range(document)->start());
 
     // 19. Call collapseToEnd() on the context object's selection.
@@ -2279,7 +2279,7 @@ bool command_style_with_css_action(DOM::Document& document, String const& value)
 {
     // If value is an ASCII case-insensitive match for the string "false", set the CSS styling flag to false.
     // Otherwise, set the CSS styling flag to true.
-    document.set_css_styling_flag(!value.equals_ignoring_ascii_case("false"sv));
+    document.set_css_styling_flag(!value.equals_ignoring_ascii_case("false"_sv));
 
     // Either way, return true.
     return true;
@@ -2325,11 +2325,11 @@ bool command_subscript_indeterminate(DOM::Document const& document)
         if (!node_value.has_value())
             return TraversalDecision::Continue;
 
-        if (node_value.value() == "subscript"sv) {
+        if (node_value.value() == "subscript"_sv) {
             has_subscript_value = true;
         } else {
             has_other_value = true;
-            if (!has_mixed_value && node_value.value() == "mixed"sv)
+            if (!has_mixed_value && node_value.value() == "mixed"_sv)
                 has_mixed_value = true;
         }
         if (has_subscript_value && has_other_value)
@@ -2378,11 +2378,11 @@ bool command_superscript_indeterminate(DOM::Document const& document)
         if (!node_value.has_value())
             return TraversalDecision::Continue;
 
-        if (node_value.value() == "superscript"sv) {
+        if (node_value.value() == "superscript"_sv) {
             has_superscript_value = true;
         } else {
             has_other_value = true;
-            if (!has_mixed_value && node_value.value() == "mixed"sv)
+            if (!has_mixed_value && node_value.value() == "mixed"_sv)
                 has_mixed_value = true;
         }
         if (has_superscript_value && has_other_value)
@@ -2455,7 +2455,7 @@ bool command_use_css_action(DOM::Document& document, String const& value)
 {
     // If value is an ASCII case-insensitive match for the string "false", set the CSS styling flag to true.
     // Otherwise, set the CSS styling flag to false.
-    document.set_css_styling_flag(value.equals_ignoring_ascii_case("false"sv));
+    document.set_css_styling_flag(value.equals_ignoring_ascii_case("false"_sv));
 
     // Either way, return true.
     return true;
@@ -2474,7 +2474,7 @@ static Array const commands {
         .command = CommandNames::bold,
         .action = command_bold_action,
         .relevant_css_property = CSS::PropertyID::FontWeight,
-        .inline_activated_values = { "bold"sv, "600"sv, "700"sv, "800"sv, "900"sv },
+        .inline_activated_values = { "bold"_sv, "600"_sv, "700"_sv, "800"_sv, "900"_sv },
         .mapped_value = "formatBold"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-createlink-command
@@ -2607,7 +2607,7 @@ static Array const commands {
         .command = CommandNames::italic,
         .action = command_italic_action,
         .relevant_css_property = CSS::PropertyID::FontStyle,
-        .inline_activated_values = { "italic"sv, "oblique"sv },
+        .inline_activated_values = { "italic"_sv, "oblique"_sv },
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
     CommandDefinition {
@@ -2679,7 +2679,7 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::strikethrough,
         .action = command_strikethrough_action,
-        .inline_activated_values = { "line-through"sv },
+        .inline_activated_values = { "line-through"_sv },
         .mapped_value = "formatStrikeThrough"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
@@ -2693,21 +2693,21 @@ static Array const commands {
         .command = CommandNames::subscript,
         .action = command_subscript_action,
         .indeterminate = command_subscript_indeterminate,
-        .inline_activated_values = { "subscript"sv },
+        .inline_activated_values = { "subscript"_sv },
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-superscript-command
     CommandDefinition {
         .command = CommandNames::superscript,
         .action = command_superscript_action,
         .indeterminate = command_superscript_indeterminate,
-        .inline_activated_values = { "superscript"sv },
+        .inline_activated_values = { "superscript"_sv },
         .mapped_value = "formatSuperscript"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-underline-command
     CommandDefinition {
         .command = CommandNames::underline,
         .action = command_underline_action,
-        .inline_activated_values = { "underline"sv },
+        .inline_activated_values = { "underline"_sv },
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-unlink-command
     CommandDefinition {

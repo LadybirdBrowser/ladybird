@@ -105,13 +105,13 @@ CanvasPattern::~CanvasPattern() = default;
 WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& realm, CanvasImageSource const& image, StringView repetition)
 {
     auto parse_repetition = [&](auto repetition) -> Optional<CanvasPatternPaintStyle::Repetition> {
-        if (repetition == "repeat"sv)
+        if (repetition == "repeat"_sv)
             return CanvasPatternPaintStyle::Repetition::Repeat;
-        if (repetition == "repeat-x"sv)
+        if (repetition == "repeat-x"_sv)
             return CanvasPatternPaintStyle::Repetition::RepeatX;
-        if (repetition == "repeat-y"sv)
+        if (repetition == "repeat-y"_sv)
             return CanvasPatternPaintStyle::Repetition::RepeatY;
-        if (repetition == "no-repeat"sv)
+        if (repetition == "no-repeat"_sv)
             return CanvasPatternPaintStyle::Repetition::NoRepeat;
         return {};
     };
@@ -128,7 +128,7 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& rea
 
     // 4. If repetition is the empty string, then set it to "repeat".
     if (repetition.is_empty())
-        repetition = "repeat"sv;
+        repetition = "repeat"_sv;
 
     // 5. If repetition is not identical to one of "repeat", "repeat-x", "repeat-y", or "no-repeat",
     // then throw a "SyntaxError" DOMException.

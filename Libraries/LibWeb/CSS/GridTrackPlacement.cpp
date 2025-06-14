@@ -15,7 +15,7 @@ String GridTrackPlacement::to_string() const
     StringBuilder builder;
     m_value.visit(
         [&](Auto const&) {
-            builder.append("auto"sv);
+            builder.append("auto"_sv);
         },
         [&](AreaOrLine const& area_or_line) {
             if (area_or_line.line_number.has_value() && area_or_line.name.has_value()) {

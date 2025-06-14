@@ -286,17 +286,17 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> FontLoader::try_load_font(Fetch::Inf
         mime_type = MimeSniff::Resource::sniff(bytes, MimeSniff::SniffingConfiguration { .sniffing_context = MimeSniff::SniffingContext::Font });
     }
     if (mime_type.has_value()) {
-        if (mime_type->essence() == "font/ttf"sv || mime_type->essence() == "application/x-font-ttf"sv || mime_type->essence() == "font/otf"sv) {
+        if (mime_type->essence() == "font/ttf"_sv || mime_type->essence() == "application/x-font-ttf"_sv || mime_type->essence() == "font/otf"_sv) {
             if (auto result = Gfx::Typeface::try_load_from_temporary_memory(bytes); !result.is_error()) {
                 return result;
             }
         }
-        if (mime_type->essence() == "font/woff"sv || mime_type->essence() == "application/font-woff"sv) {
+        if (mime_type->essence() == "font/woff"_sv || mime_type->essence() == "application/font-woff"_sv) {
             if (auto result = WOFF::try_load_from_bytes(bytes); !result.is_error()) {
                 return result;
             }
         }
-        if (mime_type->essence() == "font/woff2"sv || mime_type->essence() == "application/font-woff2"sv) {
+        if (mime_type->essence() == "font/woff2"_sv || mime_type->essence() == "application/font-woff2"_sv) {
             if (auto result = WOFF2::try_load_from_bytes(bytes); !result.is_error()) {
                 return result;
             }
@@ -373,13 +373,13 @@ Optional<String> StyleComputer::user_agent_style_sheet_source(StringView name)
     extern String mathml_stylesheet_source;
     extern String svg_stylesheet_source;
 
-    if (name == "CSS/Default.css"sv)
+    if (name == "CSS/Default.css"_sv)
         return default_stylesheet_source;
-    if (name == "CSS/QuirksMode.css"sv)
+    if (name == "CSS/QuirksMode.css"_sv)
         return quirks_mode_stylesheet_source;
-    if (name == "MathML/Default.css"sv)
+    if (name == "MathML/Default.css"_sv)
         return mathml_stylesheet_source;
-    if (name == "SVG/Default.css"sv)
+    if (name == "SVG/Default.css"_sv)
         return svg_stylesheet_source;
     return {};
 }
@@ -2349,13 +2349,13 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
         if (element.namespace_uri() != Namespace::MathML)
             new_display = CSS::Display { display.outside(), CSS::DisplayInside::Flow };
         // For the mtable element the computed value is block table and inline table respectively.
-        else if (element.tag_name().equals_ignoring_ascii_case("mtable"sv))
+        else if (element.tag_name().equals_ignoring_ascii_case("mtable"_sv))
             new_display = CSS::Display { display.outside(), CSS::DisplayInside::Table };
         // For the mtr element, the computed value is table-row.
-        else if (element.tag_name().equals_ignoring_ascii_case("mtr"sv))
+        else if (element.tag_name().equals_ignoring_ascii_case("mtr"_sv))
             new_display = CSS::Display { CSS::DisplayInternal::TableRow };
         // For the mtd element, the computed value is table-cell.
-        else if (element.tag_name().equals_ignoring_ascii_case("mtd"sv))
+        else if (element.tag_name().equals_ignoring_ascii_case("mtd"_sv))
             new_display = CSS::Display { CSS::DisplayInternal::TableCell };
     }
 
@@ -2983,7 +2983,7 @@ void StyleComputer::build_qualified_layer_names_cache()
 
     // Now, produce a flat list of qualified names to use later
     m_qualified_layer_names_in_order.clear();
-    flatten_layer_names_tree(m_qualified_layer_names_in_order, ""sv, {}, root);
+    flatten_layer_names_tree(m_qualified_layer_names_in_order, ""_sv, {}, root);
 }
 
 void StyleComputer::build_rule_cache()

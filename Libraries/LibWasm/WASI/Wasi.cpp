@@ -925,7 +925,7 @@ struct Names {
     static ErrorOr<Names> construct()
     {
         return Names {
-#define NAME(x) .x = TRY(FlyString::from_utf8(#x##sv)),
+#define NAME(x) .x = TRY(FlyString::from_utf8(#x##_sv)),
             ENUMERATE_FUNCTION_NAMES(NAME)
 #undef NAME
         };
@@ -939,7 +939,7 @@ ErrorOr<HostFunction> Implementation::function_by_name(StringView name)
 
 #define IMPL(x)                         \
     if (name_for_comparison == names.x) \
-        return invocation_of<&Implementation::impl$##x>(#x##sv);
+        return invocation_of<&Implementation::impl$##x>(#x##_sv);
 
     ENUMERATE_FUNCTION_NAMES(IMPL)
 
@@ -1230,7 +1230,7 @@ template<>
 struct Formatter<Wasm::Wasi::Errno> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::Errno const& value)
     {
-        return Formatter<FormatString>::format(builder, "{}"sv, to_underlying(value));
+        return Formatter<FormatString>::format(builder, "{}"_sv, to_underlying(value));
     }
 };
 
@@ -1247,9 +1247,9 @@ struct Formatter<Wasm::Wasi::Result<T>> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::Result<T> const& value)
     {
         if (value.is_error())
-            return Formatter<FormatString>::format(builder, "Error({})"sv, *value.error());
+            return Formatter<FormatString>::format(builder, "Error({})"_sv, *value.error());
 
-        return Formatter<FormatString>::format(builder, "Ok({})"sv, *value.result());
+        return Formatter<FormatString>::format(builder, "Ok({})"_sv, *value.result());
     }
 };
 
@@ -1257,7 +1257,7 @@ template<OneOf<Wasm::Wasi::ArgsSizes, Wasm::Wasi::EnvironSizes> T>
 struct Formatter<T> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, T const& value)
     {
-        return Formatter<FormatString>::format(builder, "size={}, count={}"sv, value.size, value.count);
+        return Formatter<FormatString>::format(builder, "size={}, count={}"_sv, value.size, value.count);
     }
 };
 
@@ -1265,7 +1265,7 @@ template<>
 struct Formatter<Wasm::Wasi::FDStat> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::FDStat const&)
     {
-        return Formatter<FormatString>::format(builder, "(rights)"sv);
+        return Formatter<FormatString>::format(builder, "(rights)"_sv);
     }
 };
 
@@ -1273,7 +1273,7 @@ template<>
 struct Formatter<Wasm::Wasi::FileStat> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::FileStat const& value)
     {
-        return Formatter<FormatString>::format(builder, "dev={}, ino={}, ft={}, nlink={}, size={}, atim={}, mtim={}, ctim={}"sv,
+        return Formatter<FormatString>::format(builder, "dev={}, ino={}, ft={}, nlink={}, size={}, atim={}, mtim={}, ctim={}"_sv,
             value.dev, value.ino, to_underlying(value.filetype), value.nlink, value.size, value.atim, value.mtim, value.ctim);
     }
 };
@@ -1282,7 +1282,7 @@ template<>
 struct Formatter<Wasm::Wasi::PreStat> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::PreStat const& value)
     {
-        return Formatter<FormatString>::format(builder, "length={}"sv, value.dir.pr_name_len);
+        return Formatter<FormatString>::format(builder, "length={}"_sv, value.dir.pr_name_len);
     }
 };
 
@@ -1290,7 +1290,7 @@ template<>
 struct Formatter<Wasm::Wasi::SockRecvResult> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::SockRecvResult const& value)
     {
-        return Formatter<FormatString>::format(builder, "size={}"sv, value.size);
+        return Formatter<FormatString>::format(builder, "size={}"_sv, value.size);
     }
 };
 

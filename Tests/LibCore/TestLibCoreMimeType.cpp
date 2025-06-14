@@ -18,38 +18,38 @@ static void check_filename_mimetype(Vector<StringView> const& filepaths, StringV
 }
 
 auto text_plain_filenames = Vector {
-    "main.c"sv,
-    "hello.txt"sv,
-    ".history"sv,
-    ".shellrc"sv,
-    "CMakeList.txt"sv,
+    "main.c"_sv,
+    "hello.txt"_sv,
+    ".history"_sv,
+    ".shellrc"_sv,
+    "CMakeList.txt"_sv,
 };
 // FIXME: fails because .xht extension is in MimeType text/html and application/xhtml+xml
-// auto html_filenames = Vector {"about.html"sv, "send-data-blob.htm"sv, "content.xht"sv, "dir/settings.html"sv,};
+// auto html_filenames = Vector {"about.html"_sv, "send-data-blob.htm"_sv, "content.xht"_sv, "dir/settings.html"_sv,};
 auto xhtml_filenames = Vector {
-    "about.xhtml"sv,
-    "content.xht"sv,
+    "about.xhtml"_sv,
+    "content.xht"_sv,
 };
 auto gzip_filenames = Vector {
-    "download.iso.gz"sv,
-    "backup.gzip"sv,
-    "hello.html.gz"sv,
+    "download.iso.gz"_sv,
+    "backup.gzip"_sv,
+    "hello.html.gz"_sv,
 };
 auto markdown_filenames = Vector {
-    "README.md"sv,
-    "changelog.md"sv,
+    "README.md"_sv,
+    "changelog.md"_sv,
 };
 auto shell_filenames = Vector {
-    "script.sh"sv,
+    "script.sh"_sv,
 };
 
 TEST_CASE(various_types_guessed)
 {
-    check_filename_mimetype(text_plain_filenames, "text/plain"sv);
+    check_filename_mimetype(text_plain_filenames, "text/plain"_sv);
     // FIXME: fails because .xht extension is in MimeType text/html and application/xhtml+xml
-    // check_filename_mimetype(html_filenames, "text/html"sv);
-    check_filename_mimetype(xhtml_filenames, "application/xhtml+xml"sv);
-    check_filename_mimetype(gzip_filenames, "application/gzip"sv);
-    check_filename_mimetype(markdown_filenames, "text/markdown"sv);
-    check_filename_mimetype(shell_filenames, "text/x-shellscript"sv);
+    // check_filename_mimetype(html_filenames, "text/html"_sv);
+    check_filename_mimetype(xhtml_filenames, "application/xhtml+xml"_sv);
+    check_filename_mimetype(gzip_filenames, "application/gzip"_sv);
+    check_filename_mimetype(markdown_filenames, "text/markdown"_sv);
+    check_filename_mimetype(shell_filenames, "text/x-shellscript"_sv);
 }

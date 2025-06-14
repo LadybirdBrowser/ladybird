@@ -323,7 +323,7 @@ Vector<FlyString> SourceTextModule::get_exported_names(VM& vm, HashTable<Module 
         // d. For each element n of starNames, do
         for (auto const& name : star_names) {
             // i. If n is not "default", then
-            if (name != "default"sv) {
+            if (name != "default"_sv) {
                 // 1. If exportedNames does not contain n, then
                 if (!exported_names.contains_slow(name)) {
                     // a. Append n to exportedNames.
@@ -612,7 +612,7 @@ ResolvedBinding SourceTextModule::resolve_export(VM& vm, FlyString const& export
     }
 
     // 7. If exportName is "default", then
-    if (export_name == "default"sv) {
+    if (export_name == "default"_sv) {
         // a. Assert: A default export was not explicitly defined by this module.
         // FIXME: What does this mean? / How do we check this
 

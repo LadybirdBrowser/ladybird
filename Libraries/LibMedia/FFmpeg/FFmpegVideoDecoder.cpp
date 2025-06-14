@@ -62,11 +62,11 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
 
     if (!codec_initialization_data.is_empty()) {
         if (codec_initialization_data.size() > NumericLimits<int>::max())
-            return DecoderError::corrupted("Codec initialization data is too large"sv);
+            return DecoderError::corrupted("Codec initialization data is too large"_sv);
 
         codec_context->extradata = static_cast<u8*>(av_malloc(codec_initialization_data.size() + AV_INPUT_BUFFER_PADDING_SIZE));
         if (!codec_context->extradata)
-            return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate codec initialization data buffer for FFmpeg codec"sv);
+            return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate codec initialization data buffer for FFmpeg codec"_sv);
 
         memcpy(codec_context->extradata, codec_initialization_data.data(), codec_initialization_data.size());
         codec_context->extradata_size = static_cast<int>(codec_initialization_data.size());
@@ -77,11 +77,11 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
 
     packet = av_packet_alloc();
     if (!packet)
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg packet"sv);
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg packet"_sv);
 
     frame = av_frame_alloc();
     if (!frame)
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg frame"sv);
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg frame"_sv);
 
     memory_guard.disarm();
     return DECODER_TRY_ALLOC(try_make<FFmpegVideoDecoder>(codec_context, packet, frame));
@@ -115,15 +115,15 @@ DecoderErrorOr<void> FFmpegVideoDecoder::receive_sample(AK::Duration timestamp, 
     case 0:
         return {};
     case AVERROR(EAGAIN):
-        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder cannot decode any more data until frames have been retrieved"sv);
+        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder cannot decode any more data until frames have been retrieved"_sv);
     case AVERROR_EOF:
-        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "FFmpeg decoder has been flushed"sv);
+        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "FFmpeg decoder has been flushed"_sv);
     case AVERROR(EINVAL):
-        return DecoderError::with_description(DecoderErrorCategory::Invalid, "FFmpeg codec has not been opened"sv);
+        return DecoderError::with_description(DecoderErrorCategory::Invalid, "FFmpeg codec has not been opened"_sv);
     case AVERROR(ENOMEM):
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "FFmpeg codec ran out of internal memory"sv);
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "FFmpeg codec ran out of internal memory"_sv);
     default:
-        return DecoderError::with_description(DecoderErrorCategory::Corrupted, "FFmpeg codec reports that the data is corrupted"sv);
+        return DecoderError::with_description(DecoderErrorCategory::Corrupted, "FFmpeg codec reports that the data is corrupted"_sv);
     }
 }
 
@@ -195,7 +195,7 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
         for (u32 plane = 0; plane < 3; plane++) {
             VERIFY(m_frame->linesize[plane] != 0);
             if (m_frame->linesize[plane] < 0)
-                return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Reversed scanlines are not supported"sv);
+                return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Reversed scanlines are not supported"_sv);
 
             bool const use_subsampling = plane > 0;
             auto plane_size = (use_subsampling ? subsampling.subsampled_size(size) : size).to_type<size_t>();
@@ -218,11 +218,11 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
         return frame;
     }
     case AVERROR(EAGAIN):
-        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder has no frames available, send more input"sv);
+        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder has no frames available, send more input"_sv);
     case AVERROR_EOF:
-        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "FFmpeg decoder has been flushed"sv);
+        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "FFmpeg decoder has been flushed"_sv);
     case AVERROR(EINVAL):
-        return DecoderError::with_description(DecoderErrorCategory::Invalid, "FFmpeg codec has not been opened"sv);
+        return DecoderError::with_description(DecoderErrorCategory::Invalid, "FFmpeg codec has not been opened"_sv);
     default:
         return DecoderError::format(DecoderErrorCategory::Unknown, "FFmpeg codec encountered an unexpected error retreiving frames with code {:x}", result);
     }

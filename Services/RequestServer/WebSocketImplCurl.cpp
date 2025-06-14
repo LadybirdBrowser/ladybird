@@ -83,15 +83,15 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
 
     if (auto const& protocols = info.protocols(); !protocols.is_empty()) {
         StringBuilder protocol_builder;
-        protocol_builder.append("Sec-WebSocket-Protocol: "sv);
-        protocol_builder.append(ByteString::join(","sv, protocols));
+        protocol_builder.append("Sec-WebSocket-Protocol: "_sv);
+        protocol_builder.append(ByteString::join(","_sv, protocols));
         curl_headers = curl_slist_append(curl_headers, protocol_builder.to_byte_string().characters());
     }
 
     if (auto const& extensions = info.extensions(); !extensions.is_empty()) {
         StringBuilder protocol_builder;
-        protocol_builder.append("Sec-WebSocket-Extensions: "sv);
-        protocol_builder.append(ByteString::join(","sv, extensions));
+        protocol_builder.append("Sec-WebSocket-Extensions: "_sv);
+        protocol_builder.append(ByteString::join(","_sv, extensions));
         curl_headers = curl_slist_append(curl_headers, protocol_builder.to_byte_string().characters());
     }
 

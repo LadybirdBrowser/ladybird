@@ -10,9 +10,9 @@ namespace Web::CSS {
 
 PreferredColorScheme preferred_color_scheme_from_string(StringView value)
 {
-    if (value.equals_ignoring_ascii_case("light"sv))
+    if (value.equals_ignoring_ascii_case("light"_sv))
         return PreferredColorScheme::Light;
-    if (value.equals_ignoring_ascii_case("dark"sv))
+    if (value.equals_ignoring_ascii_case("dark"_sv))
         return PreferredColorScheme::Dark;
     return PreferredColorScheme::Auto;
 }
@@ -21,11 +21,11 @@ StringView preferred_color_scheme_to_string(PreferredColorScheme value)
 {
     switch (value) {
     case PreferredColorScheme::Light:
-        return "light"sv;
+        return "light"_sv;
     case PreferredColorScheme::Dark:
-        return "dark"sv;
+        return "dark"_sv;
     case PreferredColorScheme::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     }
     VERIFY_NOT_REACHED();
 }

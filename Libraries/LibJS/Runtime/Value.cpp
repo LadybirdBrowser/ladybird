@@ -83,24 +83,24 @@ static void number_to_string_impl(StringBuilder& builder, double d, NumberToStri
 
     // 1. If x is NaN, return "NaN".
     if (isnan(d)) {
-        builder.append("NaN"sv);
+        builder.append("NaN"_sv);
         return;
     }
 
     // 2. If x is +0𝔽 or -0𝔽, return "0".
     if (d == +0.0 || d == -0.0) {
-        builder.append("0"sv);
+        builder.append("0"_sv);
         return;
     }
 
     // 4. If x is +∞𝔽, return "Infinity".
     if (isinf(d)) {
         if (d > 0) {
-            builder.append("Infinity"sv);
+            builder.append("Infinity"_sv);
             return;
         }
 
-        builder.append("-Infinity"sv);
+        builder.append("-Infinity"_sv);
         return;
     }
 
@@ -644,19 +644,19 @@ static Optional<NumberParseResult> parse_number_text(StringView text)
     };
 
     // https://tc39.es/ecma262/#sec-tonumber-applied-to-the-string-type
-    if (check_prefix("0b"sv, "0B"sv)) {
+    if (check_prefix("0b"_sv, "0B"_sv)) {
         if (!all_of(text.substring_view(2), is_ascii_binary_digit))
             return {};
 
         result.literal = text.substring_view(2);
         result.base = 2;
-    } else if (check_prefix("0o"sv, "0O"sv)) {
+    } else if (check_prefix("0o"_sv, "0O"_sv)) {
         if (!all_of(text.substring_view(2), is_ascii_octal_digit))
             return {};
 
         result.literal = text.substring_view(2);
         result.base = 8;
-    } else if (check_prefix("0x"sv, "0X"sv)) {
+    } else if (check_prefix("0x"_sv, "0X"_sv)) {
         if (!all_of(text.substring_view(2), is_ascii_hex_digit))
             return {};
 
@@ -682,9 +682,9 @@ double string_to_number(StringView string)
     // 2. Let literal be ParseText(text, StringNumericLiteral).
     if (text.is_empty())
         return 0;
-    if (text == "Infinity"sv || text == "+Infinity"sv)
+    if (text == "Infinity"_sv || text == "+Infinity"_sv)
         return INFINITY;
-    if (text == "-Infinity"sv)
+    if (text == "-Infinity"_sv)
         return -INFINITY;
 
     auto result = parse_number_text(text);
@@ -822,13 +822,13 @@ static Optional<BigIntParseResult> parse_bigint_text(StringView text)
         return all_of(text.substring_view(2), validator);
     };
 
-    if (parse_for_prefixed_base("0b"sv, "0B"sv, is_ascii_binary_digit)) {
+    if (parse_for_prefixed_base("0b"_sv, "0B"_sv, is_ascii_binary_digit)) {
         result.literal = text.substring_view(2);
         result.base = 2;
-    } else if (parse_for_prefixed_base("0o"sv, "0O"sv, is_ascii_octal_digit)) {
+    } else if (parse_for_prefixed_base("0o"_sv, "0O"_sv, is_ascii_octal_digit)) {
         result.literal = text.substring_view(2);
         result.base = 8;
-    } else if (parse_for_prefixed_base("0x"sv, "0X"sv, is_ascii_hex_digit)) {
+    } else if (parse_for_prefixed_base("0x"_sv, "0X"_sv, is_ascii_hex_digit)) {
         result.literal = text.substring_view(2);
         result.base = 16;
     } else {

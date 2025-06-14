@@ -45,6 +45,6 @@ static constexpr auto max_allowed_vector_size = 500 * MiB;
 static constexpr auto max_allowed_function_locals_per_type = 42069; // Note: VERY arbitrary.
 
 // Messages used by the host
-static constexpr auto stack_exhaustion_message = "STACK-EXHAUSTION"sv;
+static constexpr auto stack_exhaustion_message = "STACK-EXHAUSTION"_sv;
 
 }

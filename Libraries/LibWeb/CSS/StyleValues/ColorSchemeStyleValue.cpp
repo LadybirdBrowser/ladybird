@@ -26,7 +26,7 @@ String ColorSchemeStyleValue::to_string(SerializationMode) const
     }
 
     if (only())
-        builder.append(" only"sv);
+        builder.append(" only"_sv);
 
     return MUST(builder.to_string());
 }

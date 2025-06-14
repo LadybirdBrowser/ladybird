@@ -93,13 +93,13 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
     // Scalar: 'T.const[:\s]v' (i32.const 42)
     auto parse_scalar = []<typename T>(StringView text) -> ErrorOr<Wasm::Value> {
         if constexpr (IsFloatingPoint<T>) {
-            if (text.trim_whitespace().equals_ignoring_ascii_case("nan"sv)) {
+            if (text.trim_whitespace().equals_ignoring_ascii_case("nan"_sv)) {
                 if constexpr (IsSame<T, float>)
                     return Wasm::Value { nanf("") };
                 else
                     return Wasm::Value { nan("") };
             }
-            if (text.trim_whitespace().equals_ignoring_ascii_case("inf"sv)) {
+            if (text.trim_whitespace().equals_ignoring_ascii_case("inf"_sv)) {
                 if constexpr (IsSame<T, float>)
                     return Wasm::Value { HUGE_VALF };
                 else
@@ -113,7 +113,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
     // Vector: 'v128.const[:\s]v' (v128.const 0x01000000020000000300000004000000) or 'v(T.const[:\s]v, ...)' (v(i32.const 1, i32.const 2, i32.const 3, i32.const 4))
     auto parse_u128 = [](StringView text) -> ErrorOr<Wasm::Value> {
         u128 value;
-        if (text.starts_with("0x"sv)) {
+        if (text.starts_with("0x"_sv)) {
             if (auto v = convert_to_uint_from_hex(text); v.has_value())
                 value = *v;
             else
@@ -129,7 +129,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
     };
 
     GenericLexer lexer(spec);
-    if (lexer.consume_specific("v128.const"sv)) {
+    if (lexer.consume_specific("v128.const"_sv)) {
         lexer.ignore_while(is_sep);
         // The rest of the string is the value
         auto text = lexer.consume_all();
@@ -139,7 +139,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
         };
     }
 
-    if (lexer.consume_specific("i8.const"sv)) {
+    if (lexer.consume_specific("i8.const"_sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
         return ParsedValue {
@@ -147,7 +147,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
             .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
         };
     }
-    if (lexer.consume_specific("i16.const"sv)) {
+    if (lexer.consume_specific("i16.const"_sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
         return ParsedValue {
@@ -155,7 +155,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
             .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
         };
     }
-    if (lexer.consume_specific("i32.const"sv)) {
+    if (lexer.consume_specific("i32.const"_sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
         return ParsedValue {
@@ -163,7 +163,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
             .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
         };
     }
-    if (lexer.consume_specific("i64.const"sv)) {
+    if (lexer.consume_specific("i64.const"_sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
         return ParsedValue {
@@ -171,7 +171,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
             .type = Wasm::ValueType(Wasm::ValueType::Kind::I64)
         };
     }
-    if (lexer.consume_specific("f32.const"sv)) {
+    if (lexer.consume_specific("f32.const"_sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
         return ParsedValue {
@@ -179,7 +179,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
             .type = Wasm::ValueType(Wasm::ValueType::Kind::F32)
         };
     }
-    if (lexer.consume_specific("f64.const"sv)) {
+    if (lexer.consume_specific("f64.const"_sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
         return ParsedValue {
@@ -188,17 +188,17 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
         };
     }
 
-    if (lexer.consume_specific("v("sv)) {
+    if (lexer.consume_specific("v("_sv)) {
         Vector<ParsedValue> values;
         for (;;) {
             lexer.ignore_while(is_sep);
-            if (lexer.consume_specific(")"sv))
+            if (lexer.consume_specific(")"_sv))
                 break;
             if (lexer.is_eof()) {
                 warnln("Expected ')' to close vector");
                 break;
             }
-            auto value = parse_value(lexer.consume_until(is_any_of(",)"sv)));
+            auto value = parse_value(lexer.consume_until(is_any_of(",)"_sv)));
             if (value.is_error())
                 return value.release_error();
             lexer.consume_specific(',');
@@ -385,7 +385,7 @@ static bool pre_interpret_hook(Wasm::Configuration& config, Wasm::InstructionPoi
                 }
             }
         }
-        if (cmd == "call"sv) {
+        if (cmd == "call"_sv) {
             if (args.size() < 2) {
                 warnln("call what?");
                 continue;
@@ -459,7 +459,7 @@ static bool pre_interpret_hook(Wasm::Configuration& config, Wasm::InstructionPoi
                     warnln("Returned:");
                 size_t index = 0;
                 for (auto& value : result.values()) {
-                    g_stdout->write_until_depleted("  -> "sv.bytes()).release_value_but_fixme_should_propagate_errors();
+                    g_stdout->write_until_depleted("  -> "_sv.bytes()).release_value_but_fixme_should_propagate_errors();
                     g_printer->print(value, type.results()[index]);
                     ++index;
                 }
@@ -472,8 +472,8 @@ static bool pre_interpret_hook(Wasm::Configuration& config, Wasm::InstructionPoi
                 warnln("(un)set what (to what)?");
                 continue;
             }
-            if (args[1] == "print"sv) {
-                if (args[2] == "stack"sv)
+            if (args[1] == "print"_sv) {
+                if (args[2] == "stack"_sv)
                     always_print_stack = value;
                 else if (args[2].is_one_of("instr", "instruction"))
                     always_print_instruction = value;
@@ -686,7 +686,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         if (wasi) {
             HashMap<Wasm::Linker::Name, Wasm::ExternValue> wasi_exports;
             for (auto& entry : linker.unresolved_imports()) {
-                if (entry.module != "wasi_snapshot_preview1"sv)
+                if (entry.module != "wasi_snapshot_preview1"_sv)
                     continue;
                 auto function = wasi_impl->function_by_name(entry.name);
                 if (function.is_error()) {
@@ -718,7 +718,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                             if (first)
                                 first = false;
                             else
-                                argument_builder.append(", "sv);
+                                argument_builder.append(", "_sv);
                             auto buffer = ByteBuffer::create_uninitialized(stream.used_buffer_size()).release_value_but_fixme_should_propagate_errors();
                             stream.read_until_filled(buffer).release_value_but_fixme_should_propagate_errors();
                             argument_builder.append(StringView(buffer).trim_whitespace());
@@ -775,9 +775,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 fn->visit(
                     [&](Wasm::WasmFunction const& func) {
                         Wasm::Printer printer { *g_stdout, 3 };
-                        g_stdout->write_until_depleted("    type:\n"sv).release_value_but_fixme_should_propagate_errors();
+                        g_stdout->write_until_depleted("    type:\n"_sv).release_value_but_fixme_should_propagate_errors();
                         printer.print(func.type());
-                        g_stdout->write_until_depleted("    code:\n"sv).release_value_but_fixme_should_propagate_errors();
+                        g_stdout->write_until_depleted("    code:\n"_sv).release_value_but_fixme_should_propagate_errors();
                         printer.print(func.code());
                     },
                     [](Wasm::HostFunction const&) {});
@@ -841,7 +841,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
             if (result.is_trap()) {
                 auto trap_reason = result.trap().format();
-                if (trap_reason.starts_with("exit:"sv))
+                if (trap_reason.starts_with("exit:"_sv))
                     return -trap_reason.substring_view(5).to_number<i32>().value_or(-1);
                 warnln("Execution trapped: {}", trap_reason);
             } else {
@@ -850,7 +850,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 auto result_type = instance->get<Wasm::WasmFunction>().type().results();
                 size_t index = 0;
                 for (auto& value : result.values()) {
-                    g_stdout->write_until_depleted("  -> "sv.bytes()).release_value_but_fixme_should_propagate_errors();
+                    g_stdout->write_until_depleted("  -> "_sv.bytes()).release_value_but_fixme_should_propagate_errors();
                     g_printer->print(value, result_type[index]);
                     ++index;
                 }

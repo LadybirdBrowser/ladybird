@@ -11,7 +11,7 @@
 
 TEST_CASE(decode_ascii)
 {
-    Utf8View utf8 { "Hello World!11"sv };
+    Utf8View utf8 { "Hello World!11"_sv };
     EXPECT(utf8.validate());
 
     u32 expected[] = { 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33, 49, 49 };
@@ -28,7 +28,7 @@ TEST_CASE(decode_ascii)
 
 TEST_CASE(decode_utf8)
 {
-    Utf8View utf8 { "Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv };
+    Utf8View utf8 { "Привет, мир! 😀 γειά σου κόσμος こんにちは世界"_sv };
     size_t valid_bytes;
     EXPECT(utf8.validate(valid_bytes));
     EXPECT(valid_bytes == (size_t)utf8.byte_length());
@@ -142,7 +142,7 @@ TEST_CASE(validate_overlong_utf8)
 
 TEST_CASE(iterate_utf8)
 {
-    Utf8View view("Some weird characters \u00A9\u266A\uA755"sv);
+    Utf8View view("Some weird characters \u00A9\u266A\uA755"_sv);
     Utf8CodePointIterator iterator = view.begin();
 
     EXPECT(*iterator == 'S');
@@ -278,33 +278,33 @@ TEST_CASE(decode_invalid_ut8)
 
 TEST_CASE(trim)
 {
-    Utf8View whitespace { " "sv };
+    Utf8View whitespace { " "_sv };
     {
-        Utf8View view { "word"sv };
+        Utf8View view { "word"_sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "word");
     }
     {
-        Utf8View view { "   word"sv };
+        Utf8View view { "   word"_sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "   word");
     }
     {
-        Utf8View view { "word   "sv };
+        Utf8View view { "word   "_sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "word   ");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "word");
     }
     {
-        Utf8View view { "   word   "sv };
+        Utf8View view { "   word   "_sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "word   ");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "   word");
     }
     {
-        Utf8View view { "\u180E"sv };
+        Utf8View view { "\u180E"_sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "\u180E");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "\u180E");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "\u180E");
@@ -315,7 +315,7 @@ static bool is_period(u32 code_point) { return code_point == '.'; }
 
 TEST_CASE(for_each_split_view)
 {
-    Utf8View view { "...Well..hello.friends!..."sv };
+    Utf8View view { "...Well..hello.friends!..."_sv };
     auto gather = [&](auto split_behavior) {
         Vector<StringView> results;
         view.for_each_split_view(is_period, split_behavior, [&](auto part) {
@@ -325,18 +325,18 @@ TEST_CASE(for_each_split_view)
     };
 
     EXPECT_EQ(gather(SplitBehavior::Nothing),
-        Vector({ "Well"sv, "hello"sv, "friends!"sv }));
+        Vector({ "Well"_sv, "hello"_sv, "friends!"_sv }));
     EXPECT_EQ(gather(SplitBehavior::KeepEmpty),
-        Vector({ ""sv, ""sv, ""sv, "Well"sv, ""sv, "hello"sv, "friends!"sv, ""sv, ""sv, ""sv }));
+        Vector({ ""_sv, ""_sv, ""_sv, "Well"_sv, ""_sv, "hello"_sv, "friends!"_sv, ""_sv, ""_sv, ""_sv }));
     EXPECT_EQ(gather(SplitBehavior::KeepTrailingSeparator),
-        Vector({ "Well."sv, "hello."sv, "friends!."sv }));
+        Vector({ "Well."_sv, "hello."_sv, "friends!."_sv }));
     EXPECT_EQ(gather(SplitBehavior::KeepEmpty | SplitBehavior::KeepTrailingSeparator),
-        Vector({ "."sv, "."sv, "."sv, "Well."sv, "."sv, "hello."sv, "friends!."sv, "."sv, "."sv, ""sv }));
+        Vector({ "."_sv, "."_sv, "."_sv, "Well."_sv, "."_sv, "hello."_sv, "friends!."_sv, "."_sv, "."_sv, ""_sv }));
 }
 
 TEST_CASE(code_point_offset_of)
 {
-    Utf8View view { "😭foo"sv };
+    Utf8View view { "😭foo"_sv };
 
     EXPECT_EQ(0u, view.code_point_offset_of(0));
     EXPECT_EQ(0u, view.code_point_offset_of(1));

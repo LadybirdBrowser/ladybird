@@ -18,13 +18,13 @@ GC::Ref<PasswordCredential> PasswordCredential::create(JS::Realm& realm)
 // https://www.w3.org/TR/credential-management-1/#dom-passwordcredential-passwordcredential
 WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, HTML::HTMLFormElement const&)
 {
-    return realm.vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "construct"sv);
+    return realm.vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "construct"_sv);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-passwordcredential-passwordcredential-data
 WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, PasswordCredentialData const&)
 {
-    return realm.vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "construct"sv);
+    return realm.vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "construct"_sv);
 }
 
 PasswordCredential::~PasswordCredential()

@@ -84,15 +84,15 @@ void HTMLOListElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
     // https://html.spec.whatwg.org/multipage/rendering.html#lists
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::type) {
-            if (value == "1"sv) {
+            if (value == "1"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Decimal));
-            } else if (value == "a"sv) {
+            } else if (value == "a"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::LowerAlpha));
-            } else if (value == "A"sv) {
+            } else if (value == "A"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::UpperAlpha));
-            } else if (value == "i"sv) {
+            } else if (value == "i"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::LowerRoman));
-            } else if (value == "I"sv) {
+            } else if (value == "I"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::UpperRoman));
             }
         }

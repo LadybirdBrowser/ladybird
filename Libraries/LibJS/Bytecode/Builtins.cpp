@@ -16,7 +16,7 @@ Optional<Builtin> get_builtin(MemberExpression const& expression)
     auto base_name = static_cast<Identifier const&>(expression.object()).string();
     auto property_name = static_cast<Identifier const&>(expression.property()).string();
 #define CHECK_MEMBER_BUILTIN(name, snake_case_name, base, property, ...) \
-    if (base_name == #base##sv && property_name == #property##sv)        \
+    if (base_name == #base##_sv && property_name == #property##_sv)      \
         return Builtin::name;
     JS_ENUMERATE_BUILTINS(CHECK_MEMBER_BUILTIN)
 #undef CHECK_MEMBER_BUILTIN

@@ -116,7 +116,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(WritableStreamDe
 
     // 1. If ! IsWritableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_writable_stream_locked(stream))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is locked"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is locked"_sv };
 
     // 2. Set writer.[[stream]] to stream.
     writer.set_stream(stream);
@@ -248,7 +248,7 @@ GC::Ref<WebIDL::Promise> writable_stream_close(WritableStream& stream)
 
     // 2. If state is "closed" or "errored", return a promise rejected with a TypeError exception.
     if (state == WritableStream::State::Closed || state == WritableStream::State::Errored) {
-        auto message = state == WritableStream::State::Closed ? "Cannot close a closed stream"sv : "Cannot close an errored stream"sv;
+        auto message = state == WritableStream::State::Closed ? "Cannot close a closed stream"_sv : "Cannot close an errored stream"_sv;
         auto exception = JS::TypeError::create(realm, message);
 
         return WebIDL::create_rejected_promise(realm, exception);
@@ -801,7 +801,7 @@ void writable_stream_default_writer_release(WritableStreamDefaultWriter& writer)
     VERIFY(stream->writer().ptr() == &writer);
 
     // 4. Let releasedError be a new TypeError.
-    auto released_error = JS::TypeError::create(realm, "Writer's stream lock has been released"sv);
+    auto released_error = JS::TypeError::create(realm, "Writer's stream lock has been released"_sv);
 
     // 5. Perform ! WritableStreamDefaultWriterEnsureReadyPromiseRejected(writer, releasedError).
     writable_stream_default_writer_ensure_ready_promise_rejected(writer, released_error);
@@ -835,7 +835,7 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_write(WritableStreamDefa
 
     // 5. If stream is not equal to writer.[[stream]], return a promise rejected with a TypeError exception.
     if (stream.ptr() != writer.stream().ptr()) {
-        auto exception = JS::TypeError::create(realm, "Writer's locked stream changed during write"sv);
+        auto exception = JS::TypeError::create(realm, "Writer's locked stream changed during write"_sv);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
@@ -848,7 +848,7 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_write(WritableStreamDefa
 
     // 8. If ! WritableStreamCloseQueuedOrInFlight(stream) is true or state is "closed", return a promise rejected with a TypeError exception indicating that the stream is closing or closed.
     if (writable_stream_close_queued_or_in_flight(*stream) || state == WritableStream::State::Closed) {
-        auto exception = JS::TypeError::create(realm, "Cannot write to a writer whose stream is closing or already closed"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot write to a writer whose stream is closing or already closed"_sv);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 

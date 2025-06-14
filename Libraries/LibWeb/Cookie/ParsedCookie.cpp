@@ -167,19 +167,19 @@ void parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringVi
 
 void process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value)
 {
-    if (attribute_name.equals_ignoring_ascii_case("Expires"sv)) {
+    if (attribute_name.equals_ignoring_ascii_case("Expires"_sv)) {
         on_expires_attribute(parsed_cookie, attribute_value);
-    } else if (attribute_name.equals_ignoring_ascii_case("Max-Age"sv)) {
+    } else if (attribute_name.equals_ignoring_ascii_case("Max-Age"_sv)) {
         on_max_age_attribute(parsed_cookie, attribute_value);
-    } else if (attribute_name.equals_ignoring_ascii_case("Domain"sv)) {
+    } else if (attribute_name.equals_ignoring_ascii_case("Domain"_sv)) {
         on_domain_attribute(parsed_cookie, attribute_value);
-    } else if (attribute_name.equals_ignoring_ascii_case("Path"sv)) {
+    } else if (attribute_name.equals_ignoring_ascii_case("Path"_sv)) {
         on_path_attribute(url, parsed_cookie, attribute_value);
-    } else if (attribute_name.equals_ignoring_ascii_case("Secure"sv)) {
+    } else if (attribute_name.equals_ignoring_ascii_case("Secure"_sv)) {
         on_secure_attribute(parsed_cookie);
-    } else if (attribute_name.equals_ignoring_ascii_case("HttpOnly"sv)) {
+    } else if (attribute_name.equals_ignoring_ascii_case("HttpOnly"_sv)) {
         on_http_only_attribute(parsed_cookie);
-    } else if (attribute_name.equals_ignoring_ascii_case("SameSite"sv)) {
+    } else if (attribute_name.equals_ignoring_ascii_case("SameSite"_sv)) {
         on_same_site_attribute(parsed_cookie, attribute_value);
     }
 }

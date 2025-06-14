@@ -15,20 +15,20 @@ static NonnullOwnPtr<Media::VideoDecoder> make_decoder(Media::Matroska::SampleIt
 
 TEST_CASE(webm_in_vp9)
 {
-    decode_video("./vp9_in_webm.webm"sv, 25, make_decoder);
+    decode_video("./vp9_in_webm.webm"_sv, 25, make_decoder);
 }
 
 TEST_CASE(vp9_oob_blocks)
 {
-    decode_video("./vp9_oob_blocks.webm"sv, 240, make_decoder);
+    decode_video("./vp9_oob_blocks.webm"_sv, 240, make_decoder);
 }
 
 BENCHMARK_CASE(vp9_4k)
 {
-    decode_video("./vp9_4k.webm"sv, 2, make_decoder);
+    decode_video("./vp9_4k.webm"_sv, 2, make_decoder);
 }
 
 BENCHMARK_CASE(vp9_clamp_reference_mvs)
 {
-    decode_video("./vp9_clamp_reference_mvs.webm"sv, 92, make_decoder);
+    decode_video("./vp9_clamp_reference_mvs.webm"_sv, 92, make_decoder);
 }

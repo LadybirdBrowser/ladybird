@@ -154,7 +154,7 @@ void ViewImplementation::load_html(StringView html)
 
 void ViewImplementation::load_empty_document()
 {
-    load_html(""sv);
+    load_html(""_sv);
 }
 
 void ViewImplementation::reload()
@@ -595,10 +595,10 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
         client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
 
     if (Application::browser_options().allow_popups == AllowPopups::Yes)
-        client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);
+        client().async_debug_request(m_client_state.page_index, "block-pop-ups"_sv, "off"_sv);
 
     if (auto const& user_agent_preset = Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
-        client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, *user_agents.get(*user_agent_preset));
+        client().async_debug_request(m_client_state.page_index, "spoof-user-agent"_sv, *user_agents.get(*user_agent_preset));
 
     languages_changed();
     autoplay_settings_changed();
@@ -629,7 +629,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
 
     if (load_error_page == LoadErrorPage::Yes) {
         StringBuilder builder;
-        builder.append("<!DOCTYPE html>"sv);
+        builder.append("<!DOCTYPE html>"_sv);
         builder.append("<html lang=\"en\"><head><meta charset=\"UTF-8\"><title>Error!</title><style>"
                        ":root { color-scheme: light dark; font-family: system-ui, sans-serif; }"
                        "body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; text-align: center; }"
@@ -637,15 +637,15 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
                        "svg { height: 64px; width: auto; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }"
                        "h1 { margin: 0; font-size: 1.5rem; }"
                        "p { font-size: 1rem; color: #555; }"
-                       "</style></head><body>"sv);
-        builder.append("<header>"sv);
-        builder.append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 17.5 21.5\">"sv);
-        builder.append("<path class=\"b\" d=\"M11.75.75h-9c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-13l-5-5z\"/>"sv);
-        builder.append("<path class=\"b\" d=\"M10.75.75v4c0 1.1.9 2 2 2h4M4.75 9.75l2 2M10.75 9.75l2 2M12.75 9.75l-2 2M6.75 9.75l-2 2M5.75 16.75c1-2.67 5-2.67 6 0\"/></svg>"sv);
+                       "</style></head><body>"_sv);
+        builder.append("<header>"_sv);
+        builder.append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 17.5 21.5\">"_sv);
+        builder.append("<path class=\"b\" d=\"M11.75.75h-9c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-13l-5-5z\"/>"_sv);
+        builder.append("<path class=\"b\" d=\"M10.75.75v4c0 1.1.9 2 2 2h4M4.75 9.75l2 2M10.75 9.75l2 2M12.75 9.75l-2 2M6.75 9.75l-2 2M5.75 16.75c1-2.67 5-2.67 6 0\"/></svg>"_sv);
         auto escaped_url = escape_html_entities(m_url.to_byte_string());
-        builder.append("<h1>Ladybird flew off-course!</h1>"sv);
+        builder.append("<h1>Ladybird flew off-course!</h1>"_sv);
         builder.appendff("<p>The web page <a href=\"{}\">{}</a> has crashed.<br><br>You can reload the page to try again.</p>", escaped_url, escaped_url);
-        builder.append("</body></html>"sv);
+        builder.append("</body></html>"_sv);
         load_html(builder.to_byte_string());
     }
 }
@@ -678,7 +678,7 @@ static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
     if (!bitmap)
         return Error::from_string_literal("Failed to take a screenshot");
 
-    auto file = Core::DateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
+    auto file = Core::DateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"_sv);
     auto path = TRY(Application::the().path_for_downloaded_file(file));
 
     auto encoded = TRY(Gfx::PNGWriter::encode(*bitmap));
@@ -778,7 +778,7 @@ ErrorOr<LexicalPath> ViewImplementation::dump_gc_graph()
     auto gc_graph_json = TRY(promise->await());
 
     LexicalPath path { Core::StandardPaths::tempfile_directory() };
-    path = path.append(TRY(Core::DateTime::now().to_string("gc-graph-%Y-%m-%d-%H-%M-%S.json"sv)));
+    path = path.append(TRY(Core::DateTime::now().to_string("gc-graph-%Y-%m-%d-%H-%M-%S.json"_sv)));
 
     auto dump_file = TRY(Core::File::open(path.string(), Core::File::OpenMode::Write));
     TRY(dump_file->write_until_depleted(gc_graph_json.bytes()));

@@ -58,7 +58,7 @@ namespace Web {
 static void indent(StringBuilder& builder, int levels)
 {
     for (int i = 0; i < levels; i++)
-        builder.append("  "sv);
+        builder.append("  "_sv);
 }
 
 static void dump_session_history_entry(StringBuilder& builder, HTML::SessionHistoryEntry const& session_history_entry, int indent_levels)
@@ -93,17 +93,17 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
 {
     static int indent = 0;
     for (int i = 0; i < indent; ++i)
-        builder.append("  "sv);
+        builder.append("  "_sv);
     if (is<DOM::Element>(node)) {
         builder.appendff("<{}", as<DOM::Element>(node).local_name());
         as<DOM::Element>(node).for_each_attribute([&](auto& name, auto& value) {
             builder.appendff(" {}={}", name, value);
         });
-        builder.append(">\n"sv);
+        builder.append(">\n"_sv);
         auto& element = as<DOM::Element>(node);
         if (element.use_pseudo_element().has_value()) {
             for (int i = 0; i < indent; ++i)
-                builder.append("  "sv);
+                builder.append("  "_sv);
             builder.appendff("  (pseudo-element: {})\n", CSS::pseudo_element_name(element.use_pseudo_element().value()));
         }
     } else if (is<DOM::Text>(node)) {
@@ -122,8 +122,8 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
             if (is<SVG::SVGDecodedImageData>(*image_data)) {
                 ++indent;
                 for (int i = 0; i < indent; ++i)
-                    builder.append("  "sv);
-                builder.append("(SVG-as-image isolated context)\n"sv);
+                    builder.append("  "_sv);
+                builder.append("(SVG-as-image isolated context)\n"_sv);
                 auto& svg_data = as<SVG::SVGDecodedImageData>(*image_data);
                 dump_tree(builder, svg_data.svg_document());
                 --indent;
@@ -133,10 +133,10 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     if (is<HTML::HTMLTemplateElement>(node)) {
         auto& template_element = as<HTML::HTMLTemplateElement>(node);
         for (int i = 0; i < indent; ++i)
-            builder.append("  "sv);
-        builder.append("(template content)\n"sv);
+            builder.append("  "_sv);
+        builder.append("(template content)\n"_sv);
         dump_tree(builder, template_element.content());
-        builder.append("(template normal subtree)\n"sv);
+        builder.append("(template normal subtree)\n"_sv);
     }
     if (is<DOM::ParentNode>(node)) {
         static_cast<DOM::ParentNode const&>(node).for_each_child([&](auto& child) {
@@ -158,7 +158,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 {
     static size_t indent = 0;
     for (size_t i = 0; i < indent; ++i)
-        builder.append("  "sv);
+        builder.append("  "_sv);
 
     FlyString tag_name;
     if (layout_node.is_anonymous())
@@ -183,32 +183,32 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         identifier = MUST(builder.to_string());
     }
 
-    StringView nonbox_color_on = ""sv;
-    StringView box_color_on = ""sv;
-    StringView svg_box_color_on = ""sv;
-    StringView positioned_color_on = ""sv;
-    StringView floating_color_on = ""sv;
-    StringView inline_color_on = ""sv;
-    StringView line_box_color_on = ""sv;
-    StringView fragment_color_on = ""sv;
-    StringView flex_color_on = ""sv;
-    StringView table_color_on = ""sv;
-    StringView formatting_context_color_on = ""sv;
-    StringView color_off = ""sv;
+    StringView nonbox_color_on = ""_sv;
+    StringView box_color_on = ""_sv;
+    StringView svg_box_color_on = ""_sv;
+    StringView positioned_color_on = ""_sv;
+    StringView floating_color_on = ""_sv;
+    StringView inline_color_on = ""_sv;
+    StringView line_box_color_on = ""_sv;
+    StringView fragment_color_on = ""_sv;
+    StringView flex_color_on = ""_sv;
+    StringView table_color_on = ""_sv;
+    StringView formatting_context_color_on = ""_sv;
+    StringView color_off = ""_sv;
 
     if (interactive) {
-        nonbox_color_on = "\033[33m"sv;
-        box_color_on = "\033[34m"sv;
-        svg_box_color_on = "\033[31m"sv;
-        positioned_color_on = "\033[31;1m"sv;
-        floating_color_on = "\033[32;1m"sv;
-        inline_color_on = "\033[36;1m"sv;
-        line_box_color_on = "\033[34;1m"sv;
-        fragment_color_on = "\033[35;1m"sv;
-        flex_color_on = "\033[34;1m"sv;
-        table_color_on = "\033[91;1m"sv;
-        formatting_context_color_on = "\033[37;1m"sv;
-        color_off = "\033[0m"sv;
+        nonbox_color_on = "\033[33m"_sv;
+        box_color_on = "\033[34m"_sv;
+        svg_box_color_on = "\033[31m"_sv;
+        positioned_color_on = "\033[31;1m"_sv;
+        floating_color_on = "\033[32;1m"_sv;
+        inline_color_on = "\033[36;1m"_sv;
+        line_box_color_on = "\033[34;1m"_sv;
+        fragment_color_on = "\033[35;1m"_sv;
+        flex_color_on = "\033[34;1m"_sv;
+        table_color_on = "\033[91;1m"_sv;
+        formatting_context_color_on = "\033[37;1m"_sv;
+        color_off = "\033[0m"_sv;
     }
 
     auto dump_box_model = [&] {
@@ -283,16 +283,16 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             StringView direction;
             switch (box.computed_values().flex_direction()) {
             case CSS::FlexDirection::Column:
-                direction = "column"sv;
+                direction = "column"_sv;
                 break;
             case CSS::FlexDirection::ColumnReverse:
-                direction = "column-reverse"sv;
+                direction = "column-reverse"_sv;
                 break;
             case CSS::FlexDirection::Row:
-                direction = "row"sv;
+                direction = "row"_sv;
                 break;
             case CSS::FlexDirection::RowReverse:
-                direction = "row-reverse"sv;
+                direction = "row-reverse"_sv;
                 break;
             }
             builder.appendff(" {}flex-container({}){}", flex_color_on, direction, color_off);
@@ -344,7 +344,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             auto const& frame_box = static_cast<Layout::NavigableContainerViewport const&>(box);
             if (auto const* document = frame_box.dom_node().content_document_without_origin_check()) {
                 builder.appendff(" (url: {})", document->url());
-                builder.append("\n"sv);
+                builder.append("\n"_sv);
                 if (auto const* nested_layout_root = document->layout_node()) {
                     ++indent;
                     dump_tree(builder, *nested_layout_root, show_box_model, show_cascaded_properties, interactive);
@@ -356,9 +356,9 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
     if (is<Layout::NodeWithStyleAndBoxModelMetrics>(layout_node)
         && static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(layout_node).continuation_of_node())
-        builder.append(" continuation"sv);
+        builder.append(" continuation"_sv);
 
-    builder.append("\n"sv);
+    builder.append("\n"_sv);
 
     if (layout_node.dom_node() && is<HTML::HTMLImageElement>(*layout_node.dom_node())) {
         if (auto image_data = static_cast<HTML::HTMLImageElement const&>(*layout_node.dom_node()).current_request().image_data()) {
@@ -367,8 +367,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                 if (svg_data.svg_document().layout_node()) {
                     ++indent;
                     for (size_t i = 0; i < indent; ++i)
-                        builder.append("  "sv);
-                    builder.append("(SVG-as-image isolated context)\n"sv);
+                        builder.append("  "_sv);
+                    builder.append("(SVG-as-image isolated context)\n"_sv);
 
                     dump_tree(builder, *svg_data.svg_document().layout_node(), show_box_model, show_cascaded_properties, interactive);
                     --indent;
@@ -379,7 +379,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
     auto dump_fragment = [&](auto& fragment, size_t fragment_index) {
         for (size_t i = 0; i < indent; ++i)
-            builder.append("  "sv);
+            builder.append("  "_sv);
         builder.appendff("  {}frag {}{} from {} ",
             fragment_color_on,
             fragment_index,
@@ -392,7 +392,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             fragment.baseline());
         if (is<Layout::TextNode>(fragment.layout_node())) {
             for (size_t i = 0; i < indent; ++i)
-                builder.append("  "sv);
+                builder.append("  "_sv);
             auto const& layout_text = static_cast<Layout::TextNode const&>(fragment.layout_node());
             auto fragment_text = MUST(layout_text.text_for_rendering().substring_from_byte_offset(fragment.start_byte_offset(), fragment.length_in_bytes()));
             builder.appendff("      \"{}\"\n", fragment_text);
@@ -432,7 +432,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
         for (auto& property : properties) {
             for (size_t i = 0; i < indent; ++i)
-                builder.append("    "sv);
+                builder.append("    "_sv);
             builder.appendff("  ({}: {})\n", property.name, property.value);
         }
     }
@@ -457,16 +457,16 @@ static void dump_qualified_name(StringBuilder& builder, CSS::Selector::SimpleSel
     StringView namespace_type;
     switch (qualified_name.namespace_type) {
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default:
-        namespace_type = "Default"sv;
+        namespace_type = "Default"_sv;
         break;
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
-        namespace_type = "None"sv;
+        namespace_type = "None"_sv;
         break;
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any:
-        namespace_type = "Any"sv;
+        namespace_type = "Any"_sv;
         break;
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named:
-        namespace_type = "Named"sv;
+        namespace_type = "Named"_sv;
         break;
     }
     builder.appendff("NamespaceType={}, Namespace='{}', Name='{}'", namespace_type, qualified_name.namespace_, qualified_name.name.name);
@@ -475,7 +475,7 @@ static void dump_qualified_name(StringBuilder& builder, CSS::Selector::SimpleSel
 void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.append("CSS::Selector:\n"sv);
+    builder.append("CSS::Selector:\n"_sv);
 
     for (auto& relative_selector : selector.compound_selectors()) {
         indent(builder, indent_levels + 1);
@@ -560,13 +560,13 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                 case CSS::PseudoClassMetadata::ParameterType::ANPlusBOf: {
                     builder.appendff("(step={}, offset={}", pseudo_class.nth_child_pattern.step_size, pseudo_class.nth_child_pattern.offset);
                     if (!pseudo_class.argument_selector_list.is_empty()) {
-                        builder.append(", selectors=[\n"sv);
+                        builder.append(", selectors=[\n"_sv);
                         for (auto const& child_selector : pseudo_class.argument_selector_list)
                             dump_selector(builder, child_selector, indent_levels + 2);
                         indent(builder, indent_levels + 1);
-                        builder.append("]"sv);
+                        builder.append("]"_sv);
                     }
-                    builder.append(")"sv);
+                    builder.append(")"_sv);
                     break;
                 }
                 case CSS::PseudoClassMetadata::ParameterType::CompoundSelector:
@@ -574,11 +574,11 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                 case CSS::PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
                 case CSS::PseudoClassMetadata::ParameterType::RelativeSelectorList:
                 case CSS::PseudoClassMetadata::ParameterType::SelectorList: {
-                    builder.append("([\n"sv);
+                    builder.append("([\n"_sv);
                     for (auto& child_selector : pseudo_class.argument_selector_list)
                         dump_selector(builder, child_selector, indent_levels + 2);
                     indent(builder, indent_levels + 1);
-                    builder.append("])"sv);
+                    builder.append("])"_sv);
                     break;
                 }
                 case CSS::PseudoClassMetadata::ParameterType::Ident:
@@ -644,16 +644,16 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
 
             if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Invalid) {
                 auto invalid = simple_selector.value.get<CSS::Selector::SimpleSelector::Invalid>();
-                builder.append(" '"sv);
+                builder.append(" '"_sv);
                 for (auto const& component_value : invalid.component_values)
                     builder.append(component_value.to_string());
-                builder.append("'"sv);
+                builder.append("'"_sv);
             }
 
             if (i != relative_selector.simple_selectors.size() - 1)
-                builder.append(", "sv);
+                builder.append(", "_sv);
         }
-        builder.append("\n"sv);
+        builder.append("\n"_sv);
     }
 }
 
@@ -731,7 +731,7 @@ void dump_import_rule(StringBuilder& builder, CSS::CSSImportRule const& rule, in
 void dump_keyframe_rule(StringBuilder& builder, CSS::CSSKeyframeRule const& keyframe, int indent_levels)
 {
     indent(builder, indent_levels + 1);
-    builder.appendff("Key: {}\n"sv, keyframe.key_text());
+    builder.appendff("Key: {}\n"_sv, keyframe.key_text());
     dump_style_properties(builder, keyframe.style(), indent_levels + 1);
 }
 
@@ -758,8 +758,8 @@ void dump_layer_block_rule(StringBuilder& builder, CSS::CSSLayerBlockRule const&
 void dump_layer_statement_rule(StringBuilder& builder, CSS::CSSLayerStatementRule const& layer_statement, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.append("  Layer Statement: "sv);
-    builder.join(", "sv, layer_statement.name_list());
+    builder.append("  Layer Statement: "_sv);
+    builder.join(", "_sv, layer_statement.name_list());
 }
 
 void dump_media_rule(StringBuilder& builder, CSS::CSSMediaRule const& media, int indent_levels)
@@ -795,7 +795,7 @@ void dump_margin_rule(StringBuilder& builder, CSS::CSSMarginRule const& margin, 
 void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supports, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.append("  Supports:\n"sv);
+    builder.append("  Supports:\n"_sv);
     supports.supports().dump(builder, indent_levels + 2);
     indent(builder, indent_levels);
     builder.appendff("  Rules ({}):\n", supports.css_rules().length());
@@ -829,14 +829,14 @@ void dump_style_properties(StringBuilder& builder, CSS::CSSStyleProperties const
         indent(builder, indent_levels);
         builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string(CSS::SerializationMode::Normal));
         if (property.important == CSS::Important::Yes)
-            builder.append(" \033[31;1m!important\033[0m"sv);
+            builder.append(" \033[31;1m!important\033[0m"_sv);
         builder.append('\n');
     }
     for (auto& property : declaration.custom_properties()) {
         indent(builder, indent_levels);
         builder.appendff("  {}: '{}'", property.key, property.value.value->to_string(CSS::SerializationMode::Normal));
         if (property.value.important == CSS::Important::Yes)
-            builder.append(" \033[31;1m!important\033[0m"sv);
+            builder.append(" \033[31;1m!important\033[0m"_sv);
         builder.append('\n');
     }
 }
@@ -892,20 +892,20 @@ void dump_tree(Painting::Paintable const& paintable)
 void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, bool colorize, int indent)
 {
     for (int i = 0; i < indent; ++i)
-        builder.append("  "sv);
+        builder.append("  "_sv);
 
-    StringView paintable_with_lines_color_on = ""sv;
-    StringView paintable_box_color_on = ""sv;
-    StringView text_paintable_color_on = ""sv;
-    StringView paintable_color_on = ""sv;
-    StringView color_off = ""sv;
+    StringView paintable_with_lines_color_on = ""_sv;
+    StringView paintable_box_color_on = ""_sv;
+    StringView text_paintable_color_on = ""_sv;
+    StringView paintable_color_on = ""_sv;
+    StringView color_off = ""_sv;
 
     if (colorize) {
-        paintable_with_lines_color_on = "\033[34m"sv;
-        paintable_box_color_on = "\033[33m"sv;
-        text_paintable_color_on = "\033[35m"sv;
-        paintable_color_on = "\033[32m"sv;
-        color_off = "\033[0m"sv;
+        paintable_with_lines_color_on = "\033[34m"_sv;
+        paintable_box_color_on = "\033[33m"_sv;
+        text_paintable_color_on = "\033[35m"_sv;
+        paintable_color_on = "\033[32m"_sv;
+        color_off = "\033[0m"_sv;
     }
 
     if (is<Painting::PaintableWithLines>(paintable))
@@ -931,7 +931,7 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
             builder.appendff(" scroll-offset: {}", paintable_box.scroll_offset());
         }
     }
-    builder.append("\n"sv);
+    builder.append("\n"_sv);
     for (auto const* child = paintable.first_child(); child; child = child->next_sibling()) {
         dump_tree(builder, *child, colorize, indent + 1);
     }
@@ -948,7 +948,7 @@ void dump_namespace_rule(StringBuilder& builder, CSS::CSSNamespaceRule const& na
 void dump_nested_declarations(StringBuilder& builder, CSS::CSSNestedDeclarations const& declarations, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.append("  Nested declarations:\n"sv);
+    builder.append("  Nested declarations:\n"_sv);
     dump_style_properties(builder, declarations.declaration(), indent_levels + 1);
 }
 

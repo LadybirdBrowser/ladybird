@@ -20,17 +20,17 @@ namespace Unicode {
 
 Vector<String> available_keyword_values(StringView locale, StringView key)
 {
-    if (key == "ca"sv)
+    if (key == "ca"_sv)
         return available_calendars(locale);
-    if (key == "co"sv)
+    if (key == "co"_sv)
         return available_collations(locale);
-    if (key == "hc"sv)
+    if (key == "hc"_sv)
         return available_hour_cycles(locale);
-    if (key == "kf"sv)
+    if (key == "kf"_sv)
         return available_collation_case_orderings();
-    if (key == "kn"sv)
+    if (key == "kn"_sv)
         return available_collation_numeric_orderings();
-    if (key == "nu"sv)
+    if (key == "nu"_sv)
         return available_number_systems(locale);
     TODO();
 }
@@ -38,7 +38,7 @@ Vector<String> available_keyword_values(StringView locale, StringView key)
 Vector<String> const& available_calendars()
 {
     static auto calendars = []() {
-        auto calendars = available_calendars("und"sv);
+        auto calendars = available_calendars("und"_sv);
 
         quick_sort(calendars);
         return calendars;
@@ -85,7 +85,7 @@ Vector<String> const& available_currencies()
                 break;
 
             // https://unicode-org.atlassian.net/browse/ICU-21687
-            if (StringView currency { next, static_cast<size_t>(length) }; currency != "LSM"sv)
+            if (StringView currency { next, static_cast<size_t>(length) }; currency != "LSM"_sv)
                 result.append(MUST(String::from_utf8(currency)));
         }
 
@@ -120,7 +120,7 @@ Vector<String> const& available_collations()
         auto collations = icu_string_enumeration_to_list(move(keywords), "co", [](char const* value, size_t value_length) {
             // https://tc39.es/ecma402/#sec-properties-of-intl-collator-instances
             // the values "standard" and "search" are not allowed
-            return !StringView { value, value_length }.is_one_of("standard"sv, "search"sv);
+            return !StringView { value, value_length }.is_one_of("standard"_sv, "search"_sv);
         });
 
         quick_sort(collations);
@@ -145,10 +145,10 @@ Vector<String> available_collations(StringView locale)
     auto collations = icu_string_enumeration_to_list(move(keywords), "co", [](char const* value, size_t value_length) {
         // https://tc39.es/ecma402/#sec-properties-of-intl-collator-instances
         // the values "standard" and "search" are not allowed
-        return !StringView { value, value_length }.is_one_of("standard"sv, "search"sv);
+        return !StringView { value, value_length }.is_one_of("standard"_sv, "search"_sv);
     });
 
-    if (!collations.contains_slow("default"sv))
+    if (!collations.contains_slow("default"_sv))
         collations.prepend("default"_string);
 
     return collations;

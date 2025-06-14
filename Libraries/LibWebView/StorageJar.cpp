@@ -24,15 +24,15 @@ ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database& database)
             bottle_key TEXT,
             bottle_value TEXT,
             PRIMARY KEY(storage_endpoint, storage_key, bottle_key)
-        );)#"sv));
+        );)#"_sv));
     database.execute_statement(create_table, {});
 
-    statements.set_item = TRY(database.prepare_statement("INSERT OR REPLACE INTO WebStorage VALUES (?, ?, ?, ?);"sv));
-    statements.delete_item = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
-    statements.get_item = TRY(database.prepare_statement("SELECT bottle_value FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
-    statements.clear = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
-    statements.get_keys = TRY(database.prepare_statement("SELECT bottle_key FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
-    statements.calculate_size_excluding_key = TRY(database.prepare_statement("SELECT SUM(LENGTH(bottle_key) + LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
+    statements.set_item = TRY(database.prepare_statement("INSERT OR REPLACE INTO WebStorage VALUES (?, ?, ?, ?);"_sv));
+    statements.delete_item = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"_sv));
+    statements.get_item = TRY(database.prepare_statement("SELECT bottle_value FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"_sv));
+    statements.clear = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"_sv));
+    statements.get_keys = TRY(database.prepare_statement("SELECT bottle_key FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"_sv));
+    statements.calculate_size_excluding_key = TRY(database.prepare_statement("SELECT SUM(LENGTH(bottle_key) + LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"_sv));
 
     return adopt_own(*new StorageJar { PersistedStorage { database, statements } });
 }

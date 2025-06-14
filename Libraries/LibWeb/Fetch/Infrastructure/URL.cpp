@@ -46,7 +46,7 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
     StringView input = input_serialized;
 
     // 3. Remove the leading "data:" from input.
-    input = input.substring_view("data:"sv.length());
+    input = input.substring_view("data:"_sv.length());
 
     // 4. Let position point at the start of input.
 
@@ -71,9 +71,9 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
     auto body = URL::percent_decode(encoded_body).to_byte_buffer();
 
     // 11. If mimeType ends with U+003B (;), followed by zero or more U+0020 SPACE, followed by an ASCII case-insensitive match for "base64", then:
-    if (mime_type.ends_with("base64"sv, CaseSensitivity::CaseInsensitive)) {
+    if (mime_type.ends_with("base64"_sv, CaseSensitivity::CaseInsensitive)) {
         auto trimmed_substring_view = mime_type.substring_view(0, mime_type.length() - 6);
-        trimmed_substring_view = trimmed_substring_view.trim(" "sv, TrimMode::Right);
+        trimmed_substring_view = trimmed_substring_view.trim(" "_sv, TrimMode::Right);
         if (trimmed_substring_view.ends_with(';')) {
             // 1. Let stringBody be the isomorphic decode of body.
             auto string_body = Infra::isomorphic_decode(body);
@@ -92,7 +92,7 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
     // 12. If mimeType starts with ";", then prepend "text/plain" to mimeType.
     StringBuilder builder;
     if (mime_type.starts_with(';')) {
-        builder.append("text/plain"sv);
+        builder.append("text/plain"_sv);
         builder.append(mime_type);
         mime_type = builder.string_view();
     }

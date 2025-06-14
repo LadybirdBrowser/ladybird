@@ -14,57 +14,57 @@ namespace WebView {
 
 void SettingsUI::register_interfaces()
 {
-    register_interface("loadCurrentSettings"sv, [this](auto const&) {
+    register_interface("loadCurrentSettings"_sv, [this](auto const&) {
         load_current_settings();
     });
-    register_interface("restoreDefaultSettings"sv, [this](auto const&) {
+    register_interface("restoreDefaultSettings"_sv, [this](auto const&) {
         restore_default_settings();
     });
 
-    register_interface("setNewTabPageURL"sv, [this](auto const& data) {
+    register_interface("setNewTabPageURL"_sv, [this](auto const& data) {
         set_new_tab_page_url(data);
     });
-    register_interface("setLanguages"sv, [this](auto const& data) {
+    register_interface("setLanguages"_sv, [this](auto const& data) {
         set_languages(data);
     });
 
-    register_interface("loadAvailableEngines"sv, [this](auto const&) {
+    register_interface("loadAvailableEngines"_sv, [this](auto const&) {
         load_available_engines();
     });
-    register_interface("setSearchEngine"sv, [this](auto const& data) {
+    register_interface("setSearchEngine"_sv, [this](auto const& data) {
         set_search_engine(data);
     });
-    register_interface("addCustomSearchEngine"sv, [this](auto const& data) {
+    register_interface("addCustomSearchEngine"_sv, [this](auto const& data) {
         add_custom_search_engine(data);
     });
-    register_interface("removeCustomSearchEngine"sv, [this](auto const& data) {
+    register_interface("removeCustomSearchEngine"_sv, [this](auto const& data) {
         remove_custom_search_engine(data);
     });
-    register_interface("setAutocompleteEngine"sv, [this](auto const& data) {
+    register_interface("setAutocompleteEngine"_sv, [this](auto const& data) {
         set_autocomplete_engine(data);
     });
 
-    register_interface("loadForciblyEnabledSiteSettings"sv, [this](auto const&) {
+    register_interface("loadForciblyEnabledSiteSettings"_sv, [this](auto const&) {
         load_forcibly_enabled_site_settings();
     });
-    register_interface("setSiteSettingEnabledGlobally"sv, [this](auto const& data) {
+    register_interface("setSiteSettingEnabledGlobally"_sv, [this](auto const& data) {
         set_site_setting_enabled_globally(data);
     });
-    register_interface("addSiteSettingFilter"sv, [this](auto const& data) {
+    register_interface("addSiteSettingFilter"_sv, [this](auto const& data) {
         add_site_setting_filter(data);
     });
-    register_interface("removeSiteSettingFilter"sv, [this](auto const& data) {
+    register_interface("removeSiteSettingFilter"_sv, [this](auto const& data) {
         remove_site_setting_filter(data);
     });
-    register_interface("removeAllSiteSettingFilters"sv, [this](auto const& data) {
+    register_interface("removeAllSiteSettingFilters"_sv, [this](auto const& data) {
         remove_all_site_setting_filters(data);
     });
 
-    register_interface("setDoNotTrack"sv, [this](auto const& data) {
+    register_interface("setDoNotTrack"_sv, [this](auto const& data) {
         set_do_not_track(data);
     });
 
-    register_interface("setDNSSettings"sv, [this](auto const& data) {
+    register_interface("setDNSSettings"_sv, [this](auto const& data) {
         set_dns_settings(data);
     });
 }
@@ -72,7 +72,7 @@ void SettingsUI::register_interfaces()
 void SettingsUI::load_current_settings()
 {
     auto settings = WebView::Application::settings().serialize_json();
-    async_send_message("loadSettings"sv, settings);
+    async_send_message("loadSettings"_sv, settings);
 }
 
 void SettingsUI::restore_default_settings()
@@ -112,10 +112,10 @@ void SettingsUI::load_available_engines()
         autocomplete_engines.must_append(engine.name);
 
     JsonObject engines;
-    engines.set("search"sv, move(search_engines));
-    engines.set("autocomplete"sv, move(autocomplete_engines));
+    engines.set("search"_sv, move(search_engines));
+    engines.set("autocomplete"_sv, move(autocomplete_engines));
 
-    async_send_message("loadEngines"sv, move(engines));
+    async_send_message("loadEngines"_sv, move(engines));
 }
 
 void SettingsUI::set_search_engine(JsonValue const& search_engine)
@@ -162,7 +162,7 @@ static constexpr StringView site_setting_type_to_string(SiteSettingType setting)
 {
     switch (setting) {
     case SiteSettingType::Autoplay:
-        return "autoplay"sv;
+        return "autoplay"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -172,11 +172,11 @@ static Optional<SiteSettingType> site_setting_type(JsonValue const& settings)
     if (!settings.is_object())
         return {};
 
-    auto setting_type = settings.as_object().get_string("setting"sv);
+    auto setting_type = settings.as_object().get_string("setting"_sv);
     if (!setting_type.has_value())
         return {};
 
-    if (*setting_type == "autoplay"sv)
+    if (*setting_type == "autoplay"_sv)
         return SiteSettingType::Autoplay;
     return {};
 }
@@ -188,7 +188,7 @@ void SettingsUI::load_forcibly_enabled_site_settings()
     if (Application::web_content_options().enable_autoplay == EnableAutoplay::Yes)
         site_settings.must_append(site_setting_type_to_string(SiteSettingType::Autoplay));
 
-    async_send_message("forciblyEnableSiteSettings"sv, move(site_settings));
+    async_send_message("forciblyEnableSiteSettings"_sv, move(site_settings));
 }
 
 void SettingsUI::set_site_setting_enabled_globally(JsonValue const& site_setting)
@@ -197,7 +197,7 @@ void SettingsUI::set_site_setting_enabled_globally(JsonValue const& site_setting
     if (!setting.has_value())
         return;
 
-    auto enabled = site_setting.as_object().get_bool("enabled"sv);
+    auto enabled = site_setting.as_object().get_bool("enabled"_sv);
     if (!enabled.has_value())
         return;
 
@@ -216,7 +216,7 @@ void SettingsUI::add_site_setting_filter(JsonValue const& site_setting)
     if (!setting.has_value())
         return;
 
-    auto filter = site_setting.as_object().get_string("filter"sv);
+    auto filter = site_setting.as_object().get_string("filter"_sv);
     if (!filter.has_value())
         return;
 
@@ -235,7 +235,7 @@ void SettingsUI::remove_site_setting_filter(JsonValue const& site_setting)
     if (!setting.has_value())
         return;
 
-    auto filter = site_setting.as_object().get_string("filter"sv);
+    auto filter = site_setting.as_object().get_string("filter"_sv);
     if (!filter.has_value())
         return;
 

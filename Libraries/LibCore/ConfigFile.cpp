@@ -150,7 +150,7 @@ Optional<ByteString> ConfigFile::read_entry_optional(const AK::ByteString& group
 bool ConfigFile::read_bool_entry(ByteString const& group, ByteString const& key, bool default_value) const
 {
     auto value = read_entry(group, key, default_value ? "true" : "false");
-    return value == "1" || value.equals_ignoring_ascii_case("true"sv);
+    return value == "1" || value.equals_ignoring_ascii_case("true"_sv);
 }
 
 void ConfigFile::write_entry(ByteString const& group, ByteString const& key, ByteString const& value)
@@ -179,7 +179,7 @@ ErrorOr<void> ConfigFile::sync()
         TRY(m_file->write_until_depleted(ByteString::formatted("[{}]\n", it.key)));
         for (auto& jt : it.value)
             TRY(m_file->write_until_depleted(ByteString::formatted("{}={}\n", jt.key, jt.value)));
-        TRY(m_file->write_until_depleted("\n"sv));
+        TRY(m_file->write_until_depleted("\n"_sv));
     }
 
     m_dirty = false;

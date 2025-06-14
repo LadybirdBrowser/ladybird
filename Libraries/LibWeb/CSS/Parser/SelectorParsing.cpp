@@ -251,10 +251,10 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
         auto namespace_ = get_name(first_token);
         auto name = get_name(tokens.consume_a_token());
 
-        if (allow_wildcard_name == AllowWildcardName::No && name == "*"sv)
+        if (allow_wildcard_name == AllowWildcardName::No && name == "*"_sv)
             return {};
 
-        auto namespace_type = namespace_ == "*"sv
+        auto namespace_type = namespace_ == "*"_sv
             ? Selector::SimpleSelector::QualifiedName::NamespaceType::Any
             : Selector::SimpleSelector::QualifiedName::NamespaceType::Named;
 
@@ -372,9 +372,9 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
         auto const& case_sensitivity_part = attribute_tokens.consume_a_token();
         if (case_sensitivity_part.is(Token::Type::Ident)) {
             auto case_sensitivity = case_sensitivity_part.token().ident();
-            if (case_sensitivity.equals_ignoring_ascii_case("i"sv)) {
+            if (case_sensitivity.equals_ignoring_ascii_case("i"_sv)) {
                 simple_selector.attribute().case_type = Selector::SimpleSelector::Attribute::CaseType::CaseInsensitiveMatch;
-            } else if (case_sensitivity.equals_ignoring_ascii_case("s"sv)) {
+            } else if (case_sensitivity.equals_ignoring_ascii_case("s"_sv)) {
                 simple_selector.attribute().case_type = Selector::SimpleSelector::Attribute::CaseType::CaseSensitiveMatch;
             } else {
                 dbgln_if(CSS_PARSER_DEBUG, "Expected a \"i\" or \"s\" attribute selector case sensitivity identifier, got: '{}'", case_sensitivity_part.to_debug_string());
@@ -512,7 +512,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         // and that are not functional notations must be treated as valid at parse time. (That is, ::-webkit-asdf is
         // valid at parse time, but ::-webkit-jkl() is not.) If they’re not otherwise recognized and supported, they
         // must be treated as matching nothing, and are unknown -webkit- pseudo-elements.
-        if (!is_function && pseudo_name.starts_with_bytes("-webkit-"sv, CaseSensitivity::CaseInsensitive)) {
+        if (!is_function && pseudo_name.starts_with_bytes("-webkit-"_sv, CaseSensitivity::CaseInsensitive)) {
             // :has() only allows a limited set of pseudo-elements inside it, which doesn't include unknown ones.
             if (m_pseudo_class_context.contains_slow(PseudoClass::Has))
                 return ParseError::SyntaxError;
@@ -606,7 +606,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
             // Parse the `of <selector-list>` syntax
             auto const& maybe_of = tokens.consume_a_token();
-            if (!maybe_of.is_ident("of"sv))
+            if (!maybe_of.is_ident("of"_sv))
                 return ParseError::SyntaxError;
 
             tokens.discard_whitespace();
@@ -787,7 +787,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
 
     // Handle universal and tag-name types together, since both can be namespaced
     if (auto qualified_name = parse_selector_qualified_name(tokens, AllowWildcardName::Yes); qualified_name.has_value()) {
-        if (qualified_name->name.name == "*"sv) {
+        if (qualified_name->name.name == "*"_sv) {
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::Universal,
                 .value = qualified_name.release_value(),
@@ -879,7 +879,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
             return false;
         if (!value.token().number().is_integer())
             return false;
-        if (!value.token().dimension_unit().equals_ignoring_ascii_case("n"sv))
+        if (!value.token().dimension_unit().equals_ignoring_ascii_case("n"_sv))
             return false;
         return true;
     };
@@ -888,7 +888,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
             return false;
         if (!value.token().number().is_integer())
             return false;
-        if (!value.token().dimension_unit().equals_ignoring_ascii_case("n-"sv))
+        if (!value.token().dimension_unit().equals_ignoring_ascii_case("n-"_sv))
             return false;
         return true;
     };
@@ -898,7 +898,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         if (!value.token().number().is_integer())
             return false;
         auto dimension_unit = value.token().dimension_unit();
-        if (!dimension_unit.starts_with_bytes("n-"sv, CaseSensitivity::CaseInsensitive))
+        if (!dimension_unit.starts_with_bytes("n-"_sv, CaseSensitivity::CaseInsensitive))
             return false;
         for (size_t i = 2; i < dimension_unit.bytes_as_string_view().length(); ++i) {
             if (!is_ascii_digit(dimension_unit.bytes_as_string_view()[i]))
@@ -910,7 +910,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         if (!value.is(Token::Type::Ident))
             return false;
         auto ident = value.token().ident();
-        if (!ident.starts_with_bytes("n-"sv, CaseSensitivity::CaseInsensitive))
+        if (!ident.starts_with_bytes("n-"_sv, CaseSensitivity::CaseInsensitive))
             return false;
         for (size_t i = 2; i < ident.bytes_as_string_view().length(); ++i) {
             if (!is_ascii_digit(ident.bytes_as_string_view()[i]))
@@ -922,7 +922,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         if (!value.is(Token::Type::Ident))
             return false;
         auto ident = value.token().ident();
-        if (!ident.starts_with_bytes("-n-"sv, CaseSensitivity::CaseInsensitive))
+        if (!ident.starts_with_bytes("-n-"_sv, CaseSensitivity::CaseInsensitive))
             return false;
         if (ident.bytes_as_string_view().length() == 3)
             return false;
@@ -951,11 +951,11 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // odd | even
     if (first_value.is(Token::Type::Ident)) {
         auto ident = first_value.token().ident();
-        if (ident.equals_ignoring_ascii_case("odd"sv)) {
+        if (ident.equals_ignoring_ascii_case("odd"_sv)) {
             transaction.commit();
             return Selector::SimpleSelector::ANPlusBPattern { 2, 1 };
         }
-        if (ident.equals_ignoring_ascii_case("even"sv)) {
+        if (ident.equals_ignoring_ascii_case("even"_sv)) {
             transaction.commit();
             return Selector::SimpleSelector::ANPlusBPattern { 2, 0 };
         }
@@ -1036,7 +1036,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // -n
     // -n <signed-integer>
     // -n ['+' | '-'] <signless-integer>
-    if (first_value.is_ident("-n"sv)) {
+    if (first_value.is_ident("-n"_sv)) {
         values.discard_whitespace();
 
         // -n <signed-integer>
@@ -1065,7 +1065,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         return Selector::SimpleSelector::ANPlusBPattern { -1, 0 };
     }
     // -n- <signless-integer>
-    if (first_value.is_ident("-n-"sv)) {
+    if (first_value.is_ident("-n-"_sv)) {
         values.discard_whitespace();
         auto const& second_value = values.consume_a_token();
         if (is_signless_integer(second_value)) {
@@ -1094,7 +1094,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // '+'?† n
     // '+'?† n <signed-integer>
     // '+'?† n ['+' | '-'] <signless-integer>
-    if (first_after_plus.is_ident("n"sv)) {
+    if (first_after_plus.is_ident("n"_sv)) {
         values.discard_whitespace();
 
         // '+'?† n <signed-integer>
@@ -1124,7 +1124,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     }
 
     // '+'?† n- <signless-integer>
-    if (first_after_plus.is_ident("n-"sv)) {
+    if (first_after_plus.is_ident("n-"_sv)) {
         values.discard_whitespace();
         auto const& second_value = values.consume_a_token();
         if (is_signless_integer(second_value)) {

@@ -52,12 +52,12 @@ void PopoverInvokerElement::popover_target_activation_behaviour(GC::Ref<DOM::Nod
         return;
 
     // 4. If node's popovertargetaction attribute is in the show state and popover's popover visibility state is showing, then return.
-    if (as<DOM::Element>(*node).get_attribute_value(HTML::AttributeNames::popovertargetaction).equals_ignoring_ascii_case("show"sv)
+    if (as<DOM::Element>(*node).get_attribute_value(HTML::AttributeNames::popovertargetaction).equals_ignoring_ascii_case("show"_sv)
         && popover->popover_visibility_state() == HTMLElement::PopoverVisibilityState::Showing)
         return;
 
     // 5. If node's popovertargetaction attribute is in the hide state and popover's popover visibility state is hidden, then return.
-    if (as<DOM::Element>(*node).get_attribute_value(HTML::AttributeNames::popovertargetaction).equals_ignoring_ascii_case("hide"sv)
+    if (as<DOM::Element>(*node).get_attribute_value(HTML::AttributeNames::popovertargetaction).equals_ignoring_ascii_case("hide"_sv)
         && popover->popover_visibility_state() == HTMLElement::PopoverVisibilityState::Hidden)
         return;
 

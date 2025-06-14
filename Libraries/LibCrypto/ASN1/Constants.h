@@ -43,21 +43,21 @@ constexpr static Array<int, 4>
 
 #define _ENUM(key, value) key,
 
-#define __ENUM_OBJECT_CLASS                   \
-    _ENUM(ApplicationProcess, "2.5.6.11"sv)   \
-    _ENUM(Country, "2.5.6.2"sv)               \
-    _ENUM(DcObject, "1.3.6.1.4.1.1466.344"sv) \
-    _ENUM(Device, "2.5.6.14"sv)               \
-    _ENUM(GroupOfNames, "2.5.6.9"sv)          \
-    _ENUM(GroupOfUniqueNames, "2.5.6.17"sv)   \
-    _ENUM(Locality, "2.5.6.3"sv)              \
-    _ENUM(Organization, "2.5.6.4"sv)          \
-    _ENUM(OrganizationalPerson, "2.5.6.7"sv)  \
-    _ENUM(OrganizationalRole, "2.5.6.8"sv)    \
-    _ENUM(OrganizationalUnit, "2.5.6.5"sv)    \
-    _ENUM(Person, "2.5.6.6"sv)                \
-    _ENUM(ResidentialPerson, "2.5.6.10"sv)    \
-    _ENUM(UidObject, "1.3.6.1.1.3.1"sv)
+#define __ENUM_OBJECT_CLASS                    \
+    _ENUM(ApplicationProcess, "2.5.6.11"_sv)   \
+    _ENUM(Country, "2.5.6.2"_sv)               \
+    _ENUM(DcObject, "1.3.6.1.4.1.1466.344"_sv) \
+    _ENUM(Device, "2.5.6.14"_sv)               \
+    _ENUM(GroupOfNames, "2.5.6.9"_sv)          \
+    _ENUM(GroupOfUniqueNames, "2.5.6.17"_sv)   \
+    _ENUM(Locality, "2.5.6.3"_sv)              \
+    _ENUM(Organization, "2.5.6.4"_sv)          \
+    _ENUM(OrganizationalPerson, "2.5.6.7"_sv)  \
+    _ENUM(OrganizationalRole, "2.5.6.8"_sv)    \
+    _ENUM(OrganizationalUnit, "2.5.6.5"_sv)    \
+    _ENUM(Person, "2.5.6.6"_sv)                \
+    _ENUM(ResidentialPerson, "2.5.6.10"_sv)    \
+    _ENUM(UidObject, "1.3.6.1.1.3.1"_sv)
 
 // NOTE: Type = O
 // NOTE: This list is not exhaustive. If more members are needed, find them at the link below.
@@ -66,52 +66,52 @@ enum class ObjectClass {
     __ENUM_OBJECT_CLASS
 };
 
-#define __ENUM_ATTRIBUTE_TYPE                       \
-    _ENUM(BusinessCategory, "2.5.4.15"sv)           \
-    _ENUM(C, "2.5.4.6"sv)                           \
-    _ENUM(Cn, "2.5.4.3"sv)                          \
-    _ENUM(Dc, "0.9.2342.19200300.100.1.25"sv)       \
-    _ENUM(Description, "2.5.4.13"sv)                \
-    _ENUM(DestinationIndicator, "2.5.4.27"sv)       \
-    _ENUM(DistinguishedName, "2.5.4.49"sv)          \
-    _ENUM(DnQualifier, "2.5.4.46"sv)                \
-    _ENUM(EnhancedSearchGuide, "2.5.4.47"sv)        \
-    _ENUM(Email, "1.2.840.113549.1.9.1"sv)          \
-    _ENUM(FacsimileTelephoneNumber, "2.5.4.23"sv)   \
-    _ENUM(GenerationQualifier, "2.5.4.44"sv)        \
-    _ENUM(GivenName, "2.5.4.42"sv)                  \
-    _ENUM(HouseIdentifier, "2.5.4.51"sv)            \
-    _ENUM(Initials, "2.5.4.43"sv)                   \
-    _ENUM(InternationalISDNNumber, "2.5.4.25"sv)    \
-    _ENUM(L, "2.5.4.7"sv)                           \
-    _ENUM(Member, "2.5.4.31"sv)                     \
-    _ENUM(Name, "2.5.4.41"sv)                       \
-    _ENUM(O, "2.5.4.10"sv)                          \
-    _ENUM(Ou, "2.5.4.11"sv)                         \
-    _ENUM(Owner, "2.5.4.32"sv)                      \
-    _ENUM(PhysicalDeliveryOfficeName, "2.5.4.19"sv) \
-    _ENUM(PostalAddress, "2.5.4.16"sv)              \
-    _ENUM(PostalCode, "2.5.4.17"sv)                 \
-    _ENUM(PostOfficeBox, "2.5.4.18"sv)              \
-    _ENUM(PreferredDeliveryMethod, "2.5.4.28"sv)    \
-    _ENUM(RegisteredAddress, "2.5.4.26"sv)          \
-    _ENUM(RoleOccupant, "2.5.4.33"sv)               \
-    _ENUM(SearchGuide, "2.5.4.14"sv)                \
-    _ENUM(SeeAlso, "2.5.4.34"sv)                    \
-    _ENUM(SerialNumber, "2.5.4.5"sv)                \
-    _ENUM(Sn, "2.5.4.4"sv)                          \
-    _ENUM(St, "2.5.4.8"sv)                          \
-    _ENUM(Street, "2.5.4.9"sv)                      \
-    _ENUM(Surname, "2.5.4.4"sv)                     \
-    _ENUM(TelephoneNumber, "2.5.4.20"sv)            \
-    _ENUM(TeletexTerminalIdentifier, "2.5.4.22"sv)  \
-    _ENUM(TelexNumber, "2.5.4.21"sv)                \
-    _ENUM(Title, "2.5.4.12"sv)                      \
-    _ENUM(Uid, "0.9.2342.19200300.100.1.1"sv)       \
-    _ENUM(UniqueMember, "2.5.4.50"sv)               \
-    _ENUM(UserPassword, "2.5.4.35"sv)               \
-    _ENUM(X121Address, "2.5.4.24"sv)                \
-    _ENUM(X500UniqueIdentifier, "2.5.4.45"sv)
+#define __ENUM_ATTRIBUTE_TYPE                        \
+    _ENUM(BusinessCategory, "2.5.4.15"_sv)           \
+    _ENUM(C, "2.5.4.6"_sv)                           \
+    _ENUM(Cn, "2.5.4.3"_sv)                          \
+    _ENUM(Dc, "0.9.2342.19200300.100.1.25"_sv)       \
+    _ENUM(Description, "2.5.4.13"_sv)                \
+    _ENUM(DestinationIndicator, "2.5.4.27"_sv)       \
+    _ENUM(DistinguishedName, "2.5.4.49"_sv)          \
+    _ENUM(DnQualifier, "2.5.4.46"_sv)                \
+    _ENUM(EnhancedSearchGuide, "2.5.4.47"_sv)        \
+    _ENUM(Email, "1.2.840.113549.1.9.1"_sv)          \
+    _ENUM(FacsimileTelephoneNumber, "2.5.4.23"_sv)   \
+    _ENUM(GenerationQualifier, "2.5.4.44"_sv)        \
+    _ENUM(GivenName, "2.5.4.42"_sv)                  \
+    _ENUM(HouseIdentifier, "2.5.4.51"_sv)            \
+    _ENUM(Initials, "2.5.4.43"_sv)                   \
+    _ENUM(InternationalISDNNumber, "2.5.4.25"_sv)    \
+    _ENUM(L, "2.5.4.7"_sv)                           \
+    _ENUM(Member, "2.5.4.31"_sv)                     \
+    _ENUM(Name, "2.5.4.41"_sv)                       \
+    _ENUM(O, "2.5.4.10"_sv)                          \
+    _ENUM(Ou, "2.5.4.11"_sv)                         \
+    _ENUM(Owner, "2.5.4.32"_sv)                      \
+    _ENUM(PhysicalDeliveryOfficeName, "2.5.4.19"_sv) \
+    _ENUM(PostalAddress, "2.5.4.16"_sv)              \
+    _ENUM(PostalCode, "2.5.4.17"_sv)                 \
+    _ENUM(PostOfficeBox, "2.5.4.18"_sv)              \
+    _ENUM(PreferredDeliveryMethod, "2.5.4.28"_sv)    \
+    _ENUM(RegisteredAddress, "2.5.4.26"_sv)          \
+    _ENUM(RoleOccupant, "2.5.4.33"_sv)               \
+    _ENUM(SearchGuide, "2.5.4.14"_sv)                \
+    _ENUM(SeeAlso, "2.5.4.34"_sv)                    \
+    _ENUM(SerialNumber, "2.5.4.5"_sv)                \
+    _ENUM(Sn, "2.5.4.4"_sv)                          \
+    _ENUM(St, "2.5.4.8"_sv)                          \
+    _ENUM(Street, "2.5.4.9"_sv)                      \
+    _ENUM(Surname, "2.5.4.4"_sv)                     \
+    _ENUM(TelephoneNumber, "2.5.4.20"_sv)            \
+    _ENUM(TeletexTerminalIdentifier, "2.5.4.22"_sv)  \
+    _ENUM(TelexNumber, "2.5.4.21"_sv)                \
+    _ENUM(Title, "2.5.4.12"_sv)                      \
+    _ENUM(Uid, "0.9.2342.19200300.100.1.1"_sv)       \
+    _ENUM(UniqueMember, "2.5.4.50"_sv)               \
+    _ENUM(UserPassword, "2.5.4.35"_sv)               \
+    _ENUM(X121Address, "2.5.4.24"_sv)                \
+    _ENUM(X500UniqueIdentifier, "2.5.4.45"_sv)
 
 // NOTE: Type = A
 // NOTE: This list is not exhaustive. If more members are needed, find them at the link below.
@@ -132,7 +132,7 @@ constexpr static StringView enum_value(ObjectClass object_class)
         __ENUM_OBJECT_CLASS
     }
 
-    return "Unknown"sv;
+    return "Unknown"_sv;
 #undef _ENUM
 #undef __ENUM_OBJECT_CLASS
 }
@@ -147,7 +147,7 @@ constexpr static StringView enum_value(AttributeType object_class)
         __ENUM_ATTRIBUTE_TYPE
     }
 
-    return "Unknown"sv;
+    return "Unknown"_sv;
 #undef _ENUM
 #undef __ENUM_ATTRIBUTE_TYPE
 }

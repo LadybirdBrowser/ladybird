@@ -19,11 +19,11 @@ namespace Unicode {
 
 SegmenterGranularity segmenter_granularity_from_string(StringView segmenter_granularity)
 {
-    if (segmenter_granularity == "grapheme"sv)
+    if (segmenter_granularity == "grapheme"_sv)
         return SegmenterGranularity::Grapheme;
-    if (segmenter_granularity == "sentence"sv)
+    if (segmenter_granularity == "sentence"_sv)
         return SegmenterGranularity::Sentence;
-    if (segmenter_granularity == "word"sv)
+    if (segmenter_granularity == "word"_sv)
         return SegmenterGranularity::Word;
     VERIFY_NOT_REACHED();
 }
@@ -32,11 +32,11 @@ StringView segmenter_granularity_to_string(SegmenterGranularity segmenter_granul
 {
     switch (segmenter_granularity) {
     case SegmenterGranularity::Grapheme:
-        return "grapheme"sv;
+        return "grapheme"_sv;
     case SegmenterGranularity::Sentence:
-        return "sentence"sv;
+        return "sentence"_sv;
     case SegmenterGranularity::Word:
-        return "word"sv;
+        return "word"_sv;
     }
     VERIFY_NOT_REACHED();
 }

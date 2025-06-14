@@ -91,34 +91,34 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
             if (has_ignored_vendor_prefix(at_rule.name))
                 return {};
 
-            if (at_rule.name.equals_ignoring_ascii_case("font-face"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("font-face"_sv))
                 return convert_to_font_face_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("import"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("import"_sv))
                 return convert_to_import_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("keyframes"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("keyframes"_sv))
                 return convert_to_keyframes_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("layer"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("layer"_sv))
                 return convert_to_layer_rule(at_rule, nested);
 
             if (is_margin_rule_name(at_rule.name))
                 return convert_to_margin_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("media"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("media"_sv))
                 return convert_to_media_rule(at_rule, nested);
 
-            if (at_rule.name.equals_ignoring_ascii_case("namespace"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("namespace"_sv))
                 return convert_to_namespace_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("page"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("page"_sv))
                 return convert_to_page_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("property"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("property"_sv))
                 return convert_to_property_rule(at_rule);
 
-            if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
+            if (at_rule.name.equals_ignoring_ascii_case("supports"_sv))
                 return convert_to_supports_rule(at_rule, nested);
 
             // FIXME: More at rules!
@@ -216,7 +216,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     tokens.discard_whitespace();
     // FIXME: Implement layer support.
     RefPtr<Supports> supports {};
-    if (tokens.next_token().is_function("supports"sv)) {
+    if (tokens.next_token().is_function("supports"_sv)) {
         auto component_value = tokens.consume_a_token();
         TokenStream supports_tokens { component_value.function().value };
         if (supports_tokens.next_token().is_block()) {
@@ -389,7 +389,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         return {};
     }
 
-    if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().equals_ignoring_ascii_case("none"sv))) {
+    if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().equals_ignoring_ascii_case("none"_sv))) {
         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.ident());
         return {};
     }
@@ -422,11 +422,11 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
             auto token = tok.token();
             auto read_a_selector = false;
             if (token.is(Token::Type::Ident)) {
-                if (token.ident().equals_ignoring_ascii_case("from"sv)) {
+                if (token.ident().equals_ignoring_ascii_case("from"_sv)) {
                     selectors.append(CSS::Percentage(0));
                     read_a_selector = true;
                 }
-                if (token.ident().equals_ignoring_ascii_case("to"sv)) {
+                if (token.ident().equals_ignoring_ascii_case("to"_sv)) {
                     selectors.append(CSS::Percentage(100));
                     read_a_selector = true;
                 }

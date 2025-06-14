@@ -38,7 +38,7 @@ void DateTimeFormat::visit_edges(Cell::Visitor& visitor)
 ReadonlySpan<StringView> DateTimeFormat::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « "ca", "hc", "nu" ».
-    static constexpr AK::Array keys { "ca"sv, "hc"sv, "nu"sv };
+    static constexpr AK::Array keys { "ca"_sv, "hc"_sv, "nu"_sv };
     return keys;
 }
 
@@ -46,13 +46,13 @@ ReadonlySpan<StringView> DateTimeFormat::relevant_extension_keys() const
 ReadonlySpan<ResolutionOptionDescriptor> DateTimeFormat::resolution_option_descriptors(VM& vm) const
 {
     // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "ca", [[Property]]: "calendar" }, { [[Key]]: "nu", [[Property]]: "numberingSystem" }, { [[Key]]: "hour12", [[Property]]: "hour12", [[Type]]: boolean }, { [[Key]]: "hc", [[Property]]: "hourCycle", [[Values]]: « "h11", "h12", "h23", "h24" » } ».
-    static constexpr AK::Array hour_cycle_values { "h11"sv, "h12"sv, "h23"sv, "h24"sv };
+    static constexpr AK::Array hour_cycle_values { "h11"_sv, "h12"_sv, "h23"_sv, "h24"_sv };
 
     static auto descriptors = to_array<ResolutionOptionDescriptor>({
-        { .key = "ca"sv, .property = vm.names.calendar },
-        { .key = "nu"sv, .property = vm.names.numberingSystem },
-        { .key = "hour12"sv, .property = vm.names.hour12, .type = OptionType::Boolean },
-        { .key = "hc"sv, .property = vm.names.hourCycle, .values = hour_cycle_values },
+        { .key = "ca"_sv, .property = vm.names.calendar },
+        { .key = "nu"_sv, .property = vm.names.numberingSystem },
+        { .key = "hour12"_sv, .property = vm.names.hour12, .type = OptionType::Boolean },
+        { .key = "hc"_sv, .property = vm.names.hourCycle, .values = hour_cycle_values },
     });
 
     return descriptors;
@@ -516,8 +516,8 @@ static double to_epoch_milliseconds(Crypto::SignedBigInteger const& epoch_nanose
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainDate const& temporal_date)
 {
     // 1. If temporalDate.[[Calendar]] is not dateTimeFormat.[[Calendar]] or "iso8601", throw a RangeError exception.
-    if (!temporal_date.calendar().is_one_of(date_time_format.calendar(), "iso8601"sv))
-        return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDate"sv, temporal_date.calendar(), date_time_format.calendar());
+    if (!temporal_date.calendar().is_one_of(date_time_format.calendar(), "iso8601"_sv))
+        return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDate"_sv, temporal_date.calendar(), date_time_format.calendar());
 
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]], NoonTimeRecord()).
     auto iso_date_time = Temporal::combine_iso_date_and_time_record(temporal_date.iso_date(), Temporal::noon_time_record());
@@ -530,7 +530,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM& vm, DateTimeFo
 
     // 5. If format is null, throw a TypeError exception.
     if (!formatter.has_value())
-        return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainDate"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainDate"_sv);
 
     // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
@@ -542,7 +542,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM& vm, Date
     // 1. If temporalYearMonth.[[Calendar]] is not equal to dateTimeFormat.[[Calendar]], then
     if (temporal_year_month.calendar() != date_time_format.calendar()) {
         // a. Throw a RangeError exception.
-        return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainYearMonth"sv, temporal_year_month.calendar(), date_time_format.calendar());
+        return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainYearMonth"_sv, temporal_year_month.calendar(), date_time_format.calendar());
     }
 
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
@@ -556,7 +556,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM& vm, Date
 
     // 5. If format is null, throw a TypeError exception.
     if (!formatter.has_value())
-        return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainYearMonth"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainYearMonth"_sv);
 
     // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
@@ -568,7 +568,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM& vm, DateT
     // 1. If temporalMonthDay.[[Calendar]] is not equal to dateTimeFormat.[[Calendar]], then
     if (temporal_month_day.calendar() != date_time_format.calendar()) {
         // a. Throw a RangeError exception.
-        return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainMonthDay"sv, temporal_month_day.calendar(), date_time_format.calendar());
+        return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainMonthDay"_sv, temporal_month_day.calendar(), date_time_format.calendar());
     }
 
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalMonthDay.[[ISODate]], NoonTimeRecord()).
@@ -582,7 +582,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM& vm, DateT
 
     // 5. If format is null, throw a TypeError exception.
     if (!formatter.has_value())
-        return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainMonthDay"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainMonthDay"_sv);
 
     // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
@@ -605,7 +605,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM& vm, DateTimeFo
 
     // 5. If format is null, throw a TypeError exception.
     if (!formatter.has_value())
-        return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainTime"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IntlTemporalFormatIsNull, "Temporal.PlainTime"_sv);
 
     // 6. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]: epochNs  }.
     return ValueFormat { .formatter = *formatter, .epoch_milliseconds = to_epoch_milliseconds(epoch_nanoseconds) };
@@ -615,9 +615,9 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM& vm, DateTimeFo
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date_time(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainDateTime const& date_time)
 {
     // 1. If dateTime.[[Calendar]] is not "iso8601" and not equal to dateTimeFormat.[[Calendar]], then
-    if (!date_time.calendar().is_one_of(date_time_format.calendar(), "iso8601"sv)) {
+    if (!date_time.calendar().is_one_of(date_time_format.calendar(), "iso8601"_sv)) {
         // a. Throw a RangeError exception.
-        return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDateTime"sv, date_time.calendar(), date_time_format.calendar());
+        return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDateTime"_sv, date_time.calendar(), date_time_format.calendar());
     }
 
     // 2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]], dateTime.[[ISODateTime]], COMPATIBLE).

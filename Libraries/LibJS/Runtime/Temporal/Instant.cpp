@@ -211,7 +211,7 @@ String temporal_instant_to_string(Instant const& instant, Optional<StringView> t
 {
     // 1. Let outputTimeZone be timeZone.
     // 2. If outputTimeZone is undefined, set outputTimeZone to "UTC".
-    auto output_time_zone = time_zone.value_or("UTC"sv);
+    auto output_time_zone = time_zone.value_or("UTC"_sv);
 
     // 3. Let epochNs be instant.[[EpochNanoseconds]].
     auto const& epoch_nanoseconds = instant.epoch_nanoseconds()->big_integer();
@@ -220,7 +220,7 @@ String temporal_instant_to_string(Instant const& instant, Optional<StringView> t
     auto iso_date_time = get_iso_date_time_for(output_time_zone, epoch_nanoseconds);
 
     // 5. Let dateTimeString be ISODateTimeToString(isoDateTime, "iso8601", precision, NEVER).
-    auto date_time_string = iso_date_time_to_string(iso_date_time, "iso8601"sv, precision, ShowCalendar::Never);
+    auto date_time_string = iso_date_time_to_string(iso_date_time, "iso8601"_sv, precision, ShowCalendar::Never);
 
     String time_zone_string;
 

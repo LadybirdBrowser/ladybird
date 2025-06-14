@@ -269,27 +269,27 @@ static inline StringView to_string(Algorithm algorithm)
 {
     switch (algorithm) {
     case Algorithm::RSAMD5:
-        return "RSAMD5"sv;
+        return "RSAMD5"_sv;
     case Algorithm::DSA:
-        return "DSA"sv;
+        return "DSA"_sv;
     case Algorithm::RSASHA1:
-        return "RSASHA1"sv;
+        return "RSASHA1"_sv;
     case Algorithm::RSASHA1NSEC3SHA1:
-        return "RSASHA1NSEC3SHA1"sv;
+        return "RSASHA1NSEC3SHA1"_sv;
     case Algorithm::RSASHA256:
-        return "RSASHA256"sv;
+        return "RSASHA256"_sv;
     case Algorithm::RSASHA512:
-        return "RSASHA512"sv;
+        return "RSASHA512"_sv;
     case Algorithm::ECDSAP256SHA256:
-        return "ECDSAP256SHA256"sv;
+        return "ECDSAP256SHA256"_sv;
     case Algorithm::ECDSAP384SHA384:
-        return "ECDSAP384SHA384"sv;
+        return "ECDSAP384SHA384"_sv;
     case Algorithm::ED25519:
-        return "ED25519"sv;
+        return "ED25519"_sv;
     case Algorithm::Unknown:
-        return "Unknown"sv;
+        return "Unknown"_sv;
     default:
-        return "Invalid"sv;
+        return "Invalid"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -309,19 +309,19 @@ static inline StringView to_string(DigestType digest_type)
 {
     switch (digest_type) {
     case DigestType::SHA1:
-        return "SHA1"sv;
+        return "SHA1"_sv;
     case DigestType::SHA256:
-        return "SHA256"sv;
+        return "SHA256"_sv;
     case DigestType::GOST3411:
-        return "GOST3411"sv;
+        return "GOST3411"_sv;
     case DigestType::SHA384:
-        return "SHA384"sv;
+        return "SHA384"_sv;
     case DigestType::SHA512:
-        return "SHA512"sv;
+        return "SHA512"_sv;
     case DigestType::SHA224:
-        return "SHA224"sv;
+        return "SHA224"_sv;
     case DigestType::Unknown:
-        return "Unknown"sv;
+        return "Unknown"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -341,19 +341,19 @@ static inline StringView to_string(NSEC3HashAlgorithm hash_algorithm)
 {
     switch (hash_algorithm) {
     case NSEC3HashAlgorithm::SHA1:
-        return "SHA1"sv;
+        return "SHA1"_sv;
     case NSEC3HashAlgorithm::SHA256:
-        return "SHA256"sv;
+        return "SHA256"_sv;
     case NSEC3HashAlgorithm::GOST3411:
-        return "GOST3411"sv;
+        return "GOST3411"_sv;
     case NSEC3HashAlgorithm::SHA384:
-        return "SHA384"sv;
+        return "SHA384"_sv;
     case NSEC3HashAlgorithm::SHA512:
-        return "SHA512"sv;
+        return "SHA512"_sv;
     case NSEC3HashAlgorithm::SHA224:
-        return "SHA224"sv;
+        return "SHA224"_sv;
     case NSEC3HashAlgorithm::Unknown:
-        return "Unknown"sv;
+        return "Unknown"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -488,10 +488,10 @@ struct DNSKEY {
     ErrorOr<String> to_string() const
     {
         return String::formatted("DNSKEY Flags: {}{}{}{}({}), Protocol: {}, Algorithm: {}, Public Key: {}, Tag: {}",
-            is_secure_entry_point() ? "sep "sv : ""sv,
-            is_zone_key() ? "zone "sv : ""sv,
-            is_revoked() ? "revoked "sv : ""sv,
-            is_key_signing_key() ? "ksk "sv : ""sv,
+            is_secure_entry_point() ? "sep "_sv : ""_sv,
+            is_zone_key() ? "zone "_sv : ""_sv,
+            is_revoked() ? "revoked "_sv : ""_sv,
+            is_key_signing_key() ? "ksk "_sv : ""_sv,
             flags,
             protocol,
             DNSSEC::to_string(algorithm),

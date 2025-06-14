@@ -63,7 +63,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
             dbgln("open_a_database_connection: waiting for step 3");
             dbgln("requests in queue:");
             for (auto const& item : queue) {
-                dbgln("[{}] - {} = {}", item == request ? "x"sv : " "sv, item->uuid(), item->processed() ? "processed"sv : "not processed"sv);
+                dbgln("[{}] - {} = {}", item == request ? "x"_sv : " "_sv, item->uuid(), item->processed() ? "processed"_sv : "not processed"_sv);
             }
         }
 
@@ -451,7 +451,7 @@ WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::Storage
             dbgln("delete_a_database: waiting for step 3");
             dbgln("requests in queue:");
             for (auto const& item : queue) {
-                dbgln("[{}] - {} = {}", item == request ? "x"sv : " "sv, item->uuid(), item->processed() ? "processed"sv : "not processed"sv);
+                dbgln("[{}] - {} = {}", item == request ? "x"_sv : " "_sv, item->uuid(), item->processed() ? "processed"_sv : "not processed"_sv);
             }
         }
 
@@ -758,7 +758,7 @@ void commit_a_transaction(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
                 dbgln("commit_a_transaction: waiting for step 1");
                 dbgln("requests in queue:");
                 for (auto const& request : transaction->request_list()) {
-                    dbgln("  - {} = {}", request->uuid(), request->processed() ? "processed"sv : "not processed"sv);
+                    dbgln("  - {} = {}", request->uuid(), request->processed() ? "processed"_sv : "not processed"_sv);
                 }
             }
 
@@ -1163,7 +1163,7 @@ GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm& realm, IDBReques
                 dbgln("asynchronously_execute_a_request: waiting for step 5.1");
                 dbgln("requests in queue:");
                 for (auto const& item : transaction->request_list()) {
-                    dbgln("[{}] - {} = {}", item == request ? "x"sv : " "sv, item->uuid(), item->processed() ? "processed"sv : "not processed"sv);
+                    dbgln("[{}] - {} = {}", item == request ? "x"_sv : " "_sv, item->uuid(), item->processed() ? "processed"_sv : "not processed"_sv);
                 }
             }
 

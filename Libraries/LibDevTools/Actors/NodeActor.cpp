@@ -32,11 +32,11 @@ static AttributeModification parse_attribute_modification(JsonArray const& modif
         if (!modification.is_object())
             return {};
 
-        auto name = modification.as_object().get_string("attributeName"sv);
+        auto name = modification.as_object().get_string("attributeName"_sv);
         if (!name.has_value())
             return {};
 
-        auto value = modification.as_object().get_string("newValue"sv);
+        auto value = modification.as_object().get_string("newValue"_sv);
         if (!value.has_value())
             return *name;
 
@@ -66,15 +66,15 @@ NodeIdentifier NodeIdentifier::for_node(JsonObject const& node)
 {
     NodeIdentifier identifier;
 
-    identifier.pseudo_element = node.get_integer<UnderlyingType<Web::CSS::PseudoElement>>("pseudo-element"sv).map([](auto value) {
+    identifier.pseudo_element = node.get_integer<UnderlyingType<Web::CSS::PseudoElement>>("pseudo-element"_sv).map([](auto value) {
         VERIFY(value < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount));
         return static_cast<Web::CSS::PseudoElement>(value);
     });
 
     if (identifier.pseudo_element.has_value())
-        identifier.id = node.get_integer<Web::UniqueNodeID::Type>("parent-id"sv).value();
+        identifier.id = node.get_integer<Web::UniqueNodeID::Type>("parent-id"_sv).value();
     else
-        identifier.id = node.get_integer<Web::UniqueNodeID::Type>("id"sv).value();
+        identifier.id = node.get_integer<Web::UniqueNodeID::Type>("id"_sv).value();
 
     return identifier;
 }
@@ -97,20 +97,20 @@ void NodeActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "getUniqueSelector"sv) {
+    if (message.type == "getUniqueSelector"_sv) {
         auto dom_node = WalkerActor::dom_node_for(m_walker, name());
         if (!dom_node.has_value()) {
             send_unknown_actor_error(message, name());
             return;
         }
 
-        response.set("value"sv, dom_node->node.get_string("name"sv)->to_ascii_lowercase());
+        response.set("value"_sv, dom_node->node.get_string("name"_sv)->to_ascii_lowercase());
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "modifyAttributes"sv) {
-        auto modifications = get_required_parameter<JsonArray>(message, "modifications"sv);
+    if (message.type == "modifyAttributes"_sv) {
+        auto modifications = get_required_parameter<JsonArray>(message, "modifications"_sv);
         if (!modifications.has_value())
             return;
 
@@ -132,8 +132,8 @@ void NodeActor::handle_message(Message const& message)
         return;
     }
 
-    if (message.type == "setNodeValue"sv) {
-        auto value = get_required_parameter<String>(message, "value"sv);
+    if (message.type == "setNodeValue"_sv) {
+        auto value = get_required_parameter<String>(message, "value"_sv);
         if (!value.has_value())
             return;
 

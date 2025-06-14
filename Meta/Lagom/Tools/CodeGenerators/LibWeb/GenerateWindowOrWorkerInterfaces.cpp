@@ -28,7 +28,7 @@ static void consume_whitespace(GenericLexer& lexer)
     while (consumed) {
         consumed = lexer.consume_while(is_ascii_space).length() > 0;
 
-        if (lexer.consume_specific("//"sv)) {
+        if (lexer.consume_specific("//"_sv)) {
             lexer.consume_until('\n');
             lexer.ignore();
             consumed = true;
@@ -42,7 +42,7 @@ static Optional<LegacyConstructor> const& lookup_legacy_constructor(IDL::Interfa
     if (auto cache = s_legacy_constructors.get(interface.name); cache.has_value())
         return cache.value();
 
-    auto attribute = interface.extended_attributes.get("LegacyFactoryFunction"sv);
+    auto attribute = interface.extended_attributes.get("LegacyFactoryFunction"_sv);
     if (!attribute.has_value()) {
         s_legacy_constructors.set(interface.name, {});
         return s_legacy_constructors.get(interface.name).value();
@@ -109,7 +109,7 @@ void Intrinsics::create_web_namespace<@namespace_class@>(JS::Realm& realm)
     [[maybe_unused]] static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;)~~~");
 
         for (auto& interface : exposed_interfaces) {
-            if (interface.extended_attributes.get("LegacyNamespace"sv) != name)
+            if (interface.extended_attributes.get("LegacyNamespace"_sv) != name)
                 continue;
 
             gen.set("owned_interface_name", interface.name);
@@ -185,7 +185,7 @@ void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Rea
 }
 )~~~");
 
-    auto generated_intrinsics_path = LexicalPath(output_path).append("IntrinsicDefinitions.cpp"sv).string();
+    auto generated_intrinsics_path = LexicalPath(output_path).append("IntrinsicDefinitions.cpp"_sv).string();
     auto generated_intrinsics_file = TRY(Core::File::open(generated_intrinsics_path, Core::File::OpenMode::Write));
     TRY(generated_intrinsics_file->write_until_depleted(generator.as_string_view().bytes()));
 
@@ -305,12 +305,12 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
 
         if (interface.is_namespace) {
             add_namespace(gen, interface.name, interface.namespace_class);
-        } else if (!interface.extended_attributes.contains("LegacyNamespace"sv)) {
+        } else if (!interface.extended_attributes.contains("LegacyNamespace"_sv)) {
             if (interface.extended_attributes.contains("LegacyNoInterfaceObject")) {
                 continue;
             }
             if (class_name == "Window") {
-                add_interface(gen, interface.namespaced_name, interface.prototype_class, lookup_legacy_constructor(interface), interface.extended_attributes.get("LegacyWindowAlias"sv));
+                add_interface(gen, interface.namespaced_name, interface.prototype_class, lookup_legacy_constructor(interface), interface.extended_attributes.get("LegacyWindowAlias"_sv));
             } else {
                 add_interface(gen, interface.namespaced_name, interface.prototype_class, lookup_legacy_constructor(interface), {});
             }
@@ -356,7 +356,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     VERIFY(!paths.is_empty());
     VERIFY(!base_paths.is_empty());
 
-    if (paths.first().starts_with("@"sv)) {
+    if (paths.first().starts_with("@"_sv)) {
         // Response file
         auto file_or_error = Core::File::open(paths.first().substring_view(1), Core::File::OpenMode::Read);
         paths.remove(0);
@@ -418,16 +418,16 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     TRY(generate_intrinsic_definitions(output_path, intrinsics));
 
-    TRY(generate_exposed_interface_header("Window"sv, output_path));
-    TRY(generate_exposed_interface_header("DedicatedWorker"sv, output_path));
-    TRY(generate_exposed_interface_header("SharedWorker"sv, output_path));
-    TRY(generate_exposed_interface_header("ShadowRealm"sv, output_path));
+    TRY(generate_exposed_interface_header("Window"_sv, output_path));
+    TRY(generate_exposed_interface_header("DedicatedWorker"_sv, output_path));
+    TRY(generate_exposed_interface_header("SharedWorker"_sv, output_path));
+    TRY(generate_exposed_interface_header("ShadowRealm"_sv, output_path));
     // TODO: ServiceWorkerExposed.h
 
-    TRY(generate_exposed_interface_implementation("Window"sv, output_path, window_exposed));
-    TRY(generate_exposed_interface_implementation("DedicatedWorker"sv, output_path, dedicated_worker_exposed));
-    TRY(generate_exposed_interface_implementation("SharedWorker"sv, output_path, shared_worker_exposed));
-    TRY(generate_exposed_interface_implementation("ShadowRealm"sv, output_path, shadow_realm_exposed));
+    TRY(generate_exposed_interface_implementation("Window"_sv, output_path, window_exposed));
+    TRY(generate_exposed_interface_implementation("DedicatedWorker"_sv, output_path, dedicated_worker_exposed));
+    TRY(generate_exposed_interface_implementation("SharedWorker"_sv, output_path, shared_worker_exposed));
+    TRY(generate_exposed_interface_implementation("ShadowRealm"_sv, output_path, shadow_realm_exposed));
     // TODO: ServiceWorkerExposed.cpp
 
     return 0;
@@ -458,46 +458,46 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
         return Error::from_string_view(s_error_string.view());
     }
     auto exposed = maybe_exposed.value().trim_whitespace();
-    if (exposed == "*"sv)
+    if (exposed == "*"_sv)
         return ExposedTo::All;
-    if (exposed == "Nobody"sv)
+    if (exposed == "Nobody"_sv)
         return ExposedTo::Nobody;
-    if (exposed == "Window"sv)
+    if (exposed == "Window"_sv)
         return ExposedTo::Window;
-    if (exposed == "Worker"sv)
+    if (exposed == "Worker"_sv)
         return ExposedTo::AllWorkers;
-    if (exposed == "DedicatedWorker"sv)
+    if (exposed == "DedicatedWorker"_sv)
         return ExposedTo::DedicatedWorker;
-    if (exposed == "SharedWorker"sv)
+    if (exposed == "SharedWorker"_sv)
         return ExposedTo::SharedWorker;
-    if (exposed == "ServiceWorker"sv)
+    if (exposed == "ServiceWorker"_sv)
         return ExposedTo::ServiceWorker;
-    if (exposed == "AudioWorklet"sv)
+    if (exposed == "AudioWorklet"_sv)
         return ExposedTo::AudioWorklet;
-    if (exposed == "Worklet"sv)
+    if (exposed == "Worklet"_sv)
         return ExposedTo::Worklet;
-    if (exposed == "ShadowRealm"sv)
+    if (exposed == "ShadowRealm"_sv)
         return ExposedTo::ShadowRealm;
 
     if (exposed[0] == '(') {
         ExposedTo whom = Nobody;
         for (StringView candidate : exposed.substring_view(1, exposed.length() - 1).split_view(',')) {
             candidate = candidate.trim_whitespace();
-            if (candidate == "Window"sv) {
+            if (candidate == "Window"_sv) {
                 whom |= ExposedTo::Window;
-            } else if (candidate == "Worker"sv) {
+            } else if (candidate == "Worker"_sv) {
                 whom |= ExposedTo::AllWorkers;
-            } else if (candidate == "DedicatedWorker"sv) {
+            } else if (candidate == "DedicatedWorker"_sv) {
                 whom |= ExposedTo::DedicatedWorker;
-            } else if (candidate == "SharedWorker"sv) {
+            } else if (candidate == "SharedWorker"_sv) {
                 whom |= ExposedTo::SharedWorker;
-            } else if (candidate == "ServiceWorker"sv) {
+            } else if (candidate == "ServiceWorker"_sv) {
                 whom |= ExposedTo::ServiceWorker;
-            } else if (candidate == "AudioWorklet"sv) {
+            } else if (candidate == "AudioWorklet"_sv) {
                 whom |= ExposedTo::AudioWorklet;
-            } else if (candidate == "Worklet"sv) {
+            } else if (candidate == "Worklet"_sv) {
                 whom |= ExposedTo::Worklet;
-            } else if (candidate == "ShadowRealm"sv) {
+            } else if (candidate == "ShadowRealm"_sv) {
                 whom |= ExposedTo::ShadowRealm;
             } else {
                 s_error_string = ByteString::formatted("Unknown Exposed attribute candidate {} in {} in {}", candidate, exposed, interface.name);

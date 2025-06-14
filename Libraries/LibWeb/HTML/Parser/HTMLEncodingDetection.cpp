@@ -43,7 +43,7 @@ Optional<StringView> extract_character_encoding_from_meta_element(ByteString con
     GenericLexer lexer(lowercase_string);
 
     for (;;) {
-        auto charset_index = lexer.remaining().find("charset"sv);
+        auto charset_index = lexer.remaining().find("charset"_sv);
         if (!charset_index.has_value())
             return {};
 
@@ -379,8 +379,8 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ByteBuffer c
     // 4. If the transport layer specifies a character encoding, and it is supported, return that encoding with the confidence certain.
     if (maybe_mime_type.has_value()) {
         // FIXME: This is awkward because lecacy_extract_an_encoding can not fail
-        auto maybe_transport_encoding = Fetch::Infrastructure::legacy_extract_an_encoding(maybe_mime_type, "invalid"sv);
-        if (maybe_transport_encoding != "invalid"sv)
+        auto maybe_transport_encoding = Fetch::Infrastructure::legacy_extract_an_encoding(maybe_mime_type, "invalid"_sv);
+        if (maybe_transport_encoding != "invalid"_sv)
             return maybe_transport_encoding;
     }
 

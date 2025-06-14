@@ -42,7 +42,7 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
     // 2. Check for any errors that must be thrown due to parameter constraints described below. If any exception is thrown during this step, abort those steps.
     // A RangeError exception MUST be thrown if when is negative.
     if (when < 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"_sv };
 
     // 3. Set the internal slot [[source started]] on this AudioScheduledSourceNode to true.
     set_source_started(true);
@@ -64,7 +64,7 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
     // 2. Check for any errors that must be thrown due to parameter constraints described below.
     // A RangeError exception MUST be thrown if when is negative.
     if (when < 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"_sv };
 
     // FIXME: 3. Queue a control message to stop the AudioScheduledSourceNode, including the parameter values in the message.
 

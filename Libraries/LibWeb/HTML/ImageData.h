@@ -46,7 +46,7 @@ public:
 
     Bindings::PredefinedColorSpace color_space() const { return m_color_space; }
 
-    virtual StringView interface_name() const override { return "ImageData"sv; }
+    virtual StringView interface_name() const override { return "ImageData"_sv; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(SerializationRecord& serialized, bool for_storage, SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, DeserializationMemory&) override;
 

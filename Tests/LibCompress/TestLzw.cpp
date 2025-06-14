@@ -22,12 +22,12 @@ ErrorOr<bool> test_roundtrip_string(StringView input)
 
 TEST_CASE(roundtrip_lzw_little_endian_short)
 {
-    EXPECT(TRY_OR_FAIL(test_roundtrip_string("WeWellll"sv)));
+    EXPECT(TRY_OR_FAIL(test_roundtrip_string("WeWellll"_sv)));
 }
 
 TEST_CASE(roundtrip_lzw_little_endian_long)
 {
     // LZW changes the code size after ~512 new symbols, this test case is long enough to trigger that.
-    constexpr auto input = "WellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,g"sv;
+    constexpr auto input = "WellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,gWellWellWellWellaqwertyuiop[]sdfghjkl;'zxcvbnm,./uipnaspchu9epqrjepncdp9ruew-r8thvnufsipdonvjcx zvlrz[iu0q-348urfjsd;fjmvxc.nnnmvcxzvmc c,m;l'/,l4532[5i904tmorew;lgkrmopds['kg,l;'s,g"_sv;
     EXPECT(TRY_OR_FAIL(test_roundtrip_string(input)));
 }

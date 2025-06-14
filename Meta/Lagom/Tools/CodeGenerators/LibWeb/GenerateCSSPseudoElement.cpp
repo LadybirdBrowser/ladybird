@@ -47,7 +47,7 @@ ErrorOr<void> generate_header_file(JsonObject& pseudo_elements_data, Core::File&
     pseudo_elements_data.for_each_member([&](auto const&, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
         ++pseudo_element_count;
-        if (pseudo_element.get_bool("is-generated"sv).value_or(false))
+        if (pseudo_element.get_bool("is-generated"_sv).value_or(false))
             ++generated_pseudo_element_count;
     });
     generator.set("pseudo_element_underlying_type", underlying_type_for_enum(pseudo_element_count));
@@ -67,7 +67,7 @@ enum class PseudoElement : @pseudo_element_underlying_type@ {
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
 
         auto member_generator = generator.fork();
@@ -103,7 +103,7 @@ enum class GeneratedPseudoElement : @generated_pseudo_element_underlying_type@ {
 )~~~");
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
+        if (!pseudo_element.get_bool("is-generated"_sv).value_or(false))
             return;
 
         auto member_generator = generator.fork();
@@ -139,14 +139,14 @@ Optional<PseudoElement> pseudo_element_from_string(StringView string)
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify(name));
 
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
+    if (string.equals_ignoring_ascii_case("@name@"_sv))
         return PseudoElement::@name:titlecase@;
 )~~~");
     });
@@ -162,7 +162,7 @@ Optional<PseudoElement> aliased_pseudo_element_from_string(StringView string)
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        auto alias_for = pseudo_element.get_string("alias-for"sv);
+        auto alias_for = pseudo_element.get_string("alias-for"_sv);
         if (!alias_for.has_value())
             return;
 
@@ -171,7 +171,7 @@ Optional<PseudoElement> aliased_pseudo_element_from_string(StringView string)
         member_generator.set("alias:titlecase", title_casify(alias_for.value()));
 
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
+    if (string.equals_ignoring_ascii_case("@name@"_sv))
         return PseudoElement::@alias:titlecase@;
 )~~~");
     });
@@ -188,7 +188,7 @@ StringView pseudo_element_name(PseudoElement pseudo_element)
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
         auto member_generator = generator.fork();
         member_generator.set("name", name);
@@ -196,7 +196,7 @@ StringView pseudo_element_name(PseudoElement pseudo_element)
 
         member_generator.append(R"~~~(
     case PseudoElement::@name:titlecase@:
-        return "@name@"sv;
+        return "@name@"_sv;
 )~~~");
     });
 
@@ -215,9 +215,9 @@ bool is_has_allowed_pseudo_element(PseudoElement pseudo_element)
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
-        if (!pseudo_element.get_bool("is-allowed-in-has"sv).value_or(false))
+        if (!pseudo_element.get_bool("is-allowed-in-has"_sv).value_or(false))
             return;
 
         auto member_generator = generator.fork();
@@ -242,9 +242,9 @@ bool is_pseudo_element_root(PseudoElement pseudo_element)
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
-        if (!pseudo_element.get_bool("is-pseudo-root"sv).value_or(false))
+        if (!pseudo_element.get_bool("is-pseudo-root"_sv).value_or(false))
             return;
 
         auto member_generator = generator.fork();
@@ -269,9 +269,9 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
-        auto property_whitelist = pseudo_element.get_array("property-whitelist"sv);
+        auto property_whitelist = pseudo_element.get_array("property-whitelist"_sv);
         // No whitelist = accept everything, by falling back to the default case.
         if (!property_whitelist.has_value())
             return;
@@ -285,7 +285,7 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
 
         property_whitelist->for_each([&](JsonValue const& entry) {
             auto& property = entry.as_string();
-            if (property.starts_with_bytes("FIXME:"sv))
+            if (property.starts_with_bytes("FIXME:"_sv))
                 return;
 
             auto append_property = [&](StringView const& property_name) {
@@ -300,97 +300,97 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
             }
             // Categories
             // TODO: Maybe define these in data somewhere too?
-            if (property == "#background-properties"sv) {
+            if (property == "#background-properties"_sv) {
                 // https://drafts.csswg.org/css-backgrounds/#property-index
-                append_property("background"sv);
-                append_property("background-attachment"sv);
-                append_property("background-clip"sv);
-                append_property("background-color"sv);
-                append_property("background-image"sv);
-                append_property("background-origin"sv);
-                append_property("background-position"sv);
-                append_property("background-position-x"sv);
-                append_property("background-position-y"sv);
-                append_property("background-repeat"sv);
-                append_property("background-size"sv);
+                append_property("background"_sv);
+                append_property("background-attachment"_sv);
+                append_property("background-clip"_sv);
+                append_property("background-color"_sv);
+                append_property("background-image"_sv);
+                append_property("background-origin"_sv);
+                append_property("background-position"_sv);
+                append_property("background-position-x"_sv);
+                append_property("background-position-y"_sv);
+                append_property("background-repeat"_sv);
+                append_property("background-size"_sv);
                 return;
             }
-            if (property == "#border-properties"sv) {
+            if (property == "#border-properties"_sv) {
                 // https://drafts.csswg.org/css-backgrounds/#property-index
-                append_property("border"sv);
-                append_property("border-block-end"sv);
-                append_property("border-block-end-color"sv);
-                append_property("border-block-end-style"sv);
-                append_property("border-block-end-width"sv);
-                append_property("border-block-start"sv);
-                append_property("border-block-start-color"sv);
-                append_property("border-block-start-style"sv);
-                append_property("border-block-start-width"sv);
-                append_property("border-bottom"sv);
-                append_property("border-bottom-color"sv);
-                append_property("border-bottom-left-radius"sv);
-                append_property("border-bottom-right-radius"sv);
-                append_property("border-bottom-style"sv);
-                append_property("border-bottom-width"sv);
-                append_property("border-color"sv);
-                append_property("border-inline-end"sv);
-                append_property("border-inline-end-color"sv);
-                append_property("border-inline-end-style"sv);
-                append_property("border-inline-end-width"sv);
-                append_property("border-inline-start"sv);
-                append_property("border-inline-start-color"sv);
-                append_property("border-inline-start-style"sv);
-                append_property("border-inline-start-width"sv);
-                append_property("border-left"sv);
-                append_property("border-left-color"sv);
-                append_property("border-left-style"sv);
-                append_property("border-left-width"sv);
-                append_property("border-radius"sv);
-                append_property("border-right"sv);
-                append_property("border-right-color"sv);
-                append_property("border-right-style"sv);
-                append_property("border-right-width"sv);
-                append_property("border-style"sv);
-                append_property("border-top"sv);
-                append_property("border-top-color"sv);
-                append_property("border-top-left-radius"sv);
-                append_property("border-top-right-radius"sv);
-                append_property("border-top-style"sv);
-                append_property("border-top-width"sv);
-                append_property("border-width"sv);
+                append_property("border"_sv);
+                append_property("border-block-end"_sv);
+                append_property("border-block-end-color"_sv);
+                append_property("border-block-end-style"_sv);
+                append_property("border-block-end-width"_sv);
+                append_property("border-block-start"_sv);
+                append_property("border-block-start-color"_sv);
+                append_property("border-block-start-style"_sv);
+                append_property("border-block-start-width"_sv);
+                append_property("border-bottom"_sv);
+                append_property("border-bottom-color"_sv);
+                append_property("border-bottom-left-radius"_sv);
+                append_property("border-bottom-right-radius"_sv);
+                append_property("border-bottom-style"_sv);
+                append_property("border-bottom-width"_sv);
+                append_property("border-color"_sv);
+                append_property("border-inline-end"_sv);
+                append_property("border-inline-end-color"_sv);
+                append_property("border-inline-end-style"_sv);
+                append_property("border-inline-end-width"_sv);
+                append_property("border-inline-start"_sv);
+                append_property("border-inline-start-color"_sv);
+                append_property("border-inline-start-style"_sv);
+                append_property("border-inline-start-width"_sv);
+                append_property("border-left"_sv);
+                append_property("border-left-color"_sv);
+                append_property("border-left-style"_sv);
+                append_property("border-left-width"_sv);
+                append_property("border-radius"_sv);
+                append_property("border-right"_sv);
+                append_property("border-right-color"_sv);
+                append_property("border-right-style"_sv);
+                append_property("border-right-width"_sv);
+                append_property("border-style"_sv);
+                append_property("border-top"_sv);
+                append_property("border-top-color"_sv);
+                append_property("border-top-left-radius"_sv);
+                append_property("border-top-right-radius"_sv);
+                append_property("border-top-style"_sv);
+                append_property("border-top-width"_sv);
+                append_property("border-width"_sv);
                 return;
             }
-            if (property == "#custom-properties"sv) {
-                append_property("custom"sv);
+            if (property == "#custom-properties"_sv) {
+                append_property("custom"_sv);
                 return;
             }
-            if (property == "#font-properties"sv) {
+            if (property == "#font-properties"_sv) {
                 // https://drafts.csswg.org/css-fonts/#property-index
-                append_property("font"sv);
-                append_property("font-family"sv);
-                append_property("font-feature-settings"sv);
+                append_property("font"_sv);
+                append_property("font-family"_sv);
+                append_property("font-feature-settings"_sv);
                 // FIXME: font-kerning
-                append_property("font-language-override"sv);
+                append_property("font-language-override"_sv);
                 // FIXME: font-optical-sizing
                 // FIXME: font-palette
-                append_property("font-size"sv);
+                append_property("font-size"_sv);
                 // FIXME: font-size-adjust
-                append_property("font-style"sv);
+                append_property("font-style"_sv);
                 // FIXME: font-synthesis and longhands
-                append_property("font-variant"sv);
-                append_property("font-variant-alternates"sv);
-                append_property("font-variant-caps"sv);
-                append_property("font-variant-east-asian"sv);
-                append_property("font-variant-emoji"sv);
-                append_property("font-variant-ligatures"sv);
-                append_property("font-variant-numeric"sv);
-                append_property("font-variant-position"sv);
-                append_property("font-variation-settings"sv);
-                append_property("font-weight"sv);
-                append_property("font-width"sv);
+                append_property("font-variant"_sv);
+                append_property("font-variant-alternates"_sv);
+                append_property("font-variant-caps"_sv);
+                append_property("font-variant-east-asian"_sv);
+                append_property("font-variant-emoji"_sv);
+                append_property("font-variant-ligatures"_sv);
+                append_property("font-variant-numeric"_sv);
+                append_property("font-variant-position"_sv);
+                append_property("font-variation-settings"_sv);
+                append_property("font-weight"_sv);
+                append_property("font-width"_sv);
                 return;
             }
-            if (property == "#inline-layout-properties"sv) {
+            if (property == "#inline-layout-properties"_sv) {
                 // https://drafts.csswg.org/css-inline/#property-index
                 // FIXME: alignment-baseline
                 // FIXME: baseline-shift
@@ -401,14 +401,14 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
                 // FIXME: initial-letter-wrap
                 // FIXME: inline-sizing
                 // FIXME: line-edge-fit
-                append_property("line-height"sv);
+                append_property("line-height"_sv);
                 // FIXME: text-box
                 // FIXME: text-box-edge
                 // FIXME: text-box-trim
-                append_property("vertical-align"sv);
+                append_property("vertical-align"_sv);
                 return;
             }
-            if (property == "#inline-typesetting-properties"sv) {
+            if (property == "#inline-typesetting-properties"_sv) {
                 // https://drafts.csswg.org/css-text-4/#property-index
                 // FIXME: hanging-punctuation
                 // FIXME: hyphenate-character
@@ -417,70 +417,70 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
                 // FIXME: hyphenate-limit-lines
                 // FIXME: hyphenate-limit-zone
                 // FIXME: hyphens
-                append_property("letter-spacing"sv);
+                append_property("letter-spacing"_sv);
                 // FIXME: line-break
                 // FIXME: line-padding
                 // FIXME: overflow-wrap
-                append_property("tab-size"sv);
-                append_property("text-align"sv);
+                append_property("tab-size"_sv);
+                append_property("text-align"_sv);
                 // FIXME: text-align-all
                 // FIXME: text-align-last
                 // FIXME: text-autospace
                 // FIXME: text-group-align
-                append_property("text-indent"sv);
-                append_property("text-justify"sv);
+                append_property("text-indent"_sv);
+                append_property("text-justify"_sv);
                 // FIXME: text-spacing
                 // FIXME: text-spacing-trim
-                append_property("text-transform"sv);
-                append_property("text-wrap"sv);
-                append_property("text-wrap-mode"sv);
-                append_property("text-wrap-style"sv);
-                append_property("white-space"sv);
-                append_property("white-space-collapse"sv);
-                append_property("white-space-trim"sv);
-                append_property("word-break"sv);
+                append_property("text-transform"_sv);
+                append_property("text-wrap"_sv);
+                append_property("text-wrap-mode"_sv);
+                append_property("text-wrap-style"_sv);
+                append_property("white-space"_sv);
+                append_property("white-space-collapse"_sv);
+                append_property("white-space-trim"_sv);
+                append_property("word-break"_sv);
                 // FIXME: word-space-transform
-                append_property("word-spacing"sv);
-                append_property("word-wrap"sv);
+                append_property("word-spacing"_sv);
+                append_property("word-wrap"_sv);
                 // FIXME: wrap-after
                 // FIXME: wrap-before
                 // FIXME: wrap-inside
                 return;
             }
-            if (property == "#margin-properties"sv) {
-                append_property("margin"sv);
-                append_property("margin-block"sv);
-                append_property("margin-block-end"sv);
-                append_property("margin-block-start"sv);
-                append_property("margin-bottom"sv);
-                append_property("margin-inline"sv);
-                append_property("margin-inline-end"sv);
-                append_property("margin-inline-start"sv);
-                append_property("margin-left"sv);
-                append_property("margin-right"sv);
-                append_property("margin-top"sv);
+            if (property == "#margin-properties"_sv) {
+                append_property("margin"_sv);
+                append_property("margin-block"_sv);
+                append_property("margin-block-end"_sv);
+                append_property("margin-block-start"_sv);
+                append_property("margin-bottom"_sv);
+                append_property("margin-inline"_sv);
+                append_property("margin-inline-end"_sv);
+                append_property("margin-inline-start"_sv);
+                append_property("margin-left"_sv);
+                append_property("margin-right"_sv);
+                append_property("margin-top"_sv);
                 return;
             }
-            if (property == "#padding-properties"sv) {
-                append_property("padding"sv);
-                append_property("padding-block"sv);
-                append_property("padding-block-end"sv);
-                append_property("padding-block-start"sv);
-                append_property("padding-bottom"sv);
-                append_property("padding-inline"sv);
-                append_property("padding-inline-end"sv);
-                append_property("padding-inline-start"sv);
-                append_property("padding-left"sv);
-                append_property("padding-right"sv);
-                append_property("padding-top"sv);
+            if (property == "#padding-properties"_sv) {
+                append_property("padding"_sv);
+                append_property("padding-block"_sv);
+                append_property("padding-block-end"_sv);
+                append_property("padding-block-start"_sv);
+                append_property("padding-bottom"_sv);
+                append_property("padding-inline"_sv);
+                append_property("padding-inline-end"_sv);
+                append_property("padding-inline-start"_sv);
+                append_property("padding-left"_sv);
+                append_property("padding-right"_sv);
+                append_property("padding-top"_sv);
                 return;
             }
-            if (property == "#text-decoration-properties"sv) {
-                append_property("text-decoration"sv);
-                append_property("text-decoration-color"sv);
-                append_property("text-decoration-line"sv);
-                append_property("text-decoration-style"sv);
-                append_property("text-decoration-thickness"sv);
+            if (property == "#text-decoration-properties"_sv) {
+                append_property("text-decoration"_sv);
+                append_property("text-decoration-color"_sv);
+                append_property("text-decoration-line"_sv);
+                append_property("text-decoration-style"_sv);
+                append_property("text-decoration-thickness"_sv);
                 return;
             }
             outln("Error: Unrecognized property group name '{}' in {}", property, name);
@@ -507,15 +507,15 @@ PseudoElementMetadata pseudo_element_metadata(PseudoElement pseudo_element)
 )~~~");
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
 
         bool is_valid_as_function = false;
         bool is_valid_as_identifier = false;
-        auto const& type = pseudo_element.get_string("type"sv);
-        if (type == "function"sv) {
+        auto const& type = pseudo_element.get_string("type"_sv);
+        if (type == "function"_sv) {
             is_valid_as_function = true;
-        } else if (type == "both"sv) {
+        } else if (type == "both"_sv) {
             is_valid_as_function = true;
             is_valid_as_identifier = true;
         } else {
@@ -524,14 +524,14 @@ PseudoElementMetadata pseudo_element_metadata(PseudoElement pseudo_element)
 
         String parameter_type = "None"_string;
         if (is_valid_as_function) {
-            auto const& function_syntax = pseudo_element.get_string("function-syntax"sv).value();
-            if (function_syntax == "<pt-name-selector>"sv) {
+            auto const& function_syntax = pseudo_element.get_string("function-syntax"_sv).value();
+            if (function_syntax == "<pt-name-selector>"_sv) {
                 parameter_type = "PTNameSelector"_string;
             } else {
                 warnln("Unrecognized pseudo-element parameter type: `{}`", function_syntax);
                 VERIFY_NOT_REACHED();
             }
-        } else if (pseudo_element.has("function-syntax"sv)) {
+        } else if (pseudo_element.has("function-syntax"_sv)) {
             warnln("Pseudo-element `::{}` has `function-syntax` but is not a function type.", name);
             VERIFY_NOT_REACHED();
         }
@@ -572,9 +572,9 @@ Optional<GeneratedPseudoElement> to_generated_pseudo_element(PseudoElement pseud
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
-        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
+        if (!pseudo_element.get_bool("is-generated"_sv).value_or(false))
             return;
 
         auto member_generator = generator.fork();
@@ -598,9 +598,9 @@ PseudoElement to_pseudo_element(GeneratedPseudoElement generated_pseudo_element)
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto& pseudo_element = value.as_object();
-        if (pseudo_element.has("alias-for"sv))
+        if (pseudo_element.has("alias-for"_sv))
             return;
-        if (!pseudo_element.get_bool("is-generated"sv).value_or(false))
+        if (!pseudo_element.get_bool("is-generated"_sv).value_or(false))
             return;
 
         auto member_generator = generator.fork();

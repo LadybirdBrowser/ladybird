@@ -298,7 +298,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
 
         // d. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
         if (is_typed_array_out_of_bounds(typed_array_record))
-            return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+            return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
         // e. Set len to TypedArrayLength(taRecord).
         length = typed_array_length(typed_array_record);
@@ -444,7 +444,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::every)
     auto length = typed_array_length(typed_array_record);
 
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
-    auto callback_function = TRY(callback_from_args(vm, "every"sv));
+    auto callback_function = TRY(callback_from_args(vm, "every"_sv));
 
     // 5. Let k be 0.
     // 6. Repeat, while k < len,
@@ -557,7 +557,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::fill)
 
     // 15. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 16. Set len to TypedArrayLength(taRecord).
     length = typed_array_length(typed_array_record);
@@ -631,7 +631,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     auto length = typed_array_length(typed_array_record);
 
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
-    auto callback_function = TRY(callback_from_args(vm, "filter"sv));
+    auto callback_function = TRY(callback_from_args(vm, "filter"_sv));
 
     // 5. Let kept be a new empty List.
     GC::RootVector<Value> kept { vm.heap() };
@@ -760,7 +760,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::find)
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let findRec be ? FindViaPredicate(O, len, ascending, predicate, thisArg).
-    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Ascending, this_arg, "find"sv));
+    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Ascending, this_arg, "find"_sv));
 
     // 5. Return findRec.[[Value]].
     return find_record.value;
@@ -781,7 +781,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::find_index)
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let findRec be ? FindViaPredicate(O, len, ascending, predicate, thisArg).
-    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Ascending, this_arg, "findIndex"sv));
+    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Ascending, this_arg, "findIndex"_sv));
 
     // 5. Return findRec.[[Index]].
     return find_record.index_to_value();
@@ -802,7 +802,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::find_last)
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let findRec be ? FindViaPredicate(O, len, descending, predicate, thisArg).
-    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Descending, this_arg, "findLast"sv));
+    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Descending, this_arg, "findLast"_sv));
 
     // 5. Return findRec.[[Value]].
     return find_record.value;
@@ -823,7 +823,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::find_last_index)
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let findRec be ? FindViaPredicate(O, len, descending, predicate, thisArg).
-    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Descending, this_arg, "findLastIndex"sv));
+    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Descending, this_arg, "findLastIndex"_sv));
 
     // 5. Return findRec.[[Index]].
     return find_record.index_to_value();
@@ -844,7 +844,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::for_each)
     auto length = typed_array_length(typed_array_record);
 
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
-    auto callback_function = TRY(callback_from_args(vm, "forEach"sv));
+    auto callback_function = TRY(callback_from_args(vm, "forEach"_sv));
 
     // 5. Let k be 0.
     // 6. Repeat, while k < len,
@@ -1183,7 +1183,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::map)
     auto length = typed_array_length(typed_array_record);
 
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
-    auto callback_function = TRY(callback_from_args(vm, "map"sv));
+    auto callback_function = TRY(callback_from_args(vm, "map"_sv));
 
     // 5. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(len) »).
     GC::RootVector<Value> arguments(vm.heap());
@@ -1227,7 +1227,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reduce)
     auto length = typed_array_length(typed_array_record);
 
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
-    auto callback_function = TRY(callback_from_args(vm, "reduce"sv));
+    auto callback_function = TRY(callback_from_args(vm, "reduce"_sv));
 
     // 5. If len = 0 and initialValue is not present, throw a TypeError exception.
     if (length == 0 && vm.argument_count() <= 1)
@@ -1290,7 +1290,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reduce_right)
     auto length = typed_array_length(typed_array_record);
 
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
-    auto callback_function = TRY(callback_from_args(vm, "reduceRight"sv));
+    auto callback_function = TRY(callback_from_args(vm, "reduceRight"_sv));
 
     // 5. If len = 0 and initialValue is not present, throw a TypeError exception.
     if (length == 0 && vm.argument_count() <= 1)
@@ -1395,7 +1395,7 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
 
     // 3. If IsTypedArrayOutOfBounds(targetRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(target_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 4. Let targetLength be TypedArrayLength(targetRecord).
     auto target_length = typed_array_length(target_record);
@@ -1408,7 +1408,7 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
 
     // 7. If IsTypedArrayOutOfBounds(srcRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(source_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 8. Let srcLength be TypedArrayLength(srcRecord).
     auto source_length = typed_array_length(source_record);
@@ -1526,7 +1526,7 @@ static ThrowCompletionOr<void> set_typed_array_from_array_like(VM& vm, TypedArra
 
     // 2. If IsTypedArrayOutOfBounds(targetRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(target_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 3. Let targetLength be TypedArrayLength(targetRecord).
     auto target_length = typed_array_length(target_record);
@@ -1679,7 +1679,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
 
         // b. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
         if (is_typed_array_out_of_bounds(typed_array_record))
-            return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+            return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
         // c. Set len to TypedArrayLength(taRecord).
         length = typed_array_length(typed_array_record);
@@ -1789,7 +1789,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::some)
     auto length = typed_array_length(typed_array_record);
 
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
-    auto callback_function = TRY(callback_from_args(vm, "some"sv));
+    auto callback_function = TRY(callback_from_args(vm, "some"_sv));
 
     // 5. Let k be 0.
     // 6. Repeat, while k < len,

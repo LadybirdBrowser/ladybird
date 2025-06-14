@@ -53,7 +53,7 @@ WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(JS::Realm& realm, Gl
     // 3. If valuetype is v128,
     // 3.1 Throw a TypeError exception.
     if (value_type.kind() == Wasm::ValueType::V128)
-        return vm.throw_completion<JS::TypeError>("V128 is not supported as a global value type"sv);
+        return vm.throw_completion<JS::TypeError>("V128 is not supported as a global value type"_sv);
 
     // 4. If v is missing,
     // 4.1 Let value be DefaultValue(valuetype).
@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(JS::Realm& realm, Gl
     auto& cache = Detail::get_cache(realm);
     auto address = cache.abstract_machine().store().allocate(global_type, value);
     if (!address.has_value())
-        return vm.throw_completion<JS::TypeError>("Wasm Global allocation failed"sv);
+        return vm.throw_completion<JS::TypeError>("Wasm Global allocation failed"_sv);
 
     return realm.create<Global>(realm, *address);
 }
@@ -115,11 +115,11 @@ static WebIDL::ExceptionOr<JS::Value> get_global_value(Global const& global)
     auto& cache = Detail::get_cache(global.realm());
     auto* global_instance = cache.abstract_machine().store().get(global.address());
     if (!global_instance)
-        return global.vm().throw_completion<JS::RangeError>("Could not find the global instance"sv);
+        return global.vm().throw_completion<JS::RangeError>("Could not find the global instance"_sv);
 
     auto value_type = global_instance->type().type();
     if (value_type.kind() == Wasm::ValueType::V128)
-        return global.vm().throw_completion<JS::TypeError>("V128 is not supported as a global value type"sv);
+        return global.vm().throw_completion<JS::TypeError>("V128 is not supported as a global value type"_sv);
 
     // 5. Let value be global_read(store, globaladdr).
     auto value = global_instance->value();
@@ -154,14 +154,14 @@ WebIDL::ExceptionOr<void> Global::set_value(JS::Value the_given_value)
     auto& cache = Detail::get_cache(realm);
     auto* global_instance = cache.abstract_machine().store().get(address());
     if (!global_instance)
-        return vm.throw_completion<JS::RangeError>("Could not find the global instance"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the global instance"_sv);
 
     auto mut_value_type = global_instance->type();
     if (mut_value_type.type().kind() == Wasm::ValueType::V128)
-        return vm.throw_completion<JS::TypeError>("Cannot set the value of a V128 global"sv);
+        return vm.throw_completion<JS::TypeError>("Cannot set the value of a V128 global"_sv);
 
     if (!mut_value_type.is_mutable())
-        return vm.throw_completion<JS::TypeError>("Cannot set the value of a const global"sv);
+        return vm.throw_completion<JS::TypeError>("Cannot set the value of a const global"_sv);
 
     // 6. Let value be ToWebAssemblyValue(the given value, valuetype).
     auto value = TRY(Detail::to_webassembly_value(vm, the_given_value, mut_value_type.type()));

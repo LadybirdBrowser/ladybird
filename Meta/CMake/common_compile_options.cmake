@@ -108,7 +108,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # Only ignore expansion-to-defined for g++, clang's implementation doesn't complain about function-like macros
     add_cxx_compile_options(-Wno-expansion-to-defined)
-    add_cxx_compile_options(-Wno-literal-suffix)
     add_cxx_compile_options(-Wno-unqualified-std-cast-call)
     add_cxx_compile_options(-Wvla)
 

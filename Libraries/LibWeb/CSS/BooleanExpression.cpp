@@ -16,7 +16,7 @@ bool BooleanExpression::evaluate_to_boolean(HTML::Window const* window) const
 
 void BooleanExpression::indent(StringBuilder& builder, int levels)
 {
-    builder.append_repeated("  "sv, levels);
+    builder.append_repeated("  "_sv, levels);
 }
 
 void GeneralEnclosed::dump(StringBuilder& builder, int indent_levels) const
@@ -48,7 +48,7 @@ String BooleanNotExpression::to_string() const
 void BooleanNotExpression::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
-    builder.append("NOT:\n"sv);
+    builder.append("NOT:\n"_sv);
     m_child->dump(builder, indent_levels + 1);
 }
 
@@ -65,10 +65,10 @@ String BooleanExpressionInParens::to_string() const
 void BooleanExpressionInParens::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
-    builder.append("(\n"sv);
+    builder.append("(\n"_sv);
     m_child->dump(builder, indent_levels + 1);
     indent(builder, indent_levels);
-    builder.append(")\n"sv);
+    builder.append(")\n"_sv);
 }
 
 MatchResult BooleanAndExpression::evaluate(HTML::Window const* window) const
@@ -91,13 +91,13 @@ MatchResult BooleanAndExpression::evaluate(HTML::Window const* window) const
 
 String BooleanAndExpression::to_string() const
 {
-    return MUST(String::join(" and "sv, m_children));
+    return MUST(String::join(" and "_sv, m_children));
 }
 
 void BooleanAndExpression::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
-    builder.append("AND:\n"sv);
+    builder.append("AND:\n"_sv);
     for (auto const& child : m_children)
         child->dump(builder, indent_levels + 1);
 }
@@ -122,13 +122,13 @@ MatchResult BooleanOrExpression::evaluate(HTML::Window const* window) const
 
 String BooleanOrExpression::to_string() const
 {
-    return MUST(String::join(" or "sv, m_children));
+    return MUST(String::join(" or "_sv, m_children));
 }
 
 void BooleanOrExpression::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
-    builder.append("OR:\n"sv);
+    builder.append("OR:\n"_sv);
     for (auto const& child : m_children)
         child->dump(builder, indent_levels + 1);
 }

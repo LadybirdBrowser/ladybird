@@ -61,23 +61,23 @@ ThrowCompletionOr<GC::Ref<Object>> DisplayNamesConstructor::construct(FunctionOb
     auto [options, result, _] = TRY(resolve_options(vm, display_names, locales_value, options_value, SpecialBehaviors::RequireOptions));
 
     // 6. Let style be ? GetOption(options, "style", string, « "narrow", "short", "long" », "long").
-    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "narrow"sv, "short"sv, "long"sv }, "long"sv));
+    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "narrow"_sv, "short"_sv, "long"_sv }, "long"_sv));
 
     // 7. Set displayNames.[[Style]] to style.
     display_names->set_style(style.as_string().utf8_string_view());
 
     // 8. Let type be ? GetOption(options, "type", string, « "language", "region", "script", "currency", "calendar", "dateTimeField" », undefined).
-    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, { "language"sv, "region"sv, "script"sv, "currency"sv, "calendar"sv, "dateTimeField"sv }, Empty {}));
+    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, { "language"_sv, "region"_sv, "script"_sv, "currency"_sv, "calendar"_sv, "dateTimeField"_sv }, Empty {}));
 
     // 9. If type is undefined, throw a TypeError exception.
     if (type.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "options.type"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "options.type"_sv);
 
     // 10. Set displayNames.[[Type]] to type.
     display_names->set_type(type.as_string().utf8_string_view());
 
     // 11. Let fallback be ? GetOption(options, "fallback", string, « "code", "none" », "code").
-    auto fallback = TRY(get_option(vm, *options, vm.names.fallback, OptionType::String, { "code"sv, "none"sv }, "code"sv));
+    auto fallback = TRY(get_option(vm, *options, vm.names.fallback, OptionType::String, { "code"_sv, "none"_sv }, "code"_sv));
 
     // 12. Set displayNames.[[Fallback]] to fallback.
     display_names->set_fallback(fallback.as_string().utf8_string_view());
@@ -90,7 +90,7 @@ ThrowCompletionOr<GC::Ref<Object>> DisplayNamesConstructor::construct(FunctionOb
     // 16. Assert: types is a Record (see 12.2.3).
 
     // 17. Let languageDisplay be ? GetOption(options, "languageDisplay", string, « "dialect", "standard" », "dialect").
-    auto language_display = TRY(get_option(vm, *options, vm.names.languageDisplay, OptionType::String, { "dialect"sv, "standard"sv }, "dialect"sv));
+    auto language_display = TRY(get_option(vm, *options, vm.names.languageDisplay, OptionType::String, { "dialect"_sv, "standard"_sv }, "dialect"_sv));
 
     // 18. Let typeFields be types.[[<type>]].
     // 19. Assert: typeFields is a Record (see 12.2.3).

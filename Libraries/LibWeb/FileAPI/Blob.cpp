@@ -37,7 +37,7 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type
 ErrorOr<String> convert_line_endings_to_native(StringView string)
 {
     // 1. Let native line ending be the code point U+000A LF.
-    auto native_line_ending = "\n"sv;
+    auto native_line_ending = "\n"_sv;
 
     // 2. If the underlying platform’s conventions are to represent newlines as a carriage return and line feed sequence, set native line ending to the code point U+000D CR followed by the code point U+000A LF.
     // NOTE: this step is a no-op since LibWeb does not compile on Windows, which is the only platform we know of that that uses a carriage return and line feed sequence for line endings.
@@ -50,7 +50,7 @@ ErrorOr<String> convert_line_endings_to_native(StringView string)
 
     // 5. Let token be the result of collecting a sequence of code points that are not equal to U+000A LF or U+000D CR from s given position.
     // 6. Append token to result.
-    TRY(result.try_append(lexer.consume_until(is_any_of("\n\r"sv))));
+    TRY(result.try_append(lexer.consume_until(is_any_of("\n\r"_sv))));
 
     // 7. While position is not past the end of s:
     while (!lexer.is_eof()) {
@@ -74,7 +74,7 @@ ErrorOr<String> convert_line_endings_to_native(StringView string)
 
         // 3. Let token be the result of collecting a sequence of code points that are not equal to U+000A LF or U+000D CR from s given position.
         // 4. Append token to result.
-        TRY(result.try_append(lexer.consume_until(is_any_of("\n\r"sv))));
+        TRY(result.try_append(lexer.consume_until(is_any_of("\n\r"_sv))));
     }
     // 5. Return result.
     return result.to_string();
@@ -390,7 +390,7 @@ GC::Ref<WebIDL::Promise> Blob::text()
         VERIFY(is<JS::ArrayBuffer>(object));
         auto const& buffer = static_cast<const JS::ArrayBuffer&>(object).buffer();
 
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
+        auto decoder = TextCodec::decoder_for("UTF-8"_sv);
         auto utf8_text = TRY_OR_THROW_OOM(vm, TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, buffer));
         return JS::PrimitiveString::create(vm, move(utf8_text));
     }));

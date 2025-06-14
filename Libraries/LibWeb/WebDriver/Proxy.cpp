@@ -35,74 +35,74 @@ void reset_has_proxy_configuration()
 // https://w3c.github.io/webdriver/#dfn-proxy-configuration
 static ErrorOr<void, Error> validate_proxy_item(StringView key, JsonValue const& value)
 {
-    if (key == "proxyType"sv) {
+    if (key == "proxyType"_sv) {
         if (!value.is_string())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyType' must be a string"sv);
-        if (!value.as_string().is_one_of("pac"sv, "direct"sv, "autodetect"sv, "system"sv, "manual"sv))
-            return Error::from_code(ErrorCode::InvalidArgument, "Invalid 'proxyType' value"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyType' must be a string"_sv);
+        if (!value.as_string().is_one_of("pac"_sv, "direct"_sv, "autodetect"_sv, "system"_sv, "manual"_sv))
+            return Error::from_code(ErrorCode::InvalidArgument, "Invalid 'proxyType' value"_sv);
         return {};
     }
 
-    if (key == "proxyAutoconfigUrl"sv) {
+    if (key == "proxyAutoconfigUrl"_sv) {
         if (!value.is_string())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a string"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a string"_sv);
         if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a valid URL"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a valid URL"_sv);
         return {};
     }
 
-    if (key == "ftpProxy"sv) {
+    if (key == "ftpProxy"_sv) {
         if (!value.is_string())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'ftpProxy' must be a string"sv);
-        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "ftp"sv)
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'ftpProxy' must be a valid FTP URL"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'ftpProxy' must be a string"_sv);
+        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "ftp"_sv)
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'ftpProxy' must be a valid FTP URL"_sv);
         return {};
     }
 
-    if (key == "httpProxy"sv) {
+    if (key == "httpProxy"_sv) {
         if (!value.is_string())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'httpProxy' must be a string"sv);
-        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "http"sv)
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'httpProxy' must be a valid HTTP URL"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'httpProxy' must be a string"_sv);
+        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "http"_sv)
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'httpProxy' must be a valid HTTP URL"_sv);
         return {};
     }
 
-    if (key == "noProxy"sv) {
+    if (key == "noProxy"_sv) {
         if (!value.is_array())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'noProxy' must be a list"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'noProxy' must be a list"_sv);
 
         TRY(value.as_array().try_for_each([&](JsonValue const& item) -> ErrorOr<void, Error> {
             if (!item.is_string())
-                return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'noProxy' must be a list of strings"sv);
+                return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'noProxy' must be a list of strings"_sv);
             return {};
         }));
 
         return {};
     }
 
-    if (key == "sslProxy"sv) {
+    if (key == "sslProxy"_sv) {
         if (!value.is_string())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'sslProxy' must be a string"sv);
-        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "https"sv)
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'sslProxy' must be a valid HTTPS URL"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'sslProxy' must be a string"_sv);
+        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "https"_sv)
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'sslProxy' must be a valid HTTPS URL"_sv);
         return {};
     }
 
-    if (key == "socksProxy"sv) {
+    if (key == "socksProxy"_sv) {
         if (!value.is_string())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a string"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a string"_sv);
         if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a valid URL"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a valid URL"_sv);
         return {};
     }
 
-    if (key == "socksVersion"sv) {
+    if (key == "socksVersion"_sv) {
         if (!value.is_integer<u8>())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'socksVersion' must be an integer in the range [0, 255]"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'socksVersion' must be an integer in the range [0, 255]"_sv);
         return {};
     }
 
-    return Error::from_code(ErrorCode::InvalidArgument, "Invalid proxy configuration item"sv);
+    return Error::from_code(ErrorCode::InvalidArgument, "Invalid proxy configuration item"_sv);
 }
 
 // https://w3c.github.io/webdriver/#dfn-deserialize-as-a-proxy
@@ -110,7 +110,7 @@ ErrorOr<JsonObject, Error> deserialize_as_a_proxy(JsonValue const& parameter)
 {
     // 1. If parameter is not a JSON Object return an error with error code invalid argument.
     if (!parameter.is_object())
-        return Error::from_code(ErrorCode::InvalidArgument, "Capability proxy must be an object"sv);
+        return Error::from_code(ErrorCode::InvalidArgument, "Capability proxy must be an object"_sv);
 
     // 2. Let proxy be a new, empty proxy configuration object.
     JsonObject proxy;

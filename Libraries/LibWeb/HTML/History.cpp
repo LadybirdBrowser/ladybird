@@ -145,12 +145,12 @@ bool can_have_its_url_rewritten(DOM::Document const& document, URL::URL const& t
 
     // 3. If targetURL's scheme is an HTTP(S) scheme, then return true.
     //    (Differences in path, query, and fragment are allowed for http: and https: URLs.)
-    if (target_url.scheme() == "http"sv || target_url.scheme() == "https"sv)
+    if (target_url.scheme() == "http"_sv || target_url.scheme() == "https"_sv)
         return true;
 
     // 4. If targetURL's scheme is "file", then:
     //    (Differences in query and fragment are allowed for file: URLs.)
-    if (target_url.scheme() == "file"sv) {
+    if (target_url.scheme() == "file"_sv) {
         // 1. If targetURL and documentURL differ in their path component, then return false.
         if (target_url.paths() != document_url.paths())
             return false;

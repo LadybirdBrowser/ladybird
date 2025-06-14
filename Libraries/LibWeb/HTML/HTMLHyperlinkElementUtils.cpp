@@ -18,7 +18,7 @@ HTMLHyperlinkElementUtils::~HTMLHyperlinkElementUtils() = default;
 void HTMLHyperlinkElementUtils::reinitialize_url() const
 {
     // 1. If the element's url is non-null, its scheme is "blob", and it has an opaque path, then terminate these steps.
-    if (m_url.has_value() && m_url->scheme() == "blob"sv && m_url->has_an_opaque_path())
+    if (m_url.has_value() && m_url->scheme() == "blob"_sv && m_url->has_an_opaque_path())
         return;
 
     // 2. Set the url.

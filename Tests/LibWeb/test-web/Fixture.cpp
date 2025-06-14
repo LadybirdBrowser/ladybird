@@ -38,7 +38,7 @@ class HttpEchoServerFixture final : public Fixture {
 public:
     virtual ErrorOr<void> setup(WebView::WebContentOptions&) override;
     virtual void teardown_impl() override;
-    virtual StringView name() const override { return "HttpEchoServer"sv; }
+    virtual StringView name() const override { return "HttpEchoServer"_sv; }
     virtual bool is_running() const override { return m_process.has_value(); }
 
 private:
@@ -66,7 +66,7 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
     auto const arguments = Vector { script_path.string(), "--directory", Application::the().test_root_path };
 
     // FIXME: Pick a more reasonable log path that is more observable
-    auto const log_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "http-test-server.log"sv).string();
+    auto const log_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "http-test-server.log"_sv).string();
 
     auto stdout_fds = TRY(Core::System::pipe2(0));
 
@@ -119,7 +119,7 @@ void HttpEchoServerFixture::teardown_impl()
 
 void Fixture::initialize_fixtures()
 {
-    s_fixtures_path = LexicalPath::join(Application::the().test_root_path, "Fixtures"sv).string();
+    s_fixtures_path = LexicalPath::join(Application::the().test_root_path, "Fixtures"_sv).string();
 
     auto& registry = all();
     registry.append(make<HttpEchoServerFixture>());

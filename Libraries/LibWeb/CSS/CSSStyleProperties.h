@@ -34,7 +34,7 @@ public:
     Optional<StyleProperty> property(PropertyID) const;
     Optional<StyleProperty const&> custom_property(FlyString const& custom_property_name) const;
 
-    WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);
+    WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""_sv);
     WebIDL::ExceptionOr<String> remove_property(PropertyID);
 
     virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) override;

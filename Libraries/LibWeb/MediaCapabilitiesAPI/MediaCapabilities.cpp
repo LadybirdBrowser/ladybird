@@ -59,7 +59,7 @@ bool is_valid_audio_mime_type(StringView string)
     auto mime_type = MimeSniff::MimeType::parse(string);
     if (!mime_type.has_value())
         return false;
-    return mime_type->type() == "audio"sv || mime_type->type() == "application"sv;
+    return mime_type->type() == "audio"_sv || mime_type->type() == "application"_sv;
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-mime-type
@@ -70,7 +70,7 @@ bool is_valid_video_mime_type(StringView string)
     auto mime_type = MimeSniff::MimeType::parse(string);
     if (!mime_type.has_value())
         return false;
-    return mime_type->type() == "video"sv || mime_type->type() == "application"sv;
+    return mime_type->type() == "video"_sv || mime_type->type() == "application"_sv;
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-configuration
@@ -144,7 +144,7 @@ GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(MediaDecodingConfigura
     // 1. If configuration is not a valid MediaDecodingConfiguration, return a Promise rejected with a newly created
     //    TypeError.
     if (!configuration.is_valid_media_decoding_configuration()) {
-        return WebIDL::create_rejected_promise_from_exception(realm, vm().throw_completion<JS::TypeError>("The given configuration is not a valid MediaDecodingConfiguration"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, vm().throw_completion<JS::TypeError>("The given configuration is not a valid MediaDecodingConfiguration"_sv));
     }
 
     // 2. If configuration.keySystemConfiguration exists, run the following substeps:

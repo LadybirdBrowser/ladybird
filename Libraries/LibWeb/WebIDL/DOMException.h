@@ -111,7 +111,7 @@ public:
     FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
 
-    virtual StringView interface_name() const override { return "DOMException"sv; }
+    virtual StringView interface_name() const override { return "DOMException"_sv; }
 
     virtual ExceptionOr<void> serialization_steps(HTML::SerializationRecord& record, bool for_storage, HTML::SerializationMemory&) override;
     virtual ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const& record, size_t& position, HTML::DeserializationMemory&) override;
@@ -155,7 +155,7 @@ template<>
 struct Formatter<Web::WebIDL::DOMException> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Web::WebIDL::DOMException const& exception)
     {
-        return Formatter<FormatString>::format(builder, "[{}]: {}"sv, exception.name(), exception.message());
+        return Formatter<FormatString>::format(builder, "[{}]: {}"_sv, exception.name(), exception.message());
     }
 };
 

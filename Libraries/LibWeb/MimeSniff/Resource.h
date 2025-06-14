@@ -24,7 +24,7 @@ enum class SniffingContext {
 
 struct SniffingConfiguration {
     SniffingContext sniffing_context { SniffingContext::None };
-    StringView scheme { ""sv };
+    StringView scheme { ""_sv };
     Optional<MimeType> supplied_type = {};
     bool no_sniff { false };
 };

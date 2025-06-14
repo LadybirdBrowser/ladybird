@@ -192,7 +192,7 @@ template<typename T>
 struct Formatter<Gfx::Line<T>> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Gfx::Line<T> const& value)
     {
-        return Formatter<FormatString>::format(builder, "[{},{} -> {},{}]"sv, value.a().x(), value.a().y(), value.b().x(), value.b().y());
+        return Formatter<FormatString>::format(builder, "[{},{} -> {},{}]"_sv, value.a().x(), value.a().y(), value.b().x(), value.b().y());
     }
 };
 

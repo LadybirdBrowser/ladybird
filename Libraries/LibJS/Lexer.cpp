@@ -773,7 +773,7 @@ Token Lexer::next()
             m_parsed_identifiers->identifiers.set(*identifier);
         } else {
             token_type = TokenType::Invalid;
-            token_message = "Start of private name '#' but not followed by valid identifier"sv;
+            token_message = "Start of private name '#' but not followed by valid identifier"_sv;
         }
     } else if (auto code_point = is_identifier_start(identifier_length); code_point.has_value()) {
         bool has_escaped_character = false;
@@ -864,7 +864,7 @@ Token Lexer::next()
         }
         if (is_invalid_numeric_literal) {
             token_type = TokenType::Invalid;
-            token_message = "Invalid numeric literal"sv;
+            token_message = "Invalid numeric literal"_sv;
         }
     } else if (m_current_char == '"' || m_current_char == '\'') {
         char stop_char = m_current_char;
@@ -891,7 +891,7 @@ Token Lexer::next()
     } else if (m_eof) {
         if (unterminated_comment) {
             token_type = TokenType::Invalid;
-            token_message = "Unterminated multi-line comment"sv;
+            token_message = "Unterminated multi-line comment"_sv;
         } else {
             token_type = TokenType::Eof;
         }
@@ -959,7 +959,7 @@ Token Lexer::next()
     if (m_hit_invalid_unicode.has_value()) {
         value_start = m_hit_invalid_unicode.value() - 1;
         m_current_token = Token(TokenType::Invalid, "Invalid unicode codepoint in source"_string,
-            ""sv, // Since the invalid unicode can occur anywhere in the current token the trivia is not correct
+            ""_sv, // Since the invalid unicode can occur anywhere in the current token the trivia is not correct
             m_source.substring_view(value_start + 1, min(4u, m_source.length() - value_start - 2)),
             m_line_number,
             m_line_column - 1,
@@ -1063,7 +1063,7 @@ bool is_syntax_character(u32 code_point)
 {
     // SyntaxCharacter :: one of
     //     ^ $ \ . * + ? ( ) [ ] { } |
-    static constexpr Utf8View syntax_characters { "^$\\.*+?()[]{}|"sv };
+    static constexpr Utf8View syntax_characters { "^$\\.*+?()[]{}|"_sv };
     return syntax_characters.contains(code_point);
 }
 

@@ -107,7 +107,7 @@ Optional<MediaFeatureID> media_feature_id_from_string(StringView string)
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify(name));
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
+    if (string.equals_ignoring_ascii_case("@name@"_sv))
         return MediaFeatureID::@name:titlecase@;
 )~~~");
     });
@@ -126,7 +126,7 @@ StringView string_from_media_feature_id(MediaFeatureID media_feature_id)
         member_generator.set("name:titlecase", title_casify(name));
         member_generator.append(R"~~~(
     case MediaFeatureID::@name:titlecase@:
-        return "@name@"sv;)~~~");
+        return "@name@"_sv;)~~~");
     });
 
     generator.append(R"~~~(
@@ -144,10 +144,10 @@ bool media_feature_type_is_range(MediaFeatureID media_feature_id)
 
         auto member_generator = generator.fork();
         member_generator.set("name:titlecase", title_casify(name));
-        VERIFY(feature.has("type"sv));
-        auto feature_type = feature.get_string("type"sv);
+        VERIFY(feature.has("type"_sv));
+        auto feature_type = feature.get_string("type"_sv);
         VERIFY(feature_type.has_value());
-        member_generator.set("is_range", feature_type.value() == "range"sv ? "true"_string : "false"_string);
+        member_generator.set("is_range", feature_type.value() == "range"_sv ? "true"_string : "false"_string);
         member_generator.append(R"~~~(
     case MediaFeatureID::@name:titlecase@:
         return @is_range@;)~~~");
@@ -172,7 +172,7 @@ bool media_feature_accepts_type(MediaFeatureID media_feature_id, MediaFeatureVal
     case MediaFeatureID::@name:titlecase@:)~~~");
 
         bool have_output_value_type_switch = false;
-        if (feature.has("values"sv)) {
+        if (feature.has("values"_sv)) {
             auto append_value_type_switch_if_needed = [&] {
                 if (!have_output_value_type_switch) {
                     member_generator.append(R"~~~(
@@ -180,7 +180,7 @@ bool media_feature_accepts_type(MediaFeatureID media_feature_id, MediaFeatureVal
                 }
                 have_output_value_type_switch = true;
             };
-            auto values = feature.get_array("values"sv);
+            auto values = feature.get_array("values"_sv);
             VERIFY(values.has_value());
             auto& values_array = values.value();
             for (auto& type : values_array.values()) {
@@ -250,7 +250,7 @@ bool media_feature_accepts_keyword(MediaFeatureID media_feature_id, Keyword keyw
     case MediaFeatureID::@name:titlecase@:)~~~");
 
         bool have_output_keyword_switch = false;
-        if (feature.has("values"sv)) {
+        if (feature.has("values"_sv)) {
             auto append_keyword_switch_if_needed = [&] {
                 if (!have_output_keyword_switch) {
                     member_generator.append(R"~~~(
@@ -258,7 +258,7 @@ bool media_feature_accepts_keyword(MediaFeatureID media_feature_id, Keyword keyw
                 }
                 have_output_keyword_switch = true;
             };
-            auto values = feature.get_array("values"sv);
+            auto values = feature.get_array("values"_sv);
             VERIFY(values.has_value());
             auto& values_array = values.value();
             for (auto& keyword : values_array.values()) {
@@ -298,7 +298,7 @@ bool media_feature_keyword_is_falsey(MediaFeatureID media_feature_id, Keyword ke
     media_feature_data.for_each_member([&](auto& name, JsonValue const& feature_value) {
         VERIFY(feature_value.is_object());
         auto& feature = feature_value.as_object();
-        auto false_keywords = feature.get_array("false-keywords"sv);
+        auto false_keywords = feature.get_array("false-keywords"_sv);
         if (!false_keywords.has_value() || false_keywords->is_empty())
             return;
 

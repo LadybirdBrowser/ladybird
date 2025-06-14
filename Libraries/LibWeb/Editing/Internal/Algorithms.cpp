@@ -289,7 +289,7 @@ String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_br
 
     // 5. If non-breaking start is true, let repeated pair be U+00A0 U+0020. Otherwise, let it be
     //    U+0020 U+00A0.
-    auto repeated_pair = non_breaking_start ? "\u00A0 "sv : " \u00A0"sv;
+    auto repeated_pair = non_breaking_start ? "\u00A0 "_sv : " \u00A0"_sv;
 
     // 6. While n is greater than three, append repeated pair to buffer and subtract two from n.
     // AD-HOC: Other browsers seem to fit in as many repeated pairs until the remaining length is <= 2.
@@ -329,13 +329,13 @@ String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_br
     // AD-HOC: Other browsers seem to ignore the above and deal differently with padding the remainder; the first
     //         remaining position is filled with the first character from repeated pair.
     if (n > 0) {
-        buffer.append(repeated_pair.substring_view(0, 1) == " "sv ? " "sv : "\u00A0"sv);
+        buffer.append(repeated_pair.substring_view(0, 1) == " "_sv ? " "_sv : "\u00A0"_sv);
         --n;
     }
 
     // AD-HOC: Then, the final position is set depending on the value of non-breaking end.
     if (n > 0)
-        buffer.append(non_breaking_end ? "\u00A0"sv : " "sv);
+        buffer.append(non_breaking_end ? "\u00A0"_sv : " "_sv);
 
     // 9. Return buffer.
     return MUST(buffer.to_string());
@@ -500,7 +500,7 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             // AD-HOC: Use the white-space-collapse longhand instead of "white-space" shorthand: https://github.com/w3c/editing/issues/486.
             if (is<DOM::Text>(*end_node) && end_offset == end_node->length() && precedes_a_line_break(end_node)) {
                 auto parent_white_space_collapse = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpaceCollapse);
-                if (parent_white_space_collapse != CSS::Keyword::Preserve && end_node->text_content().value().ends_with_bytes(" "sv)) {
+                if (parent_white_space_collapse != CSS::Keyword::Preserve && end_node->text_content().value().ends_with_bytes(" "_sv)) {
                     // 1. Subtract one from end offset.
                     --end_offset;
 
@@ -1471,22 +1471,22 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     if (!document.css_styling_flag()) {
         // 1. If command is "bold" and new value is "bold", let new parent be the result of calling createElement("b")
         //    on the ownerDocument of node.
-        if (command == CommandNames::bold && new_value == "bold"sv)
+        if (command == CommandNames::bold && new_value == "bold"_sv)
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::b, Namespace::HTML));
 
         // 2. If command is "italic" and new value is "italic", let new parent be the result of calling
         //    createElement("i") on the ownerDocument of node.
-        if (command == CommandNames::italic && new_value == "italic"sv)
+        if (command == CommandNames::italic && new_value == "italic"_sv)
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::i, Namespace::HTML));
 
         // 3. If command is "strikethrough" and new value is "line-through", let new parent be the result of calling
         //    createElement("s") on the ownerDocument of node.
-        if (command == CommandNames::strikethrough && new_value == "line-through"sv)
+        if (command == CommandNames::strikethrough && new_value == "line-through"_sv)
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::s, Namespace::HTML));
 
         // 4. If command is "underline" and new value is "underline", let new parent be the result of calling
         //    createElement("u") on the ownerDocument of node.
-        if (command == CommandNames::underline && new_value == "underline"sv)
+        if (command == CommandNames::underline && new_value == "underline"_sv)
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::u, Namespace::HTML));
 
         // 5.  If command is "foreColor", and new value is fully opaque with red, green, and blue components in the
@@ -1537,7 +1537,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     //     "xx-large", or "xxx-large"; and either the CSS styling flag is false, or new value is "xxx-large":
     auto const& font_sizes = named_font_sizes();
     if (command == CommandNames::fontSize && font_sizes.contains_slow(new_value.value())
-        && (!document.css_styling_flag() || new_value == "xxx-large"sv)) {
+        && (!document.css_styling_flag() || new_value == "xxx-large"_sv)) {
         // let new parent be the result of calling createElement("font") on the ownerDocument of node,
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
 
@@ -1555,12 +1555,12 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
 
     // 13. If command is "subscript" or "superscript" and new value is "subscript", let new parent be the result of
     //     calling createElement("sub") on the ownerDocument of node.
-    if (command.is_one_of(CommandNames::subscript, CommandNames::superscript) && new_value == "subscript"sv)
+    if (command.is_one_of(CommandNames::subscript, CommandNames::superscript) && new_value == "subscript"_sv)
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::sub, Namespace::HTML));
 
     // 14. If command is "subscript" or "superscript" and new value is "superscript", let new parent be the result of
     //     calling createElement("sup") on the ownerDocument of node.
-    if (command.is_one_of(CommandNames::subscript, CommandNames::superscript) && new_value == "superscript"sv)
+    if (command.is_one_of(CommandNames::subscript, CommandNames::superscript) && new_value == "superscript"_sv)
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::sup, Namespace::HTML));
 
     // 15. If new parent is null, let new parent be the result of calling createElement("span") on the ownerDocument of
@@ -1585,18 +1585,18 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     // 18. If command is "strikethrough", and new value is "line-through", and the effective command value of
     //     "strikethrough" for new parent is not "line-through", set the "text-decoration" property of new parent to
     //     "line-through".
-    if (command == CommandNames::strikethrough && new_value == "line-through"sv
-        && effective_command_value(new_parent, command) != "line-through"sv) {
+    if (command == CommandNames::strikethrough && new_value == "line-through"_sv
+        && effective_command_value(new_parent, command) != "line-through"_sv) {
         auto inline_style = new_parent->style_for_bindings();
-        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "line-through"sv));
+        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "line-through"_sv));
     }
 
     // 19. If command is "underline", and new value is "underline", and the effective command value of "underline" for
     //     new parent is not "underline", set the "text-decoration" property of new parent to "underline".
-    if (command == CommandNames::underline && new_value == "underline"sv
-        && effective_command_value(new_parent, command) != "underline"sv) {
+    if (command == CommandNames::underline && new_value == "underline"_sv
+        && effective_command_value(new_parent, command) != "underline"_sv) {
         auto inline_style = new_parent->style_for_bindings();
-        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "underline"sv));
+        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "underline"_sv));
     }
 
     // 20. Append node to new parent as its last child, preserving ranges.
@@ -4376,10 +4376,10 @@ bool values_are_equivalent(FlyString const& command, Optional<String> a, Optiona
         if (a.value() == b.value())
             return true;
 
-        auto either_is_bold = first_is_one_of("bold"sv, a.value(), b.value());
-        auto either_is_700 = first_is_one_of("700"sv, a.value(), b.value());
-        auto either_is_normal = first_is_one_of("normal"sv, a.value(), b.value());
-        auto either_is_400 = first_is_one_of("400"sv, a.value(), b.value());
+        auto either_is_bold = first_is_one_of("bold"_sv, a.value(), b.value());
+        auto either_is_700 = first_is_one_of("700"_sv, a.value(), b.value());
+        auto either_is_normal = first_is_one_of("normal"_sv, a.value(), b.value());
+        auto either_is_400 = first_is_one_of("400"_sv, a.value(), b.value());
 
         return (either_is_bold && either_is_700) || (either_is_normal && either_is_400);
     }
@@ -4399,9 +4399,9 @@ bool values_are_loosely_equivalent(FlyString const& command, Optional<String> a,
     // "x-large", "xx-large", or "xxx-large"; and the other quantity is the resolved value of "font-size" on a font
     // element whose size attribute has the corresponding value set ("1" through "7" respectively).
     if (command == CommandNames::fontSize && a.has_value() && b.has_value()) {
-        static constexpr Array named_quantities { "x-small"sv, "small"sv, "medium"sv, "large"sv, "x-large"sv,
-            "xx-large"sv, "xxx-large"sv };
-        static constexpr Array size_quantities { "1"sv, "2"sv, "3"sv, "4"sv, "5"sv, "6"sv, "7"sv };
+        static constexpr Array named_quantities { "x-small"_sv, "small"_sv, "medium"_sv, "large"_sv, "x-large"_sv,
+            "xx-large"_sv, "xxx-large"_sv };
+        static constexpr Array size_quantities { "1"_sv, "2"_sv, "3"_sv, "4"_sv, "5"_sv, "6"_sv, "7"_sv };
         static_assert(named_quantities.size() == size_quantities.size());
 
         auto a_index = named_quantities.first_index_of(a.value())
@@ -4618,7 +4618,7 @@ GC::Ptr<DOM::Node> first_formattable_node_effectively_contained(GC::Ptr<DOM::Ran
 CSSPixels font_size_to_pixel_size(StringView font_size)
 {
     // If the font size ends in 'px', interpret the preceding as a number and return it.
-    if (font_size.length() >= 2 && font_size.substring_view(font_size.length() - 2).equals_ignoring_ascii_case("px"sv)) {
+    if (font_size.length() >= 2 && font_size.substring_view(font_size.length() - 2).equals_ignoring_ascii_case("px"_sv)) {
         auto optional_number = font_size.substring_view(0, font_size.length() - 2).to_number<float>();
         if (optional_number.has_value())
             return CSSPixels::nearest_value_for(optional_number.value());
@@ -4698,7 +4698,7 @@ String justify_alignment_to_string(JustifyAlignment alignment)
 
 Array<StringView, 7> named_font_sizes()
 {
-    return { "x-small"sv, "small"sv, "medium"sv, "large"sv, "x-large"sv, "xx-large"sv, "xxx-large"sv };
+    return { "x-small"_sv, "small"_sv, "medium"_sv, "large"_sv, "x-large"_sv, "xx-large"_sv, "xxx-large"_sv };
 }
 
 Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element> element, CSS::PropertyID property_id)

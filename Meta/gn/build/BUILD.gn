@@ -142,8 +142,6 @@ config("compiler_defaults") {
       # instead) on clang<=3.8. Clang also has a -Wredundant-move, but it
       # only fires when the types match exactly, so we can keep it here.
       "-Wno-redundant-move",
-
-      "-Wno-literal-suffix",
     ]
   }
 

@@ -52,7 +52,7 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
     // 6. If any value in thresholds is less than 0.0 or greater than 1.0, throw a RangeError exception.
     for (auto value : thresholds) {
         if (value < 0.0 || value > 1.0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Threshold values must be between 0.0 and 1.0 inclusive"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Threshold values must be between 0.0 and 1.0 inclusive"_sv };
     }
 
     // 7. Sort thresholds in ascending order.

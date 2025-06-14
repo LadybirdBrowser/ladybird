@@ -425,7 +425,7 @@ _StartOfFunction:
             {
                 DONT_CONSUME_NEXT_INPUT_CHARACTER;
 
-                switch (consume_next_if_match("--"sv, stop_at_insertion_point)) {
+                switch (consume_next_if_match("--"_sv, stop_at_insertion_point)) {
                 case ConsumeNextResult::Consumed:
                     create_new_token(HTMLToken::Type::Comment);
                     m_current_token.set_start_position({}, nth_last_position(3));
@@ -437,7 +437,7 @@ _StartOfFunction:
                     return {};
                 }
 
-                switch (consume_next_if_match("DOCTYPE"sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
+                switch (consume_next_if_match("DOCTYPE"_sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
                 case ConsumeNextResult::Consumed:
                     SWITCH_TO(DOCTYPE);
                     break;
@@ -447,7 +447,7 @@ _StartOfFunction:
                     return {};
                 }
 
-                switch (consume_next_if_match("[CDATA["sv, stop_at_insertion_point)) {
+                switch (consume_next_if_match("[CDATA["_sv, stop_at_insertion_point)) {
                 case ConsumeNextResult::Consumed:
                     // We keep the parser optional so that syntax highlighting can be lexer-only.
                     // The parser registers itself with the lexer it creates.
@@ -457,7 +457,7 @@ _StartOfFunction:
                         SWITCH_TO(CDATASection);
                     } else {
                         create_new_token(HTMLToken::Type::Comment);
-                        m_current_builder.append("[CDATA["sv);
+                        m_current_builder.append("[CDATA["_sv);
                         SWITCH_TO_WITH_UNCLEAN_BUILDER(BogusComment);
                     }
                     break;
@@ -636,7 +636,7 @@ _StartOfFunction:
                 ANYTHING_ELSE
                 {
                     if (to_ascii_uppercase(current_input_character.value()) == 'P') {
-                        switch (consume_next_if_match("UBLIC"sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
+                        switch (consume_next_if_match("UBLIC"_sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
                         case ConsumeNextResult::Consumed:
                             SWITCH_TO(AfterDOCTYPEPublicKeyword);
                             break;
@@ -648,7 +648,7 @@ _StartOfFunction:
                         }
                     }
                     if (to_ascii_uppercase(current_input_character.value()) == 'S') {
-                        switch (consume_next_if_match("YSTEM"sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
+                        switch (consume_next_if_match("YSTEM"_sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
                         case ConsumeNextResult::Consumed:
                             SWITCH_TO(AfterDOCTYPESystemKeyword);
                             break;
@@ -1547,7 +1547,7 @@ _StartOfFunction:
                 }
                 ANYTHING_ELSE
                 {
-                    m_current_builder.append("--"sv);
+                    m_current_builder.append("--"_sv);
                     RECONSUME_IN(Comment);
                 }
             }
@@ -1558,7 +1558,7 @@ _StartOfFunction:
             {
                 ON('-')
                 {
-                    m_current_builder.append("--!"sv);
+                    m_current_builder.append("--!"_sv);
                     SWITCH_TO_WITH_UNCLEAN_BUILDER(CommentEndDash);
                 }
                 ON('>')
@@ -1575,7 +1575,7 @@ _StartOfFunction:
                 }
                 ANYTHING_ELSE
                 {
-                    m_current_builder.append("--!"sv);
+                    m_current_builder.append("--!"_sv);
                     RECONSUME_IN(Comment);
                 }
             }

@@ -26,14 +26,14 @@ void LayoutInspectorActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "getCurrentFlexbox"sv) {
-        response.set("flexbox"sv, JsonValue {});
+    if (message.type == "getCurrentFlexbox"_sv) {
+        response.set("flexbox"_sv, JsonValue {});
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "getGrids"sv) {
-        response.set("grids"sv, JsonArray {});
+    if (message.type == "getGrids"_sv) {
+        response.set("grids"_sv, JsonArray {});
         send_response(message, move(response));
         return;
     }

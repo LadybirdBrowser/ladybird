@@ -27,7 +27,7 @@ PolicyContainer::PolicyContainer(GC::Heap& heap)
 bool url_requires_storing_the_policy_container_in_history(URL::URL const& url)
 {
     // 1. If url's scheme is "blob", then return false.
-    if (url.scheme() == "blob"sv)
+    if (url.scheme() == "blob"_sv)
         return false;
 
     // 2. If url is local, then return true.

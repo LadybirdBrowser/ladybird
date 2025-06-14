@@ -110,11 +110,11 @@ GridMinMax::GridMinMax(GridSize min_grid_size, GridSize max_grid_size)
 String GridMinMax::to_string() const
 {
     StringBuilder builder;
-    builder.append("minmax("sv);
+    builder.append("minmax("_sv);
     builder.appendff("{}", m_min_grid_size.to_string());
-    builder.append(", "sv);
+    builder.append(", "_sv);
     builder.appendff("{}", m_max_grid_size.to_string());
-    builder.append(")"sv);
+    builder.append(")"_sv);
     return MUST(builder.to_string());
 }
 
@@ -144,13 +144,13 @@ GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, Type type)
 String GridRepeat::to_string() const
 {
     StringBuilder builder;
-    builder.append("repeat("sv);
+    builder.append("repeat("_sv);
     switch (m_type) {
     case Type::AutoFit:
-        builder.append("auto-fill"sv);
+        builder.append("auto-fill"_sv);
         break;
     case Type::AutoFill:
-        builder.append("auto-fit"sv);
+        builder.append("auto-fit"_sv);
         break;
     case Type::Default:
         builder.appendff("{}", m_repeat_count);
@@ -158,9 +158,9 @@ String GridRepeat::to_string() const
     default:
         VERIFY_NOT_REACHED();
     }
-    builder.append(", "sv);
+    builder.append(", "_sv);
     builder.appendff("{}", m_grid_track_size_list.to_string());
-    builder.append(")"sv);
+    builder.append(")"_sv);
     return MUST(builder.to_string());
 }
 
@@ -179,9 +179,9 @@ String ExplicitGridTrack::to_string() const
 String GridLineNames::to_string() const
 {
     StringBuilder builder;
-    builder.append("["sv);
+    builder.append("["_sv);
     builder.join(' ', names);
-    builder.append("]"sv);
+    builder.append("]"_sv);
     return MUST(builder.to_string());
 }
 
@@ -207,7 +207,7 @@ String GridTrackSizeList::to_string() const
     StringBuilder builder;
     for (auto const& line_definition_or_name : m_list) {
         if (!builder.is_empty())
-            builder.append(" "sv);
+            builder.append(" "_sv);
         if (line_definition_or_name.has<ExplicitGridTrack>()) {
             builder.append(line_definition_or_name.get<ExplicitGridTrack>().to_string());
         } else if (line_definition_or_name.has<GridLineNames>()) {

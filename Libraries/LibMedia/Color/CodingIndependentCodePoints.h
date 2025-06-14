@@ -136,124 +136,124 @@ constexpr StringView color_primaries_to_string(ColorPrimaries color_primaries)
 {
     switch (color_primaries) {
     case ColorPrimaries::Reserved:
-        return "Reserved"sv;
+        return "Reserved"_sv;
     case ColorPrimaries::BT709:
-        return "BT.709"sv;
+        return "BT.709"_sv;
     case ColorPrimaries::Unspecified:
-        return "Unspecified"sv;
+        return "Unspecified"_sv;
     case ColorPrimaries::BT470M:
-        return "BT.470 System M"sv;
+        return "BT.470 System M"_sv;
     case ColorPrimaries::BT470BG:
-        return "BT.470 System B, G"sv;
+        return "BT.470 System B, G"_sv;
     case ColorPrimaries::BT601:
-        return "BT.601"sv;
+        return "BT.601"_sv;
     case ColorPrimaries::SMPTE240:
-        return "SMPTE ST 240"sv;
+        return "SMPTE ST 240"_sv;
     case ColorPrimaries::GenericFilm:
-        return "Generic film"sv;
+        return "Generic film"_sv;
     case ColorPrimaries::BT2020:
-        return "BT.2020"sv;
+        return "BT.2020"_sv;
     case ColorPrimaries::XYZ:
-        return "CIE 1931 XYZ"sv;
+        return "CIE 1931 XYZ"_sv;
     case ColorPrimaries::SMPTE431:
-        return "SMPTE RP 431"sv;
+        return "SMPTE RP 431"_sv;
     case ColorPrimaries::SMPTE432:
-        return "SMPTE EG 432"sv;
+        return "SMPTE EG 432"_sv;
     case ColorPrimaries::EBU3213:
-        return "EBU Tech 3213"sv;
+        return "EBU Tech 3213"_sv;
     }
-    return "Reserved"sv;
+    return "Reserved"_sv;
 }
 
 constexpr StringView transfer_characteristics_to_string(TransferCharacteristics transfer_characteristics)
 {
     switch (transfer_characteristics) {
     case TransferCharacteristics::Reserved:
-        return "Reserved"sv;
+        return "Reserved"_sv;
     case TransferCharacteristics::BT709:
-        return "BT.709"sv;
+        return "BT.709"_sv;
     case TransferCharacteristics::Unspecified:
-        return "Unspecified"sv;
+        return "Unspecified"_sv;
     case TransferCharacteristics::BT470M:
-        return "BT.470 System M"sv;
+        return "BT.470 System M"_sv;
     case TransferCharacteristics::BT470BG:
-        return "BT.470 System B, G"sv;
+        return "BT.470 System B, G"_sv;
     case TransferCharacteristics::BT601:
-        return "BT.601"sv;
+        return "BT.601"_sv;
     case TransferCharacteristics::SMPTE240:
-        return "SMPTE ST 240"sv;
+        return "SMPTE ST 240"_sv;
     case TransferCharacteristics::Linear:
-        return "Linear"sv;
+        return "Linear"_sv;
     case TransferCharacteristics::Log100:
-        return "Logarithmic (100:1 range)"sv;
+        return "Logarithmic (100:1 range)"_sv;
     case TransferCharacteristics::Log100Sqrt10:
-        return "Logarithmic (100xSqrt(10):1 range)"sv;
+        return "Logarithmic (100xSqrt(10):1 range)"_sv;
     case TransferCharacteristics::IEC61966:
-        return "IEC 61966"sv;
+        return "IEC 61966"_sv;
     case TransferCharacteristics::BT1361:
-        return "BT.1361"sv;
+        return "BT.1361"_sv;
     case TransferCharacteristics::SRGB:
-        return "sRGB"sv;
+        return "sRGB"_sv;
     case TransferCharacteristics::BT2020BitDepth10:
-        return "BT.2020 (10-bit)"sv;
+        return "BT.2020 (10-bit)"_sv;
     case TransferCharacteristics::BT2020BitDepth12:
-        return "BT.2020 (12-bit)"sv;
+        return "BT.2020 (12-bit)"_sv;
     case TransferCharacteristics::SMPTE2084:
-        return "SMPTE ST 2084 (PQ)"sv;
+        return "SMPTE ST 2084 (PQ)"_sv;
     case TransferCharacteristics::SMPTE428:
-        return "SMPTE ST 428"sv;
+        return "SMPTE ST 428"_sv;
     case TransferCharacteristics::HLG:
-        return "ARIB STD-B67 (HLG, BT.2100)"sv;
+        return "ARIB STD-B67 (HLG, BT.2100)"_sv;
     }
-    return "Reserved"sv;
+    return "Reserved"_sv;
 }
 
 constexpr StringView matrix_coefficients_to_string(MatrixCoefficients matrix_coefficients)
 {
     switch (matrix_coefficients) {
     case MatrixCoefficients::Identity:
-        return "Identity"sv;
+        return "Identity"_sv;
     case MatrixCoefficients::BT709:
-        return "BT.709"sv;
+        return "BT.709"_sv;
     case MatrixCoefficients::Unspecified:
-        return "Unspecified"sv;
+        return "Unspecified"_sv;
     case MatrixCoefficients::FCC:
-        return "FCC (CFR 73.682)"sv;
+        return "FCC (CFR 73.682)"_sv;
     case MatrixCoefficients::BT470BG:
-        return "BT.470 System B, G"sv;
+        return "BT.470 System B, G"_sv;
     case MatrixCoefficients::BT601:
-        return "BT.601"sv;
+        return "BT.601"_sv;
     case MatrixCoefficients::SMPTE240:
-        return "SMPTE ST 240"sv;
+        return "SMPTE ST 240"_sv;
     case MatrixCoefficients::YCgCo:
-        return "YCgCo"sv;
+        return "YCgCo"_sv;
     case MatrixCoefficients::BT2020NonConstantLuminance:
-        return "BT.2020, non-constant luminance"sv;
+        return "BT.2020, non-constant luminance"_sv;
     case MatrixCoefficients::BT2020ConstantLuminance:
-        return "BT.2020, constant luminance"sv;
+        return "BT.2020, constant luminance"_sv;
     case MatrixCoefficients::SMPTE2085:
-        return "SMPTE ST 2085"sv;
+        return "SMPTE ST 2085"_sv;
     case MatrixCoefficients::ChromaticityDerivedNonConstantLuminance:
-        return "Chromaticity-derived, non-constant luminance"sv;
+        return "Chromaticity-derived, non-constant luminance"_sv;
     case MatrixCoefficients::ChromaticityDerivedConstantLuminance:
-        return "Chromaticity-derived, constant luminance"sv;
+        return "Chromaticity-derived, constant luminance"_sv;
     case MatrixCoefficients::ICtCp:
-        return "BT.2100 ICtCp"sv;
+        return "BT.2100 ICtCp"_sv;
     }
-    return "Reserved"sv;
+    return "Reserved"_sv;
 }
 
 constexpr StringView video_full_range_flag_to_string(VideoFullRangeFlag video_full_range_flag)
 {
     switch (video_full_range_flag) {
     case VideoFullRangeFlag::Studio:
-        return "Studio"sv;
+        return "Studio"_sv;
     case VideoFullRangeFlag::Full:
-        return "Full"sv;
+        return "Full"_sv;
     case VideoFullRangeFlag::Unspecified: // Not part of the spec, serenity-specific addition for convenience.
-        return "Unspecified"sv;
+        return "Unspecified"_sv;
     }
-    return "Unknown"sv;
+    return "Unknown"_sv;
 }
 
 }
@@ -296,7 +296,7 @@ template<>
 struct Formatter<Media::CodingIndependentCodePoints> final : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Media::CodingIndependentCodePoints cicp)
     {
-        return Formatter<FormatString>::format(builder, "CICP {{ CP = {}, TC = {}, MC = {}, Range = {} }}"sv, cicp.color_primaries(), cicp.transfer_characteristics(), cicp.matrix_coefficients(), cicp.video_full_range_flag());
+        return Formatter<FormatString>::format(builder, "CICP {{ CP = {}, TC = {}, MC = {}, Range = {} }}"_sv, cicp.color_primaries(), cicp.transfer_characteristics(), cicp.matrix_coefficients(), cicp.video_full_range_flag());
     }
 };
 

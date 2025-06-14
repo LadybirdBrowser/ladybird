@@ -159,6 +159,6 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     .string {
         color: var(--string-color);
     }
-)~~~"sv;
+)~~~"_sv;
 
 }

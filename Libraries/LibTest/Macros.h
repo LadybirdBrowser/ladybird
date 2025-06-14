@@ -135,44 +135,44 @@ consteval void expect_consteval(T) { }
 
 }
 
-#define EXPECT(...)                                    \
-    do {                                               \
-        ::Test::expect(__VA_ARGS__, #__VA_ARGS__##sv); \
+#define EXPECT(...)                                     \
+    do {                                                \
+        ::Test::expect(__VA_ARGS__, #__VA_ARGS__##_sv); \
     } while (false)
 
-#define EXPECT_EQ(a, b)                                \
-    do {                                               \
-        ::Test::expect_equality(a, b, #a##sv, #b##sv); \
+#define EXPECT_EQ(a, b)                                  \
+    do {                                                 \
+        ::Test::expect_equality(a, b, #a##_sv, #b##_sv); \
     } while (false)
 
-#define EXPECT_EQ_TRUTH(a, b)                                 \
-    do {                                                      \
-        ::Test::expect_truthy_equality(a, b, #a##sv, #b##sv); \
+#define EXPECT_EQ_TRUTH(a, b)                                   \
+    do {                                                        \
+        ::Test::expect_truthy_equality(a, b, #a##_sv, #b##_sv); \
     } while (false)
 
 // If you're stuck and `EXPECT_EQ` seems to refuse to print anything useful,
 // try this: It'll spit out a nice compiler error telling you why it doesn't print.
-#define EXPECT_EQ_FORCE(a, b)                                              \
-    do {                                                                   \
-        ::Test::expect_equality_with_forced_logging(a, b, #a##sv, #b##sv); \
+#define EXPECT_EQ_FORCE(a, b)                                                \
+    do {                                                                     \
+        ::Test::expect_equality_with_forced_logging(a, b, #a##_sv, #b##_sv); \
     } while (false)
 
-#define EXPECT_NE(a, b)                                  \
-    do {                                                 \
-        ::Test::expect_inequality(a, b, #a##sv, #b##sv); \
+#define EXPECT_NE(a, b)                                    \
+    do {                                                   \
+        ::Test::expect_inequality(a, b, #a##_sv, #b##_sv); \
     } while (false)
 
-#define EXPECT_APPROXIMATE_WITH_ERROR(a, b, err)               \
-    do {                                                       \
-        ::Test::expect_approximate(a, b, #a##sv, #b##sv, err); \
+#define EXPECT_APPROXIMATE_WITH_ERROR(a, b, err)                 \
+    do {                                                         \
+        ::Test::expect_approximate(a, b, #a##_sv, #b##_sv, err); \
     } while (false)
 
 #define EXPECT_APPROXIMATE(a, b) EXPECT_APPROXIMATE_WITH_ERROR(a, b, 0.0000005)
 
-#define ASSUME(x)                       \
-    do {                                \
-        if (!::Test::assume(x, #x##sv)) \
-            return;                     \
+#define ASSUME(x)                        \
+    do {                                 \
+        if (!::Test::assume(x, #x##_sv)) \
+            return;                      \
     } while (false)
 
 #define FAIL(message)                                                                      \

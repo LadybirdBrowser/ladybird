@@ -58,10 +58,10 @@ inline String snake_casify(StringView dashy_name, TrimLeadingUnderscores trim_le
 {
     // FIXME: We don't really need to convert dashy_name to a String first, but currently
     //        all the `replace` functions that take a StringView return ByteString.
-    auto snake_case = MUST(MUST(String::from_utf8(dashy_name)).replace("-"sv, "_"sv, ReplaceMode::All));
+    auto snake_case = MUST(MUST(String::from_utf8(dashy_name)).replace("-"_sv, "_"_sv, ReplaceMode::All));
 
     if (trim_leading_underscores == TrimLeadingUnderscores::Yes && snake_case.starts_with('_')) {
-        return MUST(snake_case.trim("_"sv, TrimMode::Left));
+        return MUST(snake_case.trim("_"_sv, TrimMode::Left));
     }
 
     return snake_case;
@@ -130,10 +130,10 @@ inline String css_property_to_idl_attribute(StringView property_name, bool lower
 inline StringView underlying_type_for_enum(size_t member_count)
 {
     if (member_count <= NumericLimits<u8>::max())
-        return "u8"sv;
+        return "u8"_sv;
     if (member_count <= NumericLimits<u16>::max())
-        return "u16"sv;
+        return "u16"_sv;
     if (member_count <= NumericLimits<u32>::max())
-        return "u32"sv;
-    return "u64"sv;
+        return "u32"_sv;
+    return "u64"_sv;
 }

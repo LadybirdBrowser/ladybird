@@ -20,51 +20,51 @@ namespace Web::ContentSecurityPolicy::Directives {
 static HashMap<StringView, Vector<StringView>> fetch_directive_fallback_list {
     // "script-src-elem"
     //      1. Return << "script-src-elem", "script-src", "default-src" >>.
-    { "script-src-elem"sv, { "script-src-elem"sv, "script-src"sv, "default-src"sv } },
+    { "script-src-elem"_sv, { "script-src-elem"_sv, "script-src"_sv, "default-src"_sv } },
 
     // "script-src-attr"
     //      1. Return << "script-src-attr", "script-src", "default-src" >>.
-    { "script-src-attr"sv, { "script-src-attr"sv, "script-src"sv, "default-src"sv } },
+    { "script-src-attr"_sv, { "script-src-attr"_sv, "script-src"_sv, "default-src"_sv } },
 
     // "style-src-elem"
     //      1. Return << "style-src-elem", "style-src", "default-src" >>.
-    { "style-src-elem"sv, { "style-src-elem"sv, "style-src"sv, "default-src"sv } },
+    { "style-src-elem"_sv, { "style-src-elem"_sv, "style-src"_sv, "default-src"_sv } },
 
     // "style-src-attr"
     //      1. Return << "style-src-attr", "style-src", "default-src" >>.
-    { "style-src-attr"sv, { "style-src-attr"sv, "style-src"sv, "default-src"sv } },
+    { "style-src-attr"_sv, { "style-src-attr"_sv, "style-src"_sv, "default-src"_sv } },
 
     // "worker-src"
     //      1. Return << "worker-src", "child-src", "script-src", "default-src" >>.
-    { "worker-src"sv, { "worker-src"sv, "child-src"sv, "script-src"sv, "default-src"sv } },
+    { "worker-src"_sv, { "worker-src"_sv, "child-src"_sv, "script-src"_sv, "default-src"_sv } },
 
     // "connect-src"
     //      1. Return << "connect-src", "default-src" >>.
-    { "connect-src"sv, { "connect-src"sv, "default-src"sv } },
+    { "connect-src"_sv, { "connect-src"_sv, "default-src"_sv } },
 
     // "manifest-src"
     //      1. Return << "manifest-src", "default-src" >>.
-    { "manifest-src"sv, { "manifest-src"sv, "default-src"sv } },
+    { "manifest-src"_sv, { "manifest-src"_sv, "default-src"_sv } },
 
     // "object-src"
     //      1. Return << "object-src", "default-src" >>.
-    { "object-src"sv, { "object-src"sv, "default-src"sv } },
+    { "object-src"_sv, { "object-src"_sv, "default-src"_sv } },
 
     // "frame-src"
     //      1. Return << "frame-src", "child-src", "default-src" >>.
-    { "frame-src"sv, { "frame-src"sv, "child-src"sv, "default-src"sv } },
+    { "frame-src"_sv, { "frame-src"_sv, "child-src"_sv, "default-src"_sv } },
 
     // "media-src"
     //      1. Return << "media-src", "default-src" >>.
-    { "media-src"sv, { "media-src"sv, "default-src"sv } },
+    { "media-src"_sv, { "media-src"_sv, "default-src"_sv } },
 
     // "font-src"
     //      1. Return << "font-src", "default-src" >>.
-    { "font-src"sv, { "font-src"sv, "default-src"sv } },
+    { "font-src"_sv, { "font-src"_sv, "default-src"_sv } },
 
     // "img-src"
     //      1. Return << "img-src", "default-src" >>.
-    { "img-src"sv, { "img-src"sv, "default-src"sv } },
+    { "img-src"_sv, { "img-src"_sv, "default-src"_sv } },
 };
 
 // https://w3c.github.io/webappsec-csp/#effective-directive-for-a-request

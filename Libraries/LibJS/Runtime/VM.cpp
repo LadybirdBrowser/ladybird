@@ -572,9 +572,9 @@ ThrowCompletionOr<void> VM::link_and_eval_module(CyclicModule& module)
 
 static ByteString resolve_module_filename(StringView filename, StringView module_type)
 {
-    auto extensions = Vector<StringView, 2> { "js"sv, "mjs"sv };
-    if (module_type == "json"sv)
-        extensions = { "json"sv };
+    auto extensions = Vector<StringView, 2> { "js"_sv, "mjs"_sv };
+    if (module_type == "json"_sv)
+        extensions = { "json"_sv };
     if (!FileSystem::exists(filename)) {
         for (auto extension : extensions) {
             // import "./foo" -> import "./foo.ext"
@@ -625,7 +625,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
 
     String module_type;
     for (auto& attribute : module_request.attributes) {
-        if (attribute.key == "type"sv) {
+        if (attribute.key == "type"_sv) {
             module_type = attribute.value;
             break;
         }
@@ -639,7 +639,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
             // To get around this is we attempt to get the active script_or_module otherwise we might start loading "random" files from the working directory.
             return get_active_script_or_module().visit(
                 [](Empty) {
-                    return "."sv;
+                    return "."_sv;
                 },
                 [](auto const& script_or_module) {
                     return script_or_module->filename();
@@ -708,7 +708,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         // If moduleRequest.[[Attributes]] has an entry entry such that entry.[[Key]] is "type" and entry.[[Value]] is "json",
         // when the host environment performs FinishLoadingImportedModule(referrer, moduleRequest, payload, result), result
         // must either be the Completion Record returned by an invocation of ParseJSONModule or a throw completion.
-        if (module_type == "json"sv) {
+        if (module_type == "json"_sv) {
             dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] reading and parsing JSON module {}", filename);
             return parse_json_module(*current_realm(), content_view, filename);
         }

@@ -185,26 +185,26 @@ public:
                 auto location = it.value.root_origin->location;
                 switch (type) {
                 case HeapRoot::Type::Root:
-                    node.set("root"sv, MUST(String::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number())));
+                    node.set("root"_sv, MUST(String::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number())));
                     break;
                 case HeapRoot::Type::RootVector:
-                    node.set("root"sv, "RootVector"sv);
+                    node.set("root"_sv, "RootVector"_sv);
                     break;
                 case HeapRoot::Type::RegisterPointer:
-                    node.set("root"sv, "RegisterPointer"sv);
+                    node.set("root"_sv, "RegisterPointer"_sv);
                     break;
                 case HeapRoot::Type::StackPointer:
-                    node.set("root"sv, "StackPointer"sv);
+                    node.set("root"_sv, "StackPointer"_sv);
                     break;
                 case HeapRoot::Type::VM:
-                    node.set("root"sv, "VM"sv);
+                    node.set("root"_sv, "VM"_sv);
                     break;
                 default:
                     VERIFY_NOT_REACHED();
                 }
             }
-            node.set("class_name"sv, it.value.class_name);
-            node.set("edges"sv, edges);
+            node.set("class_name"_sv, it.value.class_name);
+            node.set("edges"_sv, edges);
             graph.set(ByteString::number(it.key), node);
         }
 

@@ -59,18 +59,18 @@ StringView Time::unit_name() const
 {
     switch (m_type) {
     case Type::S:
-        return "s"sv;
+        return "s"_sv;
     case Type::Ms:
-        return "ms"sv;
+        return "ms"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<Time::Type> Time::unit_from_name(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("s"sv)) {
+    if (name.equals_ignoring_ascii_case("s"_sv)) {
         return Type::S;
-    } else if (name.equals_ignoring_ascii_case("ms"sv)) {
+    } else if (name.equals_ignoring_ascii_case("ms"_sv)) {
         return Type::Ms;
     }
     return {};

@@ -819,7 +819,7 @@ RefPtr<CSSStyleValue const> Parser::parse_color_scheme_value(TokenStream<Compone
     {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (tokens.consume_a_token().is_ident("normal"sv)) {
+        if (tokens.consume_a_token().is_ident("normal"_sv)) {
             if (tokens.has_next_token())
                 return {};
             transaction.commit();
@@ -834,7 +834,7 @@ RefPtr<CSSStyleValue const> Parser::parse_color_scheme_value(TokenStream<Compone
     {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (tokens.consume_a_token().is_ident("only"sv)) {
+        if (tokens.consume_a_token().is_ident("only"_sv)) {
             only = true;
             transaction.commit();
         }
@@ -847,7 +847,7 @@ RefPtr<CSSStyleValue const> Parser::parse_color_scheme_value(TokenStream<Compone
 
         // The 'normal', 'light', 'dark', and 'only' keywords are not valid <custom-ident>s in this property.
         // Note: only 'normal' is blacklisted here because 'light' and 'dark' aren't parsed differently and 'only' is checked for afterwards
-        auto ident = parse_custom_ident_value(tokens, { { "normal"sv } });
+        auto ident = parse_custom_ident_value(tokens, { { "normal"_sv } });
         if (!ident)
             return {};
 
@@ -863,7 +863,7 @@ RefPtr<CSSStyleValue const> Parser::parse_color_scheme_value(TokenStream<Compone
     if (!only) {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (tokens.consume_a_token().is_ident("only"sv)) {
+        if (tokens.consume_a_token().is_ident("only"_sv)) {
             only = true;
             transaction.commit();
         }
@@ -898,10 +898,10 @@ RefPtr<CSSStyleValue const> Parser::parse_counter_definitions_value(TokenStream<
         auto& token = tokens.next_token();
 
         // A <counter-name> name cannot match the keyword none; such an identifier is invalid as a <counter-name>.
-        if (auto counter_name = parse_custom_ident_value(tokens, { { "none"sv } })) {
+        if (auto counter_name = parse_custom_ident_value(tokens, { { "none"_sv } })) {
             definition.name = counter_name->custom_ident();
             definition.is_reversed = false;
-        } else if (allow_reversed == AllowReversed::Yes && token.is_function("reversed"sv)) {
+        } else if (allow_reversed == AllowReversed::Yes && token.is_function("reversed"_sv)) {
             TokenStream function_tokens { token.function().value };
             tokens.discard_a_token();
             function_tokens.discard_whitespace();
@@ -1838,7 +1838,7 @@ RefPtr<CSSStyleValue const> Parser::parse_single_shadow_value(TokenStream<Compon
             continue;
         }
 
-        if (allow_inset_keyword == AllowInsetKeyword::Yes && token.is_ident("inset"sv)) {
+        if (allow_inset_keyword == AllowInsetKeyword::Yes && token.is_ident("inset"_sv)) {
             if (placement.has_value())
                 return nullptr;
             placement = ShadowPlacement::Inner;
@@ -1892,7 +1892,7 @@ RefPtr<CSSStyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValu
         auto transaction = tokens.begin_transaction();
         auto const& axis = tokens.consume_a_token();
 
-        if (axis.is_ident("x"sv) || axis.is_ident("y"sv) || axis.is_ident("z"sv)) {
+        if (axis.is_ident("x"_sv) || axis.is_ident("y"_sv) || axis.is_ident("z"_sv)) {
             transaction.commit();
             return axis;
         }
@@ -1905,11 +1905,11 @@ RefPtr<CSSStyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValu
         // Try parsing `x <angle>`
         if (auto axis = parse_one_of_xyz(); axis.has_value()) {
             if (auto angle = parse_angle_value(tokens); angle) {
-                if (axis->is_ident("x"sv))
+                if (axis->is_ident("x"_sv))
                     return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
-                if (axis->is_ident("y"sv))
+                if (axis->is_ident("y"_sv))
                     return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
-                if (axis->is_ident("z"sv))
+                if (axis->is_ident("z"_sv))
                     return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
             }
         }
@@ -1917,11 +1917,11 @@ RefPtr<CSSStyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValu
         // Try parsing `<angle> x`
         if (auto angle = parse_angle_value(tokens); angle) {
             if (auto axis = parse_one_of_xyz(); axis.has_value()) {
-                if (axis->is_ident("x"sv))
+                if (axis->is_ident("x"_sv))
                     return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
-                if (axis->is_ident("y"sv))
+                if (axis->is_ident("y"_sv))
                     return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
-                if (axis->is_ident("z"sv))
+                if (axis->is_ident("z"_sv))
                     return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
             }
         }
@@ -2351,7 +2351,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
     auto transaction = tokens.begin_transaction();
 
     while (tokens.has_next_token()) {
-        if (tokens.next_token().is_ident("normal"sv)) {
+        if (tokens.next_token().is_ident("normal"_sv)) {
             normal_count++;
             tokens.discard_a_token();
             continue;
@@ -2359,7 +2359,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
 
         // <font-variant-css2> = normal | small-caps
         // So, we handle that manually instead of trying to parse the font-variant property.
-        if (!font_variant && tokens.peek_token().is_ident("small-caps"sv)) {
+        if (!font_variant && tokens.peek_token().is_ident("small-caps"_sv)) {
             tokens.discard_a_token(); // small-caps
 
             font_variant = ShorthandStyleValue::create(PropertyID::FontVariant,
@@ -3222,7 +3222,7 @@ RefPtr<CSSStyleValue const> Parser::parse_list_style_value(TokenStream<Component
 
     auto transaction = tokens.begin_transaction();
     while (tokens.has_next_token()) {
-        if (auto const& peek = tokens.next_token(); peek.is_ident("none"sv)) {
+        if (auto const& peek = tokens.next_token(); peek.is_ident("none"_sv)) {
             tokens.discard_a_token();
             found_nones++;
             continue;
@@ -3295,14 +3295,14 @@ RefPtr<CSSStyleValue const> Parser::parse_math_depth_value(TokenStream<Component
     auto transaction = tokens.begin_transaction();
 
     // auto-add
-    if (tokens.next_token().is_ident("auto-add"sv)) {
+    if (tokens.next_token().is_ident("auto-add"_sv)) {
         tokens.discard_a_token(); // auto-add
         transaction.commit();
         return MathDepthStyleValue::create_auto_add();
     }
 
     // add(<integer>)
-    if (tokens.next_token().is_function("add"sv)) {
+    if (tokens.next_token().is_function("add"_sv)) {
         auto const& function = tokens.next_token().function();
         auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
 
@@ -3686,7 +3686,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_value(TokenStream<ComponentV
                     break;
                 }
                 if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::LengthNone
-                    && argument_tokens.next_token().is_ident("none"sv)) {
+                    && argument_tokens.next_token().is_ident("none"_sv)) {
 
                     argument_tokens.discard_a_token(); // none
                     values.append(CSSKeywordValue::create(Keyword::None));
@@ -3889,15 +3889,15 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
                 continue;
             }
 
-            if (!transition_behavior_found && (tokens.peek_token().is_ident("normal"sv) || tokens.peek_token().is_ident("allow-discrete"sv))) {
+            if (!transition_behavior_found && (tokens.peek_token().is_ident("normal"_sv) || tokens.peek_token().is_ident("allow-discrete"_sv))) {
                 transition_behavior_found = true;
                 auto ident = tokens.consume_a_token().token().ident();
-                if (ident == "allow-discrete"sv)
+                if (ident == "allow-discrete"_sv)
                     transition.transition_behavior = TransitionBehavior::AllowDiscrete;
                 continue;
             }
 
-            if (auto token = tokens.peek_token(); token.is_ident("all"sv)) {
+            if (auto token = tokens.peek_token(); token.is_ident("all"_sv)) {
                 auto transition_keyword = parse_keyword_value(tokens);
                 VERIFY(transition_keyword->to_keyword() == Keyword::All);
                 if (transition.property_name) {
@@ -3908,7 +3908,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_value(TokenStream<Component
                 continue;
             }
 
-            if (auto transition_property = parse_custom_ident_value(tokens, { { "all"sv, "none"sv } })) {
+            if (auto transition_property = parse_custom_ident_value(tokens, { { "all"_sv, "none"_sv } })) {
                 if (transition.property_name) {
                     dbgln_if(CSS_PARSER_DEBUG, "Transition property has multiple property identifiers");
                     return {};
@@ -3984,7 +3984,7 @@ RefPtr<CSSStyleValue const> Parser::parse_transition_property_value(TokenStream<
         if (auto all_keyword_value = parse_all_as_single_keyword_value(transition_property_tokens, Keyword::All)) {
             transition_properties.append(*all_keyword_value);
         } else {
-            auto custom_ident = parse_custom_ident_value(transition_property_tokens, { { "all"sv, "none"sv } });
+            auto custom_ident = parse_custom_ident_value(transition_property_tokens, { { "all"_sv, "none"_sv } });
             if (!custom_ident || transition_property_tokens.has_next_token())
                 return nullptr;
 
@@ -4108,10 +4108,10 @@ RefPtr<CSSStyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<Com
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
-        if (ident.equals_ignoring_ascii_case("auto"sv)) {
+        if (ident.equals_ignoring_ascii_case("auto"_sv)) {
             transaction.commit();
             return false;
-        } else if (ident.equals_ignoring_ascii_case("stable"sv)) {
+        } else if (ident.equals_ignoring_ascii_case("stable"_sv)) {
             transaction.commit();
             return true;
         }
@@ -4124,7 +4124,7 @@ RefPtr<CSSStyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<Com
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
-        if (ident.equals_ignoring_ascii_case("both-edges"sv)) {
+        if (ident.equals_ignoring_ascii_case("both-edges"_sv)) {
             transaction.commit();
             return true;
         }
@@ -4469,10 +4469,10 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
-        if (ident.equals_ignoring_ascii_case("row"sv)) {
+        if (ident.equals_ignoring_ascii_case("row"_sv)) {
             transaction.commit();
             return GridAutoFlowStyleValue::Axis::Row;
-        } else if (ident.equals_ignoring_ascii_case("column"sv)) {
+        } else if (ident.equals_ignoring_ascii_case("column"_sv)) {
             transaction.commit();
             return GridAutoFlowStyleValue::Axis::Column;
         }
@@ -4485,7 +4485,7 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
-        if (ident.equals_ignoring_ascii_case("dense"sv)) {
+        if (ident.equals_ignoring_ascii_case("dense"_sv)) {
             transaction.commit();
             return GridAutoFlowStyleValue::Dense::Yes;
         }
@@ -4585,25 +4585,25 @@ RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<Co
     };
 
     auto parse_filter_function_name = [&](auto name) -> Optional<FilterToken> {
-        if (name.equals_ignoring_ascii_case("blur"sv))
+        if (name.equals_ignoring_ascii_case("blur"_sv))
             return FilterToken::Blur;
-        if (name.equals_ignoring_ascii_case("brightness"sv))
+        if (name.equals_ignoring_ascii_case("brightness"_sv))
             return FilterToken::Brightness;
-        if (name.equals_ignoring_ascii_case("contrast"sv))
+        if (name.equals_ignoring_ascii_case("contrast"_sv))
             return FilterToken::Contrast;
-        if (name.equals_ignoring_ascii_case("drop-shadow"sv))
+        if (name.equals_ignoring_ascii_case("drop-shadow"_sv))
             return FilterToken::DropShadow;
-        if (name.equals_ignoring_ascii_case("grayscale"sv))
+        if (name.equals_ignoring_ascii_case("grayscale"_sv))
             return FilterToken::Grayscale;
-        if (name.equals_ignoring_ascii_case("hue-rotate"sv))
+        if (name.equals_ignoring_ascii_case("hue-rotate"_sv))
             return FilterToken::HueRotate;
-        if (name.equals_ignoring_ascii_case("invert"sv))
+        if (name.equals_ignoring_ascii_case("invert"_sv))
             return FilterToken::Invert;
-        if (name.equals_ignoring_ascii_case("opacity"sv))
+        if (name.equals_ignoring_ascii_case("opacity"_sv))
             return FilterToken::Opacity;
-        if (name.equals_ignoring_ascii_case("saturate"sv))
+        if (name.equals_ignoring_ascii_case("saturate"_sv))
             return FilterToken::Saturate;
-        if (name.equals_ignoring_ascii_case("sepia"sv))
+        if (name.equals_ignoring_ascii_case("sepia"_sv))
             return FilterToken::Sepia;
         return {};
     };

@@ -46,7 +46,7 @@ OptionParser::GetOptResult OptionParser::getopt(Span<StringView> args, StringVie
             m_consumed_args = 0;
     } else {
         // Alright, so we have an option on our hands!
-        bool is_long_option = arg.starts_with("--"sv);
+        bool is_long_option = arg.starts_with("--"_sv);
         if (is_long_option)
             res = handle_long_option();
         else
@@ -86,7 +86,7 @@ Optional<OptionParser::ArgumentRequirement> OptionParser::lookup_short_option_re
         return {};
     }
 
-    if (parts[1].starts_with("::"sv)) {
+    if (parts[1].starts_with("::"_sv)) {
         // If an option is followed by two colons, it optionally accepts an
         // argument.
         return ArgumentRequirement::HasOptionalArgument;
@@ -182,7 +182,7 @@ Optional<OptionParser::Option const&> OptionParser::lookup_long_option(StringVie
 
 int OptionParser::handle_long_option()
 {
-    VERIFY(current_arg().starts_with("--"sv));
+    VERIFY(current_arg().starts_with("--"_sv));
 
     // We cannot set optopt to anything sensible for long options, so set it to 0.
     m_optopt_value = 0;

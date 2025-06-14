@@ -58,15 +58,15 @@ String MediaFeature::to_string() const
     auto comparison_string = [](Comparison comparison) -> StringView {
         switch (comparison) {
         case Comparison::Equal:
-            return "="sv;
+            return "="_sv;
         case Comparison::LessThan:
-            return "<"sv;
+            return "<"_sv;
         case Comparison::LessThanOrEqual:
-            return "<="sv;
+            return "<="_sv;
         case Comparison::GreaterThan:
-            return ">"sv;
+            return ">"_sv;
         case Comparison::GreaterThanOrEqual:
-            return ">="sv;
+            return ">="_sv;
         }
         VERIFY_NOT_REACHED();
     };
@@ -277,7 +277,7 @@ String MediaQuery::to_string() const
     StringBuilder builder;
 
     if (m_negated)
-        builder.append("not "sv);
+        builder.append("not "_sv);
 
     if (m_negated || m_media_type.known_type != KnownMediaType::All || !m_media_condition) {
         if (m_media_type.known_type.has_value()) {
@@ -286,7 +286,7 @@ String MediaQuery::to_string() const
             builder.append(serialize_an_identifier(m_media_type.name.to_ascii_lowercase()));
         }
         if (m_media_condition)
-            builder.append(" and "sv);
+            builder.append(" and "_sv);
     }
 
     if (m_media_condition) {
@@ -335,16 +335,16 @@ String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const& med
 
     // 2. Serialize each media query in the list of media queries, in the same order as they
     // appear in the media query list, and then serialize the list.
-    return MUST(String::join(", "sv, media_queries));
+    return MUST(String::join(", "_sv, media_queries));
 }
 
 Optional<MediaQuery::KnownMediaType> media_type_from_string(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("all"sv))
+    if (name.equals_ignoring_ascii_case("all"_sv))
         return MediaQuery::KnownMediaType::All;
-    if (name.equals_ignoring_ascii_case("print"sv))
+    if (name.equals_ignoring_ascii_case("print"_sv))
         return MediaQuery::KnownMediaType::Print;
-    if (name.equals_ignoring_ascii_case("screen"sv))
+    if (name.equals_ignoring_ascii_case("screen"_sv))
         return MediaQuery::KnownMediaType::Screen;
     return {};
 }
@@ -353,11 +353,11 @@ StringView to_string(MediaQuery::KnownMediaType media_type)
 {
     switch (media_type) {
     case MediaQuery::KnownMediaType::All:
-        return "all"sv;
+        return "all"_sv;
     case MediaQuery::KnownMediaType::Print:
-        return "print"sv;
+        return "print"_sv;
     case MediaQuery::KnownMediaType::Screen:
-        return "screen"sv;
+        return "screen"_sv;
     }
     VERIFY_NOT_REACHED();
 }

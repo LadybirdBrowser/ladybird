@@ -128,13 +128,13 @@ StringView FormatParser::consume_literal()
     auto const begin = tell();
 
     while (!is_eof()) {
-        if (consume_specific("{{"sv))
+        if (consume_specific("{{"_sv))
             continue;
 
-        if (consume_specific("}}"sv))
+        if (consume_specific("}}"_sv))
             continue;
 
-        if (next_is(is_any_of("{}"sv)))
+        if (next_is(is_any_of("{}"_sv)))
             return m_input.substring_view(begin, tell() - begin);
 
         consume();
@@ -190,7 +190,7 @@ bool FormatParser::consume_specifier(FormatSpecifier& specifier)
         if (!consume_specific('}'))
             VERIFY_NOT_REACHED();
 
-        specifier.flags = ""sv;
+        specifier.flags = ""_sv;
     }
 
     return true;
@@ -308,16 +308,16 @@ ErrorOr<void> FormatBuilder::put_u64(
         if (prefix) {
             if (base == 2) {
                 if (upper_case)
-                    TRY(m_builder.try_append("0B"sv));
+                    TRY(m_builder.try_append("0B"_sv));
                 else
-                    TRY(m_builder.try_append("0b"sv));
+                    TRY(m_builder.try_append("0b"_sv));
             } else if (base == 8) {
-                TRY(m_builder.try_append("0"sv));
+                TRY(m_builder.try_append("0"_sv));
             } else if (base == 16) {
                 if (upper_case)
-                    TRY(m_builder.try_append("0X"sv));
+                    TRY(m_builder.try_append("0X"_sv));
                 else
-                    TRY(m_builder.try_append("0x"sv));
+                    TRY(m_builder.try_append("0x"_sv));
             }
         }
         return {};
@@ -445,10 +445,10 @@ ErrorOr<void> FormatBuilder::put_fixed_point(
         }
 
         if (!zero_pad)
-            formatted_string = formatted_string.trim("0"sv, TrimMode::Right);
+            formatted_string = formatted_string.trim("0"_sv, TrimMode::Right);
 
         if (formatted_string.ends_with('.'))
-            formatted_string = formatted_string.trim("."sv, TrimMode::Right);
+            formatted_string = formatted_string.trim("."_sv, TrimMode::Right);
     }
 
     TRY(put_string(formatted_string, align, min_width, NumericLimits<size_t>::max(), fill));
@@ -503,9 +503,9 @@ ErrorOr<void> FormatBuilder::put_f64_with_precision(
             TRY(string_builder.try_append(' '));
 
         if (isnan(value))
-            TRY(string_builder.try_append(upper_case ? "NAN"sv : "nan"sv));
+            TRY(string_builder.try_append(upper_case ? "NAN"_sv : "nan"_sv));
         else
-            TRY(string_builder.try_append(upper_case ? "INF"sv : "inf"sv));
+            TRY(string_builder.try_append(upper_case ? "INF"_sv : "inf"_sv));
         TRY(put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill));
         return {};
     }
@@ -603,9 +603,9 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
             TRY(builder.try_append(' '));
 
         if (is_nan)
-            TRY(builder.try_append(upper_case ? "NAN"sv : "nan"sv));
+            TRY(builder.try_append(upper_case ? "NAN"_sv : "nan"_sv));
         else if (is_inf)
-            TRY(builder.try_append(upper_case ? "INF"sv : "inf"sv));
+            TRY(builder.try_append(upper_case ? "INF"_sv : "inf"_sv));
         else
             TRY(builder.try_append('0'));
 
@@ -648,7 +648,7 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
             TRY(builder.try_append('.'));
             TRY(builder.try_append(mantissa_text.substring_view(n)));
         } else {
-            TRY(builder.try_append("0."sv));
+            TRY(builder.try_append("0."_sv));
             TRY(builder.try_append_repeated('0', -n));
             TRY(builder.try_append(mantissa_text));
             integral_part_end = 1;
@@ -718,9 +718,9 @@ ErrorOr<void> FormatBuilder::put_f80(
             TRY(string_builder.try_append(' '));
 
         if (isnan(value))
-            TRY(string_builder.try_append(upper_case ? "NAN"sv : "nan"sv));
+            TRY(string_builder.try_append(upper_case ? "NAN"_sv : "nan"_sv));
         else
-            TRY(string_builder.try_append(upper_case ? "INF"sv : "inf"sv));
+            TRY(string_builder.try_append(upper_case ? "INF"_sv : "inf"_sv));
         TRY(put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill));
         return {};
     }
@@ -782,7 +782,7 @@ ErrorOr<void> FormatBuilder::put_hexdump(ReadonlyBytes bytes, size_t width, char
         if (width > 0) {
             if (i % width == 0 && i) {
                 TRY(put_char_view(i));
-                TRY(put_literal("\n"sv));
+                TRY(put_literal("\n"_sv));
             }
         }
         TRY(put_u64(bytes[i], 16, false, false, true, false, Align::Right, 2));
@@ -805,8 +805,8 @@ ErrorOr<void> vformat(StringBuilder& builder, StringView fmtstr, TypeErasedForma
 
 void StandardFormatter::parse(TypeErasedFormatParams& params, FormatParser& parser)
 {
-    if ("<^>"sv.contains(parser.peek(1))) {
-        VERIFY(!parser.next_is(is_any_of("{}"sv)));
+    if ("<^>"_sv.contains(parser.peek(1))) {
+        VERIFY(!parser.next_is(is_any_of("{}"_sv)));
         m_fill = parser.consume();
     }
 
@@ -877,7 +877,7 @@ void StandardFormatter::parse(TypeErasedFormatParams& params, FormatParser& pars
         m_mode = Mode::Hexfloat;
     else if (parser.consume_specific('A'))
         m_mode = Mode::HexfloatUppercase;
-    else if (parser.consume_specific("hex-dump"sv))
+    else if (parser.consume_specific("hex-dump"_sv))
         m_mode = Mode::HexDump;
 
     if (!parser.is_eof())
@@ -1012,7 +1012,7 @@ ErrorOr<void> Formatter<bool>::format(FormatBuilder& builder, bool value)
         return builder.put_hexdump({ &value, sizeof(value) }, m_width.value_or(32), m_fill);
     } else {
         Formatter<StringView> formatter { *this };
-        return formatter.format(builder, value ? "true"sv : "false"sv);
+        return formatter.format(builder, value ? "true"_sv : "false"_sv);
     }
 }
 ErrorOr<void> Formatter<long double>::format(FormatBuilder& builder, long double value)
@@ -1138,7 +1138,7 @@ ErrorOr<void> Formatter<Error>::format_windows_error(FormatBuilder& builder, Err
         nullptr);
     if (size == 0) {
         auto format_error = GetLastError();
-        return Formatter<FormatString>::format(builder, "Error {:08x} when formatting code {:08x}"sv, format_error, code);
+        return Formatter<FormatString>::format(builder, "Error {:08x} when formatting code {:08x}"_sv, format_error, code);
     }
 
     auto& string_in_map = windows_errors.ensure(code, [message, size] { return ByteString { message, size }; });
@@ -1156,13 +1156,13 @@ ErrorOr<void> Formatter<Error>::format(FormatBuilder& builder, Error const& erro
 {
     switch (error.kind()) {
     case Error::Kind::Syscall:
-        return Formatter<FormatString>::format(builder, "{}: {} (errno={})"sv, error.string_literal(), strerror(error.code()), error.code());
+        return Formatter<FormatString>::format(builder, "{}: {} (errno={})"_sv, error.string_literal(), strerror(error.code()), error.code());
     case Error::Kind::Errno:
-        return Formatter<FormatString>::format(builder, "{} (errno={})"sv, strerror(error.code()), error.code());
+        return Formatter<FormatString>::format(builder, "{} (errno={})"_sv, strerror(error.code()), error.code());
     case Error::Kind::Windows:
         return Formatter<Error>::format_windows_error(builder, error);
     case Error::Kind::StringLiteral:
-        return Formatter<FormatString>::format(builder, "{}"sv, error.string_literal());
+        return Formatter<FormatString>::format(builder, "{}"_sv, error.string_literal());
     }
     VERIFY_NOT_REACHED();
 }

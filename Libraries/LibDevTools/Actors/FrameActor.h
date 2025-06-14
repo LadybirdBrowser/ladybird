@@ -17,7 +17,7 @@ namespace DevTools {
 
 class FrameActor final : public Actor {
 public:
-    static constexpr auto base_name = "frame"sv;
+    static constexpr auto base_name = "frame"_sv;
 
     static NonnullRefPtr<FrameActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<StyleSheetsActor>, WeakPtr<ThreadActor>);
     virtual ~FrameActor() override;

@@ -47,7 +47,7 @@ ErrorOr<String> MarkupGenerator::html_from_error(Error const& object, bool in_pr
 ErrorOr<void> MarkupGenerator::value_to_html(Value value, StringBuilder& output_html, HashTable<Object*>& seen_objects)
 {
     if (value.is_special_empty_value()) {
-        TRY(output_html.try_append("&lt;empty&gt;"sv));
+        TRY(output_html.try_append("&lt;empty&gt;"_sv));
         return {};
     }
 
@@ -86,53 +86,53 @@ ErrorOr<void> MarkupGenerator::value_to_html(Value value, StringBuilder& output_
     if (value.is_string())
         TRY(output_html.try_append('"'));
 
-    TRY(output_html.try_append("</span>"sv));
+    TRY(output_html.try_append("</span>"_sv));
     return {};
 }
 
 ErrorOr<void> MarkupGenerator::array_to_html(Array const& array, StringBuilder& html_output, HashTable<Object*>& seen_objects)
 {
-    TRY(html_output.try_append(TRY(wrap_string_in_style("[ "sv, StyleType::Punctuation))));
+    TRY(html_output.try_append(TRY(wrap_string_in_style("[ "_sv, StyleType::Punctuation))));
     bool first = true;
     for (auto it = array.indexed_properties().begin(false); it != array.indexed_properties().end(); ++it) {
         if (!first)
-            TRY(html_output.try_append(TRY(wrap_string_in_style(", "sv, StyleType::Punctuation))));
+            TRY(html_output.try_append(TRY(wrap_string_in_style(", "_sv, StyleType::Punctuation))));
         first = false;
         // FIXME: Exception check
         TRY(value_to_html(array.get(it.index()).release_value(), html_output, seen_objects));
     }
-    TRY(html_output.try_append(TRY(wrap_string_in_style(" ]"sv, StyleType::Punctuation))));
+    TRY(html_output.try_append(TRY(wrap_string_in_style(" ]"_sv, StyleType::Punctuation))));
     return {};
 }
 
 ErrorOr<void> MarkupGenerator::object_to_html(Object const& object, StringBuilder& html_output, HashTable<Object*>& seen_objects)
 {
-    TRY(html_output.try_append(TRY(wrap_string_in_style("{ "sv, StyleType::Punctuation))));
+    TRY(html_output.try_append(TRY(wrap_string_in_style("{ "_sv, StyleType::Punctuation))));
     bool first = true;
     for (auto& entry : object.indexed_properties()) {
         if (!first)
-            TRY(html_output.try_append(TRY(wrap_string_in_style(", "sv, StyleType::Punctuation))));
+            TRY(html_output.try_append(TRY(wrap_string_in_style(", "_sv, StyleType::Punctuation))));
         first = false;
         TRY(html_output.try_append(TRY(wrap_string_in_style(String::number(entry.index()), StyleType::Number))));
-        TRY(html_output.try_append(TRY(wrap_string_in_style(": "sv, StyleType::Punctuation))));
+        TRY(html_output.try_append(TRY(wrap_string_in_style(": "_sv, StyleType::Punctuation))));
         // FIXME: Exception check
         TRY(value_to_html(object.get(entry.index()).release_value(), html_output, seen_objects));
     }
 
     if (!object.indexed_properties().is_empty() && object.shape().property_count())
-        TRY(html_output.try_append(TRY(wrap_string_in_style(", "sv, StyleType::Punctuation))));
+        TRY(html_output.try_append(TRY(wrap_string_in_style(", "_sv, StyleType::Punctuation))));
 
     size_t index = 0;
     for (auto& it : object.shape().property_table()) {
         TRY(html_output.try_append(TRY(wrap_string_in_style(TRY(String::formatted("\"{}\"", escape_html_entities(it.key.to_string()))), StyleType::String))));
-        TRY(html_output.try_append(TRY(wrap_string_in_style(": "sv, StyleType::Punctuation))));
+        TRY(html_output.try_append(TRY(wrap_string_in_style(": "_sv, StyleType::Punctuation))));
         TRY(value_to_html(object.get_direct(it.value.offset), html_output, seen_objects));
         if (index != object.shape().property_count() - 1)
-            TRY(html_output.try_append(TRY(wrap_string_in_style(", "sv, StyleType::Punctuation))));
+            TRY(html_output.try_append(TRY(wrap_string_in_style(", "_sv, StyleType::Punctuation))));
         ++index;
     }
 
-    TRY(html_output.try_append(TRY(wrap_string_in_style(" }"sv, StyleType::Punctuation))));
+    TRY(html_output.try_append(TRY(wrap_string_in_style(" }"_sv, StyleType::Punctuation))));
     return {};
 }
 
@@ -186,25 +186,25 @@ StringView MarkupGenerator::style_from_style_type(StyleType type)
 {
     switch (type) {
     case StyleType::Invalid:
-        return "color: red;"sv;
+        return "color: red;"_sv;
     case StyleType::String:
-        return "color: -libweb-palette-syntax-string;"sv;
+        return "color: -libweb-palette-syntax-string;"_sv;
     case StyleType::Number:
-        return "color: -libweb-palette-syntax-number;"sv;
+        return "color: -libweb-palette-syntax-number;"_sv;
     case StyleType::KeywordBold:
-        return "color: -libweb-palette-syntax-keyword; font-weight: bold;"sv;
+        return "color: -libweb-palette-syntax-keyword; font-weight: bold;"_sv;
     case StyleType::Punctuation:
-        return "color: -libweb-palette-syntax-punctuation;"sv;
+        return "color: -libweb-palette-syntax-punctuation;"_sv;
     case StyleType::Operator:
-        return "color: -libweb-palette-syntax-operator;"sv;
+        return "color: -libweb-palette-syntax-operator;"_sv;
     case StyleType::Keyword:
-        return "color: -libweb-palette-syntax-keyword;"sv;
+        return "color: -libweb-palette-syntax-keyword;"_sv;
     case StyleType::ControlKeyword:
-        return "color: -libweb-palette-syntax-control-keyword;"sv;
+        return "color: -libweb-palette-syntax-control-keyword;"_sv;
     case StyleType::Identifier:
-        return "color: -libweb-palette-syntax-identifier;"sv;
+        return "color: -libweb-palette-syntax-identifier;"_sv;
     case StyleType::ObjectType:
-        return "padding: 2px; background-color: #ddf; color: black; font-weight: bold;"sv;
+        return "padding: 2px; background-color: #ddf; color: black; font-weight: bold;"_sv;
     default:
         VERIFY_NOT_REACHED();
     }

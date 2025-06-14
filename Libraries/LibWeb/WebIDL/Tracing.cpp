@@ -21,7 +21,7 @@ void log_trace_impl(JS::VM& vm, char const* function)
     StringBuilder builder;
     for (size_t i = 0; i < vm.argument_count(); ++i) {
         if (i != 0)
-            builder.append(", "sv);
+            builder.append(", "_sv);
         auto argument = vm.argument(i);
         if (argument.is_string())
             builder.append_code_point('"');

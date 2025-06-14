@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::cre
 {
     // 1. If scripting is disabled for realm, then set source to the empty string.
     if (HTML::is_scripting_disabled(realm))
-        source = ""sv;
+        source = ""_sv;
 
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
     // 3. Set script's realm to realm.

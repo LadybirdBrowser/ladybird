@@ -169,9 +169,9 @@ Optional<Property> property_from_string(StringView property)
                 names[property.value()].additional_name = StringView { name, strlen(name) };
         }
 
-        names[PROPERTY_ANY.value()] = { "Any"sv, {}, {} };
-        names[PROPERTY_ASCII.value()] = { "ASCII"sv, {}, {} };
-        names[PROPERTY_ASSIGNED.value()] = { "Assigned"sv, {}, {} };
+        names[PROPERTY_ANY.value()] = { "Any"_sv, {}, {} };
+        names[PROPERTY_ASCII.value()] = { "ASCII"_sv, {}, {} };
+        names[PROPERTY_ASSIGNED.value()] = { "Assigned"_sv, {}, {} };
 
         return names;
     }();

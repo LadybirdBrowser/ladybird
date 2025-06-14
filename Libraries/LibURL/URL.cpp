@@ -98,7 +98,7 @@ bool URL::cannot_have_a_username_or_password_or_port() const
 {
     // A URL cannot have a username/password/port if its host is null or the empty string, or its scheme is "file".
 
-    return !m_data->host.has_value() || m_data->host->is_empty_host() || m_data->scheme == "file"sv;
+    return !m_data->host.has_value() || m_data->host->is_empty_host() || m_data->scheme == "file"_sv;
 }
 
 // https://url.spec.whatwg.org/#default-port
@@ -132,7 +132,7 @@ Optional<URL> create_with_file_scheme(ByteString const& path, ByteString const& 
         return {};
 
     StringBuilder url_builder;
-    url_builder.append("file://"sv);
+    url_builder.append("file://"_sv);
     url_builder.append(hostname);
     url_builder.append(lexical_path.string());
     if (path.ends_with('/'))
@@ -164,7 +164,7 @@ URL create_with_data(StringView mime_type, StringView payload, bool is_base64)
     StringBuilder builder;
     builder.append(mime_type);
     if (is_base64)
-        builder.append(";base64"sv);
+        builder.append(";base64"_sv);
     builder.append(',');
     builder.append(payload);
     url.set_paths({ builder.to_byte_string() });
@@ -175,12 +175,12 @@ URL create_with_data(StringView mime_type, StringView payload, bool is_base64)
 ReadonlySpan<StringView> special_schemes()
 {
     static auto const schemes = to_array<StringView>({
-        "ftp"sv,
-        "file"sv,
-        "http"sv,
-        "https"sv,
-        "ws"sv,
-        "wss"sv,
+        "ftp"_sv,
+        "file"_sv,
+        "http"_sv,
+        "https"_sv,
+        "ws"_sv,
+        "wss"_sv,
     });
     return schemes;
 }
@@ -234,7 +234,7 @@ String URL::serialize(ExcludeFragment exclude_fragment) const
     // 2. If url’s host is non-null:
     if (m_data->host.has_value()) {
         // 1. Append "//" to output.
-        output.append("//"sv);
+        output.append("//"_sv);
 
         // 2. If url includes credentials, then:
         if (includes_credentials()) {
@@ -266,7 +266,7 @@ String URL::serialize(ExcludeFragment exclude_fragment) const
         output.append(m_data->paths[0]);
     } else {
         if (!m_data->host.has_value() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
-            output.append("/."sv);
+            output.append("/."_sv);
         for (auto& segment : m_data->paths) {
             output.append('/');
             output.append(segment);
@@ -300,7 +300,7 @@ ByteString URL::serialize_for_display() const
     builder.append(':');
 
     if (m_data->host.has_value()) {
-        builder.append("//"sv);
+        builder.append("//"_sv);
         builder.append(serialized_host());
         if (m_data->port.has_value())
             builder.appendff(":{}", *m_data->port);
@@ -310,7 +310,7 @@ ByteString URL::serialize_for_display() const
         builder.append(m_data->paths[0]);
     } else {
         if (!m_data->host.has_value() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
-            builder.append("/."sv);
+            builder.append("/."_sv);
         for (auto& segment : m_data->paths) {
             builder.append('/');
             builder.append(segment);
@@ -335,7 +335,7 @@ Origin URL::origin() const
 {
     // The origin of a URL url is the origin returned by running these steps, switching on url’s scheme:
     // -> "blob"
-    if (scheme() == "blob"sv) {
+    if (scheme() == "blob"_sv) {
         // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
         if (blob_url_entry().has_value())
             return blob_url_entry()->environment.origin;
@@ -348,7 +348,7 @@ Origin URL::origin() const
             return Origin {};
 
         // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
-        if (path_url->scheme().is_one_of("http"sv, "https"sv, "file"sv))
+        if (path_url->scheme().is_one_of("http"_sv, "https"_sv, "file"_sv))
             return path_url->origin();
 
         // 5. Return a new opaque origin.
@@ -360,14 +360,14 @@ Origin URL::origin() const
     // -> "https"
     // -> "ws"
     // -> "wss"
-    if (scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
+    if (scheme().is_one_of("ftp"_sv, "http"_sv, "https"_sv, "ws"_sv, "wss"_sv)) {
         // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
         return Origin(scheme(), host().value(), port());
     }
 
     // -> "file"
     // AD-HOC: Our resource:// is basically an alias to file://
-    if (scheme() == "file"sv || scheme() == "resource"sv) {
+    if (scheme() == "file"_sv || scheme() == "resource"_sv) {
         // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
         // Note: We must return an origin with the `file://' protocol for `file://' iframes to work from `file://' pages.
         return Origin(scheme(), String {}, {});
@@ -408,23 +408,23 @@ bool code_point_is_in_percent_encode_set(u32 code_point, PercentEncodeSet set)
     case PercentEncodeSet::C0Control:
         return code_point < 0x20 || code_point > 0x7E;
     case PercentEncodeSet::Fragment:
-        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::C0Control) || " \"<>`"sv.contains(static_cast<char>(code_point));
+        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::C0Control) || " \"<>`"_sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::Query:
-        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::C0Control) || " \"#<>"sv.contains(static_cast<char>(code_point));
+        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::C0Control) || " \"#<>"_sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::SpecialQuery:
         return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Query) || code_point == '\'';
     case PercentEncodeSet::Path:
-        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Query) || "?^`{}"sv.contains(static_cast<char>(code_point));
+        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Query) || "?^`{}"_sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::Userinfo:
-        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Path) || "/:;=@[\\]|"sv.contains(static_cast<char>(code_point));
+        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Path) || "/:;=@[\\]|"_sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::Component:
-        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Userinfo) || "$%&+,"sv.contains(static_cast<char>(code_point));
+        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Userinfo) || "$%&+,"_sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::ApplicationXWWWFormUrlencoded:
-        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Component) || "!'()~"sv.contains(static_cast<char>(code_point));
+        return code_point_is_in_percent_encode_set(code_point, PercentEncodeSet::Component) || "!'()~"_sv.contains(static_cast<char>(code_point));
     case PercentEncodeSet::EncodeURI:
         // NOTE: This is the same percent encode set that JS encodeURI() uses.
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURI
-        return code_point > 0x7E || (!is_ascii_alphanumeric(code_point) && !";,/?:@&=+$-_.!~*'()#"sv.contains(static_cast<char>(code_point)));
+        return code_point > 0x7E || (!is_ascii_alphanumeric(code_point) && !";,/?:@&=+$-_.!~*'()#"_sv.contains(static_cast<char>(code_point)));
     default:
         VERIFY_NOT_REACHED();
     }
@@ -524,7 +524,7 @@ Optional<String> get_registrable_domain(StringView host)
         return {};
 
     auto subhost = host.substring_view(0, host.length() - public_suffix->bytes_as_string_view().length());
-    subhost = subhost.trim("."sv, TrimMode::Right);
+    subhost = subhost.trim("."_sv, TrimMode::Right);
 
     if (subhost.is_empty())
         return {};

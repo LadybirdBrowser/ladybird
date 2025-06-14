@@ -42,11 +42,11 @@ enum class Zoned {
 static bool is_valid_month_day(ParseResult const& result)
 {
     // 1. If DateDay is "31" and DateMonth is "02", "04", "06", "09", "11", return false.
-    if (result.date_day == "31"sv && result.date_month->is_one_of("02"sv, "04"sv, "06"sv, "09"sv, "11"sv))
+    if (result.date_day == "31"_sv && result.date_month->is_one_of("02"_sv, "04"_sv, "06"_sv, "09"_sv, "11"_sv))
         return false;
 
     // 2. If DateMonth is "02" and DateDay is "30", return false.
-    if (result.date_month == "02"sv && result.date_day == "30"sv)
+    if (result.date_month == "02"_sv && result.date_day == "30"_sv)
         return false;
 
     // 3. Return true.
@@ -64,7 +64,7 @@ static bool is_valid_date(ParseResult const& result)
     auto year = string_to_number(*result.date_year);
 
     // 3. If DateMonth is "02" and DateDay is "29" and MathematicalInLeapYear(EpochTimeForYear(year)) = 0, return false.
-    if (result.date_month == "02"sv && result.date_day == "29"sv && mathematical_in_leap_year(epoch_time_for_year(year)) == 0)
+    if (result.date_month == "02"_sv && result.date_day == "29"_sv && mathematical_in_leap_year(epoch_time_for_year(year)) == 0)
         return false;
 
     // 4. Return true.
@@ -301,7 +301,7 @@ public:
         // DateSpecMonthDay :::
         //     --[opt] DateMonth DateSeparator[+Extended] DateDay
         //     --[opt] DateMonth DateSeparator[~Extended] DateDay
-        (void)m_state.lexer.consume_specific("--"sv);
+        (void)m_state.lexer.consume_specific("--"_sv);
 
         if (!parse_date_month())
             return false;
@@ -353,7 +353,7 @@ public:
         }
 
         // It is a Syntax Error if DateYear is "-000000".
-        if (transaction.parsed_string_view() == "-000000"sv)
+        if (transaction.parsed_string_view() == "-000000"_sv)
             return false;
 
         m_state.parse_result.date_year = transaction.parsed_string_view();
@@ -375,7 +375,7 @@ public:
             if (!parse_non_zero_digit())
                 return false;
         } else {
-            auto success = m_state.lexer.consume_specific("10"sv) || m_state.lexer.consume_specific("11"sv) || m_state.lexer.consume_specific("12"sv);
+            auto success = m_state.lexer.consume_specific("10"_sv) || m_state.lexer.consume_specific("11"_sv) || m_state.lexer.consume_specific("12"_sv);
             if (!success)
                 return false;
         }
@@ -403,7 +403,7 @@ public:
             if (!parse_decimal_digit())
                 return false;
         } else {
-            auto success = m_state.lexer.consume_specific("30"sv) || m_state.lexer.consume_specific("31"sv);
+            auto success = m_state.lexer.consume_specific("30"_sv) || m_state.lexer.consume_specific("31"_sv);
             if (!success)
                 return false;
         }
@@ -484,7 +484,7 @@ public:
         // TimeSecond :::
         //     MinuteSecond
         //     60
-        auto success = parse_minute_second() || m_state.lexer.consume_specific("60"sv);
+        auto success = parse_minute_second() || m_state.lexer.consume_specific("60"_sv);
         if (!success)
             return false;
 
@@ -768,10 +768,10 @@ public:
             if (!parse_decimal_digit())
                 return false;
         } else {
-            auto success = m_state.lexer.consume_specific("20"sv)
-                || m_state.lexer.consume_specific("21"sv)
-                || m_state.lexer.consume_specific("22"sv)
-                || m_state.lexer.consume_specific("23"sv);
+            auto success = m_state.lexer.consume_specific("20"_sv)
+                || m_state.lexer.consume_specific("21"_sv)
+                || m_state.lexer.consume_specific("22"_sv)
+                || m_state.lexer.consume_specific("23"_sv);
             if (!success)
                 return false;
         }

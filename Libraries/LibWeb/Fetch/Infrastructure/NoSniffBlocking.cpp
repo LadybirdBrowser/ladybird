@@ -16,14 +16,14 @@ namespace Web::Fetch::Infrastructure {
 bool determine_nosniff(HeaderList const& list)
 {
     // 1. Let values be the result of getting, decoding, and splitting `X-Content-Type-Options` from list.
-    auto values = list.get_decode_and_split("X-Content-Type-Options"sv.bytes());
+    auto values = list.get_decode_and_split("X-Content-Type-Options"_sv.bytes());
 
     // 2. If values is null, then return false.
     if (!values.has_value())
         return false;
 
     // 3. If values[0] is an ASCII case-insensitive match for "nosniff", then return true.
-    if (!values->is_empty() && values->at(0).equals_ignoring_ascii_case("nosniff"sv))
+    if (!values->is_empty() && values->at(0).equals_ignoring_ascii_case("nosniff"_sv))
         return true;
 
     // 4. Return false.
@@ -48,7 +48,7 @@ RequestOrResponseBlocking should_response_to_request_be_blocked_due_to_nosniff(R
         return RequestOrResponseBlocking::Blocked;
 
     // 5. If destination is "style" and mimeType is failure or its essence is not "text/css", then return blocked.
-    if (destination == Request::Destination::Style && (!mime_type.has_value() || mime_type->essence() != "text/css"sv))
+    if (destination == Request::Destination::Style && (!mime_type.has_value() || mime_type->essence() != "text/css"_sv))
         return RequestOrResponseBlocking::Blocked;
 
     // 6. Return allowed.

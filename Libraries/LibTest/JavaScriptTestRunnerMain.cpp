@@ -37,7 +37,7 @@ char** g_test_argv;
 
 using namespace Test::JS;
 
-static StringView g_program_name { "test-js"sv };
+static StringView g_program_name { "test-js"_sv };
 
 static bool set_abort_action(void (*function)(int))
 {
@@ -111,9 +111,9 @@ int main(int argc, char** argv)
         .long_name = "show-progress",
         .short_name = 'p',
         .accept_value = [&](StringView str) {
-            if ("true"sv == str)
+            if ("true"_sv == str)
                 print_progress = true;
-            else if ("false"sv == str)
+            else if ("false"_sv == str)
                 print_progress = false;
             else
                 return false;
@@ -138,9 +138,9 @@ int main(int argc, char** argv)
     for (auto& glob : test_globs)
         glob = ByteString::formatted("*{}*", glob);
     if (test_globs.is_empty())
-        test_globs.append("*"sv);
+        test_globs.append("*"_sv);
 
-    if (Core::Environment::has("DISABLE_DBG_OUTPUT"sv)) {
+    if (Core::Environment::has("DISABLE_DBG_OUTPUT"_sv)) {
         AK::set_debug_enabled(false);
     }
 
@@ -149,13 +149,13 @@ int main(int argc, char** argv)
     if (!specified_test_root.is_empty()) {
         test_root = ByteString { specified_test_root };
     } else {
-        auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv);
+        auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"_sv);
         if (!ladybird_source_dir.has_value()) {
             warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
             return 1;
         }
         test_root = LexicalPath::join(*ladybird_source_dir, g_test_root_fragment).string();
-        common_path = LexicalPath::join(*ladybird_source_dir, "Libraries"sv, "LibJS"sv, "Tests"sv, "test-common.js"sv).string();
+        common_path = LexicalPath::join(*ladybird_source_dir, "Libraries"_sv, "LibJS"_sv, "Tests"_sv, "test-common.js"_sv).string();
     }
     if (!FileSystem::is_directory(test_root)) {
         warnln("Test root is not a directory: {}", test_root);
@@ -163,12 +163,12 @@ int main(int argc, char** argv)
     }
 
     if (common_path.is_empty()) {
-        auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv);
+        auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"_sv);
         if (!ladybird_source_dir.has_value()) {
             warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
             return 1;
         }
-        common_path = LexicalPath::join(*ladybird_source_dir, "Libraries"sv, "LibJS"sv, "Tests"sv, "test-common.js"sv).string();
+        common_path = LexicalPath::join(*ladybird_source_dir, "Libraries"_sv, "LibJS"_sv, "Tests"_sv, "test-common.js"_sv).string();
     }
 
     auto test_root_or_error = FileSystem::real_path(test_root);

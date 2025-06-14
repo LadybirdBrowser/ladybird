@@ -16,17 +16,17 @@ static String normalize_feature_name(String const& name)
     // For legacy reasons, there are some aliases of some feature names. To normalize a feature name name, switch on name:
 
     // "screenx"
-    if (name == "screenx"sv) {
+    if (name == "screenx"_sv) {
         // Return "left".
         return "left"_string;
     }
     // "screeny"
-    else if (name == "screeny"sv) {
+    else if (name == "screeny"_sv) {
         // Return "top".
         return "top"_string;
     }
     // "innerwidth"
-    else if (name == "innerwidth"sv) {
+    else if (name == "innerwidth"_sv) {
         // Return "width".
         return "width"_string;
     }
@@ -105,11 +105,11 @@ T parse_boolean_feature(StringView value)
         return T::Yes;
 
     // 2. If value is "yes", then return true.
-    if (value == "yes"sv)
+    if (value == "yes"_sv)
         return T::Yes;
 
     // 3. If value is "true", then return true.
-    if (value == "true"sv)
+    if (value == "true"_sv)
         return T::Yes;
 
     // 4. Let parsed be the result of parsing value as an integer.
@@ -141,7 +141,7 @@ TokenizedFeature::Popup check_if_a_popup_window_is_requested(TokenizedFeature::M
         return TokenizedFeature::Popup::No;
 
     // 2. If tokenizedFeatures["popup"] exists, then return the result of parsing tokenizedFeatures["popup"] as a boolean feature.
-    if (auto popup_feature = tokenized_features.get("popup"sv); popup_feature.has_value())
+    if (auto popup_feature = tokenized_features.get("popup"_sv); popup_feature.has_value())
         return parse_boolean_feature<TokenizedFeature::Popup>(*popup_feature);
 
     // https://html.spec.whatwg.org/multipage/window-object.html#window-feature-is-set
@@ -155,38 +155,38 @@ TokenizedFeature::Popup check_if_a_popup_window_is_requested(TokenizedFeature::M
     };
 
     // 3. Let location be the result of checking if a window feature is set, given tokenizedFeatures, "location", and false.
-    auto location = check_if_a_window_feature_is_set("location"sv, TokenizedFeature::Location::No);
+    auto location = check_if_a_window_feature_is_set("location"_sv, TokenizedFeature::Location::No);
 
     // 4. Let toolbar be the result of checking if a window feature is set, given tokenizedFeatures, "toolbar", and false.
-    auto toolbar = check_if_a_window_feature_is_set("toolbar"sv, TokenizedFeature::Toolbar::No);
+    auto toolbar = check_if_a_window_feature_is_set("toolbar"_sv, TokenizedFeature::Toolbar::No);
 
     // 5. If location and toolbar are both false, then return true.
     if (location == TokenizedFeature::Location::No && toolbar == TokenizedFeature::Toolbar::No)
         return TokenizedFeature::Popup::Yes;
 
     // 6. Let menubar be the result of checking if a window feature is set, given tokenizedFeatures, menubar", and false.
-    auto menubar = check_if_a_window_feature_is_set("menubar"sv, TokenizedFeature::Menubar::No);
+    auto menubar = check_if_a_window_feature_is_set("menubar"_sv, TokenizedFeature::Menubar::No);
 
     // 7. If menubar is false, then return true.
     if (menubar == TokenizedFeature::Menubar::No)
         return TokenizedFeature::Popup::Yes;
 
     // 8. Let resizable be the result of checking if a window feature is set, given tokenizedFeatures, "resizable", and true.
-    auto resizable = check_if_a_window_feature_is_set("resizable"sv, TokenizedFeature::Resizable::Yes);
+    auto resizable = check_if_a_window_feature_is_set("resizable"_sv, TokenizedFeature::Resizable::Yes);
 
     // 9. If resizable is false, then return true.
     if (resizable == TokenizedFeature::Resizable::No)
         return TokenizedFeature::Popup::Yes;
 
     // 10. Let scrollbars be the result of checking if a window feature is set, given tokenizedFeatures, "scrollbars", and false.
-    auto scrollbars = check_if_a_window_feature_is_set("scrollbars"sv, TokenizedFeature::Scrollbars::No);
+    auto scrollbars = check_if_a_window_feature_is_set("scrollbars"_sv, TokenizedFeature::Scrollbars::No);
 
     // 11. If scrollbars is false, then return true.
     if (scrollbars == TokenizedFeature::Scrollbars::No)
         return TokenizedFeature::Popup::Yes;
 
     // 12. Let status be the result of checking if a window feature is set, given tokenizedFeatures, "status", and false.
-    auto status = check_if_a_window_feature_is_set("status"sv, TokenizedFeature::Status::No);
+    auto status = check_if_a_window_feature_is_set("status"_sv, TokenizedFeature::Status::No);
 
     // 13. If status is false, then return true.
     if (status == TokenizedFeature::Status::No)

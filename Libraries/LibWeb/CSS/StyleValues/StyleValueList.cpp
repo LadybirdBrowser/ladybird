@@ -18,13 +18,13 @@ bool StyleValueList::Properties::operator==(Properties const& other) const
 
 String StyleValueList::to_string(SerializationMode mode) const
 {
-    auto separator = ""sv;
+    auto separator = ""_sv;
     switch (m_properties.separator) {
     case Separator::Space:
-        separator = " "sv;
+        separator = " "_sv;
         break;
     case Separator::Comma:
-        separator = ", "sv;
+        separator = ", "_sv;
         break;
     default:
         VERIFY_NOT_REACHED();

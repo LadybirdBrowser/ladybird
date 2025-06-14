@@ -181,7 +181,7 @@ const DOM::Document* NavigableContainer::get_svg_document() const
     auto const* document = content_document();
 
     // 2. If document is non-null and was created by the page load processing model for XML files section because the computed type of the resource in the navigate algorithm was image/svg+xml, then return document.
-    if (document && document->content_type() == "image/svg+xml"sv)
+    if (document && document->content_type() == "image/svg+xml"_sv)
         return document;
     // 3. Return null.
     return nullptr;

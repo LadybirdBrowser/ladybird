@@ -99,42 +99,42 @@ HashTable<Role> const& RoleType::required_owned_elements() const
 
 ErrorOr<void> RoleType::serialize_as_json(JsonObjectSerializer<StringBuilder>& object) const
 {
-    auto state_object = TRY(object.add_object("state"sv));
+    auto state_object = TRY(object.add_object("state"_sv));
     for (auto const state : supported_states()) {
         auto value = TRY(ARIA::state_or_property_to_string_value(state, m_data, default_value_for_property_or_state(state)));
         TRY(state_object.add(ARIA::state_or_property_to_string(state), value));
     }
     TRY(state_object.finish());
 
-    auto properties_object = TRY(object.add_object("properties"sv));
+    auto properties_object = TRY(object.add_object("properties"_sv));
     for (auto const property : supported_properties()) {
         auto value = TRY(ARIA::state_or_property_to_string_value(property, m_data, default_value_for_property_or_state(property)));
         TRY(properties_object.add(ARIA::state_or_property_to_string(property), value));
     }
     TRY(properties_object.finish());
 
-    auto required_states_object = TRY(object.add_object("required_state"sv));
+    auto required_states_object = TRY(object.add_object("required_state"_sv));
     for (auto const state : required_states()) {
         auto value = TRY(ARIA::state_or_property_to_string_value(state, m_data, default_value_for_property_or_state(state)));
         TRY(required_states_object.add(ARIA::state_or_property_to_string(state), value));
     }
     TRY(required_states_object.finish());
 
-    auto required_properties_object = TRY(object.add_object("required_properties"sv));
+    auto required_properties_object = TRY(object.add_object("required_properties"_sv));
     for (auto const property : required_properties()) {
         auto value = TRY(ARIA::state_or_property_to_string_value(property, m_data, default_value_for_property_or_state(property)));
         TRY(required_properties_object.add(ARIA::state_or_property_to_string(property), value));
     }
     TRY(required_properties_object.finish());
 
-    auto prohibited_states_object = TRY(object.add_object("prohibited_state"sv));
+    auto prohibited_states_object = TRY(object.add_object("prohibited_state"_sv));
     for (auto const state : prohibited_states()) {
         auto value = TRY(ARIA::state_or_property_to_string_value(state, m_data, default_value_for_property_or_state(state)));
         TRY(prohibited_states_object.add(ARIA::state_or_property_to_string(state), value));
     }
     TRY(prohibited_states_object.finish());
 
-    auto prohibited_properties_object = TRY(object.add_object("prohibited_properties"sv));
+    auto prohibited_properties_object = TRY(object.add_object("prohibited_properties"_sv));
     for (auto const property : required_properties()) {
         auto value = TRY(ARIA::state_or_property_to_string_value(property, m_data, default_value_for_property_or_state(property)));
         TRY(prohibited_properties_object.add(ARIA::state_or_property_to_string(property), value));

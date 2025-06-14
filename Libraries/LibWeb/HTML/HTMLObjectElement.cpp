@@ -131,9 +131,9 @@ void HTMLObjectElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperti
 {
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
-            if (value.equals_ignoring_ascii_case("center"sv))
+            if (value.equals_ignoring_ascii_case("center"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
-            else if (value.equals_ignoring_ascii_case("middle"sv))
+            else if (value.equals_ignoring_ascii_case("middle"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
@@ -376,7 +376,7 @@ void HTMLObjectElement::resource_did_load(Fetch::Infrastructure::Response const&
         // 2. If the type specified in the resource's Content-Type metadata is "text/plain", and the result of applying
         //    the rules for distinguishing if a resource is text or binary to the resource is that the resource is not
         //    text/plain, then set binary to true.
-        if (content_type->essence() == "text/plain"sv) {
+        if (content_type->essence() == "text/plain"_sv) {
             auto computed_type = MimeSniff::Resource::sniff(
                 data,
                 MimeSniff::SniffingConfiguration {
@@ -384,12 +384,12 @@ void HTMLObjectElement::resource_did_load(Fetch::Infrastructure::Response const&
                     .supplied_type = content_type,
                 });
 
-            if (computed_type.essence() != "text/plain"sv)
+            if (computed_type.essence() != "text/plain"_sv)
                 binary = true;
         }
 
         // 3. If the type specified in the resource's Content-Type metadata is "application/octet-stream", then set binary to true.
-        else if (content_type->essence() == "application/octet-stream"sv) {
+        else if (content_type->essence() == "application/octet-stream"_sv) {
             binary = true;
         }
 
@@ -401,10 +401,10 @@ void HTMLObjectElement::resource_did_load(Fetch::Infrastructure::Response const&
 
         // 5. If there is a type attribute present on the object element, and its value is not application/octet-stream,
         //    then run the following steps:
-        else if (auto type = this->type(); !type.is_empty() && (type != "application/octet-stream"sv)) {
+        else if (auto type = this->type(); !type.is_empty() && (type != "application/octet-stream"_sv)) {
             // 1. If the attribute's value is a type that starts with "image/" that is not also an XML MIME type, then
             //    let the resource type be the type specified in that type attribute.
-            if (type.starts_with_bytes("image/"sv)) {
+            if (type.starts_with_bytes("image/"_sv)) {
                 auto parsed_type = MimeSniff::MimeType::parse(type);
 
                 if (parsed_type.has_value() && !parsed_type->is_xml())
@@ -427,7 +427,7 @@ void HTMLObjectElement::resource_did_load(Fetch::Infrastructure::Response const&
 
         // 2. If tentative type is not application/octet-stream, then let resource type be tentative type and jump to the
         //    step below labeled handler.
-        if (tentative_type.has_value() && tentative_type->essence() != "application/octet-stream"sv)
+        if (tentative_type.has_value() && tentative_type->essence() != "application/octet-stream"_sv)
             resource_type = move(tentative_type);
     }
 

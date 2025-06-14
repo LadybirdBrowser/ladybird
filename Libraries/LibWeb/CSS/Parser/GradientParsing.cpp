@@ -134,7 +134,7 @@ Optional<InterpolationMethod> Parser::parse_interpolation_method(TokenStream<Com
 
     auto transaction = tokens.begin_transaction();
 
-    if (!tokens.consume_a_token().is_ident("in"sv))
+    if (!tokens.consume_a_token().is_ident("in"_sv))
         return {};
 
     tokens.discard_whitespace();
@@ -146,36 +146,36 @@ Optional<InterpolationMethod> Parser::parse_interpolation_method(TokenStream<Com
     GradientSpace color_space;
     bool polar_space = false;
 
-    if (color_space_name.equals_ignoring_ascii_case("srgb"sv)) {
+    if (color_space_name.equals_ignoring_ascii_case("srgb"_sv)) {
         color_space = GradientSpace::sRGB;
-    } else if (color_space_name.equals_ignoring_ascii_case("srgb-linear"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("srgb-linear"_sv)) {
         color_space = GradientSpace::sRGBLinear;
-    } else if (color_space_name.equals_ignoring_ascii_case("display-p3"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("display-p3"_sv)) {
         color_space = GradientSpace::DisplayP3;
-    } else if (color_space_name.equals_ignoring_ascii_case("a98-rgb"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("a98-rgb"_sv)) {
         color_space = GradientSpace::A98RGB;
-    } else if (color_space_name.equals_ignoring_ascii_case("prophoto-rgb"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("prophoto-rgb"_sv)) {
         color_space = GradientSpace::ProPhotoRGB;
-    } else if (color_space_name.equals_ignoring_ascii_case("rec2020"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("rec2020"_sv)) {
         color_space = GradientSpace::Rec2020;
-    } else if (color_space_name.equals_ignoring_ascii_case("lab"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("lab"_sv)) {
         color_space = GradientSpace::Lab;
-    } else if (color_space_name.equals_ignoring_ascii_case("oklab"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("oklab"_sv)) {
         color_space = GradientSpace::OKLab;
-    } else if (color_space_name.equals_ignoring_ascii_case("xyz-d50"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("xyz-d50"_sv)) {
         color_space = GradientSpace::XYZD50;
-    } else if (color_space_name.equals_ignoring_ascii_case("xyz-d65"sv)
-        || color_space_name.equals_ignoring_ascii_case("xyz"sv)) {
+    } else if (color_space_name.equals_ignoring_ascii_case("xyz-d65"_sv)
+        || color_space_name.equals_ignoring_ascii_case("xyz"_sv)) {
         color_space = GradientSpace::XYZD65;
     } else {
         polar_space = true;
-        if (color_space_name.equals_ignoring_ascii_case("hsl"sv)) {
+        if (color_space_name.equals_ignoring_ascii_case("hsl"_sv)) {
             color_space = GradientSpace::HSL;
-        } else if (color_space_name.equals_ignoring_ascii_case("hwb"sv)) {
+        } else if (color_space_name.equals_ignoring_ascii_case("hwb"_sv)) {
             color_space = GradientSpace::HWB;
-        } else if (color_space_name.equals_ignoring_ascii_case("lch"sv)) {
+        } else if (color_space_name.equals_ignoring_ascii_case("lch"_sv)) {
             color_space = GradientSpace::LCH;
-        } else if (color_space_name.equals_ignoring_ascii_case("oklch"sv)) {
+        } else if (color_space_name.equals_ignoring_ascii_case("oklch"_sv)) {
             color_space = GradientSpace::OKLCH;
         } else {
             return {};
@@ -193,20 +193,20 @@ Optional<InterpolationMethod> Parser::parse_interpolation_method(TokenStream<Com
                 return;
 
             auto hue_method_name = second_value.token().ident();
-            if (hue_method_name.equals_ignoring_ascii_case("shorter"sv)) {
+            if (hue_method_name.equals_ignoring_ascii_case("shorter"_sv)) {
                 hue_method = HueMethod::Shorter;
-            } else if (hue_method_name.equals_ignoring_ascii_case("longer"sv)) {
+            } else if (hue_method_name.equals_ignoring_ascii_case("longer"_sv)) {
                 hue_method = HueMethod::Longer;
-            } else if (hue_method_name.equals_ignoring_ascii_case("increasing"sv)) {
+            } else if (hue_method_name.equals_ignoring_ascii_case("increasing"_sv)) {
                 hue_method = HueMethod::Increasing;
-            } else if (hue_method_name.equals_ignoring_ascii_case("decreasing"sv)) {
+            } else if (hue_method_name.equals_ignoring_ascii_case("decreasing"_sv)) {
                 hue_method = HueMethod::Decreasing;
             } else {
                 return;
             }
 
             tokens.discard_whitespace();
-            if (!tokens.consume_a_token().is_ident("hue"sv))
+            if (!tokens.consume_a_token().is_ident("hue"_sv))
                 return;
 
             hue_transaction.commit();
@@ -238,17 +238,17 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
 
     auto function_name = component_value.function().name.bytes_as_string_view();
 
-    function_name = consume_if_starts_with(function_name, "-webkit-"sv, [&] {
+    function_name = consume_if_starts_with(function_name, "-webkit-"_sv, [&] {
         gradient_type = GradientType::WebKit;
     });
 
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
 
-    function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
+    function_name = consume_if_starts_with(function_name, "repeating-"_sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
     });
 
-    if (!function_name.equals_ignoring_ascii_case("linear-gradient"sv))
+    if (!function_name.equals_ignoring_ascii_case("linear-gradient"_sv))
         return nullptr;
 
     // <linear-gradient-syntax> = [ [ <angle> | <zero> | to <side-or-corner> ] || <color-interpolation-method> ]? , <color-stop-list>
@@ -265,13 +265,13 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
         : SideOrCorner::Top;
 
     auto to_side = [](StringView value) -> Optional<SideOrCorner> {
-        if (value.equals_ignoring_ascii_case("top"sv))
+        if (value.equals_ignoring_ascii_case("top"_sv))
             return SideOrCorner::Top;
-        if (value.equals_ignoring_ascii_case("bottom"sv))
+        if (value.equals_ignoring_ascii_case("bottom"_sv))
             return SideOrCorner::Bottom;
-        if (value.equals_ignoring_ascii_case("left"sv))
+        if (value.equals_ignoring_ascii_case("left"_sv))
             return SideOrCorner::Left;
-        if (value.equals_ignoring_ascii_case("right"sv))
+        if (value.equals_ignoring_ascii_case("right"_sv))
             return SideOrCorner::Right;
         return {};
     };
@@ -281,7 +281,7 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
             return false;
         if (gradient_type == GradientType::WebKit)
             return to_side(token.token().ident()).has_value();
-        return token.token().ident().equals_ignoring_ascii_case("to"sv);
+        return token.token().ident().equals_ignoring_ascii_case("to"_sv);
     };
 
     auto maybe_interpolation_method = parse_interpolation_method(tokens);
@@ -383,11 +383,11 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
     auto function_name = component_value.function().name.bytes_as_string_view();
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
 
-    function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
+    function_name = consume_if_starts_with(function_name, "repeating-"_sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
     });
 
-    if (!function_name.equals_ignoring_ascii_case("conic-gradient"sv))
+    if (!function_name.equals_ignoring_ascii_case("conic-gradient"_sv))
         return nullptr;
 
     TokenStream tokens { component_value.function().value };
@@ -416,7 +416,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
             return false;
         };
 
-        if (consume_identifier("from"sv)) {
+        if (consume_identifier("from"_sv)) {
             // from [ <angle> | <zero> ]
             if (got_from_angle || got_at_position)
                 return nullptr;
@@ -439,7 +439,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
             } else {
                 return nullptr;
             }
-        } else if (consume_identifier("at"sv)) {
+        } else if (consume_identifier("at"_sv)) {
             // at <position>
             if (got_at_position)
                 return nullptr;
@@ -448,7 +448,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
                 return nullptr;
             at_position = position;
             got_at_position = true;
-        } else if (token->token().ident().equals_ignoring_ascii_case("in"sv)) {
+        } else if (token->token().ident().equals_ignoring_ascii_case("in"_sv)) {
             // <color-interpolation-method>
             if (got_color_interpolation_method)
                 return nullptr;
@@ -502,11 +502,11 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
     auto function_name = component_value.function().name.bytes_as_string_view();
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
 
-    function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
+    function_name = consume_if_starts_with(function_name, "repeating-"_sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
     });
 
-    if (!function_name.equals_ignoring_ascii_case("radial-gradient"sv))
+    if (!function_name.equals_ignoring_ascii_case("radial-gradient"_sv))
         return nullptr;
 
     TokenStream tokens { component_value.function().value };
@@ -535,21 +535,21 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
         if (!token.is(Token::Type::Ident))
             return {};
         auto ident = token.token().ident();
-        if (ident.equals_ignoring_ascii_case("circle"sv))
+        if (ident.equals_ignoring_ascii_case("circle"_sv))
             return commit_value(EndingShape::Circle, transaction);
-        if (ident.equals_ignoring_ascii_case("ellipse"sv))
+        if (ident.equals_ignoring_ascii_case("ellipse"_sv))
             return commit_value(EndingShape::Ellipse, transaction);
         return {};
     };
 
     auto parse_extent_keyword = [](StringView keyword) -> Optional<Extent> {
-        if (keyword.equals_ignoring_ascii_case("closest-corner"sv))
+        if (keyword.equals_ignoring_ascii_case("closest-corner"_sv))
             return Extent::ClosestCorner;
-        if (keyword.equals_ignoring_ascii_case("closest-side"sv))
+        if (keyword.equals_ignoring_ascii_case("closest-side"_sv))
             return Extent::ClosestSide;
-        if (keyword.equals_ignoring_ascii_case("farthest-corner"sv))
+        if (keyword.equals_ignoring_ascii_case("farthest-corner"_sv))
             return Extent::FarthestCorner;
-        if (keyword.equals_ignoring_ascii_case("farthest-side"sv))
+        if (keyword.equals_ignoring_ascii_case("farthest-side"_sv))
             return Extent::FarthestSide;
         return {};
     };
@@ -627,7 +627,7 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
         return nullptr;
 
     auto& token = tokens.next_token();
-    if (token.is_ident("at"sv)) {
+    if (token.is_ident("at"_sv)) {
         tokens.discard_a_token();
         auto position = parse_position_value(tokens);
         if (!position)

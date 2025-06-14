@@ -58,7 +58,7 @@ Optional<String> get_locale_variants(Unicode::LocaleID const& locale)
     // 4. Return the substring of variants from 1.
     if (base_name.variants.is_empty())
         return {};
-    return MUST(String::join("-"sv, base_name.variants));
+    return MUST(String::join("-"_sv, base_name.variants));
 }
 
 // 1.1.1 CreateArrayFromListOrRestricted ( list , restricted )
@@ -178,14 +178,14 @@ struct FirstDayStringAndValue {
 
 // Table 1: First Day String and Value, https://tc39.es/proposal-intl-locale-info/#table-locale-first-day-option-value
 static constexpr auto first_day_string_and_value_table = to_array<FirstDayStringAndValue>({
-    { "0"sv, "sun"sv, 7 },
-    { "1"sv, "mon"sv, 1 },
-    { "2"sv, "tue"sv, 2 },
-    { "3"sv, "wed"sv, 3 },
-    { "4"sv, "thu"sv, 4 },
-    { "5"sv, "fri"sv, 5 },
-    { "6"sv, "sat"sv, 6 },
-    { "7"sv, "sun"sv, 7 },
+    { "0"_sv, "sun"_sv, 7 },
+    { "1"_sv, "mon"_sv, 1 },
+    { "2"_sv, "tue"_sv, 2 },
+    { "3"_sv, "wed"_sv, 3 },
+    { "4"_sv, "thu"_sv, 4 },
+    { "5"_sv, "fri"_sv, 5 },
+    { "6"_sv, "sat"_sv, 6 },
+    { "7"_sv, "sun"_sv, 7 },
 });
 
 // 1.1.8 WeekdayToString ( fw ), https://tc39.es/proposal-intl-locale-info/#sec-weekday-to-string

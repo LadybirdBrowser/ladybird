@@ -47,68 +47,68 @@ struct MatchedRoute {
 
 // https://w3c.github.io/webdriver/#dfn-endpoints
 static constexpr auto s_webdriver_endpoints = Array {
-    ROUTE(POST, "/session"sv, new_session),
-    ROUTE(DELETE, "/session/:session_id"sv, delete_session),
-    ROUTE(GET, "/status"sv, get_status),
-    ROUTE(GET, "/session/:session_id/timeouts"sv, get_timeouts),
-    ROUTE(POST, "/session/:session_id/timeouts"sv, set_timeouts),
-    ROUTE(POST, "/session/:session_id/url"sv, navigate_to),
-    ROUTE(GET, "/session/:session_id/url"sv, get_current_url),
-    ROUTE(POST, "/session/:session_id/back"sv, back),
-    ROUTE(POST, "/session/:session_id/forward"sv, forward),
-    ROUTE(POST, "/session/:session_id/refresh"sv, refresh),
-    ROUTE(GET, "/session/:session_id/title"sv, get_title),
-    ROUTE(GET, "/session/:session_id/window"sv, get_window_handle),
-    ROUTE(DELETE, "/session/:session_id/window"sv, close_window),
-    ROUTE(POST, "/session/:session_id/window"sv, switch_to_window),
-    ROUTE(GET, "/session/:session_id/window/handles"sv, get_window_handles),
-    ROUTE(POST, "/session/:session_id/window/new"sv, new_window),
-    ROUTE(POST, "/session/:session_id/frame"sv, switch_to_frame),
-    ROUTE(POST, "/session/:session_id/frame/parent"sv, switch_to_parent_frame),
-    ROUTE(GET, "/session/:session_id/window/rect"sv, get_window_rect),
-    ROUTE(POST, "/session/:session_id/window/rect"sv, set_window_rect),
-    ROUTE(POST, "/session/:session_id/window/maximize"sv, maximize_window),
-    ROUTE(POST, "/session/:session_id/window/minimize"sv, minimize_window),
-    ROUTE(POST, "/session/:session_id/window/fullscreen"sv, fullscreen_window),
-    ROUTE(POST, "/session/:session_id/window/consume-user-activation"sv, consume_user_activation),
-    ROUTE(POST, "/session/:session_id/element"sv, find_element),
-    ROUTE(POST, "/session/:session_id/elements"sv, find_elements),
-    ROUTE(POST, "/session/:session_id/element/:element_id/element"sv, find_element_from_element),
-    ROUTE(POST, "/session/:session_id/element/:element_id/elements"sv, find_elements_from_element),
-    ROUTE(POST, "/session/:session_id/shadow/:shadow_id/element"sv, find_element_from_shadow_root),
-    ROUTE(POST, "/session/:session_id/shadow/:shadow_id/elements"sv, find_elements_from_shadow_root),
-    ROUTE(GET, "/session/:session_id/element/active"sv, get_active_element),
-    ROUTE(GET, "/session/:session_id/element/:element_id/shadow"sv, get_element_shadow_root),
-    ROUTE(GET, "/session/:session_id/element/:element_id/selected"sv, is_element_selected),
-    ROUTE(GET, "/session/:session_id/element/:element_id/attribute/:name"sv, get_element_attribute),
-    ROUTE(GET, "/session/:session_id/element/:element_id/property/:name"sv, get_element_property),
-    ROUTE(GET, "/session/:session_id/element/:element_id/css/:name"sv, get_element_css_value),
-    ROUTE(GET, "/session/:session_id/element/:element_id/text"sv, get_element_text),
-    ROUTE(GET, "/session/:session_id/element/:element_id/name"sv, get_element_tag_name),
-    ROUTE(GET, "/session/:session_id/element/:element_id/rect"sv, get_element_rect),
-    ROUTE(GET, "/session/:session_id/element/:element_id/enabled"sv, is_element_enabled),
-    ROUTE(GET, "/session/:session_id/element/:element_id/computedrole"sv, get_computed_role),
-    ROUTE(GET, "/session/:session_id/element/:element_id/computedlabel"sv, get_computed_label),
-    ROUTE(POST, "/session/:session_id/element/:element_id/click"sv, element_click),
-    ROUTE(POST, "/session/:session_id/element/:element_id/clear"sv, element_clear),
-    ROUTE(POST, "/session/:session_id/element/:element_id/value"sv, element_send_keys),
-    ROUTE(GET, "/session/:session_id/source"sv, get_source),
-    ROUTE(POST, "/session/:session_id/execute/sync"sv, execute_script),
-    ROUTE(POST, "/session/:session_id/execute/async"sv, execute_async_script),
-    ROUTE(GET, "/session/:session_id/cookie"sv, get_all_cookies),
-    ROUTE(GET, "/session/:session_id/cookie/:name"sv, get_named_cookie),
-    ROUTE(POST, "/session/:session_id/cookie"sv, add_cookie),
-    ROUTE(DELETE, "/session/:session_id/cookie/:name"sv, delete_cookie),
-    ROUTE(DELETE, "/session/:session_id/cookie"sv, delete_all_cookies),
-    ROUTE(POST, "/session/:session_id/actions"sv, perform_actions),
-    ROUTE(DELETE, "/session/:session_id/actions"sv, release_actions),
-    ROUTE(POST, "/session/:session_id/alert/dismiss"sv, dismiss_alert),
-    ROUTE(POST, "/session/:session_id/alert/accept"sv, accept_alert),
-    ROUTE(GET, "/session/:session_id/alert/text"sv, get_alert_text),
-    ROUTE(POST, "/session/:session_id/alert/text"sv, send_alert_text),
-    ROUTE(GET, "/session/:session_id/screenshot"sv, take_screenshot),
-    ROUTE(GET, "/session/:session_id/element/:element_id/screenshot"sv, take_element_screenshot),
-    ROUTE(POST, "/session/:session_id/print"sv, print_page),
+    ROUTE(POST, "/session"_sv, new_session),
+    ROUTE(DELETE, "/session/:session_id"_sv, delete_session),
+    ROUTE(GET, "/status"_sv, get_status),
+    ROUTE(GET, "/session/:session_id/timeouts"_sv, get_timeouts),
+    ROUTE(POST, "/session/:session_id/timeouts"_sv, set_timeouts),
+    ROUTE(POST, "/session/:session_id/url"_sv, navigate_to),
+    ROUTE(GET, "/session/:session_id/url"_sv, get_current_url),
+    ROUTE(POST, "/session/:session_id/back"_sv, back),
+    ROUTE(POST, "/session/:session_id/forward"_sv, forward),
+    ROUTE(POST, "/session/:session_id/refresh"_sv, refresh),
+    ROUTE(GET, "/session/:session_id/title"_sv, get_title),
+    ROUTE(GET, "/session/:session_id/window"_sv, get_window_handle),
+    ROUTE(DELETE, "/session/:session_id/window"_sv, close_window),
+    ROUTE(POST, "/session/:session_id/window"_sv, switch_to_window),
+    ROUTE(GET, "/session/:session_id/window/handles"_sv, get_window_handles),
+    ROUTE(POST, "/session/:session_id/window/new"_sv, new_window),
+    ROUTE(POST, "/session/:session_id/frame"_sv, switch_to_frame),
+    ROUTE(POST, "/session/:session_id/frame/parent"_sv, switch_to_parent_frame),
+    ROUTE(GET, "/session/:session_id/window/rect"_sv, get_window_rect),
+    ROUTE(POST, "/session/:session_id/window/rect"_sv, set_window_rect),
+    ROUTE(POST, "/session/:session_id/window/maximize"_sv, maximize_window),
+    ROUTE(POST, "/session/:session_id/window/minimize"_sv, minimize_window),
+    ROUTE(POST, "/session/:session_id/window/fullscreen"_sv, fullscreen_window),
+    ROUTE(POST, "/session/:session_id/window/consume-user-activation"_sv, consume_user_activation),
+    ROUTE(POST, "/session/:session_id/element"_sv, find_element),
+    ROUTE(POST, "/session/:session_id/elements"_sv, find_elements),
+    ROUTE(POST, "/session/:session_id/element/:element_id/element"_sv, find_element_from_element),
+    ROUTE(POST, "/session/:session_id/element/:element_id/elements"_sv, find_elements_from_element),
+    ROUTE(POST, "/session/:session_id/shadow/:shadow_id/element"_sv, find_element_from_shadow_root),
+    ROUTE(POST, "/session/:session_id/shadow/:shadow_id/elements"_sv, find_elements_from_shadow_root),
+    ROUTE(GET, "/session/:session_id/element/active"_sv, get_active_element),
+    ROUTE(GET, "/session/:session_id/element/:element_id/shadow"_sv, get_element_shadow_root),
+    ROUTE(GET, "/session/:session_id/element/:element_id/selected"_sv, is_element_selected),
+    ROUTE(GET, "/session/:session_id/element/:element_id/attribute/:name"_sv, get_element_attribute),
+    ROUTE(GET, "/session/:session_id/element/:element_id/property/:name"_sv, get_element_property),
+    ROUTE(GET, "/session/:session_id/element/:element_id/css/:name"_sv, get_element_css_value),
+    ROUTE(GET, "/session/:session_id/element/:element_id/text"_sv, get_element_text),
+    ROUTE(GET, "/session/:session_id/element/:element_id/name"_sv, get_element_tag_name),
+    ROUTE(GET, "/session/:session_id/element/:element_id/rect"_sv, get_element_rect),
+    ROUTE(GET, "/session/:session_id/element/:element_id/enabled"_sv, is_element_enabled),
+    ROUTE(GET, "/session/:session_id/element/:element_id/computedrole"_sv, get_computed_role),
+    ROUTE(GET, "/session/:session_id/element/:element_id/computedlabel"_sv, get_computed_label),
+    ROUTE(POST, "/session/:session_id/element/:element_id/click"_sv, element_click),
+    ROUTE(POST, "/session/:session_id/element/:element_id/clear"_sv, element_clear),
+    ROUTE(POST, "/session/:session_id/element/:element_id/value"_sv, element_send_keys),
+    ROUTE(GET, "/session/:session_id/source"_sv, get_source),
+    ROUTE(POST, "/session/:session_id/execute/sync"_sv, execute_script),
+    ROUTE(POST, "/session/:session_id/execute/async"_sv, execute_async_script),
+    ROUTE(GET, "/session/:session_id/cookie"_sv, get_all_cookies),
+    ROUTE(GET, "/session/:session_id/cookie/:name"_sv, get_named_cookie),
+    ROUTE(POST, "/session/:session_id/cookie"_sv, add_cookie),
+    ROUTE(DELETE, "/session/:session_id/cookie/:name"_sv, delete_cookie),
+    ROUTE(DELETE, "/session/:session_id/cookie"_sv, delete_all_cookies),
+    ROUTE(POST, "/session/:session_id/actions"_sv, perform_actions),
+    ROUTE(DELETE, "/session/:session_id/actions"_sv, release_actions),
+    ROUTE(POST, "/session/:session_id/alert/dismiss"_sv, dismiss_alert),
+    ROUTE(POST, "/session/:session_id/alert/accept"_sv, accept_alert),
+    ROUTE(GET, "/session/:session_id/alert/text"_sv, get_alert_text),
+    ROUTE(POST, "/session/:session_id/alert/text"_sv, send_alert_text),
+    ROUTE(GET, "/session/:session_id/screenshot"_sv, take_screenshot),
+    ROUTE(GET, "/session/:session_id/element/:element_id/screenshot"_sv, take_element_screenshot),
+    ROUTE(POST, "/session/:session_id/print"_sv, print_page),
 };
 
 // https://w3c.github.io/webdriver/#dfn-match-a-request
@@ -166,13 +166,13 @@ static ErrorOr<MatchedRoute, Error> match_route(HTTP::HttpRequest const& request
         }
     }
 
-    return Error::from_code(ErrorCode::UnknownCommand, "The command was not recognized."sv);
+    return Error::from_code(ErrorCode::UnknownCommand, "The command was not recognized."_sv);
 }
 
 static JsonValue make_success_response(JsonValue value)
 {
     JsonObject result;
-    result.set("value"sv, move(value));
+    result.set("value"_sv, move(value));
     return result;
 }
 
@@ -248,7 +248,7 @@ ErrorOr<JsonValue, Client::WrappedError> Client::read_body_as_json(HTTP::HttpReq
     size_t content_length = 0;
 
     for (auto const& header : request.headers().headers()) {
-        if (header.name.equals_ignoring_ascii_case("Content-Length"sv)) {
+        if (header.name.equals_ignoring_ascii_case("Content-Length"_sv)) {
             content_length = header.value.to_number<size_t>(TrimWhitespace::Yes).value_or(0);
             break;
         }
@@ -292,23 +292,23 @@ void Client::handle_error(HTTP::HttpRequest const& request, WrappedError const& 
 ErrorOr<void, Client::WrappedError> Client::send_success_response(HTTP::HttpRequest const& request, JsonValue result)
 {
     bool keep_alive = false;
-    if (auto it = request.headers().headers().find_if([](auto& header) { return header.name.equals_ignoring_ascii_case("Connection"sv); }); !it.is_end())
-        keep_alive = it->value.trim_whitespace().equals_ignoring_ascii_case("keep-alive"sv);
+    if (auto it = request.headers().headers().find_if([](auto& header) { return header.name.equals_ignoring_ascii_case("Connection"_sv); }); !it.is_end())
+        keep_alive = it->value.trim_whitespace().equals_ignoring_ascii_case("keep-alive"_sv);
 
     result = make_success_response(move(result));
     auto content = result.serialized();
 
     StringBuilder builder;
-    builder.append("HTTP/1.1 200 OK\r\n"sv);
-    builder.append("Server: WebDriver (SerenityOS)\r\n"sv);
-    builder.append("X-Frame-Options: SAMEORIGIN\r\n"sv);
-    builder.append("X-Content-Type-Options: nosniff\r\n"sv);
+    builder.append("HTTP/1.1 200 OK\r\n"_sv);
+    builder.append("Server: WebDriver (SerenityOS)\r\n"_sv);
+    builder.append("X-Frame-Options: SAMEORIGIN\r\n"_sv);
+    builder.append("X-Content-Type-Options: nosniff\r\n"_sv);
     if (keep_alive)
-        builder.append("Connection: keep-alive\r\n"sv);
-    builder.append("Cache-Control: no-cache\r\n"sv);
-    builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
+        builder.append("Connection: keep-alive\r\n"_sv);
+    builder.append("Cache-Control: no-cache\r\n"_sv);
+    builder.append("Content-Type: application/json; charset=utf-8\r\n"_sv);
     builder.appendff("Content-Length: {}\r\n", content.byte_count());
-    builder.append("\r\n"sv);
+    builder.append("\r\n"_sv);
     builder.append(content);
 
     TRY(m_socket->write_until_depleted(builder.string_view()));
@@ -327,23 +327,23 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
     auto reason = HTTP::HttpResponse::reason_phrase_for_code(error.http_status);
 
     JsonObject error_response;
-    error_response.set("error"sv, error.error);
-    error_response.set("message"sv, error.message);
-    error_response.set("stacktrace"sv, ""sv);
+    error_response.set("error"_sv, error.error);
+    error_response.set("message"_sv, error.message);
+    error_response.set("stacktrace"_sv, ""_sv);
     if (error.data.has_value())
-        error_response.set("data"sv, *error.data);
+        error_response.set("data"_sv, *error.data);
 
     JsonObject result;
-    result.set("value"sv, move(error_response));
+    result.set("value"_sv, move(error_response));
 
     auto content = result.serialized();
 
     StringBuilder builder;
     builder.appendff("HTTP/1.1 {} {}\r\n", error.http_status, reason);
-    builder.append("Cache-Control: no-cache\r\n"sv);
-    builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
+    builder.append("Cache-Control: no-cache\r\n"_sv);
+    builder.append("Content-Type: application/json; charset=utf-8\r\n"_sv);
     builder.appendff("Content-Length: {}\r\n", content.byte_count());
-    builder.append("\r\n"sv);
+    builder.append("\r\n"_sv);
     builder.append(content);
 
     TRY(m_socket->write_until_depleted(builder.string_view()));

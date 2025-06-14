@@ -33,16 +33,16 @@ struct TemporalUnit {
     RoundingIncrement maximum_duration_rounding_increment;
 };
 static auto temporal_units = to_array<TemporalUnit>({
-    { Unit::Year, "year"sv, "years"sv, UnitCategory::Date, Unset {} },
-    { Unit::Month, "month"sv, "months"sv, UnitCategory::Date, Unset {} },
-    { Unit::Week, "week"sv, "weeks"sv, UnitCategory::Date, Unset {} },
-    { Unit::Day, "day"sv, "days"sv, UnitCategory::Date, Unset {} },
-    { Unit::Hour, "hour"sv, "hours"sv, UnitCategory::Time, 24 },
-    { Unit::Minute, "minute"sv, "minutes"sv, UnitCategory::Time, 60 },
-    { Unit::Second, "second"sv, "seconds"sv, UnitCategory::Time, 60 },
-    { Unit::Millisecond, "millisecond"sv, "milliseconds"sv, UnitCategory::Time, 1000 },
-    { Unit::Microsecond, "microsecond"sv, "microseconds"sv, UnitCategory::Time, 1000 },
-    { Unit::Nanosecond, "nanosecond"sv, "nanoseconds"sv, UnitCategory::Time, 1000 },
+    { Unit::Year, "year"_sv, "years"_sv, UnitCategory::Date, Unset {} },
+    { Unit::Month, "month"_sv, "months"_sv, UnitCategory::Date, Unset {} },
+    { Unit::Week, "week"_sv, "weeks"_sv, UnitCategory::Date, Unset {} },
+    { Unit::Day, "day"_sv, "days"_sv, UnitCategory::Date, Unset {} },
+    { Unit::Hour, "hour"_sv, "hours"_sv, UnitCategory::Time, 24 },
+    { Unit::Minute, "minute"_sv, "minutes"_sv, UnitCategory::Time, 60 },
+    { Unit::Second, "second"_sv, "seconds"_sv, UnitCategory::Time, 60 },
+    { Unit::Millisecond, "millisecond"_sv, "milliseconds"_sv, UnitCategory::Time, 1000 },
+    { Unit::Microsecond, "microsecond"_sv, "microseconds"_sv, UnitCategory::Time, 1000 },
+    { Unit::Nanosecond, "nanosecond"_sv, "nanoseconds"_sv, UnitCategory::Time, 1000 },
 });
 
 StringView temporal_unit_to_string(Unit unit)
@@ -90,10 +90,10 @@ ThrowCompletionOr<void> check_iso_days_range(VM& vm, ISODate iso_date)
 ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "overflow", STRING, « "constrain", "reject" », "constrain").
-    auto string_value = TRY(get_option(vm, options, vm.names.overflow, OptionType::String, { "constrain"sv, "reject"sv }, "constrain"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.overflow, OptionType::String, { "constrain"_sv, "reject"_sv }, "constrain"_sv));
 
     // 2. If stringValue is "constrain", return CONSTRAIN.
-    if (string_value.as_string().utf8_string() == "constrain"sv)
+    if (string_value.as_string().utf8_string() == "constrain"_sv)
         return Overflow::Constrain;
 
     // 3. Return REJECT.
@@ -104,19 +104,19 @@ ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& o
 ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "disambiguation", STRING, « "compatible", "earlier", "later", "reject" », "compatible").
-    auto string_value = TRY(get_option(vm, options, vm.names.disambiguation, OptionType::String, { "compatible"sv, "earlier"sv, "later"sv, "reject"sv }, "compatible"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.disambiguation, OptionType::String, { "compatible"_sv, "earlier"_sv, "later"_sv, "reject"_sv }, "compatible"_sv));
     auto string_view = string_value.as_string().utf8_string_view();
 
     // 2. If stringValue is "compatible", return COMPATIBLE.
-    if (string_view == "compatible"sv)
+    if (string_view == "compatible"_sv)
         return Disambiguation::Compatible;
 
     // 3. If stringValue is "earlier", return EARLIER.
-    if (string_view == "earlier"sv)
+    if (string_view == "earlier"_sv)
         return Disambiguation::Earlier;
 
     // 4. If stringValue is "later", return LATER.
-    if (string_view == "later"sv)
+    if (string_view == "later"_sv)
         return Disambiguation::Later;
 
     // 5. Return REJECT.
@@ -153,34 +153,34 @@ ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM& vm, Object const&
         switch (fallback) {
         // 1. If fallback is PREFER, let stringFallback be "prefer".
         case OffsetOption::Prefer:
-            return "prefer"sv;
+            return "prefer"_sv;
         // 2. Else if fallback is USE, let stringFallback be "use".
         case OffsetOption::Use:
-            return "use"sv;
+            return "use"_sv;
         // 3. Else if fallback is IGNORE, let stringFallback be "ignore".
         case OffsetOption::Ignore:
-            return "ignore"sv;
+            return "ignore"_sv;
         // 4. Else, let stringFallback be "reject".
         case OffsetOption::Reject:
-            return "reject"sv;
+            return "reject"_sv;
         }
         VERIFY_NOT_REACHED();
     }();
 
     // 5. Let stringValue be ? GetOption(options, "offset", STRING, « "prefer", "use", "ignore", "reject" », stringFallback).
-    auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "prefer"sv, "use"sv, "ignore"sv, "reject"sv }, string_fallback));
+    auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "prefer"_sv, "use"_sv, "ignore"_sv, "reject"_sv }, string_fallback));
     auto string_view = string_value.as_string().utf8_string_view();
 
     // 6. If stringValue is "prefer", return PREFER.
-    if (string_view == "prefer"sv)
+    if (string_view == "prefer"_sv)
         return OffsetOption::Prefer;
 
     // 7. If stringValue is "use", return USE.
-    if (string_view == "use"sv)
+    if (string_view == "use"_sv)
         return OffsetOption::Use;
 
     // 8. If stringValue is "ignore", return IGNORE.
-    if (string_view == "ignore"sv)
+    if (string_view == "ignore"_sv)
         return OffsetOption::Ignore;
 
     // 9. Return REJECT.
@@ -191,19 +191,19 @@ ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM& vm, Object const&
 ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "calendarName", STRING, « "auto", "always", "never", "critical" », "auto").
-    auto string_value = TRY(get_option(vm, options, vm.names.calendarName, OptionType::String, { "auto"sv, "always"sv, "never"sv, "critical"sv }, "auto"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.calendarName, OptionType::String, { "auto"_sv, "always"_sv, "never"_sv, "critical"_sv }, "auto"_sv));
     auto string_view = string_value.as_string().utf8_string_view();
 
     // 2. If stringValue is "always", return ALWAYS.
-    if (string_view == "always"sv)
+    if (string_view == "always"_sv)
         return ShowCalendar::Always;
 
     // 3. If stringValue is "never", return NEVER.
-    if (string_view == "never"sv)
+    if (string_view == "never"_sv)
         return ShowCalendar::Never;
 
     // 4. If stringValue is "critical", return CRITICAL.
-    if (string_view == "critical"sv)
+    if (string_view == "critical"_sv)
         return ShowCalendar::Critical;
 
     // 5. Return AUTO.
@@ -214,15 +214,15 @@ ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, O
 ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "timeZoneName", STRING, « "auto", "never", "critical" », "auto").
-    auto string_value = TRY(get_option(vm, options, vm.names.timeZoneName, OptionType::String, { "auto"sv, "never"sv, "critical"sv }, "auto"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.timeZoneName, OptionType::String, { "auto"_sv, "never"_sv, "critical"_sv }, "auto"_sv));
     auto string_view = string_value.as_string().utf8_string_view();
 
     // 2. If stringValue is "never", return NEVER.
-    if (string_view == "never"sv)
+    if (string_view == "never"_sv)
         return ShowTimeZoneName::Never;
 
     // 3. If stringValue is "critical", return CRITICAL.
-    if (string_view == "critical"sv)
+    if (string_view == "critical"_sv)
         return ShowTimeZoneName::Critical;
 
     // 4. Return AUTO.
@@ -233,11 +233,11 @@ ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM& 
 ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "offset", STRING, « "auto", "never" », "auto").
-    auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "auto"sv, "never"sv }, "auto"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "auto"_sv, "never"_sv }, "auto"_sv));
     auto string_view = string_value.as_string().utf8_string_view();
 
     // 2. If stringValue is "never", return never.
-    if (string_view == "never"sv)
+    if (string_view == "never"_sv)
         return ShowOffset::Never;
 
     // 3. Return auto.
@@ -248,11 +248,11 @@ ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM& vm, Object con
 ThrowCompletionOr<Direction> get_direction_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "direction", STRING, « "next", "previous" », REQUIRED).
-    auto string_value = TRY(get_option(vm, options, vm.names.direction, OptionType::String, { "next"sv, "previous"sv }, Required {}));
+    auto string_value = TRY(get_option(vm, options, vm.names.direction, OptionType::String, { "next"_sv, "previous"_sv }, Required {}));
     auto string_view = string_value.as_string().utf8_string_view();
 
     // 2. If stringValue is "next", return NEXT.
-    if (string_view == "next"sv)
+    if (string_view == "next"_sv)
         return Direction::Next;
 
     // 3. Return PREVIOUS.
@@ -307,7 +307,7 @@ ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM& vm
         // a. If ? ToString(digitsValue) is not "auto", throw a RangeError exception.
         auto digits_value_string = TRY(digits_value.to_string(vm));
 
-        if (digits_value_string != "auto"sv)
+        if (digits_value_string != "auto"_sv)
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, digits_value, vm.names.fractionalSecondDigits);
 
         // b. Return AUTO.
@@ -445,7 +445,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
         allowed_values.append(Auto {});
 
         // b. Let defaultValue be "auto".
-        default_value = "auto"sv;
+        default_value = "auto"_sv;
     }
     // 7. Else,
     else {
@@ -466,7 +466,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
         // a. If value is auto, then
         if (value.has<Auto>()) {
             // i. Append "auto" to allowedStrings.
-            allowed_strings.append("auto"sv);
+            allowed_strings.append("auto"_sv);
         }
         // b. Else,
         else {
@@ -500,7 +500,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
     auto value_string = value.as_string().utf8_string_view();
 
     // 13. If value is "auto", return AUTO.
-    if (value_string == "auto"sv)
+    if (value_string == "auto"_sv)
         return UnitValue { Auto {} };
 
     // 14. Return the value in the "Value" column of Table 21 corresponding to the row with value in its "Singular
@@ -826,7 +826,7 @@ String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision
         fraction_string = MUST(String::formatted("{:09}", sub_second_nanoseconds));
 
         // c. Set fractionString to the longest prefix of fractionString ending with a code unit other than 0x0030 (DIGIT ZERO).
-        fraction_string = MUST(fraction_string.trim("0"sv, TrimMode::Right));
+        fraction_string = MUST(fraction_string.trim("0"_sv, TrimMode::Right));
     }
     // 2. Else,
     else {
@@ -849,7 +849,7 @@ String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision
 String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision precision, Optional<TimeStyle> style)
 {
     // 1. If style is present and style is UNSEPARATED, let separator be the empty String; otherwise, let separator be ":".
-    auto separator = style == TimeStyle::Unseparated ? ""sv : ":"sv;
+    auto separator = style == TimeStyle::Unseparated ? ""_sv : ":"_sv;
 
     // 2. Let hh be ToZeroPaddedDecimalString(hour, 2).
     // 3. Let mm be ToZeroPaddedDecimalString(minute, 2).
@@ -1180,7 +1180,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
                 auto const& value = annotation.value;
 
                 // c. If CodePointsToString(key) is "u-ca", then
-                if (key == "u-ca"sv) {
+                if (key == "u-ca"_sv) {
                     // i. If calendar is EMPTY, then
                     if (!calendar.has_value()) {
                         // i. Set calendar to CodePointsToString(value).
@@ -1209,7 +1209,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
             // 3. If goal is TemporalMonthDayString or TemporalYearMonthString, calendar is not EMPTY, and the
             //    ASCII-lowercase of calendar is not "iso8601", throw a RangeError exception.
             if (goal == Production::TemporalMonthDayString || goal == Production::TemporalYearMonthString) {
-                if (calendar.has_value() && !calendar->equals_ignoring_ascii_case("iso8601"sv))
+                if (calendar.has_value() && !calendar->equals_ignoring_ascii_case("iso8601"_sv))
                     return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, *calendar);
             }
 
@@ -1650,7 +1650,7 @@ ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView t
     // 6. If timeZoneResult.[[Z]] is true, then
     if (time_zone_result.z_designator) {
         // a. Return ! ParseTimeZoneIdentifier("UTC").
-        return MUST(parse_time_zone_identifier(vm, "UTC"sv));
+        return MUST(parse_time_zone_identifier(vm, "UTC"_sv));
     }
 
     // 7. If timeZoneResult.[[OffsetString]] is not empty, then

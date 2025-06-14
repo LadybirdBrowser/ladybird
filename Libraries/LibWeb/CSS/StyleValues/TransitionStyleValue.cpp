@@ -15,7 +15,7 @@ String TransitionStyleValue::to_string(SerializationMode mode) const
     bool first = true;
     for (auto const& transition : m_transitions) {
         if (!first)
-            builder.append(", "sv);
+            builder.append(", "_sv);
         first = false;
         builder.appendff("{} {} {} {}", transition.property_name->to_string(mode), transition.duration, transition.easing->to_string(mode), transition.delay);
         if (transition.transition_behavior != TransitionBehavior::Normal)

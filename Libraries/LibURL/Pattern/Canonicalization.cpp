@@ -14,7 +14,7 @@ static URL create_a_dummy_url()
 {
     // 1. Let dummyInput be "https://dummy.invalid/".
     // 2. Return the result of running the basic URL parser on dummyInput.
-    return Parser::basic_parse("https://dummy.invalid/"sv).release_value();
+    return Parser::basic_parse("https://dummy.invalid/"_sv).release_value();
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-protocol
@@ -167,7 +167,7 @@ String canonicalize_a_pathname(String const& value)
     // 3. Let modified value be "/-" if leading slash is false and otherwise the empty string.
     StringBuilder modified_value;
     if (!leading_slash)
-        modified_value.append("/-"sv);
+        modified_value.append("/-"_sv);
 
     // 4. Append value to the end of modified value.
     modified_value.append(value);

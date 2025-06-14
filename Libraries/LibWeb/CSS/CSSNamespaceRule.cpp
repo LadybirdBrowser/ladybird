@@ -39,20 +39,20 @@ String CSSNamespaceRule::serialized() const
 {
     StringBuilder builder;
     // The literal string "@namespace", followed by a single SPACE (U+0020),
-    builder.append("@namespace "sv);
+    builder.append("@namespace "_sv);
 
     // followed by the serialization as an identifier of the prefix attribute (if any),
     if (!m_prefix.is_empty()) {
         serialize_an_identifier(builder, m_prefix);
         // followed by a single SPACE (U+0020) if there is a prefix,
-        builder.append(" "sv);
+        builder.append(" "_sv);
     }
 
     //  followed by the serialization as URL of the namespaceURI attribute,
     serialize_a_url(builder, m_namespace_uri);
 
     // followed the character ";" (U+003B).
-    builder.append(";"sv);
+    builder.append(";"_sv);
 
     return MUST(builder.to_string());
 }

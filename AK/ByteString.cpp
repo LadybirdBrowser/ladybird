@@ -227,13 +227,13 @@ ByteString escape_html_entities(StringView html)
     StringBuilder builder;
     for (size_t i = 0; i < html.length(); ++i) {
         if (html[i] == '<')
-            builder.append("&lt;"sv);
+            builder.append("&lt;"_sv);
         else if (html[i] == '>')
-            builder.append("&gt;"sv);
+            builder.append("&gt;"_sv);
         else if (html[i] == '&')
-            builder.append("&amp;"sv);
+            builder.append("&amp;"_sv);
         else if (html[i] == '"')
-            builder.append("&quot;"sv);
+            builder.append("&quot;"_sv);
         else
             builder.append(html[i]);
     }

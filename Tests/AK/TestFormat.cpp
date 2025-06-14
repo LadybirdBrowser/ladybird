@@ -57,9 +57,9 @@ TEST_CASE(reorder_format_arguments)
     EXPECT_EQ(ByteString::formatted("{1}{0}", "a", "b"), "ba");
     EXPECT_EQ(ByteString::formatted("{0}{1}", "a", "b"), "ab");
     // Compiletime check bypass: ignoring a passed argument.
-    EXPECT_EQ(ByteString::formatted("{0}{0}{0}"sv, "a", "b"), "aaa");
+    EXPECT_EQ(ByteString::formatted("{0}{0}{0}"_sv, "a", "b"), "aaa");
     // Compiletime check bypass: ignoring a passed argument.
-    EXPECT_EQ(ByteString::formatted("{1}{}{0}"sv, "a", "b", "c"), "baa");
+    EXPECT_EQ(ByteString::formatted("{1}{}{0}"_sv, "a", "b", "c"), "baa");
 }
 
 TEST_CASE(escape_braces)
@@ -128,7 +128,7 @@ TEST_CASE(replacement_field)
     EXPECT_EQ(ByteString::formatted("{:*>{1}}", 13, static_cast<size_t>(10)), "********13");
     EXPECT_EQ(ByteString::formatted("{:*<{1}}", 7, 4), "7***");
     // Compiletime check bypass: intentionally ignoring extra arguments
-    EXPECT_EQ(ByteString::formatted("{:{2}}"sv, -5, 8, 16), "              -5");
+    EXPECT_EQ(ByteString::formatted("{:{2}}"_sv, -5, 8, 16), "              -5");
     EXPECT_EQ(ByteString::formatted("{{{:*^{1}}}}", 1, 3), "{*1*}");
     EXPECT_EQ(ByteString::formatted("{:0{}}", 1, 3), "001");
 }
@@ -220,7 +220,7 @@ template<>
 struct AK::Formatter<B> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, B)
     {
-        return Formatter<StringView>::format(builder, "B"sv);
+        return Formatter<StringView>::format(builder, "B"_sv);
     }
 };
 
@@ -250,7 +250,7 @@ TEST_CASE(file_descriptor)
     Array<u8, 256> buffer;
     auto const nread = fread(buffer.data(), 1, buffer.size(), file);
 
-    EXPECT_EQ("Hello, World!\nfoobar\n"sv, StringView { buffer.span().trim(nread) });
+    EXPECT_EQ("Hello, World!\nfoobar\n"_sv, StringView { buffer.span().trim(nread) });
 
     fclose(file);
 
@@ -291,7 +291,7 @@ TEST_CASE(floating_point_numbers)
 TEST_CASE(floating_point_default_precision)
 {
 #define EXPECT_FORMAT(lit, value) \
-    EXPECT_EQ(ByteString::formatted("{}", lit), value##sv)
+    EXPECT_EQ(ByteString::formatted("{}", lit), value##_sv)
 
     EXPECT_FORMAT(10.3f, "10.3");
     EXPECT_FORMAT(123e4f, "1230000");
@@ -340,7 +340,7 @@ template<>
 struct AK::Formatter<C> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, C c)
     {
-        return AK::Formatter<FormatString>::format(builder, "C(i={})"sv, c.i);
+        return AK::Formatter<FormatString>::format(builder, "C(i={})"_sv, c.i);
     }
 };
 
@@ -376,12 +376,12 @@ TEST_CASE(span_format)
         EXPECT_EQ(ByteString::formatted("{}", const_cast<AddConst<decltype(v)>&>(v).span()), "[ 1, 2, 3, 4 ]");
     }
     {
-        Vector<StringView> v { "1"sv, "2"sv, "3"sv, "4"sv };
+        Vector<StringView> v { "1"_sv, "2"_sv, "3"_sv, "4"_sv };
         EXPECT_EQ(ByteString::formatted("{}", v.span()), "[ 1, 2, 3, 4 ]");
         EXPECT_EQ(ByteString::formatted("{}", const_cast<AddConst<decltype(v)>&>(v).span()), "[ 1, 2, 3, 4 ]");
     }
     {
-        Vector<Vector<ByteString>> v { { "1"sv, "2"sv }, { "3"sv, "4"sv } };
+        Vector<Vector<ByteString>> v { { "1"_sv, "2"_sv }, { "3"_sv, "4"_sv } };
         EXPECT_EQ(ByteString::formatted("{}", v.span()), "[ [ 1, 2 ], [ 3, 4 ] ]");
         EXPECT_EQ(ByteString::formatted("{}", const_cast<AddConst<decltype(v)>&>(v).span()), "[ [ 1, 2 ], [ 3, 4 ] ]");
     }
@@ -394,11 +394,11 @@ TEST_CASE(vector_format)
         EXPECT_EQ(ByteString::formatted("{}", v), "[ 1, 2, 3, 4 ]");
     }
     {
-        Vector<StringView> v { "1"sv, "2"sv, "3"sv, "4"sv };
+        Vector<StringView> v { "1"_sv, "2"_sv, "3"_sv, "4"_sv };
         EXPECT_EQ(ByteString::formatted("{}", v), "[ 1, 2, 3, 4 ]");
     }
     {
-        Vector<Vector<ByteString>> v { { "1"sv, "2"sv }, { "3"sv, "4"sv } };
+        Vector<Vector<ByteString>> v { { "1"_sv, "2"_sv }, { "3"_sv, "4"_sv } };
         EXPECT_EQ(ByteString::formatted("{}", v), "[ [ 1, 2 ], [ 3, 4 ] ]");
     }
 }

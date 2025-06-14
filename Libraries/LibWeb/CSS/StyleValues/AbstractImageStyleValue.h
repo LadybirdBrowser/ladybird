@@ -83,46 +83,46 @@ struct InterpolationMethod {
 
         switch (color_space) {
         case GradientSpace::OKLab:
-            builder.append("in oklab"sv);
+            builder.append("in oklab"_sv);
             break;
         case GradientSpace::sRGB:
-            builder.append("in srgb"sv);
+            builder.append("in srgb"_sv);
             break;
         case GradientSpace::sRGBLinear:
-            builder.append("in srgb-linear"sv);
+            builder.append("in srgb-linear"_sv);
             break;
         case GradientSpace::DisplayP3:
-            builder.append("in display-p3"sv);
+            builder.append("in display-p3"_sv);
             break;
         case GradientSpace::A98RGB:
-            builder.append("in a98-rgb"sv);
+            builder.append("in a98-rgb"_sv);
             break;
         case GradientSpace::ProPhotoRGB:
-            builder.append("in prophoto-rgb"sv);
+            builder.append("in prophoto-rgb"_sv);
             break;
         case GradientSpace::Rec2020:
-            builder.append("in rec2020"sv);
+            builder.append("in rec2020"_sv);
             break;
         case GradientSpace::Lab:
-            builder.append("in lab"sv);
+            builder.append("in lab"_sv);
             break;
         case GradientSpace::XYZD50:
-            builder.append("in xyz-d50"sv);
+            builder.append("in xyz-d50"_sv);
             break;
         case GradientSpace::XYZD65:
-            builder.append("in xyz-d65"sv);
+            builder.append("in xyz-d65"_sv);
             break;
         case GradientSpace::HSL:
-            builder.append("in hsl"sv);
+            builder.append("in hsl"_sv);
             break;
         case GradientSpace::HWB:
-            builder.append("in hwb"sv);
+            builder.append("in hwb"_sv);
             break;
         case GradientSpace::LCH:
-            builder.append("in lch"sv);
+            builder.append("in lch"_sv);
             break;
         case GradientSpace::OKLCH:
-            builder.append("in oklch"sv);
+            builder.append("in oklch"_sv);
             break;
         }
 
@@ -131,13 +131,13 @@ struct InterpolationMethod {
             // "shorter" is the default value and isn't serialized
             break;
         case HueMethod::Longer:
-            builder.append(" longer hue"sv);
+            builder.append(" longer hue"_sv);
             break;
         case HueMethod::Increasing:
-            builder.append(" increasing hue"sv);
+            builder.append(" increasing hue"_sv);
             break;
         case HueMethod::Decreasing:
-            builder.append(" decreasing hue"sv);
+            builder.append(" decreasing hue"_sv);
             break;
         }
 
@@ -182,15 +182,15 @@ static void serialize_color_stop_list(StringBuilder& builder, auto const& color_
     bool first = true;
     for (auto const& element : color_stop_list) {
         if (!first)
-            builder.append(", "sv);
+            builder.append(", "_sv);
 
         if (element.transition_hint.has_value())
-            builder.appendff("{}, "sv, element.transition_hint->value.to_string());
+            builder.appendff("{}, "_sv, element.transition_hint->value.to_string());
 
         builder.append(element.color_stop.color->to_string(mode));
         for (auto position : Array { &element.color_stop.position, &element.color_stop.second_position }) {
             if (position->has_value())
-                builder.appendff(" {}"sv, (*position)->to_string());
+                builder.appendff(" {}"_sv, (*position)->to_string());
         }
         first = false;
     }

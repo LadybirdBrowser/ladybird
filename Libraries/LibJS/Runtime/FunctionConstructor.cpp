@@ -75,7 +75,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     // 2. If kind is normal, then
     case FunctionKind::Normal:
         // a. Let prefix be "function".
-        prefix = "function"sv;
+        prefix = "function"_sv;
 
         // b. Let exprSym be the grammar symbol FunctionExpression.
         // c. Let bodySym be the grammar symbol FunctionBody[~Yield, ~Await].
@@ -88,7 +88,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     // 3. Else if kind is generator, then
     case FunctionKind::Generator:
         // a. Let prefix be "function*".
-        prefix = "function*"sv;
+        prefix = "function*"_sv;
 
         // b. Let exprSym be the grammar symbol GeneratorExpression.
         // c. Let bodySym be the grammar symbol GeneratorBody.
@@ -101,7 +101,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     // 4. Else if kind is async, then
     case FunctionKind::Async:
         // a. Let prefix be "async function".
-        prefix = "async function"sv;
+        prefix = "async function"_sv;
 
         // b. Let exprSym be the grammar symbol AsyncFunctionExpression.
         // c. Let bodySym be the grammar symbol AsyncFunctionBody.
@@ -116,7 +116,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
         // a. Assert: kind is async-generator.
 
         // b. Let prefix be "async function*".
-        prefix = "async function*"sv;
+        prefix = "async function*"_sv;
 
         // c. Let exprSym be the grammar symbol AsyncGeneratorExpression.
         // d. Let bodySym be the grammar symbol AsyncGeneratorBody.

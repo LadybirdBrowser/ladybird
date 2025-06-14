@@ -25,7 +25,7 @@ String FontStyleStyleValue::to_string(SerializationMode mode) const
     Optional<String> angle_string;
     if (m_angle_value) {
         angle_string = m_angle_value->to_string(mode);
-        if (m_font_style == FontStyle::Oblique && angle_string == "0deg"sv)
+        if (m_font_style == FontStyle::Oblique && angle_string == "0deg"_sv)
             return "normal"_string;
     }
     StringBuilder builder;

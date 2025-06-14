@@ -125,7 +125,7 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<String> const& reque
         return Optional<URL::URL> {};
 
     // 2. Let location be the result of extracting header list values given `Location` and response’s header list.
-    auto location_values_or_failure = extract_header_list_values("Location"sv.bytes(), m_header_list);
+    auto location_values_or_failure = extract_header_list_values("Location"_sv.bytes(), m_header_list);
     if (location_values_or_failure.has<Infrastructure::ExtractHeaderParseFailure>() || location_values_or_failure.has<Empty>())
         return Optional<URL::URL> {};
 
@@ -248,7 +248,7 @@ u64 Response::current_age() const
 {
     // The term "age_value" denotes the value of the Age header field (Section 5.1), in a form appropriate for arithmetic operation; or 0, if not available.
     Optional<AK::Duration> age;
-    if (auto const age_header = header_list()->get("Age"sv.bytes()); age_header.has_value()) {
+    if (auto const age_header = header_list()->get("Age"_sv.bytes()); age_header.has_value()) {
         if (auto converted_age = StringView { *age_header }.to_number<u64>(); converted_age.has_value())
             age = AK::Duration::from_seconds(converted_age.value());
     }
@@ -283,7 +283,7 @@ u64 Response::current_age() const
 // https://httpwg.org/specs/rfc9111.html#calculating.freshness.lifetime
 u64 Response::freshness_lifetime() const
 {
-    auto const elem = header_list()->get_decode_and_split("Cache-Control"sv.bytes());
+    auto const elem = header_list()->get_decode_and_split("Cache-Control"_sv.bytes());
     if (!elem.has_value())
         return 0;
 
@@ -291,7 +291,7 @@ u64 Response::freshness_lifetime() const
 
     // If the max-age response directive (Section 5.2.2.1) is present, use its value, or
     for (auto const& directive : *elem) {
-        if (directive.starts_with_bytes("max-age"sv)) {
+        if (directive.starts_with_bytes("max-age"_sv)) {
             auto equal_offset = directive.find_byte_offset('=');
             if (!equal_offset.has_value()) {
                 dbgln("Bogus directive: '{}'", directive);
@@ -316,12 +316,12 @@ u64 Response::freshness_lifetime() const
 // https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
 u64 Response::stale_while_revalidate_lifetime() const
 {
-    auto const elem = header_list()->get_decode_and_split("Cache-Control"sv.bytes());
+    auto const elem = header_list()->get_decode_and_split("Cache-Control"_sv.bytes());
     if (!elem.has_value())
         return 0;
 
     for (auto const& directive : *elem) {
-        if (directive.starts_with_bytes("stale-while-revalidate"sv)) {
+        if (directive.starts_with_bytes("stale-while-revalidate"_sv)) {
             auto equal_offset = directive.find_byte_offset('=');
             if (!equal_offset.has_value()) {
                 dbgln("Bogus directive: '{}'", directive);

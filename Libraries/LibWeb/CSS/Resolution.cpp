@@ -45,26 +45,26 @@ StringView Resolution::unit_name() const
 {
     switch (m_type) {
     case Type::Dpi:
-        return "dpi"sv;
+        return "dpi"_sv;
     case Type::Dpcm:
-        return "dpcm"sv;
+        return "dpcm"_sv;
     case Type::Dppx:
-        return "dppx"sv;
+        return "dppx"_sv;
     case Type::X:
-        return "x"sv;
+        return "x"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<Resolution::Type> Resolution::unit_from_name(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("dpi"sv))
+    if (name.equals_ignoring_ascii_case("dpi"_sv))
         return Type::Dpi;
-    if (name.equals_ignoring_ascii_case("dpcm"sv))
+    if (name.equals_ignoring_ascii_case("dpcm"_sv))
         return Type::Dpcm;
-    if (name.equals_ignoring_ascii_case("dppx"sv))
+    if (name.equals_ignoring_ascii_case("dppx"_sv))
         return Type::Dppx;
-    if (name.equals_ignoring_ascii_case("x"sv))
+    if (name.equals_ignoring_ascii_case("x"_sv))
         return Type::X;
     return {};
 }

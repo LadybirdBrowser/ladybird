@@ -213,7 +213,7 @@ Optional<ByteString> GenericLexer::consume_and_unescape_string(char escape_char)
 
 auto GenericLexer::consume_escaped_code_point(bool combine_surrogate_pairs) -> Result<u32, UnicodeEscapeError>
 {
-    if (!consume_specific("\\u"sv))
+    if (!consume_specific("\\u"_sv))
         return UnicodeEscapeError::MalformedUnicodeEscape;
 
     if (next_is('{'))
@@ -268,7 +268,7 @@ auto GenericLexer::decode_single_or_paired_surrogate(bool combine_surrogate_pair
         return UnicodeEscapeError::MalformedUnicodeEscape;
     if (!Utf16View::is_high_surrogate(*high_surrogate))
         return *high_surrogate;
-    if (!combine_surrogate_pairs || !consume_specific("\\u"sv))
+    if (!combine_surrogate_pairs || !consume_specific("\\u"_sv))
         return *high_surrogate;
 
     auto low_surrogate = decode_one_surrogate();

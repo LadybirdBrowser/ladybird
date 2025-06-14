@@ -40,8 +40,8 @@ StyleSheetsActor::~StyleSheetsActor()
 
 void StyleSheetsActor::handle_message(Message const& message)
 {
-    if (message.type == "getText"sv) {
-        auto resource_id = get_required_parameter<String>(message, "resourceId"sv);
+    if (message.type == "getText"_sv) {
+        auto resource_id = get_required_parameter<String>(message, "resourceId"_sv);
         if (!resource_id.has_value())
             return;
 
@@ -82,7 +82,7 @@ void StyleSheetsActor::style_sheet_source_received(Web::CSS::StyleSheetIdentifie
     // FIXME: Support the `longString` message type so that we don't have to send the entire style sheet
     //        source at once for large sheets.
     JsonObject response;
-    response.set("text"sv, move(source));
+    response.set("text"_sv, move(source));
     send_response(*pending_message, move(response));
 }
 

@@ -288,21 +288,21 @@ ErrorOr<JsonValue> JsonParser::parse_number()
 
 ErrorOr<JsonValue> JsonParser::parse_true()
 {
-    if (!consume_specific("true"sv))
+    if (!consume_specific("true"_sv))
         return Error::from_string_literal("JsonParser: Expected 'true'");
     return JsonValue(true);
 }
 
 ErrorOr<JsonValue> JsonParser::parse_false()
 {
-    if (!consume_specific("false"sv))
+    if (!consume_specific("false"_sv))
         return Error::from_string_literal("JsonParser: Expected 'false'");
     return JsonValue(false);
 }
 
 ErrorOr<JsonValue> JsonParser::parse_null()
 {
-    if (!consume_specific("null"sv))
+    if (!consume_specific("null"_sv))
         return Error::from_string_literal("JsonParser: Expected 'null'");
     return JsonValue {};
 }

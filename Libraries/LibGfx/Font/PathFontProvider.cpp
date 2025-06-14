@@ -31,7 +31,7 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
     root->for_each_descendant_file([this](Core::Resource const& resource) -> IterationDecision {
         auto uri = resource.uri();
         auto path = LexicalPath(uri.bytes_as_string_view());
-        if (path.has_extension(".ttf"sv) || path.has_extension(".ttc"sv) || path.has_extension(".otf"sv)) {
+        if (path.has_extension(".ttf"_sv) || path.has_extension(".ttc"_sv) || path.has_extension(".otf"_sv)) {
             if (auto font_or_error = Typeface::try_load_from_resource(resource); !font_or_error.is_error()) {
                 auto font = font_or_error.release_value();
                 auto& family = m_typeface_by_family.ensure(font->family(), [] {
@@ -39,7 +39,7 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
                 });
                 family.append(font);
             }
-        } else if (path.has_extension(".woff"sv)) {
+        } else if (path.has_extension(".woff"_sv)) {
             if (auto font_or_error = WOFF::try_load_from_resource(resource); !font_or_error.is_error()) {
                 auto font = font_or_error.release_value();
                 auto& family = m_typeface_by_family.ensure(font->family(), [] {

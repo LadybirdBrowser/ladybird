@@ -15,23 +15,23 @@ StringView to_string_view(HttpRequest::Method method)
 {
     switch (method) {
     case HttpRequest::Method::GET:
-        return "GET"sv;
+        return "GET"_sv;
     case HttpRequest::Method::HEAD:
-        return "HEAD"sv;
+        return "HEAD"_sv;
     case HttpRequest::Method::POST:
-        return "POST"sv;
+        return "POST"_sv;
     case HttpRequest::Method::DELETE:
-        return "DELETE"sv;
+        return "DELETE"_sv;
     case HttpRequest::Method::PATCH:
-        return "PATCH"sv;
+        return "PATCH"_sv;
     case HttpRequest::Method::OPTIONS:
-        return "OPTIONS"sv;
+        return "OPTIONS"_sv;
     case HttpRequest::Method::TRACE:
-        return "TRACE"sv;
+        return "TRACE"_sv;
     case HttpRequest::Method::CONNECT:
-        return "CONNECT"sv;
+        return "CONNECT"_sv;
     case HttpRequest::Method::PUT:
-        return "PUT"sv;
+        return "PUT"_sv;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -54,18 +54,18 @@ ErrorOr<ByteBuffer> HttpRequest::to_raw_request() const
         TRY(builder.try_append('?'));
         TRY(builder.try_append(*m_url.query()));
     }
-    TRY(builder.try_append(" HTTP/1.1\r\nHost: "sv));
+    TRY(builder.try_append(" HTTP/1.1\r\nHost: "_sv));
     TRY(builder.try_append(m_url.serialized_host()));
     if (m_url.port().has_value())
         TRY(builder.try_appendff(":{}", *m_url.port()));
-    TRY(builder.try_append("\r\n"sv));
+    TRY(builder.try_append("\r\n"_sv));
     // Start headers.
-    bool has_content_length = m_headers.contains("Content-Length"sv);
+    bool has_content_length = m_headers.contains("Content-Length"_sv);
     for (auto const& [name, value] : m_headers.headers()) {
         TRY(builder.try_append(name));
-        TRY(builder.try_append(": "sv));
+        TRY(builder.try_append(": "_sv));
         TRY(builder.try_append(value));
-        TRY(builder.try_append("\r\n"sv));
+        TRY(builder.try_append("\r\n"_sv));
     }
     if (!m_body.is_empty() || method() == Method::POST) {
         // Add Content-Length header if it's not already present.
@@ -73,11 +73,11 @@ ErrorOr<ByteBuffer> HttpRequest::to_raw_request() const
             TRY(builder.try_appendff("Content-Length: {}\r\n", m_body.size()));
         }
         // Finish headers.
-        TRY(builder.try_append("\r\n"sv));
+        TRY(builder.try_append("\r\n"_sv));
         TRY(builder.try_append((char const*)m_body.data(), m_body.size()));
     } else {
         // Finish headers.
-        TRY(builder.try_append("\r\n"sv));
+        TRY(builder.try_append("\r\n"_sv));
     }
     return builder.to_byte_buffer();
 }
@@ -177,7 +177,7 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
 
                 commit_and_advance_to(current_header.value, next_state);
 
-                if (current_header.name.equals_ignoring_ascii_case("Content-Length"sv))
+                if (current_header.name.equals_ignoring_ascii_case("Content-Length"_sv))
                     content_length = current_header.value.to_number<unsigned>();
 
                 headers.set(move(current_header.name), move(current_header.value));
@@ -275,14 +275,14 @@ Optional<Header> HttpRequest::get_http_basic_authentication_header(URL::URL cons
     // FIXME: change to TRY() and make method fallible
     auto token = MUST(encode_base64(builder.string_view().bytes()));
     builder.clear();
-    builder.append("Basic "sv);
+    builder.append("Basic "_sv);
     builder.append(token);
     return Header { "Authorization", builder.to_byte_string() };
 }
 
 Optional<HttpRequest::BasicAuthenticationCredentials> HttpRequest::parse_http_basic_authentication_header(ByteString const& value)
 {
-    if (!value.starts_with("Basic "sv, AK::CaseSensitivity::CaseInsensitive))
+    if (!value.starts_with("Basic "_sv, AK::CaseSensitivity::CaseInsensitive))
         return {};
     auto token = value.substring_view(6);
     if (token.is_empty())

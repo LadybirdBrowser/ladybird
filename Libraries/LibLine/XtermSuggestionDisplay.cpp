@@ -51,7 +51,7 @@ ErrorOr<void> XtermSuggestionDisplay::display(SuggestionManager const& manager)
         // the suggestion list to fit in the prompt line.
         auto start = max_line_count - m_prompt_lines_at_suggestion_initiation;
         for (size_t i = start; i < max_line_count; ++i)
-            TRY(stderr_stream->write_until_depleted("\n"sv.bytes()));
+            TRY(stderr_stream->write_until_depleted("\n"_sv.bytes()));
         lines_used += max_line_count;
         longest_suggestion_length = 0;
     }
@@ -99,7 +99,7 @@ ErrorOr<void> XtermSuggestionDisplay::display(SuggestionManager const& manager)
         if (next_column > m_num_columns) {
             auto lines = (suggestion.text_view().length() + m_num_columns - 1) / m_num_columns;
             lines_used += lines;
-            TRY(stderr_stream->write_until_depleted("\n"sv.bytes()));
+            TRY(stderr_stream->write_until_depleted("\n"_sv.bytes()));
             num_printed = 0;
         }
 

@@ -42,9 +42,9 @@ TEST_CASE(compare_views)
     ByteString empty = "";
     auto empty_view = view1.substring_view(0, 0);
     StringView default_view = {};
-    EXPECT_EQ(empty.view(), ""sv);
-    EXPECT_EQ(empty_view, ""sv);
-    EXPECT_EQ(default_view, ""sv);
+    EXPECT_EQ(empty.view(), ""_sv);
+    EXPECT_EQ(empty_view, ""_sv);
+    EXPECT_EQ(default_view, ""_sv);
 }
 
 TEST_CASE(conforms_to_iterator_protocol)
@@ -54,7 +54,7 @@ TEST_CASE(conforms_to_iterator_protocol)
 
 TEST_CASE(string_view_literal_operator)
 {
-    StringView literal_view = "foo"sv;
+    StringView literal_view = "foo"_sv;
     ByteString test_string = "foo";
 
     EXPECT_EQ(literal_view.length(), test_string.length());
@@ -67,25 +67,25 @@ TEST_CASE(starts_with)
     StringView test_string_view = test_string.view();
     EXPECT(test_string_view.starts_with('A'));
     EXPECT(!test_string_view.starts_with('B'));
-    EXPECT(test_string_view.starts_with("AB"sv));
-    EXPECT(test_string_view.starts_with("ABCDEF"sv));
-    EXPECT(!test_string_view.starts_with("DEF"sv));
-    EXPECT(test_string_view.starts_with("abc"sv, CaseSensitivity::CaseInsensitive));
-    EXPECT(!test_string_view.starts_with("abc"sv, CaseSensitivity::CaseSensitive));
+    EXPECT(test_string_view.starts_with("AB"_sv));
+    EXPECT(test_string_view.starts_with("ABCDEF"_sv));
+    EXPECT(!test_string_view.starts_with("DEF"_sv));
+    EXPECT(test_string_view.starts_with("abc"_sv, CaseSensitivity::CaseInsensitive));
+    EXPECT(!test_string_view.starts_with("abc"_sv, CaseSensitivity::CaseSensitive));
 }
 
 TEST_CASE(ends_with)
 {
     ByteString test_string = "ABCDEF";
     StringView test_string_view = test_string.view();
-    EXPECT(test_string_view.ends_with("DEF"sv));
+    EXPECT(test_string_view.ends_with("DEF"_sv));
     EXPECT(test_string_view.ends_with('F'));
     EXPECT(!test_string_view.ends_with('E'));
-    EXPECT(test_string_view.ends_with("ABCDEF"sv));
-    EXPECT(!test_string_view.ends_with("ABCDE"sv));
-    EXPECT(!test_string_view.ends_with("ABCDEFG"sv));
-    EXPECT(test_string_view.ends_with("def"sv, CaseSensitivity::CaseInsensitive));
-    EXPECT(!test_string_view.ends_with("def"sv, CaseSensitivity::CaseSensitive));
+    EXPECT(test_string_view.ends_with("ABCDEF"_sv));
+    EXPECT(!test_string_view.ends_with("ABCDE"_sv));
+    EXPECT(!test_string_view.ends_with("ABCDEFG"_sv));
+    EXPECT(test_string_view.ends_with("def"_sv, CaseSensitivity::CaseInsensitive));
+    EXPECT(!test_string_view.ends_with("def"_sv, CaseSensitivity::CaseSensitive));
 }
 
 TEST_CASE(lines)
@@ -119,25 +119,25 @@ TEST_CASE(lines)
 
 TEST_CASE(count_lines)
 {
-    EXPECT_EQ(""sv.count_lines(), 1u);
-    EXPECT_EQ("foo"sv.count_lines(), 1u);
+    EXPECT_EQ(""_sv.count_lines(), 1u);
+    EXPECT_EQ("foo"_sv.count_lines(), 1u);
 
-    EXPECT_EQ("foo\nbar"sv.count_lines(), 2u);
-    EXPECT_EQ("foo\rbar"sv.count_lines(), 2u);
-    EXPECT_EQ("foo\rbar"sv.count_lines(StringView::ConsiderCarriageReturn::No), 1u);
-    EXPECT_EQ("foo\r\nbar"sv.count_lines(), 2u);
-    EXPECT_EQ("foo\r\nbar"sv.count_lines(StringView::ConsiderCarriageReturn::No), 2u);
+    EXPECT_EQ("foo\nbar"_sv.count_lines(), 2u);
+    EXPECT_EQ("foo\rbar"_sv.count_lines(), 2u);
+    EXPECT_EQ("foo\rbar"_sv.count_lines(StringView::ConsiderCarriageReturn::No), 1u);
+    EXPECT_EQ("foo\r\nbar"_sv.count_lines(), 2u);
+    EXPECT_EQ("foo\r\nbar"_sv.count_lines(StringView::ConsiderCarriageReturn::No), 2u);
 
-    EXPECT_EQ("foo\nbar\nbax"sv.count_lines(), 3u);
-    EXPECT_EQ("foo\rbar\rbaz"sv.count_lines(), 3u);
-    EXPECT_EQ("foo\rbar\rbaz"sv.count_lines(StringView::ConsiderCarriageReturn::No), 1u);
-    EXPECT_EQ("foo\r\nbar\r\nbaz"sv.count_lines(), 3u);
-    EXPECT_EQ("foo\r\nbar\r\nbaz"sv.count_lines(StringView::ConsiderCarriageReturn::No), 3u);
+    EXPECT_EQ("foo\nbar\nbax"_sv.count_lines(), 3u);
+    EXPECT_EQ("foo\rbar\rbaz"_sv.count_lines(), 3u);
+    EXPECT_EQ("foo\rbar\rbaz"_sv.count_lines(StringView::ConsiderCarriageReturn::No), 1u);
+    EXPECT_EQ("foo\r\nbar\r\nbaz"_sv.count_lines(), 3u);
+    EXPECT_EQ("foo\r\nbar\r\nbaz"_sv.count_lines(StringView::ConsiderCarriageReturn::No), 3u);
 }
 
 TEST_CASE(find)
 {
-    auto test_string_view = "aabbcc_xy_ccbbaa"sv;
+    auto test_string_view = "aabbcc_xy_ccbbaa"_sv;
     EXPECT_EQ(test_string_view.find('b'), 2U);
     EXPECT_EQ(test_string_view.find('_'), 6U);
     EXPECT_EQ(test_string_view.find('n').has_value(), false);
@@ -145,73 +145,73 @@ TEST_CASE(find)
 
 TEST_CASE(find_last)
 {
-    auto test_string_view = "aabbcc_xy_ccbbaa"sv;
+    auto test_string_view = "aabbcc_xy_ccbbaa"_sv;
     EXPECT_EQ(test_string_view.find_last('b'), 13U);
     EXPECT_EQ(test_string_view.find_last('_'), 9U);
     EXPECT_EQ(test_string_view.find_last('3').has_value(), false);
 
-    test_string_view = "/"sv;
+    test_string_view = "/"_sv;
     EXPECT_EQ(test_string_view.find_last('/'), 0U);
 }
 
 TEST_CASE(find_any_of)
 {
-    auto test_string_view = "aabbcc_xy_ccbbaa"sv;
-    EXPECT_EQ(test_string_view.find_any_of("bc"sv, StringView::SearchDirection::Forward), 2U);
-    EXPECT_EQ(test_string_view.find_any_of("yx"sv, StringView::SearchDirection::Forward), 7U);
-    EXPECT_EQ(test_string_view.find_any_of("defg"sv, StringView::SearchDirection::Forward).has_value(), false);
-    EXPECT_EQ(test_string_view.find_any_of("bc"sv, StringView::SearchDirection::Backward), 13U);
-    EXPECT_EQ(test_string_view.find_any_of("yx"sv, StringView::SearchDirection::Backward), 8U);
-    EXPECT_EQ(test_string_view.find_any_of("fghi"sv, StringView::SearchDirection::Backward).has_value(), false);
+    auto test_string_view = "aabbcc_xy_ccbbaa"_sv;
+    EXPECT_EQ(test_string_view.find_any_of("bc"_sv, StringView::SearchDirection::Forward), 2U);
+    EXPECT_EQ(test_string_view.find_any_of("yx"_sv, StringView::SearchDirection::Forward), 7U);
+    EXPECT_EQ(test_string_view.find_any_of("defg"_sv, StringView::SearchDirection::Forward).has_value(), false);
+    EXPECT_EQ(test_string_view.find_any_of("bc"_sv, StringView::SearchDirection::Backward), 13U);
+    EXPECT_EQ(test_string_view.find_any_of("yx"_sv, StringView::SearchDirection::Backward), 8U);
+    EXPECT_EQ(test_string_view.find_any_of("fghi"_sv, StringView::SearchDirection::Backward).has_value(), false);
 
-    test_string_view = "/"sv;
-    EXPECT_EQ(test_string_view.find_any_of("/"sv, StringView::SearchDirection::Forward), 0U);
-    EXPECT_EQ(test_string_view.find_any_of("/"sv, StringView::SearchDirection::Backward), 0U);
+    test_string_view = "/"_sv;
+    EXPECT_EQ(test_string_view.find_any_of("/"_sv, StringView::SearchDirection::Forward), 0U);
+    EXPECT_EQ(test_string_view.find_any_of("/"_sv, StringView::SearchDirection::Backward), 0U);
 }
 
 TEST_CASE(split_view)
 {
-    StringView test_string_view = "axxbxcxd"sv;
-    EXPECT_EQ(test_string_view.split_view('x'), Vector({ "a"sv, "b"sv, "c"sv, "d"sv }));
-    EXPECT_EQ(test_string_view.split_view('x', SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, "b"sv, "c"sv, "d"sv }));
-    EXPECT_EQ(test_string_view.split_view("x"sv), Vector({ "a"sv, "b"sv, "c"sv, "d"sv }));
-    EXPECT_EQ(test_string_view.split_view("x"sv, SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, "b"sv, "c"sv, "d"sv }));
+    StringView test_string_view = "axxbxcxd"_sv;
+    EXPECT_EQ(test_string_view.split_view('x'), Vector({ "a"_sv, "b"_sv, "c"_sv, "d"_sv }));
+    EXPECT_EQ(test_string_view.split_view('x', SplitBehavior::KeepEmpty), Vector({ "a"_sv, ""_sv, "b"_sv, "c"_sv, "d"_sv }));
+    EXPECT_EQ(test_string_view.split_view("x"_sv), Vector({ "a"_sv, "b"_sv, "c"_sv, "d"_sv }));
+    EXPECT_EQ(test_string_view.split_view("x"_sv, SplitBehavior::KeepEmpty), Vector({ "a"_sv, ""_sv, "b"_sv, "c"_sv, "d"_sv }));
 
-    test_string_view = "axxbx"sv;
-    EXPECT_EQ(test_string_view.split_view('x'), Vector({ "a"sv, "b"sv }));
-    EXPECT_EQ(test_string_view.split_view('x', SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, "b"sv, ""sv }));
-    EXPECT_EQ(test_string_view.split_view("x"sv), Vector({ "a"sv, "b"sv }));
-    EXPECT_EQ(test_string_view.split_view("x"sv, SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, "b"sv, ""sv }));
+    test_string_view = "axxbx"_sv;
+    EXPECT_EQ(test_string_view.split_view('x'), Vector({ "a"_sv, "b"_sv }));
+    EXPECT_EQ(test_string_view.split_view('x', SplitBehavior::KeepEmpty), Vector({ "a"_sv, ""_sv, "b"_sv, ""_sv }));
+    EXPECT_EQ(test_string_view.split_view("x"_sv), Vector({ "a"_sv, "b"_sv }));
+    EXPECT_EQ(test_string_view.split_view("x"_sv, SplitBehavior::KeepEmpty), Vector({ "a"_sv, ""_sv, "b"_sv, ""_sv }));
 
-    test_string_view = "axxbcxxdxx"sv;
-    EXPECT_EQ(test_string_view.split_view("xx"sv), Vector({ "a"sv, "bc"sv, "d"sv }));
-    EXPECT_EQ(test_string_view.split_view("xx"sv, SplitBehavior::KeepEmpty), Vector({ "a"sv, "bc"sv, "d"sv, ""sv }));
+    test_string_view = "axxbcxxdxx"_sv;
+    EXPECT_EQ(test_string_view.split_view("xx"_sv), Vector({ "a"_sv, "bc"_sv, "d"_sv }));
+    EXPECT_EQ(test_string_view.split_view("xx"_sv, SplitBehavior::KeepEmpty), Vector({ "a"_sv, "bc"_sv, "d"_sv, ""_sv }));
 
-    test_string_view = "ax_b_cxd"sv;
+    test_string_view = "ax_b_cxd"_sv;
     Function<bool(char)> predicate = [](char ch) { return ch == 'x' || ch == '_'; };
-    EXPECT_EQ(test_string_view.split_view_if(predicate), Vector({ "a"sv, "b"sv, "c"sv, "d"sv }));
-    EXPECT_EQ(test_string_view.split_view_if(predicate, SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, "b"sv, "c"sv, "d"sv }));
+    EXPECT_EQ(test_string_view.split_view_if(predicate), Vector({ "a"_sv, "b"_sv, "c"_sv, "d"_sv }));
+    EXPECT_EQ(test_string_view.split_view_if(predicate, SplitBehavior::KeepEmpty), Vector({ "a"_sv, ""_sv, "b"_sv, "c"_sv, "d"_sv }));
 
-    test_string_view = "a,,,b"sv;
-    EXPECT_EQ(test_string_view.split_view(","sv, SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, ""sv, "b"sv }));
-    EXPECT_EQ(test_string_view.split_view(","sv, SplitBehavior::KeepTrailingSeparator), Vector({ "a,"sv, "b"sv }));
-    EXPECT_EQ(test_string_view.split_view(","sv, SplitBehavior::KeepTrailingSeparator | SplitBehavior::KeepEmpty), Vector({ "a,"sv, ","sv, ","sv, "b"sv }));
+    test_string_view = "a,,,b"_sv;
+    EXPECT_EQ(test_string_view.split_view(","_sv, SplitBehavior::KeepEmpty), Vector({ "a"_sv, ""_sv, ""_sv, "b"_sv }));
+    EXPECT_EQ(test_string_view.split_view(","_sv, SplitBehavior::KeepTrailingSeparator), Vector({ "a,"_sv, "b"_sv }));
+    EXPECT_EQ(test_string_view.split_view(","_sv, SplitBehavior::KeepTrailingSeparator | SplitBehavior::KeepEmpty), Vector({ "a,"_sv, ","_sv, ","_sv, "b"_sv }));
 }
 
 TEST_CASE(constexpr_stuff)
 {
-#define do_test()                                                       \
-    static_assert(test_constexpr.length() == 3);                        \
-    static_assert(!test_constexpr.is_empty());                          \
-    static_assert(test_constexpr.is_one_of("foo", "bar", "baz"));       \
-    static_assert(test_constexpr.is_one_of("foo"sv, "bar"sv, "baz"sv)); \
-    static_assert(test_constexpr != "fob"sv);                           \
-    static_assert(test_constexpr != "fob");                             \
-    static_assert(test_constexpr.substring_view(1).is_one_of("oo"sv));
+#define do_test()                                                          \
+    static_assert(test_constexpr.length() == 3);                           \
+    static_assert(!test_constexpr.is_empty());                             \
+    static_assert(test_constexpr.is_one_of("foo", "bar", "baz"));          \
+    static_assert(test_constexpr.is_one_of("foo"_sv, "bar"_sv, "baz"_sv)); \
+    static_assert(test_constexpr != "fob"_sv);                             \
+    static_assert(test_constexpr != "fob");                                \
+    static_assert(test_constexpr.substring_view(1).is_one_of("oo"_sv));
 
     {
-        // Can initialize from ""sv.
-        constexpr StringView test_constexpr { "foo"sv };
+        // Can initialize from ""_sv.
+        constexpr StringView test_constexpr { "foo"_sv };
         do_test();
     }
 #undef do_test
@@ -219,10 +219,10 @@ TEST_CASE(constexpr_stuff)
 
 TEST_CASE(case_insensitive_hash)
 {
-    auto string1 = "abcdef"sv;
-    auto string2 = "ABCDEF"sv;
-    auto string3 = "aBcDeF"sv;
-    auto string4 = "foo"sv;
+    auto string1 = "abcdef"_sv;
+    auto string2 = "ABCDEF"_sv;
+    auto string3 = "aBcDeF"_sv;
+    auto string4 = "foo"_sv;
 
     EXPECT_EQ(CaseInsensitiveASCIIStringViewTraits::hash(string1), CaseInsensitiveASCIIStringViewTraits::hash(string2));
     EXPECT_EQ(CaseInsensitiveASCIIStringViewTraits::hash(string1), CaseInsensitiveASCIIStringViewTraits::hash(string3));

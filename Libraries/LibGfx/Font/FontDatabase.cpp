@@ -88,7 +88,7 @@ ErrorOr<Vector<String>> FontDatabase::font_directories()
     return Vector<String> { {
         "/System/Library/Fonts"_string,
         "/Library/Fonts"_string,
-        TRY(String::formatted("{}/Library/Fonts"sv, Core::StandardPaths::home_directory())),
+        TRY(String::formatted("{}/Library/Fonts"_sv, Core::StandardPaths::home_directory())),
     } };
 
 #    elif defined(AK_OS_ANDROID)
@@ -100,8 +100,8 @@ ErrorOr<Vector<String>> FontDatabase::font_directories()
 
 #    elif defined(AK_OS_WINDOWS)
     return Vector<String> { {
-        TRY(String::formatted(R"({}\Fonts)"sv, getenv("WINDIR"))),
-        TRY(String::formatted(R"({}\Microsoft\Windows\Fonts)"sv, getenv("LOCALAPPDATA"))),
+        TRY(String::formatted(R"({}\Fonts)"_sv, getenv("WINDIR"))),
+        TRY(String::formatted(R"({}\Microsoft\Windows\Fonts)"_sv, getenv("LOCALAPPDATA"))),
     } };
 
 #    else

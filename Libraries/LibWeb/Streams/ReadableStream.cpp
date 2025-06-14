@@ -51,7 +51,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::construct_impl(JS::
     if (underlying_source_dict.type.has_value() && underlying_source_dict.type.value() == ReadableStreamType::Bytes) {
         // 1. If strategy["size"] exists, throw a RangeError exception.
         if (strategy.size)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Size strategy not allowed for byte stream"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Size strategy not allowed for byte stream"_sv };
 
         // 2. Let highWaterMark be ? ExtractHighWaterMark(strategy, 0).
         auto high_water_mark = TRY(extract_high_water_mark(strategy, 0));
@@ -121,7 +121,7 @@ GC::Ref<WebIDL::Promise> ReadableStream::cancel(JS::Value reason)
 
     // 1. If ! IsReadableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_readable_stream_locked(*this)) {
-        auto exception = JS::TypeError::create(realm, "Cannot cancel a locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot cancel a locked stream"_sv);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
@@ -148,11 +148,11 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(Readab
 {
     // 1. If ! IsReadableStreamLocked(this) is true, throw a TypeError exception.
     if (is_readable_stream_locked(*this))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Failed to execute 'pipeThrough' on 'ReadableStream': Cannot pipe a locked stream"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Failed to execute 'pipeThrough' on 'ReadableStream': Cannot pipe a locked stream"_sv };
 
     // 2. If ! IsWritableStreamLocked(transform["writable"]) is true, throw a TypeError exception.
     if (is_writable_stream_locked(*transform.writable))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Failed to execute 'pipeThrough' on 'ReadableStream': parameter 1's 'writable' is locked"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Failed to execute 'pipeThrough' on 'ReadableStream': parameter 1's 'writable' is locked"_sv };
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
     auto signal = options.signal;
@@ -175,12 +175,12 @@ GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, St
 
     // 1. If ! IsReadableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_readable_stream_locked(*this)) {
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream': Cannot pipe a locked stream"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream': Cannot pipe a locked stream"_sv));
     }
 
     // 2. If ! IsWritableStreamLocked(destination) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(destination)) {
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream':  Cannot pipe to a locked stream"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream':  Cannot pipe to a locked stream"_sv));
     }
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.

@@ -38,7 +38,7 @@ namespace Crypto::ASN1 {
         PUSH_SCOPE(scope)                                                                 \
     } while (0)
 
-#define PUSH_SCOPE(scope) current_scope.append(#scope##sv);
+#define PUSH_SCOPE(scope) current_scope.append(#scope##_sv);
 
 #define EXIT_SCOPE()                                                                             \
     do {                                                                                         \

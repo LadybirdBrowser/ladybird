@@ -97,7 +97,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& 
 
     // FIXME: Ad-Hoc. Spec should handle this failure.
     if (!storage_key.has_value())
-        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Failed to obtain a storage key"sv));
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Failed to obtain a storage key"_sv));
 
     // 3. Let clientURL be the result of parsing clientURL with this's relevant settings object’s API base URL.
     auto base_url = HTML::relevant_settings_object(*this).api_base_url();
@@ -105,7 +105,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& 
 
     // 4. If clientURL is failure, return a promise rejected with a TypeError.
     if (!parsed_client_url.has_value())
-        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "clientURL is not a valid URL"sv));
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "clientURL is not a valid URL"_sv));
 
     // 5. Set clientURL’s fragment to null.
     parsed_client_url->set_fragment({});
@@ -147,7 +147,7 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, Option
 
     // 1. If scriptURL is failure, reject promise with a TypeError and abort these steps.
     if (!script_url.has_value()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scriptURL is not a valid URL"sv));
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scriptURL is not a valid URL"_sv));
         return;
     }
 
@@ -157,30 +157,30 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, Option
     script_url->set_fragment({});
 
     // 3. If scriptURL’s scheme is not one of "http" and "https", reject promise with a TypeError and abort these steps.
-    if (!script_url->scheme().is_one_of("http"sv, "https"sv)) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scriptURL must have a scheme of 'http' or 'https'"sv));
+    if (!script_url->scheme().is_one_of("http"_sv, "https"_sv)) {
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scriptURL must have a scheme of 'http' or 'https'"_sv));
         return;
     }
 
     // 4. If any of the strings in scriptURL’s path contains either ASCII case-insensitive "%2f" or ASCII case-insensitive "%5c",
     //    reject promise with a TypeError and abort these steps.
     auto invalid_path = script_url->paths().first_matching([&](auto& path) {
-        return path.contains("%2f"sv, CaseSensitivity::CaseInsensitive) || path.contains("%5c"sv, CaseSensitivity::CaseInsensitive);
+        return path.contains("%2f"_sv, CaseSensitivity::CaseInsensitive) || path.contains("%5c"_sv, CaseSensitivity::CaseInsensitive);
     });
     if (invalid_path.has_value()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scriptURL path must not contain '%2f' or '%5c'"sv));
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scriptURL path must not contain '%2f' or '%5c'"_sv));
         return;
     }
 
     // 5. If scopeURL is null, set scopeURL to the result of parsing the string "./" with scriptURL.
     // Note: The scope url for the registration is set to the location of the service worker script by default.
     if (!scope_url.has_value()) {
-        scope_url = DOMURL::parse("./"sv, script_url);
+        scope_url = DOMURL::parse("./"_sv, script_url);
     }
 
     // 6. If scopeURL is failure, reject promise with a TypeError and abort these steps.
     if (!scope_url.has_value()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scopeURL is not a valid URL"sv));
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scopeURL is not a valid URL"_sv));
         return;
     }
 
@@ -190,18 +190,18 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, Option
     scope_url->set_fragment({});
 
     // 8. If scopeURL’s scheme is not one of "http" and "https", reject promise with a TypeError and abort these steps.
-    if (!scope_url->scheme().is_one_of("http"sv, "https"sv)) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scopeURL must have a scheme of 'http' or 'https'"sv));
+    if (!scope_url->scheme().is_one_of("http"_sv, "https"_sv)) {
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scopeURL must have a scheme of 'http' or 'https'"_sv));
         return;
     }
 
     // 9. If any of the strings in scopeURL’s path contains either ASCII case-insensitive "%2f" or ASCII case-insensitive "%5c",
     //    reject promise with a TypeError and abort these steps.
     invalid_path = scope_url->paths().first_matching([&](auto& path) {
-        return path.contains("%2f"sv, CaseSensitivity::CaseInsensitive) || path.contains("%5c"sv, CaseSensitivity::CaseInsensitive);
+        return path.contains("%2f"_sv, CaseSensitivity::CaseInsensitive) || path.contains("%5c"_sv, CaseSensitivity::CaseInsensitive);
     });
     if (invalid_path.has_value()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scopeURL path must not contain '%2f' or '%5c'"sv));
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scopeURL path must not contain '%2f' or '%5c'"_sv));
         return;
     }
 
@@ -210,7 +210,7 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, Option
 
     // FIXME: Ad-Hoc. Spec should handle this failure here, or earlier.
     if (!storage_key.has_value()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Failed to obtain a storage key"sv));
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Failed to obtain a storage key"_sv));
         return;
     }
 

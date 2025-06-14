@@ -18,9 +18,9 @@ namespace Unicode {
 
 LanguageDisplay language_display_from_string(StringView language_display)
 {
-    if (language_display == "standard"sv)
+    if (language_display == "standard"_sv)
         return LanguageDisplay::Standard;
-    if (language_display == "dialect"sv)
+    if (language_display == "dialect"_sv)
         return LanguageDisplay::Dialect;
     VERIFY_NOT_REACHED();
 }
@@ -29,9 +29,9 @@ StringView language_display_to_string(LanguageDisplay language_display)
 {
     switch (language_display) {
     case LanguageDisplay::Standard:
-        return "standard"sv;
+        return "standard"_sv;
     case LanguageDisplay::Dialect:
-        return "dialect"sv;
+        return "dialect"_sv;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -99,12 +99,12 @@ Optional<String> calendar_display_name(StringView locale, StringView calendar)
     if (!locale_data.has_value())
         return {};
 
-    if (calendar == "gregory"sv)
-        calendar = "gregorian"sv;
-    if (calendar == "islamicc"sv)
-        calendar = "islamic-civil"sv;
-    if (calendar == "ethioaa"sv)
-        calendar = "ethiopic-amete-alem"sv;
+    if (calendar == "gregory"_sv)
+        calendar = "gregorian"_sv;
+    if (calendar == "islamicc"_sv)
+        calendar = "islamic-civil"_sv;
+    if (calendar == "ethioaa"_sv)
+        calendar = "ethiopic-amete-alem"_sv;
 
     icu::UnicodeString result;
     locale_data->standard_display_names().keyValueDisplayName("calendar", ByteString(calendar).characters(), result);
@@ -114,29 +114,29 @@ Optional<String> calendar_display_name(StringView locale, StringView calendar)
 
 static constexpr UDateTimePatternField icu_date_time_field(StringView field)
 {
-    if (field == "day"sv)
+    if (field == "day"_sv)
         return UDATPG_DAY_FIELD;
-    if (field == "dayPeriod"sv)
+    if (field == "dayPeriod"_sv)
         return UDATPG_DAYPERIOD_FIELD;
-    if (field == "era"sv)
+    if (field == "era"_sv)
         return UDATPG_ERA_FIELD;
-    if (field == "hour"sv)
+    if (field == "hour"_sv)
         return UDATPG_HOUR_FIELD;
-    if (field == "minute"sv)
+    if (field == "minute"_sv)
         return UDATPG_MINUTE_FIELD;
-    if (field == "month"sv)
+    if (field == "month"_sv)
         return UDATPG_MONTH_FIELD;
-    if (field == "quarter"sv)
+    if (field == "quarter"_sv)
         return UDATPG_QUARTER_FIELD;
-    if (field == "second"sv)
+    if (field == "second"_sv)
         return UDATPG_SECOND_FIELD;
-    if (field == "timeZoneName"sv)
+    if (field == "timeZoneName"_sv)
         return UDATPG_ZONE_FIELD;
-    if (field == "weekOfYear"sv)
+    if (field == "weekOfYear"_sv)
         return UDATPG_WEEK_OF_YEAR_FIELD;
-    if (field == "weekday"sv)
+    if (field == "weekday"_sv)
         return UDATPG_WEEKDAY_FIELD;
-    if (field == "year"sv)
+    if (field == "year"_sv)
         return UDATPG_YEAR_FIELD;
     VERIFY_NOT_REACHED();
 }

@@ -49,7 +49,7 @@ static ParserResult run_parser(Vector<StringView> arguments, Function<void(Core:
 
 TEST_CASE(no_arguments)
 {
-    auto parser_result = run_parser({ "app"sv });
+    auto parser_result = run_parser({ "app"_sv });
     EXPECT_EQ(parser_result.result, true);
 }
 
@@ -57,7 +57,7 @@ TEST_CASE(bool_option)
 {
     // Short option
     bool force = false;
-    auto parser_result = run_parser({ "app"sv, "-f"sv }, [&](auto& parser) {
+    auto parser_result = run_parser({ "app"_sv, "-f"_sv }, [&](auto& parser) {
         parser.add_option(force, "force", nullptr, 'f');
     });
     EXPECT_EQ(parser_result.result, true);
@@ -65,7 +65,7 @@ TEST_CASE(bool_option)
 
     // Short option, not given
     force = false;
-    parser_result = run_parser({ "app"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv }, [&](auto& parser) {
         parser.add_option(force, "force", nullptr, 'f');
     });
     EXPECT_EQ(parser_result.result, true);
@@ -73,7 +73,7 @@ TEST_CASE(bool_option)
 
     // Long option
     force = false;
-    parser_result = run_parser({ "app"sv, "--force"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "--force"_sv }, [&](auto& parser) {
         parser.add_option(force, "force", "force", '\0');
     });
     EXPECT_EQ(parser_result.result, true);
@@ -81,7 +81,7 @@ TEST_CASE(bool_option)
 
     // Long option, not given
     force = false;
-    parser_result = run_parser({ "app"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv }, [&](auto& parser) {
         parser.add_option(force, "force", "force", '\0');
     });
     EXPECT_EQ(parser_result.result, true);
@@ -89,7 +89,7 @@ TEST_CASE(bool_option)
 
     // Allow both short and long option, provide short
     force = false;
-    parser_result = run_parser({ "app"sv, "-f"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-f"_sv }, [&](auto& parser) {
         parser.add_option(force, "force", "force", 'f');
     });
     EXPECT_EQ(parser_result.result, true);
@@ -97,7 +97,7 @@ TEST_CASE(bool_option)
 
     // Allow both short and long option, provide long
     force = false;
-    parser_result = run_parser({ "app"sv, "--force"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "--force"_sv }, [&](auto& parser) {
         parser.add_option(force, "force", "force", 'f');
     });
     EXPECT_EQ(parser_result.result, true);
@@ -105,7 +105,7 @@ TEST_CASE(bool_option)
 
     // Allow both short and long option, provide both
     force = false;
-    parser_result = run_parser({ "app"sv, "--force"sv, "-f"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "--force"_sv, "-f"_sv }, [&](auto& parser) {
         parser.add_option(force, "force", "force", 'f');
     });
     EXPECT_EQ(parser_result.result, true);
@@ -117,7 +117,7 @@ TEST_CASE(string_option)
     ByteString string_option;
 
     // short option
-    auto parser_result = run_parser({ "app"sv, "-d"sv, "foo"sv }, [&](auto& parser) {
+    auto parser_result = run_parser({ "app"_sv, "-d"_sv, "foo"_sv }, [&](auto& parser) {
         parser.add_option(string_option, "dummy", nullptr, 'd', "DUMMY");
     });
     EXPECT_EQ(parser_result.result, true);
@@ -125,14 +125,14 @@ TEST_CASE(string_option)
 
     // short option, not given
     string_option = "";
-    parser_result = run_parser({ "app"sv, "-d"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-d"_sv }, [&](auto& parser) {
         parser.add_option(string_option, "dummy", nullptr, 'd', "DUMMY");
     });
     EXPECT_EQ(parser_result.result, false);
 
     // long option
     string_option = "";
-    parser_result = run_parser({ "app"sv, "--dummy"sv, "foo"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "--dummy"_sv, "foo"_sv }, [&](auto& parser) {
         parser.add_option(string_option, "dummy", "dummy", {}, "DUMMY");
     });
     EXPECT_EQ(parser_result.result, true);
@@ -140,7 +140,7 @@ TEST_CASE(string_option)
 
     // long option, not given
     string_option = "";
-    parser_result = run_parser({ "app"sv, "--dummy"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "--dummy"_sv }, [&](auto& parser) {
         parser.add_option(string_option, "dummy", "dummy", {}, "DUMMY");
     });
     EXPECT_EQ(parser_result.result, false);
@@ -150,7 +150,7 @@ TEST_CASE(positional_string_argument)
 {
     // Single required string argument
     ByteString name = "";
-    auto parser_result = run_parser({ "app"sv, "buggie"sv }, [&](auto& parser) {
+    auto parser_result = run_parser({ "app"_sv, "buggie"_sv }, [&](auto& parser) {
         parser.add_positional_argument(name, "name", "name", Core::ArgsParser::Required::Yes);
     });
     EXPECT_EQ(parser_result.result, true);
@@ -158,7 +158,7 @@ TEST_CASE(positional_string_argument)
 
     // Single required string argument, not given
     name = "";
-    parser_result = run_parser({ "app"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv }, [&](auto& parser) {
         parser.add_positional_argument(name, "name", "name", Core::ArgsParser::Required::Yes);
     });
     EXPECT_EQ(parser_result.result, false);
@@ -166,7 +166,7 @@ TEST_CASE(positional_string_argument)
 
     // Single optional string argument
     name = "";
-    parser_result = run_parser({ "app"sv, "buggie"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "buggie"_sv }, [&](auto& parser) {
         parser.add_positional_argument(name, "name", "name", Core::ArgsParser::Required::No);
     });
     EXPECT_EQ(parser_result.result, true);
@@ -174,7 +174,7 @@ TEST_CASE(positional_string_argument)
 
     // Single optional string argument, not given
     name = "";
-    parser_result = run_parser({ "app"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv }, [&](auto& parser) {
         parser.add_positional_argument(name, "name", "name", Core::ArgsParser::Required::No);
     });
     EXPECT_EQ(parser_result.result, true);
@@ -186,7 +186,7 @@ TEST_CASE(positional_vector_string_argument)
     Vector<StringView> values;
 
     // Zero or more positional arguments, zero given
-    auto parser_result = run_parser({ "app"sv }, [&](auto& parser) {
+    auto parser_result = run_parser({ "app"_sv }, [&](auto& parser) {
         parser.add_positional_argument(values, "values", "values", Core::ArgsParser::Required::No);
     });
     EXPECT_EQ(parser_result.result, true);
@@ -194,7 +194,7 @@ TEST_CASE(positional_vector_string_argument)
 
     // Zero or more positional arguments, one given
     values = {};
-    parser_result = run_parser({ "app"sv, "one"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "one"_sv }, [&](auto& parser) {
         parser.add_positional_argument(values, "values", "values", Core::ArgsParser::Required::No);
     });
     EXPECT_EQ(parser_result.result, true);
@@ -204,7 +204,7 @@ TEST_CASE(positional_vector_string_argument)
 
     // Zero or more positional arguments, two given
     values = {};
-    parser_result = run_parser({ "app"sv, "one"sv, "two"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "one"_sv, "two"_sv }, [&](auto& parser) {
         parser.add_positional_argument(values, "values", "values", Core::ArgsParser::Required::No);
     });
     EXPECT_EQ(parser_result.result, true);
@@ -216,7 +216,7 @@ TEST_CASE(positional_vector_string_argument)
 
     // One or more positional arguments, zero given
     values = {};
-    parser_result = run_parser({ "app"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv }, [&](auto& parser) {
         parser.add_positional_argument(values, "values", "values", Core::ArgsParser::Required::Yes);
     });
     EXPECT_EQ(parser_result.result, false);
@@ -224,7 +224,7 @@ TEST_CASE(positional_vector_string_argument)
 
     // One or more positional arguments, one given
     values = {};
-    parser_result = run_parser({ "app"sv, "one"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "one"_sv }, [&](auto& parser) {
         parser.add_positional_argument(values, "values", "values", Core::ArgsParser::Required::Yes);
     });
     EXPECT_EQ(parser_result.result, true);
@@ -234,7 +234,7 @@ TEST_CASE(positional_vector_string_argument)
 
     // One or more positional arguments, two given
     values = {};
-    parser_result = run_parser({ "app"sv, "one"sv, "two"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "one"_sv, "two"_sv }, [&](auto& parser) {
         parser.add_positional_argument(values, "values", "values", Core::ArgsParser::Required::Yes);
     });
     EXPECT_EQ(parser_result.result, true);
@@ -252,7 +252,7 @@ TEST_CASE(combination_of_bool_options_with_positional_vector_string)
     // Expected: all arguments fill as given
     bool bool_opt1 = false;
     bool bool_opt2 = false;
-    auto parser_result = run_parser({ "app"sv, "-b"sv, "-c"sv, "one"sv, "two"sv }, [&](auto& parser) {
+    auto parser_result = run_parser({ "app"_sv, "-b"_sv, "-c"_sv, "one"_sv, "two"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_positional_argument(positionals, "pos", "pos", Core::ArgsParser::Required::No);
@@ -271,7 +271,7 @@ TEST_CASE(combination_of_bool_options_with_positional_vector_string)
     bool_opt1 = false;
     bool_opt2 = false;
     positionals = {};
-    parser_result = run_parser({ "app"sv, "one"sv, "two"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "one"_sv, "two"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_positional_argument(positionals, "pos", "pos", Core::ArgsParser::Required::No);
@@ -290,7 +290,7 @@ TEST_CASE(combination_of_bool_options_with_positional_vector_string)
     bool_opt1 = false;
     bool_opt2 = false;
     positionals = {};
-    parser_result = run_parser({ "app"sv, "-b"sv, "-c"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-b"_sv, "-c"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_positional_argument(positionals, "pos", "pos", Core::ArgsParser::Required::No);
@@ -305,7 +305,7 @@ TEST_CASE(combination_of_bool_options_with_positional_vector_string)
     bool_opt1 = false;
     bool_opt2 = false;
     positionals = {};
-    parser_result = run_parser({ "app"sv, "--"sv, "-b"sv, "-c"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "--"_sv, "-b"_sv, "-c"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_positional_argument(positionals, "pos", "pos", Core::ArgsParser::Required::No);
@@ -324,7 +324,7 @@ TEST_CASE(combination_of_bool_options_with_positional_vector_string)
     bool_opt1 = false;
     bool_opt2 = false;
     positionals = {};
-    parser_result = run_parser({ "app"sv, "-b"sv, "--"sv, "-c"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-b"_sv, "--"_sv, "-c"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_positional_argument(positionals, "pos", "pos", Core::ArgsParser::Required::No);
@@ -342,7 +342,7 @@ TEST_CASE(combination_of_bool_options_with_positional_vector_string)
     bool_opt1 = false;
     bool_opt2 = false;
     positionals = {};
-    parser_result = run_parser({ "app"sv, "-b"sv, "-d"sv, "-c"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-b"_sv, "-d"_sv, "-c"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_positional_argument(positionals, "pos", "pos", Core::ArgsParser::Required::No);
@@ -362,7 +362,7 @@ TEST_CASE(combination_of_bool_and_string_short_options_with_positional_vector_st
     ByteString string_opt2;
     Vector<StringView> positionals;
 
-    auto parser_result = run_parser({ "app"sv, "-b"sv, "-c"sv, "-d"sv, "foo"sv, "-e"sv, "bar"sv, "one"sv }, [&](auto& parser) {
+    auto parser_result = run_parser({ "app"_sv, "-b"_sv, "-c"_sv, "-d"_sv, "foo"_sv, "-e"_sv, "bar"_sv, "one"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_option(string_opt1, "string_opt1", nullptr, 'd', "D");
@@ -388,7 +388,7 @@ TEST_CASE(combination_of_bool_and_string_short_options_with_positional_vector_st
     string_opt2 = "";
     positionals = {};
 
-    parser_result = run_parser({ "app"sv, "-c"sv, "-d"sv, "foo"sv, "-e"sv, "bar"sv, "one"sv, "-b"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-c"_sv, "-d"_sv, "foo"_sv, "-e"_sv, "bar"_sv, "one"_sv, "-b"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_option(string_opt1, "string_opt1", nullptr, 'd', "D");
@@ -414,7 +414,7 @@ TEST_CASE(combination_of_bool_and_string_short_options_with_positional_vector_st
     string_opt2 = "";
     positionals = {};
 
-    parser_result = run_parser({ "app"sv, "-c"sv, "-e"sv, "bar"sv, "one"sv, "-d"sv, "foo"sv, "-b"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-c"_sv, "-e"_sv, "bar"_sv, "one"_sv, "-d"_sv, "foo"_sv, "-b"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_option(string_opt1, "string_opt1", nullptr, 'd', "D");
@@ -440,7 +440,7 @@ TEST_CASE(combination_of_bool_and_string_short_options_with_positional_vector_st
     string_opt2 = "";
     positionals = {};
 
-    parser_result = run_parser({ "app"sv, "-b"sv, "-d"sv, "foo"sv, "one"sv, "-c"sv, "-e"sv, "bar"sv, "two"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-b"_sv, "-d"_sv, "foo"_sv, "one"_sv, "-c"_sv, "-e"_sv, "bar"_sv, "two"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_option(string_opt1, "string_opt1", nullptr, 'd', "D");
@@ -467,7 +467,7 @@ TEST_CASE(combination_of_bool_and_string_short_options_with_positional_vector_st
     string_opt2 = "";
     positionals = {};
 
-    parser_result = run_parser({ "app"sv, "one"sv, "-b"sv, "-d"sv, "foo"sv, "two"sv, "-c"sv, "-e"sv, "bar"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "one"_sv, "-b"_sv, "-d"_sv, "foo"_sv, "two"_sv, "-c"_sv, "-e"_sv, "bar"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_option(string_opt1, "string_opt1", nullptr, 'd', "D");
@@ -494,7 +494,7 @@ TEST_CASE(combination_of_bool_and_string_short_options_with_positional_vector_st
     string_opt2 = "";
     positionals = {};
 
-    parser_result = run_parser({ "app"sv, "one"sv, "-d"sv, "foo"sv, "-b"sv, "two"sv, "-e"sv, "bar"sv, "-c"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "one"_sv, "-d"_sv, "foo"_sv, "-b"_sv, "two"_sv, "-e"_sv, "bar"_sv, "-c"_sv }, [&](auto& parser) {
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
         parser.add_option(string_opt1, "string_opt1", nullptr, 'd', "D");
@@ -520,7 +520,7 @@ TEST_CASE(stop_on_first_non_option)
     bool bool_opt1 = false;
     bool bool_opt2 = false;
     Vector<StringView> positionals;
-    auto parser_result = run_parser({ "app"sv, "-b"sv, "-c"sv, "one"sv }, [&](auto& parser) {
+    auto parser_result = run_parser({ "app"_sv, "-b"_sv, "-c"_sv, "one"_sv }, [&](auto& parser) {
         parser.set_stop_on_first_non_option(false);
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
@@ -538,7 +538,7 @@ TEST_CASE(stop_on_first_non_option)
     bool_opt1 = false;
     bool_opt2 = false;
     positionals = {};
-    parser_result = run_parser({ "app"sv, "-b"sv, "one"sv, "-c"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-b"_sv, "one"_sv, "-c"_sv }, [&](auto& parser) {
         parser.set_stop_on_first_non_option(false);
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
@@ -556,7 +556,7 @@ TEST_CASE(stop_on_first_non_option)
     bool_opt1 = false;
     bool_opt2 = false;
     positionals = {};
-    parser_result = run_parser({ "app"sv, "-b"sv, "-c"sv, "one"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-b"_sv, "-c"_sv, "one"_sv }, [&](auto& parser) {
         parser.set_stop_on_first_non_option(true);
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');
@@ -574,7 +574,7 @@ TEST_CASE(stop_on_first_non_option)
     bool_opt1 = false;
     bool_opt2 = false;
     positionals = {};
-    parser_result = run_parser({ "app"sv, "-b"sv, "one"sv, "-c"sv }, [&](auto& parser) {
+    parser_result = run_parser({ "app"_sv, "-b"_sv, "one"_sv, "-c"_sv }, [&](auto& parser) {
         parser.set_stop_on_first_non_option(true);
         parser.add_option(bool_opt1, "bool_opt1", nullptr, 'b');
         parser.add_option(bool_opt2, "bool_opt2", nullptr, 'c');

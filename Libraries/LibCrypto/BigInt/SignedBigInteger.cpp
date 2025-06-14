@@ -404,6 +404,6 @@ UnsignedBigInteger::CompareResult SignedBigInteger::compare_to_double(double val
 ErrorOr<void> AK::Formatter<Crypto::SignedBigInteger>::format(FormatBuilder& fmtbuilder, Crypto::SignedBigInteger const& value)
 {
     if (value.is_negative())
-        TRY(fmtbuilder.put_string("-"sv));
+        TRY(fmtbuilder.put_string("-"_sv));
     return Formatter<Crypto::UnsignedBigInteger>::format(fmtbuilder, value.unsigned_value());
 }

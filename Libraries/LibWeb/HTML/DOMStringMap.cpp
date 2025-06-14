@@ -57,7 +57,7 @@ Vector<DOMStringMap::NameValuePair> DOMStringMap::get_name_value_pairs() const
     //    in the order that those attributes are listed in the element's attribute list, add a name-value pair to list whose name is the attribute's name with the first five characters removed and whose value
     //    is the attribute's value.
     m_associated_element->for_each_attribute([&](auto& name, auto& value) {
-        if (!name.bytes_as_string_view().starts_with("data-"sv))
+        if (!name.bytes_as_string_view().starts_with("data-"_sv))
             return;
 
         auto name_after_starting_data = name.bytes_as_string_view().substring_view(5);
@@ -136,7 +136,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 
     // 3. Insert the string data- at the front of name.
     // NOTE: This is done out of order because StringBuilder doesn't have prepend.
-    builder.append("data-"sv);
+    builder.append("data-"_sv);
 
     auto name_view = name.bytes_as_string_view();
 
@@ -183,7 +183,7 @@ WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::del
 
     // 2. Insert the string data- at the front of name.
     // NOTE: This is done out of order because StringBuilder doesn't have prepend.
-    builder.append("data-"sv);
+    builder.append("data-"_sv);
 
     for (auto character : name.bytes_as_string_view()) {
         // 1. For each ASCII upper alpha in name, insert a U+002D HYPHEN-MINUS character (-) before the character and replace the character with the same character converted to ASCII lowercase.

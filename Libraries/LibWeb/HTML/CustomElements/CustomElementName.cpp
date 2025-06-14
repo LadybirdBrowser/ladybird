@@ -38,14 +38,14 @@ bool is_valid_custom_element_name(StringView name)
 {
     // name must not be any of the following:
     if (name.is_one_of(
-            "annotation-xml"sv,
-            "color-profile"sv,
-            "font-face"sv,
-            "font-face-src"sv,
-            "font-face-uri"sv,
-            "font-face-format"sv,
-            "font-face-name"sv,
-            "missing-glyph"sv)) {
+            "annotation-xml"_sv,
+            "color-profile"_sv,
+            "font-face"_sv,
+            "font-face-src"_sv,
+            "font-face-uri"_sv,
+            "font-face-format"_sv,
+            "font-face-name"_sv,
+            "missing-glyph"_sv)) {
         return false;
     }
 

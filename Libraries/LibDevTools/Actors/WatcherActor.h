@@ -13,7 +13,7 @@ namespace DevTools {
 
 class WatcherActor final : public Actor {
 public:
-    static constexpr auto base_name = "watcher"sv;
+    static constexpr auto base_name = "watcher"_sv;
 
     static NonnullRefPtr<WatcherActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~WatcherActor() override;

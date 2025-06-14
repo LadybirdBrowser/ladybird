@@ -517,19 +517,19 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 bool font_format_is_supported(FlyString const& name)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-format-definitions
-    if (name.equals_ignoring_ascii_case("collection"sv))
+    if (name.equals_ignoring_ascii_case("collection"_sv))
         return Gfx::font_format_is_supported(Gfx::FontFormat::TrueTypeCollection);
-    if (name.equals_ignoring_ascii_case("embedded-opentype"sv))
+    if (name.equals_ignoring_ascii_case("embedded-opentype"_sv))
         return Gfx::font_format_is_supported(Gfx::FontFormat::EmbeddedOpenType);
-    if (name.equals_ignoring_ascii_case("opentype"sv))
+    if (name.equals_ignoring_ascii_case("opentype"_sv))
         return Gfx::font_format_is_supported(Gfx::FontFormat::OpenType);
-    if (name.equals_ignoring_ascii_case("svg"sv))
+    if (name.equals_ignoring_ascii_case("svg"_sv))
         return Gfx::font_format_is_supported(Gfx::FontFormat::SVG);
-    if (name.equals_ignoring_ascii_case("truetype"sv))
+    if (name.equals_ignoring_ascii_case("truetype"_sv))
         return Gfx::font_format_is_supported(Gfx::FontFormat::TrueType);
-    if (name.equals_ignoring_ascii_case("woff"sv))
+    if (name.equals_ignoring_ascii_case("woff"_sv))
         return Gfx::font_format_is_supported(Gfx::FontFormat::WOFF);
-    if (name.equals_ignoring_ascii_case("woff2"sv))
+    if (name.equals_ignoring_ascii_case("woff2"_sv))
         return Gfx::font_format_is_supported(Gfx::FontFormat::WOFF2);
     return false;
 }

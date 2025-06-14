@@ -31,7 +31,7 @@ bool matches(StringView str, StringView mask, CaseSensitivity case_sensitivity, 
     if (str.is_null() || mask.is_null())
         return str.is_null() && mask.is_null();
 
-    if (mask == "*"sv) {
+    if (mask == "*"_sv) {
         record_span(0, str.length());
         return true;
     }
@@ -347,7 +347,7 @@ StringView trim(StringView str, StringView characters, TrimMode mode)
     if (mode == TrimMode::Left || mode == TrimMode::Both) {
         for (size_t i = 0; i < str.length(); ++i) {
             if (substring_length == 0)
-                return ""sv;
+                return ""_sv;
             if (!characters.contains(str[i]))
                 break;
             ++substring_start;
@@ -358,7 +358,7 @@ StringView trim(StringView str, StringView characters, TrimMode mode)
     if (mode == TrimMode::Right || mode == TrimMode::Both) {
         for (size_t i = str.length(); i > 0; --i) {
             if (substring_length == 0)
-                return ""sv;
+                return ""_sv;
             if (!characters.contains(str[i - 1]))
                 break;
             --substring_length;
@@ -370,7 +370,7 @@ StringView trim(StringView str, StringView characters, TrimMode mode)
 
 StringView trim_whitespace(StringView str, TrimMode mode)
 {
-    return trim(str, " \n\t\v\f\r"sv, mode);
+    return trim(str, " \n\t\v\f\r"_sv, mode);
 }
 
 Optional<size_t> find(StringView haystack, char needle, size_t start)

@@ -34,19 +34,19 @@ public:
     {
         switch (base_type) {
         case BaseType::Length:
-            return "length"sv;
+            return "length"_sv;
         case BaseType::Angle:
-            return "angle"sv;
+            return "angle"_sv;
         case BaseType::Time:
-            return "time"sv;
+            return "time"_sv;
         case BaseType::Frequency:
-            return "frequency"sv;
+            return "frequency"_sv;
         case BaseType::Resolution:
-            return "resolution"sv;
+            return "resolution"_sv;
         case BaseType::Flex:
-            return "flex"sv;
+            return "flex"_sv;
         case BaseType::Percent:
-            return "percent"sv;
+            return "percent"_sv;
         case BaseType::__Count:
             break;
         }

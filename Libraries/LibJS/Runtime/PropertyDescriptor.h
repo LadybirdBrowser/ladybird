@@ -68,7 +68,7 @@ struct Formatter<JS::PropertyDescriptor> : Formatter<StringView> {
             TRY(parts.try_append(TRY(String::formatted("[[Configurable]]: {}", *property_descriptor.configurable))));
         if (property_descriptor.unimplemented.has_value())
             TRY(parts.try_append(TRY(String::formatted("[[Unimplemented]]: {}", *property_descriptor.unimplemented))));
-        return Formatter<StringView>::format(builder, TRY(String::formatted("PropertyDescriptor {{ {} }}", TRY(String::join(", "sv, parts)))));
+        return Formatter<StringView>::format(builder, TRY(String::formatted("PropertyDescriptor {{ {} }}", TRY(String::join(", "_sv, parts)))));
     }
 };
 

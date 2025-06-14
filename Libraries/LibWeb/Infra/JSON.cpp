@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<String> serialize_javascript_value_to_json_string(JS::VM& vm
 
     // 2. If result is undefined, then throw a TypeError.
     if (result.is_undefined())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Result of stringifying value must not be undefined"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Result of stringifying value must not be undefined"_sv };
 
     // 3. Assert: result is a string.
     VERIFY(result.is_string());

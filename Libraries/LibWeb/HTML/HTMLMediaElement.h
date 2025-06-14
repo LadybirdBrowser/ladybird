@@ -61,18 +61,18 @@ public:
     [[nodiscard]] GC::Ref<TimeRanges> seekable() const;
 
     static inline constexpr auto supported_video_subtypes = Array {
-        "webm"sv,
-        "mp4"sv,
-        "mpeg"sv,
-        "ogg"sv,
+        "webm"_sv,
+        "mp4"_sv,
+        "mpeg"_sv,
+        "ogg"_sv,
     };
     static inline constexpr auto supported_audio_subtypes = Array {
-        "flac"sv,
-        "mp3"sv,
-        "mpeg"sv,
-        "ogg"sv,
-        "wav"sv,
-        "webm"sv,
+        "flac"_sv,
+        "mp3"_sv,
+        "mpeg"_sv,
+        "ogg"_sv,
+        "wav"_sv,
+        "webm"_sv,
     };
     Bindings::CanPlayTypeResult can_play_type(StringView type) const;
 

@@ -284,7 +284,7 @@ u32 Selector::specificity() const
 String Selector::PseudoElementSelector::serialize() const
 {
     StringBuilder builder;
-    builder.append("::"sv);
+    builder.append("::"_sv);
 
     if (!m_name.is_empty()) {
         builder.append(m_name);
@@ -349,7 +349,7 @@ String Selector::SimpleSelector::serialize() const
             serialize_an_identifier(s, attribute.qualified_name.namespace_);
             s.append('|');
         } else if (attribute.qualified_name.namespace_type == QualifiedName::NamespaceType::Any) {
-            s.append("*|"sv);
+            s.append("*|"_sv);
         }
 
         // 3. Append the serialization of the attribute name as an identifier to s.
@@ -360,22 +360,22 @@ String Selector::SimpleSelector::serialize() const
         if (!attribute.value.is_empty()) {
             switch (attribute.match_type) {
             case Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
-                s.append("="sv);
+                s.append("="_sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::ContainsWord:
-                s.append("~="sv);
+                s.append("~="_sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::ContainsString:
-                s.append("*="sv);
+                s.append("*="_sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment:
-                s.append("|="sv);
+                s.append("|="_sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
-                s.append("^="sv);
+                s.append("^="_sv);
                 break;
             case Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
-                s.append("$="sv);
+                s.append("$="_sv);
                 break;
             default:
                 break;
@@ -389,10 +389,10 @@ String Selector::SimpleSelector::serialize() const
         //    (the line just above is an addition to CSS OM to match Selectors Level 4 last draft)
         switch (attribute.case_type) {
         case Selector::SimpleSelector::Attribute::CaseType::CaseInsensitiveMatch:
-            s.append(" i"sv);
+            s.append(" i"_sv);
             break;
         case Selector::SimpleSelector::Attribute::CaseType::CaseSensitiveMatch:
-            s.append(" s"sv);
+            s.append(" s"_sv);
             break;
         default:
             break;
@@ -467,7 +467,7 @@ String Selector::SimpleSelector::serialize() const
                 break;
             case PseudoClassMetadata::ParameterType::LanguageRanges:
                 // The serialization of a comma-separated list of each argument’s serialization as a string, preserving relative order.
-                s.join(", "sv, pseudo_class.languages);
+                s.join(", "_sv, pseudo_class.languages);
                 break;
             }
             s.append(')');
@@ -500,16 +500,16 @@ String Selector::serialize() const
     if (!compound_selectors().is_empty()) {
         switch (compound_selectors().first().combinator) {
         case Combinator::ImmediateChild:
-            s.append("> "sv);
+            s.append("> "_sv);
             break;
         case Combinator::NextSibling:
-            s.append("+ "sv);
+            s.append("+ "_sv);
             break;
         case Combinator::SubsequentSibling:
-            s.append("~ "sv);
+            s.append("~ "_sv);
             break;
         case Combinator::Column:
-            s.append("|| "sv);
+            s.append("|| "_sv);
             break;
         default:
             break;
@@ -555,16 +555,16 @@ String Selector::serialize() const
             //       so we have to check that one.
             switch (compound_selectors()[i + 1].combinator) {
             case Selector::Combinator::ImmediateChild:
-                s.append("> "sv);
+                s.append("> "_sv);
                 break;
             case Selector::Combinator::NextSibling:
-                s.append("+ "sv);
+                s.append("+ "_sv);
                 break;
             case Selector::Combinator::SubsequentSibling:
-                s.append("~ "sv);
+                s.append("~ "_sv);
                 break;
             case Selector::Combinator::Column:
-                s.append("|| "sv);
+                s.append("|| "_sv);
                 break;
             default:
                 break;
@@ -585,7 +585,7 @@ String Selector::serialize() const
 String serialize_a_group_of_selectors(SelectorList const& selectors)
 {
     // To serialize a group of selectors serialize each selector in the group of selectors and then serialize a comma-separated list of these serializations.
-    return MUST(String::join(", "sv, selectors));
+    return MUST(String::join(", "_sv, selectors));
 }
 
 NonnullRefPtr<Selector> Selector::relative_to(SimpleSelector const& parent) const

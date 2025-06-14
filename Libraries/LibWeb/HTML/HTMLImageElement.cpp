@@ -142,7 +142,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
     }
 
     if (name == HTML::AttributeNames::decoding) {
-        if (value.has_value() && (value->equals_ignoring_ascii_case("sync"sv) || value->equals_ignoring_ascii_case("async"sv)))
+        if (value.has_value() && (value->equals_ignoring_ascii_case("sync"_sv) || value->equals_ignoring_ascii_case("async"_sv)))
             dbgln("FIXME: HTMLImageElement.decoding = '{}' is not implemented yet", value->to_ascii_lowercase());
     }
 }
@@ -610,7 +610,7 @@ after_step_7:
                 //    - maybe omit events is not set or previousURL is not the empty string
                 if (
                     (has_attribute(HTML::AttributeNames::src) || uses_srcset_or_picture())
-                    && (!maybe_omit_events || m_current_request->current_url() != ""sv)) {
+                    && (!maybe_omit_events || m_current_request->current_url() != ""_sv)) {
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
                 }
             });
@@ -1005,24 +1005,24 @@ static bool is_supported_image_type(String const& type)
 {
     if (type.is_empty())
         return true;
-    if (!type.starts_with_bytes("image/"sv, CaseSensitivity::CaseInsensitive))
+    if (!type.starts_with_bytes("image/"_sv, CaseSensitivity::CaseInsensitive))
         return false;
     // FIXME: These should be derived from ImageDecoder
-    if (type.equals_ignoring_ascii_case("image/bmp"sv)
-        || type.equals_ignoring_ascii_case("image/gif"sv)
-        || type.equals_ignoring_ascii_case("image/vnd.microsoft.icon"sv)
-        || type.equals_ignoring_ascii_case("image/x-icon"sv)
-        || type.equals_ignoring_ascii_case("image/jpeg"sv)
-        || type.equals_ignoring_ascii_case("image/jpg"sv)
-        || type.equals_ignoring_ascii_case("image/pjpeg"sv)
-        || type.equals_ignoring_ascii_case("image/jxl"sv)
-        || type.equals_ignoring_ascii_case("image/png"sv)
-        || type.equals_ignoring_ascii_case("image/apng"sv)
-        || type.equals_ignoring_ascii_case("image/x-png"sv)
-        || type.equals_ignoring_ascii_case("image/tiff"sv)
-        || type.equals_ignoring_ascii_case("image/tinyvg"sv)
-        || type.equals_ignoring_ascii_case("image/webp"sv)
-        || type.equals_ignoring_ascii_case("image/svg+xml"sv))
+    if (type.equals_ignoring_ascii_case("image/bmp"_sv)
+        || type.equals_ignoring_ascii_case("image/gif"_sv)
+        || type.equals_ignoring_ascii_case("image/vnd.microsoft.icon"_sv)
+        || type.equals_ignoring_ascii_case("image/x-icon"_sv)
+        || type.equals_ignoring_ascii_case("image/jpeg"_sv)
+        || type.equals_ignoring_ascii_case("image/jpg"_sv)
+        || type.equals_ignoring_ascii_case("image/pjpeg"_sv)
+        || type.equals_ignoring_ascii_case("image/jxl"_sv)
+        || type.equals_ignoring_ascii_case("image/png"_sv)
+        || type.equals_ignoring_ascii_case("image/apng"_sv)
+        || type.equals_ignoring_ascii_case("image/x-png"_sv)
+        || type.equals_ignoring_ascii_case("image/tiff"_sv)
+        || type.equals_ignoring_ascii_case("image/tinyvg"_sv)
+        || type.equals_ignoring_ascii_case("image/webp"_sv)
+        || type.equals_ignoring_ascii_case("image/svg+xml"_sv))
         return true;
 
     return false;
@@ -1225,8 +1225,8 @@ bool HTMLImageElement::allows_auto_sizes() const
         return false;
     auto sizes = attribute(HTML::AttributeNames::sizes);
     return sizes.has_value()
-        && (sizes->equals_ignoring_ascii_case("auto"sv)
-            || sizes->starts_with_bytes("auto,"sv, AK::CaseSensitivity::CaseInsensitive));
+        && (sizes->equals_ignoring_ascii_case("auto"_sv)
+            || sizes->starts_with_bytes("auto,"_sv, AK::CaseSensitivity::CaseInsensitive));
 }
 
 }

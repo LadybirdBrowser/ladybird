@@ -73,7 +73,7 @@ void RadioNodeList::set_value(FlyString const& value)
     // 1. If the new value is the string "on": let element be the first element in tree order represented by the RadioNodeList object
     //    that is an input element whose type attribute is in the Radio Button state and whose value content attribute is either absent,
     //    or present and equal to the new value, if any. If no such element exists, then instead let element be null.
-    if (value == "on"sv) {
+    if (value == "on"_sv) {
         element = as<HTMLInputElement>(first_matching([&value](auto const& node) {
             auto const* button = radio_button(node);
             if (!button)

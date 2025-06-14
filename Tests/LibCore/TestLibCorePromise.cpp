@@ -38,7 +38,7 @@ TEST_CASE(promise_await_async_event_rejection)
 
     auto result = promise->await();
     EXPECT(result.is_error());
-    EXPECT_EQ(result.error().string_literal(), "lol no"sv);
+    EXPECT_EQ(result.error().string_literal(), "lol no"_sv);
 }
 
 TEST_CASE(promise_chain_handlers)

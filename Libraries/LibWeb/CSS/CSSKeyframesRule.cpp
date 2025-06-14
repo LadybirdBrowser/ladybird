@@ -44,7 +44,7 @@ String CSSKeyframesRule::serialized() const
 {
     StringBuilder builder;
     builder.appendff("@keyframes \"{}\"", name());
-    builder.append(" { "sv);
+    builder.append(" { "_sv);
     for (auto const& keyframe : *m_rules) {
         builder.append(keyframe->css_text());
         builder.append(' ');

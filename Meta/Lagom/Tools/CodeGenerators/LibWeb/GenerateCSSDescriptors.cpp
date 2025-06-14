@@ -17,7 +17,7 @@ ErrorOr<void> generate_implementation_file(JsonObject const& at_rules_data, Core
 
 static bool is_legacy_alias(JsonObject const& descriptor)
 {
-    return descriptor.has_string("legacy-alias-for"sv);
+    return descriptor.has_string("legacy-alias-for"_sv);
 }
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -59,7 +59,7 @@ ErrorOr<void> generate_header_file(JsonObject const& at_rules_data, Core::File& 
         auto const& at_rule = value.as_object();
         ++at_rule_count;
 
-        if (auto descriptors = at_rule.get_object("descriptors"sv); descriptors.has_value()) {
+        if (auto descriptors = at_rule.get_object("descriptors"_sv); descriptors.has_value()) {
             descriptors.value().for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
                 if (is_legacy_alias(descriptor_value.as_object()))
                     return;
@@ -188,20 +188,20 @@ Optional<DescriptorID> descriptor_id_from_string(AtRuleID at_rule_id, StringView
     case AtRuleID::@at_rule:titlecase@:
 )~~~");
 
-        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+        auto const& descriptors = at_rule.get_object("descriptors"_sv).value();
 
         descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
             auto const& descriptor = descriptor_value.as_object();
             auto descriptor_generator = at_rule_generator.fork();
 
             descriptor_generator.set("descriptor", descriptor_name);
-            if (auto alias_for = descriptor.get_string("legacy-alias-for"sv); alias_for.has_value()) {
+            if (auto alias_for = descriptor.get_string("legacy-alias-for"_sv); alias_for.has_value()) {
                 descriptor_generator.set("result:titlecase", title_casify(alias_for.value()));
             } else {
                 descriptor_generator.set("result:titlecase", title_casify(descriptor_name));
             }
             descriptor_generator.append(R"~~~(
-        if (string.equals_ignoring_ascii_case("@descriptor@"sv))
+        if (string.equals_ignoring_ascii_case("@descriptor@"_sv))
             return DescriptorID::@result:titlecase@;
 )~~~");
         });
@@ -252,7 +252,7 @@ bool at_rule_supports_descriptor(AtRuleID at_rule_id, DescriptorID descriptor_id
         switch (descriptor_id) {
 )~~~");
 
-        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+        auto const& descriptors = at_rule.get_object("descriptors"_sv).value();
         descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
             if (is_legacy_alias(descriptor_value.as_object()))
                 return;
@@ -301,7 +301,7 @@ RefPtr<CSSStyleValue const> descriptor_initial_value(AtRuleID at_rule_id, Descri
         switch (descriptor_id) {
 )~~~");
 
-        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+        auto const& descriptors = at_rule.get_object("descriptors"_sv).value();
         descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
             auto const& descriptor = descriptor_value.as_object();
             if (is_legacy_alias(descriptor))
@@ -310,11 +310,11 @@ RefPtr<CSSStyleValue const> descriptor_initial_value(AtRuleID at_rule_id, Descri
             auto descriptor_generator = at_rule_generator.fork();
             descriptor_generator.set("descriptor:titlecase", title_casify(descriptor_name));
 
-            if (auto initial_value = descriptor.get_string("initial"sv); initial_value.has_value()) {
+            if (auto initial_value = descriptor.get_string("initial"_sv); initial_value.has_value()) {
                 descriptor_generator.set("initial_value_string", initial_value.value());
                 descriptor_generator.append(R"~~~(
         case DescriptorID::@descriptor:titlecase@: {
-            auto parsed_value = parse_css_descriptor(parsing_params, AtRuleID::@at_rule:titlecase@, DescriptorID::@descriptor:titlecase@, "@initial_value_string@"sv);
+            auto parsed_value = parse_css_descriptor(parsing_params, AtRuleID::@at_rule:titlecase@, DescriptorID::@descriptor:titlecase@, "@initial_value_string@"_sv);
             VERIFY(!parsed_value.is_null());
             auto initial_value = parsed_value.release_nonnull();
             initial_values[to_underlying(at_rule_id)][to_underlying(descriptor_id)] = initial_value;
@@ -356,7 +356,7 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
         switch (descriptor_id) {
 )~~~");
 
-        auto const& descriptors = at_rule.get_object("descriptors"sv).value();
+        auto const& descriptors = at_rule.get_object("descriptors"_sv).value();
         descriptors.for_each_member([&](auto const& descriptor_name, JsonValue const& descriptor_value) {
             auto const& descriptor = descriptor_value.as_object();
             if (is_legacy_alias(descriptor))
@@ -368,14 +368,14 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
         case DescriptorID::@descriptor:titlecase@: {
             DescriptorMetadata metadata;
 )~~~");
-            auto const& syntax = descriptor.get_array("syntax"sv).value();
+            auto const& syntax = descriptor.get_array("syntax"_sv).value();
             for (auto const& entry : syntax.values()) {
                 auto option_generator = descriptor_generator.fork();
                 auto const& syntax_string = entry.as_string();
 
-                if (syntax_string.starts_with_bytes("<'"sv)) {
+                if (syntax_string.starts_with_bytes("<'"_sv)) {
                     // Property
-                    option_generator.set("property:titlecase"sv, title_casify(MUST(syntax_string.substring_from_byte_offset_with_shared_superstring(2, syntax_string.byte_count() - 4))));
+                    option_generator.set("property:titlecase"_sv, title_casify(MUST(syntax_string.substring_from_byte_offset_with_shared_superstring(2, syntax_string.byte_count() - 4))));
                     option_generator.append(R"~~~(
             metadata.syntax.empend(PropertyID::@property:titlecase@);
 )~~~");
@@ -383,37 +383,37 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                     // Value type
                     // FIXME: Actually parse the grammar, instead of hard-coding the options!
                     auto value_type = [&syntax_string] {
-                        if (syntax_string == "<family-name>"sv)
+                        if (syntax_string == "<family-name>"_sv)
                             return "FamilyName"_string;
-                        if (syntax_string == "<font-src-list>"sv)
+                        if (syntax_string == "<font-src-list>"_sv)
                             return "FontSrcList"_string;
-                        if (syntax_string == "<declaration-value>?"sv)
+                        if (syntax_string == "<declaration-value>?"_sv)
                             return "OptionalDeclarationValue"_string;
-                        if (syntax_string == "<length>"sv)
+                        if (syntax_string == "<length>"_sv)
                             return "Length"_string;
-                        if (syntax_string == "<page-size>"sv)
+                        if (syntax_string == "<page-size>"_sv)
                             return "PageSize"_string;
-                        if (syntax_string == "<percentage [0,∞]>"sv)
+                        if (syntax_string == "<percentage [0,∞]>"_sv)
                             return "PositivePercentage"_string;
-                        if (syntax_string == "<string>"sv)
+                        if (syntax_string == "<string>"_sv)
                             return "String"_string;
-                        if (syntax_string == "<unicode-range-token>#"sv)
+                        if (syntax_string == "<unicode-range-token>#"_sv)
                             return "UnicodeRangeTokens"_string;
                         dbgln("Unrecognized value type: `{}`", syntax_string);
                         VERIFY_NOT_REACHED();
                     }();
-                    option_generator.set("value_type"sv, value_type);
+                    option_generator.set("value_type"_sv, value_type);
                     option_generator.append(R"~~~(
             metadata.syntax.empend(DescriptorMetadata::ValueType::@value_type@);
 )~~~");
-                } else if (syntax_string == "crop || cross"sv) {
+                } else if (syntax_string == "crop || cross"_sv) {
                     // FIXME: This is extra hacky.
                     option_generator.append(R"~~~(
             metadata.syntax.empend(DescriptorMetadata::ValueType::CropOrCross);
 )~~~");
                 } else {
                     // Keyword
-                    option_generator.set("keyword:titlecase"sv, title_casify(syntax_string));
+                    option_generator.set("keyword:titlecase"_sv, title_casify(syntax_string));
                     option_generator.append(R"~~~(
             metadata.syntax.empend(Keyword::@keyword:titlecase@);
 )~~~");

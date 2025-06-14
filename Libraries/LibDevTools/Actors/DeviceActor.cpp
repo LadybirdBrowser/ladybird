@@ -26,7 +26,7 @@ DeviceActor::~DeviceActor() = default;
 
 void DeviceActor::handle_message(Message const& message)
 {
-    if (message.type == "getDescription"sv) {
+    if (message.type == "getDescription"_sv) {
         auto build_id = Core::Version::read_long_version_string();
 
         static auto browser_name = String::from_utf8_without_validation({ BROWSER_NAME, __builtin_strlen(BROWSER_NAME) });
@@ -36,19 +36,19 @@ void DeviceActor::handle_message(Message const& message)
 
         // https://github.com/mozilla/gecko-dev/blob/master/devtools/shared/system.js
         JsonObject value;
-        value.set("apptype"sv, browser_name.to_ascii_lowercase());
-        value.set("name"sv, browser_name);
-        value.set("brandName"sv, browser_name);
-        value.set("version"sv, browser_version);
-        value.set("appbuildid"sv, build_id);
-        value.set("platformbuildid"sv, build_id);
-        value.set("platformversion"sv, "139.0"sv);
-        value.set("useragent"sv, Web::default_user_agent);
-        value.set("os"sv, platform_name);
-        value.set("arch"sv, arch);
+        value.set("apptype"_sv, browser_name.to_ascii_lowercase());
+        value.set("name"_sv, browser_name);
+        value.set("brandName"_sv, browser_name);
+        value.set("version"_sv, browser_version);
+        value.set("appbuildid"_sv, build_id);
+        value.set("platformbuildid"_sv, build_id);
+        value.set("platformversion"_sv, "139.0"_sv);
+        value.set("useragent"_sv, Web::default_user_agent);
+        value.set("os"_sv, platform_name);
+        value.set("arch"_sv, arch);
 
         JsonObject response;
-        response.set("value"sv, move(value));
+        response.set("value"_sv, move(value));
         send_response(message, move(response));
 
         return;

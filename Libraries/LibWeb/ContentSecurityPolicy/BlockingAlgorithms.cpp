@@ -193,7 +193,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
     }
 
     // 3. If result is "Allowed", and if navigation request’s current URL’s scheme is javascript:
-    if (result == Directives::Directive::Result::Allowed && navigation_request->current_url().scheme() == "javascript"sv) {
+    if (result == Directives::Directive::Result::Allowed && navigation_request->current_url().scheme() == "javascript"_sv) {
         // 1. For each policy of navigation request’s policy container’s CSP list:
         VERIFY(navigation_request->policy_container().has<GC::Ref<HTML::PolicyContainer>>());
         auto csp_list = navigation_request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->csp_list;

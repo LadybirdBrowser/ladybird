@@ -67,8 +67,8 @@ public:
     // %Z:      require timezone name
     // %+:      ignore until next '%'
     // %%:      require character '%'
-    ErrorOr<String> to_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
-    ByteString to_byte_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
+    ErrorOr<String> to_string(StringView format = "%Y-%m-%d %H:%M:%S"_sv, LocalTime = LocalTime::Yes) const;
+    ByteString to_byte_string(StringView format = "%Y-%m-%d %H:%M:%S"_sv, LocalTime = LocalTime::Yes) const;
 
     static DateTime create(int year, int month = 1, int day = 1, int hour = 0, int minute = 0, int second = 0);
     static DateTime now();

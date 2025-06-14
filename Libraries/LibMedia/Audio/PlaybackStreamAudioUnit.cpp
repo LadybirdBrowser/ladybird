@@ -297,90 +297,90 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::set_volume(d
 void log_os_error_code([[maybe_unused]] OSStatus error_code, [[maybe_unused]] SourceLocation location)
 {
 #if AUDIO_DEBUG
-    auto error_string = "Unknown error"sv;
+    auto error_string = "Unknown error"_sv;
 
     // Errors listed in AUComponent.h
     switch (error_code) {
     case kAudioUnitErr_InvalidProperty:
-        error_string = "InvalidProperty"sv;
+        error_string = "InvalidProperty"_sv;
         break;
     case kAudioUnitErr_InvalidParameter:
-        error_string = "InvalidParameter"sv;
+        error_string = "InvalidParameter"_sv;
         break;
     case kAudioUnitErr_InvalidElement:
-        error_string = "InvalidElement"sv;
+        error_string = "InvalidElement"_sv;
         break;
     case kAudioUnitErr_NoConnection:
-        error_string = "NoConnection"sv;
+        error_string = "NoConnection"_sv;
         break;
     case kAudioUnitErr_FailedInitialization:
-        error_string = "FailedInitialization"sv;
+        error_string = "FailedInitialization"_sv;
         break;
     case kAudioUnitErr_TooManyFramesToProcess:
-        error_string = "TooManyFramesToProcess"sv;
+        error_string = "TooManyFramesToProcess"_sv;
         break;
     case kAudioUnitErr_InvalidFile:
-        error_string = "InvalidFile"sv;
+        error_string = "InvalidFile"_sv;
         break;
     case kAudioUnitErr_UnknownFileType:
-        error_string = "UnknownFileType"sv;
+        error_string = "UnknownFileType"_sv;
         break;
     case kAudioUnitErr_FileNotSpecified:
-        error_string = "FileNotSpecified"sv;
+        error_string = "FileNotSpecified"_sv;
         break;
     case kAudioUnitErr_FormatNotSupported:
-        error_string = "FormatNotSupported"sv;
+        error_string = "FormatNotSupported"_sv;
         break;
     case kAudioUnitErr_Uninitialized:
-        error_string = "Uninitialized"sv;
+        error_string = "Uninitialized"_sv;
         break;
     case kAudioUnitErr_InvalidScope:
-        error_string = "InvalidScope"sv;
+        error_string = "InvalidScope"_sv;
         break;
     case kAudioUnitErr_PropertyNotWritable:
-        error_string = "PropertyNotWritable"sv;
+        error_string = "PropertyNotWritable"_sv;
         break;
     case kAudioUnitErr_CannotDoInCurrentContext:
-        error_string = "CannotDoInCurrentContext"sv;
+        error_string = "CannotDoInCurrentContext"_sv;
         break;
     case kAudioUnitErr_InvalidPropertyValue:
-        error_string = "InvalidPropertyValue"sv;
+        error_string = "InvalidPropertyValue"_sv;
         break;
     case kAudioUnitErr_PropertyNotInUse:
-        error_string = "PropertyNotInUse"sv;
+        error_string = "PropertyNotInUse"_sv;
         break;
     case kAudioUnitErr_Initialized:
-        error_string = "Initialized"sv;
+        error_string = "Initialized"_sv;
         break;
     case kAudioUnitErr_InvalidOfflineRender:
-        error_string = "InvalidOfflineRender"sv;
+        error_string = "InvalidOfflineRender"_sv;
         break;
     case kAudioUnitErr_Unauthorized:
-        error_string = "Unauthorized"sv;
+        error_string = "Unauthorized"_sv;
         break;
     case kAudioUnitErr_MIDIOutputBufferFull:
-        error_string = "MIDIOutputBufferFull"sv;
+        error_string = "MIDIOutputBufferFull"_sv;
         break;
     case kAudioComponentErr_InstanceTimedOut:
-        error_string = "InstanceTimedOut"sv;
+        error_string = "InstanceTimedOut"_sv;
         break;
     case kAudioComponentErr_InstanceInvalidated:
-        error_string = "InstanceInvalidated"sv;
+        error_string = "InstanceInvalidated"_sv;
         break;
     case kAudioUnitErr_RenderTimeout:
-        error_string = "RenderTimeout"sv;
+        error_string = "RenderTimeout"_sv;
         break;
     case kAudioUnitErr_ExtensionNotFound:
-        error_string = "ExtensionNotFound"sv;
+        error_string = "ExtensionNotFound"_sv;
         break;
     case kAudioUnitErr_InvalidParameterValue:
-        error_string = "InvalidParameterValue"sv;
+        error_string = "InvalidParameterValue"_sv;
         break;
     case kAudioUnitErr_InvalidFilePath:
-        error_string = "InvalidFilePath"sv;
+        error_string = "InvalidFilePath"_sv;
         break;
     case kAudioUnitErr_MissingKey:
-        error_string = "MissingKey"sv;
+        error_string = "MissingKey"_sv;
         break;
     default:
         break;

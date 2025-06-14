@@ -53,7 +53,7 @@ ErrorOr<NonnullRefPtr<Resource>> Resource::load_from_uri(StringView uri)
 
 String Resource::uri() const
 {
-    return MUST(String::formatted("{}://{}", m_scheme == Scheme::Resource ? "resource"sv : "file"sv, m_path));
+    return MUST(String::formatted("{}://{}", m_scheme == Scheme::Resource ? "resource"_sv : "file"_sv, m_path));
 }
 
 String Resource::filesystem_path() const

@@ -21,7 +21,7 @@ template<>
 struct AK::Formatter<AK::FloatingPointExponentialForm> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, AK::FloatingPointExponentialForm value)
     {
-        return Formatter<FormatString>::format(builder, "(s={} f={} e={})"sv, value.sign, value.fraction, value.exponent);
+        return Formatter<FormatString>::format(builder, "(s={} f={} e={})"_sv, value.sign, value.fraction, value.exponent);
     }
 };
 

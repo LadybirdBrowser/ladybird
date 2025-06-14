@@ -63,23 +63,23 @@ void HTMLLIElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
     // https://html.spec.whatwg.org/multipage/rendering.html#lists
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::type) {
-            if (value == "1"sv) {
+            if (value == "1"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Decimal));
-            } else if (value == "a"sv) {
+            } else if (value == "a"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::LowerAlpha));
-            } else if (value == "A"sv) {
+            } else if (value == "A"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::UpperAlpha));
-            } else if (value == "i"sv) {
+            } else if (value == "i"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::LowerRoman));
-            } else if (value == "I"sv) {
+            } else if (value == "I"_sv) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::UpperRoman));
-            } else if (value.equals_ignoring_ascii_case("none"sv)) {
+            } else if (value.equals_ignoring_ascii_case("none"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::None));
-            } else if (value.equals_ignoring_ascii_case("disc"sv)) {
+            } else if (value.equals_ignoring_ascii_case("disc"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Disc));
-            } else if (value.equals_ignoring_ascii_case("circle"sv)) {
+            } else if (value.equals_ignoring_ascii_case("circle"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Circle));
-            } else if (value.equals_ignoring_ascii_case("square"sv)) {
+            } else if (value.equals_ignoring_ascii_case("square"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Square));
             }
         }

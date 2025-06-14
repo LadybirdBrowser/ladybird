@@ -121,143 +121,143 @@ namespace Web::DOM {
 
 ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interface(StringView html_element_interface_name)
 {
-    if (html_element_interface_name == "HTMLAnchorElement"sv)
+    if (html_element_interface_name == "HTMLAnchorElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::a });
-    if (html_element_interface_name == "HTMLAreaElement"sv)
+    if (html_element_interface_name == "HTMLAreaElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::area });
-    if (html_element_interface_name == "HTMLAudioElement"sv)
+    if (html_element_interface_name == "HTMLAudioElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::audio });
-    if (html_element_interface_name == "HTMLBaseElement"sv)
+    if (html_element_interface_name == "HTMLBaseElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::base });
-    if (html_element_interface_name == "HTMLBodyElement"sv)
+    if (html_element_interface_name == "HTMLBodyElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::body });
-    if (html_element_interface_name == "HTMLBRElement"sv)
+    if (html_element_interface_name == "HTMLBRElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::br });
-    if (html_element_interface_name == "HTMLButtonElement"sv)
+    if (html_element_interface_name == "HTMLButtonElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::button });
-    if (html_element_interface_name == "HTMLCanvasElement"sv)
+    if (html_element_interface_name == "HTMLCanvasElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::canvas });
-    if (html_element_interface_name == "HTMLDataElement"sv)
+    if (html_element_interface_name == "HTMLDataElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::data });
-    if (html_element_interface_name == "HTMLDataListElement"sv)
+    if (html_element_interface_name == "HTMLDataListElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::datalist });
-    if (html_element_interface_name == "HTMLDetailsElement"sv)
+    if (html_element_interface_name == "HTMLDetailsElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::details });
-    if (html_element_interface_name == "HTMLDialogElement"sv)
+    if (html_element_interface_name == "HTMLDialogElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::dialog });
-    if (html_element_interface_name == "HTMLDirectoryElement"sv)
+    if (html_element_interface_name == "HTMLDirectoryElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::dir });
-    if (html_element_interface_name == "HTMLDivElement"sv)
+    if (html_element_interface_name == "HTMLDivElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::div });
-    if (html_element_interface_name == "HTMLDListElement"sv)
+    if (html_element_interface_name == "HTMLDListElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::dl });
-    if (html_element_interface_name == "HTMLEmbedElement"sv)
+    if (html_element_interface_name == "HTMLEmbedElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::embed });
-    if (html_element_interface_name == "HTMLFieldSetElement"sv)
+    if (html_element_interface_name == "HTMLFieldSetElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::fieldset });
-    if (html_element_interface_name == "HTMLFontElement"sv)
+    if (html_element_interface_name == "HTMLFontElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::font });
-    if (html_element_interface_name == "HTMLFormElement"sv)
+    if (html_element_interface_name == "HTMLFormElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::form });
-    if (html_element_interface_name == "HTMLFrameElement"sv)
+    if (html_element_interface_name == "HTMLFrameElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::frame });
-    if (html_element_interface_name == "HTMLFrameSetElement"sv)
+    if (html_element_interface_name == "HTMLFrameSetElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::frameset });
-    if (html_element_interface_name == "HTMLHeadElement"sv)
+    if (html_element_interface_name == "HTMLHeadElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::head });
-    if (html_element_interface_name == "HTMLHeadingElement"sv)
+    if (html_element_interface_name == "HTMLHeadingElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5, HTML::TagNames::h6 });
-    if (html_element_interface_name == "HTMLHRElement"sv)
+    if (html_element_interface_name == "HTMLHRElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::hr });
-    if (html_element_interface_name == "HTMLHtmlElement"sv)
+    if (html_element_interface_name == "HTMLHtmlElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::html });
-    if (html_element_interface_name == "HTMLIFrameElement"sv)
+    if (html_element_interface_name == "HTMLIFrameElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::iframe });
-    if (html_element_interface_name == "HTMLImageElement"sv)
+    if (html_element_interface_name == "HTMLImageElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::img });
-    if (html_element_interface_name == "HTMLInputElement"sv)
+    if (html_element_interface_name == "HTMLInputElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::input });
-    if (html_element_interface_name == "HTMLLabelElement"sv)
+    if (html_element_interface_name == "HTMLLabelElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::label });
-    if (html_element_interface_name == "HTMLLegendElement"sv)
+    if (html_element_interface_name == "HTMLLegendElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::legend });
-    if (html_element_interface_name == "HTMLLIElement"sv)
+    if (html_element_interface_name == "HTMLLIElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::li });
-    if (html_element_interface_name == "HTMLLinkElement"sv)
+    if (html_element_interface_name == "HTMLLinkElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::link });
-    if (html_element_interface_name == "HTMLMapElement"sv)
+    if (html_element_interface_name == "HTMLMapElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::map });
-    if (html_element_interface_name == "HTMLMarqueeElement"sv)
+    if (html_element_interface_name == "HTMLMarqueeElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::marquee });
-    if (html_element_interface_name == "HTMLMenuElement"sv)
+    if (html_element_interface_name == "HTMLMenuElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::menu });
-    if (html_element_interface_name == "HTMLMetaElement"sv)
+    if (html_element_interface_name == "HTMLMetaElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::meta });
-    if (html_element_interface_name == "HTMLMeterElement"sv)
+    if (html_element_interface_name == "HTMLMeterElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::meter });
-    if (html_element_interface_name == "HTMLModElement"sv)
+    if (html_element_interface_name == "HTMLModElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::ins, HTML::TagNames::del });
-    if (html_element_interface_name == "HTMLOListElement"sv)
+    if (html_element_interface_name == "HTMLOListElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::ol });
-    if (html_element_interface_name == "HTMLObjectElement"sv)
+    if (html_element_interface_name == "HTMLObjectElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::object });
-    if (html_element_interface_name == "HTMLOptGroupElement"sv)
+    if (html_element_interface_name == "HTMLOptGroupElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::optgroup });
-    if (html_element_interface_name == "HTMLOptionElement"sv)
+    if (html_element_interface_name == "HTMLOptionElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::option });
-    if (html_element_interface_name == "HTMLOutputElement"sv)
+    if (html_element_interface_name == "HTMLOutputElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::output });
-    if (html_element_interface_name == "HTMLParagraphElement"sv)
+    if (html_element_interface_name == "HTMLParagraphElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::p });
-    if (html_element_interface_name == "HTMLParamElement"sv)
+    if (html_element_interface_name == "HTMLParamElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::param });
-    if (html_element_interface_name == "HTMLPictureElement"sv)
+    if (html_element_interface_name == "HTMLPictureElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::picture });
-    if (html_element_interface_name == "HTMLPreElement"sv)
+    if (html_element_interface_name == "HTMLPreElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::pre, HTML::TagNames::listing, HTML::TagNames::xmp });
-    if (html_element_interface_name == "HTMLProgressElement"sv)
+    if (html_element_interface_name == "HTMLProgressElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::progress });
-    if (html_element_interface_name == "HTMLQuoteElement"sv)
+    if (html_element_interface_name == "HTMLQuoteElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::blockquote, HTML::TagNames::q });
-    if (html_element_interface_name == "HTMLScriptElement"sv)
+    if (html_element_interface_name == "HTMLScriptElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::script });
-    if (html_element_interface_name == "HTMLSelectElement"sv)
+    if (html_element_interface_name == "HTMLSelectElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::select });
-    if (html_element_interface_name == "HTMLSlotElement"sv)
+    if (html_element_interface_name == "HTMLSlotElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::slot });
-    if (html_element_interface_name == "HTMLSourceElement"sv)
+    if (html_element_interface_name == "HTMLSourceElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::source });
-    if (html_element_interface_name == "HTMLSpanElement"sv)
+    if (html_element_interface_name == "HTMLSpanElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::span });
-    if (html_element_interface_name == "HTMLStyleElement"sv)
+    if (html_element_interface_name == "HTMLStyleElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::style });
-    if (html_element_interface_name == "HTMLTableCaptionElement"sv)
+    if (html_element_interface_name == "HTMLTableCaptionElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::caption });
-    if (html_element_interface_name == "HTMLTableCellElement"sv)
+    if (html_element_interface_name == "HTMLTableCellElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::td, HTML::TagNames::th });
-    if (html_element_interface_name == "HTMLTableColElement"sv)
+    if (html_element_interface_name == "HTMLTableColElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::colgroup, HTML::TagNames::col });
-    if (html_element_interface_name == "HTMLTableRowElement"sv)
+    if (html_element_interface_name == "HTMLTableRowElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::tr });
-    if (html_element_interface_name == "HTMLTableElement"sv)
+    if (html_element_interface_name == "HTMLTableElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::table });
-    if (html_element_interface_name == "HTMLTableSectionElement"sv)
+    if (html_element_interface_name == "HTMLTableSectionElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::tbody, HTML::TagNames::thead, HTML::TagNames::tfoot });
-    if (html_element_interface_name == "HTMLTemplateElement"sv)
+    if (html_element_interface_name == "HTMLTemplateElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::template_ });
-    if (html_element_interface_name == "HTMLTextAreaElement"sv)
+    if (html_element_interface_name == "HTMLTextAreaElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::textarea });
-    if (html_element_interface_name == "HTMLTimeElement"sv)
+    if (html_element_interface_name == "HTMLTimeElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::time });
-    if (html_element_interface_name == "HTMLTitleElement"sv)
+    if (html_element_interface_name == "HTMLTitleElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::title });
-    if (html_element_interface_name == "HTMLTrackElement"sv)
+    if (html_element_interface_name == "HTMLTrackElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::track });
-    if (html_element_interface_name == "HTMLUListElement"sv)
+    if (html_element_interface_name == "HTMLUListElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::ul });
-    if (html_element_interface_name == "HTMLVideoElement"sv)
+    if (html_element_interface_name == "HTMLVideoElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::video });
-    if (html_element_interface_name == "HTMLElement"sv)
+    if (html_element_interface_name == "HTMLElement"_sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::article, HTML::TagNames::search, HTML::TagNames::section, HTML::TagNames::nav, HTML::TagNames::aside, HTML::TagNames::hgroup, HTML::TagNames::header, HTML::TagNames::footer, HTML::TagNames::address, HTML::TagNames::dt, HTML::TagNames::dd, HTML::TagNames::figure, HTML::TagNames::figcaption, HTML::TagNames::main, HTML::TagNames::em, HTML::TagNames::strong, HTML::TagNames::small, HTML::TagNames::s, HTML::TagNames::cite, HTML::TagNames::dfn, HTML::TagNames::abbr, HTML::TagNames::ruby, HTML::TagNames::rt, HTML::TagNames::rp, HTML::TagNames::code, HTML::TagNames::var, HTML::TagNames::samp, HTML::TagNames::kbd, HTML::TagNames::sub, HTML::TagNames::sup, HTML::TagNames::i, HTML::TagNames::b, HTML::TagNames::u, HTML::TagNames::mark, HTML::TagNames::bdi, HTML::TagNames::bdo, HTML::TagNames::wbr, HTML::TagNames::summary, HTML::TagNames::noscript, HTML::TagNames::acronym, HTML::TagNames::basefont, HTML::TagNames::big, HTML::TagNames::center, HTML::TagNames::nobr, HTML::TagNames::noembed, HTML::TagNames::noframes, HTML::TagNames::plaintext, HTML::TagNames::rb, HTML::TagNames::rtc, HTML::TagNames::strike, HTML::TagNames::tt });
     return FixedArray<FlyString>::create({});
 }

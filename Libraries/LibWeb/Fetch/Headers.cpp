@@ -70,7 +70,7 @@ WebIDL::ExceptionOr<void> Headers::delete_(String const& name_string)
 
     // 1. If validating (name, ``) for headers returns false, then return.
     // NOTE: Passing a dummy header value ought not to have any negative repercussions.
-    auto header = Infrastructure::Header::from_string_pair(name, ""sv);
+    auto header = Infrastructure::Header::from_string_pair(name, ""_sv);
     if (!TRY(validate(header)))
         return {};
 
@@ -100,7 +100,7 @@ WebIDL::ExceptionOr<Optional<String>> Headers::get(String const& name_string)
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!Infrastructure::is_header_name(name))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"_sv };
 
     // 2. Return the result of getting name from this’s header list.
     auto byte_buffer = m_header_list->get(name);
@@ -114,13 +114,13 @@ Vector<String> Headers::get_set_cookie()
     auto values = Vector<String> {};
 
     // 1. If this’s header list does not contain `Set-Cookie`, then return « ».
-    if (!m_header_list->contains("Set-Cookie"sv.bytes()))
+    if (!m_header_list->contains("Set-Cookie"_sv.bytes()))
         return values;
 
     // 2. Return the values of all headers in this’s header list whose name is a byte-case-insensitive match for
     //    `Set-Cookie`, in order.
     for (auto const& header : *m_header_list) {
-        if (StringView { header.name }.equals_ignoring_ascii_case("Set-Cookie"sv))
+        if (StringView { header.name }.equals_ignoring_ascii_case("Set-Cookie"_sv))
             values.append(Infra::isomorphic_decode(header.value));
     }
     return values;
@@ -134,7 +134,7 @@ WebIDL::ExceptionOr<bool> Headers::has(String const& name_string)
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!Infrastructure::is_header_name(name))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"_sv };
 
     // 2. Return true if this’s header list contains name; otherwise false.
     return m_header_list->contains(name);
@@ -212,13 +212,13 @@ WebIDL::ExceptionOr<bool> Headers::validate(Infrastructure::Header const& header
 
     // 1. If name is not a header name or value is not a header value, then throw a TypeError.
     if (!Infrastructure::is_header_name(name))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"_sv };
     if (!Infrastructure::is_header_value(value))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header value"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header value"_sv };
 
     // 2. If headers’s guard is "immutable", then throw a TypeError.
     if (m_guard == Guard::Immutable)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Headers object is immutable"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Headers object is immutable"_sv };
 
     // 3. If headers’s guard is "request" and (name, value) is a forbidden request-header, then return false.
     if (m_guard == Guard::Request && Infrastructure::is_forbidden_request_header(header))
@@ -291,7 +291,7 @@ WebIDL::ExceptionOr<void> Headers::fill(HeadersInit const& object)
             for (auto const& entry : object) {
                 // 1. If header's size is not 2, then throw a TypeError.
                 if (entry.size() != 2)
-                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Array must contain header key/value pair"sv };
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Array must contain header key/value pair"_sv };
 
                 // 2. Append (header[0], header[1]) to headers.
                 auto header = Infrastructure::Header::from_string_pair(entry[0], entry[1]);
@@ -315,7 +315,7 @@ void Headers::remove_privileged_no_cors_request_headers()
     // To remove privileged no-CORS request-headers from a Headers object (headers), run these steps:
 
     static constexpr Array privileged_no_cors_request_header_names = {
-        "Range"sv,
+        "Range"_sv,
     };
 
     // 1. For each headerName of privileged no-CORS request-header names:

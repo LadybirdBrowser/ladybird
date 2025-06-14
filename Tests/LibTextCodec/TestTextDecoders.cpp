@@ -13,7 +13,7 @@ TEST_CASE(test_utf8_decode)
 {
     auto decoder = TextCodec::UTF8Decoder();
     // Bytes for U+1F600 GRINNING FACE
-    auto test_string = "\xf0\x9f\x98\x80"sv;
+    auto test_string = "\xf0\x9f\x98\x80"_sv;
 
     EXPECT(decoder.validate(test_string));
 
@@ -31,20 +31,20 @@ TEST_CASE(test_utf16be_decode)
 {
     auto decoder = TextCodec::UTF16BEDecoder();
     // This is the output of `python3 -c "print('säk😀'.encode('utf-16be'))"`.
-    auto test_string = "\x00s\x00\xe4\x00k\xd8=\xde\x00"sv;
+    auto test_string = "\x00s\x00\xe4\x00k\xd8=\xde\x00"_sv;
 
     EXPECT(decoder.validate(test_string));
     auto utf8 = MUST(decoder.to_utf8(test_string));
-    EXPECT_EQ(utf8, "säk😀"sv);
+    EXPECT_EQ(utf8, "säk😀"_sv);
 }
 
 TEST_CASE(test_utf16le_decode)
 {
     auto decoder = TextCodec::UTF16LEDecoder();
     // This is the output of `python3 -c "print('säk😀'.encode('utf-16le'))"`.
-    auto test_string = "s\x00\xe4\x00k\x00=\xd8\x00\xde"sv;
+    auto test_string = "s\x00\xe4\x00k\x00=\xd8\x00\xde"_sv;
 
     EXPECT(decoder.validate(test_string));
     auto utf8 = MUST(decoder.to_utf8(test_string));
-    EXPECT_EQ(utf8, "säk😀"sv);
+    EXPECT_EQ(utf8, "säk😀"_sv);
 }

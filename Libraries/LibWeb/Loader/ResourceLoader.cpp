@@ -58,7 +58,7 @@ ResourceLoader::ResourceLoader(GC::Heap& heap, NonnullRefPtr<Requests::RequestCl
 
 void ResourceLoader::prefetch_dns(URL::URL const& url)
 {
-    if (url.scheme().is_one_of("file"sv, "data"sv))
+    if (url.scheme().is_one_of("file"_sv, "data"_sv))
         return;
 
     if (ContentFilter::the().is_filtered(url)) {
@@ -71,7 +71,7 @@ void ResourceLoader::prefetch_dns(URL::URL const& url)
 
 void ResourceLoader::preconnect(URL::URL const& url)
 {
-    if (url.scheme().is_one_of("file"sv, "data"sv))
+    if (url.scheme().is_one_of("file"_sv, "data"_sv))
         return;
 
     if (ContentFilter::the().is_filtered(url)) {
@@ -122,8 +122,8 @@ RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest&
 
 static ByteString sanitized_url_for_logging(URL::URL const& url)
 {
-    if (url.scheme() == "data"sv)
-        return "[data URL]"sv;
+    if (url.scheme() == "data"_sv)
+        return "[data URL]"_sv;
     return url.to_byte_string();
 }
 
@@ -142,12 +142,12 @@ static HTTP::HeaderMap response_headers_for_file(StringView path, Optional<time_
     auto mime_type = Core::guess_mime_type_based_on_filename(path);
 
     HTTP::HeaderMap response_headers;
-    response_headers.set("Access-Control-Allow-Origin"sv, "null"sv);
-    response_headers.set("Content-Type"sv, mime_type);
+    response_headers.set("Access-Control-Allow-Origin"_sv, "null"_sv);
+    response_headers.set("Content-Type"_sv, mime_type);
 
     if (modified_time.has_value()) {
         auto const datetime = Core::DateTime::from_timestamp(modified_time.value());
-        response_headers.set("Last-Modified"sv, datetime.to_byte_string("%a, %d %b %Y %H:%M:%S GMT"sv, Core::DateTime::LocalTime::No));
+        response_headers.set("Last-Modified"_sv, datetime.to_byte_string("%a, %d %b %Y %H:%M:%S GMT"_sv, Core::DateTime::LocalTime::No));
     }
 
     return response_headers;
@@ -235,7 +235,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
 
         log_success(request);
         HTTP::HeaderMap response_headers;
-        response_headers.set("Content-Type"sv, "text/html"sv);
+        response_headers.set("Content-Type"_sv, "text/html"_sv);
         success_callback->function()(maybe_response.release_value().bytes(), fixme_implement_timing_info, response_headers, {}, {});
     };
 
@@ -410,7 +410,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         auto protocol_request = start_network_request(request);
         if (!protocol_request) {
             if (error_callback)
-                error_callback->function()("Failed to start network request"sv, {}, {}, {}, {}, {});
+                error_callback->function()("Failed to start network request"_sv, {}, {}, {}, {}, {});
             return;
         }
 
@@ -441,7 +441,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
                 if (network_error.has_value())
                     error_builder.appendff("{}", Requests::network_error_to_string(*network_error));
                 else
-                    error_builder.append("Load failed"sv);
+                    error_builder.append("Load failed"_sv);
 
                 if (status_code.has_value()) {
                     if (*status_code >= 100 && *status_code <= 599)
@@ -479,19 +479,19 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
     request.start_timer();
 
     if (should_block_request(request)) {
-        on_complete->function()(false, {}, "Request was blocked"sv);
+        on_complete->function()(false, {}, "Request was blocked"_sv);
         return;
     }
 
-    if (!url.scheme().is_one_of("http"sv, "https"sv)) {
+    if (!url.scheme().is_one_of("http"_sv, "https"_sv)) {
         // FIXME: Non-network requests from fetch should not go through this path.
-        on_complete->function()(false, {}, "Cannot establish connection non-network scheme"sv);
+        on_complete->function()(false, {}, "Cannot establish connection non-network scheme"_sv);
         return;
     }
 
     auto protocol_request = start_network_request(request);
     if (!protocol_request) {
-        on_complete->function()(false, {}, "Failed to start network request"sv);
+        on_complete->function()(false, {}, "Failed to start network request"_sv);
         return;
     }
 
@@ -511,8 +511,8 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
             log_success(request);
             on_complete->function()(true, timing_info, {});
         } else {
-            log_failure(request, "Request finished with error"sv);
-            on_complete->function()(false, timing_info, "Request finished with error"sv);
+            log_failure(request, "Request finished with error"_sv);
+            on_complete->function()(false, timing_info, "Request finished with error"_sv);
         }
     };
 
@@ -534,7 +534,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
 
     auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), headers, request.body(), proxy);
     if (!protocol_request) {
-        log_failure(request, "Failed to initiate load"sv);
+        log_failure(request, "Failed to initiate load"_sv);
         return nullptr;
     }
 
@@ -556,13 +556,13 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
         return;
 
     for (auto const& [header, value] : response_headers.headers()) {
-        if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
+        if (header.equals_ignoring_ascii_case("Set-Cookie"_sv)) {
             store_response_cookies(*request.page(), request.url().value(), value);
         }
     }
 
     if (auto cache_control = response_headers.get("Cache-Control"); cache_control.has_value()) {
-        if (cache_control.value().contains("no-store"sv))
+        if (cache_control.value().contains("no-store"_sv))
             s_resource_cache.remove(request);
     }
 }

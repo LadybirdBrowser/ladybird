@@ -131,19 +131,19 @@ Bindings::TextTrackKind text_track_kind_from_string(String value)
 {
     // https://html.spec.whatwg.org/multipage/media.html#attr-track-kind
 
-    if (value.is_empty() || value.equals_ignoring_ascii_case("subtitles"sv)) {
+    if (value.is_empty() || value.equals_ignoring_ascii_case("subtitles"_sv)) {
         return Bindings::TextTrackKind::Subtitles;
     }
-    if (value.equals_ignoring_ascii_case("captions"sv)) {
+    if (value.equals_ignoring_ascii_case("captions"_sv)) {
         return Bindings::TextTrackKind::Captions;
     }
-    if (value.equals_ignoring_ascii_case("descriptions"sv)) {
+    if (value.equals_ignoring_ascii_case("descriptions"_sv)) {
         return Bindings::TextTrackKind::Descriptions;
     }
-    if (value.equals_ignoring_ascii_case("chapters"sv)) {
+    if (value.equals_ignoring_ascii_case("chapters"_sv)) {
         return Bindings::TextTrackKind::Chapters;
     }
-    if (value.equals_ignoring_ascii_case("metadata"sv)) {
+    if (value.equals_ignoring_ascii_case("metadata"_sv)) {
         return Bindings::TextTrackKind::Metadata;
     }
 

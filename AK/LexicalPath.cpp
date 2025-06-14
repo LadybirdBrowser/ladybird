@@ -31,10 +31,10 @@ LexicalPath::LexicalPath(ByteString path)
 
     auto last_slash_index = m_string.view().find_last('/');
     if (!last_slash_index.has_value()) {
-        // The path contains a single part and is not absolute. m_dirname = "."sv
+        // The path contains a single part and is not absolute. m_dirname = "."_sv
         m_dirname = { &s_single_dot, 1 };
     } else if (*last_slash_index == 0) {
-        // The path contains a single part and is absolute. m_dirname = "/"sv
+        // The path contains a single part and is absolute. m_dirname = "/"_sv
         m_dirname = m_string.substring_view(0, 1);
     } else {
         m_dirname = m_string.substring_view(0, *last_slash_index);
@@ -105,7 +105,7 @@ ByteString LexicalPath::canonicalized_path(ByteString path)
         return ".";
 
     // NOTE: If there are no dots, no '//' and the path doesn't end with a slash, it is already canonical.
-    if (!path.contains("."sv) && !path.contains("//"sv) && !path.ends_with('/'))
+    if (!path.contains("."_sv) && !path.contains("//"_sv) && !path.ends_with('/'))
         return path;
 
     auto is_absolute = path[0] == '/';
@@ -168,7 +168,7 @@ Optional<ByteString> LexicalPath::relative_path(StringView a_path, StringView a_
         return ".";
 
     // NOTE: Handle this special case first.
-    if (prefix == "/"sv)
+    if (prefix == "/"_sv)
         return path.substring_view(1);
 
     // NOTE: This means the path is a direct child of the prefix.
@@ -186,7 +186,7 @@ Optional<ByteString> LexicalPath::relative_path(StringView a_path, StringView a_
 
     StringBuilder builder;
     for (size_t part_index = index_of_first_part_that_differs; part_index < prefix_parts.size(); part_index++) {
-        builder.append("../"sv);
+        builder.append("../"_sv);
     }
     for (size_t part_index = index_of_first_part_that_differs; part_index < path_parts.size(); part_index++) {
         builder.append(path_parts[part_index]);
@@ -209,7 +209,7 @@ LexicalPath LexicalPath::prepend(StringView value) const
 
 LexicalPath LexicalPath::parent() const
 {
-    return append(".."sv);
+    return append(".."_sv);
 }
 
 }

@@ -1225,7 +1225,7 @@ CanonicalIndex canonical_numeric_index_string(PropertyKey const& property_key, C
     }
 
     // Short circuit a few common cases
-    if (argument == "Infinity"sv || argument == "-Infinity"sv || argument == "NaN"sv)
+    if (argument == "Infinity"_sv || argument == "-Infinity"_sv || argument == "NaN"_sv)
         return CanonicalIndex(CanonicalIndex::Type::Numeric, 0);
 
     // Short circuit any string that doesn't start with digits
@@ -1772,7 +1772,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
         // a. If options is not an Object, then
         if (!options.is_object()) {
             // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-            auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAnObject.message(), "options"sv)));
+            auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAnObject.message(), "options"_sv)));
             MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
 
             // ii. Return promiseCapability.[[Promise]].
@@ -1788,7 +1788,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
             // i. If attributesObj is not an Object, then
             if (!attributes_obj.is_object()) {
                 // 1. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-                auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAnObject.message(), "with"sv)));
+                auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAnObject.message(), "with"_sv)));
                 MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
 
                 // 2. Return promiseCapability.[[Promise]].
@@ -1812,7 +1812,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
                     // a. If value is not a String, then
                     if (!value.is_string()) {
                         // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-                        auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAString.message(), "Import attribute value"sv)));
+                        auto error = TypeError::create(realm, MUST(String::formatted(ErrorType::NotAString.message(), "Import attribute value"_sv)));
                         MUST(call(vm, *promise_capability->reject(), js_undefined(), error));
 
                         // ii. Return promiseCapability.[[Promise]].
@@ -1884,7 +1884,7 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
     if (value.is_undefined()) {
         // a. If default is REQUIRED, throw a RangeError exception.
         if (default_.has<Required>())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, "undefined"sv, property.as_string());
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, "undefined"_sv, property.as_string());
 
         // b. Return default.
         return default_.visit(
@@ -1926,7 +1926,7 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
 ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM& vm, Object const& options, RoundingMode fallback)
 {
     // 1. Let allowedStrings be the List of Strings from the "String Identifier" column of Table 26.
-    static constexpr auto allowed_strings = to_array({ "ceil"sv, "floor"sv, "expand"sv, "trunc"sv, "halfCeil"sv, "halfFloor"sv, "halfExpand"sv, "halfTrunc"sv, "halfEven"sv });
+    static constexpr auto allowed_strings = to_array({ "ceil"_sv, "floor"_sv, "expand"_sv, "trunc"_sv, "halfCeil"_sv, "halfFloor"_sv, "halfExpand"_sv, "halfTrunc"_sv, "halfEven"_sv });
 
     // 2. Let stringFallback be the value from the "String Identifier" column of the row with fallback in its "Rounding Mode" column.
     auto string_fallback = allowed_strings[to_underlying(fallback)];
@@ -1949,7 +1949,7 @@ ThrowCompletionOr<u64> get_rounding_increment_option(VM& vm, Object const& optio
         return 1;
 
     // 3. Let integerIncrement be ? ToIntegerWithTruncation(value).
-    auto integer_increment = TRY(Temporal::to_integer_with_truncation(vm, value, ErrorType::OptionIsNotValidValue, value, "roundingIncrement"sv));
+    auto integer_increment = TRY(Temporal::to_integer_with_truncation(vm, value, ErrorType::OptionIsNotValidValue, value, "roundingIncrement"_sv));
 
     // 4. If integerIncrement < 1 or integerIncrement > 10**9, throw a RangeError exception.
     if (integer_increment < 1 || integer_increment > 1'000'000'000u)

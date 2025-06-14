@@ -87,13 +87,13 @@ Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv* env, jobjec
     Main::Arguments arguments = {
         .argc = 0,
         .argv = nullptr,
-        .strings = Span<StringView> { new StringView("ladybird"sv), 1 }
+        .strings = Span<StringView> { new StringView("ladybird"_sv), 1 }
     };
 
     // FIXME: We are not making use of this Application object to track our processes.
     // So, right now, the Application's ProcessManager is constantly empty.
     // (However, LibWebView depends on an Application object existing, so we do have to actually create one.)
-    s_application = Application::create(arguments, "about:newtab"sv);
+    s_application = Application::create(arguments, "about:newtab"_sv);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -207,7 +207,7 @@ ErrorOr<void> extract_tar_archive(String archive_file, ByteString output_directo
         LexicalPath path = LexicalPath(header.filename());
         if (!header.prefix().is_empty())
             path = path.prepend(header.prefix());
-        ByteString filename = get_override("path"sv).value_or(path.string());
+        ByteString filename = get_override("path"_sv).value_or(path.string());
 
         ByteString absolute_path = TRY(FileSystem::absolute_path(filename));
         auto parent_path = LexicalPath(absolute_path).parent();

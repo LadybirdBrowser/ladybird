@@ -17,12 +17,12 @@ TEST_CASE(string_option)
     int index_of_found_long_option = -1;
     Vector<OptionParser::Option> long_options;
     long_options.append(
-        { "string_opt"sv,
+        { "string_opt"_sv,
             OptionParser::ArgumentRequirement::HasRequiredArgument,
             &index_of_found_long_option,
             0 });
 
-    Array<StringView, 3> argument_array({ "app"sv, "--string_opt"sv, "string_opt_value"sv });
+    Array<StringView, 3> argument_array({ "app"_sv, "--string_opt"_sv, "string_opt_value"_sv });
     Span<StringView> arguments(argument_array);
     size_t next_argument_index = 1;
 
@@ -49,12 +49,12 @@ TEST_CASE(string_option_then_positional)
     int index_of_found_long_option = -1;
     Vector<OptionParser::Option> long_options;
     long_options.append(
-        { "string_opt"sv,
+        { "string_opt"_sv,
             OptionParser::ArgumentRequirement::HasRequiredArgument,
             &index_of_found_long_option,
             0 });
 
-    Array<StringView, 4> argument_array({ "app"sv, "--string_opt"sv, "string_opt_value"sv, "positional"sv });
+    Array<StringView, 4> argument_array({ "app"_sv, "--string_opt"_sv, "string_opt_value"_sv, "positional"_sv });
     Span<StringView> arguments(argument_array);
     size_t next_argument_index = 1;
 
@@ -86,12 +86,12 @@ TEST_CASE(positional_then_string_option)
     int index_of_found_long_option = -1;
     Vector<OptionParser::Option> long_options;
     long_options.append(
-        { "string_opt"sv,
+        { "string_opt"_sv,
             OptionParser::ArgumentRequirement::HasRequiredArgument,
             &index_of_found_long_option,
             0 });
 
-    Array<StringView, 4> argument_array({ "app"sv, "positional"sv, "--string_opt"sv, "string_opt_value"sv });
+    Array<StringView, 4> argument_array({ "app"_sv, "positional"_sv, "--string_opt"_sv, "string_opt_value"_sv });
     Span<StringView> arguments(argument_array);
     size_t next_argument_index = 1;
 
@@ -125,17 +125,17 @@ TEST_CASE(positional_then_string_option_then_bool_option)
     int index_of_found_long_option = -1;
     Vector<OptionParser::Option> long_options;
     long_options.append(
-        { "string_opt"sv,
+        { "string_opt"_sv,
             OptionParser::ArgumentRequirement::HasRequiredArgument,
             &index_of_found_long_option,
             0 });
     long_options.append(
-        { "bool_opt"sv,
+        { "bool_opt"_sv,
             OptionParser::ArgumentRequirement::NoArgument,
             &index_of_found_long_option,
             1 });
 
-    Array<StringView, 5> argument_array({ "app"sv, "positional"sv, "--string_opt"sv, "string_opt_value"sv, "--bool_opt"sv });
+    Array<StringView, 5> argument_array({ "app"_sv, "positional"_sv, "--string_opt"_sv, "string_opt_value"_sv, "--bool_opt"_sv });
     Span<StringView> arguments(argument_array);
     size_t next_argument_index = 1;
 

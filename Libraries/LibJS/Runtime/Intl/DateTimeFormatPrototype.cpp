@@ -158,9 +158,9 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format_range)
 
     // 3. If startDate is undefined or endDate is undefined, throw a TypeError exception.
     if (start_date_value.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "startDate"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "startDate"_sv);
     if (end_date_value.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "endDate"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "endDate"_sv);
 
     // 4. Let x be ? ToDateTimeFormattable(startDate).
     auto start_date = TRY(to_date_time_formattable(vm, start_date_value));
@@ -186,9 +186,9 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format_range_to_parts)
 
     // 3. If startDate is undefined or endDate is undefined, throw a TypeError exception.
     if (start_date_value.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "startDate"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "startDate"_sv);
     if (end_date_value.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "endDate"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "endDate"_sv);
 
     // 4. Let x be ? ToDateTimeFormattable(startDate).
     auto start_date = TRY(to_date_time_formattable(vm, start_date_value));

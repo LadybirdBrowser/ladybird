@@ -10,13 +10,13 @@ namespace Web::CSS {
 
 Optional<PagePseudoClass> page_pseudo_class_from_string(StringView input)
 {
-    if (input.equals_ignoring_ascii_case("blank"sv))
+    if (input.equals_ignoring_ascii_case("blank"_sv))
         return PagePseudoClass::Blank;
-    if (input.equals_ignoring_ascii_case("first"sv))
+    if (input.equals_ignoring_ascii_case("first"_sv))
         return PagePseudoClass::First;
-    if (input.equals_ignoring_ascii_case("left"sv))
+    if (input.equals_ignoring_ascii_case("left"_sv))
         return PagePseudoClass::Left;
-    if (input.equals_ignoring_ascii_case("right"sv))
+    if (input.equals_ignoring_ascii_case("right"_sv))
         return PagePseudoClass::Right;
     return {};
 }
@@ -25,13 +25,13 @@ StringView to_string(PagePseudoClass pseudo_class)
 {
     switch (pseudo_class) {
     case PagePseudoClass::Blank:
-        return "blank"sv;
+        return "blank"_sv;
     case PagePseudoClass::First:
-        return "first"sv;
+        return "first"_sv;
     case PagePseudoClass::Left:
-        return "left"sv;
+        return "left"_sv;
     case PagePseudoClass::Right:
-        return "right"sv;
+        return "right"_sv;
     }
     VERIFY_NOT_REACHED();
 }

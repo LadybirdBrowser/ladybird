@@ -296,7 +296,7 @@ template<typename T>
 struct Formatter<Gfx::Point<T>> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Gfx::Point<T> const& value)
     {
-        return Formatter<FormatString>::format(builder, "[{},{}]"sv, value.x(), value.y());
+        return Formatter<FormatString>::format(builder, "[{},{}]"_sv, value.x(), value.y());
     }
 };
 

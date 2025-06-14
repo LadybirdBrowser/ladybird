@@ -67,7 +67,7 @@ struct AK::Formatter<JS::Bytecode::Register> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, JS::Bytecode::Register const& value)
     {
         if (value.index() == JS::Bytecode::Register::accumulator_index)
-            return builder.put_string("acc"sv);
-        return AK::Formatter<FormatString>::format(builder, "${}"sv, value.index());
+            return builder.put_string("acc"_sv);
+        return AK::Formatter<FormatString>::format(builder, "${}"_sv, value.index());
     }
 };

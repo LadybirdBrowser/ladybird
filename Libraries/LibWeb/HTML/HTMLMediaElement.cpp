@@ -205,24 +205,24 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) con
     // - return "probably" if the user agent is confident that the type represents a media resource that it can render if used in with this audio or video element
     // - return "maybe" otherwise. Implementers are encouraged to return "maybe" unless the type can be confidently established as being supported or not
     // Generally, a user agent should never return "probably" for a type that allows the codecs parameter if that parameter is not present.
-    if (type == "application/octet-stream"sv)
+    if (type == "application/octet-stream"_sv)
         return Bindings::CanPlayTypeResult::Empty;
 
     auto mime_type = MimeSniff::MimeType::parse(type);
 
-    if (mime_type.has_value() && mime_type->type() == "video"sv) {
+    if (mime_type.has_value() && mime_type->type() == "video"_sv) {
         if (supported_video_subtypes.contains_slow(mime_type->subtype()))
             return Bindings::CanPlayTypeResult::Probably;
         return Bindings::CanPlayTypeResult::Maybe;
     }
 
-    if (mime_type.has_value() && mime_type->type() == "audio"sv) {
+    if (mime_type.has_value() && mime_type->type() == "audio"_sv) {
         auto result = Bindings::CanPlayTypeResult::Maybe;
         if (supported_audio_subtypes.contains_slow(mime_type->subtype()))
             result = Bindings::CanPlayTypeResult::Probably;
 
         // "Maybe" because we support mp3, but "mpeg" can also refer to MP1 and MP2.
-        if (mime_type->subtype() == "mpeg"sv)
+        if (mime_type->subtype() == "mpeg"_sv)
             result = Bindings::CanPlayTypeResult::Maybe;
 
         return result;

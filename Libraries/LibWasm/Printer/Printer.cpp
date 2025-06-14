@@ -34,7 +34,7 @@ Optional<OpCode> instruction_from_name(StringView name)
 void Printer::print_indent()
 {
     for (size_t i = 0; i < m_indent; ++i)
-        m_stream.write_until_depleted("  "sv.bytes()).release_value_but_fixme_should_propagate_errors();
+        m_stream.write_until_depleted("  "_sv.bytes()).release_value_but_fixme_should_propagate_errors();
 }
 
 void Printer::print(Wasm::BlockType const& type)
@@ -137,13 +137,13 @@ void Printer::print(Wasm::DataSection::Data const& data)
             [this](DataSection::Data::Passive const& value) {
                 print_indent();
                 print("(passive init {}xu8 (", value.init.size());
-                print("{}", ByteString::join(' ', value.init, "{:x}"sv));
+                print("{}", ByteString::join(' ', value.init, "{:x}"_sv));
                 print(")\n");
             },
             [this](DataSection::Data::Active const& value) {
                 print_indent();
                 print("(active init {}xu8 (", value.init.size());
-                print("{}", ByteString::join(' ', value.init, "{:x}"sv));
+                print("{}", ByteString::join(' ', value.init, "{:x}"_sv));
                 print("\n");
                 {
                     TemporaryChange change { m_indent, m_indent + 1 };

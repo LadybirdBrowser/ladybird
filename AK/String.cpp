@@ -323,7 +323,7 @@ ErrorOr<String> String::trim(StringView code_points_to_trim, TrimMode mode) cons
 
 ErrorOr<String> String::trim_ascii_whitespace(TrimMode mode) const
 {
-    return trim(" \n\t\v\f\r"sv, mode);
+    return trim(" \n\t\v\f\r"_sv, mode);
 }
 
 bool String::contains(StringView needle, CaseSensitivity case_sensitivity) const
@@ -453,7 +453,7 @@ String String::bijective_base_from(size_t value, Case target_case, unsigned base
 {
     value++;
     if (map.is_null())
-        map = target_case == Case::Upper ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ"sv : "abcdefghijklmnopqrstuvwxyz"sv;
+        map = target_case == Case::Upper ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ"_sv : "abcdefghijklmnopqrstuvwxyz"_sv;
 
     VERIFY(base >= 2 && base <= map.length());
 
@@ -490,37 +490,37 @@ String String::roman_number_from(size_t value, Case target_case)
             builder.append(target_case == Case::Upper ? 'M' : 'm');
             value -= 1000;
         } else if (value >= 900) {
-            builder.append(target_case == Case::Upper ? "CM"sv : "cm"sv);
+            builder.append(target_case == Case::Upper ? "CM"_sv : "cm"_sv);
             value -= 900;
         } else if (value >= 500) {
             builder.append(target_case == Case::Upper ? 'D' : 'd');
             value -= 500;
         } else if (value >= 400) {
-            builder.append(target_case == Case::Upper ? "CD"sv : "cd"sv);
+            builder.append(target_case == Case::Upper ? "CD"_sv : "cd"_sv);
             value -= 400;
         } else if (value >= 100) {
             builder.append(target_case == Case::Upper ? 'C' : 'c');
             value -= 100;
         } else if (value >= 90) {
-            builder.append(target_case == Case::Upper ? "XC"sv : "xc"sv);
+            builder.append(target_case == Case::Upper ? "XC"_sv : "xc"_sv);
             value -= 90;
         } else if (value >= 50) {
             builder.append(target_case == Case::Upper ? 'L' : 'l');
             value -= 50;
         } else if (value >= 40) {
-            builder.append(target_case == Case::Upper ? "XL"sv : "xl"sv);
+            builder.append(target_case == Case::Upper ? "XL"_sv : "xl"_sv);
             value -= 40;
         } else if (value >= 10) {
             builder.append(target_case == Case::Upper ? 'X' : 'x');
             value -= 10;
         } else if (value == 9) {
-            builder.append(target_case == Case::Upper ? "IX"sv : "ix"sv);
+            builder.append(target_case == Case::Upper ? "IX"_sv : "ix"_sv);
             value -= 9;
         } else if (value >= 5 && value <= 8) {
             builder.append(target_case == Case::Upper ? 'V' : 'v');
             value -= 5;
         } else if (value == 4) {
-            builder.append(target_case == Case::Upper ? "IV"sv : "iv"sv);
+            builder.append(target_case == Case::Upper ? "IV"_sv : "iv"_sv);
             value -= 4;
         } else if (value <= 3) {
             builder.append(target_case == Case::Upper ? 'I' : 'i');

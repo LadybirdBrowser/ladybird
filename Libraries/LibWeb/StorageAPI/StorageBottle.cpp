@@ -72,7 +72,7 @@ GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Envir
         return {};
 
     // 6. Let bucket be shelf’s bucket map["default"].
-    auto bucket = shelf->bucket_map().get("default"sv).value();
+    auto bucket = shelf->bucket_map().get("default"_sv).value();
 
     // 7. Let bottle be bucket’s bottle map[identifier].
     auto bottle = bucket->bottle_map()[to_underlying(endpoint_type)];

@@ -15,22 +15,22 @@ StringView embedder_policy_value_to_string(EmbedderPolicyValue embedder_policy_v
 {
     switch (embedder_policy_value) {
     case EmbedderPolicyValue::UnsafeNone:
-        return "unsafe-none"sv;
+        return "unsafe-none"_sv;
     case EmbedderPolicyValue::RequireCorp:
-        return "require-corp"sv;
+        return "require-corp"_sv;
     case EmbedderPolicyValue::Credentialless:
-        return "credentialless"sv;
+        return "credentialless"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<EmbedderPolicyValue> embedder_policy_value_from_string(StringView string)
 {
-    if (string.equals_ignoring_ascii_case("unsafe-none"sv))
+    if (string.equals_ignoring_ascii_case("unsafe-none"_sv))
         return EmbedderPolicyValue::UnsafeNone;
-    if (string.equals_ignoring_ascii_case("require-corp"sv))
+    if (string.equals_ignoring_ascii_case("require-corp"_sv))
         return EmbedderPolicyValue::RequireCorp;
-    if (string.equals_ignoring_ascii_case("credentialless"sv))
+    if (string.equals_ignoring_ascii_case("credentialless"_sv))
         return EmbedderPolicyValue::Credentialless;
     return {};
 }

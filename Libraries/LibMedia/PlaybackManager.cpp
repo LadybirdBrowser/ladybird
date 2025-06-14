@@ -302,7 +302,7 @@ void PlaybackManager::decode_and_queue_one_sample()
     }
 
     if (had_error) {
-        dbgln_if(PLAYBACK_MANAGER_DEBUG, "Media Decoder: Encountered {}, waiting...", item_to_enqueue.error().category() == DecoderErrorCategory::EndOfStream ? "end of stream"sv : "error"sv);
+        dbgln_if(PLAYBACK_MANAGER_DEBUG, "Media Decoder: Encountered {}, waiting...", item_to_enqueue.error().category() == DecoderErrorCategory::EndOfStream ? "end of stream"_sv : "error"_sv);
         m_buffer_is_full.exchange(true);
         wait();
     }
@@ -396,7 +396,7 @@ private:
         return do_timed_state_update();
     }
 
-    StringView name() override { return "Playing"sv; }
+    StringView name() override { return "Playing"_sv; }
 
     bool is_playing() const override { return true; }
     PlaybackState get_state() const override { return PlaybackState::Playing; }
@@ -458,15 +458,15 @@ private:
         if (!manager().m_next_frame.has_value() || !future_frame_item.has_value()) {
 #if PLAYBACK_MANAGER_DEBUG
             StringBuilder debug_string_builder;
-            debug_string_builder.append("We don't have "sv);
+            debug_string_builder.append("We don't have "_sv);
             if (!manager().m_next_frame.has_value()) {
-                debug_string_builder.append("a frame to present"sv);
+                debug_string_builder.append("a frame to present"_sv);
                 if (!future_frame_item.has_value())
-                    debug_string_builder.append(" or a future frame"sv);
+                    debug_string_builder.append(" or a future frame"_sv);
             } else {
-                debug_string_builder.append("a future frame"sv);
+                debug_string_builder.append("a future frame"_sv);
             }
-            debug_string_builder.append(", checking for error and buffering"sv);
+            debug_string_builder.append(", checking for error and buffering"_sv);
             dbgln_if(PLAYBACK_MANAGER_DEBUG, debug_string_builder.to_byte_string());
 #endif
             if (future_frame_item.has_value()) {
@@ -516,7 +516,7 @@ public:
     ~PausedStateHandler() override = default;
 
 private:
-    StringView name() override { return "Paused"sv; }
+    StringView name() override { return "Paused"_sv; }
 
     ErrorOr<void> play() override
     {
@@ -540,12 +540,12 @@ class PlaybackManager::BufferingStateHandler : public PlaybackManager::ResumingS
         return {};
     }
 
-    StringView name() override { return "Buffering"sv; }
+    StringView name() override { return "Buffering"_sv; }
 
     ErrorOr<void> do_timed_state_update() override
     {
         auto buffer_is_full = manager().m_buffer_is_full.load();
-        dbgln_if(PLAYBACK_MANAGER_DEBUG, "Buffering timer callback has been called. Buffer is {}.", buffer_is_full ? "full, exiting"sv : "not full, waiting"sv);
+        dbgln_if(PLAYBACK_MANAGER_DEBUG, "Buffering timer callback has been called. Buffer is {}.", buffer_is_full ? "full, exiting"_sv : "not full, waiting"_sv);
         if (buffer_is_full)
             return assume_next_state();
 
@@ -585,7 +585,7 @@ private:
             auto keyframe_timestamp = demuxer_seek_result.release_value();
 
 #if PLAYBACK_MANAGER_DEBUG
-            auto seek_mode_name = m_seek_mode == SeekMode::Accurate ? "Accurate"sv : "Fast"sv;
+            auto seek_mode_name = m_seek_mode == SeekMode::Accurate ? "Accurate"_sv : "Fast"_sv;
             if (keyframe_timestamp.has_value())
                 dbgln("{} seeking to timestamp target {}ms, selected keyframe at {}ms", seek_mode_name, m_target_timestamp.to_milliseconds(), keyframe_timestamp->to_milliseconds());
             else
@@ -643,7 +643,7 @@ private:
         return {};
     }
 
-    StringView name() override { return "Seeking"sv; }
+    StringView name() override { return "Seeking"_sv; }
 
     ErrorOr<void> seek(AK::Duration target_timestamp, SeekMode seek_mode) override
     {
@@ -684,7 +684,7 @@ private:
         return {};
     }
 
-    StringView name() override { return "Stopped"sv; }
+    StringView name() override { return "Stopped"_sv; }
 
     ErrorOr<void> play() override
     {
@@ -700,7 +700,7 @@ DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::create(NonnullOw
 {
     auto video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));
     if (video_tracks.is_empty())
-        return DecoderError::with_description(DecoderErrorCategory::Invalid, "No video track is present"sv);
+        return DecoderError::with_description(DecoderErrorCategory::Invalid, "No video track is present"_sv);
     auto track = video_tracks[0];
 
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "Selecting video track number {}", track.identifier());
@@ -720,7 +720,7 @@ DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::create(NonnullOw
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Media Decoder thread ended.");
         return 0;
     },
-        "Media Decoder"sv));
+        "Media Decoder"_sv));
 
     playback_manager->m_playback_handler = make<SeekingStateHandler>(*playback_manager, false, AK::Duration::zero(), SeekMode::Fast);
     DECODER_TRY_ALLOC(playback_manager->m_playback_handler->on_enter());

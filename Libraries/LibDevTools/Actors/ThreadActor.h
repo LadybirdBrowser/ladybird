@@ -13,7 +13,7 @@ namespace DevTools {
 
 class ThreadActor final : public Actor {
 public:
-    static constexpr auto base_name = "thread"sv;
+    static constexpr auto base_name = "thread"_sv;
 
     static NonnullRefPtr<ThreadActor> create(DevToolsServer&, String name);
     virtual ~ThreadActor() override;

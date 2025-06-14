@@ -39,7 +39,7 @@ void serialize_a_comma_separated_list(StringBuilder& builder, Vector<T> const& i
         auto& item = items.at(i);
         serialize_item(builder, item);
         if ((i + 1) < items.size()) {
-            builder.append(", "sv);
+            builder.append(", "_sv);
         }
     }
 }

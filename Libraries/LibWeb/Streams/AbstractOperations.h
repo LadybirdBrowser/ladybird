@@ -76,11 +76,11 @@ WebIDL::ExceptionOr<void> enqueue_value_with_size(T& container, JS::Value value,
 
     // 2. If ! IsNonNegativeNumber(size) is false, throw a RangeError exception.
     if (!is_non_negative_number(size))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Chunk has non-positive size"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Chunk has non-positive size"_sv };
 
     // 3. If size is +∞, throw a RangeError exception.
     if (size.is_positive_infinity())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Chunk has infinite size"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Chunk has infinite size"_sv };
 
     // 4. Append a new value-with-size with value value and size size to container.[[queue]].
     container.queue().append({ value, size.as_double() });

@@ -101,7 +101,7 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redi
 
 void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
 {
-    if (url.scheme() == "about"sv && url.paths().size() == 1) {
+    if (url.scheme() == "about"_sv && url.paths().size() == 1) {
         if (auto web_ui = WebUI::create(*this, url.paths().first()); web_ui.is_error())
             warnln("Could not create WebUI for {}: {}", url, web_ui.error());
         else
@@ -310,7 +310,7 @@ void WebContentClient::did_inspect_dom_tree(u64 page_id, String dom_tree)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_dom_tree)
-            view->on_received_dom_tree(parse_json(dom_tree, "DOM tree"sv));
+            view->on_received_dom_tree(parse_json(dom_tree, "DOM tree"_sv));
     }
 }
 
@@ -326,7 +326,7 @@ void WebContentClient::did_inspect_accessibility_tree(u64 page_id, String access
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_accessibility_tree)
-            view->on_received_accessibility_tree(parse_json(accessibility_tree, "accessibility tree"sv));
+            view->on_received_accessibility_tree(parse_json(accessibility_tree, "accessibility tree"_sv));
     }
 }
 

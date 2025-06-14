@@ -159,7 +159,7 @@ Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
     while (true) {
         // 1. Append the result of collecting a sequence of code points that are not U+0022 (") or U+002C (,) from input, given position, to temporaryValue.
         // NOTE: The result might be the empty string.
-        temporary_value_builder.append(lexer.consume_until(is_any_of("\","sv)));
+        temporary_value_builder.append(lexer.consume_until(is_any_of("\","_sv)));
 
         // 2. If position is not past the end of input and the code point at position within input is U+0022 ("):
         if (!lexer.is_eof() && lexer.peek() == '"') {
@@ -291,7 +291,7 @@ Vector<Header> HeaderList::sort_and_combine() const
     // 3. For each name of names:
     for (auto& name : names) {
         // 1. If name is `set-cookie`, then:
-        if (name == "set-cookie"sv.bytes()) {
+        if (name == "set-cookie"_sv.bytes()) {
             // 1. Let values be a list of all values of headers in list whose name is a byte-case-insensitive match for name, in order.
             // 2. For each value of values:
             for (auto const& [header_name, value] : *this) {
@@ -327,7 +327,7 @@ Vector<Header> HeaderList::sort_and_combine() const
 HeaderList::ExtractLengthResult HeaderList::extract_length() const
 {
     // 1. Let values be the result of getting, decoding, and splitting `Content-Length` from headers.
-    auto values = get_decode_and_split("Content-Length"sv.bytes());
+    auto values = get_decode_and_split("Content-Length"_sv.bytes());
 
     // 2. If values is null, then return null.
     if (!values.has_value())
@@ -372,7 +372,7 @@ Optional<MimeSniff::MimeType> HeaderList::extract_mime_type() const
     Optional<MimeSniff::MimeType> mime_type;
 
     // 4. Let values be the result of getting, decoding, and splitting `Content-Type` from headers.
-    auto values = get_decode_and_split("Content-Type"sv.bytes());
+    auto values = get_decode_and_split("Content-Type"_sv.bytes());
 
     // 5. If values is null, then return failure.
     if (!values.has_value())
@@ -384,7 +384,7 @@ Optional<MimeSniff::MimeType> HeaderList::extract_mime_type() const
         auto temporary_mime_type = MimeSniff::MimeType::parse(value);
 
         // 2. If temporaryMimeType is failure or its essence is "*/*", then continue.
-        if (!temporary_mime_type.has_value() || temporary_mime_type->essence() == "*/*"sv)
+        if (!temporary_mime_type.has_value() || temporary_mime_type->essence() == "*/*"_sv)
             continue;
 
         // 3. Set mimeType to temporaryMimeType.
@@ -396,7 +396,7 @@ Optional<MimeSniff::MimeType> HeaderList::extract_mime_type() const
             charset = {};
 
             // 2. If mimeType’s parameters["charset"] exists, then set charset to mimeType’s parameters["charset"].
-            auto it = mime_type->parameters().find("charset"sv);
+            auto it = mime_type->parameters().find("charset"_sv);
             if (it != mime_type->parameters().end())
                 charset = it->value;
 
@@ -404,7 +404,7 @@ Optional<MimeSniff::MimeType> HeaderList::extract_mime_type() const
             essence = mime_type->essence();
         }
         // 5. Otherwise, if mimeType’s parameters["charset"] does not exist, and charset is non-null, set mimeType’s parameters["charset"] to charset.
-        else if (!mime_type->parameters().contains("charset"sv) && charset.has_value()) {
+        else if (!mime_type->parameters().contains("charset"_sv) && charset.has_value()) {
             mime_type->set_parameter("charset"_string, charset.release_value());
         }
     }
@@ -422,7 +422,7 @@ StringView legacy_extract_an_encoding(Optional<MimeSniff::MimeType> const& mime_
         return fallback_encoding;
 
     // 2. If mimeType["charset"] does not exist, then return fallbackEncoding.
-    auto charset = mime_type->parameters().get("charset"sv);
+    auto charset = mime_type->parameters().get("charset"_sv);
     if (!charset.has_value())
         return fallback_encoding;
 
@@ -518,22 +518,22 @@ bool is_cors_safelisted_request_header(Header const& header)
     auto name = StringView { header.name };
 
     // `accept`
-    if (name.equals_ignoring_ascii_case("accept"sv)) {
+    if (name.equals_ignoring_ascii_case("accept"_sv)) {
         // If value contains a CORS-unsafe request-header byte, then return false.
         if (any_of(value.span(), is_cors_unsafe_request_header_byte))
             return false;
     }
     // `accept-language`
     // `content-language`
-    else if (name.is_one_of_ignoring_ascii_case("accept-language"sv, "content-language"sv)) {
+    else if (name.is_one_of_ignoring_ascii_case("accept-language"_sv, "content-language"_sv)) {
         // If value contains a byte that is not in the range 0x30 (0) to 0x39 (9), inclusive, is not in the range 0x41 (A) to 0x5A (Z), inclusive, is not in the range 0x61 (a) to 0x7A (z), inclusive, and is not 0x20 (SP), 0x2A (*), 0x2C (,), 0x2D (-), 0x2E (.), 0x3B (;), or 0x3D (=), then return false.
         if (any_of(value.span(), [](auto byte) {
-                return !(is_ascii_digit(byte) || is_ascii_alpha(byte) || " *,-.;="sv.contains(static_cast<char>(byte)));
+                return !(is_ascii_digit(byte) || is_ascii_alpha(byte) || " *,-.;="_sv.contains(static_cast<char>(byte)));
             }))
             return false;
     }
     // `content-type`
-    else if (name.equals_ignoring_ascii_case("content-type"sv)) {
+    else if (name.equals_ignoring_ascii_case("content-type"_sv)) {
         // 1. If value contains a CORS-unsafe request-header byte, then return false.
         if (any_of(value.span(), is_cors_unsafe_request_header_byte))
             return false;
@@ -547,11 +547,11 @@ bool is_cors_safelisted_request_header(Header const& header)
             return false;
 
         // 4. If mimeType’s essence is not "application/x-www-form-urlencoded", "multipart/form-data", or "text/plain", then return false.
-        if (!mime_type->essence().is_one_of("application/x-www-form-urlencoded"sv, "multipart/form-data"sv, "text/plain"sv))
+        if (!mime_type->essence().is_one_of("application/x-www-form-urlencoded"_sv, "multipart/form-data"_sv, "text/plain"_sv))
             return false;
     }
     // `range`
-    else if (name.equals_ignoring_ascii_case("range"sv)) {
+    else if (name.equals_ignoring_ascii_case("range"_sv)) {
         // 1. Let rangeValue be the result of parsing a single range header value given value and false.
         auto range_value = parse_single_range_header_value(value, false);
 
@@ -625,7 +625,7 @@ OrderedHashTable<ByteBuffer> get_cors_unsafe_header_names(HeaderList const& head
 bool is_cors_non_wildcard_request_header_name(ReadonlyBytes header_name)
 {
     // A CORS non-wildcard request-header name is a header name that is a byte-case-insensitive match for `Authorization`.
-    return StringView { header_name }.equals_ignoring_ascii_case("Authorization"sv);
+    return StringView { header_name }.equals_ignoring_ascii_case("Authorization"_sv);
 }
 
 // https://fetch.spec.whatwg.org/#privileged-no-cors-request-header-name
@@ -633,7 +633,7 @@ bool is_privileged_no_cors_request_header_name(ReadonlyBytes header_name)
 {
     // A privileged no-CORS request-header name is a header name that is a byte-case-insensitive match for one of
     // - `Range`.
-    return StringView { header_name }.equals_ignoring_ascii_case("Range"sv);
+    return StringView { header_name }.equals_ignoring_ascii_case("Range"_sv);
 }
 
 // https://fetch.spec.whatwg.org/#cors-safelisted-response-header-name
@@ -649,13 +649,13 @@ bool is_cors_safelisted_response_header_name(ReadonlyBytes header_name, Span<Rea
     // - `Pragma`
     // - Any item in list that is not a forbidden response-header name.
     return StringView { header_name }.is_one_of_ignoring_ascii_case(
-               "Cache-Control"sv,
-               "Content-Language"sv,
-               "Content-Length"sv,
-               "Content-Type"sv,
-               "Expires"sv,
-               "Last-Modified"sv,
-               "Pragma"sv)
+               "Cache-Control"_sv,
+               "Content-Language"_sv,
+               "Content-Length"_sv,
+               "Content-Type"_sv,
+               "Expires"_sv,
+               "Last-Modified"_sv,
+               "Pragma"_sv)
         || any_of(list, [&](auto list_header_name) {
                return StringView { header_name }.equals_ignoring_ascii_case(list_header_name)
                    && !is_forbidden_response_header_name(list_header_name);
@@ -671,10 +671,10 @@ bool is_no_cors_safelisted_request_header_name(ReadonlyBytes header_name)
     // - `Content-Language`
     // - `Content-Type`
     return StringView { header_name }.is_one_of_ignoring_ascii_case(
-        "Accept"sv,
-        "Accept-Language"sv,
-        "Content-Language"sv,
-        "Content-Type"sv);
+        "Accept"_sv,
+        "Accept-Language"_sv,
+        "Content-Language"_sv,
+        "Content-Type"_sv);
 }
 
 // https://fetch.spec.whatwg.org/#no-cors-safelisted-request-header
@@ -700,33 +700,33 @@ bool is_forbidden_request_header(Header const& header)
     // [...]
     // then return true.
     if (name.is_one_of_ignoring_ascii_case(
-            "Accept-Charset"sv,
-            "Accept-Encoding"sv,
-            "Access-Control-Request-Headers"sv,
-            "Access-Control-Request-Method"sv,
-            "Connection"sv,
-            "Content-Length"sv,
-            "Cookie"sv,
-            "Cookie2"sv,
-            "Date"sv,
-            "DNT"sv,
-            "Expect"sv,
-            "Host"sv,
-            "Keep-Alive"sv,
-            "Origin"sv,
-            "Referer"sv,
-            "Set-Cookie"sv,
-            "TE"sv,
-            "Trailer"sv,
-            "Transfer-Encoding"sv,
-            "Upgrade"sv,
-            "Via"sv)) {
+            "Accept-Charset"_sv,
+            "Accept-Encoding"_sv,
+            "Access-Control-Request-Headers"_sv,
+            "Access-Control-Request-Method"_sv,
+            "Connection"_sv,
+            "Content-Length"_sv,
+            "Cookie"_sv,
+            "Cookie2"_sv,
+            "Date"_sv,
+            "DNT"_sv,
+            "Expect"_sv,
+            "Host"_sv,
+            "Keep-Alive"_sv,
+            "Origin"_sv,
+            "Referer"_sv,
+            "Set-Cookie"_sv,
+            "TE"_sv,
+            "Trailer"_sv,
+            "Transfer-Encoding"_sv,
+            "Upgrade"_sv,
+            "Via"_sv)) {
         return true;
     }
 
     // 2. If name when byte-lowercased starts with `proxy-` or `sec-`, then return true.
-    if (name.starts_with("proxy-"sv, CaseSensitivity::CaseInsensitive)
-        || name.starts_with("sec-"sv, CaseSensitivity::CaseInsensitive)) {
+    if (name.starts_with("proxy-"_sv, CaseSensitivity::CaseInsensitive)
+        || name.starts_with("sec-"_sv, CaseSensitivity::CaseInsensitive)) {
         return true;
     }
 
@@ -736,9 +736,9 @@ bool is_forbidden_request_header(Header const& header)
     // - `X-Method-Override`
     // then:
     if (name.is_one_of_ignoring_ascii_case(
-            "X-HTTP-Method"sv,
-            "X-HTTP-Method-Override"sv,
-            "X-Method-Override"sv)) {
+            "X-HTTP-Method"_sv,
+            "X-HTTP-Method-Override"_sv,
+            "X-Method-Override"_sv)) {
         // 1. Let parsedValues be the result of getting, decoding, and splitting value.
         auto parsed_values = get_decode_and_split_header_value(header.value);
 
@@ -759,8 +759,8 @@ bool is_forbidden_response_header_name(ReadonlyBytes header_name)
     // - `Set-Cookie`
     // - `Set-Cookie2`
     return StringView { header_name }.is_one_of_ignoring_ascii_case(
-        "Set-Cookie"sv,
-        "Set-Cookie2"sv);
+        "Set-Cookie"_sv,
+        "Set-Cookie2"_sv);
 }
 
 // https://fetch.spec.whatwg.org/#request-body-header-name
@@ -772,10 +772,10 @@ bool is_request_body_header_name(ReadonlyBytes header_name)
     // - `Content-Location`
     // - `Content-Type`
     return StringView { header_name }.is_one_of_ignoring_ascii_case(
-        "Content-Encoding"sv,
-        "Content-Language"sv,
-        "Content-Location"sv,
-        "Content-Type"sv);
+        "Content-Encoding"_sv,
+        "Content-Language"_sv,
+        "Content-Location"_sv,
+        "Content-Type"_sv);
 }
 
 // https://fetch.spec.whatwg.org/#extract-header-values
@@ -786,16 +786,16 @@ Optional<Vector<ByteBuffer>> extract_header_values(Header const& header)
 
     // For now we only parse some headers that are of the ABNF list form "#something"
     if (StringView { header.name }.is_one_of_ignoring_ascii_case(
-            "Access-Control-Request-Headers"sv,
-            "Access-Control-Expose-Headers"sv,
-            "Access-Control-Allow-Headers"sv,
-            "Access-Control-Allow-Methods"sv)
+            "Access-Control-Request-Headers"_sv,
+            "Access-Control-Expose-Headers"_sv,
+            "Access-Control-Allow-Headers"_sv,
+            "Access-Control-Allow-Methods"_sv)
         && !header.value.is_empty()) {
         auto split_values = StringView { header.value }.split_view(',');
         Vector<ByteBuffer> trimmed_values;
 
         for (auto const& value : split_values) {
-            auto trimmed_value = value.trim(" \t"sv);
+            auto trimmed_value = value.trim(" \t"_sv);
             auto trimmed_value_as_byte_buffer = MUST(ByteBuffer::copy(trimmed_value.bytes()));
             trimmed_values.append(move(trimmed_value_as_byte_buffer));
         }
@@ -860,7 +860,7 @@ Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes const v
     auto const data = Infra::isomorphic_decode(value);
 
     // 2. If data does not start with "bytes", then return failure.
-    if (!data.starts_with_bytes("bytes"sv))
+    if (!data.starts_with_bytes("bytes"_sv))
         return {};
 
     // 3. Let position be a position variable for data, initially pointing at the 5th code point of data.

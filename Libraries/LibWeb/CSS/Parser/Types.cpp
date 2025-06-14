@@ -20,11 +20,11 @@ String Declaration::to_string() const
     StringBuilder builder;
 
     serialize_an_identifier(builder, name);
-    builder.append(": "sv);
+    builder.append(": "_sv);
     builder.join(' ', value);
 
     if (important == Important::Yes)
-        builder.append(" !important"sv);
+        builder.append(" !important"_sv);
 
     return MUST(builder.to_string());
 }
@@ -88,7 +88,7 @@ String Function::original_source_text() const
 
 bool Function::contains_arbitrary_substitution_function() const
 {
-    if (name.equals_ignoring_ascii_case("var"sv) || name.equals_ignoring_ascii_case("attr"sv))
+    if (name.equals_ignoring_ascii_case("var"_sv) || name.equals_ignoring_ascii_case("attr"_sv))
         return true;
     for (auto const& component_value : value) {
         if (component_value.is_function() && component_value.function().contains_arbitrary_substitution_function())

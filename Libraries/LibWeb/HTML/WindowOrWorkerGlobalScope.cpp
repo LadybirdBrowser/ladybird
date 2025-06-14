@@ -126,7 +126,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
 
     // 1. If either sw or sh is given and is 0, then return a promise rejected with a RangeError.
     if (sw == 0 || sh == 0) {
-        auto error_message = MUST(String::formatted("{} is an invalid value for {}", sw == 0 ? *sw : *sh, sw == 0 ? "sw"sv : "sh"sv));
+        auto error_message = MUST(String::formatted("{} is an invalid value for {}", sw == 0 ? *sw : *sh, sw == 0 ? "sw"_sv : "sh"_sv));
         auto error = JS::RangeError::create(realm, move(error_message));
         return WebIDL::create_rejected_promise(realm, move(error));
     }
@@ -209,7 +209,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
             dbgln("(STUBBED) createImageBitmap() for non-blob types");
             (void)sx;
             (void)sy;
-            auto error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for non-blob types"sv);
+            auto error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for non-blob types"_sv);
             TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
             WebIDL::reject_promise(realm, *p, error);
         });
@@ -305,10 +305,10 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 // 1. If previousId was not given:
                 if (!previous_id.has_value()) {
                     // 1. Let globalName be "Window" if global is a Window object; "WorkerGlobalScope" otherwise.
-                    auto global_name = is<Window>(this_impl()) ? "Window"sv : "WorkerGlobalScope"sv;
+                    auto global_name = is<Window>(this_impl()) ? "Window"_sv : "WorkerGlobalScope"_sv;
 
                     // 2. Let methodName be "setInterval" if repeat is true; "setTimeout" otherwise.
-                    auto method_name = repeat == Repeat::Yes ? "setInterval"sv : "setTimeout"sv;
+                    auto method_name = repeat == Repeat::Yes ? "setInterval"_sv : "setTimeout"_sv;
 
                     // 3. Let sink be a concatenation of globalName, U+0020 SPACE, and methodName.
                     [[maybe_unused]] auto sink = String::formatted("{} {}", global_name, method_name);

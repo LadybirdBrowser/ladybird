@@ -203,11 +203,11 @@ def export_enum_to_string_converter(enums: List[Type[EnumWithExportName]]) -> st
         single_stringifier = Rf"""    if constexpr (IsSame<E, {e.export_name()}>) {{
         switch (value) {{
             default:
-                return "Invalid value for {e.export_name()}"sv;"""
+                return "Invalid value for {e.export_name()}"_sv;"""
         for entry in e:
             single_stringifier += Rf"""
             case {e.export_name()}::{entry.name}:
-                return "{entry.name}"sv;"""
+                return "{entry.name}"_sv;"""
 
         single_stringifier += R"""
         }
@@ -352,7 +352,7 @@ def generate_getter(tag: Tag) -> str:
 
     body = Rf"""
     {{
-        auto const& possible_value = m_data.get("{tag.name}"sv);
+        auto const& possible_value = m_data.get("{tag.name}"_sv);
         if (!possible_value.has_value())
             return {return_if_empty};
         {unpacked_if_needed}
@@ -375,15 +375,15 @@ private:
 
     virtual void fill_main_tags() const override {{
         if (model().has_value())
-            m_main_tags.set("Model"sv, model().value());
+            m_main_tags.set("Model"_sv, model().value());
         if (make().has_value())
-            m_main_tags.set("Manufacturer"sv, make().value());
+            m_main_tags.set("Manufacturer"_sv, make().value());
         if (software().has_value())
-            m_main_tags.set("Software"sv, software().value());
+            m_main_tags.set("Software"_sv, software().value());
         if (date_time().has_value())
-            m_main_tags.set("Creation Time"sv, date_time().value());
+            m_main_tags.set("Creation Time"_sv, date_time().value());
         if (artist().has_value())
-            m_main_tags.set("Author"sv, artist().value());
+            m_main_tags.set("Author"_sv, artist().value());
     }}
 
     void add_entry(StringView key, Vector<TIFF::Value>&& value) {{
@@ -451,7 +451,7 @@ template<typename T>
 struct AK::Formatter<Gfx::TIFF::Rational<T>> : Formatter<FormatString> {{
     ErrorOr<void> format(FormatBuilder& builder, Gfx::TIFF::Rational<T> value)
     {{
-        return Formatter<FormatString>::format(builder, "{{}} ({{}}/{{}})"sv,
+        return Formatter<FormatString>::format(builder, "{{}} ({{}}/{{}})"_sv,
             value.as_double(), value.numerator, value.denominator);
     }}
 }};
@@ -470,7 +470,7 @@ struct AK::Formatter<Gfx::TIFF::Value> : Formatter<FormatString> {{
             }}
         );
 
-        return Formatter<FormatString>::format(builder, "{{}}"sv, content);
+        return Formatter<FormatString>::format(builder, "{{}}"_sv, content);
     }}
 }};
 """
@@ -519,7 +519,7 @@ def generate_tag_handler(tag: Tag) -> str:
         {pre_condition}
         {check_value}
         {handle_subifd}
-        metadata.add_entry("{tag.name}"sv, move(value));
+        metadata.add_entry("{tag.name}"_sv, move(value));
         break;
 """
 
@@ -588,7 +588,7 @@ static String value_formatter(u32 tag_id, Value const& v) {{
     for (u32 i = 0; i < values.size(); ++i) {{
         builder.appendff("{{}}", value_formatter(tag_id, values[i]));
         if (i != values.size() - 1)
-            builder.append(", "sv);
+            builder.append(", "_sv);
     }}
 
     builder.append(']');

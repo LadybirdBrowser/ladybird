@@ -58,7 +58,7 @@ bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::In
     }
 
     // 3. Let rawXFrameOptions be the result of getting, decoding, and splitting `X-Frame-Options` from response's header list.
-    auto raw_x_frame_options = response->header_list()->get_decode_and_split("X-Frame-Options"sv.bytes());
+    auto raw_x_frame_options = response->header_list()->get_decode_and_split("X-Frame-Options"_sv.bytes());
 
     // 4. Let xFrameOptions be a new set.
     auto x_frame_options = AK::OrderedHashTable<String>();
@@ -71,7 +71,7 @@ bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::In
     }
 
     // 6. If xFrameOptions's size is greater than 1, and xFrameOptions contains any of "deny", "allowall", or "sameorigin", then return false.
-    if (x_frame_options.size() > 1 && (x_frame_options.contains("deny"sv) || x_frame_options.contains("allowall"sv) || x_frame_options.contains("sameorigin"sv))) {
+    if (x_frame_options.size() > 1 && (x_frame_options.contains("deny"_sv) || x_frame_options.contains("allowall"_sv) || x_frame_options.contains("sameorigin"_sv))) {
         return false;
     }
 
@@ -82,12 +82,12 @@ bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::In
 
     // 8. If xFrameOptions[0] is "deny", then return false.
     auto first_x_frame_option = x_frame_options.begin();
-    if (!x_frame_options.is_empty() && *first_x_frame_option == "deny"sv) {
+    if (!x_frame_options.is_empty() && *first_x_frame_option == "deny"_sv) {
         return false;
     }
 
     // 9. If xFrameOptions[0] is "sameorigin", then:
-    if (!x_frame_options.is_empty() && *first_x_frame_option == "sameorigin"sv) {
+    if (!x_frame_options.is_empty() && *first_x_frame_option == "sameorigin"_sv) {
         // 1. Let containerDocument be navigable's container document.
         auto container_document = navigable->container_document();
 

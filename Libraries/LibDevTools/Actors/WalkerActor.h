@@ -19,7 +19,7 @@ namespace DevTools {
 
 class WalkerActor final : public Actor {
 public:
-    static constexpr auto base_name = "walker"sv;
+    static constexpr auto base_name = "walker"_sv;
 
     static NonnullRefPtr<WalkerActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);
     virtual ~WalkerActor() override;

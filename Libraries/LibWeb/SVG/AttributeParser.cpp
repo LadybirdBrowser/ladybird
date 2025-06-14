@@ -492,25 +492,25 @@ Optional<PreserveAspectRatio> AttributeParser::parse_preserve_aspect_ratio(Strin
     //     | xMinYMid | xMidYMid | xMaxYMid
     //     | xMinYMax | xMidYMax | xMaxYMax
     auto align = [&]() -> Optional<PreserveAspectRatio::Align> {
-        if (align_string == "none"sv)
+        if (align_string == "none"_sv)
             return PreserveAspectRatio::Align::None;
-        if (align_string == "xMinYMin"sv)
+        if (align_string == "xMinYMin"_sv)
             return PreserveAspectRatio::Align::xMinYMin;
-        if (align_string == "xMidYMin"sv)
+        if (align_string == "xMidYMin"_sv)
             return PreserveAspectRatio::Align::xMidYMin;
-        if (align_string == "xMaxYMin"sv)
+        if (align_string == "xMaxYMin"_sv)
             return PreserveAspectRatio::Align::xMaxYMin;
-        if (align_string == "xMinYMid"sv)
+        if (align_string == "xMinYMid"_sv)
             return PreserveAspectRatio::Align::xMinYMid;
-        if (align_string == "xMidYMid"sv)
+        if (align_string == "xMidYMid"_sv)
             return PreserveAspectRatio::Align::xMidYMid;
-        if (align_string == "xMaxYMid"sv)
+        if (align_string == "xMaxYMid"_sv)
             return PreserveAspectRatio::Align::xMaxYMid;
-        if (align_string == "xMinYMax"sv)
+        if (align_string == "xMinYMax"_sv)
             return PreserveAspectRatio::Align::xMinYMax;
-        if (align_string == "xMidYMax"sv)
+        if (align_string == "xMidYMax"_sv)
             return PreserveAspectRatio::Align::xMidYMax;
-        if (align_string == "xMaxYMax"sv)
+        if (align_string == "xMaxYMax"_sv)
             return PreserveAspectRatio::Align::xMaxYMax;
         return {};
     }();
@@ -520,9 +520,9 @@ Optional<PreserveAspectRatio> AttributeParser::parse_preserve_aspect_ratio(Strin
 
     // <meetOrSlice> = meet | slice
     auto meet_or_slice = [&]() -> Optional<PreserveAspectRatio::MeetOrSlice> {
-        if (meet_or_slice_string.is_empty() || meet_or_slice_string == "meet"sv)
+        if (meet_or_slice_string.is_empty() || meet_or_slice_string == "meet"_sv)
             return PreserveAspectRatio::MeetOrSlice::Meet;
-        if (meet_or_slice_string == "slice"sv)
+        if (meet_or_slice_string == "slice"_sv)
             return PreserveAspectRatio::MeetOrSlice::Slice;
         return {};
     }();
@@ -541,9 +541,9 @@ Optional<SVGUnits> AttributeParser::parse_units(StringView input)
     GenericLexer lexer { input };
     lexer.ignore_while(whitespace);
     auto gradient_units_string = lexer.consume_until(whitespace);
-    if (gradient_units_string == "userSpaceOnUse"sv)
+    if (gradient_units_string == "userSpaceOnUse"_sv)
         return SVGUnits::UserSpaceOnUse;
-    if (gradient_units_string == "objectBoundingBox"sv)
+    if (gradient_units_string == "objectBoundingBox"_sv)
         return SVGUnits::ObjectBoundingBox;
     return {};
 }
@@ -554,11 +554,11 @@ Optional<SpreadMethod> AttributeParser::parse_spread_method(StringView input)
     GenericLexer lexer { input };
     lexer.ignore_while(whitespace);
     auto spread_method_string = lexer.consume_until(whitespace);
-    if (spread_method_string == "pad"sv)
+    if (spread_method_string == "pad"_sv)
         return SpreadMethod::Pad;
-    if (spread_method_string == "repeat"sv)
+    if (spread_method_string == "repeat"_sv)
         return SpreadMethod::Repeat;
-    if (spread_method_string == "reflect"sv)
+    if (spread_method_string == "reflect"_sv)
         return SpreadMethod::Reflect;
     return {};
 }
@@ -612,7 +612,7 @@ Optional<Vector<Transform>> AttributeParser::parse_transform()
     consume_whitespace();
     while (!done()) {
         Optional<Transform> maybe_transform;
-        if (m_lexer.consume_specific("translate"sv)) {
+        if (m_lexer.consume_specific("translate"_sv)) {
             maybe_transform = parse_function([&]() -> Optional<Transform::Translate> {
                 Transform::Translate translate {};
                 auto maybe_x = try_parse_number();
@@ -622,7 +622,7 @@ Optional<Vector<Transform>> AttributeParser::parse_transform()
                 translate.y = parse_optional_number();
                 return translate;
             });
-        } else if (m_lexer.consume_specific("scale"sv)) {
+        } else if (m_lexer.consume_specific("scale"_sv)) {
             maybe_transform = parse_function([&]() -> Optional<Transform::Scale> {
                 Transform::Scale scale {};
                 auto maybe_x = try_parse_number();
@@ -632,7 +632,7 @@ Optional<Vector<Transform>> AttributeParser::parse_transform()
                 scale.y = parse_optional_number(scale.x);
                 return scale;
             });
-        } else if (m_lexer.consume_specific("rotate"sv)) {
+        } else if (m_lexer.consume_specific("rotate"_sv)) {
             maybe_transform = parse_function([&]() -> Optional<Transform::Rotate> {
                 Transform::Rotate rotate {};
                 auto maybe_a = try_parse_number();
@@ -643,7 +643,7 @@ Optional<Vector<Transform>> AttributeParser::parse_transform()
                 rotate.y = parse_optional_number();
                 return rotate;
             });
-        } else if (m_lexer.consume_specific("skewX"sv)) {
+        } else if (m_lexer.consume_specific("skewX"_sv)) {
             maybe_transform = parse_function([&]() -> Optional<Transform::SkewX> {
                 Transform::SkewX skew_x {};
                 auto maybe_a = try_parse_number();
@@ -652,7 +652,7 @@ Optional<Vector<Transform>> AttributeParser::parse_transform()
                 skew_x.a = *maybe_a;
                 return skew_x;
             });
-        } else if (m_lexer.consume_specific("skewY"sv)) {
+        } else if (m_lexer.consume_specific("skewY"_sv)) {
             maybe_transform = parse_function([&]() -> Optional<Transform::SkewY> {
                 Transform::SkewY skew_y {};
                 auto maybe_a = try_parse_number();
@@ -661,7 +661,7 @@ Optional<Vector<Transform>> AttributeParser::parse_transform()
                 skew_y.a = *maybe_a;
                 return skew_y;
             });
-        } else if (m_lexer.consume_specific("matrix"sv)) {
+        } else if (m_lexer.consume_specific("matrix"_sv)) {
             maybe_transform = parse_function([&]() -> Optional<Transform::Matrix> {
                 Transform::Matrix matrix;
                 auto maybe_a = try_parse_number();

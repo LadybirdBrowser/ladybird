@@ -51,13 +51,13 @@ void HTMLHRElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
         }
 
         if (name == HTML::AttributeNames::align) {
-            if (value.equals_ignoring_ascii_case("left"sv)) {
+            if (value.equals_ignoring_ascii_case("left"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, CSS::LengthStyleValue::create(CSS::Length::make_px(0)));
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
-            } else if (value.equals_ignoring_ascii_case("right"sv)) {
+            } else if (value.equals_ignoring_ascii_case("right"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, CSS::LengthStyleValue::create(CSS::Length::make_px(0)));
-            } else if (value.equals_ignoring_ascii_case("center"sv)) {
+            } else if (value.equals_ignoring_ascii_case("center"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
             }

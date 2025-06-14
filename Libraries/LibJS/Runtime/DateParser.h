@@ -333,7 +333,7 @@ private:
 
         consume_while(isspace);
 
-        if (consume_specific("AM"sv)) {
+        if (consume_specific("AM"_sv)) {
             if (!separator())
                 return false; // 12:34 AMsomething
 
@@ -344,7 +344,7 @@ private:
             return true;
         }
 
-        if (consume_specific("PM"sv)) {
+        if (consume_specific("PM"_sv)) {
             if (!separator())
                 return false; // 12:34 PMsomething
             if (m_hours.value() > 12)
@@ -609,33 +609,33 @@ private:
     {
         switch (peek()) {
         case 'A': // APR AUG
-            return month_name("APR"sv, 4) || month_name("AUG"sv, 8) || word();
+            return month_name("APR"_sv, 4) || month_name("AUG"_sv, 8) || word();
         case 'C': // CST CDT
-            return us_timezone("CST"sv, 6) || us_timezone("CDT"sv, 5) || word();
+            return us_timezone("CST"_sv, 6) || us_timezone("CDT"_sv, 5) || word();
         case 'D': // DEC
-            return month_name("DEC"sv, 12) || word();
+            return month_name("DEC"_sv, 12) || word();
         case 'E': // EST EDT
-            return us_timezone("EST"sv, 5) || us_timezone("EDT"sv, 4) || word();
+            return us_timezone("EST"_sv, 5) || us_timezone("EDT"_sv, 4) || word();
         case 'F': // FEB
-            return month_name("FEB"sv, 2) || word();
+            return month_name("FEB"_sv, 2) || word();
         case 'G': // GMT
-            return gmt("GMT"sv) || word();
+            return gmt("GMT"_sv) || word();
         case 'J': // JAN JUN JUL
-            return month_name("JAN"sv, 1) || month_name("JUN"sv, 6) || month_name("JUL"sv, 7) || word();
+            return month_name("JAN"_sv, 1) || month_name("JUN"_sv, 6) || month_name("JUL"_sv, 7) || word();
         case 'M': // MAR MAY MST MDT
-            return month_name("MAR"sv, 3) || month_name("MAY"sv, 5) || us_timezone("MST"sv, 7) || us_timezone("MDT"sv, 6) || word();
+            return month_name("MAR"_sv, 3) || month_name("MAY"_sv, 5) || us_timezone("MST"_sv, 7) || us_timezone("MDT"_sv, 6) || word();
         case 'N': // NOV
-            return month_name("NOV"sv, 11) || word();
+            return month_name("NOV"_sv, 11) || word();
         case 'O': // OCT
-            return month_name("OCT"sv, 10) || word();
+            return month_name("OCT"_sv, 10) || word();
         case 'P': // PST PDT
-            return us_timezone("PST"sv, 8) || us_timezone("PDT"sv, 7) || word();
+            return us_timezone("PST"_sv, 8) || us_timezone("PDT"_sv, 7) || word();
         case 'S': // SEP
-            return month_name("SEP"sv, 9) || word();
+            return month_name("SEP"_sv, 9) || word();
         case 'U': // UTC
-            return gmt("UTC"sv) || word();
+            return gmt("UTC"_sv) || word();
         case 'Z': // Z
-            return gmt("Z"sv) || word();
+            return gmt("Z"_sv) || word();
         }
 
         return word();
