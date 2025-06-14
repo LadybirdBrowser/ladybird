@@ -2622,9 +2622,13 @@ RefPtr<CSSStyleValue const> Parser::parse_font_language_override_value(TokenStre
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: unexpected trailing tokens");
             return nullptr;
         }
-        auto length = string_value.code_points().length();
+        auto length = string_value.bytes().size();
         if (length == 0) {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: <string> value is empty");
+            return nullptr;
+        }
+        if (!string_value.is_ascii()) {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: <string> value \"{}\" contains non-ascii characters", string_value);
             return nullptr;
         }
         if (length > 4) {
