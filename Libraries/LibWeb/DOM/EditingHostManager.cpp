@@ -140,6 +140,18 @@ void EditingHostManager::decrement_cursor_position_to_previous_word(CollapseSele
     selection->move_offset_to_previous_word(collapse == CollapseSelection::Yes);
 }
 
+void EditingHostManager::increment_cursor_position_to_next_line(CollapseSelection collapse)
+{
+    (void)collapse;
+    // FIXME: Implement this method
+}
+
+void EditingHostManager::decrement_cursor_position_to_previous_line(CollapseSelection collapse)
+{
+    (void)collapse;
+    // FIXME: Implement this method
+}
+
 void EditingHostManager::handle_delete(DeleteDirection direction)
 {
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
