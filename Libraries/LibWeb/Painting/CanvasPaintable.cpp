@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ToGfxConversions.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/CanvasPaintable.h>
 

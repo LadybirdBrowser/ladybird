@@ -172,6 +172,7 @@ public:
     Containment contain() const;
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;
+    Gfx::ImageOrientation image_orientation() const;
 
     static Vector<Transformation> transformations_for_style_value(CSSStyleValue const& value);
     Vector<Transformation> transformations() const;
