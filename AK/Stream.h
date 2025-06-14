@@ -29,7 +29,27 @@ public:
     virtual ErrorOr<Bytes> read_some(Bytes) = 0;
     /// Tries to fill the entire buffer through reading. Returns whether the
     /// buffer was filled without an error.
-    virtual ErrorOr<void> read_until_filled(Bytes);
+    virtual ErrorOr<void> read_until_filled(Bytes buffer)
+    {
+        size_t nread = 0;
+        while (nread < buffer.size()) {
+            if (is_eof())
+                return Error::from_string_literal("Reached end-of-file before filling the entire buffer");
+
+            auto result = read_some(buffer.slice(nread));
+            if (result.is_error()) {
+                if (result.error().is_errno() && result.error().code() == EINTR) {
+                    continue;
+                }
+
+                return result.release_error();
+            }
+
+            nread += result.value().size();
+        }
+
+        return {};
+    }
     /// Reads the stream until EOF, storing the contents into a ByteBuffer which
     /// is returned once EOF is encountered. The block size determines the size
     /// of newly allocated chunks while reading.

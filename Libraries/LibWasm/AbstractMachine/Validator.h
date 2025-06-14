@@ -228,6 +228,7 @@ public:
         void append(StackEntry entry)
         {
             Vector<StackEntry>::append(entry);
+            m_max_known_size = max(m_max_known_size, size());
         }
 
         ErrorOr<StackEntry, ValidationError> take(ValueType type, SourceLocation location = SourceLocation::current())
@@ -254,10 +255,17 @@ public:
             return {};
         }
 
-        Vector<StackEntry> release_vector() { return exchange(static_cast<Vector<StackEntry>&>(*this), Vector<StackEntry> {}); }
+        Vector<StackEntry> release_vector()
+        {
+            m_max_known_size = 0;
+            return exchange(static_cast<Vector<StackEntry>&>(*this), Vector<StackEntry> {});
+        }
+
+        size_t max_known_size() const { return m_max_known_size; }
 
     private:
         Vector<Frame> const& m_frames;
+        size_t m_max_known_size { 0 };
     };
 
     struct ExpressionTypeResult {
