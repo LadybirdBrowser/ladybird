@@ -2623,6 +2623,10 @@ RefPtr<CSSStyleValue const> Parser::parse_font_language_override_value(TokenStre
             return nullptr;
         }
         auto length = string_value.code_points().length();
+        if (length == 0) {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: <string> value is empty");
+            return nullptr;
+        }
         if (length > 4) {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: <string> value \"{}\" is too long", string_value);
             return nullptr;
