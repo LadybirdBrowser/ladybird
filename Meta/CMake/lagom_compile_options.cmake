@@ -7,8 +7,6 @@ if(NOT MSVC)
     add_cxx_compile_options(-fsigned-char)
     add_cxx_compile_options(-ggnu-pubnames)
 else()
-    # char is signed
-    add_cxx_compile_options(/J)
     # full symbolic debugginng information
     add_cxx_compile_options(/Z7)
 endif()
