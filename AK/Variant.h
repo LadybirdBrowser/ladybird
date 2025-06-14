@@ -478,7 +478,7 @@ private:
     }
 
     template<typename... Fs>
-    struct Visitor : Fs... {
+    struct AK_COMPACT_EMPTY_BASES Visitor : Fs... {
         using Types = TypeList<Fs...>;
 
         Visitor(Fs&&... args)

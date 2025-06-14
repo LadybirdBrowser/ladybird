@@ -249,6 +249,13 @@
 #    define NO_UNIQUE_ADDRESS [[no_unique_address]]
 #endif
 
+#if defined(AK_OS_WINDOWS)
+// https://learn.microsoft.com/en-us/cpp/cpp/empty-bases?view=msvc-170
+#    define AK_COMPACT_EMPTY_BASES __declspec(empty_bases)
+#else
+#    define AK_COMPACT_EMPTY_BASES
+#endif
+
 // GCC doesn't have __has_feature but clang does
 #ifndef __has_feature
 #    define __has_feature(...) 0

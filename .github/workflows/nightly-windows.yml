@@ -19,7 +19,7 @@ jobs:
   CI:
     if: github.repository == 'LadybirdBrowser/ladybird'
 
-    runs-on: windows-2022
+    runs-on: windows-2025
 
     steps:
       - uses: actions/checkout@v4
@@ -41,34 +41,48 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: 'cache-restore'
         with:
-          runner_labels: '["windows-2022"]'
+          runner_labels: '["windows-2025"]'
           os: Windows
           arch: x86_64
           toolchain: ClangCL
-          cache_key_extra: Windows_CI
+          cache_key_extra: Windows_Sanitizer_CI
           download_cache_path: ${{ github.workspace }}/Build/caches
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Create Build Environment
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --preset Windows_CI
+          cmake --preset Windows_Sanitizer_CI
 
       - name: Build
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --build --preset Windows_CI
+          cmake --build --preset Windows_Sanitizer_CI
 
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
-          runner_labels: '["windows-2022"]'
+          runner_labels: '["windows-2025"]'
           arch: x86_64
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       - name: Test
         working-directory: ${{ github.workspace }}
-        run: ctest --preset Windows_CI --timeout 1800
+        run: ctest --preset Windows_Sanitizer_CI --timeout 1800
         env:
           TESTS_ONLY: 1
+          ASAN_OPTIONS: 'log_path="${{ github.workspace }}\asan.log"'
+          UBSAN_OPTIONS: 'log_path="${{ github.workspace }}\ubsan.log"'
+
+      - name: Sanitizer Output
+        if: ${{ !cancelled() && inputs.build_preset == 'Windows_Sanitizer_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          log_output=$(find . -maxdepth 1 \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
+          if [ -z "$log_output" ]; then
+            echo "No sanitizer issues found."
+          else
+            echo "$log_output"
+            echo "Sanitizer errors happened while running tests; see the Test step above."
+          fi
