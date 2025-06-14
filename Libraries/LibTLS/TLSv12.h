@@ -65,7 +65,11 @@ public:
     ~TLSv12() override;
 
 private:
+#ifdef AK_OS_WINDOWS
+    explicit TLSv12(NonnullOwnPtr<Core::TCPSocket>, SSL_CTX*, SSL*, bool blocking);
+#else
     explicit TLSv12(NonnullOwnPtr<Core::TCPSocket>, SSL_CTX*, SSL*);
+#endif
 
     static ErrorOr<NonnullOwnPtr<TLSv12>> connect_internal(NonnullOwnPtr<Core::TCPSocket>, ByteString const&, Options);
 
@@ -76,6 +80,9 @@ private:
 
     // Keep this around or the socket will be closed
     NonnullOwnPtr<Core::TCPSocket> m_socket;
+#ifdef AK_OS_WINDOWS
+    bool const m_blocking;
+#endif
 };
 
 }
