@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing columns with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-columns">
+<meta name="assert" content="columns supports the full grammar '<column-width> || <column-count>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("columns", "auto 3", "3");
+test_valid_value("columns", "auto 10em", "10em");
+test_valid_value("columns", "3 auto", "3");
+test_valid_value("columns", "10em auto", "10em");
+test_valid_value("columns", "2 10px", "10px 2");
+test_valid_value("columns", "10px 2");
+test_valid_value("columns", "auto");
+test_valid_value("columns", "auto auto", "auto");
+test_valid_value("columns", "7");
+test_valid_value("columns", "7em");
+
+// Unitless zero is allowed for column-width.
+test_valid_value("columns", "0 1", "0px 1");
+test_valid_value("columns", "1 0", "0px 1");
+test_valid_value("columns", "0px 1");
+
+// CSS-wide keywords.
+test_valid_value("columns", "initial");
+test_valid_value("columns", "inherit");
+</script>
+</body>
+</html>

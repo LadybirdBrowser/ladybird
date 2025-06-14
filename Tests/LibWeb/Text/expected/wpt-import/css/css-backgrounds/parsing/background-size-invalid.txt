@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['background-size'] = "-1px" should not set the property value
+Pass	e.style['background-size'] = "2% -3%" should not set the property value
+Pass	e.style['background-size'] = "1px 2px 3px" should not set the property value

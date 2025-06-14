@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 26 tests
 
-25 Pass
-1 Fail
+26 Pass
 Pass	Default grid-gap is 'normal'
 Pass	grid-gap accepts pixels
 Pass	grid-gap accepts pixels 2
@@ -29,4 +28,4 @@ Pass	Resolution grid-gap is invalid
 Pass	Time grid-gap is invalid
 Pass	grid-gap with three values is invalid
 Pass	grid-gap with slash is invalid
-Fail	grid-gap with one wrong value is invalid
+Pass	grid-gap with one wrong value is invalid
