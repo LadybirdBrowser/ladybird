@@ -1,0 +1,59 @@
+Harness status: Error
+
+Found 54 tests
+
+54 Fail
+Fail	cookieStore.set with positional name and value
+Fail	cookieStore.set with name and value in options
+Fail	cookieStore.set fails with empty name and empty value
+Fail	cookieStore.set with empty name and an '=' in value
+Fail	cookieStore.set with normal name and an '=' in value
+Fail	cookieStore.set checks if name or value contain invalid character U+0000
+Fail	cookieStore.set checks if name or value contain invalid character U+0001
+Fail	cookieStore.set checks if name or value contain invalid character U+0002
+Fail	cookieStore.set checks if name or value contain invalid character U+0003
+Fail	cookieStore.set checks if name or value contain invalid character U+0004
+Fail	cookieStore.set checks if name or value contain invalid character U+0005
+Fail	cookieStore.set checks if name or value contain invalid character U+0006
+Fail	cookieStore.set checks if name or value contain invalid character U+0007
+Fail	cookieStore.set checks if name or value contain invalid character U+0008
+Fail	cookieStore.set checks if name or value contain invalid character U+0010
+Fail	cookieStore.set checks if name or value contain invalid character U+0011
+Fail	cookieStore.set checks if name or value contain invalid character U+0012
+Fail	cookieStore.set checks if name or value contain invalid character U+0013
+Fail	cookieStore.set checks if name or value contain invalid character U+0014
+Fail	cookieStore.set checks if name or value contain invalid character U+0015
+Fail	cookieStore.set checks if name or value contain invalid character U+0016
+Fail	cookieStore.set checks if name or value contain invalid character U+0017
+Fail	cookieStore.set checks if name or value contain invalid character U+0018
+Fail	cookieStore.set checks if name or value contain invalid character U+0019
+Fail	cookieStore.set checks if name or value contain invalid character U+001A
+Fail	cookieStore.set checks if name or value contain invalid character U+001B
+Fail	cookieStore.set checks if name or value contain invalid character U+001C
+Fail	cookieStore.set checks if name or value contain invalid character U+001D
+Fail	cookieStore.set checks if name or value contain invalid character U+001E
+Fail	cookieStore.set checks if name or value contain invalid character U+001F
+Fail	cookieStore.set checks if name or value contain invalid character U+003B
+Fail	cookieStore.set checks if name or value contain invalid character U+007F
+Fail	cookieStore.set with expires set to a future Date
+Fail	cookieStore.set with expires set to a past Date
+Fail	cookieStore.set with expires set to a future timestamp
+Fail	cookieStore.set with expires set to a past timestamp
+Fail	cookieStore.set domain starts with "."
+Fail	cookieStore.set with domain that is not equal current host
+Fail	cookieStore.set with domain set to the current hostname
+Fail	cookieStore.set with domain set to a subdomain of the current hostname
+Fail	cookieStore.set with domain set to a non-domain-matching suffix of the current hostname
+Fail	cookieStore.set default domain is null and differs from current hostname
+Fail	cookieStore.set with path set to the current directory
+Fail	cookieStore.set with path set to a subdirectory of the current directory
+Fail	cookieStore.set default path is /
+Fail	cookieStore.set does not add / to path that does not end with /
+Fail	cookieStore.set can modify a cookie set by document.cookie if document is defined
+Fail	cookieStore.set with path that does not start with /
+Fail	cookieStore.set with get result
+Fail	cookieStore.set checks if the path is too long
+Fail	cookieStore.set checks if the domain is too long
+Fail	cookieStore.set with a __Host- prefix should not have a domain
+Fail	cookieStore.set with whitespace only name and value
+Fail	cookieStore.set with whitespace at begining or end
