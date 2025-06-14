@@ -26,8 +26,8 @@ void ThreadConfigurationActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "updateConfiguration"sv) {
-        auto configuration = get_required_parameter<JsonObject>(message, "configuration"sv);
+    if (message.type == "updateConfiguration"_sv) {
+        auto configuration = get_required_parameter<JsonObject>(message, "configuration"_sv);
         if (!configuration.has_value())
             return;
 
@@ -41,7 +41,7 @@ void ThreadConfigurationActor::handle_message(Message const& message)
 JsonObject ThreadConfigurationActor::serialize_configuration() const
 {
     JsonObject target;
-    target.set("actor"sv, name());
+    target.set("actor"_sv, name());
 
     return target;
 }

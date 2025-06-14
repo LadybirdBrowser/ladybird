@@ -39,7 +39,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     TRY(Core::System::set_close_on_exec(socket_fds[0], true));
 
     auto takeover_string = MUST(String::formatted("{}:{}", options.name, socket_fds[1]));
-    TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, takeover_string, Core::Environment::Overwrite::Yes));
+    TRY(Core::Environment::set("SOCKET_TAKEOVER"_sv, takeover_string, Core::Environment::Overwrite::Yes));
 
     auto process = TRY(Core::Process::spawn(options));
 

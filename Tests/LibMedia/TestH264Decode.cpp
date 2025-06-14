@@ -15,5 +15,5 @@ static NonnullOwnPtr<Media::VideoDecoder> make_decoder(Media::Matroska::SampleIt
 
 TEST_CASE(avc_in_matroska)
 {
-    decode_video("./avc_in_matroska.mkv"sv, 50, make_decoder);
+    decode_video("./avc_in_matroska.mkv"_sv, 50, make_decoder);
 }

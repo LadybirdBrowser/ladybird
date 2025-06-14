@@ -106,7 +106,7 @@ public:
         return consume_specific(StringView { next, __builtin_strlen(next) });
     }
 
-    constexpr char consume_escaped_character(char escape_char = '\\', StringView escape_map = "n\nr\rt\tb\bf\f"sv)
+    constexpr char consume_escaped_character(char escape_char = '\\', StringView escape_map = "n\nr\rt\tb\bf\f"_sv)
     {
         if (!consume_specific(escape_char))
             return consume();
@@ -266,8 +266,8 @@ constexpr auto is_not_any_of(StringView values)
     return [values](auto c) { return !values.contains(c); };
 }
 
-constexpr auto is_path_separator = is_any_of("/\\"sv);
-constexpr auto is_quote = is_any_of("'\""sv);
+constexpr auto is_path_separator = is_any_of("/\\"_sv);
+constexpr auto is_quote = is_any_of("'\""_sv);
 
 }
 

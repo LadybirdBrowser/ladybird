@@ -109,7 +109,7 @@ public:
     [[nodiscard]] static ByteString repeated(StringView, size_t count);
 
     template<class SeparatorType, class CollectionType>
-    [[nodiscard]] static ByteString join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"sv)
+    [[nodiscard]] static ByteString join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"_sv)
     {
         StringBuilder builder;
         builder.join(separator, collection, fmtstr);

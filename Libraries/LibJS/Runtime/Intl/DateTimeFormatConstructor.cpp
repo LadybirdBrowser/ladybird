@@ -173,7 +173,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     else {
         // a. If toLocaleStringTimeZone is present, throw a TypeError exception.
         if (to_locale_string_time_zone.has_value())
-            return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, vm.names.timeZone, "a toLocaleString time zone"sv);
+            return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, vm.names.timeZone, "a toLocaleString time zone"_sv);
 
         // b. Set timeZone to ? ToString(timeZone).
         time_zone = TRY(time_zone_value.to_string(vm));
@@ -275,17 +275,17 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     }));
 
     // 26. Let formatMatcher be ? GetOption(options, "formatMatcher", string, « "basic", "best fit" », "best fit").
-    [[maybe_unused]] auto format_matcher = TRY(get_option(vm, *options, vm.names.formatMatcher, OptionType::String, AK::Array { "basic"sv, "best fit"sv }, "best fit"sv));
+    [[maybe_unused]] auto format_matcher = TRY(get_option(vm, *options, vm.names.formatMatcher, OptionType::String, AK::Array { "basic"_sv, "best fit"_sv }, "best fit"_sv));
 
     // 27. Let dateStyle be ? GetOption(options, "dateStyle", string, « "full", "long", "medium", "short" », undefined).
-    auto date_style = TRY(get_option(vm, *options, vm.names.dateStyle, OptionType::String, AK::Array { "full"sv, "long"sv, "medium"sv, "short"sv }, Empty {}));
+    auto date_style = TRY(get_option(vm, *options, vm.names.dateStyle, OptionType::String, AK::Array { "full"_sv, "long"_sv, "medium"_sv, "short"_sv }, Empty {}));
 
     // 28. Set dateTimeFormat.[[DateStyle]] to dateStyle.
     if (!date_style.is_undefined())
         date_time_format->set_date_style(date_style.as_string().utf8_string_view());
 
     // 29. Let timeStyle be ? GetOption(options, "timeStyle", string, « "full", "long", "medium", "short" », undefined).
-    auto time_style = TRY(get_option(vm, *options, vm.names.timeStyle, OptionType::String, AK::Array { "full"sv, "long"sv, "medium"sv, "short"sv }, Empty {}));
+    auto time_style = TRY(get_option(vm, *options, vm.names.timeStyle, OptionType::String, AK::Array { "full"_sv, "long"_sv, "medium"_sv, "short"_sv }, Empty {}));
 
     // 30. Set dateTimeFormat.[[TimeStyle]] to timeStyle.
     if (!time_style.is_undefined())
@@ -300,19 +300,19 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         // a. If hasExplicitFormatComponents is true, then
         if (explicit_format_component != nullptr) {
             // i. Throw a TypeError exception.
-            return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, *explicit_format_component, "dateStyle or timeStyle"sv);
+            return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, *explicit_format_component, "dateStyle or timeStyle"_sv);
         }
 
         // b. If required is date and timeStyle is not undefined, then
         if (required == OptionRequired::Date && !time_style.is_undefined()) {
             // i. Throw a TypeError exception.
-            return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, "timeStyle"sv, "date"sv);
+            return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, "timeStyle"_sv, "date"_sv);
         }
 
         // c. If required is time and dateStyle is not undefined, then
         if (required == OptionRequired::Time && !date_style.is_undefined()) {
             // i. Throw a TypeError exception.
-            return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, "dateStyle"sv, "time"sv);
+            return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, "dateStyle"_sv, "time"_sv);
         }
 
         // d. Let styles be resolvedLocaleData.[[styles]].[[<resolvedCalendar>]].

@@ -39,7 +39,7 @@ String Origin::serialize() const
     result.append(scheme().value_or(String {}));
 
     // 3. Append "://" to result.
-    result.append("://"sv);
+    result.append("://"_sv);
 
     // 4. Append origin's host, serialized, to result.
     result.append(host().serialize());

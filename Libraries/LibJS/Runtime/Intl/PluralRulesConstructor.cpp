@@ -64,13 +64,13 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     plural_rules->set_locale(move(result.locale));
 
     // 7. Let t be ? GetOption(options, "type", string, « "cardinal", "ordinal" », "cardinal").
-    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"sv, "ordinal"sv }, "cardinal"sv));
+    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"_sv, "ordinal"_sv }, "cardinal"_sv));
 
     // 8. Set pluralRules.[[Type]] to t.
     plural_rules->set_type(type.as_string().utf8_string_view());
 
     // 9. Let notation be ? GetOption(options, "notation", string, « "standard", "scientific", "engineering", "compact" », "standard").
-    auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, "standard"sv));
+    auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"_sv, "scientific"_sv, "engineering"_sv, "compact"_sv }, "standard"_sv));
 
     // 10. Set pluralRules.[[Notation]] to notation.
     plural_rules->set_notation(notation.as_string().utf8_string_view());
@@ -83,7 +83,7 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     //        to match the Intl.NumberFormat default, as LibUnicode requires the compact display to be set. See:
     //        https://github.com/tc39/ecma402/pull/989#issuecomment-2906752480
     if (plural_rules->notation() == Unicode::Notation::Compact)
-        plural_rules->set_compact_display("short"sv);
+        plural_rules->set_compact_display("short"_sv);
 
     // Non-standard, create an ICU number formatter for this Intl object.
     auto formatter = Unicode::NumberFormat::create(

@@ -24,7 +24,7 @@ namespace Wasm {
 
 #define TRAP_IF_NOT(x, ...)                                                                    \
     do {                                                                                       \
-        if (trap_if_not(x, #x##sv __VA_OPT__(, ) __VA_ARGS__)) {                               \
+        if (trap_if_not(x, #x##_sv __VA_OPT__(, ) __VA_ARGS__)) {                              \
             dbgln_if(WASM_TRACE_DEBUG, "Trapped because {} failed, at line {}", #x, __LINE__); \
             return;                                                                            \
         }                                                                                      \

@@ -205,7 +205,7 @@ template<typename T>
 struct Formatter<Gfx::Size<T>> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Gfx::Size<T> const& value)
     {
-        return Formatter<FormatString>::format(builder, "[{}x{}]"sv, value.width(), value.height());
+        return Formatter<FormatString>::format(builder, "[{}x{}]"_sv, value.width(), value.height());
     }
 };
 

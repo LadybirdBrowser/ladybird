@@ -45,7 +45,7 @@ public:
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
-    virtual StringView interface_name() const override { return "FileList"sv; }
+    virtual StringView interface_name() const override { return "FileList"_sv; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::SerializationRecord& serialized, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory&) override;
 

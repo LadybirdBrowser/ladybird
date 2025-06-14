@@ -30,13 +30,13 @@ StringView Part::type_to_string(Part::Type type)
 {
     switch (type) {
     case Type::FixedText:
-        return "FixedText"sv;
+        return "FixedText"_sv;
     case Type::Regexp:
-        return "Regexp"sv;
+        return "Regexp"_sv;
     case Type::SegmentWildcard:
-        return "SegmentWildcard"sv;
+        return "SegmentWildcard"_sv;
     case Type::FullWildcard:
-        return "FullWildcard"sv;
+        return "FullWildcard"_sv;
     }
 
     VERIFY_NOT_REACHED();
@@ -47,18 +47,18 @@ StringView Part::convert_modifier_to_string(Part::Modifier modifier)
 {
     // 1. If modifier is "zero-or-more", then return "*".
     if (modifier == Modifier::ZeroOrMore)
-        return "*"sv;
+        return "*"_sv;
 
     // 2. If modifier is "optional", then return "?".
     if (modifier == Modifier::Optional)
-        return "?"sv;
+        return "?"_sv;
 
     // 3. If modifier is "one-or-more", then return "+".
     if (modifier == Modifier::OneOrMore)
-        return "+"sv;
+        return "+"_sv;
 
     // 4. Return the empty string.
-    return ""sv;
+    return ""_sv;
 }
 
 }

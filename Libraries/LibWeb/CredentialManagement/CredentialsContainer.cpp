@@ -21,28 +21,28 @@ CredentialsContainer::~CredentialsContainer() { }
 GC::Ref<WebIDL::Promise> CredentialsContainer::get(CredentialRequestOptions const&)
 {
     auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "get"sv));
+    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "get"_sv));
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-store
 GC::Ref<WebIDL::Promise> CredentialsContainer::store(Credential const&)
 {
     auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "store"sv));
+    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "store"_sv));
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-create
 GC::Ref<WebIDL::Promise> CredentialsContainer::create(CredentialCreationOptions const&)
 {
     auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "create"sv));
+    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "create"_sv));
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-preventsilentaccess
 GC::Ref<WebIDL::Promise> CredentialsContainer::prevent_silent_access()
 {
     auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "prevent silent access"sv));
+    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "prevent silent access"_sv));
 }
 
 CredentialsContainer::CredentialsContainer(JS::Realm& realm)

@@ -117,15 +117,15 @@ WebIDL::ExceptionOr<void> AudioBufferSourceNode::start(Optional<double> when, Op
     // 2. Check for any errors that must be thrown due to parameter constraints described below. If any exception is thrown during this step, abort those steps.
     // A RangeError exception MUST be thrown if when is negative.
     if (when.has_value() && when.value() < 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"_sv };
 
     // A RangeError exception MUST be thrown if offset is negative
     if (offset.has_value() && offset.value() < 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "offset must not be negative"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "offset must not be negative"_sv };
 
     // A RangeError exception MUST be thrown if duration is negative.
     if (duration.has_value() && duration.value() < 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "duration must not be negative"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "duration must not be negative"_sv };
 
     // 3. Set the internal slot [[source started]] on this AudioBufferSourceNode to true.
     set_source_started(true);

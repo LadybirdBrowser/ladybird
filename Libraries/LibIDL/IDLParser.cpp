@@ -44,7 +44,7 @@
     error_message.appendff("{}\n", input.substring_view(start_line, line_length));
     for (size_t i = 0; i < colno - 1; ++i)
         error_message.append(' ');
-    error_message.append("\033[1;31m^\n"sv);
+    error_message.append("\033[1;31m^\n"_sv);
     error_message.appendff("{}:{}: error: {}\033[0m\n", filename, lineno, message);
 
     warnln("{}", error_message.string_view());
@@ -98,7 +98,7 @@ static ByteString convert_enumeration_value_to_cpp_enum_member(ByteString const&
     }
 
     if (builder.is_empty())
-        builder.append("Empty"sv);
+        builder.append("Empty"_sv);
 
     while (names_already_seen.contains(builder.string_view()))
         builder.append('_');
@@ -121,7 +121,7 @@ void Parser::consume_whitespace()
     while (consumed) {
         consumed = lexer.consume_while(is_ascii_space).length() > 0;
 
-        if (lexer.consume_specific("//"sv)) {
+        if (lexer.consume_specific("//"_sv)) {
             lexer.consume_until('\n');
             lexer.ignore();
             consumed = true;
@@ -138,7 +138,7 @@ void Parser::assert_string(StringView expected)
 ByteString Parser::parse_identifier_until(AK::Function<bool(char)> predicate)
 {
     auto identifier = lexer.consume_until(move(predicate));
-    return identifier.trim("_"sv, TrimMode::Left);
+    return identifier.trim("_"_sv, TrimMode::Left);
 }
 
 ByteString Parser::parse_identifier_ending_with_space_or(auto... possible_terminating_characters)
@@ -238,12 +238,12 @@ NonnullRefPtr<Type const> Parser::parse_type()
         Vector<NonnullRefPtr<Type const>> union_member_types;
         union_member_types.append(parse_type());
         consume_whitespace();
-        assert_string("or"sv);
+        assert_string("or"_sv);
         consume_whitespace();
         union_member_types.append(parse_type());
         consume_whitespace();
 
-        while (lexer.consume_specific("or"sv)) {
+        while (lexer.consume_specific("or"_sv)) {
             consume_whitespace();
             union_member_types.append(parse_type());
             consume_whitespace();
@@ -256,7 +256,7 @@ NonnullRefPtr<Type const> Parser::parse_type()
 
         if (nullable) {
             if (type->number_of_nullable_member_types() > 0)
-                report_parsing_error("nullable union type cannot contain another nullable type"sv, filename, input, lexer.tell());
+                report_parsing_error("nullable union type cannot contain another nullable type"_sv, filename, input, lexer.tell());
 
             // FIXME: A nullable union type cannot include a dictionary type as one of its flattened member types.
         }
@@ -264,11 +264,11 @@ NonnullRefPtr<Type const> Parser::parse_type()
         return type;
     }
 
-    bool unsigned_ = lexer.consume_specific("unsigned"sv);
+    bool unsigned_ = lexer.consume_specific("unsigned"_sv);
     if (unsigned_)
         consume_whitespace();
 
-    bool unrestricted = lexer.consume_specific("unrestricted"sv);
+    bool unrestricted = lexer.consume_specific("unrestricted"_sv);
     if (unrestricted)
         consume_whitespace();
 
@@ -276,10 +276,10 @@ NonnullRefPtr<Type const> Parser::parse_type()
 
     auto name = lexer.consume_until([](auto ch) { return !is_ascii_alphanumeric(ch) && ch != '_'; });
 
-    if (name.equals_ignoring_ascii_case("long"sv)) {
+    if (name.equals_ignoring_ascii_case("long"_sv)) {
         consume_whitespace();
-        if (lexer.consume_specific("long"sv))
-            name = "long long"sv;
+        if (lexer.consume_specific("long"_sv))
+            name = "long long"_sv;
     }
 
     Vector<NonnullRefPtr<Type const>> parameters;
@@ -296,9 +296,9 @@ NonnullRefPtr<Type const> Parser::parse_type()
     auto nullable = lexer.consume_specific('?');
     StringBuilder builder;
     if (unsigned_)
-        builder.append("unsigned "sv);
+        builder.append("unsigned "_sv);
     if (unrestricted)
-        builder.append("unrestricted "sv);
+        builder.append("unrestricted "_sv);
 
     builder.append(name);
 
@@ -306,16 +306,16 @@ NonnullRefPtr<Type const> Parser::parse_type()
         // https://webidl.spec.whatwg.org/#dfn-nullable-type
         // The inner type must not be:
         //   - any,
-        if (name == "any"sv)
-            report_parsing_error("'any' cannot be nullable"sv, filename, input, lexer.tell());
+        if (name == "any"_sv)
+            report_parsing_error("'any' cannot be nullable"_sv, filename, input, lexer.tell());
 
         //   - a promise type,
-        if (name == "Promise"sv)
-            report_parsing_error("'Promise' cannot be nullable"sv, filename, input, lexer.tell());
+        if (name == "Promise"_sv)
+            report_parsing_error("'Promise' cannot be nullable"_sv, filename, input, lexer.tell());
 
         //   - an observable array type,
         if (name == "ObservableArray")
-            report_parsing_error("'ObservableArray' cannot be nullable"sv, filename, input, lexer.tell());
+            report_parsing_error("'ObservableArray' cannot be nullable"_sv, filename, input, lexer.tell());
 
         //   - another nullable type, or
 
@@ -325,7 +325,7 @@ NonnullRefPtr<Type const> Parser::parse_type()
     }
 
     if (builder.is_empty()) {
-        report_parsing_error("Type can't be an empty string"sv, filename, input, lexer.tell());
+        report_parsing_error("Type can't be an empty string"_sv, filename, input, lexer.tell());
     }
 
     if (is_parameterized_type)
@@ -336,21 +336,21 @@ NonnullRefPtr<Type const> Parser::parse_type()
 
 void Parser::parse_attribute(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface, IsStatic is_static)
 {
-    bool inherit = lexer.consume_specific("inherit"sv);
+    bool inherit = lexer.consume_specific("inherit"_sv);
     if (inherit)
         consume_whitespace();
 
-    bool readonly = lexer.consume_specific("readonly"sv);
+    bool readonly = lexer.consume_specific("readonly"_sv);
     if (readonly)
         consume_whitespace();
 
     // FIXME: Should we parse 'readonly setlike<T>' differently than this?
-    if (lexer.consume_specific("attribute"sv))
+    if (lexer.consume_specific("attribute"_sv))
         consume_whitespace();
-    else if (lexer.consume_specific("setlike"sv) && !inherit)
+    else if (lexer.consume_specific("setlike"_sv) && !inherit)
         parse_setlike(interface, readonly);
     else
-        report_parsing_error("expected 'attribute'"sv, filename, input, lexer.tell());
+        report_parsing_error("expected 'attribute'"_sv, filename, input, lexer.tell());
 
     auto type = parse_type();
     consume_whitespace();
@@ -364,7 +364,7 @@ void Parser::parse_attribute(HashMap<ByteString, ByteString>& extended_attribute
     if (custom_callback_name != extended_attributes.end()) {
         attribute_callback_name = custom_callback_name->value;
     } else {
-        attribute_callback_name = name.to_snakecase().replace("-"sv, "_"sv, ReplaceMode::All);
+        attribute_callback_name = name.to_snakecase().replace("-"_sv, "_"_sv, ReplaceMode::All);
     }
 
     auto getter_callback_name = ByteString::formatted("{}_getter", attribute_callback_name);
@@ -387,7 +387,7 @@ void Parser::parse_attribute(HashMap<ByteString, ByteString>& extended_attribute
 
 void Parser::parse_constant(Interface& interface)
 {
-    lexer.consume_specific("const"sv);
+    lexer.consume_specific("const"_sv);
     consume_whitespace();
 
     auto type = parse_type();
@@ -418,7 +418,7 @@ Vector<Parameter> Parser::parse_parameters()
         HashMap<ByteString, ByteString> extended_attributes;
         if (lexer.consume_specific('['))
             extended_attributes = parse_extended_attributes();
-        bool optional = lexer.consume_specific("optional"sv);
+        bool optional = lexer.consume_specific("optional"_sv);
         if (optional)
             consume_whitespace();
         if (lexer.consume_specific('[')) {
@@ -428,7 +428,7 @@ Vector<Parameter> Parser::parse_parameters()
             extended_attributes = parse_extended_attributes();
         }
         auto type = parse_type();
-        bool variadic = lexer.consume_specific("..."sv);
+        bool variadic = lexer.consume_specific("..."_sv);
         consume_whitespace();
         auto name = parse_identifier_ending_with_space_or(',', ')', '=');
         Parameter parameter = { move(type), move(name), optional, {}, move(extended_attributes), variadic };
@@ -486,7 +486,7 @@ Function Parser::parse_function(HashMap<ByteString, ByteString>& extended_attrib
 
 void Parser::parse_constructor(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface)
 {
-    assert_string("constructor"sv);
+    assert_string("constructor"_sv);
     consume_whitespace();
     assert_specific('(');
     auto parameters = parse_parameters();
@@ -499,10 +499,10 @@ void Parser::parse_constructor(HashMap<ByteString, ByteString>& extended_attribu
 
 void Parser::parse_stringifier(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface)
 {
-    assert_string("stringifier"sv);
+    assert_string("stringifier"_sv);
     consume_whitespace();
     interface.has_stringifier = true;
-    if (lexer.next_is("attribute"sv) || lexer.next_is("inherit"sv) || lexer.next_is("readonly"sv)) {
+    if (lexer.next_is("attribute"_sv) || lexer.next_is("inherit"_sv) || lexer.next_is("readonly"_sv)) {
         parse_attribute(extended_attributes, interface);
         interface.stringifier_attribute = interface.attributes.last();
     } else {
@@ -512,12 +512,12 @@ void Parser::parse_stringifier(HashMap<ByteString, ByteString>& extended_attribu
 
 void Parser::parse_iterable(Interface& interface)
 {
-    assert_string("iterable"sv);
+    assert_string("iterable"_sv);
     assert_specific('<');
     auto first_type = parse_type();
     if (lexer.next_is(',')) {
         if (interface.supports_indexed_properties())
-            report_parsing_error("Interfaces with a pair iterator must not support indexed properties."sv, filename, input, lexer.tell());
+            report_parsing_error("Interfaces with a pair iterator must not support indexed properties."_sv, filename, input, lexer.tell());
 
         assert_specific(',');
         consume_whitespace();
@@ -525,15 +525,15 @@ void Parser::parse_iterable(Interface& interface)
         interface.pair_iterator_types = Tuple { move(first_type), move(second_type) };
     } else {
         if (!interface.supports_indexed_properties())
-            report_parsing_error("Interfaces with a value iterator must support indexed properties."sv, filename, input, lexer.tell());
+            report_parsing_error("Interfaces with a value iterator must support indexed properties."_sv, filename, input, lexer.tell());
 
         interface.value_iterator_type = move(first_type);
     }
 
     if (interface.async_value_iterator_type.has_value())
-        report_parsing_error("Interfaces with an async iterable declaration must not have an iterable declaration."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces with an async iterable declaration must not have an iterable declaration."_sv, filename, input, lexer.tell());
     if (interface.set_entry_type.has_value())
-        report_parsing_error("Interfaces with an iterable declaration must not have a setlike declaration."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces with an iterable declaration must not have a setlike declaration."_sv, filename, input, lexer.tell());
 
     assert_specific('>');
     assert_specific(';');
@@ -543,25 +543,25 @@ void Parser::parse_iterable(Interface& interface)
 void Parser::parse_async_iterable(Interface& interface)
 {
     if (interface.async_value_iterator_type.has_value())
-        report_parsing_error("Interfaces must not have more than one async iterable declaration."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces must not have more than one async iterable declaration."_sv, filename, input, lexer.tell());
     if (interface.set_entry_type.has_value())
-        report_parsing_error("Interfaces with an async iterable declaration must not have a setlike declaration."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces with an async iterable declaration must not have a setlike declaration."_sv, filename, input, lexer.tell());
     if (interface.value_iterator_type.has_value())
-        report_parsing_error("Interfaces with an async iterable declaration must not have an iterable declaration."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces with an async iterable declaration must not have an iterable declaration."_sv, filename, input, lexer.tell());
     if (interface.supports_indexed_properties())
-        report_parsing_error("Interfaces with an async iterable declaration must not support indexed properties."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces with an async iterable declaration must not support indexed properties."_sv, filename, input, lexer.tell());
     // FIXME: Reject interfaces that have a maplike declaration when we support that type.
 
-    assert_string("async"sv);
+    assert_string("async"_sv);
     consume_whitespace();
-    assert_string("iterable"sv);
+    assert_string("iterable"_sv);
     assert_specific('<');
 
     auto first_type = parse_type();
 
     if (lexer.next_is(',')) {
         // https://webidl.spec.whatwg.org/#pair-asynchronously-iterable-declaration
-        report_parsing_error("FIXME: Support paired async iterable declarations."sv, filename, input, lexer.tell());
+        report_parsing_error("FIXME: Support paired async iterable declarations."_sv, filename, input, lexer.tell());
     } else {
         interface.async_value_iterator_type = move(first_type);
     }
@@ -580,12 +580,12 @@ void Parser::parse_async_iterable(Interface& interface)
 void Parser::parse_setlike(Interface& interface, bool is_readonly)
 {
     if (interface.supports_indexed_properties())
-        report_parsing_error("Interfaces with a setlike declaration must not support indexed properties."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces with a setlike declaration must not support indexed properties."_sv, filename, input, lexer.tell());
 
     if (interface.value_iterator_type.has_value() || interface.pair_iterator_types.has_value())
-        report_parsing_error("Interfaces with a setlike declaration must not must not be iterable."sv, filename, input, lexer.tell());
+        report_parsing_error("Interfaces with a setlike declaration must not must not be iterable."_sv, filename, input, lexer.tell());
 
-    assert_string("setlike"sv);
+    assert_string("setlike"_sv);
     assert_specific('<');
 
     interface.set_entry_type = parse_type();
@@ -597,7 +597,7 @@ void Parser::parse_setlike(Interface& interface, bool is_readonly)
 
 void Parser::parse_getter(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface)
 {
-    assert_string("getter"sv);
+    assert_string("getter"_sv);
     consume_whitespace();
     auto function = parse_function(extended_attributes, interface, IsStatic::No, IsSpecialOperation::Yes);
 
@@ -607,21 +607,21 @@ void Parser::parse_getter(HashMap<ByteString, ByteString>& extended_attributes, 
     auto& identifier = function.parameters.first();
 
     if (identifier.type->is_nullable())
-        report_parsing_error("identifier's type must not be nullable."sv, filename, input, lexer.tell());
+        report_parsing_error("identifier's type must not be nullable."_sv, filename, input, lexer.tell());
 
     if (identifier.optional)
-        report_parsing_error("identifier must not be optional."sv, filename, input, lexer.tell());
+        report_parsing_error("identifier must not be optional."_sv, filename, input, lexer.tell());
 
     // FIXME: Disallow variadic functions once they're supported.
 
     if (identifier.type->name() == "DOMString") {
         if (interface.named_property_getter.has_value())
-            report_parsing_error("An interface can only have one named property getter."sv, filename, input, lexer.tell());
+            report_parsing_error("An interface can only have one named property getter."_sv, filename, input, lexer.tell());
 
         interface.named_property_getter = move(function);
     } else if (identifier.type->name() == "unsigned long") {
         if (interface.indexed_property_getter.has_value())
-            report_parsing_error("An interface can only have one indexed property getter."sv, filename, input, lexer.tell());
+            report_parsing_error("An interface can only have one indexed property getter."_sv, filename, input, lexer.tell());
 
         interface.indexed_property_getter = move(function);
     } else {
@@ -631,7 +631,7 @@ void Parser::parse_getter(HashMap<ByteString, ByteString>& extended_attributes, 
 
 void Parser::parse_setter(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface)
 {
-    assert_string("setter"sv);
+    assert_string("setter"_sv);
     consume_whitespace();
     auto function = parse_function(extended_attributes, interface, IsStatic::No, IsSpecialOperation::Yes);
 
@@ -641,27 +641,27 @@ void Parser::parse_setter(HashMap<ByteString, ByteString>& extended_attributes, 
     auto& identifier = function.parameters.first();
 
     if (identifier.type->is_nullable())
-        report_parsing_error("identifier's type must not be nullable."sv, filename, input, lexer.tell());
+        report_parsing_error("identifier's type must not be nullable."_sv, filename, input, lexer.tell());
 
     if (identifier.optional)
-        report_parsing_error("identifier must not be optional."sv, filename, input, lexer.tell());
+        report_parsing_error("identifier must not be optional."_sv, filename, input, lexer.tell());
 
     // FIXME: Disallow variadic functions once they're supported.
 
     if (identifier.type->name() == "DOMString") {
         if (interface.named_property_setter.has_value())
-            report_parsing_error("An interface can only have one named property setter."sv, filename, input, lexer.tell());
+            report_parsing_error("An interface can only have one named property setter."_sv, filename, input, lexer.tell());
 
         if (!interface.named_property_getter.has_value())
-            report_parsing_error("A named property setter must be accompanied by a named property getter."sv, filename, input, lexer.tell());
+            report_parsing_error("A named property setter must be accompanied by a named property getter."_sv, filename, input, lexer.tell());
 
         interface.named_property_setter = move(function);
     } else if (identifier.type->name() == "unsigned long") {
         if (interface.indexed_property_setter.has_value())
-            report_parsing_error("An interface can only have one indexed property setter."sv, filename, input, lexer.tell());
+            report_parsing_error("An interface can only have one indexed property setter."_sv, filename, input, lexer.tell());
 
         if (!interface.indexed_property_getter.has_value())
-            report_parsing_error("An indexed property setter must be accompanied by an indexed property getter."sv, filename, input, lexer.tell());
+            report_parsing_error("An indexed property setter must be accompanied by an indexed property getter."_sv, filename, input, lexer.tell());
 
         interface.indexed_property_setter = move(function);
     } else {
@@ -671,7 +671,7 @@ void Parser::parse_setter(HashMap<ByteString, ByteString>& extended_attributes, 
 
 void Parser::parse_deleter(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface)
 {
-    assert_string("deleter"sv);
+    assert_string("deleter"_sv);
     consume_whitespace();
     auto function = parse_function(extended_attributes, interface, IsStatic::No, IsSpecialOperation::Yes);
 
@@ -681,19 +681,19 @@ void Parser::parse_deleter(HashMap<ByteString, ByteString>& extended_attributes,
     auto& identifier = function.parameters.first();
 
     if (identifier.type->is_nullable())
-        report_parsing_error("identifier's type must not be nullable."sv, filename, input, lexer.tell());
+        report_parsing_error("identifier's type must not be nullable."_sv, filename, input, lexer.tell());
 
     if (identifier.optional)
-        report_parsing_error("identifier must not be optional."sv, filename, input, lexer.tell());
+        report_parsing_error("identifier must not be optional."_sv, filename, input, lexer.tell());
 
     // FIXME: Disallow variadic functions once they're supported.
 
     if (identifier.type->name() == "DOMString") {
         if (interface.named_property_deleter.has_value())
-            report_parsing_error("An interface can only have one named property deleter."sv, filename, input, lexer.tell());
+            report_parsing_error("An interface can only have one named property deleter."_sv, filename, input, lexer.tell());
 
         if (!interface.named_property_getter.has_value())
-            report_parsing_error("A named property deleter must be accompanied by a named property getter."sv, filename, input, lexer.tell());
+            report_parsing_error("A named property deleter must be accompanied by a named property getter."_sv, filename, input, lexer.tell());
 
         interface.named_property_deleter = move(function);
     } else {
@@ -794,7 +794,7 @@ void Parser::parse_interface(Interface& interface)
         }
     }
 
-    if (auto legacy_namespace = interface.extended_attributes.get("LegacyNamespace"sv); legacy_namespace.has_value())
+    if (auto legacy_namespace = interface.extended_attributes.get("LegacyNamespace"_sv); legacy_namespace.has_value())
         interface.namespaced_name = ByteString::formatted("{}.{}", *legacy_namespace, interface.name);
     else
         interface.namespaced_name = interface.name;
@@ -841,7 +841,7 @@ void Parser::parse_namespace(Interface& interface)
 // https://webidl.spec.whatwg.org/#prod-Enum
 void Parser::parse_enumeration(HashMap<ByteString, ByteString> extended_attributes, Interface& interface)
 {
-    assert_string("enum"sv);
+    assert_string("enum"_sv);
     consume_whitespace();
 
     Enumeration enumeration {};
@@ -888,7 +888,7 @@ void Parser::parse_enumeration(HashMap<ByteString, ByteString> extended_attribut
 
 void Parser::parse_typedef(Interface& interface)
 {
-    assert_string("typedef"sv);
+    assert_string("typedef"_sv);
     consume_whitespace();
 
     HashMap<ByteString, ByteString> extended_attributes;
@@ -909,12 +909,12 @@ void Parser::parse_dictionary(Interface& interface)
 {
     bool partial = false;
     if (lexer.next_is("partial")) {
-        assert_string("partial"sv);
+        assert_string("partial"_sv);
         consume_whitespace();
         partial = true;
     }
 
-    assert_string("dictionary"sv);
+    assert_string("dictionary"_sv);
     consume_whitespace();
 
     Dictionary dictionary {};
@@ -941,7 +941,7 @@ void Parser::parse_dictionary(Interface& interface)
         bool required = false;
         HashMap<ByteString, ByteString> extended_attributes;
 
-        if (lexer.consume_specific("required"sv)) {
+        if (lexer.consume_specific("required"_sv)) {
             required = true;
             consume_whitespace();
         }
@@ -999,14 +999,14 @@ void Parser::parse_interface_mixin(Interface& interface)
     mixin_interface.module_own_path = interface.module_own_path;
     mixin_interface.is_mixin = true;
 
-    assert_string("interface"sv);
+    assert_string("interface"_sv);
     consume_whitespace();
-    assert_string("mixin"sv);
+    assert_string("mixin"_sv);
     auto offset = lexer.tell();
 
     parse_interface(mixin_interface);
     if (!mixin_interface.parent_name.is_empty())
-        report_parsing_error("Mixin interfaces are not allowed to have inherited parents"sv, filename, input, offset);
+        report_parsing_error("Mixin interfaces are not allowed to have inherited parents"_sv, filename, input, offset);
 
     auto name = mixin_interface.name;
     interface.mixins.set(move(name), &mixin_interface);
@@ -1014,7 +1014,7 @@ void Parser::parse_interface_mixin(Interface& interface)
 
 void Parser::parse_callback_function(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface)
 {
-    assert_string("callback"sv);
+    assert_string("callback"_sv);
     consume_whitespace();
 
     auto name = parse_identifier_ending_with_space();
@@ -1057,7 +1057,7 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
             auto current_offset = lexer.tell();
             auto name = parse_identifier_ending_with_space();
             consume_whitespace();
-            if (lexer.consume_specific("includes"sv)) {
+            if (lexer.consume_specific("includes"_sv)) {
                 consume_whitespace();
                 auto mixin_name = parse_identifier_ending_with_space_or(';');
                 interface.included_mixins.ensure(name).set(mixin_name);
@@ -1065,7 +1065,7 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
                 assert_specific(';');
                 consume_whitespace();
             } else {
-                report_parsing_error("expected 'enum' or 'dictionary'"sv, filename, input, current_offset);
+                report_parsing_error("expected 'enum' or 'dictionary'"_sv, filename, input, current_offset);
             }
         } else {
             interface.extended_attributes = move(extended_attributes);
@@ -1157,7 +1157,7 @@ Interface& Parser::parse()
 
     Vector<Interface&> imports;
     {
-        while (lexer.consume_specific("#import"sv)) {
+        while (lexer.consume_specific("#import"_sv)) {
             consume_whitespace();
             assert_specific('<');
             auto path = lexer.consume_until('>');
@@ -1172,9 +1172,9 @@ Interface& Parser::parse()
 
     parse_non_interface_entities(true, interface);
 
-    if (lexer.consume_specific("interface"sv))
+    if (lexer.consume_specific("interface"_sv))
         parse_interface(interface);
-    else if (lexer.consume_specific("namespace"sv))
+    else if (lexer.consume_specific("namespace"_sv))
         parse_namespace(interface);
 
     parse_non_interface_entities(false, interface);

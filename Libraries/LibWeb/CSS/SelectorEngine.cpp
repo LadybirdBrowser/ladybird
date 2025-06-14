@@ -65,7 +65,7 @@ static bool language_range_matches_tag(StringView language_range, StringView lan
     //    Two subtags match if either they are the same when compared case-insensitively or the language range's subtag
     //    is the wildcard '*'.
     auto subtags_match = [](StringView language_range_subtag, StringView language_subtag) {
-        return language_range_subtag == "*"sv
+        return language_range_subtag == "*"_sv
             || language_range_subtag.equals_ignoring_ascii_case(language_subtag);
     };
 
@@ -83,7 +83,7 @@ static bool language_range_matches_tag(StringView language_range, StringView lan
     while (!range_subtag.is_end()) {
         // A. If the subtag currently being examined in the range is the wildcard ('*'), move to the next subtag in
         //    the range and continue with the loop.
-        if (*range_subtag == "*"sv) {
+        if (*range_subtag == "*"_sv) {
             ++range_subtag;
             continue;
         }

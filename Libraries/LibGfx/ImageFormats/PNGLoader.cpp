@@ -139,11 +139,11 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
 {
     m_context->png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
     if (!m_context->png_ptr)
-        return Error::from_string_view("Failed to allocate read struct"sv);
+        return Error::from_string_view("Failed to allocate read struct"_sv);
 
     m_context->info_ptr = png_create_info_struct(m_context->png_ptr);
     if (!m_context->info_ptr) {
-        return Error::from_string_view("Failed to allocate info struct"sv);
+        return Error::from_string_view("Failed to allocate info struct"_sv);
     }
 
     if (auto error_value = setjmp(png_jmpbuf(m_context->png_ptr)); error_value) {

@@ -51,150 +51,150 @@ static void expect_search_url_equals_sanitized_url(StringView url)
 
 TEST_CASE(invalid_url)
 {
-    EXPECT(!WebView::break_url_into_parts(""sv).has_value());
-    EXPECT(!WebView::break_url_into_parts(":"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts(":/"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("://"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts(""_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts(":"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts(":/"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("://"_sv).has_value());
 
-    EXPECT(!WebView::break_url_into_parts("/"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("//"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("/h"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("/"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("//"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("/h"_sv).has_value());
 
-    EXPECT(!WebView::break_url_into_parts("f"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("fi"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("fil"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("file"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("file:"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("file:/"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("f"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("fi"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("fil"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("file"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("file:"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("file:/"_sv).has_value());
 
-    EXPECT(!WebView::break_url_into_parts("h"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("ht"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("htt"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("http"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("http:"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("http:/"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("http://"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("h"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("ht"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("htt"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("http"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("http:"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("http:/"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("http://"_sv).has_value());
 
-    EXPECT(!WebView::break_url_into_parts("https"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("https:"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("https:/"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("https://"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("https"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("https:"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("https:/"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("https://"_sv).has_value());
 
-    EXPECT(!WebView::break_url_into_parts("a"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("ab"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("abo"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("abou"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("about"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("a"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("ab"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("abo"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("abou"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("about"_sv).has_value());
 
-    EXPECT(!WebView::break_url_into_parts("d"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("da"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("dat"sv).has_value());
-    EXPECT(!WebView::break_url_into_parts("data"sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("d"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("da"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("dat"_sv).has_value());
+    EXPECT(!WebView::break_url_into_parts("data"_sv).has_value());
 }
 
 TEST_CASE(file_url)
 {
-    compare_url_parts("file://"sv, { "file://"sv, ""sv, {} });
-    compare_url_parts("file://a"sv, { "file://"sv, "a"sv, {} });
-    compare_url_parts("file:///a"sv, { "file://"sv, "/a"sv, {} });
-    compare_url_parts("file:///abc"sv, { "file://"sv, "/abc"sv, {} });
+    compare_url_parts("file://"_sv, { "file://"_sv, ""_sv, {} });
+    compare_url_parts("file://a"_sv, { "file://"_sv, "a"_sv, {} });
+    compare_url_parts("file:///a"_sv, { "file://"_sv, "/a"_sv, {} });
+    compare_url_parts("file:///abc"_sv, { "file://"_sv, "/abc"_sv, {} });
 }
 
 TEST_CASE(http_url)
 {
-    compare_url_parts("http://a"sv, { "http://"sv, "a"sv, {} });
-    compare_url_parts("http://abc"sv, { "http://"sv, "abc"sv, {} });
-    compare_url_parts("http://com"sv, { "http://"sv, "com"sv, {} });
-    compare_url_parts("http://abc."sv, { "http://"sv, "abc."sv, {} });
-    compare_url_parts("http://abc.c"sv, { "http://"sv, "abc.c"sv, {} });
-    compare_url_parts("http://abc.com"sv, { "http://"sv, "abc.com"sv, {} });
-    compare_url_parts("http://abc.com."sv, { "http://"sv, "abc.com."sv, {} });
-    compare_url_parts("http://abc.com."sv, { "http://"sv, "abc.com."sv, {} });
-    compare_url_parts("http://abc.com.org"sv, { "http://abc."sv, "com.org"sv, {} });
-    compare_url_parts("http://abc.com.org.gov"sv, { "http://abc.com."sv, "org.gov"sv, {} });
+    compare_url_parts("http://a"_sv, { "http://"_sv, "a"_sv, {} });
+    compare_url_parts("http://abc"_sv, { "http://"_sv, "abc"_sv, {} });
+    compare_url_parts("http://com"_sv, { "http://"_sv, "com"_sv, {} });
+    compare_url_parts("http://abc."_sv, { "http://"_sv, "abc."_sv, {} });
+    compare_url_parts("http://abc.c"_sv, { "http://"_sv, "abc.c"_sv, {} });
+    compare_url_parts("http://abc.com"_sv, { "http://"_sv, "abc.com"_sv, {} });
+    compare_url_parts("http://abc.com."_sv, { "http://"_sv, "abc.com."_sv, {} });
+    compare_url_parts("http://abc.com."_sv, { "http://"_sv, "abc.com."_sv, {} });
+    compare_url_parts("http://abc.com.org"_sv, { "http://abc."_sv, "com.org"_sv, {} });
+    compare_url_parts("http://abc.com.org.gov"_sv, { "http://abc.com."_sv, "org.gov"_sv, {} });
 
-    compare_url_parts("http://abc/path"sv, { "http://"sv, "abc"sv, "/path"sv });
-    compare_url_parts("http://abc#anchor"sv, { "http://"sv, "abc"sv, "#anchor"sv });
-    compare_url_parts("http://abc?query"sv, { "http://"sv, "abc"sv, "?query"sv });
+    compare_url_parts("http://abc/path"_sv, { "http://"_sv, "abc"_sv, "/path"_sv });
+    compare_url_parts("http://abc#anchor"_sv, { "http://"_sv, "abc"_sv, "#anchor"_sv });
+    compare_url_parts("http://abc?query"_sv, { "http://"_sv, "abc"_sv, "?query"_sv });
 
-    compare_url_parts("http://abc.def.com"sv, { "http://abc."sv, "def.com"sv, {} });
-    compare_url_parts("http://abc.def.com/path"sv, { "http://abc."sv, "def.com"sv, "/path"sv });
-    compare_url_parts("http://abc.def.com#anchor"sv, { "http://abc."sv, "def.com"sv, "#anchor"sv });
-    compare_url_parts("http://abc.def.com?query"sv, { "http://abc."sv, "def.com"sv, "?query"sv });
+    compare_url_parts("http://abc.def.com"_sv, { "http://abc."_sv, "def.com"_sv, {} });
+    compare_url_parts("http://abc.def.com/path"_sv, { "http://abc."_sv, "def.com"_sv, "/path"_sv });
+    compare_url_parts("http://abc.def.com#anchor"_sv, { "http://abc."_sv, "def.com"_sv, "#anchor"_sv });
+    compare_url_parts("http://abc.def.com?query"_sv, { "http://abc."_sv, "def.com"_sv, "?query"_sv });
 }
 
 TEST_CASE(about_url)
 {
-    compare_url_parts("about:"sv, { "about:"sv, {}, {} });
-    compare_url_parts("about:a"sv, { "about:"sv, "a"sv, {} });
-    compare_url_parts("about:ab"sv, { "about:"sv, "ab"sv, {} });
-    compare_url_parts("about:abc"sv, { "about:"sv, "abc"sv, {} });
-    compare_url_parts("about:abc/def"sv, { "about:"sv, "abc/def"sv, {} });
+    compare_url_parts("about:"_sv, { "about:"_sv, {}, {} });
+    compare_url_parts("about:a"_sv, { "about:"_sv, "a"_sv, {} });
+    compare_url_parts("about:ab"_sv, { "about:"_sv, "ab"_sv, {} });
+    compare_url_parts("about:abc"_sv, { "about:"_sv, "abc"_sv, {} });
+    compare_url_parts("about:abc/def"_sv, { "about:"_sv, "abc/def"_sv, {} });
 
-    EXPECT(!is_sanitized_url_the_same("about"sv));
-    EXPECT(!is_sanitized_url_the_same("about blabla:"sv));
-    EXPECT(!is_sanitized_url_the_same("blabla about:"sv));
+    EXPECT(!is_sanitized_url_the_same("about"_sv));
+    EXPECT(!is_sanitized_url_the_same("about blabla:"_sv));
+    EXPECT(!is_sanitized_url_the_same("blabla about:"_sv));
 
-    EXPECT(is_sanitized_url_the_same("about:about"sv));
-    EXPECT(is_sanitized_url_the_same("about:version"sv));
+    EXPECT(is_sanitized_url_the_same("about:about"_sv));
+    EXPECT(is_sanitized_url_the_same("about:version"_sv));
 }
 
 TEST_CASE(data_url)
 {
-    compare_url_parts("data:"sv, { "data:"sv, {}, {} });
-    compare_url_parts("data:a"sv, { "data:"sv, "a"sv, {} });
-    compare_url_parts("data:ab"sv, { "data:"sv, "ab"sv, {} });
-    compare_url_parts("data:abc"sv, { "data:"sv, "abc"sv, {} });
-    compare_url_parts("data:abc/def"sv, { "data:"sv, "abc/def"sv, {} });
+    compare_url_parts("data:"_sv, { "data:"_sv, {}, {} });
+    compare_url_parts("data:a"_sv, { "data:"_sv, "a"_sv, {} });
+    compare_url_parts("data:ab"_sv, { "data:"_sv, "ab"_sv, {} });
+    compare_url_parts("data:abc"_sv, { "data:"_sv, "abc"_sv, {} });
+    compare_url_parts("data:abc/def"_sv, { "data:"_sv, "abc/def"_sv, {} });
 
-    EXPECT(is_sanitized_url_the_same("data:text/html"sv));
+    EXPECT(is_sanitized_url_the_same("data:text/html"_sv));
 
-    EXPECT(!is_sanitized_url_the_same("data text/html"sv));
-    EXPECT(!is_sanitized_url_the_same("text/html data:"sv));
+    EXPECT(!is_sanitized_url_the_same("data text/html"_sv));
+    EXPECT(!is_sanitized_url_the_same("text/html data:"_sv));
 }
 
 TEST_CASE(location_to_search_or_url)
 {
-    expect_search_url_equals_sanitized_url("hello"sv); // Search.
-    expect_search_url_equals_sanitized_url("hello world"sv);
-    expect_search_url_equals_sanitized_url("\"example.org\""sv);
-    expect_search_url_equals_sanitized_url("\"example.org"sv);
-    expect_search_url_equals_sanitized_url("\"http://example.org\""sv);
-    expect_search_url_equals_sanitized_url("example.org hello"sv);
-    expect_search_url_equals_sanitized_url("http://example.org and example sites"sv);
-    expect_search_url_equals_sanitized_url("ftp://example.org"sv); // ftp:// is not in SUPPORTED_SCHEMES
-    expect_search_url_equals_sanitized_url("https://exa\"mple.com/what"sv);
+    expect_search_url_equals_sanitized_url("hello"_sv); // Search.
+    expect_search_url_equals_sanitized_url("hello world"_sv);
+    expect_search_url_equals_sanitized_url("\"example.org\""_sv);
+    expect_search_url_equals_sanitized_url("\"example.org"_sv);
+    expect_search_url_equals_sanitized_url("\"http://example.org\""_sv);
+    expect_search_url_equals_sanitized_url("example.org hello"_sv);
+    expect_search_url_equals_sanitized_url("http://example.org and example sites"_sv);
+    expect_search_url_equals_sanitized_url("ftp://example.org"_sv); // ftp:// is not in SUPPORTED_SCHEMES
+    expect_search_url_equals_sanitized_url("https://exa\"mple.com/what"_sv);
 
     // If it can feed create_with_url_or_path -- it is a url.
-    expect_url_equals_sanitized_url("https://example.com/%20some%20cool%20page"sv, "https://example.com/ some cool page"sv);
-    expect_url_equals_sanitized_url("https://example.com/some%20cool%20page"sv, "https://example.com/some cool page"sv);
-    expect_url_equals_sanitized_url("https://example.com/%22what%22"sv, "https://example.com/\"what\""sv);
+    expect_url_equals_sanitized_url("https://example.com/%20some%20cool%20page"_sv, "https://example.com/ some cool page"_sv);
+    expect_url_equals_sanitized_url("https://example.com/some%20cool%20page"_sv, "https://example.com/some cool page"_sv);
+    expect_url_equals_sanitized_url("https://example.com/%22what%22"_sv, "https://example.com/\"what\""_sv);
 
-    expect_url_equals_sanitized_url("https://example.org/"sv, "example.org"sv);            // Valid domain.
-    expect_url_equals_sanitized_url("https://example.abc/"sv, "example.abc"sv);            // .abc is a recognized TLD.
-    expect_url_equals_sanitized_url("https://example.test/path"sv, "example.test/path"sv); // Reserved TLDs.
-    expect_url_equals_sanitized_url("https://example.example/path"sv, "example.example/path"sv);
-    expect_url_equals_sanitized_url("https://example.invalid/path"sv, "example.invalid/path"sv);
-    expect_url_equals_sanitized_url("https://example.localhost/path"sv, "example.localhost/path"sv);
+    expect_url_equals_sanitized_url("https://example.org/"_sv, "example.org"_sv);            // Valid domain.
+    expect_url_equals_sanitized_url("https://example.abc/"_sv, "example.abc"_sv);            // .abc is a recognized TLD.
+    expect_url_equals_sanitized_url("https://example.test/path"_sv, "example.test/path"_sv); // Reserved TLDs.
+    expect_url_equals_sanitized_url("https://example.example/path"_sv, "example.example/path"_sv);
+    expect_url_equals_sanitized_url("https://example.invalid/path"_sv, "example.invalid/path"_sv);
+    expect_url_equals_sanitized_url("https://example.localhost/path"_sv, "example.localhost/path"_sv);
 
-    expect_search_url_equals_sanitized_url("example.def"sv); // Invalid domain but no scheme: search (Like Firefox or Chrome).
+    expect_search_url_equals_sanitized_url("example.def"_sv); // Invalid domain but no scheme: search (Like Firefox or Chrome).
 
-    expect_url_equals_sanitized_url("https://example.org/"sv, "https://example.org"sv); // Scheme.
+    expect_url_equals_sanitized_url("https://example.org/"_sv, "https://example.org"_sv); // Scheme.
     // Respect the user if the url has a valid scheme but not a public suffix (.def is not a recognized TLD).
-    expect_url_equals_sanitized_url("https://example.def/"sv, "https://example.def"sv);
+    expect_url_equals_sanitized_url("https://example.def/"_sv, "https://example.def"_sv);
 
-    expect_url_equals_sanitized_url("https://localhost/"sv, "localhost"sv); // Respect localhost.
-    expect_url_equals_sanitized_url("https://localhost/hello"sv, "localhost/hello"sv);
-    expect_url_equals_sanitized_url("https://localhost/hello.world"sv, "localhost/hello.world"sv);
-    expect_url_equals_sanitized_url("https://localhost/hello.world?query=123"sv, "localhost/hello.world?query=123"sv);
+    expect_url_equals_sanitized_url("https://localhost/"_sv, "localhost"_sv); // Respect localhost.
+    expect_url_equals_sanitized_url("https://localhost/hello"_sv, "localhost/hello"_sv);
+    expect_url_equals_sanitized_url("https://localhost/hello.world"_sv, "localhost/hello.world"_sv);
+    expect_url_equals_sanitized_url("https://localhost/hello.world?query=123"_sv, "localhost/hello.world?query=123"_sv);
 
-    expect_url_equals_sanitized_url("https://example.com/"sv, "example"sv, WebView::AppendTLD::Yes); // User holds down the Ctrl key.
-    expect_url_equals_sanitized_url("https://example.def.com/"sv, "example.def"sv, WebView::AppendTLD::Yes);
-    expect_url_equals_sanitized_url("https://com.com/"sv, "com"sv, WebView::AppendTLD::Yes);
-    expect_url_equals_sanitized_url("https://example.com/index.html"sv, "example/index.html"sv, WebView::AppendTLD::Yes);
+    expect_url_equals_sanitized_url("https://example.com/"_sv, "example"_sv, WebView::AppendTLD::Yes); // User holds down the Ctrl key.
+    expect_url_equals_sanitized_url("https://example.def.com/"_sv, "example.def"_sv, WebView::AppendTLD::Yes);
+    expect_url_equals_sanitized_url("https://com.com/"_sv, "com"_sv, WebView::AppendTLD::Yes);
+    expect_url_equals_sanitized_url("https://example.com/index.html"_sv, "example/index.html"_sv, WebView::AppendTLD::Yes);
 
-    expect_search_url_equals_sanitized_url("whatever:example.com"sv);     // Invalid scheme.
-    expect_search_url_equals_sanitized_url("mailto:hello@example.com"sv); // For now, unsupported scheme.
+    expect_search_url_equals_sanitized_url("whatever:example.com"_sv);     // Invalid scheme.
+    expect_search_url_equals_sanitized_url("mailto:hello@example.com"_sv); // For now, unsupported scheme.
     // FIXME: Add support for opening mailto: scheme (below). Firefox opens mailto: locations
-    // expect_url_equals_sanitized_url("mailto:hello@example.com"sv, "mailto:hello@example.com"sv);
+    // expect_url_equals_sanitized_url("mailto:hello@example.com"_sv, "mailto:hello@example.com"_sv);
 }

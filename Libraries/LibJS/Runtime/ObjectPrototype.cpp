@@ -151,34 +151,34 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
 
     // 5. If isArray is true, let builtinTag be "Array".
     if (is_array)
-        builtin_tag = "Array"sv;
+        builtin_tag = "Array"_sv;
     // 6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "Arguments".
     else if (object->has_parameter_map())
-        builtin_tag = "Arguments"sv;
+        builtin_tag = "Arguments"_sv;
     // 7. Else if O has a [[Call]] internal method, let builtinTag be "Function".
     else if (object->is_function())
-        builtin_tag = "Function"sv;
+        builtin_tag = "Function"_sv;
     // 8. Else if O has an [[ErrorData]] internal slot, let builtinTag be "Error".
     else if (is<Error>(*object))
-        builtin_tag = "Error"sv;
+        builtin_tag = "Error"_sv;
     // 9. Else if O has a [[BooleanData]] internal slot, let builtinTag be "Boolean".
     else if (is<BooleanObject>(*object))
-        builtin_tag = "Boolean"sv;
+        builtin_tag = "Boolean"_sv;
     // 10. Else if O has a [[NumberData]] internal slot, let builtinTag be "Number".
     else if (is<NumberObject>(*object))
-        builtin_tag = "Number"sv;
+        builtin_tag = "Number"_sv;
     // 11. Else if O has a [[StringData]] internal slot, let builtinTag be "String".
     else if (is<StringObject>(*object))
-        builtin_tag = "String"sv;
+        builtin_tag = "String"_sv;
     // 12. Else if O has a [[DateValue]] internal slot, let builtinTag be "Date".
     else if (is<Date>(*object))
-        builtin_tag = "Date"sv;
+        builtin_tag = "Date"_sv;
     // 13. Else if O has a [[RegExpMatcher]] internal slot, let builtinTag be "RegExp".
     else if (is<RegExpObject>(*object))
-        builtin_tag = "RegExp"sv;
+        builtin_tag = "RegExp"_sv;
     // 14. Else, let builtinTag be "Object".
     else
-        builtin_tag = "Object"sv;
+        builtin_tag = "Object"_sv;
 
     // 15. Let tag be ? Get(O, @@toStringTag).
     auto to_string_tag = TRY(object->get(vm.well_known_symbol_to_string_tag()));
@@ -195,7 +195,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
     // 17. Return the string-concatenation of "[object ", tag, and "]".
 
     // OPTIMIZATION: The VM has a cache for the extremely common "[object Object]" string.
-    if (tag == "Object"sv)
+    if (tag == "Object"_sv)
         return vm.cached_strings.object_Object;
     return PrimitiveString::create(vm, MUST(String::formatted("[object {}]", tag)));
 }

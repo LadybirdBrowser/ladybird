@@ -244,10 +244,10 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
             disabled_features = TRY(convert_value_to_sequence_of_strings(vm, disabled_features_iterable));
 
         // 9. If disabledFeatures contains "internals", then set disableInternals to true.
-        disable_internals = disabled_features.contains_slow("internals"sv);
+        disable_internals = disabled_features.contains_slow("internals"_sv);
 
         // 10. If disabledFeatures contains "shadow", then set disableShadow to true.
-        disable_shadow = disabled_features.contains_slow("shadow"sv);
+        disable_shadow = disabled_features.contains_slow("shadow"_sv);
 
         // 11. Let formAssociatedValue be ? Get( constructor, "formAssociated").
         auto form_associated_value = TRY(constructor->callback->get(vm.names.formAssociated));

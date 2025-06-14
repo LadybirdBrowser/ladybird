@@ -24,7 +24,7 @@ struct Global {
 
 TEST_CASE(tolerate_incorrect_sfnt_size)
 {
-    auto file = MUST(Core::MappedFile::map(TEST_INPUT("woff2/incorrect_sfnt_size.woff2"sv)));
+    auto file = MUST(Core::MappedFile::map(TEST_INPUT("woff2/incorrect_sfnt_size.woff2"_sv)));
     auto font = TRY_OR_FAIL(WOFF2::try_load_from_bytes(file->bytes()));
     EXPECT_EQ(font->family(), "Test"_string);
     EXPECT_EQ(font->glyph_count(), 4u);
@@ -33,8 +33,8 @@ TEST_CASE(tolerate_incorrect_sfnt_size)
 TEST_CASE(malformed_woff2)
 {
     Array test_inputs = {
-        TEST_INPUT("woff2/incorrect_compressed_size.woff2"sv),
-        TEST_INPUT("woff2/invalid_numtables.woff2"sv)
+        TEST_INPUT("woff2/incorrect_compressed_size.woff2"_sv),
+        TEST_INPUT("woff2/invalid_numtables.woff2"_sv)
     };
 
     for (auto test_input : test_inputs) {

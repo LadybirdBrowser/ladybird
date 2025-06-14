@@ -159,7 +159,7 @@ static bool default_passive_value(FlyString const& type, EventTarget* event_targ
     //    - type is one of "touchstart", "touchmove", "wheel", or "mousewheel".
     //    - eventTarget is a Window object, or is a node whose node document is eventTarget, or is a node whose node document’s document element is eventTarget,
     //      or is a node whose node document’s body element is eventTarget.
-    if (AK::first_is_one_of(type, "touchstart"sv, "touchmove"sv, "wheel"sv, "mousewheel"sv)) {
+    if (AK::first_is_one_of(type, "touchstart"_sv, "touchmove"_sv, "wheel"_sv, "mousewheel"_sv)) {
         if (is<HTML::Window>(event_target))
             return true;
 
@@ -827,13 +827,13 @@ bool EventTarget::dispatch_event(Event& event)
         // pointerdown, provided the event's pointerType is "mouse".
         if (event.type() == UIEvents::EventNames::pointerdown) {
             if (auto* pointer_event = as_if<UIEvents::PointerEvent>(&event))
-                return pointer_event->pointer_type() == "mouse"sv;
+                return pointer_event->pointer_type() == "mouse"_sv;
         }
 
         // pointerup, provided the event's pointerType is not "mouse".
         if (event.type() == UIEvents::EventNames::pointerup) {
             if (auto* pointer_event = as_if<UIEvents::PointerEvent>(&event))
-                return pointer_event->pointer_type() != "mouse"sv;
+                return pointer_event->pointer_type() != "mouse"_sv;
         }
 
         // FIXME: touchend

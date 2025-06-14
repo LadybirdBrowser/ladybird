@@ -55,7 +55,7 @@ String CSSPropertyRule::serialized() const
     builder.appendff("@property {} ", serialize_an_identifier(name()));
 
     // 3. The string "{ ", i.e., a single LEFT CURLY BRACKET (U+007B), followed by a SPACE (U+0020).
-    builder.append("{ "sv);
+    builder.append("{ "_sv);
 
     // 4. The string "syntax:", followed by a single SPACE (U+0020).
     // 5. The result of performing serialize a string on the rule’s syntax, followed by a single SEMICOLON (U+003B), followed by a SPACE (U+0020).
@@ -75,7 +75,7 @@ String CSSPropertyRule::serialized() const
         builder.appendff("initial-value: {}; ", initial_value());
     }
     // 9. A single RIGHT CURLY BRACKET (U+007D).
-    builder.append("}"sv);
+    builder.append("}"_sv);
 
     return MUST(builder.to_string());
 }

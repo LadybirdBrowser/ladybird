@@ -86,7 +86,7 @@ ThrowCompletionOr<void> ArrayIterator::next(VM& vm, bool& done, Value& value)
 
         // b. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
         if (is_typed_array_out_of_bounds(typed_array_record))
-            return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+            return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
         // c. Let len be TypedArrayLength(taRecord).
         length = typed_array_length(typed_array_record);

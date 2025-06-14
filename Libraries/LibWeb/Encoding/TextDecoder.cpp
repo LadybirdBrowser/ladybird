@@ -26,7 +26,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
     auto encoding = TextCodec::get_standardized_encoding(label);
 
     // 2. If encoding is failure or replacement, then throw a RangeError.
-    if (!encoding.has_value() || encoding->equals_ignoring_ascii_case("replacement"sv))
+    if (!encoding.has_value() || encoding->equals_ignoring_ascii_case("replacement"_sv))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, TRY_OR_THROW_OOM(vm, String::formatted("Invalid encoding {}", label)) };
 
     // 3. Set this’s encoding to encoding.
@@ -78,7 +78,7 @@ WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<GC::Root<WebIDL::Buffer
     auto& data_buffer = data_buffer_or_error.value();
     auto result = TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }));
     if (this->fatal() && result.contains(0xfffd))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"_sv };
     return result;
 }
 

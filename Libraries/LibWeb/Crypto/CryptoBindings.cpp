@@ -15,9 +15,9 @@
 
 namespace Web::Bindings {
 
-#define JWK_PARSE_STRING_PROPERTY(name)                                      \
-    if (auto value = json_object.get_string(#name##sv); value.has_value()) { \
-        key.name = value.release_value();                                    \
+#define JWK_PARSE_STRING_PROPERTY(name)                                       \
+    if (auto value = json_object.get_string(#name##_sv); value.has_value()) { \
+        key.name = value.release_value();                                     \
     }
 
 JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBytes data)
@@ -61,9 +61,9 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
     JWK_PARSE_STRING_PROPERTY(qi);
     JWK_PARSE_STRING_PROPERTY(k);
 
-    key.ext = json_object.get_bool("ext"sv);
+    key.ext = json_object.get_bool("ext"_sv);
 
-    if (auto key_ops = json_object.get_array("key_ops"sv); key_ops.has_value()) {
+    if (auto key_ops = json_object.get_array("key_ops"_sv); key_ops.has_value()) {
         key.key_ops = Vector<String> {};
         key.key_ops->ensure_capacity(key_ops->size());
 
@@ -72,7 +72,7 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
         });
     }
 
-    if (json_object.has("oth"sv))
+    if (json_object.has("oth"_sv))
         TODO();
 
     // 6. If the kty field of key is not defined, then throw a DataError.

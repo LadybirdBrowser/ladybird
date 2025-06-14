@@ -20,22 +20,22 @@ namespace Web::Fetch::Infrastructure {
 // https://fetch.spec.whatwg.org/#local-scheme
 // A local scheme is "about", "blob", or "data".
 inline constexpr Array LOCAL_SCHEMES = {
-    "about"sv, "blob"sv, "data"sv
+    "about"_sv, "blob"_sv, "data"_sv
 };
 
 // https://fetch.spec.whatwg.org/#http-scheme
 // An HTTP(S) scheme is "http" or "https".
 inline constexpr Array HTTP_SCHEMES = {
-    "http"sv, "https"sv
+    "http"_sv, "https"_sv
 };
 
 // https://fetch.spec.whatwg.org/#fetch-scheme
 // A fetch scheme is "about", "blob", "data", "file", or an HTTP(S) scheme.
 inline constexpr Array FETCH_SCHEMES = {
-    "about"sv, "blob"sv, "data"sv, "file"sv, "http"sv, "https"sv,
+    "about"_sv, "blob"_sv, "data"_sv, "file"_sv, "http"_sv, "https"_sv,
 
     // AD-HOC: Internal fetch schemes:
-    "resource"sv
+    "resource"_sv
 };
 
 // https://fetch.spec.whatwg.org/#data-url-struct

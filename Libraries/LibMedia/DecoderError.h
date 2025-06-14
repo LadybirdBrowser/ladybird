@@ -99,7 +99,7 @@ template<>
 struct Formatter<Media::DecoderError> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Media::DecoderError const& decoder_error)
     {
-        return Formatter<FormatString>::format(builder, "[DecoderError]: {}"sv, decoder_error.description());
+        return Formatter<FormatString>::format(builder, "[DecoderError]: {}"_sv, decoder_error.description());
     }
 };
 

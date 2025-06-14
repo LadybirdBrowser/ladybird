@@ -20,7 +20,7 @@ ResourceImplementationFile::ResourceImplementationFile(String base_directory)
 
 ErrorOr<NonnullRefPtr<Resource>> ResourceImplementationFile::load_from_resource_scheme_uri(StringView uri)
 {
-    StringView const resource_scheme = "resource://"sv;
+    StringView const resource_scheme = "resource://"_sv;
 
     VERIFY(uri.starts_with(resource_scheme));
 

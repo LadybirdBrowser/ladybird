@@ -196,13 +196,13 @@ Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node)
 String Polygon::to_string(SerializationMode) const
 {
     StringBuilder builder;
-    builder.append("polygon("sv);
+    builder.append("polygon("_sv);
     switch (fill_rule) {
     case Gfx::WindingRule::Nonzero:
-        builder.append("nonzero"sv);
+        builder.append("nonzero"_sv);
         break;
     case Gfx::WindingRule::EvenOdd:
-        builder.append("evenodd"sv);
+        builder.append("evenodd"_sv);
     }
     for (auto const& point : points) {
         builder.appendff(", {} {}", point.x, point.y);

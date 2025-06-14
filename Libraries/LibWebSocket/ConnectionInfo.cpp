@@ -17,7 +17,7 @@ bool ConnectionInfo::is_secure() const
 {
     // RFC 6455 Section 3 :
     // The URI is called "secure" if the scheme component matches "wss" case-insensitively.
-    return m_url.scheme().bytes_as_string_view().equals_ignoring_ascii_case("wss"sv);
+    return m_url.scheme().bytes_as_string_view().equals_ignoring_ascii_case("wss"_sv);
 }
 
 ByteString ConnectionInfo::resource_name() const

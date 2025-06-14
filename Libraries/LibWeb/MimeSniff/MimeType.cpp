@@ -46,7 +46,7 @@ static bool contains_only_http_token_code_points(StringView string)
     // https://mimesniff.spec.whatwg.org/#http-token-code-point
     // An HTTP token code point is U+0021 (!), U+0023 (#), U+0024 ($), U+0025 (%), U+0026 (&), U+0027 ('), U+002A (*),
     // U+002B (+), U+002D (-), U+002E (.), U+005E (^), U+005F (_), U+0060 (`), U+007C (|), U+007E (~), or an ASCII alphanumeric.
-    constexpr auto is_certain_non_ascii_alphanumeric = is_any_of("!#$%&'*+-.^_`|~"sv);
+    constexpr auto is_certain_non_ascii_alphanumeric = is_any_of("!#$%&'*+-.^_`|~"_sv);
     for (char ch : string) {
         if (!is_certain_non_ascii_alphanumeric(ch) && !is_ascii_alphanumeric(ch))
             return false;
@@ -225,8 +225,8 @@ String MimeType::serialized() const
         // 4. If value does not solely contain HTTP token code points or value is the empty string, then:
         if (!contains_only_http_token_code_points(value) || value.is_empty()) {
             // 1. Precede each occurrence of U+0022 (") or U+005C (\) in value with U+005C (\).
-            value = MUST(value.replace("\\"sv, "\\\\"sv, ReplaceMode::All));
-            value = MUST(value.replace("\""sv, "\\\""sv, ReplaceMode::All));
+            value = MUST(value.replace("\\"_sv, "\\\\"_sv, ReplaceMode::All));
+            value = MUST(value.replace("\""_sv, "\\\""_sv, ReplaceMode::All));
 
             // 2. Prepend U+0022 (") to value.
             // 3. Append U+0022 (") to value.
@@ -254,14 +254,14 @@ void MimeType::set_parameter(String name, String value)
 bool MimeType::is_image() const
 {
     // An image MIME type is a MIME type whose type is "image".
-    return type() == "image"sv;
+    return type() == "image"_sv;
 }
 
 // https://mimesniff.spec.whatwg.org/#audio-or-video-mime-type
 bool MimeType::is_audio_or_video() const
 {
     // An audio or video MIME type is any MIME type whose type is "audio" or "video", or whose essence is "application/ogg".
-    return type().is_one_of("audio"sv, "video"sv) || essence() == "application/ogg"sv;
+    return type().is_one_of("audio"_sv, "video"_sv) || essence() == "application/ogg"_sv;
 }
 
 // https://mimesniff.spec.whatwg.org/#font-mime-type
@@ -275,17 +275,17 @@ bool MimeType::is_font() const
     //    - application/font-woff
     //    - application/vnd.ms-fontobject
     //    - application/vnd.ms-opentype
-    if (type() == "font"sv)
+    if (type() == "font"_sv)
         return true;
 
     return essence().is_one_of(
-        "application/font-cff"sv,
-        "application/font-off"sv,
-        "application/font-sfnt"sv,
-        "application/font-ttf"sv,
-        "application/font-woff"sv,
-        "application/vnd.ms-fontobject"sv,
-        "application/vnd.ms-opentype"sv);
+        "application/font-cff"_sv,
+        "application/font-off"_sv,
+        "application/font-sfnt"_sv,
+        "application/font-ttf"_sv,
+        "application/font-woff"_sv,
+        "application/vnd.ms-fontobject"_sv,
+        "application/vnd.ms-opentype"_sv);
 }
 
 // https://mimesniff.spec.whatwg.org/#zip-based-mime-type
@@ -293,7 +293,7 @@ bool MimeType::is_zip_based() const
 {
     // A ZIP-based MIME type is any MIME type whose subtype ends in "+zip" or whose essence is one of the following:
     //    - application/zip
-    return subtype().ends_with_bytes("+zip"sv) || essence().is_one_of("application/zip"sv);
+    return subtype().ends_with_bytes("+zip"_sv) || essence().is_one_of("application/zip"_sv);
 }
 
 // https://mimesniff.spec.whatwg.org/#archive-mime-type
@@ -303,28 +303,28 @@ bool MimeType::is_archive() const
     //    - application/x-rar-compressed
     //    - application/zip
     //    - application/x-gzip
-    return essence().is_one_of("application/x-rar-compressed"sv, "application/zip"sv, "application/x-gzip"sv);
+    return essence().is_one_of("application/x-rar-compressed"_sv, "application/zip"_sv, "application/x-gzip"_sv);
 }
 
 // https://mimesniff.spec.whatwg.org/#xml-mime-type
 bool MimeType::is_xml() const
 {
     // An XML MIME type is any MIME type whose subtype ends in "+xml" or whose essence is "text/xml" or "application/xml". [RFC7303]
-    return m_subtype.ends_with_bytes("+xml"sv) || essence().is_one_of("text/xml"sv, "application/xml"sv);
+    return m_subtype.ends_with_bytes("+xml"_sv) || essence().is_one_of("text/xml"_sv, "application/xml"_sv);
 }
 
 // https://mimesniff.spec.whatwg.org/#html-mime-type
 bool MimeType::is_html() const
 {
     // An HTML MIME type is any MIME type whose essence is "text/html".
-    return essence().is_one_of("text/html"sv);
+    return essence().is_one_of("text/html"_sv);
 }
 
 // https://mimesniff.spec.whatwg.org/#scriptable-mime-type
 bool MimeType::is_scriptable() const
 {
     // A scriptable MIME type is an XML MIME type, HTML MIME type, or any MIME type whose essence is "application/pdf".
-    return is_xml() || is_html() || essence() == "application/pdf"sv;
+    return is_xml() || is_html() || essence() == "application/pdf"_sv;
 }
 
 // https://mimesniff.spec.whatwg.org/#javascript-mime-type
@@ -337,7 +337,7 @@ bool MimeType::is_javascript() const
 bool MimeType::is_json() const
 {
     // A JSON MIME type is any MIME type whose subtype ends in "+json" or whose essence is "application/json" or "text/json".
-    return subtype().ends_with_bytes("+json"sv) || essence().is_one_of("application/json"sv, "text/json"sv);
+    return subtype().ends_with_bytes("+json"_sv) || essence().is_one_of("application/json"_sv, "text/json"_sv);
 }
 
 // https://mimesniff.spec.whatwg.org/#minimize-a-supported-mime-type

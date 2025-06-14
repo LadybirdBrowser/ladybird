@@ -69,33 +69,33 @@ AriaData::AriaData(Web::ARIA::ARIAMixin const& source)
 
 bool AriaData::parse_true_false(Optional<String> const& value)
 {
-    if (value == "true"sv)
+    if (value == "true"_sv)
         return true;
-    if (value == "false"sv)
+    if (value == "false"_sv)
         return false;
     return false;
 }
 
 Tristate AriaData::parse_tristate(Optional<String> const& value)
 {
-    if (value == "true"sv)
+    if (value == "true"_sv)
         return Tristate::True;
-    if (value == "false"sv)
+    if (value == "false"_sv)
         return Tristate::False;
-    if (value == "mixed"sv)
+    if (value == "mixed"_sv)
         return Tristate::Mixed;
-    if (value == "undefined"sv)
+    if (value == "undefined"_sv)
         return Tristate::Undefined;
     return Tristate::Undefined;
 }
 
 Optional<bool> AriaData::parse_true_false_undefined(Optional<String> const& value)
 {
-    if (value == "true"sv)
+    if (value == "true"_sv)
         return true;
-    if (value == "false"sv)
+    if (value == "false"_sv)
         return false;
-    if (value == "undefined"sv)
+    if (value == "undefined"_sv)
         return {};
     return {};
 }
@@ -398,32 +398,32 @@ String AriaData::aria_value_text_or_default() const
 
 AriaAutocomplete AriaData::parse_aria_autocomplete(Optional<String> const& value)
 {
-    if (value == "inline"sv)
+    if (value == "inline"_sv)
         return AriaAutocomplete::Inline;
-    if (value == "list"sv)
+    if (value == "list"_sv)
         return AriaAutocomplete::List;
-    if (value == "both"sv)
+    if (value == "both"_sv)
         return AriaAutocomplete::Both;
-    if (value == "none"sv)
+    if (value == "none"_sv)
         return AriaAutocomplete::None;
     return AriaAutocomplete::None;
 }
 
 AriaCurrent AriaData::parse_aria_current(Optional<String> const& value)
 {
-    if (value == "page"sv)
+    if (value == "page"_sv)
         return AriaCurrent::Page;
-    if (value == "step"sv)
+    if (value == "step"_sv)
         return AriaCurrent::Step;
-    if (value == "location"sv)
+    if (value == "location"_sv)
         return AriaCurrent::Location;
-    if (value == "date"sv)
+    if (value == "date"_sv)
         return AriaCurrent::Date;
-    if (value == "time"sv)
+    if (value == "time"_sv)
         return AriaCurrent::Time;
-    if (value == "true"sv)
+    if (value == "true"_sv)
         return AriaCurrent::True;
-    if (value == "false"sv)
+    if (value == "false"_sv)
         return AriaCurrent::False;
     return AriaCurrent::False;
 }
@@ -436,15 +436,15 @@ Vector<AriaDropEffect> AriaData::parse_aria_drop_effect(Optional<String> const& 
     Vector<AriaDropEffect> result;
 
     for (auto token : value->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace)) {
-        if (token == "copy"sv)
+        if (token == "copy"_sv)
             result.append(AriaDropEffect::Copy);
-        else if (token == "execute"sv)
+        else if (token == "execute"_sv)
             result.append(AriaDropEffect::Execute);
-        else if (token == "link"sv)
+        else if (token == "link"_sv)
             result.append(AriaDropEffect::Link);
-        else if (token == "move"sv)
+        else if (token == "move"_sv)
             result.append(AriaDropEffect::Move);
-        else if (token == "popup"sv)
+        else if (token == "popup"_sv)
             result.append(AriaDropEffect::Popup);
     }
 
@@ -457,54 +457,54 @@ Vector<AriaDropEffect> AriaData::parse_aria_drop_effect(Optional<String> const& 
 
 AriaHasPopup AriaData::parse_aria_has_popup(Optional<String> const& value)
 {
-    if (value == "false"sv)
+    if (value == "false"_sv)
         return AriaHasPopup::False;
-    if (value == "true"sv)
+    if (value == "true"_sv)
         return AriaHasPopup::True;
-    if (value == "menu"sv)
+    if (value == "menu"_sv)
         return AriaHasPopup::Menu;
-    if (value == "listbox"sv)
+    if (value == "listbox"_sv)
         return AriaHasPopup::Listbox;
-    if (value == "tree"sv)
+    if (value == "tree"_sv)
         return AriaHasPopup::Tree;
-    if (value == "grid"sv)
+    if (value == "grid"_sv)
         return AriaHasPopup::Grid;
-    if (value == "dialog"sv)
+    if (value == "dialog"_sv)
         return AriaHasPopup::Dialog;
     return AriaHasPopup::False;
 }
 
 AriaInvalid AriaData::parse_aria_invalid(Optional<String> const& value)
 {
-    if (value == "grammar"sv)
+    if (value == "grammar"_sv)
         return AriaInvalid::Grammar;
-    if (value == "false"sv)
+    if (value == "false"_sv)
         return AriaInvalid::False;
-    if (value == "spelling"sv)
+    if (value == "spelling"_sv)
         return AriaInvalid::Spelling;
-    if (value == "true"sv)
+    if (value == "true"_sv)
         return AriaInvalid::True;
     return AriaInvalid::False;
 }
 
 Optional<AriaLive> AriaData::parse_aria_live(Optional<String> const& value)
 {
-    if (value == "assertive"sv)
+    if (value == "assertive"_sv)
         return AriaLive::Assertive;
-    if (value == "off"sv)
+    if (value == "off"_sv)
         return AriaLive::Off;
-    if (value == "polite"sv)
+    if (value == "polite"_sv)
         return AriaLive::Polite;
     return {};
 }
 
 Optional<AriaOrientation> AriaData::parse_aria_orientation(Optional<String> const& value)
 {
-    if (value == "horizontal"sv)
+    if (value == "horizontal"_sv)
         return AriaOrientation::Horizontal;
-    if (value == "undefined"sv)
+    if (value == "undefined"_sv)
         return AriaOrientation::Undefined;
-    if (value == "vertical"sv)
+    if (value == "vertical"_sv)
         return AriaOrientation::Vertical;
     return {};
 }
@@ -517,25 +517,25 @@ Vector<AriaRelevant> AriaData::parse_aria_relevant(Optional<String> const& value
     Vector<AriaRelevant> result;
     auto tokens = value->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
     for (size_t i = 0; i < tokens.size(); i++) {
-        if (tokens[i] == "additions"sv) {
+        if (tokens[i] == "additions"_sv) {
             if (i + 1 < tokens.size()) {
-                if (tokens[i + 1] == "text"sv) {
+                if (tokens[i + 1] == "text"_sv) {
                     result.append(AriaRelevant::AdditionsText);
                     ++i;
                     continue;
                 }
-                if (tokens[i + 1] == "removals"sv && i + 2 < tokens.size() && tokens[i + 2] == "text"sv) {
+                if (tokens[i + 1] == "removals"_sv && i + 2 < tokens.size() && tokens[i + 2] == "text"_sv) {
                     result.append(AriaRelevant::All);
                     i += 2;
                     continue;
                 }
             }
             result.append(AriaRelevant::Additions);
-        } else if (tokens[i] == "all"sv)
+        } else if (tokens[i] == "all"_sv)
             result.append(AriaRelevant::All);
-        else if (tokens[i] == "removals"sv)
+        else if (tokens[i] == "removals"_sv)
             result.append(AriaRelevant::Removals);
-        else if (tokens[i] == "text"sv)
+        else if (tokens[i] == "text"_sv)
             result.append(AriaRelevant::Text);
     }
 
@@ -547,22 +547,22 @@ Vector<AriaRelevant> AriaData::parse_aria_relevant(Optional<String> const& value
 
 AriaSort AriaData::parse_aria_sort(Optional<String> const& value)
 {
-    if (value == "ascending"sv)
+    if (value == "ascending"_sv)
         return AriaSort::Ascending;
-    if (value == "descending"sv)
+    if (value == "descending"_sv)
         return AriaSort::Descending;
-    if (value == "none"sv)
+    if (value == "none"_sv)
         return AriaSort::None;
-    if (value == "other"sv)
+    if (value == "other"_sv)
         return AriaSort::Other;
     return AriaSort::None;
 }
 
 Optional<bool> AriaData::parse_optional_true_false(Optional<String> const& value)
 {
-    if (value == "true"sv)
+    if (value == "true"_sv)
         return true;
-    if (value == "false"sv)
+    if (value == "false"_sv)
         return false;
     return {};
 }

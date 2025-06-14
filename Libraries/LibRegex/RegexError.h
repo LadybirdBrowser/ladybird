@@ -39,47 +39,47 @@ inline StringView get_error_string(Error error)
 {
     switch (error) {
     case Error::NoError:
-        return "No error"sv;
+        return "No error"_sv;
     case Error::InvalidPattern:
-        return "Invalid regular expression."sv;
+        return "Invalid regular expression."_sv;
     case Error::InvalidCollationElement:
-        return "Invalid collating element referenced."sv;
+        return "Invalid collating element referenced."_sv;
     case Error::InvalidCharacterClass:
-        return "Invalid character class type referenced."sv;
+        return "Invalid character class type referenced."_sv;
     case Error::InvalidTrailingEscape:
-        return "Trailing \\ in pattern."sv;
+        return "Trailing \\ in pattern."_sv;
     case Error::InvalidNumber:
-        return "Number in \\digit invalid or in error."sv;
+        return "Number in \\digit invalid or in error."_sv;
     case Error::MismatchingBracket:
-        return "[ ] imbalance."sv;
+        return "[ ] imbalance."_sv;
     case Error::MismatchingParen:
-        return "( ) imbalance."sv;
+        return "( ) imbalance."_sv;
     case Error::MismatchingBrace:
-        return "{ } imbalance."sv;
+        return "{ } imbalance."_sv;
     case Error::InvalidBraceContent:
-        return "Content of {} invalid: not a number, number too large, more than two numbers, first larger than second."sv;
+        return "Content of {} invalid: not a number, number too large, more than two numbers, first larger than second."_sv;
     case Error::InvalidBracketContent:
-        return "Content of [] invalid."sv;
+        return "Content of [] invalid."_sv;
     case Error::InvalidRange:
-        return "Invalid endpoint in range expression."sv;
+        return "Invalid endpoint in range expression."_sv;
     case Error::InvalidRepetitionMarker:
-        return "?, * or + not preceded by valid regular expression."sv;
+        return "?, * or + not preceded by valid regular expression."_sv;
     case Error::ReachedMaxRecursion:
-        return "Maximum recursion has been reached."sv;
+        return "Maximum recursion has been reached."_sv;
     case Error::EmptySubExpression:
-        return "Sub expression has empty content."sv;
+        return "Sub expression has empty content."_sv;
     case Error::InvalidCaptureGroup:
-        return "Content of capture group is invalid."sv;
+        return "Content of capture group is invalid."_sv;
     case Error::InvalidNameForCaptureGroup:
-        return "Name of capture group is invalid."sv;
+        return "Name of capture group is invalid."_sv;
     case Error::InvalidNameForProperty:
-        return "Name of property is invalid."sv;
+        return "Name of property is invalid."_sv;
     case Error::DuplicateNamedCapture:
-        return "Duplicate capture group name"sv;
+        return "Duplicate capture group name"_sv;
     case Error::InvalidCharacterClassEscape:
-        return "Invalid escaped entity in character class."sv;
+        return "Invalid escaped entity in character class."_sv;
     }
-    return "Undefined error."sv;
+    return "Undefined error."_sv;
 }
 
 }

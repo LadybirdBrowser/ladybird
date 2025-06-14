@@ -48,18 +48,18 @@ StringView Frequency::unit_name() const
 {
     switch (m_type) {
     case Type::Hz:
-        return "hz"sv;
+        return "hz"_sv;
     case Type::kHz:
-        return "khz"sv;
+        return "khz"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<Frequency::Type> Frequency::unit_from_name(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("hz"sv)) {
+    if (name.equals_ignoring_ascii_case("hz"_sv)) {
         return Type::Hz;
-    } else if (name.equals_ignoring_ascii_case("khz"sv)) {
+    } else if (name.equals_ignoring_ascii_case("khz"_sv)) {
         return Type::kHz;
     }
     return {};

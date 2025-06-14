@@ -14,30 +14,30 @@ StringView style_sheet_identifier_type_to_string(StyleSheetIdentifier::Type type
 {
     switch (type) {
     case StyleSheetIdentifier::Type::StyleElement:
-        return "StyleElement"sv;
+        return "StyleElement"_sv;
     case StyleSheetIdentifier::Type::LinkElement:
-        return "LinkElement"sv;
+        return "LinkElement"_sv;
     case StyleSheetIdentifier::Type::ImportRule:
-        return "ImportRule"sv;
+        return "ImportRule"_sv;
     case StyleSheetIdentifier::Type::UserAgent:
-        return "UserAgent"sv;
+        return "UserAgent"_sv;
     case StyleSheetIdentifier::Type::UserStyle:
-        return "UserStyle"sv;
+        return "UserStyle"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<StyleSheetIdentifier::Type> style_sheet_identifier_type_from_string(StringView string)
 {
-    if (string == "StyleElement"sv)
+    if (string == "StyleElement"_sv)
         return StyleSheetIdentifier::Type::StyleElement;
-    if (string == "LinkElement"sv)
+    if (string == "LinkElement"_sv)
         return StyleSheetIdentifier::Type::LinkElement;
-    if (string == "ImportRule"sv)
+    if (string == "ImportRule"_sv)
         return StyleSheetIdentifier::Type::ImportRule;
-    if (string == "UserAgent"sv)
+    if (string == "UserAgent"_sv)
         return StyleSheetIdentifier::Type::UserAgent;
-    if (string == "UserStyle"sv)
+    if (string == "UserStyle"_sv)
         return StyleSheetIdentifier::Type::UserStyle;
     return {};
 }

@@ -21,14 +21,14 @@ NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, String name
     auto actor = adopt_ref(*new RootActor(devtools, move(name)));
 
     JsonObject traits;
-    traits.set("sources"sv, false);
-    traits.set("highlightable"sv, true);
-    traits.set("customHighlighters"sv, true);
-    traits.set("networkMonitor"sv, false);
+    traits.set("sources"_sv, false);
+    traits.set("highlightable"_sv, true);
+    traits.set("customHighlighters"_sv, true);
+    traits.set("networkMonitor"_sv, false);
 
     JsonObject message;
-    message.set("applicationType"sv, "browser"sv);
-    message.set("traits"sv, move(traits));
+    message.set("applicationType"_sv, "browser"_sv);
+    message.set("traits"_sv, move(traits));
     actor->send_message(move(message));
 
     return actor;
@@ -50,22 +50,22 @@ void RootActor::handle_message(Message const& message)
         return;
     }
 
-    if (message.type == "getRoot"sv) {
-        response.set("selected"sv, 0);
+    if (message.type == "getRoot"_sv) {
+        response.set("selected"_sv, 0);
 
         for (auto const& actor : devtools().actor_registry()) {
             if (is<DeviceActor>(*actor.value))
-                response.set("deviceActor"sv, actor.key);
+                response.set("deviceActor"_sv, actor.key);
             else if (is<PreferenceActor>(*actor.value))
-                response.set("preferenceActor"sv, actor.key);
+                response.set("preferenceActor"_sv, actor.key);
         }
 
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "getProcess"sv) {
-        auto id = get_required_parameter<u64>(message, "id"sv);
+    if (message.type == "getProcess"_sv) {
+        auto id = get_required_parameter<u64>(message, "id"_sv);
         if (!id.has_value())
             return;
 
@@ -76,7 +76,7 @@ void RootActor::handle_message(Message const& message)
             if (process_actor->description().id != *id)
                 continue;
 
-            response.set("processDescriptor"sv, process_actor->serialize_description());
+            response.set("processDescriptor"_sv, process_actor->serialize_description());
             break;
         }
 
@@ -84,8 +84,8 @@ void RootActor::handle_message(Message const& message)
         return;
     }
 
-    if (message.type == "getTab"sv) {
-        auto browser_id = get_required_parameter<u64>(message, "browserId"sv);
+    if (message.type == "getTab"_sv) {
+        auto browser_id = get_required_parameter<u64>(message, "browserId"_sv);
         if (!browser_id.has_value())
             return;
 
@@ -96,7 +96,7 @@ void RootActor::handle_message(Message const& message)
             if (tab_actor->description().id != *browser_id)
                 continue;
 
-            response.set("tab"sv, tab_actor->serialize_description());
+            response.set("tab"_sv, tab_actor->serialize_description());
             break;
         }
 
@@ -104,13 +104,13 @@ void RootActor::handle_message(Message const& message)
         return;
     }
 
-    if (message.type == "listAddons"sv) {
-        response.set("addons"sv, JsonArray {});
+    if (message.type == "listAddons"_sv) {
+        response.set("addons"_sv, JsonArray {});
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "listProcesses"sv) {
+    if (message.type == "listProcesses"_sv) {
         JsonArray processes;
 
         for (auto const& actor : devtools().actor_registry()) {
@@ -118,18 +118,18 @@ void RootActor::handle_message(Message const& message)
                 processes.must_append(process_actor->serialize_description());
         }
 
-        response.set("processes"sv, move(processes));
+        response.set("processes"_sv, move(processes));
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "listServiceWorkerRegistrations"sv) {
-        response.set("registrations"sv, JsonArray {});
+    if (message.type == "listServiceWorkerRegistrations"_sv) {
+        response.set("registrations"_sv, JsonArray {});
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "listTabs"sv) {
+    if (message.type == "listTabs"_sv) {
         m_has_sent_tab_list_changed_since_last_list_tabs_request = false;
 
         JsonArray tabs;
@@ -139,13 +139,13 @@ void RootActor::handle_message(Message const& message)
             tabs.must_append(actor.serialize_description());
         }
 
-        response.set("tabs"sv, move(tabs));
+        response.set("tabs"_sv, move(tabs));
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "listWorkers"sv) {
-        response.set("workers"sv, JsonArray {});
+    if (message.type == "listWorkers"_sv) {
+        response.set("workers"_sv, JsonArray {});
         send_response(message, move(response));
         return;
     }
@@ -159,7 +159,7 @@ void RootActor::send_tab_list_changed_message()
         return;
 
     JsonObject message;
-    message.set("type"sv, "tabListChanged"sv);
+    message.set("type"_sv, "tabListChanged"_sv);
     send_message(move(message));
 
     m_has_sent_tab_list_changed_since_last_list_tabs_request = true;

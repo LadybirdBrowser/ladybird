@@ -13,7 +13,7 @@ namespace DevTools {
 
 class HighlighterActor final : public Actor {
 public:
-    static constexpr auto base_name = "highlighter"sv;
+    static constexpr auto base_name = "highlighter"_sv;
 
     static NonnullRefPtr<HighlighterActor> create(DevToolsServer&, String name, WeakPtr<InspectorActor>);
     virtual ~HighlighterActor() override;

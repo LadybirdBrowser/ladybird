@@ -31,7 +31,7 @@ using namespace AK::SIMD;
                                                 \
         static StringView name()                \
         {                                       \
-            return #operation##sv;              \
+            return #operation##_sv;             \
         }                                       \
     }
 
@@ -60,12 +60,12 @@ struct Divide {
             Checked value(lhs);
             value /= rhs;
             if (value.has_overflow())
-                return AK::ErrorOr<Lhs, StringView>("Integer division overflow"sv);
+                return AK::ErrorOr<Lhs, StringView>("Integer division overflow"_sv);
             return AK::ErrorOr<Lhs, StringView>(value.value());
         }
     }
 
-    static StringView name() { return "/"sv; }
+    static StringView name() { return "/"_sv; }
 };
 
 struct Modulo {
@@ -73,7 +73,7 @@ struct Modulo {
     auto operator()(Lhs lhs, Rhs rhs) const
     {
         if (rhs == 0)
-            return AK::ErrorOr<Lhs, StringView>("Integer division overflow"sv);
+            return AK::ErrorOr<Lhs, StringView>("Integer division overflow"_sv);
         if constexpr (IsSigned<Lhs>) {
             if (rhs == -1)
                 return AK::ErrorOr<Lhs, StringView>(0); // Spec weirdness right here, signed division overflow is ignored.
@@ -81,7 +81,7 @@ struct Modulo {
         return AK::ErrorOr<Lhs, StringView>(lhs % rhs);
     }
 
-    static StringView name() { return "%"sv; }
+    static StringView name() { return "%"_sv; }
 };
 
 struct Average {
@@ -91,7 +91,7 @@ struct Average {
         return static_cast<Lhs>((lhs + rhs + 1) / 2);
     }
 
-    static StringView name() { return "avgr"sv; }
+    static StringView name() { return "avgr"_sv; }
 };
 
 struct Q15Mul {
@@ -101,35 +101,35 @@ struct Q15Mul {
         return (lhs * rhs + 0x4000) >> 15;
     }
 
-    static StringView name() { return "q15mul"sv; }
+    static StringView name() { return "q15mul"_sv; }
 };
 
 struct BitShiftLeft {
     template<typename Lhs, typename Rhs>
     auto operator()(Lhs lhs, Rhs rhs) const { return lhs << (rhs % (sizeof(lhs) * 8)); }
 
-    static StringView name() { return "<<"sv; }
+    static StringView name() { return "<<"_sv; }
 };
 
 struct BitShiftRight {
     template<typename Lhs, typename Rhs>
     auto operator()(Lhs lhs, Rhs rhs) const { return lhs >> (rhs % (sizeof(lhs) * 8)); }
 
-    static StringView name() { return ">>"sv; }
+    static StringView name() { return ">>"_sv; }
 };
 
 struct BitAndNot {
     template<typename Lhs, typename Rhs>
     auto operator()(Lhs lhs, Rhs rhs) const { return lhs & ~rhs; }
 
-    static StringView name() { return "andnot"sv; }
+    static StringView name() { return "andnot"_sv; }
 };
 
 struct BitNot {
     template<typename Lhs>
     auto operator()(Lhs lhs) const { return ~lhs; }
 
-    static StringView name() { return "~"sv; }
+    static StringView name() { return "~"_sv; }
 };
 
 struct BitRotateLeft {
@@ -143,7 +143,7 @@ struct BitRotateLeft {
         return (lhs << rhs) | (lhs >> ((-rhs) & mask));
     }
 
-    static StringView name() { return "rotate_left"sv; }
+    static StringView name() { return "rotate_left"_sv; }
 };
 
 struct BitRotateRight {
@@ -157,7 +157,7 @@ struct BitRotateRight {
         return (lhs >> rhs) | (lhs << ((-rhs) & mask));
     }
 
-    static StringView name() { return "rotate_right"sv; }
+    static StringView name() { return "rotate_right"_sv; }
 };
 
 template<size_t VectorSize, template<typename> typename SetSign = MakeSigned>
@@ -174,13 +174,13 @@ struct VectorAllTrue {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16).all_true"sv;
+            return "vec(8x16).all_true"_sv;
         case 8:
-            return "vec(16x8).all_true"sv;
+            return "vec(16x8).all_true"_sv;
         case 4:
-            return "vec(32x4).all_true"sv;
+            return "vec(32x4).all_true"_sv;
         case 2:
-            return "vec(64x2).all_true"sv;
+            return "vec(64x2).all_true"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -198,13 +198,13 @@ struct VectorShiftLeft {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16)<<"sv;
+            return "vec(8x16)<<"_sv;
         case 8:
-            return "vec(16x8)<<"sv;
+            return "vec(16x8)<<"_sv;
         case 4:
-            return "vec(32x4)<<"sv;
+            return "vec(32x4)<<"_sv;
         case 2:
-            return "vec(64x2)<<"sv;
+            return "vec(64x2)<<"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -222,13 +222,13 @@ struct VectorShiftRight {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16)>>"sv;
+            return "vec(8x16)>>"_sv;
         case 8:
-            return "vec(16x8)>>"sv;
+            return "vec(16x8)>>"_sv;
         case 4:
-            return "vec(32x4)>>"sv;
+            return "vec(32x4)>>"_sv;
         case 2:
-            return "vec(64x2)>>"sv;
+            return "vec(64x2)>>"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -244,7 +244,7 @@ struct VectorSwizzle {
         auto result = shuffle_or_0(i, j);
         return bit_cast<u128>(result);
     }
-    static StringView name() { return "vec(8x16).swizzle"sv; }
+    static StringView name() { return "vec(8x16).swizzle"_sv; }
 };
 
 template<size_t VectorSize, template<typename> typename SetSign>
@@ -261,13 +261,13 @@ struct VectorExtractLane {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16).extract_lane"sv;
+            return "vec(8x16).extract_lane"_sv;
         case 8:
-            return "vec(16x8).extract_lane"sv;
+            return "vec(16x8).extract_lane"_sv;
         case 4:
-            return "vec(32x4).extract_lane"sv;
+            return "vec(32x4).extract_lane"_sv;
         case 2:
-            return "vec(64x2).extract_lane"sv;
+            return "vec(64x2).extract_lane"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -288,13 +288,13 @@ struct VectorExtractLaneFloat {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16).extract_lane"sv;
+            return "vec(8x16).extract_lane"_sv;
         case 8:
-            return "vec(16x8).extract_lane"sv;
+            return "vec(16x8).extract_lane"_sv;
         case 4:
-            return "vec(32x4).extract_lane"sv;
+            return "vec(32x4).extract_lane"_sv;
         case 2:
-            return "vec(64x2).extract_lane"sv;
+            return "vec(64x2).extract_lane"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -317,13 +317,13 @@ struct VectorReplaceLane {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16).replace_lane"sv;
+            return "vec(8x16).replace_lane"_sv;
         case 8:
-            return "vec(16x8).replace_lane"sv;
+            return "vec(16x8).replace_lane"_sv;
         case 4:
-            return "vec(32x4).replace_lane"sv;
+            return "vec(32x4).replace_lane"_sv;
         case 2:
-            return "vec(64x2).replace_lane"sv;
+            return "vec(64x2).replace_lane"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -350,13 +350,13 @@ struct VectorCmpOp {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16).cmp"sv;
+            return "vec(8x16).cmp"_sv;
         case 8:
-            return "vec(16x8).cmp"sv;
+            return "vec(16x8).cmp"_sv;
         case 4:
-            return "vec(32x4).cmp"sv;
+            return "vec(32x4).cmp"_sv;
         case 2:
-            return "vec(64x2).cmp"sv;
+            return "vec(64x2).cmp"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -381,9 +381,9 @@ struct VectorFloatCmpOp {
     {
         switch (VectorSize) {
         case 4:
-            return "vecf(32x4).cmp"sv;
+            return "vecf(32x4).cmp"_sv;
         case 2:
-            return "vecf(64x2).cmp"sv;
+            return "vecf(64x2).cmp"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -405,7 +405,7 @@ struct Minimum {
         return min(lhs, rhs);
     }
 
-    static StringView name() { return "minimum"sv; }
+    static StringView name() { return "minimum"_sv; }
 };
 
 struct Maximum {
@@ -423,7 +423,7 @@ struct Maximum {
         return max(lhs, rhs);
     }
 
-    static StringView name() { return "maximum"sv; }
+    static StringView name() { return "maximum"_sv; }
 };
 
 struct PseudoMinimum {
@@ -433,7 +433,7 @@ struct PseudoMinimum {
         return rhs < lhs ? rhs : lhs;
     }
 
-    static StringView name() { return "pseudo_minimum"sv; }
+    static StringView name() { return "pseudo_minimum"_sv; }
 };
 
 struct PseudoMaximum {
@@ -443,7 +443,7 @@ struct PseudoMaximum {
         return lhs < rhs ? rhs : lhs;
     }
 
-    static StringView name() { return "pseudo_maximum"sv; }
+    static StringView name() { return "pseudo_maximum"_sv; }
 };
 
 struct CopySign {
@@ -458,7 +458,7 @@ struct CopySign {
             static_assert(DependentFalse<Lhs, Rhs>, "Invalid types to CopySign");
     }
 
-    static StringView name() { return "copysign"sv; }
+    static StringView name() { return "copysign"_sv; }
 };
 
 // Unary
@@ -467,7 +467,7 @@ struct EqualsZero {
     template<typename Lhs>
     auto operator()(Lhs lhs) const { return lhs == 0; }
 
-    static StringView name() { return "== 0"sv; }
+    static StringView name() { return "== 0"_sv; }
 };
 
 struct CountLeadingZeros {
@@ -483,7 +483,7 @@ struct CountLeadingZeros {
             VERIFY_NOT_REACHED();
     }
 
-    static StringView name() { return "clz"sv; }
+    static StringView name() { return "clz"_sv; }
 };
 
 struct CountTrailingZeros {
@@ -499,7 +499,7 @@ struct CountTrailingZeros {
             VERIFY_NOT_REACHED();
     }
 
-    static StringView name() { return "ctz"sv; }
+    static StringView name() { return "ctz"_sv; }
 };
 
 struct PopCount {
@@ -512,7 +512,7 @@ struct PopCount {
             VERIFY_NOT_REACHED();
     }
 
-    static StringView name() { return "popcnt"sv; }
+    static StringView name() { return "popcnt"_sv; }
 };
 
 struct Absolute {
@@ -530,7 +530,7 @@ struct Absolute {
         return AK::abs(lhs);
     }
 
-    static StringView name() { return "abs"sv; }
+    static StringView name() { return "abs"_sv; }
 };
 
 struct Negate {
@@ -548,7 +548,7 @@ struct Negate {
         return -lhs;
     }
 
-    static StringView name() { return "== 0"sv; }
+    static StringView name() { return "== 0"_sv; }
 };
 
 struct Ceil {
@@ -563,7 +563,7 @@ struct Ceil {
             VERIFY_NOT_REACHED();
     }
 
-    static StringView name() { return "ceil"sv; }
+    static StringView name() { return "ceil"_sv; }
 };
 
 template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
@@ -588,11 +588,11 @@ struct VectorIntegerExtOpPairwise {
     {
         switch (VectorSize) {
         case 8:
-            return "vec(16x8).ext_op_pairwise(8x16)"sv;
+            return "vec(16x8).ext_op_pairwise(8x16)"_sv;
         case 4:
-            return "vec(32x4).ext_op_pairwise(16x8)"sv;
+            return "vec(32x4).ext_op_pairwise(16x8)"_sv;
         case 2:
-            return "vec(64x2).ext_op_pairwise(32x4)"sv;
+            return "vec(64x2).ext_op_pairwise(32x4)"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -630,11 +630,11 @@ struct VectorIntegerExt {
     {
         switch (VectorSize) {
         case 8:
-            return "vec(16x8).ext(8x16)"sv;
+            return "vec(16x8).ext(8x16)"_sv;
         case 4:
-            return "vec(32x4).ext(16x8)"sv;
+            return "vec(32x4).ext(16x8)"_sv;
         case 2:
-            return "vec(64x2).ext(32x4)"sv;
+            return "vec(64x2).ext(32x4)"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -674,11 +674,11 @@ struct VectorIntegerExtOp {
     {
         switch (VectorSize) {
         case 8:
-            return "vec(16x8).ext_op(8x16)"sv;
+            return "vec(16x8).ext_op(8x16)"_sv;
         case 4:
-            return "vec(32x4).ext_op(16x8)"sv;
+            return "vec(32x4).ext_op(16x8)"_sv;
         case 2:
-            return "vec(64x2).ext_op(32x4)"sv;
+            return "vec(64x2).ext_op(32x4)"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -707,13 +707,13 @@ struct VectorIntegerBinaryOp {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16).binary_op"sv;
+            return "vec(8x16).binary_op"_sv;
         case 8:
-            return "vec(16x8).binary_op"sv;
+            return "vec(16x8).binary_op"_sv;
         case 4:
-            return "vec(32x4).binary_op"sv;
+            return "vec(32x4).binary_op"_sv;
         case 2:
-            return "vec(64x2).binary_op"sv;
+            return "vec(64x2).binary_op"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -734,7 +734,7 @@ struct VectorBitmask {
         return result;
     }
 
-    static StringView name() { return "bitmask"sv; }
+    static StringView name() { return "bitmask"_sv; }
 };
 
 template<size_t VectorSize>
@@ -757,7 +757,7 @@ struct VectorDotProduct {
         return bit_cast<u128>(result);
     }
 
-    static StringView name() { return "dot"sv; }
+    static StringView name() { return "dot"_sv; }
 };
 
 template<size_t VectorSize, typename Element>
@@ -790,7 +790,7 @@ struct VectorNarrow {
         return bit_cast<u128>(result);
     }
 
-    static StringView name() { return "narrow"sv; }
+    static StringView name() { return "narrow"_sv; }
 };
 
 template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
@@ -814,13 +814,13 @@ struct VectorIntegerUnaryOp {
     {
         switch (VectorSize) {
         case 16:
-            return "vec(8x16).unary_op"sv;
+            return "vec(8x16).unary_op"_sv;
         case 8:
-            return "vec(16x8).unary_op"sv;
+            return "vec(16x8).unary_op"_sv;
         case 4:
-            return "vec(32x4).unary_op"sv;
+            return "vec(32x4).unary_op"_sv;
         case 2:
-            return "vec(64x2).unary_op"sv;
+            return "vec(64x2).unary_op"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -846,9 +846,9 @@ struct VectorFloatBinaryOp {
     {
         switch (VectorSize) {
         case 4:
-            return "vecf(32x4).binary_op"sv;
+            return "vecf(32x4).binary_op"_sv;
         case 2:
-            return "vecf(64x2).binary_op"sv;
+            return "vecf(64x2).binary_op"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -873,9 +873,9 @@ struct VectorFloatUnaryOp {
     {
         switch (VectorSize) {
         case 4:
-            return "vecf(32x4).unary_op"sv;
+            return "vecf(32x4).unary_op"_sv;
         case 2:
-            return "vecf(64x2).unary_op"sv;
+            return "vecf(64x2).unary_op"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -910,9 +910,9 @@ struct VectorConvertOp {
     {
         switch (ResultSize) {
         case 4:
-            return "vec(32x4).cvt_op"sv;
+            return "vec(32x4).cvt_op"_sv;
         case 2:
-            return "vec(64x2).cvt_op"sv;
+            return "vec(64x2).cvt_op"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -931,7 +931,7 @@ struct Floor {
             VERIFY_NOT_REACHED();
     }
 
-    static StringView name() { return "floor"sv; }
+    static StringView name() { return "floor"_sv; }
 };
 
 struct Truncate {
@@ -946,7 +946,7 @@ struct Truncate {
             VERIFY_NOT_REACHED();
     }
 
-    static StringView name() { return "truncate"sv; }
+    static StringView name() { return "truncate"_sv; }
 };
 
 struct NearbyIntegral {
@@ -961,7 +961,7 @@ struct NearbyIntegral {
             VERIFY_NOT_REACHED();
     }
 
-    static StringView name() { return "round"sv; }
+    static StringView name() { return "round"_sv; }
 };
 
 struct SquareRoot {
@@ -976,7 +976,7 @@ struct SquareRoot {
             VERIFY_NOT_REACHED();
     }
 
-    static StringView name() { return "sqrt"sv; }
+    static StringView name() { return "sqrt"_sv; }
 };
 
 template<typename Result>
@@ -987,7 +987,7 @@ struct Wrap {
         return static_cast<MakeUnsigned<Result>>(bit_cast<MakeUnsigned<Lhs>>(lhs));
     }
 
-    static StringView name() { return "wrap"sv; }
+    static StringView name() { return "wrap"_sv; }
 };
 
 template<typename ResultT>
@@ -996,7 +996,7 @@ struct CheckedTruncate {
     AK::ErrorOr<ResultT, StringView> operator()(Lhs lhs) const
     {
         if (isnan(lhs) || isinf(lhs)) // "undefined", let's just trap.
-            return "Truncation undefined behavior"sv;
+            return "Truncation undefined behavior"_sv;
 
         Lhs truncated;
         if constexpr (IsSame<float, Lhs>)
@@ -1010,12 +1010,12 @@ struct CheckedTruncate {
         //        the assumption comes from the fact that this was used exclusively by LibJS,
         //        which only considers values that are all representable in 'double'.
         if (!AK::is_within_range<ResultT>(truncated))
-            return "Truncation out of range"sv;
+            return "Truncation out of range"_sv;
 
         return static_cast<ResultT>(truncated);
     }
 
-    static StringView name() { return "truncate.checked"sv; }
+    static StringView name() { return "truncate.checked"_sv; }
 };
 
 template<typename ResultT>
@@ -1026,7 +1026,7 @@ struct Extend {
         return lhs;
     }
 
-    static StringView name() { return "extend"sv; }
+    static StringView name() { return "extend"_sv; }
 };
 
 template<typename ResultT>
@@ -1038,7 +1038,7 @@ struct Convert {
         return static_cast<ResultT>(interpretation);
     }
 
-    static StringView name() { return "convert"sv; }
+    static StringView name() { return "convert"_sv; }
 };
 
 template<typename ResultT>
@@ -1049,7 +1049,7 @@ struct Reinterpret {
         return bit_cast<ResultT>(lhs);
     }
 
-    static StringView name() { return "reinterpret"sv; }
+    static StringView name() { return "reinterpret"_sv; }
 };
 
 struct Promote {
@@ -1060,7 +1060,7 @@ struct Promote {
         return static_cast<double>(lhs);
     }
 
-    static StringView name() { return "promote"sv; }
+    static StringView name() { return "promote"_sv; }
 };
 
 struct Demote {
@@ -1075,7 +1075,7 @@ struct Demote {
         return static_cast<float>(lhs);
     }
 
-    static StringView name() { return "demote"sv; }
+    static StringView name() { return "demote"_sv; }
 };
 
 template<typename InitialType>
@@ -1089,7 +1089,7 @@ struct SignExtend {
         return static_cast<Lhs>(initial_value);
     }
 
-    static StringView name() { return "extend"sv; }
+    static StringView name() { return "extend"_sv; }
 };
 
 template<typename ResultT>
@@ -1128,7 +1128,7 @@ struct SaturatingTruncate {
             return convert(trunc(lhs));
     }
 
-    static StringView name() { return "truncate.saturating"sv; }
+    static StringView name() { return "truncate.saturating"_sv; }
 };
 
 template<typename ResultT, typename Op>
@@ -1151,7 +1151,7 @@ struct SaturatingOp {
         return static_cast<ResultT>(result);
     }
 
-    static StringView name() { return "saturating_op"sv; }
+    static StringView name() { return "saturating_op"_sv; }
 };
 
 }

@@ -39,13 +39,13 @@ void HTMLUListElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
     // https://html.spec.whatwg.org/multipage/rendering.html#lists
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::type) {
-            if (value.equals_ignoring_ascii_case("none"sv)) {
+            if (value.equals_ignoring_ascii_case("none"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::None));
-            } else if (value.equals_ignoring_ascii_case("disc"sv)) {
+            } else if (value.equals_ignoring_ascii_case("disc"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Disc));
-            } else if (value.equals_ignoring_ascii_case("circle"sv)) {
+            } else if (value.equals_ignoring_ascii_case("circle"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Circle));
-            } else if (value.equals_ignoring_ascii_case("square"sv)) {
+            } else if (value.equals_ignoring_ascii_case("square"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Square));
             }
         }

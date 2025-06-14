@@ -216,7 +216,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
         // 1. Append `Service-Worker`/`script` to request’s header list.
         // Note: See https://w3c.github.io/ServiceWorker/#service-worker
-        request->header_list()->append(Fetch::Infrastructure::Header::from_string_pair("Service-Worker"sv, "script"sv));
+        request->header_list()->append(Fetch::Infrastructure::Header::from_string_pair("Service-Worker"_sv, "script"_sv));
 
         // 2. Set request’s cache mode to "no-cache" if any of the following are true:
         //  - registration’s update via cache mode is not "all".
@@ -266,7 +266,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
             // 8. Let serviceWorkerAllowed be the result of extracting header list values given `Service-Worker-Allowed` and response’s header list.
             // Note: See the definition of the Service-Worker-Allowed header in Appendix B: Extended HTTP headers. https://w3c.github.io/ServiceWorker/#service-worker-allowed
-            auto service_worker_allowed = Fetch::Infrastructure::extract_header_list_values("Service-Worker-Allowed"sv.bytes(), response->header_list());
+            auto service_worker_allowed = Fetch::Infrastructure::extract_header_list_values("Service-Worker-Allowed"_sv.bytes(), response->header_list());
 
             // 9. Set policyContainer to the result of creating a policy container from a fetch response given response.
             // FIXME: CSP not implemented yet
@@ -299,7 +299,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // 13. If serviceWorkerAllowed is null, then:
             if (service_worker_allowed.has<Empty>()) {
                 // 1. Let resolvedScope be the result of parsing "./" using job’s script url as the base URL.
-                auto resolved_scope = DOMURL::parse("./"sv, job->script_url);
+                auto resolved_scope = DOMURL::parse("./"_sv, job->script_url);
 
                 // 2. Set maxScopeString to "/", followed by the strings in resolvedScope’s path (including empty strings), separated from each other by "/".
                 max_scope_string = join_paths_with_slash(*resolved_scope);
@@ -440,7 +440,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         if (job->client) {
             auto& realm = job->client->realm();
             auto context = HTML::TemporaryExecutionContext(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            WebIDL::reject_promise(realm, *job->job_promise, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Run Service Worker"sv).value());
+            WebIDL::reject_promise(realm, *job->job_promise, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Run Service Worker"_sv).value());
             finish_job(vm, job);
         }
     });
@@ -467,7 +467,7 @@ static void unregister(JS::VM& vm, GC::Ref<Job> job)
     if (job->client) {
         auto& realm = job->client->realm();
         auto context = HTML::TemporaryExecutionContext(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        WebIDL::reject_promise(realm, *job->job_promise, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Service Worker unregistration"sv).value());
+        WebIDL::reject_promise(realm, *job->job_promise, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Service Worker unregistration"_sv).value());
         finish_job(vm, job);
     }
 }

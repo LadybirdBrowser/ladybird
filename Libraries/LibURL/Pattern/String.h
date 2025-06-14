@@ -13,7 +13,7 @@
 namespace URL::Pattern {
 
 // https://urlpattern.spec.whatwg.org/#full-wildcard-regexp-value
-static inline constexpr auto full_wildcard_regexp_value = ".*"sv;
+static inline constexpr auto full_wildcard_regexp_value = ".*"_sv;
 
 String escape_a_pattern_string(String const&);
 String escape_a_regexp_string(String const&);

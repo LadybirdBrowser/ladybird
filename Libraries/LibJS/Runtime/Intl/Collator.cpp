@@ -26,7 +26,7 @@ void Collator::visit_edges(Visitor& visitor)
 ReadonlySpan<StringView> Collator::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is a List that must include the element "co", may include any or all of the elements "kf" and "kn", and must not include any other elements.
-    static constexpr AK::Array keys { "co"sv, "kf"sv, "kn"sv };
+    static constexpr AK::Array keys { "co"_sv, "kf"_sv, "kn"_sv };
     return keys;
 }
 
@@ -34,12 +34,12 @@ ReadonlySpan<StringView> Collator::relevant_extension_keys() const
 ReadonlySpan<ResolutionOptionDescriptor> Collator::resolution_option_descriptors(VM& vm) const
 {
     // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "co", [[Property]]: "collation" }, { [[Key]]: "kn", [[Property]]: "numeric", [[Type]]: boolean }, { [[Key]]: "kf", [[Property]]: "caseFirst", [[Values]]: « "upper", "lower", "false" » } ».
-    static constexpr AK::Array case_first_values { "upper"sv, "lower"sv, "false"sv };
+    static constexpr AK::Array case_first_values { "upper"_sv, "lower"_sv, "false"_sv };
 
     static auto descriptors = to_array<ResolutionOptionDescriptor>({
-        { .key = "co"sv, .property = vm.names.collation },
-        { .key = "kn"sv, .property = vm.names.numeric, .type = OptionType::Boolean },
-        { .key = "kf"sv, .property = vm.names.caseFirst, .values = case_first_values },
+        { .key = "co"_sv, .property = vm.names.collation },
+        { .key = "kn"_sv, .property = vm.names.numeric, .type = OptionType::Boolean },
+        { .key = "kf"_sv, .property = vm.names.caseFirst, .values = case_first_values },
     });
 
     return descriptors;

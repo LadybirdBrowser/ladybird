@@ -49,7 +49,7 @@ String Display::to_string() const
             if (m_value.outside_inside.inside != DisplayInside::Flow)
                 parts.append(CSS::to_string(m_value.outside_inside.inside));
             if (m_value.outside_inside.list_item == ListItem::Yes)
-                parts.append("list-item"sv);
+                parts.append("list-item"_sv);
             builder.join(' ', parts);
         }
         break;

@@ -453,17 +453,17 @@ struct Formatter<ReadonlySpan<T>> : StandardFormatter {
         m_precision = m_precision.value_or(NumericLimits<size_t>::max());
 
         Formatter<T> content_fmt;
-        TRY(builder.put_literal("[ "sv));
+        TRY(builder.put_literal("[ "_sv));
         bool first = true;
         for (auto& content : value) {
             if (!first) {
-                TRY(builder.put_literal(", "sv));
+                TRY(builder.put_literal(", "_sv));
                 content_fmt = Formatter<T> {};
             }
             first = false;
             TRY(content_fmt.format(builder, content));
         }
-        TRY(builder.put_literal(" ]"sv));
+        TRY(builder.put_literal(" ]"_sv));
         return {};
     }
 };
@@ -517,7 +517,7 @@ struct Formatter<char const*> : Formatter<StringView> {
             return formatter.format(builder, reinterpret_cast<FlatPtr>(value));
         }
 
-        return Formatter<StringView>::format(builder, value != nullptr ? StringView { value, __builtin_strlen(value) } : "(null)"sv);
+        return Formatter<StringView>::format(builder, value != nullptr ? StringView { value, __builtin_strlen(value) } : "(null)"_sv);
     }
 };
 template<>
@@ -739,7 +739,7 @@ template<typename T, bool Supported = false>
 struct __FormatIfSupported : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, FormatIfSupported<T> const&)
     {
-        return Formatter<StringView>::format(builder, "?"sv);
+        return Formatter<StringView>::format(builder, "?"_sv);
     }
 };
 template<typename T>
@@ -783,8 +783,8 @@ struct Formatter<ErrorOr<T, ErrorType>> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, ErrorOr<T, ErrorType> const& error_or)
     {
         if (error_or.is_error())
-            return Formatter<FormatString>::format(builder, "{}"sv, error_or.error());
-        return Formatter<FormatString>::format(builder, "{{{}}}"sv, error_or.value());
+            return Formatter<FormatString>::format(builder, "{}"_sv, error_or.error());
+        return Formatter<FormatString>::format(builder, "{{{}}}"_sv, error_or.value());
     }
 };
 
@@ -793,8 +793,8 @@ struct Formatter<Optional<T>> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Optional<T> const& optional)
     {
         if (optional.has_value())
-            return Formatter<FormatString>::format(builder, "{}"sv, *optional);
-        return builder.put_literal("None"sv);
+            return Formatter<FormatString>::format(builder, "{}"_sv, *optional);
+        return builder.put_literal("None"_sv);
     }
 };
 

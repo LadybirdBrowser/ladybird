@@ -765,10 +765,10 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
             if (normalized_algorithm_encrypt_or_error.is_error())
                 return normalized_algorithm_encrypt_or_error.release_error();
 
-            operation = "encrypt"sv;
+            operation = "encrypt"_sv;
             return normalized_algorithm_encrypt_or_error.release_value();
         } else {
-            operation = "wrapKey"sv;
+            operation = "wrapKey"_sv;
             return normalized_algorithm_wrap_key_or_error.release_value();
         }
     }();
@@ -912,10 +912,10 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, Ke
             if (normalized_algorithm_decrypt_or_error.is_error())
                 return normalized_algorithm_decrypt_or_error.release_error();
 
-            operation = "decrypt"sv;
+            operation = "decrypt"_sv;
             return normalized_algorithm_decrypt_or_error.release_value();
         } else {
-            operation = "unwrapKey"sv;
+            operation = "unwrapKey"_sv;
             return normalized_algorithm_unwrap_key_or_error.release_value();
         }
     }();

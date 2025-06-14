@@ -50,16 +50,16 @@ Configuration Configuration::from_config(StringView libname)
 
     configuration.set(flags);
 
-    if (refresh.equals_ignoring_ascii_case("lazy"sv))
+    if (refresh.equals_ignoring_ascii_case("lazy"_sv))
         configuration.set(Configuration::Lazy);
-    else if (refresh.equals_ignoring_ascii_case("eager"sv))
+    else if (refresh.equals_ignoring_ascii_case("eager"_sv))
         configuration.set(Configuration::Eager);
 
-    if (operation.equals_ignoring_ascii_case("full"sv))
+    if (operation.equals_ignoring_ascii_case("full"_sv))
         configuration.set(Configuration::OperationMode::Full);
-    else if (operation.equals_ignoring_ascii_case("noescapesequences"sv))
+    else if (operation.equals_ignoring_ascii_case("noescapesequences"_sv))
         configuration.set(Configuration::OperationMode::NoEscapeSequences);
-    else if (operation.equals_ignoring_ascii_case("noninteractive"sv))
+    else if (operation.equals_ignoring_ascii_case("noninteractive"_sv))
         configuration.set(Configuration::OperationMode::NonInteractive);
     else
         configuration.set(Configuration::OperationMode::Unset);
@@ -85,19 +85,19 @@ Configuration Configuration::from_config(StringView libname)
                 escape = false;
             } else {
                 if (key_lexer.next_is("alt+")) {
-                    alt = key_lexer.consume_specific("alt+"sv);
+                    alt = key_lexer.consume_specific("alt+"_sv);
                     continue;
                 }
                 if (key_lexer.next_is("^[")) {
-                    alt = key_lexer.consume_specific("^["sv);
+                    alt = key_lexer.consume_specific("^["_sv);
                     continue;
                 }
                 if (key_lexer.next_is("^")) {
-                    has_ctrl = key_lexer.consume_specific("^"sv);
+                    has_ctrl = key_lexer.consume_specific("^"_sv);
                     continue;
                 }
                 if (key_lexer.next_is("ctrl+")) {
-                    has_ctrl = key_lexer.consume_specific("ctrl+"sv);
+                    has_ctrl = key_lexer.consume_specific("ctrl+"_sv);
                     continue;
                 }
                 if (key_lexer.next_is("\\")) {
@@ -120,7 +120,7 @@ Configuration Configuration::from_config(StringView libname)
         while (!value_lexer.is_eof())
             value_builder.append(value_lexer.consume_escaped_character());
         auto value = value_builder.string_view();
-        if (value.starts_with("internal:"sv)) {
+        if (value.starts_with("internal:"_sv)) {
             configuration.set(KeyBinding {
                 keys,
                 KeyBinding::Kind::InternalFunction,
@@ -262,8 +262,8 @@ ErrorOr<Vector<Editor::HistoryEntry>> Editor::try_load_history(StringView path)
     auto data = TRY(history_file->read_until_eof());
     auto hist = StringView { data };
     Vector<HistoryEntry> history;
-    for (auto& str : hist.split_view("\n\n"sv)) {
-        auto it = str.find("::"sv).value_or(0);
+    for (auto& str : hist.split_view("\n\n"_sv)) {
+        auto it = str.find("::"_sv).value_or(0);
         auto time = str.substring_view(0, it).to_number<time_t>().value_or(0);
         auto string = str.substring_view(it == 0 ? it : it + 2);
         history.append({ string, time });
@@ -568,7 +568,7 @@ void Editor::initialize()
             m_configuration.set(Configuration::NonInteractive);
         } else {
             auto* term = getenv("TERM");
-            if ((term != NULL) && StringView { term, strlen(term) }.starts_with("xterm"sv))
+            if ((term != NULL) && StringView { term, strlen(term) }.starts_with("xterm"_sv))
                 m_configuration.set(Configuration::Full);
             else
                 m_configuration.set(Configuration::NoEscapeSequences);
@@ -632,7 +632,7 @@ ErrorOr<void> Editor::interrupted()
             TRY(reposition_cursor(*stderr_stream, true));
             TRY(cleanup_suggestions());
         }
-        TRY(stderr_stream->write_until_depleted("\r"sv.bytes()));
+        TRY(stderr_stream->write_until_depleted("\r"_sv.bytes()));
     }
     m_buffer.clear();
     m_chars_touched_in_the_middle = buffer().size();
@@ -719,7 +719,7 @@ ErrorOr<void> Editor::really_quit_event_loop()
     {
         auto stderr_stream = TRY(Core::File::standard_error());
         TRY(reposition_cursor(*stderr_stream, true));
-        TRY(stderr_stream->write_until_depleted("\n"sv.bytes()));
+        TRY(stderr_stream->write_until_depleted("\n"_sv.bytes()));
     }
     auto string = line();
     m_buffer.clear();
@@ -786,7 +786,7 @@ auto Editor::get_line(ByteString const& prompt) -> Result<ByteString, Editor::Er
         auto stderr_stream = Core::File::standard_error().release_value_but_fixme_should_propagate_errors();
         auto prompt_lines = max(current_prompt_metrics().line_metrics.size(), 1ul) - 1;
         for (size_t i = 0; i < prompt_lines; ++i)
-            stderr_stream->write_until_depleted("\n"sv.bytes()).release_value_but_fixme_should_propagate_errors();
+            stderr_stream->write_until_depleted("\n"_sv.bytes()).release_value_but_fixme_should_propagate_errors();
 
         VT::move_relative(-static_cast<int>(prompt_lines), 0, *stderr_stream).release_value_but_fixme_should_propagate_errors();
     }
@@ -1416,13 +1416,13 @@ ErrorOr<void> Editor::refresh_display()
     if (m_origin_row + current_num_lines > m_num_lines) {
         if (current_num_lines > m_num_lines) {
             for (size_t i = 0; i < m_num_lines; ++i)
-                TRY(output_stream.write_until_depleted("\n"sv.bytes()));
+                TRY(output_stream.write_until_depleted("\n"_sv.bytes()));
             m_origin_row = 0;
         } else {
             auto old_origin_row = m_origin_row;
             m_origin_row = m_num_lines - current_num_lines + 1;
             for (size_t i = 0; i < old_origin_row - m_origin_row; ++i)
-                TRY(output_stream.write_until_depleted("\n"sv.bytes()));
+                TRY(output_stream.write_until_depleted("\n"_sv.bytes()));
         }
     }
     // Do not call hook on pure cursor movement.
@@ -1522,12 +1522,12 @@ ErrorOr<void> Editor::refresh_display()
                 builder.append(Utf32View { &c, 1 });
 
             if (should_print_masked)
-                TRY(output_stream.write_until_depleted("\033[7m"sv.bytes()));
+                TRY(output_stream.write_until_depleted("\033[7m"_sv.bytes()));
 
             TRY(output_stream.write_until_depleted(builder.string_view().bytes()));
 
             if (should_print_masked)
-                TRY(output_stream.write_until_depleted("\033[27m"sv.bytes()));
+                TRY(output_stream.write_until_depleted("\033[27m"_sv.bytes()));
 
             return {};
         };
@@ -1757,36 +1757,36 @@ void Style::unify_with(Style const& other, bool prefer_other)
 ByteString Style::to_byte_string() const
 {
     StringBuilder builder;
-    builder.append("Style { "sv);
+    builder.append("Style { "_sv);
 
     if (!m_foreground.is_default()) {
-        builder.append("Foreground("sv);
+        builder.append("Foreground("_sv);
         if (m_foreground.m_is_rgb) {
-            builder.join(", "sv, m_foreground.m_rgb_color);
+            builder.join(", "_sv, m_foreground.m_rgb_color);
         } else {
             builder.appendff("(XtermColor) {}", (int)m_foreground.m_xterm_color);
         }
-        builder.append("), "sv);
+        builder.append("), "_sv);
     }
 
     if (!m_background.is_default()) {
-        builder.append("Background("sv);
+        builder.append("Background("_sv);
         if (m_background.m_is_rgb) {
             builder.join(' ', m_background.m_rgb_color);
         } else {
             builder.appendff("(XtermColor) {}", (int)m_background.m_xterm_color);
         }
-        builder.append("), "sv);
+        builder.append("), "_sv);
     }
 
     if (bold())
-        builder.append("Bold, "sv);
+        builder.append("Bold, "_sv);
 
     if (underline())
-        builder.append("Underline, "sv);
+        builder.append("Underline, "_sv);
 
     if (italic())
-        builder.append("Italic, "sv);
+        builder.append("Italic, "_sv);
 
     if (!m_hyperlink.is_empty())
         builder.appendff("Hyperlink(\"{}\"), ", m_hyperlink.m_link);
@@ -1824,16 +1824,16 @@ ErrorOr<void> VT::apply_style(Style const& style, Stream& stream, bool is_starti
 ErrorOr<void> VT::clear_lines(size_t count_above, size_t count_below, Stream& stream)
 {
     if (count_below + count_above == 0) {
-        TRY(stream.write_until_depleted("\033[2K"sv));
+        TRY(stream.write_until_depleted("\033[2K"_sv));
     } else {
         // Go down count_below lines.
         if (count_below > 0)
             TRY(stream.write_until_depleted(ByteString::formatted("\033[{}B", count_below)));
         // Then clear lines going upwards.
         for (size_t i = count_below + count_above; i > 0; --i) {
-            TRY(stream.write_until_depleted("\033[2K"sv));
+            TRY(stream.write_until_depleted("\033[2K"_sv));
             if (i != 1)
-                TRY(stream.write_until_depleted("\033[A"sv));
+                TRY(stream.write_until_depleted("\033[A"_sv));
         }
     }
 
@@ -1842,17 +1842,17 @@ ErrorOr<void> VT::clear_lines(size_t count_above, size_t count_below, Stream& st
 
 ErrorOr<void> VT::save_cursor(Stream& stream)
 {
-    return stream.write_until_depleted("\033[s"sv);
+    return stream.write_until_depleted("\033[s"_sv);
 }
 
 ErrorOr<void> VT::restore_cursor(Stream& stream)
 {
-    return stream.write_until_depleted("\033[u"sv);
+    return stream.write_until_depleted("\033[u"_sv);
 }
 
 ErrorOr<void> VT::clear_to_end_of_line(Stream& stream)
 {
-    return stream.write_until_depleted("\033[K"sv);
+    return stream.write_until_depleted("\033[K"_sv);
 }
 
 enum VTState {

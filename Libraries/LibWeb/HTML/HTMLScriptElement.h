@@ -49,7 +49,7 @@ public:
     // https://html.spec.whatwg.org/multipage/scripting.html#dom-script-supports
     static bool supports(JS::VM&, StringView type)
     {
-        return type.is_one_of("classic"sv, "module"sv, "importmap"sv);
+        return type.is_one_of("classic"_sv, "module"_sv, "importmap"_sv);
     }
 
     void set_source_line_number(Badge<HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }

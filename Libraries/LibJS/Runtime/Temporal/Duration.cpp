@@ -1471,7 +1471,7 @@ String temporal_duration_to_string(Duration const& duration, Precision precision
     }
 
     // 14. Let signPart be the code unit 0x002D (HYPHEN-MINUS) if sign < 0, and otherwise the empty String.
-    auto sign_part = sign < 0 ? "-"sv : ""sv;
+    auto sign_part = sign < 0 ? "-"_sv : ""_sv;
 
     // 15. Let result be the string concatenation of signPart, the code unit 0x0050 (LATIN CAPITAL LETTER P) and datePart.
     StringBuilder result;
@@ -1508,7 +1508,7 @@ ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM& vm, ArithmeticOperation o
 
     // 6. If IsCalendarUnit(largestUnit) is true, throw a RangeError exception.
     if (is_calendar_unit(largest_unit))
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, "a calendar unit"sv);
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, "a calendar unit"_sv);
 
     // 7. Let d1 be ToInternalDurationRecordWith24HourDays(duration).
     auto duration1 = to_internal_duration_record_with_24_hour_days(vm, duration);

@@ -26,8 +26,8 @@ void TargetConfigurationActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "updateConfiguration"sv) {
-        auto configuration = get_required_parameter<JsonObject>(message, "configuration"sv);
+    if (message.type == "updateConfiguration"_sv) {
+        auto configuration = get_required_parameter<JsonObject>(message, "configuration"_sv);
         if (!configuration.has_value())
             return;
 
@@ -41,31 +41,31 @@ void TargetConfigurationActor::handle_message(Message const& message)
 JsonObject TargetConfigurationActor::serialize_configuration() const
 {
     JsonObject supported_options;
-    supported_options.set("cacheDisabled"sv, false);
-    supported_options.set("colorSchemeSimulation"sv, false);
-    supported_options.set("customFormatters"sv, false);
-    supported_options.set("customUserAgent"sv, false);
-    supported_options.set("javascriptEnabled"sv, false);
-    supported_options.set("overrideDPPX"sv, false);
-    supported_options.set("printSimulationEnabled"sv, false);
-    supported_options.set("rdmPaneMaxTouchPoints"sv, false);
-    supported_options.set("rdmPaneOrientation"sv, false);
-    supported_options.set("recordAllocations"sv, false);
-    supported_options.set("reloadOnTouchSimulationToggle"sv, false);
-    supported_options.set("restoreFocus"sv, false);
-    supported_options.set("serviceWorkersTestingEnabled"sv, false);
-    supported_options.set("setTabOffline"sv, false);
-    supported_options.set("touchEventsOverride"sv, false);
-    supported_options.set("tracerOptions"sv, false);
-    supported_options.set("useSimpleHighlightersForReducedMotion"sv, false);
+    supported_options.set("cacheDisabled"_sv, false);
+    supported_options.set("colorSchemeSimulation"_sv, false);
+    supported_options.set("customFormatters"_sv, false);
+    supported_options.set("customUserAgent"_sv, false);
+    supported_options.set("javascriptEnabled"_sv, false);
+    supported_options.set("overrideDPPX"_sv, false);
+    supported_options.set("printSimulationEnabled"_sv, false);
+    supported_options.set("rdmPaneMaxTouchPoints"_sv, false);
+    supported_options.set("rdmPaneOrientation"_sv, false);
+    supported_options.set("recordAllocations"_sv, false);
+    supported_options.set("reloadOnTouchSimulationToggle"_sv, false);
+    supported_options.set("restoreFocus"_sv, false);
+    supported_options.set("serviceWorkersTestingEnabled"_sv, false);
+    supported_options.set("setTabOffline"_sv, false);
+    supported_options.set("touchEventsOverride"_sv, false);
+    supported_options.set("tracerOptions"_sv, false);
+    supported_options.set("useSimpleHighlightersForReducedMotion"_sv, false);
 
     JsonObject traits;
-    traits.set("supportedOptions"sv, move(supported_options));
+    traits.set("supportedOptions"_sv, move(supported_options));
 
     JsonObject target;
-    target.set("actor"sv, name());
-    target.set("configuration"sv, JsonObject {});
-    target.set("traits"sv, move(traits));
+    target.set("actor"_sv, name());
+    target.set("configuration"_sv, JsonObject {});
+    target.set("traits"_sv, move(traits));
 
     return target;
 }

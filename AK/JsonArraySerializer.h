@@ -96,9 +96,9 @@ public:
     {
         TRY(begin_item());
         if constexpr (IsLegacyBuilder<Builder>)
-            TRY(m_builder.try_append(value ? "true"sv : "false"sv));
+            TRY(m_builder.try_append(value ? "true"_sv : "false"_sv));
         else
-            TRY(m_builder.append(value ? "true"sv : "false"sv));
+            TRY(m_builder.append(value ? "true"_sv : "false"_sv));
         return {};
     }
 

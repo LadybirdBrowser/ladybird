@@ -94,7 +94,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
     // 6. If numLimit is NaN, then
     if (numeric_limit.is_nan()) {
         // a. Let error be ThrowCompletion(a newly created RangeError object).
-        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "limit"sv);
+        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "limit"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -106,7 +106,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
     // 8. If integerLimit < 0, then
     if (integer_limit < 0) {
         // a. Let error be ThrowCompletion(a newly created RangeError object).
-        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "limit"sv);
+        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "limit"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -174,7 +174,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::every)
     // 4. If IsCallable(predicate) is false, then
     if (!predicate.is_function()) {
         // a. Let error be ThrowCompletion(a newly created TypeError object).
-        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -222,7 +222,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
     // 4. If IsCallable(predicate) is false, then
     if (!predicate.is_function()) {
         // a. Let error be ThrowCompletion(a newly created TypeError object).
-        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -291,7 +291,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::find)
     // 4. If IsCallable(predicate) is false, then
     if (!predicate.is_function()) {
         // a. Let error be ThrowCompletion(a newly created TypeError object).
-        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -443,7 +443,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
     // 4. If IsCallable(mapper) is false, then
     if (!mapper.is_function()) {
         // a. Let error be ThrowCompletion(a newly created TypeError object).
-        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "mapper"sv);
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "mapper"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -490,7 +490,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::for_each)
     // 4. If IsCallable(procedure) is false, then
     if (!procedure.is_function()) {
         // a. Let error be ThrowCompletion(a newly created TypeError object).
-        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "procedure"sv);
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "procedure"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -534,7 +534,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
     // 4. If IsCallable(mapper) is false, then
     if (!mapper.is_function()) {
         // a. Let error be ThrowCompletion(a newly created TypeError object).
-        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "mapper"sv);
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "mapper"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -599,7 +599,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
     // 4. If IsCallable(reducer) is false, then
     if (!reducer.is_function()) {
         // a. Let error be ThrowCompletion(a newly created TypeError object).
-        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "reducer"sv);
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "reducer"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -674,7 +674,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::some)
     // 4. If IsCallable(predicate) is false, then
     if (!predicate.is_function()) {
         // a. Let error be ThrowCompletion(a newly created TypeError object).
-        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"sv);
+        auto error = vm.throw_completion<TypeError>(ErrorType::NotAFunction, "predicate"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -729,7 +729,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
     // 6. If numLimit is NaN, then
     if (numeric_limit.is_nan()) {
         // a. Let error be ThrowCompletion(a newly created RangeError object).
-        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "limit"sv);
+        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "limit"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);
@@ -741,7 +741,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
     // 8. If integerLimit < 0, then
     if (integer_limit < 0) {
         // a. Let error be ThrowCompletion(a newly created RangeError object).
-        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "limit"sv);
+        auto error = vm.throw_completion<RangeError>(ErrorType::NumberIsNegative, "limit"_sv);
 
         // b. Return ? IteratorClose(iterated, error).
         return iterator_close(vm, iterated, error);

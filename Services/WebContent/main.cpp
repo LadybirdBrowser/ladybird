@@ -147,7 +147,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (force_fontconfig) {
         font_provider.set_name_but_fixme_should_create_custom_system_font_provider("FontConfig"_string);
     }
-    font_provider.load_all_fonts_from_uri("resource://fonts"sv);
+    font_provider.load_all_fonts_from_uri("resource://fonts"_sv);
 
     // Layout test mode implies internals object is exposed and the Skia CPU backend is used
     if (is_layout_test_mode) {
@@ -218,7 +218,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     // TODO: Mach IPC
 
-    auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
+    auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"_sv));
     auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(make<IPC::Transport>(move(webcontent_socket))));
 
     webcontent_client->on_image_decoder_connection = [&](auto& socket_file) {

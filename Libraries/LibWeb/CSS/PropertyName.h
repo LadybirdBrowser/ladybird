@@ -15,7 +15,7 @@ namespace Web::CSS {
 static bool is_a_custom_property_name_string(StringView string)
 {
     // A string is a custom property name string if it starts with two dashes (U+002D HYPHEN-MINUS), like --foo.
-    return string.starts_with("--"sv);
+    return string.starts_with("--"_sv);
 }
 
 }

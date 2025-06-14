@@ -99,7 +99,7 @@ Optional<FlyString> normalize_specifier_key(JS::Realm& realm, FlyString specifie
     if (specifier_key.is_empty()) {
         // 1. The user agent may report a warning to the console indicating that specifier keys may not be the empty string.
         auto& console = realm.intrinsics().console_object()->console();
-        console.output_debug_message(JS::Console::LogLevel::Warn, "Specifier keys may not be empty"sv);
+        console.output_debug_message(JS::Console::LogLevel::Warn, "Specifier keys may not be empty"_sv);
 
         // 2. Return null.
         return Optional<FlyString> {};
@@ -137,7 +137,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         if (!value.is_string()) {
             // 1. The user agent may report a warning to the console indicating that addresses need to be strings.
             auto& console = realm.intrinsics().console_object()->console();
-            console.output_debug_message(JS::Console::LogLevel::Warn, "Addresses need to be strings"sv);
+            console.output_debug_message(JS::Console::LogLevel::Warn, "Addresses need to be strings"_sv);
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
             normalized.set(normalized_specifier_key.value().to_string(), {});
@@ -153,7 +153,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         if (!address_url.has_value()) {
             // 1. The user agent may report a warning to the console indicating that the address was invalid.
             auto& console = realm.intrinsics().console_object()->console();
-            console.output_debug_message(JS::Console::LogLevel::Warn, "Address was invalid"sv);
+            console.output_debug_message(JS::Console::LogLevel::Warn, "Address was invalid"_sv);
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
             normalized.set(normalized_specifier_key.value().to_string(), {});
@@ -163,7 +163,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         }
 
         // 6. If specifierKey ends with U+002F (/), and the serialization of addressURL does not end with U+002F (/), then:
-        if (specifier_key.as_string().bytes_as_string_view().ends_with("/"sv) && !address_url->serialize().ends_with('/')) {
+        if (specifier_key.as_string().bytes_as_string_view().ends_with("/"_sv) && !address_url->serialize().ends_with('/')) {
             // 1. The user agent may report a warning to the console indicating that an invalid address was given for the specifier key specifierKey; since specifierKey ends with a slash, the address needs to as well.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,

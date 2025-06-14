@@ -40,7 +40,7 @@ TEST_CASE(visit)
 TEST_CASE(visit_const)
 {
     bool correct = false;
-    Variant<int, ByteString> const the_value { "42"sv };
+    Variant<int, ByteString> const the_value { "42"_sv };
 
     the_value.visit(
         [&](ByteString const&) { correct = true; },

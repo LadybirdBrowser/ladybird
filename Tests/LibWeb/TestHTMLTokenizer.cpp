@@ -47,7 +47,7 @@ using Token = Web::HTML::HTMLToken;
     NEXT_TOKEN();
 
 #define EXPECT_CHARACTER_TOKENS(string) \
-    for (auto c : #string##sv) {        \
+    for (auto c : #string##_sv) {       \
         EXPECT_CHARACTER_TOKEN(c);      \
     }
 
@@ -76,7 +76,7 @@ using Token = Web::HTML::HTMLToken;
 static Vector<Token> run_tokenizer(StringView input)
 {
     Vector<Token> tokens;
-    Tokenizer tokenizer { input, "UTF-8"sv };
+    Tokenizer tokenizer { input, "UTF-8"_sv };
     while (true) {
         auto maybe_token = tokenizer.next_token();
         if (!maybe_token.has_value())
@@ -97,7 +97,7 @@ static u32 hash_tokens(Vector<Token> const& tokens)
 
 TEST_CASE(empty)
 {
-    auto tokens = run_tokenizer(""sv);
+    auto tokens = run_tokenizer(""_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_END_OF_FILE_TOKEN();
     END_ENUMERATION();
@@ -105,7 +105,7 @@ TEST_CASE(empty)
 
 TEST_CASE(basic)
 {
-    auto tokens = run_tokenizer("<html><head></head><body></body></html>"sv);
+    auto tokens = run_tokenizer("<html><head></head><body></body></html>"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(html, 1u, 5u);
     EXPECT_START_TAG_TOKEN(head, 7u, 11u);
@@ -119,7 +119,7 @@ TEST_CASE(basic)
 
 TEST_CASE(basic_with_text)
 {
-    auto tokens = run_tokenizer("<p>This is some text.</p>"sv);
+    auto tokens = run_tokenizer("<p>This is some text.</p>"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(p, 1u, 2u);
     EXPECT_CHARACTER_TOKENS(This is some text.);
@@ -130,7 +130,7 @@ TEST_CASE(basic_with_text)
 
 TEST_CASE(unquoted_attributes)
 {
-    auto tokens = run_tokenizer("<p foo=bar>"sv);
+    auto tokens = run_tokenizer("<p foo=bar>"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(p, 1u, 10u);
     EXPECT_TAG_TOKEN_ATTRIBUTE_COUNT(1);
@@ -141,7 +141,7 @@ TEST_CASE(unquoted_attributes)
 
 TEST_CASE(single_quoted_attributes)
 {
-    auto tokens = run_tokenizer("<p foo='bar'>"sv);
+    auto tokens = run_tokenizer("<p foo='bar'>"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(p, 1u, 12u);
     EXPECT_TAG_TOKEN_ATTRIBUTE_COUNT(1);
@@ -152,7 +152,7 @@ TEST_CASE(single_quoted_attributes)
 
 TEST_CASE(double_quoted_attributes)
 {
-    auto tokens = run_tokenizer("<p foo=\"bar\">"sv);
+    auto tokens = run_tokenizer("<p foo=\"bar\">"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(p, 1u, 12u);
     EXPECT_TAG_TOKEN_ATTRIBUTE_COUNT(1);
@@ -163,7 +163,7 @@ TEST_CASE(double_quoted_attributes)
 
 TEST_CASE(valueless_attribute)
 {
-    auto tokens = run_tokenizer("<p foo>"sv);
+    auto tokens = run_tokenizer("<p foo>"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(p, 1u, 6u);
     EXPECT_TAG_TOKEN_ATTRIBUTE_COUNT(1);
@@ -174,7 +174,7 @@ TEST_CASE(valueless_attribute)
 
 TEST_CASE(multiple_attributes)
 {
-    auto tokens = run_tokenizer("<p foo=\"bar\" baz=foobar biz foo2=\"bar2\">"sv);
+    auto tokens = run_tokenizer("<p foo=\"bar\" baz=foobar biz foo2=\"bar2\">"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(p, 1u, 39u);
     EXPECT_TAG_TOKEN_ATTRIBUTE_COUNT(4);
@@ -188,7 +188,7 @@ TEST_CASE(multiple_attributes)
 
 TEST_CASE(character_reference_in_attribute)
 {
-    auto tokens = run_tokenizer("<p foo=a&amp;b bar='a&#38;b' baz=\"a&#x26;b\">"sv);
+    auto tokens = run_tokenizer("<p foo=a&amp;b bar='a&#38;b' baz=\"a&#x26;b\">"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(p, 1u, 43u);
     EXPECT_TAG_TOKEN_ATTRIBUTE_COUNT(3);
@@ -201,7 +201,7 @@ TEST_CASE(character_reference_in_attribute)
 
 TEST_CASE(numeric_character_reference)
 {
-    auto tokens = run_tokenizer("&#1111"sv);
+    auto tokens = run_tokenizer("&#1111"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_CHARACTER_TOKEN(1111);
     EXPECT_END_OF_FILE_TOKEN();
@@ -210,7 +210,7 @@ TEST_CASE(numeric_character_reference)
 
 TEST_CASE(hex_character_reference)
 {
-    auto tokens = run_tokenizer("&#xA12bZ"sv);
+    auto tokens = run_tokenizer("&#xA12bZ"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_CHARACTER_TOKEN(0xA12B);
     EXPECT_CHARACTER_TOKEN('Z');
@@ -220,7 +220,7 @@ TEST_CASE(hex_character_reference)
 
 TEST_CASE(comment)
 {
-    auto tokens = run_tokenizer("<p><!-- This is a comment --></p>"sv);
+    auto tokens = run_tokenizer("<p><!-- This is a comment --></p>"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_START_TAG_TOKEN(p, 1u, 2u);
     EXPECT_COMMENT_TOKEN();
@@ -231,7 +231,7 @@ TEST_CASE(comment)
 
 TEST_CASE(doctype)
 {
-    auto tokens = run_tokenizer("<!DOCTYPE html><html></html>"sv);
+    auto tokens = run_tokenizer("<!DOCTYPE html><html></html>"_sv);
     BEGIN_ENUMERATION(tokens);
     EXPECT_DOCTYPE_TOKEN();
     EXPECT_START_TAG_TOKEN(html, 16u, 20u);
@@ -242,7 +242,7 @@ TEST_CASE(doctype)
 //       If that changes, or something is added to the test HTML, the hash needs to be adjusted.
 TEST_CASE(regression)
 {
-    StringView path = "tokenizer-test.html"sv;
+    StringView path = "tokenizer-test.html"_sv;
 
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto file_size = MUST(file->size());

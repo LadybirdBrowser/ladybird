@@ -31,13 +31,13 @@ public:
     {
         switch (error) {
         case ParseError::RequestTooLarge:
-            return "Request too large"sv;
+            return "Request too large"_sv;
         case ParseError::RequestIncomplete:
-            return "Request is incomplete"sv;
+            return "Request is incomplete"_sv;
         case ParseError::OutOfMemory:
-            return "Out of memory"sv;
+            return "Out of memory"_sv;
         case ParseError::UnsupportedMethod:
-            return "Unsupported method"sv;
+            return "Unsupported method"_sv;
         default:
             VERIFY_NOT_REACHED();
         }

@@ -30,21 +30,21 @@ namespace Web::ARIA {
         JsonObject const& value_object = value.as_object();
 
         auto class_definition_generator = generator.fork();
-        class_definition_generator.set("spec_link"sv, value_object.get_string("specLink"sv).release_value());
-        class_definition_generator.set("description"sv, value_object.get_string("description"sv).release_value());
-        class_definition_generator.set("name"sv, name);
+        class_definition_generator.set("spec_link"_sv, value_object.get_string("specLink"_sv).release_value());
+        class_definition_generator.set("description"_sv, value_object.get_string("description"_sv).release_value());
+        class_definition_generator.set("name"_sv, name);
         class_definition_generator.append(R"~~~(
 // @spec_link@
 // @description@
 class @name@ :
 )~~~");
 
-        JsonArray const& super_classes = value_object.get_array("superClassRoles"sv).value();
+        JsonArray const& super_classes = value_object.get_array("superClassRoles"_sv).value();
         bool first = true;
         super_classes.for_each([&](JsonValue const& value) {
             VERIFY(value.is_string());
 
-            class_definition_generator.append(first ? " "sv : ", "sv);
+            class_definition_generator.append(first ? " "_sv : ", "_sv);
             class_definition_generator.append(MUST(String::formatted("public {}", value.as_string())));
             first = false;
         });
@@ -72,7 +72,7 @@ protected:
     @name@();
 )~~~");
 
-        auto name_from_source = value.as_object().get("nameFromSource"sv).value();
+        auto name_from_source = value.as_object().get("nameFromSource"_sv).value();
         if (!name_from_source.is_null())
             class_definition_generator.append(R"~~~(
 public:
@@ -101,10 +101,10 @@ String generate_hash_table_population(JsonArray const& values, StringView hash_t
 void generate_hash_table_member(SourceGenerator& generator, StringView member_name, StringView hash_table_name, StringView enum_class, JsonArray const& values)
 {
     auto member_generator = generator.fork();
-    member_generator.set("member_name"sv, member_name);
-    member_generator.set("hash_table_name"sv, hash_table_name);
-    member_generator.set("enum_class"sv, enum_class);
-    member_generator.set("hash_table_size"sv, String::number(values.size()));
+    member_generator.set("member_name"_sv, member_name);
+    member_generator.set("hash_table_name"_sv, hash_table_name);
+    member_generator.set("enum_class"_sv, enum_class);
+    member_generator.set("hash_table_size"_sv, String::number(values.size()));
 
     if (values.size() == 0) {
         member_generator.append(R"~~~(
@@ -134,112 +134,112 @@ HashTable<@enum_class@> const& @name@::@member_name@() const
 
 StringView aria_name_to_enum_name(StringView name)
 {
-    if (name == "aria-activedescendant"sv) {
-        return "AriaActiveDescendant"sv;
-    } else if (name == "aria-atomic"sv) {
-        return "AriaAtomic"sv;
-    } else if (name == "aria-autocomplete"sv) {
-        return "AriaAutoComplete"sv;
-    } else if (name == "aria-braillelabel"sv) {
-        return "AriaBrailleLabel"sv;
-    } else if (name == "aria-brailleroledescription"sv) {
-        return "AriaBrailleRoleDescription"sv;
-    } else if (name == "aria-busy"sv) {
-        return "AriaBusy"sv;
-    } else if (name == "aria-checked"sv) {
-        return "AriaChecked"sv;
-    } else if (name == "aria-colcount"sv) {
-        return "AriaColCount"sv;
-    } else if (name == "aria-colindex"sv) {
-        return "AriaColIndex"sv;
-    } else if (name == "aria-colindextext"sv) {
-        return "AriaColIndexText"sv;
-    } else if (name == "aria-colspan"sv) {
-        return "AriaColSpan"sv;
-    } else if (name == "aria-controls"sv) {
-        return "AriaControls"sv;
-    } else if (name == "aria-current"sv) {
-        return "AriaCurrent"sv;
-    } else if (name == "aria-describedby"sv) {
-        return "AriaDescribedBy"sv;
-    } else if (name == "aria-description"sv) {
-        return "AriaDescription"sv;
-    } else if (name == "aria-details"sv) {
-        return "AriaDetails"sv;
-    } else if (name == "aria-disabled"sv) {
-        return "AriaDisabled"sv;
-    } else if (name == "aria-dropeffect"sv) {
-        return "AriaDropEffect"sv;
-    } else if (name == "aria-errormessage"sv) {
-        return "AriaErrorMessage"sv;
-    } else if (name == "aria-expanded"sv) {
-        return "AriaExpanded"sv;
-    } else if (name == "aria-flowto"sv) {
-        return "AriaFlowTo"sv;
-    } else if (name == "aria-grabbed"sv) {
-        return "AriaGrabbed"sv;
-    } else if (name == "aria-haspopup"sv) {
-        return "AriaHasPopup"sv;
-    } else if (name == "aria-hidden"sv) {
-        return "AriaHidden"sv;
-    } else if (name == "aria-invalid"sv) {
-        return "AriaInvalid"sv;
-    } else if (name == "aria-keyshortcuts"sv) {
-        return "AriaKeyShortcuts"sv;
-    } else if (name == "aria-label"sv) {
-        return "AriaLabel"sv;
-    } else if (name == "aria-labelledby"sv) {
-        return "AriaLabelledBy"sv;
-    } else if (name == "aria-level"sv) {
-        return "AriaLevel"sv;
-    } else if (name == "aria-live"sv) {
-        return "AriaLive"sv;
-    } else if (name == "aria-modal"sv) {
-        return "AriaModal"sv;
-    } else if (name == "aria-multiline"sv) {
-        return "AriaMultiLine"sv;
-    } else if (name == "aria-multiselectable"sv) {
-        return "AriaMultiSelectable"sv;
-    } else if (name == "aria-orientation"sv) {
-        return "AriaOrientation"sv;
-    } else if (name == "aria-owns"sv) {
-        return "AriaOwns"sv;
-    } else if (name == "aria-placeholder"sv) {
-        return "AriaPlaceholder"sv;
-    } else if (name == "aria-posinset"sv) {
-        return "AriaPosInSet"sv;
-    } else if (name == "aria-pressed"sv) {
-        return "AriaPressed"sv;
-    } else if (name == "aria-readonly"sv) {
-        return "AriaReadOnly"sv;
-    } else if (name == "aria-relevant"sv) {
-        return "AriaRelevant"sv;
-    } else if (name == "aria-required"sv) {
-        return "AriaRequired"sv;
-    } else if (name == "aria-roledescription"sv) {
-        return "AriaRoleDescription"sv;
-    } else if (name == "aria-rowcount"sv) {
-        return "AriaRowCount"sv;
-    } else if (name == "aria-rowindex"sv) {
-        return "AriaRowIndex"sv;
-    } else if (name == "aria-rowindextext"sv) {
-        return "AriaRowIndexText"sv;
-    } else if (name == "aria-rowspan"sv) {
-        return "AriaRowSpan"sv;
-    } else if (name == "aria-selected"sv) {
-        return "AriaSelected"sv;
-    } else if (name == "aria-setsize"sv) {
-        return "AriaSetSize"sv;
-    } else if (name == "aria-sort"sv) {
-        return "AriaSort"sv;
-    } else if (name == "aria-valuemax"sv) {
-        return "AriaValueMax"sv;
-    } else if (name == "aria-valuemin"sv) {
-        return "AriaValueMin"sv;
-    } else if (name == "aria-valuenow"sv) {
-        return "AriaValueNow"sv;
-    } else if (name == "aria-valuetext"sv) {
-        return "AriaValueText"sv;
+    if (name == "aria-activedescendant"_sv) {
+        return "AriaActiveDescendant"_sv;
+    } else if (name == "aria-atomic"_sv) {
+        return "AriaAtomic"_sv;
+    } else if (name == "aria-autocomplete"_sv) {
+        return "AriaAutoComplete"_sv;
+    } else if (name == "aria-braillelabel"_sv) {
+        return "AriaBrailleLabel"_sv;
+    } else if (name == "aria-brailleroledescription"_sv) {
+        return "AriaBrailleRoleDescription"_sv;
+    } else if (name == "aria-busy"_sv) {
+        return "AriaBusy"_sv;
+    } else if (name == "aria-checked"_sv) {
+        return "AriaChecked"_sv;
+    } else if (name == "aria-colcount"_sv) {
+        return "AriaColCount"_sv;
+    } else if (name == "aria-colindex"_sv) {
+        return "AriaColIndex"_sv;
+    } else if (name == "aria-colindextext"_sv) {
+        return "AriaColIndexText"_sv;
+    } else if (name == "aria-colspan"_sv) {
+        return "AriaColSpan"_sv;
+    } else if (name == "aria-controls"_sv) {
+        return "AriaControls"_sv;
+    } else if (name == "aria-current"_sv) {
+        return "AriaCurrent"_sv;
+    } else if (name == "aria-describedby"_sv) {
+        return "AriaDescribedBy"_sv;
+    } else if (name == "aria-description"_sv) {
+        return "AriaDescription"_sv;
+    } else if (name == "aria-details"_sv) {
+        return "AriaDetails"_sv;
+    } else if (name == "aria-disabled"_sv) {
+        return "AriaDisabled"_sv;
+    } else if (name == "aria-dropeffect"_sv) {
+        return "AriaDropEffect"_sv;
+    } else if (name == "aria-errormessage"_sv) {
+        return "AriaErrorMessage"_sv;
+    } else if (name == "aria-expanded"_sv) {
+        return "AriaExpanded"_sv;
+    } else if (name == "aria-flowto"_sv) {
+        return "AriaFlowTo"_sv;
+    } else if (name == "aria-grabbed"_sv) {
+        return "AriaGrabbed"_sv;
+    } else if (name == "aria-haspopup"_sv) {
+        return "AriaHasPopup"_sv;
+    } else if (name == "aria-hidden"_sv) {
+        return "AriaHidden"_sv;
+    } else if (name == "aria-invalid"_sv) {
+        return "AriaInvalid"_sv;
+    } else if (name == "aria-keyshortcuts"_sv) {
+        return "AriaKeyShortcuts"_sv;
+    } else if (name == "aria-label"_sv) {
+        return "AriaLabel"_sv;
+    } else if (name == "aria-labelledby"_sv) {
+        return "AriaLabelledBy"_sv;
+    } else if (name == "aria-level"_sv) {
+        return "AriaLevel"_sv;
+    } else if (name == "aria-live"_sv) {
+        return "AriaLive"_sv;
+    } else if (name == "aria-modal"_sv) {
+        return "AriaModal"_sv;
+    } else if (name == "aria-multiline"_sv) {
+        return "AriaMultiLine"_sv;
+    } else if (name == "aria-multiselectable"_sv) {
+        return "AriaMultiSelectable"_sv;
+    } else if (name == "aria-orientation"_sv) {
+        return "AriaOrientation"_sv;
+    } else if (name == "aria-owns"_sv) {
+        return "AriaOwns"_sv;
+    } else if (name == "aria-placeholder"_sv) {
+        return "AriaPlaceholder"_sv;
+    } else if (name == "aria-posinset"_sv) {
+        return "AriaPosInSet"_sv;
+    } else if (name == "aria-pressed"_sv) {
+        return "AriaPressed"_sv;
+    } else if (name == "aria-readonly"_sv) {
+        return "AriaReadOnly"_sv;
+    } else if (name == "aria-relevant"_sv) {
+        return "AriaRelevant"_sv;
+    } else if (name == "aria-required"_sv) {
+        return "AriaRequired"_sv;
+    } else if (name == "aria-roledescription"_sv) {
+        return "AriaRoleDescription"_sv;
+    } else if (name == "aria-rowcount"_sv) {
+        return "AriaRowCount"_sv;
+    } else if (name == "aria-rowindex"_sv) {
+        return "AriaRowIndex"_sv;
+    } else if (name == "aria-rowindextext"_sv) {
+        return "AriaRowIndexText"_sv;
+    } else if (name == "aria-rowspan"_sv) {
+        return "AriaRowSpan"_sv;
+    } else if (name == "aria-selected"_sv) {
+        return "AriaSelected"_sv;
+    } else if (name == "aria-setsize"_sv) {
+        return "AriaSetSize"_sv;
+    } else if (name == "aria-sort"_sv) {
+        return "AriaSort"_sv;
+    } else if (name == "aria-valuemax"_sv) {
+        return "AriaValueMax"_sv;
+    } else if (name == "aria-valuemin"_sv) {
+        return "AriaValueMin"_sv;
+    } else if (name == "aria-valuenow"_sv) {
+        return "AriaValueNow"_sv;
+    } else if (name == "aria-valuetext"_sv) {
+        return "AriaValueText"_sv;
     } else {
         VERIFY_NOT_REACHED();
     }
@@ -271,36 +271,36 @@ namespace Web::ARIA {
         VERIFY(value.is_object());
 
         auto member_generator = generator.fork();
-        member_generator.set("name"sv, name);
+        member_generator.set("name"_sv, name);
 
         JsonObject const& value_object = value.as_object();
 
-        JsonArray const& supported_states = translate_aria_names_to_enum(value_object.get_array("supportedStates"sv).value());
-        generate_hash_table_member(member_generator, "supported_states"sv, "states"sv, "StateAndProperties"sv, supported_states);
-        JsonArray const& supported_properties = translate_aria_names_to_enum(value_object.get_array("supportedProperties"sv).value());
-        generate_hash_table_member(member_generator, "supported_properties"sv, "properties"sv, "StateAndProperties"sv, supported_properties);
+        JsonArray const& supported_states = translate_aria_names_to_enum(value_object.get_array("supportedStates"_sv).value());
+        generate_hash_table_member(member_generator, "supported_states"_sv, "states"_sv, "StateAndProperties"_sv, supported_states);
+        JsonArray const& supported_properties = translate_aria_names_to_enum(value_object.get_array("supportedProperties"_sv).value());
+        generate_hash_table_member(member_generator, "supported_properties"_sv, "properties"_sv, "StateAndProperties"_sv, supported_properties);
 
-        JsonArray const& required_states = translate_aria_names_to_enum(value_object.get_array("requiredStates"sv).value());
-        generate_hash_table_member(member_generator, "required_states"sv, "states"sv, "StateAndProperties"sv, required_states);
-        JsonArray const& required_properties = translate_aria_names_to_enum(value_object.get_array("requiredProperties"sv).value());
-        generate_hash_table_member(member_generator, "required_properties"sv, "properties"sv, "StateAndProperties"sv, required_properties);
+        JsonArray const& required_states = translate_aria_names_to_enum(value_object.get_array("requiredStates"_sv).value());
+        generate_hash_table_member(member_generator, "required_states"_sv, "states"_sv, "StateAndProperties"_sv, required_states);
+        JsonArray const& required_properties = translate_aria_names_to_enum(value_object.get_array("requiredProperties"_sv).value());
+        generate_hash_table_member(member_generator, "required_properties"_sv, "properties"_sv, "StateAndProperties"_sv, required_properties);
 
-        JsonArray const& prohibited_states = translate_aria_names_to_enum(value_object.get_array("prohibitedStates"sv).value());
-        generate_hash_table_member(member_generator, "prohibited_states"sv, "states"sv, "StateAndProperties"sv, prohibited_states);
-        JsonArray const& prohibited_properties = translate_aria_names_to_enum(value_object.get_array("prohibitedProperties"sv).value());
-        generate_hash_table_member(member_generator, "prohibited_properties"sv, "properties"sv, "StateAndProperties"sv, prohibited_properties);
+        JsonArray const& prohibited_states = translate_aria_names_to_enum(value_object.get_array("prohibitedStates"_sv).value());
+        generate_hash_table_member(member_generator, "prohibited_states"_sv, "states"_sv, "StateAndProperties"_sv, prohibited_states);
+        JsonArray const& prohibited_properties = translate_aria_names_to_enum(value_object.get_array("prohibitedProperties"_sv).value());
+        generate_hash_table_member(member_generator, "prohibited_properties"_sv, "properties"_sv, "StateAndProperties"_sv, prohibited_properties);
 
-        JsonArray const& required_context_roles = value_object.get_array("requiredContextRoles"sv).value();
-        generate_hash_table_member(member_generator, "required_context_roles"sv, "roles"sv, "Role"sv, required_context_roles);
-        JsonArray const& required_owned_elements = value_object.get_array("requiredOwnedElements"sv).value();
-        generate_hash_table_member(member_generator, "required_owned_elements"sv, "roles"sv, "Role"sv, required_owned_elements);
+        JsonArray const& required_context_roles = value_object.get_array("requiredContextRoles"_sv).value();
+        generate_hash_table_member(member_generator, "required_context_roles"_sv, "roles"_sv, "Role"_sv, required_context_roles);
+        JsonArray const& required_owned_elements = value_object.get_array("requiredOwnedElements"_sv).value();
+        generate_hash_table_member(member_generator, "required_owned_elements"_sv, "roles"_sv, "Role"_sv, required_owned_elements);
 
-        bool accessible_name_required = value_object.get_bool("accessibleNameRequired"sv).value();
-        member_generator.set("accessible_name_required"sv, accessible_name_required ? "true"sv : "false"sv);
-        bool children_are_presentational = value_object.get_bool("childrenArePresentational"sv).value();
-        member_generator.set("children_are_presentational", children_are_presentational ? "true"sv : "false"sv);
+        bool accessible_name_required = value_object.get_bool("accessibleNameRequired"_sv).value();
+        member_generator.set("accessible_name_required"_sv, accessible_name_required ? "true"_sv : "false"_sv);
+        bool children_are_presentational = value_object.get_bool("childrenArePresentational"_sv).value();
+        member_generator.set("children_are_presentational", children_are_presentational ? "true"_sv : "false"_sv);
 
-        JsonArray const& super_classes = value.as_object().get_array("superClassRoles"sv).value();
+        JsonArray const& super_classes = value.as_object().get_array("superClassRoles"_sv).value();
         member_generator.set("parent", super_classes.at(0).as_string());
 
         member_generator.append(R"~~~(
@@ -322,7 +322,7 @@ bool @name@::children_are_presentational() const
 }
 )~~~");
 
-        JsonObject const& implicit_value_for_role = value_object.get_object("implicitValueForRole"sv).value();
+        JsonObject const& implicit_value_for_role = value_object.get_object("implicitValueForRole"_sv).value();
         if (implicit_value_for_role.size() == 0) {
             member_generator.append(R"~~~(
 DefaultValueType @name@::default_value_for_property_or_state(StateAndProperties) const
@@ -339,8 +339,8 @@ DefaultValueType @name@::default_value_for_property_or_state(StateAndProperties 
             implicit_value_for_role.for_each_member([&](auto& name, auto& value) {
                 auto case_generator = member_generator.fork();
                 VERIFY(value.is_string());
-                case_generator.set("state_or_property"sv, aria_name_to_enum_name(name));
-                case_generator.set("implicit_value"sv, value.as_string());
+                case_generator.set("state_or_property"_sv, aria_name_to_enum_name(name));
+                case_generator.set("implicit_value"_sv, value.as_string());
                 case_generator.append(R"~~~(
     case StateAndProperties::@state_or_property@:
         return @implicit_value@;
@@ -354,9 +354,9 @@ DefaultValueType @name@::default_value_for_property_or_state(StateAndProperties 
 )~~~");
         }
 
-        JsonValue const& name_from_source = value.as_object().get("nameFromSource"sv).value();
+        JsonValue const& name_from_source = value.as_object().get("nameFromSource"_sv).value();
         if (!name_from_source.is_null()) {
-            member_generator.set("name_from_source"sv, name_from_source.as_string());
+            member_generator.set("name_from_source"_sv, name_from_source.as_string());
             member_generator.append(R"~~~(
 NameFromSource @name@::name_from_source() const
 {

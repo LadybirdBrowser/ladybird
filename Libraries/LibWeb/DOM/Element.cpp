@@ -268,15 +268,15 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
         return WebIDL::NamespaceError::create(realm, "Prefix is non-null and namespace is null."_string);
 
     // 7. If prefix is "xml" and namespace is not the XML namespace, then throw a "NamespaceError" DOMException.
-    if (prefix == "xml"sv && namespace_ != Namespace::XML)
+    if (prefix == "xml"_sv && namespace_ != Namespace::XML)
         return WebIDL::NamespaceError::create(realm, "Prefix is 'xml' and namespace is not the XML namespace."_string);
 
     // 8. If either qualifiedName or prefix is "xmlns" and namespace is not the XMLNS namespace, then throw a "NamespaceError" DOMException.
-    if ((qualified_name == "xmlns"sv || prefix == "xmlns"sv) && namespace_ != Namespace::XMLNS)
+    if ((qualified_name == "xmlns"_sv || prefix == "xmlns"_sv) && namespace_ != Namespace::XMLNS)
         return WebIDL::NamespaceError::create(realm, "Either qualifiedName or prefix is 'xmlns' and namespace is not the XMLNS namespace."_string);
 
     // 9. If namespace is the XMLNS namespace and neither qualifiedName nor prefix is "xmlns", then throw a "NamespaceError" DOMException.
-    if (namespace_ == Namespace::XMLNS && !(qualified_name == "xmlns"sv || prefix == "xmlns"sv))
+    if (namespace_ == Namespace::XMLNS && !(qualified_name == "xmlns"_sv || prefix == "xmlns"_sv))
         return WebIDL::NamespaceError::create(realm, "Namespace is the XMLNS namespace and neither qualifiedName nor prefix is 'xmlns'."_string);
 
     // 10. Return namespace, prefix, and localName.
@@ -1531,10 +1531,10 @@ void Element::serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilde
         return;
     for (auto& pseudo_element : m_pseudo_element_data->keys()) {
         auto object = MUST(children_array.add_object());
-        MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::pseudo_element_name(pseudo_element)))));
-        MUST(object.add("type"sv, "pseudo-element"));
-        MUST(object.add("parent-id"sv, unique_id().value()));
-        MUST(object.add("pseudo-element"sv, to_underlying(pseudo_element)));
+        MUST(object.add("name"_sv, MUST(String::formatted("::{}", CSS::pseudo_element_name(pseudo_element)))));
+        MUST(object.add("type"_sv, "pseudo-element"));
+        MUST(object.add("parent-id"_sv, unique_id().value()));
+        MUST(object.add("pseudo-element"_sv, to_underlying(pseudo_element)));
         MUST(object.finish());
     }
 }
@@ -1964,8 +1964,8 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // 2. Use the first matching item from this list:
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
     // - If position is an ASCII case-insensitive match for the string "afterend"
-    if (position.equals_ignoring_ascii_case("beforebegin"sv)
-        || position.equals_ignoring_ascii_case("afterend"sv)) {
+    if (position.equals_ignoring_ascii_case("beforebegin"_sv)
+        || position.equals_ignoring_ascii_case("afterend"_sv)) {
         // 1. Set context to this's parent.
         context = this->parent();
 
@@ -1975,8 +1975,8 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
     // - If position is an ASCII case-insensitive match for the string "beforeend"
-    else if (position.equals_ignoring_ascii_case("afterbegin"sv)
-        || position.equals_ignoring_ascii_case("beforeend"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterbegin"_sv)
+        || position.equals_ignoring_ascii_case("beforeend"_sv)) {
         // Set context to this.
         context = this;
     }
@@ -1992,7 +1992,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     //    - context's namespace is the HTML namespace;
     if (!is<Element>(*context)
         || (context->document().document_type() == Document::Type::HTML
-            && static_cast<Element const&>(*context).local_name() == "html"sv
+            && static_cast<Element const&>(*context).local_name() == "html"_sv
             && static_cast<Element const&>(*context).namespace_uri() == Namespace::HTML)) {
         context = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
     }
@@ -2003,25 +2003,25 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // 5. Use the first matching item from this list:
 
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
-    if (position.equals_ignoring_ascii_case("beforebegin"sv)) {
+    if (position.equals_ignoring_ascii_case("beforebegin"_sv)) {
         // Insert fragment into this's parent before this.
         parent()->insert_before(fragment, this);
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
-    else if (position.equals_ignoring_ascii_case("afterbegin"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterbegin"_sv)) {
         // Insert fragment into this before its first child.
         insert_before(fragment, first_child());
     }
 
     // - If position is an ASCII case-insensitive match for the string "beforeend"
-    else if (position.equals_ignoring_ascii_case("beforeend"sv)) {
+    else if (position.equals_ignoring_ascii_case("beforeend"_sv)) {
         // Append fragment to this.
         TRY(append_child(fragment));
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterend"
-    else if (position.equals_ignoring_ascii_case("afterend"sv)) {
+    else if (position.equals_ignoring_ascii_case("afterend"_sv)) {
         // Insert fragment into this's parent before this's next sibling.
         parent()->insert_before(fragment, next_sibling());
     }
@@ -2032,7 +2032,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC::Ref<Node> node)
 {
     // To insert adjacent, given an element element, string where, and a node node, run the steps associated with the first ASCII case-insensitive match for where:
-    if (where.equals_ignoring_ascii_case("beforebegin"sv)) {
+    if (where.equals_ignoring_ascii_case("beforebegin"_sv)) {
         // -> "beforebegin"
         // If element’s parent is null, return null.
         if (!parent())
@@ -2042,19 +2042,19 @@ WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC
         return GC::Ptr<Node> { TRY(parent()->pre_insert(move(node), this)) };
     }
 
-    if (where.equals_ignoring_ascii_case("afterbegin"sv)) {
+    if (where.equals_ignoring_ascii_case("afterbegin"_sv)) {
         // -> "afterbegin"
         // Return the result of pre-inserting node into element before element’s first child.
         return GC::Ptr<Node> { TRY(pre_insert(move(node), first_child())) };
     }
 
-    if (where.equals_ignoring_ascii_case("beforeend"sv)) {
+    if (where.equals_ignoring_ascii_case("beforeend"_sv)) {
         // -> "beforeend"
         // Return the result of pre-inserting node into element before null.
         return GC::Ptr<Node> { TRY(pre_insert(move(node), nullptr)) };
     }
 
-    if (where.equals_ignoring_ascii_case("afterend"sv)) {
+    if (where.equals_ignoring_ascii_case("afterend"_sv)) {
         // -> "afterend"
         // If element’s parent is null, return null.
         if (!parent())
@@ -2680,7 +2680,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
 
         // 4. If SameValue(constructResult, element) is false, then throw a TypeError.
         if (!JS::same_value(construct_result, this))
-            return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"sv);
+            return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"_sv);
 
         return {};
     };
@@ -3334,12 +3334,12 @@ Element::TranslationMode Element::translation_mode() const
     // NOTE: The attribute is in the Yes state if the attribute is present and its value is the empty string or is a
     //       ASCII-case-insensitive match for "yes".
     auto maybe_translate_attribute = attribute(HTML::AttributeNames::translate);
-    if (maybe_translate_attribute.has_value() && (maybe_translate_attribute.value().is_empty() || maybe_translate_attribute.value().equals_ignoring_ascii_case("yes"sv)))
+    if (maybe_translate_attribute.has_value() && (maybe_translate_attribute.value().is_empty() || maybe_translate_attribute.value().equals_ignoring_ascii_case("yes"_sv)))
         return TranslationMode::TranslateEnabled;
 
     // otherwise, if the element's translate attribute is in the No state, then the element's translation mode is in
     // the no-translate state.
-    if (maybe_translate_attribute.has_value() && maybe_translate_attribute.value().equals_ignoring_ascii_case("no"sv)) {
+    if (maybe_translate_attribute.has_value() && maybe_translate_attribute.value().equals_ignoring_ascii_case("no"_sv)) {
         return TranslationMode::NoTranslate;
     }
 
@@ -3646,11 +3646,11 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         set_needs_style_update(true);
     } else if (local_name == HTML::AttributeNames::dir) {
         // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
-        if (value_or_empty.equals_ignoring_ascii_case("ltr"sv))
+        if (value_or_empty.equals_ignoring_ascii_case("ltr"_sv))
             m_dir = Dir::Ltr;
-        else if (value_or_empty.equals_ignoring_ascii_case("rtl"sv))
+        else if (value_or_empty.equals_ignoring_ascii_case("rtl"_sv))
             m_dir = Dir::Rtl;
-        else if (value_or_empty.equals_ignoring_ascii_case("auto"sv))
+        else if (value_or_empty.equals_ignoring_ascii_case("auto"_sv))
             m_dir = Dir::Auto;
         else
             m_dir = {};

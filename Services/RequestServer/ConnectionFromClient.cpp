@@ -210,13 +210,13 @@ size_t ConnectionFromClient::on_header_received(void* buffer, size_t size, size_
 
     // NOTE: We need to extract the HTTP reason phrase since it can be a custom value.
     //       Fetching infrastructure needs this value for setting the status message.
-    if (!request->reason_phrase.has_value() && header_line.starts_with("HTTP/"sv)) {
-        if (auto const space_positions = header_line.find_all(" "sv); space_positions.size() > 1) {
+    if (!request->reason_phrase.has_value() && header_line.starts_with("HTTP/"_sv)) {
+        if (auto const space_positions = header_line.find_all(" "_sv); space_positions.size() > 1) {
             auto const second_space_offset = space_positions.at(1);
             auto const reason_phrase_string_view = header_line.substring_view(second_space_offset + 1).trim_whitespace();
 
             if (!reason_phrase_string_view.is_empty()) {
-                auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
+                auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"_sv);
                 VERIFY(decoder.has_value());
 
                 request->reason_phrase = MUST(decoder->to_utf8(reason_phrase_string_view));
@@ -388,7 +388,7 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
 
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
 {
-    return protocol == "http"sv || protocol == "https"sv;
+    return protocol == "http"_sv || protocol == "https"_sv;
 }
 
 void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally)
@@ -491,9 +491,9 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
 
             bool did_set_body = false;
 
-            if (method == "GET"sv) {
+            if (method == "GET"_sv) {
                 set_option(CURLOPT_HTTPGET, 1L);
-            } else if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
+            } else if (method.is_one_of("POST"_sv, "PUT"_sv, "PATCH"_sv, "DELETE"_sv)) {
                 request->body = move(request_body);
                 set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
                 set_option(CURLOPT_POSTFIELDS, request->body.data());
@@ -689,7 +689,7 @@ void ConnectionFromClient::check_active_requests()
             // a "close notify" alert. OpenSSL version 3.2 began treating this as an error, which curl translates to
             // CURLE_RECV_ERROR in the absence of a Content-Length response header. The Python server used by WPT is one
             // such server. We ignore this error if we were actually able to download some response data.
-            if (result_code == CURLE_RECV_ERROR && request->downloaded_so_far != 0 && !request->headers.contains("Content-Length"sv))
+            if (result_code == CURLE_RECV_ERROR && request->downloaded_so_far != 0 && !request->headers.contains("Content-Length"_sv))
                 result_code = CURLE_OK;
 
             Optional<Requests::NetworkError> network_error;

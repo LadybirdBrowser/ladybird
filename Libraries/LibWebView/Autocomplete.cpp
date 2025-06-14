@@ -19,9 +19,9 @@
 namespace WebView {
 
 static constexpr auto builtin_autocomplete_engines = to_array<AutocompleteEngine>({
-    { "DuckDuckGo"sv, "https://duckduckgo.com/ac/?q={}"sv },
-    { "Google"sv, "https://www.google.com/complete/search?client=chrome&q={}"sv },
-    { "Yahoo"sv, "https://search.yahoo.com/sugg/gossip/gossip-us-ura/?output=sd1&command={}"sv },
+    { "DuckDuckGo"_sv, "https://duckduckgo.com/ac/?q={}"_sv },
+    { "Google"_sv, "https://www.google.com/complete/search?client=chrome&q={}"_sv },
+    { "Yahoo"_sv, "https://search.yahoo.com/sugg/gossip/gossip-us-ura/?output=sd1&command={}"_sv },
 });
 
 ReadonlySpan<AutocompleteEngine> autocomplete_engines()
@@ -65,7 +65,7 @@ void Autocomplete::query_autocomplete_engine(String query)
         return;
     }
 
-    m_request = Application::request_server_client().start_request("GET"sv, *url);
+    m_request = Application::request_server_client().start_request("GET"_sv, *url);
     m_query = move(query);
 
     m_request->set_buffered_request_finished_callback(
@@ -83,7 +83,7 @@ void Autocomplete::query_autocomplete_engine(String query)
                 return;
             }
 
-            auto content_type = response_headers.get("Content-Type"sv);
+            auto content_type = response_headers.get("Content-Type"_sv);
 
             if (auto result = received_autocomplete_respsonse(engine, content_type, payload); result.is_error()) {
                 warnln("Unable to handle autocomplete response: {}", result.error());
@@ -106,7 +106,7 @@ static ErrorOr<Vector<String>> parse_duckduckgo_autocomplete(JsonValue const& js
         if (!suggestion.is_object())
             return Error::from_string_literal("Invalid DuckDuckGo autocomplete response, expected value to be an object");
 
-        if (auto value = suggestion.as_object().get_string("phrase"sv); value.has_value())
+        if (auto value = suggestion.as_object().get_string("phrase"_sv); value.has_value())
             results.unchecked_append(*value);
 
         return {};
@@ -148,7 +148,7 @@ static ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonValue const& json)
     if (!json.is_object())
         return Error::from_string_literal("Expected Yahoo autocomplete response to be a JSON array");
 
-    auto suggestions = json.as_object().get_array("r"sv);
+    auto suggestions = json.as_object().get_array("r"_sv);
     if (!suggestions.has_value())
         return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"r\" to be an object");
 
@@ -159,7 +159,7 @@ static ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonValue const& json)
         if (!suggestion.is_object())
             return Error::from_string_literal("Invalid Yahoo autocomplete response, expected value to be an object");
 
-        auto result = suggestion.as_object().get_string("k"sv);
+        auto result = suggestion.as_object().get_string("k"_sv);
         if (!result.has_value())
             return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"k\" to be a string");
 
@@ -180,7 +180,7 @@ ErrorOr<Vector<String>> Autocomplete::received_autocomplete_respsonse(Autocomple
         if (!mime_type.has_value())
             return {};
 
-        auto charset = mime_type->parameters().get("charset"sv);
+        auto charset = mime_type->parameters().get("charset"_sv);
         if (!charset.has_value())
             return {};
 
@@ -188,7 +188,7 @@ ErrorOr<Vector<String>> Autocomplete::received_autocomplete_respsonse(Autocomple
     }();
 
     if (!decoder.has_value())
-        decoder = TextCodec::decoder_for_exact_name("UTF-8"sv);
+        decoder = TextCodec::decoder_for_exact_name("UTF-8"_sv);
 
     auto decoded_response = TRY(decoder->to_utf8(response));
     auto json = TRY(JsonValue::from_string(decoded_response));

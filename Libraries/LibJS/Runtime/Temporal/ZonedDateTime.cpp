@@ -353,7 +353,7 @@ String temporal_zoned_date_time_to_string(ZonedDateTime const& zoned_date_time, 
     auto iso_date_time = get_iso_date_time_for(time_zone, epoch_nanoseconds);
 
     // 9. Let dateTimeString be ISODateTimeToString(isoDateTime, "iso8601", precision, NEVER).
-    auto date_time_string = iso_date_time_to_string(iso_date_time, "iso8601"sv, precision, ShowCalendar::Never);
+    auto date_time_string = iso_date_time_to_string(iso_date_time, "iso8601"_sv, precision, ShowCalendar::Never);
 
     String offset_string;
     String time_zone_string;
@@ -375,7 +375,7 @@ String temporal_zoned_date_time_to_string(ZonedDateTime const& zoned_date_time, 
     // 13. Else,
     else {
         // a. If showTimeZone is critical, let flag be "!"; else let flag be the empty String.
-        auto flag = show_time_zone == ShowTimeZoneName::Critical ? "!"sv : ""sv;
+        auto flag = show_time_zone == ShowTimeZoneName::Critical ? "!"_sv : ""_sv;
 
         // b. Let timeZoneString be the string-concatenation of the code unit 0x005B (LEFT SQUARE BRACKET), flag,
         //    timeZone, and the code unit 0x005D (RIGHT SQUARE BRACKET).

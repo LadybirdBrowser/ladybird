@@ -42,7 +42,7 @@ String CSSPageRule::selector_text() const
 
     // https://www.w3.org/TR/cssom/#serialize-a-group-of-selectors
     // To serialize a group of selectors serialize each selector in the group of selectors and then serialize a comma-separated list of these serializations.
-    return MUST(String::join(", "sv, m_selectors));
+    return MUST(String::join(", "_sv, m_selectors));
 }
 
 // https://drafts.csswg.org/cssom/#dom-csspagerule-selectortext
@@ -67,10 +67,10 @@ String CSSPageRule::serialized() const
     StringBuilder builder;
 
     // AD-HOC: There's no spec for this yet, but Chrome puts declarations before margin rules.
-    builder.append("@page "sv);
+    builder.append("@page "_sv);
     if (auto selector = selector_text(); !selector.is_empty())
         builder.appendff("{} ", selector);
-    builder.append("{ "sv);
+    builder.append("{ "_sv);
     if (descriptors.length() > 0) {
         builder.append(descriptors.serialized());
         builder.append(' ');
@@ -84,7 +84,7 @@ String CSSPageRule::serialized() const
 
         builder.appendff("{} ", result);
     }
-    builder.append("}"sv);
+    builder.append("}"_sv);
 
     return builder.to_string_without_validation();
 }

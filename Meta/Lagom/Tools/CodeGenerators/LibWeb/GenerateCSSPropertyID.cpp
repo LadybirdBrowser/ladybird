@@ -24,35 +24,35 @@ bool is_animatable_property(JsonObject& properties, StringView property_name);
 static bool type_name_is_enum(StringView type_name)
 {
     return !AK::first_is_one_of(type_name,
-        "angle"sv,
-        "background-position"sv,
-        "basic-shape"sv,
-        "color"sv,
-        "counter"sv,
-        "custom-ident"sv,
-        "easing-function"sv,
-        "flex"sv,
-        "fit-content"sv,
-        "frequency"sv,
-        "image"sv,
-        "integer"sv,
-        "length"sv,
-        "number"sv,
-        "opentype-tag"sv,
-        "paint"sv,
-        "percentage"sv,
-        "position"sv,
-        "ratio"sv,
-        "rect"sv,
-        "resolution"sv,
-        "string"sv,
-        "time"sv,
-        "url"sv);
+        "angle"_sv,
+        "background-position"_sv,
+        "basic-shape"_sv,
+        "color"_sv,
+        "counter"_sv,
+        "custom-ident"_sv,
+        "easing-function"_sv,
+        "flex"_sv,
+        "fit-content"_sv,
+        "frequency"_sv,
+        "image"_sv,
+        "integer"_sv,
+        "length"_sv,
+        "number"_sv,
+        "opentype-tag"_sv,
+        "paint"_sv,
+        "percentage"_sv,
+        "position"_sv,
+        "ratio"_sv,
+        "rect"_sv,
+        "resolution"_sv,
+        "string"_sv,
+        "time"_sv,
+        "url"_sv);
 }
 
 static bool is_legacy_alias(JsonObject const& property)
 {
-    return property.has_string("legacy-alias-for"sv);
+    return property.has_string("legacy-alias-for"_sv);
 }
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -99,7 +99,7 @@ void replace_logical_aliases(JsonObject& properties)
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
         auto const& value_as_object = value.as_object();
-        auto const logical_alias_for = value_as_object.get_array("logical-alias-for"sv);
+        auto const logical_alias_for = value_as_object.get_array("logical-alias-for"_sv);
         if (logical_alias_for.has_value()) {
             auto const& aliased_properties = logical_alias_for.value();
             for (auto const& aliased_property : aliased_properties.values()) {
@@ -127,15 +127,15 @@ void replace_logical_aliases(JsonObject& properties)
 
 void populate_all_property_longhands(JsonObject& properties)
 {
-    auto all_entry = properties.get_object("all"sv);
+    auto all_entry = properties.get_object("all"_sv);
 
     VERIFY(all_entry.has_value());
 
     properties.for_each_member([&](auto name, auto value) {
-        if (value.as_object().has_array("longhands"sv) || value.as_object().has_array("logical-alias-for"sv) || value.as_object().has_string("legacy-alias-for"sv) || name == "direction" || name == "unicode-bidi")
+        if (value.as_object().has_array("longhands"_sv) || value.as_object().has_array("logical-alias-for"_sv) || value.as_object().has_string("legacy-alias-for"_sv) || name == "direction" || name == "unicode-bidi")
             return;
 
-        MUST(all_entry->get_array("longhands"sv)->append(JsonValue { name }));
+        MUST(all_entry->get_array("longhands"_sv)->append(JsonValue { name }));
     });
 }
 
@@ -170,8 +170,8 @@ enum class PropertyID : @property_id_underlying_type@ {
         // Legacy aliases don't get a PropertyID
         if (is_legacy_alias(value.as_object()))
             return;
-        bool inherited = value.as_object().get_bool("inherited"sv).value_or(false);
-        if (value.as_object().has("longhands"sv)) {
+        bool inherited = value.as_object().get_bool("inherited"_sv).value_or(false);
+        if (value.as_object().has("longhands"_sv)) {
             if (inherited)
                 inherited_shorthand_property_ids.append(name);
             else
@@ -340,7 +340,7 @@ bool property_accepts_@css_type_name@(PropertyID property_id, [[maybe_unused]] @
         VERIFY(value.is_object());
         if (is_legacy_alias(value.as_object()))
             return;
-        if (auto maybe_valid_types = value.as_object().get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
+        if (auto maybe_valid_types = value.as_object().get_array("valid-types"_sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
             for (auto valid_type : maybe_valid_types->values()) {
                 auto type_and_range = MUST(valid_type.as_string().split(' '));
                 if (type_and_range.first() != css_type_name)
@@ -393,11 +393,11 @@ bool property_accepts_@css_type_name@(PropertyID property_id, [[maybe_unused]] @
                     };
 
                     if (!min_value_string.is_empty())
-                        output_check(min_value_string, ">="sv);
+                        output_check(min_value_string, ">="_sv);
                     if (!min_value_string.is_empty() && !max_value_string.is_empty())
                         property_generator.append(" && ");
                     if (!max_value_string.is_empty())
-                        output_check(max_value_string, "<="sv);
+                        output_check(max_value_string, "<="_sv);
                     property_generator.appendln(";");
                 } else {
                     property_generator.appendln("true;");
@@ -443,13 +443,13 @@ Optional<PropertyID> property_id_from_camel_case_string(StringView string)
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:camelcase", camel_casify(name));
-        if (auto legacy_alias_for = value.as_object().get_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
+        if (auto legacy_alias_for = value.as_object().get_string("legacy-alias-for"_sv); legacy_alias_for.has_value()) {
             member_generator.set("name:titlecase", title_casify(legacy_alias_for.value()));
         } else {
             member_generator.set("name:titlecase", title_casify(name));
         }
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name:camelcase@"sv))
+    if (string.equals_ignoring_ascii_case("@name:camelcase@"_sv))
         return PropertyID::@name:titlecase@;
 )~~~");
     });
@@ -470,13 +470,13 @@ Optional<PropertyID> property_id_from_string(StringView string)
 
         auto member_generator = generator.fork();
         member_generator.set("name", name);
-        if (auto legacy_alias_for = value.as_object().get_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
+        if (auto legacy_alias_for = value.as_object().get_string("legacy-alias-for"_sv); legacy_alias_for.has_value()) {
             member_generator.set("name:titlecase", title_casify(legacy_alias_for.value()));
         } else {
             member_generator.set("name:titlecase", title_casify(name));
         }
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
+    if (string.equals_ignoring_ascii_case("@name@"_sv))
         return PropertyID::@name:titlecase@;
 )~~~");
     });
@@ -556,8 +556,8 @@ AnimationType animation_type_from_longhand_property(PropertyID property_id)
         member_generator.set("name:titlecase", title_casify(name));
 
         // Shorthand properties should have already been expanded before calling into this function
-        if (value.as_object().has("longhands"sv)) {
-            if (value.as_object().has("animation-type"sv)) {
+        if (value.as_object().has("longhands"_sv)) {
+            if (value.as_object().has("animation-type"_sv)) {
                 dbgln("Property '{}' with longhands cannot specify 'animation-type'", name);
                 VERIFY_NOT_REACHED();
             }
@@ -568,12 +568,12 @@ AnimationType animation_type_from_longhand_property(PropertyID property_id)
             return;
         }
 
-        if (!value.as_object().has("animation-type"sv)) {
+        if (!value.as_object().has("animation-type"_sv)) {
             dbgln("No animation-type specified for property '{}'", name);
             VERIFY_NOT_REACHED();
         }
 
-        auto animation_type = value.as_object().get_string("animation-type"sv).value();
+        auto animation_type = value.as_object().get_string("animation-type"_sv).value();
         member_generator.set("value", title_casify(animation_type));
         member_generator.append(R"~~~(
     case PropertyID::@name:titlecase@:
@@ -634,8 +634,8 @@ bool property_affects_layout(PropertyID property_id)
             return;
 
         bool affects_layout = true;
-        if (value.as_object().has("affects-layout"sv))
-            affects_layout = value.as_object().get_bool("affects-layout"sv).value_or(false);
+        if (value.as_object().has("affects-layout"_sv))
+            affects_layout = value.as_object().get_bool("affects-layout"_sv).value_or(false);
 
         if (affects_layout) {
             auto member_generator = generator.fork();
@@ -664,8 +664,8 @@ bool property_affects_stacking_context(PropertyID property_id)
             return;
 
         bool affects_stacking_context = false;
-        if (value.as_object().has("affects-stacking-context"sv))
-            affects_stacking_context = value.as_object().get_bool("affects-stacking-context"sv).value_or(false);
+        if (value.as_object().has("affects-stacking-context"_sv))
+            affects_stacking_context = value.as_object().get_bool("affects-stacking-context"_sv).value_or(false);
 
         if (affects_stacking_context) {
             auto member_generator = generator.fork();
@@ -698,11 +698,11 @@ NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID property_id
 )~~~");
 
     auto output_initial_value_code = [&](auto& name, auto& object) {
-        if (!object.has("initial"sv)) {
+        if (!object.has("initial"_sv)) {
             dbgln("No initial value specified for property '{}'", name);
             VERIFY_NOT_REACHED();
         }
-        auto initial_value = object.get_string("initial"sv);
+        auto initial_value = object.get_string("initial"_sv);
         VERIFY(initial_value.has_value());
         auto& initial_value_string = initial_value.value();
 
@@ -712,7 +712,7 @@ NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID property_id
         member_generator.append(
             R"~~~(        case PropertyID::@name:titlecase@:
         {
-            auto parsed_value = parse_css_value(parsing_params, "@initial_value_string@"sv, PropertyID::@name:titlecase@);
+            auto parsed_value = parse_css_value(parsing_params, "@initial_value_string@"_sv, PropertyID::@name:titlecase@);
             VERIFY(!parsed_value.is_null());
             auto initial_value = parsed_value.release_nonnull();
             initial_values[to_underlying(PropertyID::@name:titlecase@)] = initial_value;
@@ -744,8 +744,8 @@ bool property_has_quirk(PropertyID property_id, Quirk quirk)
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (value.as_object().has("quirks"sv)) {
-            auto quirks_value = value.as_object().get_array("quirks"sv);
+        if (value.as_object().has("quirks"_sv)) {
+            auto quirks_value = value.as_object().get_array("quirks"_sv);
             VERIFY(quirks_value.has_value());
             auto& quirks = quirks_value.value();
 
@@ -791,7 +791,7 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
         if (is_legacy_alias(object))
             return;
 
-        if (auto maybe_valid_types = object.get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
+        if (auto maybe_valid_types = object.get_array("valid-types"_sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
             auto& valid_types = maybe_valid_types.value();
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
@@ -892,7 +892,7 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
         property_generator.set("name:titlecase", title_casify(name));
         property_generator.appendln("    case PropertyID::@name:titlecase@: {");
 
-        if (auto maybe_valid_identifiers = object.get_array("valid-identifiers"sv); maybe_valid_identifiers.has_value() && !maybe_valid_identifiers->is_empty()) {
+        if (auto maybe_valid_identifiers = object.get_array("valid-identifiers"_sv); maybe_valid_identifiers.has_value() && !maybe_valid_identifiers->is_empty()) {
             property_generator.appendln("        switch (keyword) {");
             auto& valid_identifiers = maybe_valid_identifiers.value();
             for (auto& keyword : valid_identifiers.values()) {
@@ -908,7 +908,7 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
 )~~~");
         }
 
-        if (auto maybe_valid_types = object.get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
+        if (auto maybe_valid_types = object.get_array("valid-types"_sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
             auto& valid_types = maybe_valid_types.value();
             for (auto& valid_type : valid_types.values()) {
                 auto type_name = MUST(valid_type.as_string().split(' ')).first();
@@ -944,7 +944,7 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (auto resolved_type = value.as_object().get_string("percentages-resolve-to"sv); resolved_type.has_value()) {
+        if (auto resolved_type = value.as_object().get_string("percentages-resolve-to"_sv); resolved_type.has_value()) {
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
             property_generator.set("resolved_type:titlecase", title_casify(resolved_type.value()));
@@ -973,16 +973,16 @@ Vector<StringView> property_custom_ident_blacklist(PropertyID property_id)
             return;
 
         // We only have a custom-ident blacklist if we accept custom idents!
-        if (auto maybe_valid_types = object.get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
+        if (auto maybe_valid_types = object.get_array("valid-types"_sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
             auto& valid_types = maybe_valid_types.value();
             for (auto const& valid_type : valid_types.values()) {
                 auto type_and_parameters = MUST(valid_type.as_string().split(' '));
-                if (type_and_parameters.first() != "custom-ident"sv || type_and_parameters.size() == 1)
+                if (type_and_parameters.first() != "custom-ident"_sv || type_and_parameters.size() == 1)
                     continue;
                 VERIFY(type_and_parameters.size() == 2);
 
                 auto parameters_string = type_and_parameters[1].bytes_as_string_view();
-                VERIFY(parameters_string.starts_with("!["sv) && parameters_string.ends_with(']'));
+                VERIFY(parameters_string.starts_with("!["_sv) && parameters_string.ends_with(']'));
                 auto blacklisted_keywords = parameters_string.substring_view(2, parameters_string.length() - 3).split_view(',');
 
                 auto property_generator = generator.fork();
@@ -994,7 +994,7 @@ Vector<StringView> property_custom_ident_blacklist(PropertyID property_id)
                     auto value_generator = property_generator.fork();
                     value_generator.set("keyword", keyword);
 
-                    value_generator.append("\"@keyword@\"sv, ");
+                    value_generator.append("\"@keyword@\"_sv, ");
                 }
 
                 property_generator.appendln("};");
@@ -1018,8 +1018,8 @@ size_t property_maximum_value_count(PropertyID property_id)
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (value.as_object().has("max-values"sv)) {
-            JsonValue max_values = value.as_object().get("max-values"sv).release_value();
+        if (value.as_object().has("max-values"_sv)) {
+            JsonValue max_values = value.as_object().get("max-values"_sv).release_value();
             VERIFY(max_values.is_integer<size_t>());
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
@@ -1037,15 +1037,15 @@ size_t property_maximum_value_count(PropertyID property_id)
     }
 })~~~");
 
-    generate_bounds_checking_function(properties, generator, "angle"sv, "Angle"sv, "Deg"sv);
-    generate_bounds_checking_function(properties, generator, "flex"sv, "Flex"sv, "Fr"sv);
-    generate_bounds_checking_function(properties, generator, "frequency"sv, "Frequency"sv, "Hertz"sv);
-    generate_bounds_checking_function(properties, generator, "integer"sv, "i64"sv, {}, "value"sv);
-    generate_bounds_checking_function(properties, generator, "length"sv, "Length"sv, {}, "value.raw_value()"sv);
-    generate_bounds_checking_function(properties, generator, "number"sv, "double"sv, {}, "value"sv);
-    generate_bounds_checking_function(properties, generator, "percentage"sv, "Percentage"sv, {}, "value.value()"sv);
-    generate_bounds_checking_function(properties, generator, "resolution"sv, "Resolution"sv, "Dpi"sv);
-    generate_bounds_checking_function(properties, generator, "time"sv, "Time"sv, "S"sv);
+    generate_bounds_checking_function(properties, generator, "angle"_sv, "Angle"_sv, "Deg"_sv);
+    generate_bounds_checking_function(properties, generator, "flex"_sv, "Flex"_sv, "Fr"_sv);
+    generate_bounds_checking_function(properties, generator, "frequency"_sv, "Frequency"_sv, "Hertz"_sv);
+    generate_bounds_checking_function(properties, generator, "integer"_sv, "i64"_sv, {}, "value"_sv);
+    generate_bounds_checking_function(properties, generator, "length"_sv, "Length"_sv, {}, "value.raw_value()"_sv);
+    generate_bounds_checking_function(properties, generator, "number"_sv, "double"_sv, {}, "value"_sv);
+    generate_bounds_checking_function(properties, generator, "percentage"_sv, "Percentage"_sv, {}, "value.value()"_sv);
+    generate_bounds_checking_function(properties, generator, "resolution"_sv, "Resolution"_sv, "Dpi"_sv);
+    generate_bounds_checking_function(properties, generator, "time"_sv, "Time"_sv, "S"_sv);
 
     generator.append(R"~~~(
 bool property_is_shorthand(PropertyID property_id)
@@ -1056,7 +1056,7 @@ bool property_is_shorthand(PropertyID property_id)
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (value.as_object().has("longhands"sv)) {
+        if (value.as_object().has("longhands"_sv)) {
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
             property_generator.append(R"~~~(
@@ -1082,7 +1082,7 @@ Vector<PropertyID> longhands_for_shorthand(PropertyID property_id)
         auto object = properties.get_object(property_id);
         VERIFY(object.has_value());
 
-        auto longhands_json_array = object.value().get_array("longhands"sv);
+        auto longhands_json_array = object.value().get_array("longhands"_sv);
         VERIFY(longhands_json_array.has_value());
 
         Vector<String> longhands;
@@ -1098,13 +1098,13 @@ Vector<PropertyID> longhands_for_shorthand(PropertyID property_id)
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (value.as_object().has("longhands"sv)) {
+        if (value.as_object().has("longhands"_sv)) {
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
             StringBuilder builder;
             for (auto longhand : get_longhands(name)) {
                 if (!builder.is_empty())
-                    builder.append(", "sv);
+                    builder.append(", "_sv);
                 builder.appendff("PropertyID::{}", title_casify(longhand));
             }
             property_generator.set("longhands", builder.to_byte_string());
@@ -1137,7 +1137,7 @@ Vector<PropertyID> expanded_longhands_for_shorthand(PropertyID property_id)
 
             VERIFY(property.has_value());
 
-            if (property->has_array("longhands"sv))
+            if (property->has_array("longhands"_sv))
                 expanded_longhands.extend(get_expanded_longhands(longhand_id));
             else
                 expanded_longhands.append(longhand_id);
@@ -1150,13 +1150,13 @@ Vector<PropertyID> expanded_longhands_for_shorthand(PropertyID property_id)
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (value.as_object().has("longhands"sv)) {
+        if (value.as_object().has("longhands"_sv)) {
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
             StringBuilder builder;
             for (auto longhand : get_expanded_longhands(name)) {
                 if (!builder.is_empty())
-                    builder.append(", "sv);
+                    builder.append(", "_sv);
                 builder.appendff("PropertyID::{}", title_casify(longhand));
             }
             property_generator.set("longhands", builder.to_byte_string());
@@ -1180,8 +1180,8 @@ Vector<PropertyID> expanded_longhands_for_shorthand(PropertyID property_id)
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (value.as_object().has("longhands"sv)) {
-            auto longhands = value.as_object().get("longhands"sv);
+        if (value.as_object().has("longhands"_sv)) {
+            auto longhands = value.as_object().get("longhands"_sv);
             VERIFY(longhands.has_value() && longhands->is_array());
             auto longhand_values = longhands->as_array();
             for (auto& longhand : longhand_values.values()) {
@@ -1240,12 +1240,12 @@ Vector<PropertyID> shorthands_for_longhand(PropertyID property_id)
                 return shorthand_a_longhands.size() > shorthand_b_longhands.size();
 
             // 2. Move all items in shorthands that begin with "-" (U+002D) last in the list, retaining their relative order.
-            if (a.starts_with_bytes("-"sv) != b.starts_with_bytes("-"sv))
-                return b.starts_with_bytes("-"sv);
+            if (a.starts_with_bytes("-"_sv) != b.starts_with_bytes("-"_sv))
+                return b.starts_with_bytes("-"_sv);
 
             // 3. Move all items in shorthands that begin with "-" (U+002D) but do not begin with "-webkit-" last in the list, retaining their relative order.
-            if (a.starts_with_bytes("-webkit-"sv) != b.starts_with_bytes("-webkit-"sv))
-                return a.starts_with_bytes("-webkit-"sv);
+            if (a.starts_with_bytes("-webkit-"_sv) != b.starts_with_bytes("-webkit-"_sv))
+                return a.starts_with_bytes("-webkit-"_sv);
 
             // 1. Order shorthands lexicographically.
             return a < b;
@@ -1260,7 +1260,7 @@ Vector<PropertyID> shorthands_for_longhand(PropertyID property_id)
         StringBuilder builder;
         for (auto& shorthand : get_shorthands_for_longhand(longhand)) {
             if (!builder.is_empty())
-                builder.append(", "sv);
+                builder.append(", "_sv);
             builder.appendff("PropertyID::{}", title_casify(shorthand));
         }
         property_generator.set("shorthands", builder.to_byte_string());
@@ -1291,16 +1291,16 @@ bool is_animatable_property(JsonObject& properties, StringView property_name)
     auto property = properties.get_object(property_name);
     VERIFY(property.has_value());
 
-    if (auto animation_type = property.value().get_string("animation-type"sv); animation_type.has_value()) {
+    if (auto animation_type = property.value().get_string("animation-type"_sv); animation_type.has_value()) {
         return animation_type != "none";
     }
 
-    if (!property.value().has("longhands"sv)) {
+    if (!property.value().has("longhands"_sv)) {
         dbgln("Property '{}' must specify either 'animation-type' or 'longhands'", property_name);
         VERIFY_NOT_REACHED();
     }
 
-    auto longhands = property.value().get_array("longhands"sv);
+    auto longhands = property.value().get_array("longhands"_sv);
     VERIFY(longhands.has_value());
     for (auto const& subproperty_name : longhands->values()) {
         VERIFY(subproperty_name.is_string());

@@ -89,7 +89,7 @@ public:
         for (int i = 0; i < 8;) {
             if (longest_zero_span_start.has_value() && longest_zero_span_start.value() == i) {
                 if (longest_zero_span_start.value() + zero_span_length >= 8)
-                    TRY(builder.try_append("::"sv));
+                    TRY(builder.try_append("::"_sv));
                 else
                     TRY(builder.try_append(':'));
                 i += zero_span_length;

@@ -485,7 +485,7 @@ void StackingContext::dump(int indent) const
     if (paintable_box().computed_values().z_index().has_value())
         builder.appendff("{}", paintable_box().computed_values().z_index().value());
     else
-        builder.append("auto"sv);
+        builder.append("auto"_sv);
     builder.append(')');
 
     auto affine_transform = affine_transform_matrix();

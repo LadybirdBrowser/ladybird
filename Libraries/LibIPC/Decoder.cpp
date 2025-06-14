@@ -84,7 +84,7 @@ ErrorOr<URL::URL> decode(Decoder& decoder)
     auto url_string = TRY(decoder.decode<ByteString>());
     auto url = URL::Parser::basic_parse(url_string);
     if (!url.has_value())
-        return Error::from_string_view("Failed to parse URL in IPC Decode"sv);
+        return Error::from_string_view("Failed to parse URL in IPC Decode"_sv);
 
     bool has_blob_url = TRY(decoder.decode<bool>());
     if (!has_blob_url)

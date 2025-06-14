@@ -31,7 +31,7 @@ JS::ThrowCompletionOr<UnderlyingSource> UnderlyingSource::from_value(JS::VM& vm,
     auto type_value = TRY(object.get("type"_fly_string));
     if (!type_value.is_undefined()) {
         auto type_string = TRY(type_value.to_string(vm));
-        if (type_string == "bytes"sv)
+        if (type_string == "bytes"_sv)
             underlying_source.type = ReadableStreamType::Bytes;
         else
             return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Unknown stream type '{}'", type_value)));

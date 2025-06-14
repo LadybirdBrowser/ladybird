@@ -19,7 +19,7 @@ struct ProcessDescription {
 
 class ProcessActor final : public Actor {
 public:
-    static constexpr auto base_name = "process"sv;
+    static constexpr auto base_name = "process"_sv;
 
     static NonnullRefPtr<ProcessActor> create(DevToolsServer&, String name, ProcessDescription);
     virtual ~ProcessActor() override;

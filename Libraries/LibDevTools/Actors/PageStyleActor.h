@@ -14,7 +14,7 @@ namespace DevTools {
 
 class PageStyleActor final : public Actor {
 public:
-    static constexpr auto base_name = "page-style"sv;
+    static constexpr auto base_name = "page-style"_sv;
 
     static NonnullRefPtr<PageStyleActor> create(DevToolsServer&, String name, WeakPtr<InspectorActor>);
     virtual ~PageStyleActor() override;

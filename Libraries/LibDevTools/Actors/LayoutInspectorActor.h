@@ -13,7 +13,7 @@ namespace DevTools {
 
 class LayoutInspectorActor final : public Actor {
 public:
-    static constexpr auto base_name = "layout-inspector"sv;
+    static constexpr auto base_name = "layout-inspector"_sv;
 
     static NonnullRefPtr<LayoutInspectorActor> create(DevToolsServer&, String name);
     virtual ~LayoutInspectorActor() override;

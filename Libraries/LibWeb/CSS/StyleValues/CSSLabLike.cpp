@@ -40,7 +40,7 @@ Color CSSOKLab::to_color(Optional<Layout::NodeWithStyle const&>) const
 String CSSOKLab::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
-    builder.append("oklab("sv);
+    builder.append("oklab("_sv);
     serialize_color_component(builder, mode, m_properties.l, 1.0f, 0, 1);
     builder.append(' ');
     serialize_color_component(builder, mode, m_properties.a, 0.4f);
@@ -48,7 +48,7 @@ String CSSOKLab::to_string(SerializationMode mode) const
     serialize_color_component(builder, mode, m_properties.b, 0.4f);
     if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1)
         && (!m_properties.alpha->is_percentage() || m_properties.alpha->as_percentage().percentage().as_fraction() < 1)) {
-        builder.append(" / "sv);
+        builder.append(" / "_sv);
         serialize_alpha_component(builder, mode, m_properties.alpha);
     }
 
@@ -70,7 +70,7 @@ Color CSSLab::to_color(Optional<Layout::NodeWithStyle const&>) const
 String CSSLab::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
-    builder.append("lab("sv);
+    builder.append("lab("_sv);
     serialize_color_component(builder, mode, m_properties.l, 100, 0, 100);
     builder.append(' ');
     serialize_color_component(builder, mode, m_properties.a, 125);
@@ -78,7 +78,7 @@ String CSSLab::to_string(SerializationMode mode) const
     serialize_color_component(builder, mode, m_properties.b, 125);
     if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1)
         && (!m_properties.alpha->is_percentage() || m_properties.alpha->as_percentage().percentage().as_fraction() < 1)) {
-        builder.append(" / "sv);
+        builder.append(" / "_sv);
         serialize_alpha_component(builder, mode, m_properties.alpha);
     }
 

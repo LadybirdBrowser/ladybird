@@ -32,7 +32,7 @@ String NavigatorIDMixin::app_version() const
     // If the navigator compatibility mode is Gecko
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Gecko) {
         // If trail starts with "5.0 (Windows", then return "5.0 (Windows)".
-        if (trail.starts_with_bytes("5.0 (Windows"sv, CaseSensitivity::CaseSensitive))
+        if (trail.starts_with_bytes("5.0 (Windows"_sv, CaseSensitivity::CaseSensitive))
             return "5.0 (Windows)"_string;
 
         // Otherwise, return the prefix of trail up to but not including the first U+003B (;), concatenated with the

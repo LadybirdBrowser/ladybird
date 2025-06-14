@@ -161,7 +161,7 @@ enum KeyCode : u8 {
 constexpr KeyCode key_code_from_string(StringView key_name)
 {
 #define __ENUMERATE_KEY_CODE(name, ui_name, code) \
-    if (key_name == ui_name##sv)                  \
+    if (key_name == ui_name##_sv)                 \
         return KeyCode::Key_##name;
     ENUMERATE_KEY_CODES
 #undef __ENUMERATE_KEY_CODE

@@ -61,7 +61,7 @@ void Executable::dump() const
         if (print_basic_block_marker)
             builder.appendff("{:4}: ", basic_block_offset_index - 1);
         else
-            builder.append("      "sv);
+            builder.append("      "_sv);
         builder.append((*it).to_byte_string(*this));
 
         warnln("{}", builder.string_view());

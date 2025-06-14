@@ -19,7 +19,7 @@ struct CSSProperty {
 
 class CSSPropertiesActor final : public Actor {
 public:
-    static constexpr auto base_name = "css-properties"sv;
+    static constexpr auto base_name = "css-properties"_sv;
 
     static NonnullRefPtr<CSSPropertiesActor> create(DevToolsServer&, String name);
     virtual ~CSSPropertiesActor() override;

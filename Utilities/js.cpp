@@ -120,7 +120,7 @@ static ErrorOr<void> print_all_arguments(JS::VM const& vm, PrintTarget target = 
         TRY(print(vm.argument(i), *stream));
 
         if (i < vm.argument_count() - 1) {
-            TRY(stream->write_until_depleted(" "sv));
+            TRY(stream->write_until_depleted(" "_sv));
         }
     }
 
@@ -133,11 +133,11 @@ static size_t s_ctrl_c_hit_count = 0;
     static StringBuilder prompt_builder;
     prompt_builder.clear();
     if (s_ctrl_c_hit_count > 0)
-        prompt_builder.append("(Use Ctrl+C again to exit)\n"sv);
-    prompt_builder.append("> "sv);
+        prompt_builder.append("(Use Ctrl+C again to exit)\n"_sv);
+    prompt_builder.append("> "_sv);
 
     for (auto i = 0; i < level; ++i)
-        prompt_builder.append("    "sv);
+        prompt_builder.append("    "_sv);
 
     return prompt_builder.to_string();
 }
@@ -547,7 +547,7 @@ static ErrorOr<void> repl(JS::Realm& realm)
             continue;
 
         g_repl_statements.append(piece);
-        TRY(parse_and_run(realm, piece, "REPL"sv));
+        TRY(parse_and_run(realm, piece, "REPL"_sv));
     }
     return {};
 }
@@ -876,7 +876,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 if (Utf8View { file_contents }.validate()) {
                     builder.append(source);
                 } else {
-                    auto decoder = TextCodec::decoder_for("windows-1252"sv);
+                    auto decoder = TextCodec::decoder_for("windows-1252"_sv);
                     VERIFY(decoder.has_value());
 
                     auto utf8_source = TRY(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, source));
@@ -887,7 +887,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             source_name = script_paths[0];
         } else {
             builder.append(evaluate_script);
-            source_name = "eval"sv;
+            source_name = "eval"_sv;
         }
 
         // We resolve modules as if it is the first file

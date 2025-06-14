@@ -20,7 +20,7 @@ WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::construct_impl(JS::Re
 {
     // 1. If items is empty, then throw a TypeError.
     if (items.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Items cannot be empty"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Items cannot be empty"_sv };
 
     // 2. If options is empty, then set options["presentationStyle"] = "unspecified".
     // NOTE: This step is handled by presentationStyle's default value in ClipboardItemOptions.

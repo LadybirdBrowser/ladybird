@@ -266,7 +266,7 @@ ThrowCompletionOr<String> JSONObject::serialize_json_object(VM& vm, StringifySta
     }
     StringBuilder builder;
     if (property_strings.is_empty()) {
-        builder.append("{}"sv);
+        builder.append("{}"_sv);
     } else {
         bool first = true;
         builder.append('{');
@@ -325,7 +325,7 @@ ThrowCompletionOr<String> JSONObject::serialize_json_array(VM& vm, StringifyStat
 
     StringBuilder builder;
     if (property_strings.is_empty()) {
-        builder.append("[]"sv);
+        builder.append("[]"_sv);
     } else {
         if (state.gap.is_empty()) {
             builder.append('[');
@@ -338,7 +338,7 @@ ThrowCompletionOr<String> JSONObject::serialize_json_array(VM& vm, StringifyStat
             }
             builder.append(']');
         } else {
-            builder.append("[\n"sv);
+            builder.append("[\n"_sv);
             builder.append(state.indent);
             auto separator = MUST(String::formatted(",\n{}", state.indent));
             bool first = true;
@@ -373,25 +373,25 @@ String JSONObject::quote_json_string(String string)
         // i. Set product to the string-concatenation of product and the escape sequence for C as specified in the “Escape Sequence” column of the corresponding row.
         switch (code_point) {
         case '\b':
-            builder.append("\\b"sv);
+            builder.append("\\b"_sv);
             break;
         case '\t':
-            builder.append("\\t"sv);
+            builder.append("\\t"_sv);
             break;
         case '\n':
-            builder.append("\\n"sv);
+            builder.append("\\n"_sv);
             break;
         case '\f':
-            builder.append("\\f"sv);
+            builder.append("\\f"_sv);
             break;
         case '\r':
-            builder.append("\\r"sv);
+            builder.append("\\r"_sv);
             break;
         case '"':
-            builder.append("\\\""sv);
+            builder.append("\\\""_sv);
             break;
         case '\\':
-            builder.append("\\\\"sv);
+            builder.append("\\\\"_sv);
             break;
         default:
             // b. Else if C has a numeric value less than 0x0020 (SPACE), or if C has the same numeric value as a leading surrogate or trailing surrogate, then

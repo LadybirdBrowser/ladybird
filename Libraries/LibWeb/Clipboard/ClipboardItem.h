@@ -16,11 +16,11 @@
 
 namespace Web::Clipboard {
 
-constexpr auto WEB_CUSTOM_FORMAT_PREFIX = "web "sv;
+constexpr auto WEB_CUSTOM_FORMAT_PREFIX = "web "_sv;
 
 // https://w3c.github.io/clipboard-apis/#mandatory-data-types
 constexpr inline Array MANDATORY_DATA_TYPES = {
-    "text/plain"sv, "text/html"sv, "image/png"sv
+    "text/plain"_sv, "text/html"_sv, "image/png"_sv
 };
 
 struct ClipboardItemOptions {

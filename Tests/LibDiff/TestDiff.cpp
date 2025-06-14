@@ -42,7 +42,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableBox (Box<symbol>#braces) [8,8 0x0]
               SVGGeometryPaintable (SVGGeometryBox<path>) [92.375,26.75 131.25x112.15625]
 
-)"sv;
+)"_sv;
 
     StringView new_text = R"(Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
@@ -68,7 +68,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
           PaintableBox (Box<use>) [8,8 0x0]
 
-)"sv;
+)"_sv;
 
     auto result = MUST(Diff::from_text(old_text, new_text, 3));
     EXPECT_EQ(result.size(), 2U);
@@ -91,7 +91,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
            TextNode <#text>
          TextNode <#text>
  
-)"sv);
+)"_sv);
 
     auto hunk2_stream = make<AllocatingMemoryStream>();
     MUST(Diff::write_unified(result[1], *hunk2_stream));
@@ -104,5 +104,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
 -            PaintableBox (Box<symbol>#braces) [8,8 0x0]
 -              SVGGeometryPaintable (SVGGeometryBox<path>) [92.375,26.75 131.25x112.15625]
  
-)"sv);
+)"_sv);
 }

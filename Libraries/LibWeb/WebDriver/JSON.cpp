@@ -30,14 +30,14 @@
 
 namespace Web::WebDriver {
 
-#define TRY_OR_JS_ERROR(expression)                                                                       \
-    ({                                                                                                    \
-        auto&& _temporary_result = (expression);                                                          \
-        if (_temporary_result.is_error()) [[unlikely]]                                                    \
-            return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Script returned an error"sv); \
-        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>,      \
-            "Do not return a reference from a fallible expression");                                      \
-        _temporary_result.release_value();                                                                \
+#define TRY_OR_JS_ERROR(expression)                                                                        \
+    ({                                                                                                     \
+        auto&& _temporary_result = (expression);                                                           \
+        if (_temporary_result.is_error()) [[unlikely]]                                                     \
+            return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Script returned an error"_sv); \
+        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>,       \
+            "Do not return a reference from a fallible expression");                                       \
+        _temporary_result.release_value();                                                                 \
     })
 
 using SeenMap = HashTable<GC::RawPtr<JS::Object const>>;
@@ -78,7 +78,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
 
     // 1. If value is in seen, return error with error code javascript error.
     if (seen.contains(value))
-        return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Attempted to recursively clone an Object"sv);
+        return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Attempted to recursively clone an Object"_sv);
 
     // 2. Append value to seen.
     seen.set(value);
@@ -92,7 +92,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
 
             auto length = TRY_OR_JS_ERROR(length_property.to_length(vm));
             if (length > NumericLimits<u32>::max())
-                return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Length of Object too large"sv);
+                return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Length of Object too large"_sv);
 
             if constexpr (is_json_value)
                 return JsonArray { length };
@@ -120,7 +120,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
         //    script to be run and that script throws an error, return error with error code javascript error.
         auto source_property_value = value.get(name);
         if (source_property_value.is_error()) {
-            error = WebDriver::Error::from_code(ErrorCode::JavascriptError, "Script returned an error"sv);
+            error = WebDriver::Error::from_code(ErrorCode::JavascriptError, "Script returned an error"_sv);
             return JS::normal_completion(JS::js_undefined());
         }
 
@@ -188,9 +188,9 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     // AD-HOC: BigInt and Symbol not mentioned anywhere in the WebDriver spec, as it references ES5.
     //         It assumes that all primitives are handled above, and the value is an object for the remaining steps.
     if (value.is_bigint())
-        return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Cannot clone a BigInt"sv);
+        return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Cannot clone a BigInt"_sv);
     if (value.is_symbol())
-        return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Cannot clone a Symbol"sv);
+        return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Cannot clone a Symbol"_sv);
 
     VERIFY(value.is_object());
     auto const& object = static_cast<JS::Object const&>(value.as_object());
@@ -201,7 +201,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
 
         // If the element is stale, return error with error code stale element reference.
         if (is_element_stale(element)) {
-            return WebDriver::Error::from_code(ErrorCode::StaleElementReference, "Referenced element has become stale"sv);
+            return WebDriver::Error::from_code(ErrorCode::StaleElementReference, "Referenced element has become stale"_sv);
         }
         // Otherwise:
         else {
@@ -219,7 +219,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
 
         // If the shadow root is detached, return error with error code detached shadow root.
         if (is_shadow_root_detached(shadow_root)) {
-            return WebDriver::Error::from_code(ErrorCode::DetachedShadowRoot, "Referenced shadow root has become detached"sv);
+            return WebDriver::Error::from_code(ErrorCode::DetachedShadowRoot, "Referenced shadow root has become detached"_sv);
         }
         // Otherwise:
         else {
@@ -238,7 +238,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
         // If the associated browsing context of the WindowProxy object in value has been destroyed, return error
         // with error code stale element reference.
         if (window_proxy.associated_browsing_context()->has_navigable_been_destroyed()) {
-            return WebDriver::Error::from_code(ErrorCode::StaleElementReference, "Browsing context has been discarded"sv);
+            return WebDriver::Error::from_code(ErrorCode::StaleElementReference, "Browsing context has been discarded"_sv);
         }
         // Otherwise:
         else {
@@ -255,7 +255,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
         // Return success with the value returned by Function.[[Call]](toJSON) with value as the this value.
         auto to_json_result = TRY_OR_JS_ERROR(JS::call(vm, to_json.as_function(), value));
         if (!to_json_result.is_string())
-            return WebDriver::Error::from_code(ErrorCode::JavascriptError, "toJSON did not return a String"sv);
+            return WebDriver::Error::from_code(ErrorCode::JavascriptError, "toJSON did not return a String"_sv);
 
         return JsonValue { to_json_result.as_string().utf8_string() };
     }
@@ -325,7 +325,7 @@ static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::Brow
         return clone_an_object<GC::Ref<JS::Object>>(browsing_context, value.as_object(), seen, internal_json_deserialize);
     }
 
-    return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Unrecognized value type"sv);
+    return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Unrecognized value type"_sv);
 }
 
 // https://w3c.github.io/webdriver/#dfn-json-deserialize

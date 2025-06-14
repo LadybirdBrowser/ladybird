@@ -375,11 +375,11 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
             auto has_mismatch_selector = false;
 
             auto maybe_link = [&]() -> Web::WebIDL::ExceptionOr<GC::Ptr<Web::DOM::Element>> {
-                auto maybe_link = document->query_selector("link[rel=match]"sv);
+                auto maybe_link = document->query_selector("link[rel=match]"_sv);
                 if (maybe_link.is_error() || maybe_link.value())
                     return maybe_link;
 
-                auto maybe_mismatch_link = document->query_selector("link[rel=mismatch]"sv);
+                auto maybe_mismatch_link = document->query_selector("link[rel=mismatch]"_sv);
                 if (maybe_mismatch_link.is_error() || maybe_mismatch_link.value()) {
                     has_mismatch_selector = maybe_mismatch_link.value();
                     return maybe_mismatch_link;
@@ -499,30 +499,30 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
 
         JsonObject serialized;
 
-        serialized.set("width"sv, paintable_box.content_width().to_double());
-        serialized.set("height"sv, paintable_box.content_height().to_double());
+        serialized.set("width"_sv, paintable_box.content_width().to_double());
+        serialized.set("height"_sv, paintable_box.content_height().to_double());
 
-        serialized.set("padding-top"sv, box_model.padding.top.to_double());
-        serialized.set("padding-right"sv, box_model.padding.right.to_double());
-        serialized.set("padding-bottom"sv, box_model.padding.bottom.to_double());
-        serialized.set("padding-left"sv, box_model.padding.left.to_double());
+        serialized.set("padding-top"_sv, box_model.padding.top.to_double());
+        serialized.set("padding-right"_sv, box_model.padding.right.to_double());
+        serialized.set("padding-bottom"_sv, box_model.padding.bottom.to_double());
+        serialized.set("padding-left"_sv, box_model.padding.left.to_double());
 
-        serialized.set("margin-top"sv, box_model.margin.top.to_double());
-        serialized.set("margin-right"sv, box_model.margin.right.to_double());
-        serialized.set("margin-bottom"sv, box_model.margin.bottom.to_double());
-        serialized.set("margin-left"sv, box_model.margin.left.to_double());
+        serialized.set("margin-top"_sv, box_model.margin.top.to_double());
+        serialized.set("margin-right"_sv, box_model.margin.right.to_double());
+        serialized.set("margin-bottom"_sv, box_model.margin.bottom.to_double());
+        serialized.set("margin-left"_sv, box_model.margin.left.to_double());
 
-        serialized.set("border-top-width"sv, box_model.border.top.to_double());
-        serialized.set("border-right-width"sv, box_model.border.right.to_double());
-        serialized.set("border-bottom-width"sv, box_model.border.bottom.to_double());
-        serialized.set("border-left-width"sv, box_model.border.left.to_double());
+        serialized.set("border-top-width"_sv, box_model.border.top.to_double());
+        serialized.set("border-right-width"_sv, box_model.border.right.to_double());
+        serialized.set("border-bottom-width"_sv, box_model.border.bottom.to_double());
+        serialized.set("border-left-width"_sv, box_model.border.left.to_double());
 
-        serialized.set("box-sizing"sv, properties->property(Web::CSS::PropertyID::BoxSizing).to_string(Web::CSS::SerializationMode::Normal));
-        serialized.set("display"sv, properties->property(Web::CSS::PropertyID::Display).to_string(Web::CSS::SerializationMode::Normal));
-        serialized.set("float"sv, properties->property(Web::CSS::PropertyID::Float).to_string(Web::CSS::SerializationMode::Normal));
-        serialized.set("line-height"sv, properties->property(Web::CSS::PropertyID::LineHeight).to_string(Web::CSS::SerializationMode::Normal));
-        serialized.set("position"sv, properties->property(Web::CSS::PropertyID::Position).to_string(Web::CSS::SerializationMode::Normal));
-        serialized.set("z-index"sv, properties->property(Web::CSS::PropertyID::ZIndex).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("box-sizing"_sv, properties->property(Web::CSS::PropertyID::BoxSizing).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("display"_sv, properties->property(Web::CSS::PropertyID::Display).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("float"_sv, properties->property(Web::CSS::PropertyID::Float).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("line-height"_sv, properties->property(Web::CSS::PropertyID::LineHeight).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("position"_sv, properties->property(Web::CSS::PropertyID::Position).to_string(Web::CSS::SerializationMode::Normal));
+        serialized.set("z-index"_sv, properties->property(Web::CSS::PropertyID::ZIndex).to_string(Web::CSS::SerializationMode::Normal));
 
         return serialized;
     };
@@ -534,9 +534,9 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
             auto const& font = *entry.font;
 
             JsonObject font_object;
-            font_object.set("name"sv, font.family().to_string());
-            font_object.set("size"sv, font.point_size());
-            font_object.set("weight"sv, font.weight());
+            font_object.set("name"_sv, font.family().to_string());
+            font_object.set("size"_sv, font.point_size());
+            font_object.set("weight"_sv, font.weight());
             serialized.must_append(move(font_object));
         });
 
@@ -906,13 +906,13 @@ static void append_page_text(Web::Page& page, StringBuilder& builder)
 {
     auto* document = page.top_level_browsing_context().active_document();
     if (!document) {
-        builder.append("(no DOM tree)"sv);
+        builder.append("(no DOM tree)"_sv);
         return;
     }
 
     auto* body = document->body();
     if (!body) {
-        builder.append("(no body)"sv);
+        builder.append("(no body)"_sv);
         return;
     }
 
@@ -923,7 +923,7 @@ static void append_layout_tree(Web::Page& page, StringBuilder& builder)
 {
     auto* document = page.top_level_browsing_context().active_document();
     if (!document) {
-        builder.append("(no DOM tree)"sv);
+        builder.append("(no DOM tree)"_sv);
         return;
     }
 
@@ -931,7 +931,7 @@ static void append_layout_tree(Web::Page& page, StringBuilder& builder)
 
     auto* layout_root = document->layout_node();
     if (!layout_root) {
-        builder.append("(no layout tree)"sv);
+        builder.append("(no layout tree)"_sv);
         return;
     }
 
@@ -942,7 +942,7 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
 {
     auto* document = page.top_level_browsing_context().active_document();
     if (!document) {
-        builder.append("(no DOM tree)"sv);
+        builder.append("(no DOM tree)"_sv);
         return;
     }
 
@@ -950,11 +950,11 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
 
     auto* layout_root = document->layout_node();
     if (!layout_root) {
-        builder.append("(no layout tree)"sv);
+        builder.append("(no layout tree)"_sv);
         return;
     }
     if (!layout_root->first_paintable()) {
-        builder.append("(no paint tree)"sv);
+        builder.append("(no paint tree)"_sv);
         return;
     }
 
@@ -983,19 +983,19 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
 
     if (has_flag(type, WebView::PageInfoType::LayoutTree)) {
         if (!builder.is_empty())
-            builder.append("\n"sv);
+            builder.append("\n"_sv);
         append_layout_tree(page->page(), builder);
     }
 
     if (has_flag(type, WebView::PageInfoType::PaintTree)) {
         if (!builder.is_empty())
-            builder.append("\n"sv);
+            builder.append("\n"_sv);
         append_paint_tree(page->page(), builder);
     }
 
     if (has_flag(type, WebView::PageInfoType::GCGraph)) {
         if (!builder.is_empty())
-            builder.append("\n"sv);
+            builder.append("\n"_sv);
         append_gc_graph(builder);
     }
 

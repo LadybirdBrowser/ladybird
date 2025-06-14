@@ -67,8 +67,8 @@ enum class NavigatorCompatibilityMode {
 #define BROWSER_NAME "Ladybird"
 #define BROWSER_VERSION "1.0"
 
-constexpr auto default_user_agent = "Mozilla/5.0 (" OS_STRING "; " CPU_STRING ") " BROWSER_NAME "/" BROWSER_VERSION ""sv;
-constexpr auto default_platform = OS_STRING " " CPU_STRING ""sv;
+constexpr auto default_user_agent = "Mozilla/5.0 (" OS_STRING "; " CPU_STRING ") " BROWSER_NAME "/" BROWSER_VERSION ""_sv;
+constexpr auto default_platform = OS_STRING " " CPU_STRING ""_sv;
 constexpr auto default_navigator_compatibility_mode = NavigatorCompatibilityMode::Chrome;
 
 }

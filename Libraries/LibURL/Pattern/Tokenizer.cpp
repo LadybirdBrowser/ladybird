@@ -14,25 +14,25 @@ StringView Token::type_to_string(Token::Type type)
 {
     switch (type) {
     case Token::Type::Open:
-        return "Open"sv;
+        return "Open"_sv;
     case Token::Type::Close:
-        return "Close"sv;
+        return "Close"_sv;
     case Token::Type::Regexp:
-        return "Regexp"sv;
+        return "Regexp"_sv;
     case Token::Type::Name:
-        return "Name"sv;
+        return "Name"_sv;
     case Token::Type::Char:
-        return "Char"sv;
+        return "Char"_sv;
     case Token::Type::EscapedChar:
-        return "EscapedChar"sv;
+        return "EscapedChar"_sv;
     case Token::Type::OtherModifier:
-        return "OtherModifier"sv;
+        return "OtherModifier"_sv;
     case Token::Type::Asterisk:
-        return "Asterisk"sv;
+        return "Asterisk"_sv;
     case Token::Type::End:
-        return "End"sv;
+        return "End"_sv;
     case Token::Type::InvalidChar:
-        return "InvalidChar"sv;
+        return "InvalidChar"_sv;
     }
     VERIFY_NOT_REACHED();
 }

@@ -130,8 +130,8 @@ StringView HTMLElement::dir() const
     // The dir IDL attribute on an element must reflect the dir content attribute of that element, limited to only known values.
     auto dir = get_attribute_value(HTML::AttributeNames::dir);
 #define __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE(keyword) \
-    if (dir.equals_ignoring_ascii_case(#keyword##sv))   \
-        return #keyword##sv;
+    if (dir.equals_ignoring_ascii_case(#keyword##_sv))  \
+        return #keyword##_sv;
     ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTES
 #undef __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE
 
@@ -160,13 +160,13 @@ StringView HTMLElement::content_editable() const
 {
     switch (m_content_editable_state) {
     case ContentEditableState::True:
-        return "true"sv;
+        return "true"_sv;
     case ContentEditableState::False:
-        return "false"sv;
+        return "false"_sv;
     case ContentEditableState::PlaintextOnly:
-        return "plaintext-only"sv;
+        return "plaintext-only"_sv;
     case ContentEditableState::Inherit:
-        return "inherit"sv;
+        return "inherit"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -174,19 +174,19 @@ StringView HTMLElement::content_editable() const
 // https://html.spec.whatwg.org/multipage/interaction.html#contenteditable
 WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_editable)
 {
-    if (content_editable.equals_ignoring_ascii_case("inherit"sv)) {
+    if (content_editable.equals_ignoring_ascii_case("inherit"_sv)) {
         remove_attribute(HTML::AttributeNames::contenteditable);
         return {};
     }
-    if (content_editable.equals_ignoring_ascii_case("true"sv)) {
+    if (content_editable.equals_ignoring_ascii_case("true"_sv)) {
         MUST(set_attribute(HTML::AttributeNames::contenteditable, "true"_string));
         return {};
     }
-    if (content_editable.equals_ignoring_ascii_case("plaintext-only"sv)) {
+    if (content_editable.equals_ignoring_ascii_case("plaintext-only"_sv)) {
         MUST(set_attribute(HTML::AttributeNames::contenteditable, "plaintext-only"_string));
         return {};
     }
-    if (content_editable.equals_ignoring_ascii_case("false"sv)) {
+    if (content_editable.equals_ignoring_ascii_case("false"_sv)) {
         MUST(set_attribute(HTML::AttributeNames::contenteditable, "false"_string));
         return {};
     }
@@ -269,7 +269,7 @@ GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(StringView in
     // 4. While position is not past the end of input:
     while (!input.is_empty()) {
         // 1. Collect a sequence of code points that are not U+000A LF or U+000D CR from input given position, and set text to the result.
-        auto newline_index = input.find_any_of("\n\r"sv);
+        auto newline_index = input.find_any_of("\n\r"_sv);
         size_t const sequence_end_index = newline_index.value_or(input.length());
         StringView const text = input.substring_view(0, sequence_end_index);
         input = input.substring_view_starting_after_substring(text);
@@ -282,7 +282,7 @@ GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(StringView in
         // 3. While position is not past the end of input, and the code point at position is either U+000A LF or U+000D CR:
         while (input.starts_with('\n') || input.starts_with('\r')) {
             // 1. If the code point at position is U+000D CR and the next code point is U+000A LF, then advance position to the next code point in input.
-            if (input.starts_with("\r\n"sv)) {
+            if (input.starts_with("\r\n"_sv)) {
                 // 2. Advance position to the next code point in input.
                 input = input.substring_view(2);
             } else {
@@ -647,13 +647,13 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
         if (!value.has_value()) {
             // No value maps to the "inherit" state.
             m_content_editable_state = ContentEditableState::Inherit;
-        } else if (value->is_empty() || value->equals_ignoring_ascii_case("true"sv)) {
+        } else if (value->is_empty() || value->equals_ignoring_ascii_case("true"_sv)) {
             // "true", an empty string or a missing value map to the "true" state.
             m_content_editable_state = ContentEditableState::True;
-        } else if (value->equals_ignoring_ascii_case("false"sv)) {
+        } else if (value->equals_ignoring_ascii_case("false"_sv)) {
             // "false" maps to the "false" state.
             m_content_editable_state = ContentEditableState::False;
-        } else if (value->equals_ignoring_ascii_case("plaintext-only"sv)) {
+        } else if (value->equals_ignoring_ascii_case("plaintext-only"_sv)) {
             // "plaintext-only" maps to the "plaintext-only" state.
             m_content_editable_state = ContentEditableState::PlaintextOnly;
         } else {
@@ -794,7 +794,7 @@ void HTMLElement::set_hidden(Variant<bool, double, String> const& given_value)
     // 1. If the given value is a string that is an ASCII case-insensitive match for "until-found", then set the hidden attribute to "until-found".
     if (given_value.has<String>()) {
         auto const& string = given_value.get<String>();
-        if (string.equals_ignoring_ascii_case("until-found"sv)) {
+        if (string.equals_ignoring_ascii_case("until-found"_sv)) {
             MUST(set_attribute(HTML::AttributeNames::hidden, "until-found"_string));
             return;
         }
@@ -804,7 +804,7 @@ void HTMLElement::set_hidden(Variant<bool, double, String> const& given_value)
             return;
         }
         // 4. Otherwise, if the given value is null, then remove the hidden attribute.
-        if (string.equals_ignoring_ascii_case("null"sv) || string.equals_ignoring_ascii_case("undefined"sv)) {
+        if (string.equals_ignoring_ascii_case("null"_sv) || string.equals_ignoring_ascii_case("undefined"_sv)) {
             remove_attribute(HTML::AttributeNames::hidden);
             return;
         }
@@ -1006,7 +1006,7 @@ String HTMLElement::get_an_elements_target(Optional<String> target) const
     }
 
     // 2. If target is not null, and contains an ASCII tab or newline and a U+003C (<), then set target to "_blank".
-    if (target.has_value() && target->bytes_as_string_view().contains("\t\n\r"sv) && target->contains('<'))
+    if (target.has_value() && target->bytes_as_string_view().contains("\t\n\r"_sv) && target->contains('<'))
         target = "_blank"_string;
 
     // 3. Return target.
@@ -1022,12 +1022,12 @@ TokenizedFeature::NoOpener HTMLElement::get_an_elements_noopener(URL::URL const&
     auto link_types = rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
 
     // 1. If element's link types include the noopener or noreferrer keyword, then return true.
-    if (link_types.contains_slow("noopener"sv) || link_types.contains_slow("noreferrer"sv))
+    if (link_types.contains_slow("noopener"_sv) || link_types.contains_slow("noreferrer"_sv))
         return TokenizedFeature::NoOpener::Yes;
 
     // 2. If element's link types do not include the opener keyword and
     //    target is an ASCII case-insensitive match for "_blank", then return true.
-    if (!link_types.contains_slow("opener"sv) && target.equals_ignoring_ascii_case("_blank"sv))
+    if (!link_types.contains_slow("opener"_sv) && target.equals_ignoring_ascii_case("_blank"_sv))
         return TokenizedFeature::NoOpener::Yes;
 
     // 3. If url's blob URL entry is not null:
@@ -1086,10 +1086,10 @@ Optional<String> HTMLElement::popover_value_to_state(Optional<String> value)
     if (!value.has_value())
         return {};
 
-    if (value.value().is_empty() || value.value().equals_ignoring_ascii_case("auto"sv))
+    if (value.value().is_empty() || value.value().equals_ignoring_ascii_case("auto"_sv))
         return "auto"_string;
 
-    if (value.value().equals_ignoring_ascii_case("hint"sv))
+    if (value.value().equals_ignoring_ascii_case("hint"_sv))
         return "hint"_string;
 
     return "manual"_string;
@@ -1242,7 +1242,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     StackToAppendTo stack_to_append_to = StackToAppendTo::Null;
 
     // 16. If originalType is the auto state, then:
-    if (original_type == "auto"sv) {
+    if (original_type == "auto"_sv) {
         // 1. Run close entire popover list given document's showing hint popover list, shouldRestoreFocus, and fireEvents.
         close_entire_popover_list(document.showing_hint_popover_list(), should_restore_focus, fire_events);
 
@@ -1261,7 +1261,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     }
 
     // 17. If originalType is the hint state, then:
-    if (original_type == "hint"sv) {
+    if (original_type == "hint"_sv) {
 
         // AD-HOC: Steps 14 and 15 have been moved here to avoid hitting the `popover != manual` assertion in the topmost popover ancestor algorithm.
         // Spec issue: https://github.com/whatwg/html/issues/10988.
@@ -1477,7 +1477,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
         auto& hint_popovers = document.showing_hint_popover_list();
         if (!hint_popovers.is_empty() && hint_popovers.last() == this) {
             // Assert: element's opened in popover mode is "hint".
-            VERIFY(m_opened_in_popover_mode == "hint"sv);
+            VERIFY(m_opened_in_popover_mode == "hint"_sv);
 
             // Remove the last item from document's showing hint popover list.
             hint_popovers.remove(hint_popovers.size() - 1);
@@ -1591,7 +1591,7 @@ void HTMLElement::hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<
     auto endpoint_element = endpoint.get<GC::Ptr<HTMLElement>>();
     if (document->showing_hint_popover_list().contains_slow(GC::Ref(*endpoint_element))) {
         // 1. Assert: endpoint's popover attribute is in the hint state.
-        VERIFY(endpoint_element->m_opened_in_popover_mode == "hint"sv);
+        VERIFY(endpoint_element->m_opened_in_popover_mode == "hint"_sv);
 
         // 2. Run hide popover stack until given endpoint, document's showing hint popover list, focusPreviousElement, and fireEvents.
         endpoint_element->hide_popover_stack_until(document->showing_hint_popover_list(), focus_previous_element, fire_events);
@@ -1687,7 +1687,7 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
         VERIFY(new_popover);
 
         // 2. Assert: newPopoverOrTopLayerElement's popover attribute is not in the no popover state or the manual state.
-        VERIFY(!new_popover->popover().has_value() || new_popover->popover().value() != "manual"sv);
+        VERIFY(!new_popover->popover().has_value() || new_popover->popover().value() != "manual"_sv);
 
         // 3. Assert: newPopoverOrTopLayerElement's popover visibility state is not in the popover showing state.
         VERIFY(new_popover->popover_visibility_state() != PopoverVisibilityState::Showing);
@@ -1745,12 +1745,12 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
                 return;
 
             // 3. Assert: candidateAncestor's popover attribute is not in the manual or none state.
-            VERIFY(!candidate_ancestor->popover().has_value() || candidate_ancestor->popover().value() != "manual"sv);
+            VERIFY(!candidate_ancestor->popover().has_value() || candidate_ancestor->popover().value() != "manual"_sv);
 
             // AD-HOC: This also checks if isPopover is false.
             // Spec issue: https://github.com/whatwg/html/issues/11008.
             // 4. Set okNesting to true if newPopoverOrTopLayerElement's popover attribute is in the hint state or candidateAncestor's popover attribute is in the auto state.
-            if (is_popover == IsPopover::No || new_popover->popover() == "hint"sv || candidate_ancestor->popover() == "auto"sv)
+            if (is_popover == IsPopover::No || new_popover->popover() == "hint"_sv || candidate_ancestor->popover() == "auto"_sv)
                 ok_nesting = true;
 
             // 5. If okNesting is false, then set candidate to candidateAncestor's parent in the flat tree.

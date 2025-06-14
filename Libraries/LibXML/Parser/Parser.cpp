@@ -193,9 +193,9 @@ ErrorOr<void, ParseError> Parser::skip_whitespace(Required required)
     auto rule = enter_rule();
 
     // S ::= (#x20 | #x9 | #xD | #xA)+
-    auto matched = m_lexer.consume_while(is_any_of("\x20\x09\x0d\x0a"sv));
+    auto matched = m_lexer.consume_while(is_any_of("\x20\x09\x0d\x0a"_sv));
     if (required == Required::Yes && matched.is_empty())
-        return parse_error(m_lexer.current_position(), Expectation { "whitespace"sv });
+        return parse_error(m_lexer.current_position(), Expectation { "whitespace"_sv });
 
     rollback.disarm();
     return {};
@@ -225,7 +225,7 @@ ErrorOr<void, ParseError> Parser::parse_internal()
     }
 
     if (!m_lexer.is_eof())
-        return parse_error(m_lexer.current_position(), ByteString { "Garbage after document"sv });
+        return parse_error(m_lexer.current_position(), ByteString { "Garbage after document"_sv });
 
     return {};
 }
@@ -318,14 +318,14 @@ ErrorOr<void, ParseError> Parser::parse_xml_decl()
 
     // XMLDecl::= '<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
 
-    TRY(expect("<?xml"sv));
+    TRY(expect("<?xml"_sv));
     auto accept = accept_rule();
 
     TRY(parse_version_info());
     (void)parse_encoding_decl();
     (void)parse_standalone_document_decl();
     TRY(skip_whitespace());
-    TRY(expect("?>"sv));
+    TRY(expect("?>"_sv));
 
     rollback.disarm();
     return {};
@@ -339,11 +339,11 @@ ErrorOr<void, ParseError> Parser::parse_version_info()
 
     // VersionInfo ::= S 'version' Eq ("'" VersionNum "'" | '"' VersionNum '"')
     TRY(skip_whitespace(Required::Yes));
-    TRY(expect("version"sv));
+    TRY(expect("version"_sv));
     auto accept = accept_rule();
 
     TRY(parse_eq());
-    TRY(expect(is_any_of("'\""sv), "one of ' or \""sv));
+    TRY(expect(is_any_of("'\""_sv), "one of ' or \""_sv));
     m_lexer.retreat();
 
     auto version_string = m_lexer.consume_quoted_string();
@@ -370,7 +370,7 @@ ErrorOr<void, ParseError> Parser::parse_eq()
     // Eq ::= S? '=' S?
     auto accept = accept_rule();
     TRY(skip_whitespace());
-    TRY(expect("="sv));
+    TRY(expect("="_sv));
     TRY(skip_whitespace());
     rollback.disarm();
     return {};
@@ -384,11 +384,11 @@ ErrorOr<void, ParseError> Parser::parse_encoding_decl()
 
     // EncodingDecl ::= S 'encoding' Eq ('"' EncName '"' | "'" EncName "'" )
     TRY(skip_whitespace(Required::Yes));
-    TRY(expect("encoding"sv));
+    TRY(expect("encoding"_sv));
     auto accept = accept_rule();
 
     TRY(parse_eq());
-    TRY(expect(is_any_of("'\""sv), "one of ' or \""sv));
+    TRY(expect(is_any_of("'\""_sv), "one of ' or \""_sv));
     m_lexer.retreat();
 
     // FIXME: Actually do something with this encoding.
@@ -406,16 +406,16 @@ ErrorOr<void, ParseError> Parser::parse_standalone_document_decl()
 
     // SDDecl ::= S 'standalone' Eq (("'" ('yes' | 'no') "'") | ('"' ('yes' | 'no') '"'))
     TRY(skip_whitespace(Required::Yes));
-    TRY(expect("standalone"sv));
+    TRY(expect("standalone"_sv));
     auto accept = accept_rule();
 
     TRY(parse_eq());
-    TRY(expect(is_any_of("'\""sv), "one of ' or \""sv));
+    TRY(expect(is_any_of("'\""_sv), "one of ' or \""_sv));
     m_lexer.retreat();
 
     auto value = m_lexer.consume_quoted_string();
     if (!value.is_one_of("yes", "no"))
-        return parse_error(m_lexer.position_for(m_lexer.tell() - value.length()), Expectation { "one of 'yes' or 'no'"sv });
+        return parse_error(m_lexer.position_for(m_lexer.tell() - value.length()), Expectation { "one of 'yes' or 'no'"_sv });
 
     m_standalone = value == "yes";
 
@@ -445,7 +445,7 @@ ErrorOr<void, ParseError> Parser::parse_misc()
         return {};
     }
 
-    return parse_error(m_lexer.current_position(), Expectation { "a match for 'Misc'"sv });
+    return parse_error(m_lexer.current_position(), Expectation { "a match for 'Misc'"_sv });
 }
 
 // 2.5.15 Comment, https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-Comment
@@ -456,7 +456,7 @@ ErrorOr<void, ParseError> Parser::parse_comment()
 
     // Comment ::= '<!--' ((Char - '-') | ('-' (Char - '-')))* '-->'
     auto comment_start = m_lexer.tell();
-    TRY(expect("<!--"sv));
+    TRY(expect("<!--"_sv));
     auto accept = accept_rule();
 
     bool last_seen_a_dash = false;
@@ -479,7 +479,7 @@ ErrorOr<void, ParseError> Parser::parse_comment()
         text = text.substring_view(0, text.length() - 1);
     }
 
-    TRY(expect("-->"sv));
+    TRY(expect("-->"_sv));
 
     if (m_options.preserve_comments)
         append_comment(text, m_lexer.position_for(comment_start));
@@ -495,14 +495,14 @@ ErrorOr<void, ParseError> Parser::parse_processing_instruction()
     auto rule = enter_rule();
 
     // PI ::= '<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'
-    TRY(expect("<?"sv));
+    TRY(expect("<?"_sv));
     auto accept = accept_rule();
 
     auto target = TRY(parse_processing_instruction_target());
     ByteString data;
     if (auto result = skip_whitespace(Required::Yes); !result.is_error())
         data = m_lexer.consume_until("?>");
-    TRY(expect("?>"sv));
+    TRY(expect("?>"_sv));
 
     m_processing_instructions.set(target, data);
     rollback.disarm();
@@ -519,10 +519,10 @@ ErrorOr<Name, ParseError> Parser::parse_processing_instruction_target()
     auto target = TRY(parse_name());
     auto accept = accept_rule();
 
-    if (target.equals_ignoring_ascii_case("xml"sv) && m_options.treat_errors_as_fatal) {
+    if (target.equals_ignoring_ascii_case("xml"_sv) && m_options.treat_errors_as_fatal) {
         return parse_error(
             m_lexer.position_for(m_lexer.tell() - target.length()),
-            ByteString { "Use of the reserved 'xml' name for processing instruction target name is disallowed"sv });
+            ByteString { "Use of the reserved 'xml' name for processing instruction target name is disallowed"_sv });
     }
 
     rollback.disarm();
@@ -551,7 +551,7 @@ ErrorOr<Name, ParseError> Parser::parse_name()
     auto code_points = view.begin();
     if (code_points.done() || !s_name_start_characters.contains(*code_points)) {
         if (m_options.treat_errors_as_fatal)
-            return parse_error(m_lexer.current_position(), Expectation { "a NameStartChar"sv });
+            return parse_error(m_lexer.current_position(), Expectation { "a NameStartChar"_sv });
     }
 
     m_lexer.ignore(code_points.underlying_code_point_length_in_bytes());
@@ -576,7 +576,7 @@ ErrorOr<void, ParseError> Parser::parse_doctype_decl()
     Doctype doctype;
 
     // doctypedecl ::= '<!DOCTYPE' S Name (S ExternalID)? S? ('[' intSubset ']' S?)? '>'
-    TRY(expect("<!DOCTYPE"sv));
+    TRY(expect("<!DOCTYPE"_sv));
     auto accept = accept_rule();
 
     TRY(skip_whitespace(Required::Yes));
@@ -610,12 +610,12 @@ ErrorOr<void, ParseError> Parser::parse_doctype_decl()
     TRY(skip_whitespace(Required::No));
     if (m_lexer.consume_specific('[')) {
         auto internal_subset = TRY(parse_internal_subset());
-        TRY(expect("]"sv));
+        TRY(expect("]"_sv));
         TRY(skip_whitespace());
         doctype.markup_declarations.extend(internal_subset);
     }
 
-    TRY(expect(">"sv));
+    TRY(expect(">"_sv));
 
     rollback.disarm();
     m_doctype = move(doctype);
@@ -659,7 +659,7 @@ ErrorOr<void, ParseError> Parser::parse_element()
 
     // Well-formedness constraint: The Name in an element's end-tag MUST match the element type in the start-tag.
     if (m_options.treat_errors_as_fatal && closing_name != tag.name)
-        return parse_error(m_lexer.position_for(tag_location), ByteString { "Invalid closing tag"sv });
+        return parse_error(m_lexer.position_for(tag_location), ByteString { "Invalid closing tag"_sv });
 
     rollback.disarm();
     return {};
@@ -673,7 +673,7 @@ ErrorOr<NonnullOwnPtr<Node>, ParseError> Parser::parse_empty_element_tag()
 
     // EmptyElemTag ::= '<' Name (S Attribute)* S? '/>'
     auto tag_start = m_lexer.tell();
-    TRY(expect("<"sv));
+    TRY(expect("<"_sv));
 
     auto name = TRY(parse_name());
     HashMap<Name, ByteString> attributes;
@@ -691,7 +691,7 @@ ErrorOr<NonnullOwnPtr<Node>, ParseError> Parser::parse_empty_element_tag()
     }
 
     TRY(skip_whitespace());
-    TRY(expect("/>"sv));
+    TRY(expect("/>"_sv));
 
     auto accept = accept_rule();
 
@@ -727,7 +727,7 @@ ErrorOr<ByteString, ParseError> Parser::parse_attribute_value()
 
     // AttValue ::= '"' ([^<&"] | Reference)* '"'
     //            | "'" ([^<&'] | Reference)* "'"
-    auto quote = TRY(expect(is_any_of("'\""sv), "one of ' or \""sv));
+    auto quote = TRY(expect(is_any_of("'\""_sv), "one of ' or \""_sv));
     auto accept = accept_rule();
 
     auto text = TRY(parse_attribute_value_inner(quote));
@@ -746,7 +746,7 @@ ErrorOr<ByteString, ParseError> Parser::parse_attribute_value_inner(StringView d
 
         if (m_lexer.next_is('<')) {
             // Not allowed, return a nice error to make it easier to debug.
-            return parse_error(m_lexer.current_position(), ByteString { "Unescaped '<' not allowed in attribute values"sv });
+            return parse_error(m_lexer.current_position(), ByteString { "Unescaped '<' not allowed in attribute values"_sv });
         }
 
         if (m_lexer.next_is('&')) {
@@ -780,29 +780,29 @@ ErrorOr<Variant<Parser::EntityReference, ByteString>, ParseError> Parser::parse_
     //           | '&#x' [0-9a-fA-F]+ ';'
 
     auto reference_start = m_lexer.tell();
-    TRY(expect("&"sv));
+    TRY(expect("&"_sv));
     auto accept = accept_rule();
 
     auto name_result = parse_name();
     if (name_result.is_error()) {
-        TRY(expect("#"sv));
+        TRY(expect("#"_sv));
         Optional<u32> code_point;
         if (m_lexer.consume_specific('x')) {
             auto hex = TRY(expect_many(
                 ranges_for_search<Range('0', '9'), Range('a', 'f'), Range('A', 'F')>(),
-                "any of [0-9a-fA-F]"sv));
+                "any of [0-9a-fA-F]"_sv));
             code_point = AK::StringUtils::convert_to_uint_from_hex<u32>(hex);
         } else {
             auto decimal = TRY(expect_many(
                 ranges_for_search<Range('0', '9')>(),
-                "any of [0-9]"sv));
+                "any of [0-9]"_sv));
             code_point = decimal.to_number<u32>();
         }
 
         if (!code_point.has_value() || !s_characters.contains(*code_point))
-            return parse_error(m_lexer.position_for(reference_start), ByteString { "Invalid character reference"sv });
+            return parse_error(m_lexer.position_for(reference_start), ByteString { "Invalid character reference"_sv });
 
-        TRY(expect(";"sv));
+        TRY(expect(";"_sv));
 
         StringBuilder builder;
         builder.append_code_point(*code_point);
@@ -812,7 +812,7 @@ ErrorOr<Variant<Parser::EntityReference, ByteString>, ParseError> Parser::parse_
     }
 
     auto name = name_result.release_value();
-    TRY(expect(";"sv));
+    TRY(expect(";"_sv));
 
     rollback.disarm();
     return EntityReference { move(name) };
@@ -826,7 +826,7 @@ ErrorOr<NonnullOwnPtr<Node>, ParseError> Parser::parse_start_tag()
 
     // STag ::= '<' Name (S Attribute)* S? '>'
     auto tag_start = m_lexer.tell();
-    TRY(expect("<"sv));
+    TRY(expect("<"_sv));
     auto accept = accept_rule();
 
     auto name = TRY(parse_name());
@@ -845,7 +845,7 @@ ErrorOr<NonnullOwnPtr<Node>, ParseError> Parser::parse_start_tag()
     }
 
     TRY(skip_whitespace());
-    TRY(expect(">"sv));
+    TRY(expect(">"_sv));
 
     rollback.disarm();
     return make<Node>(m_lexer.position_for(tag_start), Node::Element { move(name), move(attributes), {} });
@@ -858,12 +858,12 @@ ErrorOr<Name, ParseError> Parser::parse_end_tag()
     auto rule = enter_rule();
 
     // ETag ::= '</' Name S? '>'
-    TRY(expect("</"sv));
+    TRY(expect("</"_sv));
     auto accept = accept_rule();
 
     auto name = TRY(parse_name());
     TRY(skip_whitespace());
-    TRY(expect(">"sv));
+    TRY(expect(">"_sv));
 
     rollback.disarm();
     return name;
@@ -1022,7 +1022,7 @@ ErrorOr<Optional<MarkupDeclaration>, ParseError> Parser::parse_markup_declaratio
         return Optional<MarkupDeclaration> {};
     }
 
-    return parse_error(m_lexer.current_position(), Expectation { "one of elementdecl, attlistdecl, entitydecl, notationdecl, PI or comment"sv });
+    return parse_error(m_lexer.current_position(), Expectation { "one of elementdecl, attlistdecl, entitydecl, notationdecl, PI or comment"_sv });
 }
 
 // 2.8.28a DeclSep, https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-DeclSep
@@ -1043,7 +1043,7 @@ ErrorOr<Optional<ByteString>, ParseError> Parser::parse_declaration_separator()
         return Optional<ByteString> {};
     }
 
-    return parse_error(m_lexer.current_position(), Expectation { "either whitespace, or a PEReference"sv });
+    return parse_error(m_lexer.current_position(), Expectation { "either whitespace, or a PEReference"_sv });
 }
 
 // 4.1.69 PEReference, https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-PEReference
@@ -1053,11 +1053,11 @@ ErrorOr<Name, ParseError> Parser::parse_parameter_entity_reference()
     auto rule = enter_rule();
 
     // PEReference ::= '%' Name ';'
-    TRY(expect("%"sv));
+    TRY(expect("%"_sv));
     auto accept = accept_rule();
 
     auto name = TRY(parse_name());
-    TRY(expect(";"sv));
+    TRY(expect(";"_sv));
 
     rollback.disarm();
     return name;
@@ -1072,14 +1072,14 @@ ErrorOr<ElementDeclaration, ParseError> Parser::parse_element_declaration()
     // FIXME: Apparently both name _and_ contentspec here are allowed to be PEReferences,
     //        but the grammar does not allow that, figure this out.
     // elementdecl ::= '<!ELEMENT' S Name S contentspec S? '>'
-    TRY(expect("<!ELEMENT"sv));
+    TRY(expect("<!ELEMENT"_sv));
     auto accept = accept_rule();
 
     TRY(skip_whitespace(Required::Yes));
     auto name = TRY(parse_name());
     TRY(skip_whitespace(Required::Yes));
     auto spec = TRY(parse_content_spec());
-    TRY(expect(">"sv));
+    TRY(expect(">"_sv));
 
     rollback.disarm();
     return ElementDeclaration {
@@ -1096,7 +1096,7 @@ ErrorOr<AttributeListDeclaration, ParseError> Parser::parse_attribute_list_decla
     AttributeListDeclaration declaration;
 
     // AttlistDecl ::= '<!ATTLIST' S Name AttDef* S? '>'
-    TRY(expect("<!ATTLIST"sv));
+    TRY(expect("<!ATTLIST"_sv));
     auto accept = accept_rule();
 
     TRY(skip_whitespace(Required::Yes));
@@ -1110,7 +1110,7 @@ ErrorOr<AttributeListDeclaration, ParseError> Parser::parse_attribute_list_decla
     }
 
     TRY(skip_whitespace());
-    TRY(expect(">"sv));
+    TRY(expect(">"_sv));
 
     rollback.disarm();
     return declaration;
@@ -1143,52 +1143,52 @@ ErrorOr<AttributeListDeclaration::Definition, ParseError> Parser::parse_attribut
     // EnumeratedType ::= NotationType | Enumeration
     // NotationType ::= 'NOTATION' S '(' S? Name (S? '|' S? Name)* S? ')'
     // Enumeration ::= '(' S? Nmtoken (S? '|' S? Nmtoken)* S? ')'
-    if (m_lexer.consume_specific("CDATA"sv)) {
+    if (m_lexer.consume_specific("CDATA"_sv)) {
         type = AttributeListDeclaration::StringType::CData;
-    } else if (m_lexer.consume_specific("IDREFS"sv)) {
+    } else if (m_lexer.consume_specific("IDREFS"_sv)) {
         type = AttributeListDeclaration::TokenizedType::IDRefs;
-    } else if (m_lexer.consume_specific("IDREF"sv)) {
+    } else if (m_lexer.consume_specific("IDREF"_sv)) {
         type = AttributeListDeclaration::TokenizedType::IDRef;
-    } else if (m_lexer.consume_specific("ID"sv)) {
+    } else if (m_lexer.consume_specific("ID"_sv)) {
         type = AttributeListDeclaration::TokenizedType::ID;
-    } else if (m_lexer.consume_specific("ENTITIES"sv)) {
+    } else if (m_lexer.consume_specific("ENTITIES"_sv)) {
         type = AttributeListDeclaration::TokenizedType::Entities;
-    } else if (m_lexer.consume_specific("ENTITY"sv)) {
+    } else if (m_lexer.consume_specific("ENTITY"_sv)) {
         type = AttributeListDeclaration::TokenizedType::Entity;
-    } else if (m_lexer.consume_specific("NMTOKENS"sv)) {
+    } else if (m_lexer.consume_specific("NMTOKENS"_sv)) {
         type = AttributeListDeclaration::TokenizedType::NMTokens;
-    } else if (m_lexer.consume_specific("NMTOKEN"sv)) {
+    } else if (m_lexer.consume_specific("NMTOKEN"_sv)) {
         type = AttributeListDeclaration::TokenizedType::NMToken;
-    } else if (m_lexer.consume_specific("NOTATION"sv)) {
+    } else if (m_lexer.consume_specific("NOTATION"_sv)) {
         HashTable<Name> names;
         TRY(skip_whitespace(Required::Yes));
-        TRY(expect("("sv));
+        TRY(expect("("_sv));
         TRY(skip_whitespace());
         names.set(TRY(parse_name()));
         while (true) {
             TRY(skip_whitespace());
-            if (auto result = expect("|"sv); result.is_error())
+            if (auto result = expect("|"_sv); result.is_error())
                 break;
             TRY(skip_whitespace());
             names.set(TRY(parse_name()));
         }
         TRY(skip_whitespace());
-        TRY(expect(")"sv));
+        TRY(expect(")"_sv));
         type = AttributeListDeclaration::NotationType { move(names) };
     } else {
         HashTable<ByteString> names;
-        TRY(expect("("sv));
+        TRY(expect("("_sv));
         TRY(skip_whitespace());
         names.set(TRY(parse_nm_token()));
         while (true) {
             TRY(skip_whitespace());
-            if (auto result = expect("|"sv); result.is_error())
+            if (auto result = expect("|"_sv); result.is_error())
                 break;
             TRY(skip_whitespace());
             names.set(TRY(parse_nm_token()));
         }
         TRY(skip_whitespace());
-        TRY(expect(")"sv));
+        TRY(expect(")"_sv));
         type = AttributeListDeclaration::Enumeration { move(names) };
     }
 
@@ -1196,13 +1196,13 @@ ErrorOr<AttributeListDeclaration::Definition, ParseError> Parser::parse_attribut
 
     // DefaultDecl ::= '#REQUIRED' | '#IMPLIED'
     //               | (('#FIXED' S)? AttValue)
-    if (m_lexer.consume_specific("#REQUIRED"sv)) {
+    if (m_lexer.consume_specific("#REQUIRED"_sv)) {
         default_ = AttributeListDeclaration::Required {};
-    } else if (m_lexer.consume_specific("#IMPLIED"sv)) {
+    } else if (m_lexer.consume_specific("#IMPLIED"_sv)) {
         default_ = AttributeListDeclaration::Implied {};
     } else {
         bool fixed = false;
-        if (m_lexer.consume_specific("#FIXED"sv)) {
+        if (m_lexer.consume_specific("#FIXED"_sv)) {
             TRY(skip_whitespace(Required::Yes));
             fixed = true;
         }
@@ -1228,7 +1228,7 @@ ErrorOr<StringView, ParseError> Parser::parse_nm_token()
     auto rule = enter_rule();
 
     // Nmtoken ::= (NameChar)+
-    auto token = TRY(expect_many(s_name_characters, "a NameChar"sv));
+    auto token = TRY(expect_many(s_name_characters, "a NameChar"_sv));
 
     rollback.disarm();
     return token;
@@ -1242,7 +1242,7 @@ ErrorOr<NotationDeclaration, ParseError> Parser::parse_notation_declaration()
     Variant<ExternalID, PublicID, Empty> notation;
 
     // NotationDecl ::= '<!NOTATION' S Name S (ExternalID | PublicID) S? '>'
-    TRY(expect("<!NOTATION"sv));
+    TRY(expect("<!NOTATION"_sv));
     auto accept = accept_rule();
 
     TRY(skip_whitespace(Required::Yes));
@@ -1254,7 +1254,7 @@ ErrorOr<NotationDeclaration, ParseError> Parser::parse_notation_declaration()
     else
         notation = TRY(parse_public_id());
 
-    TRY(expect(">"sv));
+    TRY(expect(">"_sv));
 
     rollback.disarm();
     return NotationDeclaration {
@@ -1271,19 +1271,19 @@ ErrorOr<ElementDeclaration::ContentSpec, ParseError> Parser::parse_content_spec(
     Optional<ElementDeclaration::ContentSpec> content_spec;
 
     // contentspec ::= 'EMPTY' | 'ANY' | Mixed | children
-    if (m_lexer.consume_specific("EMPTY"sv)) {
+    if (m_lexer.consume_specific("EMPTY"_sv)) {
         content_spec = ElementDeclaration::Empty {};
-    } else if (m_lexer.consume_specific("ANY"sv)) {
+    } else if (m_lexer.consume_specific("ANY"_sv)) {
         content_spec = ElementDeclaration::Any {};
     } else {
-        TRY(expect("("sv));
+        TRY(expect("("_sv));
         TRY(skip_whitespace());
-        if (m_lexer.consume_specific("#PCDATA"sv)) {
+        if (m_lexer.consume_specific("#PCDATA"_sv)) {
             HashTable<Name> names;
             // Mixed ::= '(' S? '#PCDATA' (S? '|' S? Name)* S? ')*'
             //         | '(' S? '#PCDATA' S? ')'
             TRY(skip_whitespace());
-            if (m_lexer.consume_specific(")*"sv)) {
+            if (m_lexer.consume_specific(")*"_sv)) {
                 content_spec = ElementDeclaration::Mixed { .types = {}, .many = true };
             } else if (m_lexer.consume_specific(')')) {
                 content_spec = ElementDeclaration::Mixed { .types = {}, .many = false };
@@ -1296,10 +1296,10 @@ ErrorOr<ElementDeclaration::ContentSpec, ParseError> Parser::parse_content_spec(
                     if (auto result = parse_name(); !result.is_error())
                         names.set(result.release_value());
                     else
-                        return parse_error(m_lexer.current_position(), Expectation { "a Name"sv });
+                        return parse_error(m_lexer.current_position(), Expectation { "a Name"_sv });
                 }
                 TRY(skip_whitespace());
-                TRY(expect(")*"sv));
+                TRY(expect(")*"_sv));
                 content_spec = ElementDeclaration::Mixed { .types = move(names), .many = true };
             }
         } else {
@@ -1341,7 +1341,7 @@ ErrorOr<ElementDeclaration::ContentSpec, ParseError> Parser::parse_content_spec(
                 auto rollback = rollback_point();
                 auto rule = enter_rule();
 
-                TRY(expect("("sv));
+                TRY(expect("("_sv));
                 auto accept = accept_rule();
 
                 TRY(skip_whitespace());
@@ -1355,10 +1355,10 @@ ErrorOr<ElementDeclaration::ContentSpec, ParseError> Parser::parse_content_spec(
                     choices.append(TRY(parse_cp()));
                 }
 
-                TRY(expect(")"sv));
+                TRY(expect(")"_sv));
 
                 if (choices.size() < 2)
-                    return parse_error(m_lexer.current_position(), Expectation { "more than one choice"sv });
+                    return parse_error(m_lexer.current_position(), Expectation { "more than one choice"_sv });
 
                 TRY(skip_whitespace());
                 auto qualifier = parse_qualifier();
@@ -1373,7 +1373,7 @@ ErrorOr<ElementDeclaration::ContentSpec, ParseError> Parser::parse_content_spec(
                 auto rollback = rollback_point();
                 auto rule = enter_rule();
 
-                TRY(expect("("sv));
+                TRY(expect("("_sv));
                 auto accept = accept_rule();
 
                 TRY(skip_whitespace());
@@ -1387,7 +1387,7 @@ ErrorOr<ElementDeclaration::ContentSpec, ParseError> Parser::parse_content_spec(
                     entries.append(TRY(parse_cp()));
                 }
 
-                TRY(expect(")"sv));
+                TRY(expect(")"_sv));
 
                 TRY(skip_whitespace());
                 auto qualifier = parse_qualifier();
@@ -1464,7 +1464,7 @@ ErrorOr<EntityDeclaration, ParseError> Parser::parse_general_entity_declaration(
     Variant<ByteString, EntityDefinition, Empty> definition;
 
     // GEDecl ::= '<!ENTITY' S Name S EntityDef S? '>'
-    TRY(expect("<!ENTITY"sv));
+    TRY(expect("<!ENTITY"_sv));
     auto accept = accept_rule();
 
     TRY(skip_whitespace(Required::Yes));
@@ -1486,7 +1486,7 @@ ErrorOr<EntityDeclaration, ParseError> Parser::parse_general_entity_declaration(
     }
 
     TRY(skip_whitespace());
-    TRY(expect(">"sv));
+    TRY(expect(">"_sv));
 
     rollback.disarm();
     return GEDeclaration {
@@ -1503,11 +1503,11 @@ ErrorOr<EntityDeclaration, ParseError> Parser::parse_parameter_entity_declaratio
 
     Variant<ByteString, ExternalID, Empty> definition;
     // PEDecl ::= '<!ENTITY' S '%' S Name S PEDef S? '>'
-    TRY(expect("<!ENTITY"sv));
+    TRY(expect("<!ENTITY"_sv));
     auto accept = accept_rule();
 
     TRY(skip_whitespace(Required::Yes));
-    TRY(expect("%"sv));
+    TRY(expect("%"_sv));
     TRY(skip_whitespace(Required::Yes));
     auto name = TRY(parse_name());
     TRY(skip_whitespace(Required::Yes));
@@ -1518,7 +1518,7 @@ ErrorOr<EntityDeclaration, ParseError> Parser::parse_parameter_entity_declaratio
         definition = TRY(parse_external_id());
 
     TRY(skip_whitespace());
-    TRY(expect(">"sv));
+    TRY(expect(">"_sv));
 
     rollback.disarm();
     return PEDeclaration {
@@ -1534,7 +1534,7 @@ ErrorOr<PublicID, ParseError> Parser::parse_public_id()
     auto rule = enter_rule();
 
     // PublicID ::= 'PUBLIC' S PubidLiteral
-    TRY(expect("PUBLIC"sv));
+    TRY(expect("PUBLIC"_sv));
     auto accept = accept_rule();
 
     TRY(skip_whitespace(Required::Yes));
@@ -1555,14 +1555,14 @@ ErrorOr<StringView, ParseError> Parser::parse_public_id_literal()
     auto rule = enter_rule();
 
     // PubidLiteral ::= '"' PubidChar* '"' | "'" (PubidChar - "'")* "'"
-    auto quote = TRY(expect(is_any_of("'\""sv), "any of ' or \""sv));
+    auto quote = TRY(expect(is_any_of("'\""_sv), "any of ' or \""_sv));
     auto accept = accept_rule();
 
     auto id = TRY(expect_many(
         [q = quote[0]](auto x) {
             return (q == '\'' ? x != '\'' : true) && s_public_id_characters.contains(x);
         },
-        "a PubidChar"sv,
+        "a PubidChar"_sv,
         true));
     TRY(expect(quote));
 
@@ -1577,10 +1577,10 @@ ErrorOr<StringView, ParseError> Parser::parse_system_id_literal()
     auto rule = enter_rule();
 
     // SystemLiteral ::= ('"' [^"]* '"') | ("'" [^']* "'")
-    auto quote = TRY(expect(is_any_of("'\""sv), "any of ' or \""sv));
+    auto quote = TRY(expect(is_any_of("'\""_sv), "any of ' or \""_sv));
     auto accept = accept_rule();
 
-    auto id = TRY(expect_many(is_not_any_of(quote), "not a quote"sv, true));
+    auto id = TRY(expect_many(is_not_any_of(quote), "not a quote"_sv, true));
     TRY(expect(quote));
 
     rollback.disarm();
@@ -1598,12 +1598,12 @@ ErrorOr<ExternalID, ParseError> Parser::parse_external_id()
     Optional<PublicID> public_id;
     SystemID system_id;
 
-    if (m_lexer.consume_specific("SYSTEM"sv)) {
+    if (m_lexer.consume_specific("SYSTEM"_sv)) {
         auto accept = accept_rule();
         TRY(skip_whitespace(Required::Yes));
         system_id = SystemID { TRY(parse_system_id_literal()) };
     } else {
-        TRY(expect("PUBLIC"sv));
+        TRY(expect("PUBLIC"_sv));
         auto accept = accept_rule();
 
         TRY(skip_whitespace(Required::Yes));
@@ -1629,7 +1629,7 @@ ErrorOr<Name, ParseError> Parser::parse_notation_data_declaration()
     TRY(skip_whitespace(Required::Yes));
     auto accept = accept_rule();
 
-    TRY(expect("NDATA"sv));
+    TRY(expect("NDATA"_sv));
     TRY(skip_whitespace(Required::Yes));
     auto name = TRY(parse_name());
 
@@ -1646,7 +1646,7 @@ ErrorOr<ByteString, ParseError> Parser::parse_entity_value()
 
     // EntityValue ::= '"' ([^%&"] | PEReference | Reference)* '"'
     //               |  "'" ([^%&'] | PEReference | Reference)* "'"
-    auto quote = TRY(expect(is_any_of("'\""sv), "any of ' or \""sv));
+    auto quote = TRY(expect(is_any_of("'\""_sv), "any of ' or \""_sv));
     auto accept = accept_rule();
 
     while (true) {
@@ -1687,7 +1687,7 @@ ErrorOr<StringView, ParseError> Parser::parse_cdata_section()
     // CDStart ::= '<![CDATA['
     // CData ::= (Char* - (Char* ']]>' Char*))
     // CDEnd ::= ']]>'
-    TRY(expect("<![CDATA["sv));
+    TRY(expect("<![CDATA["_sv));
     auto accept = accept_rule();
 
     auto section_start = m_lexer.tell();
@@ -1697,7 +1697,7 @@ ErrorOr<StringView, ParseError> Parser::parse_cdata_section()
         m_lexer.ignore();
     }
     auto section_end = m_lexer.tell();
-    TRY(expect("]]>"sv));
+    TRY(expect("]]>"_sv));
 
     rollback.disarm();
     return m_source.substring_view(section_start, section_end - section_start);
@@ -1724,13 +1724,13 @@ ErrorOr<void, ParseError> Parser::parse_text_declaration()
     auto rule = enter_rule();
 
     // TextDecl ::= '<?xml' VersionInfo? EncodingDecl S? '?>'
-    TRY(expect("<?xml"sv));
+    TRY(expect("<?xml"_sv));
     auto accept = accept_rule();
 
     (void)parse_version_info();
     TRY(parse_encoding_decl());
     TRY(skip_whitespace());
-    TRY(expect("?>"sv));
+    TRY(expect("?>"_sv));
 
     rollback.disarm();
     return {};
@@ -1809,7 +1809,7 @@ ErrorOr<ByteString, ParseError> Parser::resolve_reference(EntityReference const&
     TemporaryChange lexer { m_lexer, LineTrackingLexer(m_source) };
     switch (placement) {
     case ReferencePlacement::AttributeValue:
-        return TRY(parse_attribute_value_inner(""sv));
+        return TRY(parse_attribute_value_inner(""_sv));
     case ReferencePlacement::Content:
         TRY(parse_content());
         return "";

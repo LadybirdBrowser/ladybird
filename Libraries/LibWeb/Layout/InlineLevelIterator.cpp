@@ -219,13 +219,13 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
             switch (ligature.common) {
             case Gfx::FontVariantLigatures::Common::Common:
                 // Enables display of common ligatures (OpenType features: liga, clig).
-                features.set("liga"sv, 1);
-                features.set("clig"sv, 1);
+                features.set("liga"_sv, 1);
+                features.set("clig"_sv, 1);
                 break;
             case Gfx::FontVariantLigatures::Common::NoCommon:
                 // Disables display of common ligatures (OpenType features: liga, clig).
-                features.set("liga"sv, 0);
-                features.set("clig"sv, 0);
+                features.set("liga"_sv, 0);
+                features.set("clig"_sv, 0);
                 break;
             case Gfx::FontVariantLigatures::Common::Unset:
                 break;
@@ -234,11 +234,11 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
             switch (ligature.discretionary) {
             case Gfx::FontVariantLigatures::Discretionary::Discretionary:
                 // Enables display of discretionary ligatures (OpenType feature: dlig).
-                features.set("dlig"sv, 1);
+                features.set("dlig"_sv, 1);
                 break;
             case Gfx::FontVariantLigatures::Discretionary::NoDiscretionary:
                 // Disables display of discretionary ligatures (OpenType feature: dlig).
-                features.set("dlig"sv, 0);
+                features.set("dlig"_sv, 0);
                 break;
             case Gfx::FontVariantLigatures::Discretionary::Unset:
                 break;
@@ -247,11 +247,11 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
             switch (ligature.historical) {
             case Gfx::FontVariantLigatures::Historical::Historical:
                 // Enables display of historical ligatures (OpenType feature: hlig).
-                features.set("hlig"sv, 1);
+                features.set("hlig"_sv, 1);
                 break;
             case Gfx::FontVariantLigatures::Historical::NoHistorical:
                 // Disables display of historical ligatures (OpenType feature: hlig).
-                features.set("hlig"sv, 0);
+                features.set("hlig"_sv, 0);
                 break;
             case Gfx::FontVariantLigatures::Historical::Unset:
                 break;
@@ -260,11 +260,11 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
             switch (ligature.contextual) {
             case Gfx::FontVariantLigatures::Contextual::Contextual:
                 // Enables display of contextual ligatures (OpenType feature: calt).
-                features.set("calt"sv, 1);
+                features.set("calt"_sv, 1);
                 break;
             case Gfx::FontVariantLigatures::Contextual::NoContextual:
                 // Disables display of contextual ligatures (OpenType feature: calt).
-                features.set("calt"sv, 0);
+                features.set("calt"_sv, 0);
                 break;
             case Gfx::FontVariantLigatures::Contextual::Unset:
                 break;
@@ -272,8 +272,8 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
         }
     } else {
         // A value of normal specifies that common default features are enabled, as described in detail in the next section.
-        features.set("liga"sv, 1);
-        features.set("clig"sv, 1);
+        features.set("liga"_sv, 1);
+        features.set("clig"_sv, 1);
     }
 
     // 6.5 https://drafts.csswg.org/css-fonts/#font-variant-position-prop
@@ -283,11 +283,11 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
         break;
     case CSS::FontVariantPosition::Sub:
         // Enables display of subscripts (OpenType feature: subs).
-        features.set("subs"sv, 1);
+        features.set("subs"_sv, 1);
         break;
     case CSS::FontVariantPosition::Super:
         // Enables display of superscripts (OpenType feature: sups).
-        features.set("sups"sv, 1);
+        features.set("sups"_sv, 1);
         break;
     default:
         break;
@@ -300,29 +300,29 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
         break;
     case CSS::FontVariantCaps::SmallCaps:
         // Enables display of small capitals (OpenType feature: smcp). Small-caps glyphs typically use the form of uppercase letters but are reduced to the size of lowercase letters.
-        features.set("smcp"sv, 1);
+        features.set("smcp"_sv, 1);
         break;
     case CSS::FontVariantCaps::AllSmallCaps:
         // Enables display of small capitals for both upper and lowercase letters (OpenType features: c2sc, smcp).
-        features.set("c2sc"sv, 1);
-        features.set("smcp"sv, 1);
+        features.set("c2sc"_sv, 1);
+        features.set("smcp"_sv, 1);
         break;
     case CSS::FontVariantCaps::PetiteCaps:
         // Enables display of petite capitals (OpenType feature: pcap).
-        features.set("pcap"sv, 1);
+        features.set("pcap"_sv, 1);
         break;
     case CSS::FontVariantCaps::AllPetiteCaps:
         // Enables display of petite capitals for both upper and lowercase letters (OpenType features: c2pc, pcap).
-        features.set("c2pc"sv, 1);
-        features.set("pcap"sv, 1);
+        features.set("c2pc"_sv, 1);
+        features.set("pcap"_sv, 1);
         break;
     case CSS::FontVariantCaps::Unicase:
         // Enables display of mixture of small capitals for uppercase letters with normal lowercase letters (OpenType feature: unic).
-        features.set("unic"sv, 1);
+        features.set("unic"_sv, 1);
         break;
     case CSS::FontVariantCaps::TitlingCaps:
         // Enables display of titling capitals (OpenType feature: titl).
-        features.set("titl"sv, 1);
+        features.set("titl"_sv, 1);
         break;
     default:
         break;
@@ -334,36 +334,36 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
         auto numeric = numeric_or_null.release_value();
         if (numeric.figure == Gfx::FontVariantNumeric::Figure::Oldstyle) {
             // Enables display of old-style numerals (OpenType feature: onum).
-            features.set("onum"sv, 1);
+            features.set("onum"_sv, 1);
         } else if (numeric.figure == Gfx::FontVariantNumeric::Figure::Lining) {
             // Enables display of lining numerals (OpenType feature: lnum).
-            features.set("lnum"sv, 1);
+            features.set("lnum"_sv, 1);
         }
 
         if (numeric.spacing == Gfx::FontVariantNumeric::Spacing::Proportional) {
             // Enables display of proportional numerals (OpenType feature: pnum).
-            features.set("pnum"sv, 1);
+            features.set("pnum"_sv, 1);
         } else if (numeric.spacing == Gfx::FontVariantNumeric::Spacing::Tabular) {
             // Enables display of tabular numerals (OpenType feature: tnum).
-            features.set("tnum"sv, 1);
+            features.set("tnum"_sv, 1);
         }
 
         if (numeric.fraction == Gfx::FontVariantNumeric::Fraction::Diagonal) {
             // Enables display of diagonal fractions (OpenType feature: frac).
-            features.set("frac"sv, 1);
+            features.set("frac"_sv, 1);
         } else if (numeric.fraction == Gfx::FontVariantNumeric::Fraction::Stacked) {
             // Enables display of stacked fractions (OpenType feature: afrc).
-            features.set("afrc"sv, 1);
-            features.set("afrc"sv, 1);
+            features.set("afrc"_sv, 1);
+            features.set("afrc"_sv, 1);
         }
 
         if (numeric.ordinal) {
             // Enables display of letter forms used with ordinal numbers (OpenType feature: ordn).
-            features.set("ordn"sv, 1);
+            features.set("ordn"_sv, 1);
         }
         if (numeric.slashed_zero) {
             // Enables display of slashed zeros (OpenType feature: zero).
-            features.set("zero"sv, 1);
+            features.set("zero"_sv, 1);
         }
     }
 
@@ -374,27 +374,27 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
         switch (east_asian.variant) {
         case Gfx::FontVariantEastAsian::Variant::Jis78:
             // Enables display of JIS78 forms (OpenType feature: jp78).
-            features.set("jp78"sv, 1);
+            features.set("jp78"_sv, 1);
             break;
         case Gfx::FontVariantEastAsian::Variant::Jis83:
             // Enables display of JIS83 forms (OpenType feature: jp83).
-            features.set("jp83"sv, 1);
+            features.set("jp83"_sv, 1);
             break;
         case Gfx::FontVariantEastAsian::Variant::Jis90:
             // Enables display of JIS90 forms (OpenType feature: jp90).
-            features.set("jp90"sv, 1);
+            features.set("jp90"_sv, 1);
             break;
         case Gfx::FontVariantEastAsian::Variant::Jis04:
             // Enables display of JIS04 forms (OpenType feature: jp04).
-            features.set("jp04"sv, 1);
+            features.set("jp04"_sv, 1);
             break;
         case Gfx::FontVariantEastAsian::Variant::Simplified:
             // Enables display of simplified forms (OpenType feature: smpl).
-            features.set("smpl"sv, 1);
+            features.set("smpl"_sv, 1);
             break;
         case Gfx::FontVariantEastAsian::Variant::Traditional:
             // Enables display of traditional forms (OpenType feature: trad).
-            features.set("trad"sv, 1);
+            features.set("trad"_sv, 1);
             break;
         default:
             break;
@@ -402,18 +402,18 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
         switch (east_asian.width) {
         case Gfx::FontVariantEastAsian::Width::FullWidth:
             // Enables display of full-width forms (OpenType feature: fwid).
-            features.set("fwid"sv, 1);
+            features.set("fwid"_sv, 1);
             break;
         case Gfx::FontVariantEastAsian::Width::Proportional:
             // Enables display of proportional-width forms (OpenType feature: pwid).
-            features.set("pwid"sv, 1);
+            features.set("pwid"_sv, 1);
             break;
         default:
             break;
         }
         if (east_asian.ruby) {
             // Enables display of ruby forms (OpenType feature: ruby).
-            features.set("ruby"sv, 1);
+            features.set("ruby"_sv, 1);
         }
     }
 

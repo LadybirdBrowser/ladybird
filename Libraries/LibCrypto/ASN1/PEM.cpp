@@ -12,15 +12,15 @@ namespace Crypto {
 
 static PEMType pem_header_to_type(StringView header)
 {
-    if (header == "CERTIFICATE"sv)
+    if (header == "CERTIFICATE"_sv)
         return PEMType::Certificate;
-    if (header == "PRIVATE KEY"sv)
+    if (header == "PRIVATE KEY"_sv)
         return PEMType::PrivateKey;
-    if (header == "RSA PRIVATE KEY"sv)
+    if (header == "RSA PRIVATE KEY"_sv)
         return PEMType::RSAPrivateKey;
-    if (header == "PUBLIC KEY"sv)
+    if (header == "PUBLIC KEY"_sv)
         return PEMType::PublicKey;
-    if (header == "RSA PUBLIC KEY"sv)
+    if (header == "RSA PUBLIC KEY"_sv)
         return PEMType::RSAPublicKey;
     return PEMType::Unknown;
 }
@@ -40,14 +40,14 @@ DecodedPEM decode_pem(ReadonlyBytes data)
     while (!lexer.is_eof()) {
         switch (state) {
         case PreStartData:
-            if (lexer.consume_specific("-----BEGIN "sv)) {
+            if (lexer.consume_specific("-----BEGIN "_sv)) {
                 state = Started;
                 header_type = lexer.consume_until("-----");
             }
             lexer.consume_line();
             break;
         case Started: {
-            if (lexer.consume_specific("-----END "sv)) {
+            if (lexer.consume_specific("-----END "_sv)) {
                 state = Ended;
 
                 if (lexer.consume_until("-----") != header_type) {
@@ -96,14 +96,14 @@ ErrorOr<Vector<DecodedPEM>> decode_pems(ReadonlyBytes data)
     while (!lexer.is_eof()) {
         switch (state) {
         case Junk:
-            if (lexer.consume_specific("-----BEGIN "sv)) {
+            if (lexer.consume_specific("-----BEGIN "_sv)) {
                 state = Parsing;
                 header_type = lexer.consume_until("-----");
             }
             lexer.consume_line();
             break;
         case Parsing: {
-            if (lexer.consume_specific("-----END "sv)) {
+            if (lexer.consume_specific("-----END "_sv)) {
                 state = Junk;
 
                 if (lexer.consume_until("-----") != header_type) {
@@ -136,24 +136,24 @@ ErrorOr<ByteBuffer> encode_pem(ReadonlyBytes data, PEMType type)
 
     switch (type) {
     case PEMType::Certificate:
-        block_start = "-----BEGIN CERTIFICATE-----\n"sv;
-        block_end = "-----END CERTIFICATE-----\n"sv;
+        block_start = "-----BEGIN CERTIFICATE-----\n"_sv;
+        block_end = "-----END CERTIFICATE-----\n"_sv;
         break;
     case PEMType::PrivateKey:
-        block_start = "-----BEGIN PRIVATE KEY-----\n"sv;
-        block_end = "-----END PRIVATE KEY-----\n"sv;
+        block_start = "-----BEGIN PRIVATE KEY-----\n"_sv;
+        block_end = "-----END PRIVATE KEY-----\n"_sv;
         break;
     case PEMType::RSAPrivateKey:
-        block_start = "-----BEGIN RSA PRIVATE KEY-----\n"sv;
-        block_end = "-----END RSA PRIVATE KEY-----\n"sv;
+        block_start = "-----BEGIN RSA PRIVATE KEY-----\n"_sv;
+        block_end = "-----END RSA PRIVATE KEY-----\n"_sv;
         break;
     case PEMType::PublicKey:
-        block_start = "-----BEGIN PUBLIC KEY-----\n"sv;
-        block_end = "-----END PUBLIC KEY-----\n"sv;
+        block_start = "-----BEGIN PUBLIC KEY-----\n"_sv;
+        block_end = "-----END PUBLIC KEY-----\n"_sv;
         break;
     case PEMType::RSAPublicKey:
-        block_start = "-----BEGIN RSA PUBLIC KEY-----\n"sv;
-        block_end = "-----END RSA PUBLIC KEY-----\n"sv;
+        block_start = "-----BEGIN RSA PUBLIC KEY-----\n"_sv;
+        block_end = "-----END RSA PUBLIC KEY-----\n"_sv;
         break;
     default:
         VERIFY_NOT_REACHED();
@@ -168,7 +168,7 @@ ErrorOr<ByteBuffer> encode_pem(ReadonlyBytes data, PEMType type)
         if (i + to_read > b64encoded.bytes().size())
             to_read = b64encoded.bytes().size() - i;
         TRY(encoded.try_append(b64encoded.bytes().slice(i, to_read)));
-        TRY(encoded.try_append("\n"sv.bytes()));
+        TRY(encoded.try_append("\n"_sv.bytes()));
     }
 
     TRY(encoded.try_append(block_end.bytes()));

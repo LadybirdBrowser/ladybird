@@ -47,11 +47,11 @@ WebIDL::ExceptionOr<void> ReadableByteStreamController::close()
 {
     // 1. If this.[[closeRequested]] is true, throw a TypeError exception.
     if (m_close_requested)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Controller is already closed"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Controller is already closed"_sv };
 
     // 2. If this.[[stream]].[[state]] is not "readable", throw a TypeError exception.
     if (m_stream->state() != ReadableStream::State::Readable) {
-        auto message = m_stream->state() == ReadableStream::State::Closed ? "Cannot close a closed stream"sv : "Cannot close an errored stream"sv;
+        auto message = m_stream->state() == ReadableStream::State::Closed ? "Cannot close a closed stream"_sv : "Cannot close an errored stream"_sv;
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, message };
     }
 
@@ -85,15 +85,15 @@ WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(GC::Root<WebIDL:
     // 1. If chunk.[[ByteLength]] is 0, throw a TypeError exception.
     // 2. If chunk.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is 0, throw a TypeError exception.
     if (chunk->byte_length() == 0 || chunk->viewed_array_buffer()->byte_length() == 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot enqueue chunk with byte length of zero"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot enqueue chunk with byte length of zero"_sv };
 
     // 3. If this.[[closeRequested]] is true, throw a TypeError exception.
     if (m_close_requested)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Close is requested for controller"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Close is requested for controller"_sv };
 
     // 4. If this.[[stream]].[[state]] is not "readable", throw a TypeError exception.
     if (!m_stream->is_readable())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is not readable"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is not readable"_sv };
 
     // 5. Return ? ReadableByteStreamControllerEnqueue(this, chunk).
     return readable_byte_stream_controller_enqueue(*this, chunk->raw_object());

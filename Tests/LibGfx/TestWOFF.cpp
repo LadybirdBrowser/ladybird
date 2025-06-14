@@ -12,7 +12,7 @@
 TEST_CASE(malformed_woff)
 {
     Array test_inputs = {
-        TEST_INPUT("woff/invalid_sfnt_size.woff"sv)
+        TEST_INPUT("woff/invalid_sfnt_size.woff"_sv)
     };
 
     for (auto test_input : test_inputs) {

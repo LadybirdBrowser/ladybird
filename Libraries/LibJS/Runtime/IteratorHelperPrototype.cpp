@@ -37,7 +37,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorHelperPrototype::next)
     auto iterator = TRY(typed_this_object(vm));
 
     // 1. Return ? GeneratorResume(this value, undefined, "Iterator Helper").
-    auto iteration_result = TRY(iterator->resume(vm, js_undefined(), "Iterator Helper"sv));
+    auto iteration_result = TRY(iterator->resume(vm, js_undefined(), "Iterator Helper"_sv));
     return create_iterator_result_object(vm, iteration_result.value, iteration_result.done);
 }
 
@@ -67,7 +67,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorHelperPrototype::return_)
     Completion completion { Completion::Type::Return, js_undefined() };
 
     // 6. Return ? GeneratorResumeAbrupt(O, C, "Iterator Helper").
-    auto iteration_result = TRY(iterator->resume_abrupt(vm, move(completion), "Iterator Helper"sv));
+    auto iteration_result = TRY(iterator->resume_abrupt(vm, move(completion), "Iterator Helper"_sv));
     return create_iterator_result_object(vm, iteration_result.value, iteration_result.done);
 }
 

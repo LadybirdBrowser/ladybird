@@ -186,7 +186,7 @@ void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructur
     auto& realm = this->realm();
 
     // 1. If workerGlobalScope's url is local but its scheme is not "blob":
-    if (m_url.has_value() && Fetch::Infrastructure::is_local_url(m_url.value()) && m_url->scheme() != "blob"sv) {
+    if (m_url.has_value() && Fetch::Infrastructure::is_local_url(m_url.value()) && m_url->scheme() != "blob"_sv) {
         // FIXME: 1. Assert: workerGlobalScope's owner set's size is 1.
         // FIXME: 2. Set workerGlobalScope's policy container to a clone of workerGlobalScope's owner set[0]'s relevant settings object's policy container.
         dbgln("FIXME: WorkerGlobalScope::initialize_policy_container: Clone owner's policy container for local, non-blob URL.");

@@ -69,22 +69,22 @@ static ErrorOr<String> escape_for_string_literal(StringView string)
     for (auto byte : string.bytes()) {
         switch (byte) {
         case '\r':
-            TRY(builder.try_append("\\r"sv));
+            TRY(builder.try_append("\\r"_sv));
             continue;
         case '\v':
-            TRY(builder.try_append("\\v"sv));
+            TRY(builder.try_append("\\v"_sv));
             continue;
         case '\f':
-            TRY(builder.try_append("\\f"sv));
+            TRY(builder.try_append("\\f"_sv));
             continue;
         case '\b':
-            TRY(builder.try_append("\\b"sv));
+            TRY(builder.try_append("\\b"_sv));
             continue;
         case '\n':
-            TRY(builder.try_append("\\n"sv));
+            TRY(builder.try_append("\\n"_sv));
             continue;
         case '\\':
-            TRY(builder.try_append("\\\\"sv));
+            TRY(builder.try_append("\\\\"_sv));
             continue;
         default:
             TRY(builder.try_append(byte));
@@ -154,7 +154,7 @@ ErrorOr<void> print_type(JS::PrintContext& print_context, StringView name)
 
 ErrorOr<void> print_separator(JS::PrintContext& print_context, bool& first)
 {
-    TRY(js_out(print_context, "{}", first ? " "sv : ", "sv));
+    TRY(js_out(print_context, "{}", first ? " "_sv : ", "_sv));
     first = false;
     return {};
 }
@@ -239,16 +239,16 @@ ErrorOr<void> print_function(JS::PrintContext& print_context, JS::FunctionObject
         auto const& ecmascript_function_object = static_cast<JS::ECMAScriptFunctionObject const&>(function_object);
         switch (ecmascript_function_object.kind()) {
         case JS::FunctionKind::Normal:
-            TRY(print_type(print_context, "Function"sv));
+            TRY(print_type(print_context, "Function"_sv));
             break;
         case JS::FunctionKind::Generator:
-            TRY(print_type(print_context, "GeneratorFunction"sv));
+            TRY(print_type(print_context, "GeneratorFunction"_sv));
             break;
         case JS::FunctionKind::Async:
-            TRY(print_type(print_context, "AsyncFunction"sv));
+            TRY(print_type(print_context, "AsyncFunction"_sv));
             break;
         case JS::FunctionKind::AsyncGenerator:
-            TRY(print_type(print_context, "AsyncGeneratorFunction"sv));
+            TRY(print_type(print_context, "AsyncGeneratorFunction"_sv));
             break;
         default:
             VERIFY_NOT_REACHED();
@@ -265,7 +265,7 @@ ErrorOr<void> print_function(JS::PrintContext& print_context, JS::FunctionObject
 
 ErrorOr<void> print_date(JS::PrintContext& print_context, JS::Date const& date, HashTable<JS::Object*>&)
 {
-    TRY(print_type(print_context, "Date"sv));
+    TRY(print_type(print_context, "Date"_sv));
     TRY(js_out(print_context, " \033[34;1m{}\033[0m", JS::to_date_string(date.date_value())));
     return {};
 }
@@ -288,14 +288,14 @@ ErrorOr<void> print_error(JS::PrintContext& print_context, JS::Object const& obj
 
 ErrorOr<void> print_regexp_object(JS::PrintContext& print_context, JS::RegExpObject const& regexp_object, HashTable<JS::Object*>&)
 {
-    TRY(print_type(print_context, "RegExp"sv));
+    TRY(print_type(print_context, "RegExp"_sv));
     TRY(js_out(print_context, " \033[34;1m/{}/{}\033[0m", regexp_object.escape_regexp_pattern(), regexp_object.flags()));
     return {};
 }
 
 ErrorOr<void> print_proxy_object(JS::PrintContext& print_context, JS::ProxyObject const& proxy_object, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Proxy"sv));
+    TRY(print_type(print_context, "Proxy"_sv));
     TRY(js_out(print_context, "\n  target: "));
     TRY(print_value(print_context, &proxy_object.target(), seen_objects));
     TRY(js_out(print_context, "\n  handler: "));
@@ -305,7 +305,7 @@ ErrorOr<void> print_proxy_object(JS::PrintContext& print_context, JS::ProxyObjec
 
 ErrorOr<void> print_map(JS::PrintContext& print_context, JS::Map const& map, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Map"sv));
+    TRY(print_type(print_context, "Map"_sv));
     TRY(js_out(print_context, " {{"));
     bool first = true;
     for (auto const& entry : map) {
@@ -322,7 +322,7 @@ ErrorOr<void> print_map(JS::PrintContext& print_context, JS::Map const& map, Has
 
 ErrorOr<void> print_set(JS::PrintContext& print_context, JS::Set const& set, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Set"sv));
+    TRY(print_type(print_context, "Set"_sv));
     TRY(js_out(print_context, " {{"));
     bool first = true;
     for (auto const& entry : set) {
@@ -337,7 +337,7 @@ ErrorOr<void> print_set(JS::PrintContext& print_context, JS::Set const& set, Has
 
 ErrorOr<void> print_weak_map(JS::PrintContext& print_context, JS::WeakMap const& weak_map, HashTable<JS::Object*>&)
 {
-    TRY(print_type(print_context, "WeakMap"sv));
+    TRY(print_type(print_context, "WeakMap"_sv));
     TRY(js_out(print_context, " ({})", weak_map.values().size()));
     // Note: We could tell you what's actually inside, but not in insertion order.
     return {};
@@ -345,7 +345,7 @@ ErrorOr<void> print_weak_map(JS::PrintContext& print_context, JS::WeakMap const&
 
 ErrorOr<void> print_weak_set(JS::PrintContext& print_context, JS::WeakSet const& weak_set, HashTable<JS::Object*>&)
 {
-    TRY(print_type(print_context, "WeakSet"sv));
+    TRY(print_type(print_context, "WeakSet"_sv));
     TRY(js_out(print_context, " ({})", weak_set.values().size()));
     // Note: We could tell you what's actually inside, but not in insertion order.
     return {};
@@ -353,7 +353,7 @@ ErrorOr<void> print_weak_set(JS::PrintContext& print_context, JS::WeakSet const&
 
 ErrorOr<void> print_weak_ref(JS::PrintContext& print_context, JS::WeakRef const& weak_ref, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "WeakRef"sv));
+    TRY(print_type(print_context, "WeakRef"_sv));
     TRY(js_out(print_context, " "));
     TRY(print_value(print_context, weak_ref.value().visit([](Empty) -> JS::Value { return JS::js_undefined(); }, [](auto value) -> JS::Value { return value; }), seen_objects));
     return {};
@@ -361,7 +361,7 @@ ErrorOr<void> print_weak_ref(JS::PrintContext& print_context, JS::WeakRef const&
 
 ErrorOr<void> print_promise(JS::PrintContext& print_context, JS::Promise const& promise, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Promise"sv));
+    TRY(print_type(print_context, "Promise"_sv));
     switch (promise.state()) {
     case JS::Promise::State::Pending:
         TRY(js_out(print_context, "\n  state: "));
@@ -387,7 +387,7 @@ ErrorOr<void> print_promise(JS::PrintContext& print_context, JS::Promise const& 
 
 ErrorOr<void> print_array_buffer(JS::PrintContext& print_context, JS::ArrayBuffer const& array_buffer, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "ArrayBuffer"sv));
+    TRY(print_type(print_context, "ArrayBuffer"_sv));
 
     auto byte_length = array_buffer.byte_length();
     TRY(js_out(print_context, "\n  byteLength: "));
@@ -420,7 +420,7 @@ ErrorOr<void> print_array_buffer(JS::PrintContext& print_context, JS::ArrayBuffe
 ErrorOr<void> print_shadow_realm(JS::PrintContext& print_context, JS::ShadowRealm const&, HashTable<JS::Object*>&)
 {
     // Not much we can show here that would be useful. Realm pointer address?!
-    TRY(print_type(print_context, "ShadowRealm"sv));
+    TRY(print_type(print_context, "ShadowRealm"_sv));
     return {};
 }
 
@@ -453,7 +453,7 @@ ErrorOr<void> print_typed_array(JS::PrintContext& print_context, JS::TypedArrayB
     TRY(print_type(print_context, typed_array_base.class_name()));
 
     TRY(js_out(print_context, "\n  buffer: "));
-    TRY(print_type(print_context, "ArrayBuffer"sv));
+    TRY(print_type(print_context, "ArrayBuffer"_sv));
     TRY(js_out(print_context, " @ {:p}", &array_buffer));
 
     if (JS::is_typed_array_out_of_bounds(typed_array_record)) {
@@ -497,10 +497,10 @@ ErrorOr<void> print_typed_array(JS::PrintContext& print_context, JS::TypedArrayB
 ErrorOr<void> print_data_view(JS::PrintContext& print_context, JS::DataView const& data_view, HashTable<JS::Object*>& seen_objects)
 {
     auto view_record = JS::make_data_view_with_buffer_witness_record(data_view, JS::ArrayBuffer::Order::SeqCst);
-    TRY(print_type(print_context, "DataView"sv));
+    TRY(print_type(print_context, "DataView"_sv));
 
     TRY(js_out(print_context, "\n  buffer: "));
-    TRY(print_type(print_context, "ArrayBuffer"sv));
+    TRY(print_type(print_context, "ArrayBuffer"_sv));
     TRY(js_out(print_context, " @ {:p}", data_view.viewed_array_buffer()));
 
     if (JS::is_view_out_of_bounds(view_record)) {
@@ -517,7 +517,7 @@ ErrorOr<void> print_data_view(JS::PrintContext& print_context, JS::DataView cons
 
 ErrorOr<void> print_intl_display_names(JS::PrintContext& print_context, JS::Intl::DisplayNames const& display_names, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.DisplayNames"sv));
+    TRY(print_type(print_context, "Intl.DisplayNames"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(display_names.vm(), display_names.locale()), seen_objects));
     TRY(js_out(print_context, "\n  type: "));
@@ -535,7 +535,7 @@ ErrorOr<void> print_intl_display_names(JS::PrintContext& print_context, JS::Intl
 
 ErrorOr<void> print_intl_locale(JS::PrintContext& print_context, JS::Intl::Locale const& locale, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.Locale"sv));
+    TRY(print_type(print_context, "Intl.Locale"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(locale.vm(), locale.locale()), seen_objects));
     if (locale.has_calendar()) {
@@ -565,7 +565,7 @@ ErrorOr<void> print_intl_locale(JS::PrintContext& print_context, JS::Intl::Local
 
 ErrorOr<void> print_intl_list_format(JS::PrintContext& print_context, JS::Intl::ListFormat const& list_format, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.ListFormat"sv));
+    TRY(print_type(print_context, "Intl.ListFormat"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(list_format.vm(), list_format.locale()), seen_objects));
     TRY(js_out(print_context, "\n  type: "));
@@ -577,7 +577,7 @@ ErrorOr<void> print_intl_list_format(JS::PrintContext& print_context, JS::Intl::
 
 ErrorOr<void> print_intl_number_format(JS::PrintContext& print_context, JS::Intl::NumberFormat const& number_format, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.NumberFormat"sv));
+    TRY(print_type(print_context, "Intl.NumberFormat"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(number_format.vm(), number_format.locale()), seen_objects));
     TRY(js_out(print_context, "\n  numberingSystem: "));
@@ -645,7 +645,7 @@ ErrorOr<void> print_intl_number_format(JS::PrintContext& print_context, JS::Intl
 
 ErrorOr<void> print_intl_date_time_format(JS::PrintContext& print_context, JS::Intl::DateTimeFormat& date_time_format, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.DateTimeFormat"sv));
+    TRY(print_type(print_context, "Intl.DateTimeFormat"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.locale()), seen_objects));
     TRY(js_out(print_context, "\n  calendar: "));
@@ -698,7 +698,7 @@ ErrorOr<void> print_intl_date_time_format(JS::PrintContext& print_context, JS::I
 
 ErrorOr<void> print_intl_relative_time_format(JS::PrintContext& print_context, JS::Intl::RelativeTimeFormat const& date_time_format, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.RelativeTimeFormat"sv));
+    TRY(print_type(print_context, "Intl.RelativeTimeFormat"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.locale()), seen_objects));
     TRY(js_out(print_context, "\n  numberingSystem: "));
@@ -712,7 +712,7 @@ ErrorOr<void> print_intl_relative_time_format(JS::PrintContext& print_context, J
 
 ErrorOr<void> print_intl_plural_rules(JS::PrintContext& print_context, JS::Intl::PluralRules const& plural_rules, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.PluralRules"sv));
+    TRY(print_type(print_context, "Intl.PluralRules"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(plural_rules.vm(), plural_rules.locale()), seen_objects));
     TRY(js_out(print_context, "\n  type: "));
@@ -744,7 +744,7 @@ ErrorOr<void> print_intl_plural_rules(JS::PrintContext& print_context, JS::Intl:
 
 ErrorOr<void> print_intl_collator(JS::PrintContext& print_context, JS::Intl::Collator const& collator, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.Collator"sv));
+    TRY(print_type(print_context, "Intl.Collator"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(collator.vm(), collator.locale()), seen_objects));
     TRY(js_out(print_context, "\n  usage: "));
@@ -764,7 +764,7 @@ ErrorOr<void> print_intl_collator(JS::PrintContext& print_context, JS::Intl::Col
 
 ErrorOr<void> print_intl_segmenter(JS::PrintContext& print_context, JS::Intl::Segmenter const& segmenter, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Intl.Segmenter"sv));
+    TRY(print_type(print_context, "Intl.Segmenter"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(segmenter.vm(), segmenter.locale()), seen_objects));
     TRY(js_out(print_context, "\n  granularity: "));
@@ -776,7 +776,7 @@ ErrorOr<void> print_intl_segments(JS::PrintContext& print_context, JS::Intl::Seg
 {
     auto segments_string = JS::Utf16String::create(segments.segments_string());
 
-    TRY(print_type(print_context, "Segments"sv));
+    TRY(print_type(print_context, "Segments"_sv));
     TRY(js_out(print_context, "\n  string: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(segments.vm(), move(segments_string)), seen_objects));
     return {};
@@ -797,7 +797,7 @@ ErrorOr<void> print_intl_duration_format(JS::PrintContext& print_context, JS::In
         return {};
     };
 
-    TRY(print_type(print_context, "Intl.DurationFormat"sv));
+    TRY(print_type(print_context, "Intl.DurationFormat"_sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.locale()), seen_objects));
     TRY(js_out(print_context, "\n  numberingSystem: "));
@@ -805,16 +805,16 @@ ErrorOr<void> print_intl_duration_format(JS::PrintContext& print_context, JS::In
     TRY(js_out(print_context, "\n  style: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.style_string()), seen_objects));
 
-    TRY(print_style_and_display("years"sv, "yearsDisplay"sv, duration_format.years_options()));
-    TRY(print_style_and_display("months"sv, "monthsDisplay"sv, duration_format.months_options()));
-    TRY(print_style_and_display("weeks"sv, "weeksDisplay"sv, duration_format.weeks_options()));
-    TRY(print_style_and_display("days"sv, "daysDisplay"sv, duration_format.days_options()));
-    TRY(print_style_and_display("hours"sv, "hoursDisplay"sv, duration_format.hours_options()));
-    TRY(print_style_and_display("minutes"sv, "minutesDisplay"sv, duration_format.minutes_options()));
-    TRY(print_style_and_display("seconds"sv, "secondsDisplay"sv, duration_format.seconds_options()));
-    TRY(print_style_and_display("milliseconds"sv, "millisecondsDisplay"sv, duration_format.milliseconds_options()));
-    TRY(print_style_and_display("microseconds"sv, "microsecondsDisplay"sv, duration_format.microseconds_options()));
-    TRY(print_style_and_display("nanoseconds"sv, "nanosecondsDisplay"sv, duration_format.nanoseconds_options()));
+    TRY(print_style_and_display("years"_sv, "yearsDisplay"_sv, duration_format.years_options()));
+    TRY(print_style_and_display("months"_sv, "monthsDisplay"_sv, duration_format.months_options()));
+    TRY(print_style_and_display("weeks"_sv, "weeksDisplay"_sv, duration_format.weeks_options()));
+    TRY(print_style_and_display("days"_sv, "daysDisplay"_sv, duration_format.days_options()));
+    TRY(print_style_and_display("hours"_sv, "hoursDisplay"_sv, duration_format.hours_options()));
+    TRY(print_style_and_display("minutes"_sv, "minutesDisplay"_sv, duration_format.minutes_options()));
+    TRY(print_style_and_display("seconds"_sv, "secondsDisplay"_sv, duration_format.seconds_options()));
+    TRY(print_style_and_display("milliseconds"_sv, "millisecondsDisplay"_sv, duration_format.milliseconds_options()));
+    TRY(print_style_and_display("microseconds"_sv, "microsecondsDisplay"_sv, duration_format.microseconds_options()));
+    TRY(print_style_and_display("nanoseconds"_sv, "nanosecondsDisplay"_sv, duration_format.nanoseconds_options()));
 
     if (duration_format.has_fractional_digits()) {
         TRY(js_out(print_context, "\n  fractionalDigits: "));
@@ -825,14 +825,14 @@ ErrorOr<void> print_intl_duration_format(JS::PrintContext& print_context, JS::In
 
 ErrorOr<void> print_temporal_duration(JS::PrintContext& print_context, JS::Temporal::Duration const& duration, HashTable<JS::Object*>&)
 {
-    TRY(print_type(print_context, "Temporal.Duration"sv));
+    TRY(print_type(print_context, "Temporal.Duration"_sv));
     TRY(js_out(print_context, " \033[34;1m{} y, {} M, {} w, {} d, {} h, {} m, {} s, {} ms, {} us, {} ns\033[0m", duration.years(), duration.months(), duration.weeks(), duration.days(), duration.hours(), duration.minutes(), duration.seconds(), duration.milliseconds(), duration.microseconds(), duration.nanoseconds()));
     return {};
 }
 
 ErrorOr<void> print_temporal_instant(JS::PrintContext& print_context, JS::Temporal::Instant const& instant, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Temporal.Instant"sv));
+    TRY(print_type(print_context, "Temporal.Instant"_sv));
     TRY(js_out(print_context, " "));
     TRY(print_value(print_context, instant.epoch_nanoseconds(), seen_objects));
     return {};
@@ -840,7 +840,7 @@ ErrorOr<void> print_temporal_instant(JS::PrintContext& print_context, JS::Tempor
 
 ErrorOr<void> print_temporal_plain_date(JS::PrintContext& print_context, JS::Temporal::PlainDate const& plain_date, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Temporal.PlainDate"sv));
+    TRY(print_type(print_context, "Temporal.PlainDate"_sv));
     TRY(js_out(print_context, " \033[34;1m{:04}-{:02}-{:02}\033[0m", plain_date.iso_date().year, plain_date.iso_date().month, plain_date.iso_date().day));
     TRY(js_out(print_context, "\n  calendar: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(plain_date.vm(), plain_date.calendar()), seen_objects));
@@ -849,7 +849,7 @@ ErrorOr<void> print_temporal_plain_date(JS::PrintContext& print_context, JS::Tem
 
 ErrorOr<void> print_temporal_plain_date_time(JS::PrintContext& print_context, JS::Temporal::PlainDateTime const& plain_date_time, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Temporal.PlainDateTime"sv));
+    TRY(print_type(print_context, "Temporal.PlainDateTime"_sv));
     TRY(js_out(print_context, " \033[34;1m{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:03}{:03}{:03}\033[0m", plain_date_time.iso_date_time().iso_date.year, plain_date_time.iso_date_time().iso_date.month, plain_date_time.iso_date_time().iso_date.day, plain_date_time.iso_date_time().time.hour, plain_date_time.iso_date_time().time.minute, plain_date_time.iso_date_time().time.second, plain_date_time.iso_date_time().time.millisecond, plain_date_time.iso_date_time().time.microsecond, plain_date_time.iso_date_time().time.nanosecond));
     TRY(js_out(print_context, "\n  calendar: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(plain_date_time.vm(), plain_date_time.calendar()), seen_objects));
@@ -858,7 +858,7 @@ ErrorOr<void> print_temporal_plain_date_time(JS::PrintContext& print_context, JS
 
 ErrorOr<void> print_temporal_plain_month_day(JS::PrintContext& print_context, JS::Temporal::PlainMonthDay const& plain_month_day, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Temporal.PlainMonthDay"sv));
+    TRY(print_type(print_context, "Temporal.PlainMonthDay"_sv));
     TRY(js_out(print_context, " \033[34;1m{:02}-{:02}\033[0m", plain_month_day.iso_date().month, plain_month_day.iso_date().day));
     TRY(js_out(print_context, "\n  calendar: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(plain_month_day.vm(), plain_month_day.calendar()), seen_objects));
@@ -867,14 +867,14 @@ ErrorOr<void> print_temporal_plain_month_day(JS::PrintContext& print_context, JS
 
 ErrorOr<void> print_temporal_plain_time(JS::PrintContext& print_context, JS::Temporal::PlainTime const& plain_time, HashTable<JS::Object*>&)
 {
-    TRY(print_type(print_context, "Temporal.PlainTime"sv));
+    TRY(print_type(print_context, "Temporal.PlainTime"_sv));
     TRY(js_out(print_context, " \033[34;1m{:02}:{:02}:{:02}.{:03}{:03}{:03}\033[0m", plain_time.time().hour, plain_time.time().minute, plain_time.time().second, plain_time.time().millisecond, plain_time.time().microsecond, plain_time.time().nanosecond));
     return {};
 }
 
 ErrorOr<void> print_temporal_plain_year_month(JS::PrintContext& print_context, JS::Temporal::PlainYearMonth const& plain_year_month, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Temporal.PlainYearMonth"sv));
+    TRY(print_type(print_context, "Temporal.PlainYearMonth"_sv));
     TRY(js_out(print_context, " \033[34;1m{:04}-{:02}\033[0m", plain_year_month.iso_date().year, plain_year_month.iso_date().month));
     TRY(js_out(print_context, "\n  calendar: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(plain_year_month.vm(), plain_year_month.calendar()), seen_objects));
@@ -883,7 +883,7 @@ ErrorOr<void> print_temporal_plain_year_month(JS::PrintContext& print_context, J
 
 ErrorOr<void> print_temporal_zoned_date_time(JS::PrintContext& print_context, JS::Temporal::ZonedDateTime const& zoned_date_time, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Temporal.ZonedDateTime"sv));
+    TRY(print_type(print_context, "Temporal.ZonedDateTime"_sv));
     TRY(js_out(print_context, "\n  epochNanoseconds: "));
     TRY(print_value(print_context, zoned_date_time.epoch_nanoseconds(), seen_objects));
     TRY(js_out(print_context, "\n  timeZone: "));
@@ -895,7 +895,7 @@ ErrorOr<void> print_temporal_zoned_date_time(JS::PrintContext& print_context, JS
 
 ErrorOr<void> print_boolean_object(JS::PrintContext& print_context, JS::BooleanObject const& boolean_object, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Boolean"sv));
+    TRY(print_type(print_context, "Boolean"_sv));
     TRY(js_out(print_context, " "));
     TRY(print_value(print_context, JS::Value(boolean_object.boolean()), seen_objects));
     return {};
@@ -903,7 +903,7 @@ ErrorOr<void> print_boolean_object(JS::PrintContext& print_context, JS::BooleanO
 
 ErrorOr<void> print_number_object(JS::PrintContext& print_context, JS::NumberObject const& number_object, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "Number"sv));
+    TRY(print_type(print_context, "Number"_sv));
     TRY(js_out(print_context, " "));
     TRY(print_value(print_context, JS::Value(number_object.number()), seen_objects));
     return {};
@@ -911,7 +911,7 @@ ErrorOr<void> print_number_object(JS::PrintContext& print_context, JS::NumberObj
 
 ErrorOr<void> print_string_object(JS::PrintContext& print_context, JS::StringObject const& string_object, HashTable<JS::Object*>& seen_objects)
 {
-    TRY(print_type(print_context, "String"sv));
+    TRY(print_type(print_context, "String"_sv));
     TRY(js_out(print_context, " "));
     TRY(print_value(print_context, &string_object.primitive_string(), seen_objects));
     return {};

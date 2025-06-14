@@ -35,12 +35,12 @@ String SearchEngine::format_search_query_for_display(StringView query) const
         name,
         query,
         MAX_SEARCH_STRING_LENGTH,
-        query.length() > MAX_SEARCH_STRING_LENGTH ? "..."sv : ""sv));
+        query.length() > MAX_SEARCH_STRING_LENGTH ? "..."_sv : ""_sv));
 }
 
 String SearchEngine::format_search_query_for_navigation(StringView query) const
 {
-    return MUST(query_url.replace("%s"sv, URL::percent_encode(query), ReplaceMode::All));
+    return MUST(query_url.replace("%s"_sv, URL::percent_encode(query), ReplaceMode::All));
 }
 
 }

@@ -31,7 +31,7 @@ ErrorOr<String> generate_new_blob_url()
     StringBuilder result;
 
     // 2. Append the string "blob:" to result.
-    TRY(result.try_append("blob:"sv));
+    TRY(result.try_append("blob:"_sv));
 
     // 3. Let settings be the current settings object
     auto& settings = HTML::current_principal_settings_object();
@@ -43,7 +43,7 @@ ErrorOr<String> generate_new_blob_url()
     auto serialized = origin.serialize();
 
     // 6. If serialized is "null", set it to an implementation-defined value.
-    if (serialized == "null"sv)
+    if (serialized == "null"_sv)
         serialized = "ladybird"_string;
 
     // 7. Append serialized to result.
@@ -146,7 +146,7 @@ void run_unloading_cleanup_steps(GC::Ref<DOM::Document> document)
 Optional<BlobURLEntry const&> resolve_a_blob_url(URL::URL const& url)
 {
     // 1. Assert: url’s scheme is "blob".
-    VERIFY(url.scheme() == "blob"sv);
+    VERIFY(url.scheme() == "blob"_sv);
 
     // 2. Let store be the user agent’s blob URL store.
     auto& store = blob_url_store();

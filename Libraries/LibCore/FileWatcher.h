@@ -95,7 +95,7 @@ template<>
 struct Formatter<Core::FileWatcherEvent> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Core::FileWatcherEvent const& value)
     {
-        return Formatter<FormatString>::format(builder, "FileWatcherEvent(\"{}\", {})"sv, value.event_path, value.type);
+        return Formatter<FormatString>::format(builder, "FileWatcherEvent(\"{}\", {})"_sv, value.event_path, value.type);
     }
 };
 
@@ -110,20 +110,20 @@ struct Formatter<Core::FileWatcherEvent::Type> : Formatter<FormatString> {
                 return {};
 
             if (had_any_flag)
-                TRY(builder.put_string(", "sv));
+                TRY(builder.put_string(", "_sv));
             TRY(builder.put_string(name));
 
             had_any_flag = true;
             return {};
         };
 
-        TRY(builder.put_string("["sv));
-        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::ChildCreated, "ChildCreated"sv));
-        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::ChildDeleted, "ChildDeleted"sv));
-        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::Deleted, "Deleted"sv));
-        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::ContentModified, "ContentModified"sv));
-        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::MetadataModified, "MetadataModified"sv));
-        TRY(builder.put_string("]"sv));
+        TRY(builder.put_string("["_sv));
+        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::ChildCreated, "ChildCreated"_sv));
+        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::ChildDeleted, "ChildDeleted"_sv));
+        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::Deleted, "Deleted"_sv));
+        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::ContentModified, "ContentModified"_sv));
+        TRY(put_string_if_has_flag(Core::FileWatcherEvent::Type::MetadataModified, "MetadataModified"_sv));
+        TRY(builder.put_string("]"_sv));
 
         VERIFY(had_any_flag);
         return {};

@@ -193,7 +193,7 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
         // 2. If all of the following are true:
         if (
             // - specifierKey ends with U+002F (/);
-            specifier_key.bytes_as_string_view().ends_with("/"sv) &&
+            specifier_key.bytes_as_string_view().ends_with("/"_sv) &&
             // - specifierKey is a code unit prefix of normalizedSpecifier; and
             Infra::is_code_unit_prefix(specifier_key, normalized_specifier) &&
             // - either asURL is null, or asURL is special,
@@ -241,7 +241,7 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
 Optional<URL::URL> resolve_url_like_module_specifier(StringView specifier, URL::URL const& base_url)
 {
     // 1. If specifier starts with "/", "./", or "../", then:
-    if (specifier.starts_with("/"sv) || specifier.starts_with("./"sv) || specifier.starts_with("../"sv)) {
+    if (specifier.starts_with("/"_sv) || specifier.starts_with("./"_sv) || specifier.starts_with("../"_sv)) {
         // 1. Let url be the result of URL parsing specifier with baseURL.
         auto url = DOMURL::parse(specifier, base_url);
 
@@ -442,7 +442,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
         //       We might be able to tighten this in the future; see https://github.com/whatwg/html/issues/3255.
 
         // 4. Let sourceText be the result of UTF-8 decoding bodyBytes.
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
+        auto decoder = TextCodec::decoder_for("UTF-8"_sv);
         VERIFY(decoder.has_value());
         auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.template get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
 
@@ -532,7 +532,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     }
 
     // 8. Let sourceText be the result of UTF-8 decoding bodyBytes.
-    auto decoder = TextCodec::decoder_for("UTF-8"sv);
+    auto decoder = TextCodec::decoder_for("UTF-8"_sv);
     VERIFY(decoder.has_value());
     auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
 
@@ -597,11 +597,11 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
 Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(Fetch::Infrastructure::Request::Destination default_destination, ByteString const& module_type)
 {
     // 1. If moduleType is "json", then return "json".
-    if (module_type == "json"sv)
+    if (module_type == "json"_sv)
         return Fetch::Infrastructure::Request::Destination::JSON;
 
     // 2. If moduleType is "css", then return "style".
-    if (module_type == "css"sv)
+    if (module_type == "css"_sv)
         return Fetch::Infrastructure::Request::Destination::Style;
 
     // 3. Return defaultDestination.
@@ -697,7 +697,7 @@ void fetch_single_module_script(JS::Realm& realm,
         }
 
         // 2. Let sourceText be the result of UTF-8 decoding bodyBytes.
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
+        auto decoder = TextCodec::decoder_for("UTF-8"_sv);
         VERIFY(decoder.has_value());
         auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
 
@@ -777,7 +777,7 @@ void fetch_single_imported_module_script(JS::Realm& realm,
     // 1. Assert: moduleRequest.[[Attributes]] does not contain any Record entry such that entry.[[Key]] is not "type",
     //    because we only asked for "type" attributes in HostGetSupportedImportAttributes.
     for (auto const& entry : module_request.attributes)
-        VERIFY(entry.key == "type"sv);
+        VERIFY(entry.key == "type"_sv);
 
     // 2. Let moduleType be the result of running the module type from module request steps given moduleRequest.
     auto module_type = module_type_from_module_request(module_request);

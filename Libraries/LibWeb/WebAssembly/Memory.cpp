@@ -27,7 +27,7 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Me
     // 5. If share is shared and maximum is empty, throw a TypeError exception.
     auto shared = descriptor.shared.value_or(false);
     if (shared && !descriptor.maximum.has_value())
-        return vm.throw_completion<JS::TypeError>("Maximum has to be specified for shared memory."sv);
+        return vm.throw_completion<JS::TypeError>("Maximum has to be specified for shared memory."_sv);
 
     Wasm::Limits limits { descriptor.initial, move(descriptor.maximum) };
     Wasm::MemoryType memory_type { move(limits) };
@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Me
     auto& cache = Detail::get_cache(realm);
     auto address = cache.abstract_machine().store().allocate(memory_type);
     if (!address.has_value())
-        return vm.throw_completion<JS::TypeError>("Wasm Memory allocation failed"sv);
+        return vm.throw_completion<JS::TypeError>("Wasm Memory allocation failed"_sv);
 
     auto memory_object = realm.create<Memory>(realm, *address, shared ? Shared::Yes : Shared::No);
 
@@ -74,11 +74,11 @@ WebIDL::ExceptionOr<u32> Memory::grow(u32 delta)
     auto& context = Detail::get_cache(realm());
     auto* memory = context.abstract_machine().store().get(address());
     if (!memory)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory instance to grow"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory instance to grow"_sv);
 
     auto previous_size = memory->size() / Wasm::Constants::page_size;
     if (!memory->grow(delta * Wasm::Constants::page_size, Wasm::MemoryInstance::GrowType::No, Wasm::MemoryInstance::InhibitGrowCallback::Yes))
-        return vm.throw_completion<JS::RangeError>("Memory.grow() grows past the stated limit of the memory instance"sv);
+        return vm.throw_completion<JS::RangeError>("Memory.grow() grows past the stated limit of the memory instance"_sv);
 
     TRY(reset_the_memory_buffer());
 
@@ -128,7 +128,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_fixed_length_memo
     auto& context = Detail::get_cache(realm);
     auto* memory = context.abstract_machine().store().get(address);
     if (!memory)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory instance"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory instance"_sv);
 
     JS::ArrayBuffer* array_buffer;
     // https://webassembly.github.io/threads/js-api/index.html#create-a-fixed-length-memory-buffer

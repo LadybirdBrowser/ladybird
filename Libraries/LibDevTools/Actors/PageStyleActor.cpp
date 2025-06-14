@@ -18,7 +18,7 @@ namespace DevTools {
 
 static void received_layout(JsonObject& response, JsonObject const& node_box_sizing)
 {
-    response.set("autoMargins"sv, JsonObject {});
+    response.set("autoMargins"_sv, JsonObject {});
 
     auto pixel_value = [&](auto key) {
         return node_box_sizing.get_double_with_precision_loss(key).value_or(0);
@@ -33,30 +33,30 @@ static void received_layout(JsonObject& response, JsonObject const& node_box_siz
     // FIXME: This response should also contain "top", "right", "bottom", and "left", but our box model metrics in
     //        WebContent do not provide this information.
 
-    set_computed_value("width"sv);
-    set_computed_value("height"sv);
+    set_computed_value("width"_sv);
+    set_computed_value("height"_sv);
 
-    set_pixel_value("border-top-width"sv);
-    set_pixel_value("border-right-width"sv);
-    set_pixel_value("border-bottom-width"sv);
-    set_pixel_value("border-left-width"sv);
+    set_pixel_value("border-top-width"_sv);
+    set_pixel_value("border-right-width"_sv);
+    set_pixel_value("border-bottom-width"_sv);
+    set_pixel_value("border-left-width"_sv);
 
-    set_pixel_value("margin-top"sv);
-    set_pixel_value("margin-right"sv);
-    set_pixel_value("margin-bottom"sv);
-    set_pixel_value("margin-left"sv);
+    set_pixel_value("margin-top"_sv);
+    set_pixel_value("margin-right"_sv);
+    set_pixel_value("margin-bottom"_sv);
+    set_pixel_value("margin-left"_sv);
 
-    set_pixel_value("padding-top"sv);
-    set_pixel_value("padding-right"sv);
-    set_pixel_value("padding-bottom"sv);
-    set_pixel_value("padding-left"sv);
+    set_pixel_value("padding-top"_sv);
+    set_pixel_value("padding-right"_sv);
+    set_pixel_value("padding-bottom"_sv);
+    set_pixel_value("padding-left"_sv);
 
-    set_computed_value("box-sizing"sv);
-    set_computed_value("display"sv);
-    set_computed_value("float"sv);
-    set_computed_value("line-height"sv);
-    set_computed_value("position"sv);
-    set_computed_value("z-index"sv);
+    set_computed_value("box-sizing"_sv);
+    set_computed_value("display"_sv);
+    set_computed_value("float"_sv);
+    set_computed_value("line-height"_sv);
+    set_computed_value("position"_sv);
+    set_computed_value("z-index"_sv);
 }
 
 static void received_computed_style(JsonObject& response, JsonObject const& computed_style)
@@ -65,12 +65,12 @@ static void received_computed_style(JsonObject& response, JsonObject const& comp
 
     computed_style.for_each_member([&](String const& name, JsonValue const& value) {
         JsonObject property;
-        property.set("matched"sv, true);
-        property.set("value"sv, value);
+        property.set("matched"_sv, true);
+        property.set("value"_sv, value);
         computed.set(name, move(property));
     });
 
-    response.set("computed"sv, move(computed));
+    response.set("computed"_sv, move(computed));
 }
 
 static void received_fonts(JsonObject& response, JsonArray const& fonts)
@@ -81,27 +81,27 @@ static void received_fonts(JsonObject& response, JsonArray const& fonts)
         if (!font.is_object())
             return;
 
-        auto name = font.as_object().get_string("name"sv).value_or({});
-        auto weight = font.as_object().get_integer<i64>("weight"sv).value_or(0);
+        auto name = font.as_object().get_string("name"_sv).value_or({});
+        auto weight = font.as_object().get_integer<i64>("weight"_sv).value_or(0);
 
         JsonObject font_face;
-        font_face.set("CSSFamilyName"sv, name);
-        font_face.set("CSSGeneric"sv, JsonValue {});
-        font_face.set("format"sv, ""sv);
-        font_face.set("localName"sv, ""sv);
-        font_face.set("metadata"sv, ""sv);
-        font_face.set("name"sv, name);
-        font_face.set("srcIndex"sv, -1);
-        font_face.set("style"sv, ""sv);
-        font_face.set("URI"sv, ""sv);
-        font_face.set("variationAxes"sv, JsonArray {});
-        font_face.set("variationInstances"sv, JsonArray {});
-        font_face.set("weight"sv, weight);
+        font_face.set("CSSFamilyName"_sv, name);
+        font_face.set("CSSGeneric"_sv, JsonValue {});
+        font_face.set("format"_sv, ""_sv);
+        font_face.set("localName"_sv, ""_sv);
+        font_face.set("metadata"_sv, ""_sv);
+        font_face.set("name"_sv, name);
+        font_face.set("srcIndex"_sv, -1);
+        font_face.set("style"_sv, ""_sv);
+        font_face.set("URI"_sv, ""_sv);
+        font_face.set("variationAxes"_sv, JsonArray {});
+        font_face.set("variationInstances"_sv, JsonArray {});
+        font_face.set("weight"_sv, weight);
 
         font_faces.must_append(move(font_face));
     });
 
-    response.set("fontFaces"sv, move(font_faces));
+    response.set("fontFaces"_sv, move(font_faces));
 }
 
 NonnullRefPtr<PageStyleActor> PageStyleActor::create(DevToolsServer& devtools, String name, WeakPtr<InspectorActor> inspector)
@@ -132,37 +132,37 @@ void PageStyleActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "getAllUsedFontFaces"sv) {
-        response.set("fontFaces"sv, JsonArray {});
+    if (message.type == "getAllUsedFontFaces"_sv) {
+        response.set("fontFaces"_sv, JsonArray {});
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "getApplied"sv) {
+    if (message.type == "getApplied"_sv) {
         // FIXME: This provides information to the "styles" pane in the inspector tab, which allows toggling and editing
         //        styles live. We do not yet support figuring out the list of styles that apply to a specific node.
-        response.set("entries"sv, JsonArray {});
+        response.set("entries"_sv, JsonArray {});
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "getComputed"sv) {
+    if (message.type == "getComputed"_sv) {
         inspect_dom_node(message, WebView::DOMNodeProperties::Type::ComputedStyle);
         return;
     }
 
-    if (message.type == "getLayout"sv) {
+    if (message.type == "getLayout"_sv) {
         inspect_dom_node(message, WebView::DOMNodeProperties::Type::Layout);
         return;
     }
 
-    if (message.type == "getUsedFontFaces"sv) {
+    if (message.type == "getUsedFontFaces"_sv) {
         inspect_dom_node(message, WebView::DOMNodeProperties::Type::UsedFonts);
         return;
     }
 
     if (message.type == "isPositionEditable") {
-        response.set("value"sv, false);
+        response.set("value"_sv, false);
         send_response(message, move(response));
         return;
     }
@@ -173,20 +173,20 @@ void PageStyleActor::handle_message(Message const& message)
 JsonValue PageStyleActor::serialize_style() const
 {
     JsonObject traits;
-    traits.set("fontStyleLevel4"sv, true);
-    traits.set("fontWeightLevel4"sv, true);
-    traits.set("fontStretchLevel4"sv, true);
-    traits.set("fontVariations"sv, true);
+    traits.set("fontStyleLevel4"_sv, true);
+    traits.set("fontWeightLevel4"_sv, true);
+    traits.set("fontStretchLevel4"_sv, true);
+    traits.set("fontVariations"_sv, true);
 
     JsonObject style;
-    style.set("actor"sv, name());
-    style.set("traits"sv, move(traits));
+    style.set("actor"_sv, name());
+    style.set("traits"_sv, move(traits));
     return style;
 }
 
 void PageStyleActor::inspect_dom_node(Message const& message, WebView::DOMNodeProperties::Type property_type)
 {
-    auto node = get_required_parameter<String>(message, "node"sv);
+    auto node = get_required_parameter<String>(message, "node"_sv);
     if (!node.has_value())
         return;
 

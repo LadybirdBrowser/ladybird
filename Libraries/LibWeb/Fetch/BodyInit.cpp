@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
             auto search_params_string = url_search_params->to_string();
             source = MUST(ByteBuffer::copy(search_params_string.bytes()));
             // Set type to `application/x-www-form-urlencoded;charset=UTF-8`.
-            type = MUST(ByteBuffer::copy("application/x-www-form-urlencoded;charset=UTF-8"sv.bytes()));
+            type = MUST(ByteBuffer::copy("application/x-www-form-urlencoded;charset=UTF-8"_sv.bytes()));
             return {};
         },
         [&](String const& scalar_value_string) -> WebIDL::ExceptionOr<void> {
@@ -119,17 +119,17 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
             // Set source to the UTF-8 encoding of object.
             source = MUST(ByteBuffer::copy(scalar_value_string.bytes()));
             // Set type to `text/plain;charset=UTF-8`.
-            type = MUST(ByteBuffer::copy("text/plain;charset=UTF-8"sv.bytes()));
+            type = MUST(ByteBuffer::copy("text/plain;charset=UTF-8"_sv.bytes()));
             return {};
         },
         [&](GC::Root<Streams::ReadableStream> const& stream) -> WebIDL::ExceptionOr<void> {
             // If keepalive is true, then throw a TypeError.
             if (keepalive)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot extract body from stream when keepalive is set"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot extract body from stream when keepalive is set"_sv };
 
             // If object is disturbed or locked, then throw a TypeError.
             if (stream->is_disturbed() || stream->is_locked())
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot extract body from disturbed or locked stream"sv };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot extract body from disturbed or locked stream"_sv };
 
             return {};
         }));

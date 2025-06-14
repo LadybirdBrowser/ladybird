@@ -175,7 +175,7 @@ OwnPtr<BooleanExpression> Parser::parse_boolean_expression(TokenStream<Component
 
     auto const& peeked_token = tokens.next_token();
     // `not <boolean-expr-group>`
-    if (peeked_token.is_ident("not"sv)) {
+    if (peeked_token.is_ident("not"_sv)) {
         tokens.discard_a_token();
         tokens.discard_whitespace();
 
@@ -199,9 +199,9 @@ OwnPtr<BooleanExpression> Parser::parse_boolean_expression(TokenStream<Component
         if (!token.is(Token::Type::Ident))
             return {};
         auto ident = token.token().ident();
-        if (ident.equals_ignoring_ascii_case("and"sv))
+        if (ident.equals_ignoring_ascii_case("and"_sv))
             return Combinator::And;
-        if (ident.equals_ignoring_ascii_case("or"sv))
+        if (ident.equals_ignoring_ascii_case("or"_sv))
             return Combinator::Or;
         return {};
     };
@@ -302,7 +302,7 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     }
 
     // `<supports-selector-fn> = selector( <complex-selector> )`
-    if (first_token.is_function("selector"sv)) {
+    if (first_token.is_function("selector"_sv)) {
         // FIXME: Parsing and then converting back to a string is weird.
         StringBuilder builder;
         for (auto const& item : first_token.function().value)
@@ -319,7 +319,7 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     }
 
     // `<supports-font-tech-fn> = font-tech( <font-tech> )`
-    if (first_token.is_function("font-tech"sv)) {
+    if (first_token.is_function("font-tech"_sv)) {
         TokenStream tech_tokens { first_token.function().value };
         tech_tokens.discard_whitespace();
         auto tech_token = tech_tokens.consume_a_token();
@@ -334,7 +334,7 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     }
 
     // `<supports-font-format-fn> = font-format( <font-format> )`
-    if (first_token.is_function("font-format"sv)) {
+    if (first_token.is_function("font-format"_sv)) {
         TokenStream format_tokens { first_token.function().value };
         format_tokens.discard_whitespace();
         auto format_token = format_tokens.consume_a_token();
@@ -545,7 +545,7 @@ Variant<Empty, QualifiedRule, Parser::InvalidRuleError> Parser::consume_a_qualif
             auto& first_non_whitespace = prelude_tokens.consume_a_token();
             prelude_tokens.discard_whitespace();
             auto& second_non_whitespace = prelude_tokens.consume_a_token();
-            if (first_non_whitespace.is(Token::Type::Ident) && first_non_whitespace.token().ident().starts_with_bytes("--"sv)
+            if (first_non_whitespace.is(Token::Type::Ident) && first_non_whitespace.token().ident().starts_with_bytes("--"_sv)
                 && second_non_whitespace.is(Token::Type::Colon)) {
                 // If nested is true, consume the remnants of a bad declaration from input, with nested set to true, and return nothing.
                 if (nested == Nested::Yes) {
@@ -1034,7 +1034,7 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
         Optional<size_t> important_index;
         for (size_t i = declaration.value.size() - 1; i > 0; i--) {
             auto const& value = declaration.value[i];
-            if (value.is_ident("important"sv)) {
+            if (value.is_ident("important"_sv)) {
                 important_index = i;
                 break;
             }
@@ -1111,7 +1111,7 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
     //    Otherwise, if decl’s name is an ASCII case-insensitive match for "unicode-range", consume the value of
     //    a unicode-range descriptor from the segment of the original source text string corresponding to the
     //    tokens returned by the consume a list of component values call, and replace decl’s value with the result.
-    else if (declaration.name.equals_ignoring_ascii_case("unicode-range"sv)) {
+    else if (declaration.name.equals_ignoring_ascii_case("unicode-range"_sv)) {
         // FIXME: Special unicode-range handling
     }
 
@@ -1577,7 +1577,7 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     auto property_id = property_id_from_string(property_name);
 
     if (!property_id.has_value()) {
-        if (property_name.bytes_as_string_view().starts_with("--"sv)) {
+        if (property_name.bytes_as_string_view().starts_with("--"_sv)) {
             property_id = PropertyID::Custom;
         } else if (has_ignored_vendor_prefix(property_name)) {
             return {};
@@ -1607,7 +1607,7 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
 
 Optional<LengthOrCalculated> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.next_token().is_ident("auto"sv)) {
+    if (tokens.next_token().is_ident("auto"_sv)) {
         tokens.discard_a_token(); // auto
         return LengthOrCalculated { Length::make_auto() };
     }
@@ -1640,7 +1640,7 @@ bool Parser::context_allows_quirky_length() const
         unitless_length_allowed = m_value_context[i].visit(
             [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::UnitlessLength); },
             [top_level_property](FunctionContext const& function_context) {
-                return function_context.name == "rect"sv && top_level_property == PropertyID::Clip;
+                return function_context.name == "rect"_sv && top_level_property == PropertyID::Clip;
             },
             [](DescriptorContext const&) { return false; });
     }
@@ -1779,9 +1779,9 @@ bool Parser::has_ignored_vendor_prefix(StringView string)
 {
     if (!string.starts_with('-'))
         return false;
-    if (string.starts_with("--"sv))
+    if (string.starts_with("--"_sv))
         return false;
-    if (string.starts_with("-libweb-"sv))
+    if (string.starts_with("-libweb-"_sv))
         return false;
     if (string.count('-') == 1)
         return false;

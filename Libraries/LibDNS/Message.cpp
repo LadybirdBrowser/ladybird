@@ -34,19 +34,19 @@ StringView to_string(Options::ResponseCode code)
 {
     switch (code) {
     case Options::ResponseCode::NoError:
-        return "NoError"sv;
+        return "NoError"_sv;
     case Options::ResponseCode::FormatError:
-        return "FormatError"sv;
+        return "FormatError"_sv;
     case Options::ResponseCode::ServerFailure:
-        return "ServerFailure"sv;
+        return "ServerFailure"_sv;
     case Options::ResponseCode::NameError:
-        return "NameError"sv;
+        return "NameError"_sv;
     case Options::ResponseCode::NotImplemented:
-        return "NotImplemented"sv;
+        return "NotImplemented"_sv;
     case Options::ResponseCode::Refused:
-        return "Refused"sv;
+        return "Refused"_sv;
     default:
-        return "UNKNOWN"sv;
+        return "UNKNOWN"_sv;
     }
 }
 
@@ -209,391 +209,391 @@ StringView to_string(ResourceType type)
 {
     switch (type) {
     case ResourceType::Reserved:
-        return "Reserved"sv;
+        return "Reserved"_sv;
     case ResourceType::A:
-        return "A"sv;
+        return "A"_sv;
     case ResourceType::NS:
-        return "NS"sv;
+        return "NS"_sv;
     case ResourceType::MD:
-        return "MD"sv;
+        return "MD"_sv;
     case ResourceType::MF:
-        return "MF"sv;
+        return "MF"_sv;
     case ResourceType::CNAME:
-        return "CNAME"sv;
+        return "CNAME"_sv;
     case ResourceType::SOA:
-        return "SOA"sv;
+        return "SOA"_sv;
     case ResourceType::MB:
-        return "MB"sv;
+        return "MB"_sv;
     case ResourceType::MG:
-        return "MG"sv;
+        return "MG"_sv;
     case ResourceType::MR:
-        return "MR"sv;
+        return "MR"_sv;
     case ResourceType::NULL_:
-        return "NULL_"sv;
+        return "NULL_"_sv;
     case ResourceType::WKS:
-        return "WKS"sv;
+        return "WKS"_sv;
     case ResourceType::PTR:
-        return "PTR"sv;
+        return "PTR"_sv;
     case ResourceType::HINFO:
-        return "HINFO"sv;
+        return "HINFO"_sv;
     case ResourceType::MINFO:
-        return "MINFO"sv;
+        return "MINFO"_sv;
     case ResourceType::MX:
-        return "MX"sv;
+        return "MX"_sv;
     case ResourceType::TXT:
-        return "TXT"sv;
+        return "TXT"_sv;
     case ResourceType::RP:
-        return "RP"sv;
+        return "RP"_sv;
     case ResourceType::AFSDB:
-        return "AFSDB"sv;
+        return "AFSDB"_sv;
     case ResourceType::X25:
-        return "X25"sv;
+        return "X25"_sv;
     case ResourceType::ISDN:
-        return "ISDN"sv;
+        return "ISDN"_sv;
     case ResourceType::RT:
-        return "RT"sv;
+        return "RT"_sv;
     case ResourceType::NSAP:
-        return "NSAP"sv;
+        return "NSAP"_sv;
     case ResourceType::NSAP_PTR:
-        return "NSAP_PTR"sv;
+        return "NSAP_PTR"_sv;
     case ResourceType::SIG:
-        return "SIG"sv;
+        return "SIG"_sv;
     case ResourceType::KEY:
-        return "KEY"sv;
+        return "KEY"_sv;
     case ResourceType::PX:
-        return "PX"sv;
+        return "PX"_sv;
     case ResourceType::GPOS:
-        return "GPOS"sv;
+        return "GPOS"_sv;
     case ResourceType::AAAA:
-        return "AAAA"sv;
+        return "AAAA"_sv;
     case ResourceType::LOC:
-        return "LOC"sv;
+        return "LOC"_sv;
     case ResourceType::NXT:
-        return "NXT"sv;
+        return "NXT"_sv;
     case ResourceType::EID:
-        return "EID"sv;
+        return "EID"_sv;
     case ResourceType::NIMLOC:
-        return "NIMLOC"sv;
+        return "NIMLOC"_sv;
     case ResourceType::SRV:
-        return "SRV"sv;
+        return "SRV"_sv;
     case ResourceType::ATMA:
-        return "ATMA"sv;
+        return "ATMA"_sv;
     case ResourceType::NAPTR:
-        return "NAPTR"sv;
+        return "NAPTR"_sv;
     case ResourceType::KX:
-        return "KX"sv;
+        return "KX"_sv;
     case ResourceType::CERT:
-        return "CERT"sv;
+        return "CERT"_sv;
     case ResourceType::A6:
-        return "A6"sv;
+        return "A6"_sv;
     case ResourceType::DNAME:
-        return "DNAME"sv;
+        return "DNAME"_sv;
     case ResourceType::SINK:
-        return "SINK"sv;
+        return "SINK"_sv;
     case ResourceType::OPT:
-        return "OPT"sv;
+        return "OPT"_sv;
     case ResourceType::APL:
-        return "APL"sv;
+        return "APL"_sv;
     case ResourceType::DS:
-        return "DS"sv;
+        return "DS"_sv;
     case ResourceType::SSHFP:
-        return "SSHFP"sv;
+        return "SSHFP"_sv;
     case ResourceType::IPSECKEY:
-        return "IPSECKEY"sv;
+        return "IPSECKEY"_sv;
     case ResourceType::RRSIG:
-        return "RRSIG"sv;
+        return "RRSIG"_sv;
     case ResourceType::NSEC:
-        return "NSEC"sv;
+        return "NSEC"_sv;
     case ResourceType::DNSKEY:
-        return "DNSKEY"sv;
+        return "DNSKEY"_sv;
     case ResourceType::DHCID:
-        return "DHCID"sv;
+        return "DHCID"_sv;
     case ResourceType::NSEC3:
-        return "NSEC3"sv;
+        return "NSEC3"_sv;
     case ResourceType::NSEC3PARAM:
-        return "NSEC3PARAM"sv;
+        return "NSEC3PARAM"_sv;
     case ResourceType::TLSA:
-        return "TLSA"sv;
+        return "TLSA"_sv;
     case ResourceType::SMIMEA:
-        return "SMIMEA"sv;
+        return "SMIMEA"_sv;
     case ResourceType::HIP:
-        return "HIP"sv;
+        return "HIP"_sv;
     case ResourceType::NINFO:
-        return "NINFO"sv;
+        return "NINFO"_sv;
     case ResourceType::RKEY:
-        return "RKEY"sv;
+        return "RKEY"_sv;
     case ResourceType::TALINK:
-        return "TALINK"sv;
+        return "TALINK"_sv;
     case ResourceType::CDS:
-        return "CDS"sv;
+        return "CDS"_sv;
     case ResourceType::CDNSKEY:
-        return "CDNSKEY"sv;
+        return "CDNSKEY"_sv;
     case ResourceType::OPENPGPKEY:
-        return "OPENPGPKEY"sv;
+        return "OPENPGPKEY"_sv;
     case ResourceType::CSYNC:
-        return "CSYNC"sv;
+        return "CSYNC"_sv;
     case ResourceType::ZONEMD:
-        return "ZONEMD"sv;
+        return "ZONEMD"_sv;
     case ResourceType::SVCB:
-        return "SVCB"sv;
+        return "SVCB"_sv;
     case ResourceType::HTTPS:
-        return "HTTPS"sv;
+        return "HTTPS"_sv;
     case ResourceType::SPF:
-        return "SPF"sv;
+        return "SPF"_sv;
     case ResourceType::UINFO:
-        return "UINFO"sv;
+        return "UINFO"_sv;
     case ResourceType::UID:
-        return "UID"sv;
+        return "UID"_sv;
     case ResourceType::GID:
-        return "GID"sv;
+        return "GID"_sv;
     case ResourceType::UNSPEC:
-        return "UNSPEC"sv;
+        return "UNSPEC"_sv;
     case ResourceType::NID:
-        return "NID"sv;
+        return "NID"_sv;
     case ResourceType::L32:
-        return "L32"sv;
+        return "L32"_sv;
     case ResourceType::L64:
-        return "L64"sv;
+        return "L64"_sv;
     case ResourceType::LP:
-        return "LP"sv;
+        return "LP"_sv;
     case ResourceType::EUI48:
-        return "EUI48"sv;
+        return "EUI48"_sv;
     case ResourceType::EUI64:
-        return "EUI64"sv;
+        return "EUI64"_sv;
     case ResourceType::NXNAME:
-        return "NXNAME"sv;
+        return "NXNAME"_sv;
     case ResourceType::TKEY:
-        return "TKEY"sv;
+        return "TKEY"_sv;
     case ResourceType::TSIG:
-        return "TSIG"sv;
+        return "TSIG"_sv;
     case ResourceType::IXFR:
-        return "IXFR"sv;
+        return "IXFR"_sv;
     case ResourceType::AXFR:
-        return "AXFR"sv;
+        return "AXFR"_sv;
     case ResourceType::MAILB:
-        return "MAILB"sv;
+        return "MAILB"_sv;
     case ResourceType::MAILA:
-        return "MAILA"sv;
+        return "MAILA"_sv;
     case ResourceType::ANY:
-        return "ANY"sv;
+        return "ANY"_sv;
     case ResourceType::URI:
-        return "URI"sv;
+        return "URI"_sv;
     case ResourceType::CAA:
-        return "CAA"sv;
+        return "CAA"_sv;
     case ResourceType::AVC:
-        return "AVC"sv;
+        return "AVC"_sv;
     case ResourceType::DOA:
-        return "DOA"sv;
+        return "DOA"_sv;
     case ResourceType::AMTRELAY:
-        return "AMTRELAY"sv;
+        return "AMTRELAY"_sv;
     case ResourceType::RESINFO:
-        return "RESINFO"sv;
+        return "RESINFO"_sv;
     case ResourceType::WALLET:
-        return "WALLET"sv;
+        return "WALLET"_sv;
     case ResourceType::CLA:
-        return "CLA"sv;
+        return "CLA"_sv;
     case ResourceType::IPN:
-        return "IPN"sv;
+        return "IPN"_sv;
     case ResourceType::TA:
-        return "TA"sv;
+        return "TA"_sv;
     case ResourceType::DLV:
-        return "DLV"sv;
+        return "DLV"_sv;
     default:
-        return "UNKNOWN"sv;
+        return "UNKNOWN"_sv;
     }
 }
 
 Optional<ResourceType> resource_type_from_string(StringView name)
 {
-    if (name == "Reserved"sv)
+    if (name == "Reserved"_sv)
         return ResourceType::Reserved;
-    if (name == "A"sv)
+    if (name == "A"_sv)
         return ResourceType::A;
-    if (name == "NS"sv)
+    if (name == "NS"_sv)
         return ResourceType::NS;
-    if (name == "MD"sv)
+    if (name == "MD"_sv)
         return ResourceType::MD;
-    if (name == "MF"sv)
+    if (name == "MF"_sv)
         return ResourceType::MF;
-    if (name == "CNAME"sv)
+    if (name == "CNAME"_sv)
         return ResourceType::CNAME;
-    if (name == "SOA"sv)
+    if (name == "SOA"_sv)
         return ResourceType::SOA;
-    if (name == "MB"sv)
+    if (name == "MB"_sv)
         return ResourceType::MB;
-    if (name == "MG"sv)
+    if (name == "MG"_sv)
         return ResourceType::MG;
-    if (name == "MR"sv)
+    if (name == "MR"_sv)
         return ResourceType::MR;
-    if (name == "NULL_"sv)
+    if (name == "NULL_"_sv)
         return ResourceType::NULL_;
-    if (name == "WKS"sv)
+    if (name == "WKS"_sv)
         return ResourceType::WKS;
-    if (name == "PTR"sv)
+    if (name == "PTR"_sv)
         return ResourceType::PTR;
-    if (name == "HINFO"sv)
+    if (name == "HINFO"_sv)
         return ResourceType::HINFO;
-    if (name == "MINFO"sv)
+    if (name == "MINFO"_sv)
         return ResourceType::MINFO;
-    if (name == "MX"sv)
+    if (name == "MX"_sv)
         return ResourceType::MX;
-    if (name == "TXT"sv)
+    if (name == "TXT"_sv)
         return ResourceType::TXT;
-    if (name == "RP"sv)
+    if (name == "RP"_sv)
         return ResourceType::RP;
-    if (name == "AFSDB"sv)
+    if (name == "AFSDB"_sv)
         return ResourceType::AFSDB;
-    if (name == "X25"sv)
+    if (name == "X25"_sv)
         return ResourceType::X25;
-    if (name == "ISDN"sv)
+    if (name == "ISDN"_sv)
         return ResourceType::ISDN;
-    if (name == "RT"sv)
+    if (name == "RT"_sv)
         return ResourceType::RT;
-    if (name == "NSAP"sv)
+    if (name == "NSAP"_sv)
         return ResourceType::NSAP;
-    if (name == "NSAP_PTR"sv)
+    if (name == "NSAP_PTR"_sv)
         return ResourceType::NSAP_PTR;
-    if (name == "SIG"sv)
+    if (name == "SIG"_sv)
         return ResourceType::SIG;
-    if (name == "KEY"sv)
+    if (name == "KEY"_sv)
         return ResourceType::KEY;
-    if (name == "PX"sv)
+    if (name == "PX"_sv)
         return ResourceType::PX;
-    if (name == "GPOS"sv)
+    if (name == "GPOS"_sv)
         return ResourceType::GPOS;
-    if (name == "AAAA"sv)
+    if (name == "AAAA"_sv)
         return ResourceType::AAAA;
-    if (name == "LOC"sv)
+    if (name == "LOC"_sv)
         return ResourceType::LOC;
-    if (name == "NXT"sv)
+    if (name == "NXT"_sv)
         return ResourceType::NXT;
-    if (name == "EID"sv)
+    if (name == "EID"_sv)
         return ResourceType::EID;
-    if (name == "NIMLOC"sv)
+    if (name == "NIMLOC"_sv)
         return ResourceType::NIMLOC;
-    if (name == "SRV"sv)
+    if (name == "SRV"_sv)
         return ResourceType::SRV;
-    if (name == "ATMA"sv)
+    if (name == "ATMA"_sv)
         return ResourceType::ATMA;
-    if (name == "NAPTR"sv)
+    if (name == "NAPTR"_sv)
         return ResourceType::NAPTR;
-    if (name == "KX"sv)
+    if (name == "KX"_sv)
         return ResourceType::KX;
-    if (name == "CERT"sv)
+    if (name == "CERT"_sv)
         return ResourceType::CERT;
-    if (name == "A6"sv)
+    if (name == "A6"_sv)
         return ResourceType::A6;
-    if (name == "DNAME"sv)
+    if (name == "DNAME"_sv)
         return ResourceType::DNAME;
-    if (name == "SINK"sv)
+    if (name == "SINK"_sv)
         return ResourceType::SINK;
-    if (name == "OPT"sv)
+    if (name == "OPT"_sv)
         return ResourceType::OPT;
-    if (name == "APL"sv)
+    if (name == "APL"_sv)
         return ResourceType::APL;
-    if (name == "DS"sv)
+    if (name == "DS"_sv)
         return ResourceType::DS;
-    if (name == "SSHFP"sv)
+    if (name == "SSHFP"_sv)
         return ResourceType::SSHFP;
-    if (name == "IPSECKEY"sv)
+    if (name == "IPSECKEY"_sv)
         return ResourceType::IPSECKEY;
-    if (name == "RRSIG"sv)
+    if (name == "RRSIG"_sv)
         return ResourceType::RRSIG;
-    if (name == "NSEC"sv)
+    if (name == "NSEC"_sv)
         return ResourceType::NSEC;
-    if (name == "DNSKEY"sv)
+    if (name == "DNSKEY"_sv)
         return ResourceType::DNSKEY;
-    if (name == "DHCID"sv)
+    if (name == "DHCID"_sv)
         return ResourceType::DHCID;
-    if (name == "NSEC3"sv)
+    if (name == "NSEC3"_sv)
         return ResourceType::NSEC3;
-    if (name == "NSEC3PARAM"sv)
+    if (name == "NSEC3PARAM"_sv)
         return ResourceType::NSEC3PARAM;
-    if (name == "TLSA"sv)
+    if (name == "TLSA"_sv)
         return ResourceType::TLSA;
-    if (name == "SMIMEA"sv)
+    if (name == "SMIMEA"_sv)
         return ResourceType::SMIMEA;
-    if (name == "HIP"sv)
+    if (name == "HIP"_sv)
         return ResourceType::HIP;
-    if (name == "NINFO"sv)
+    if (name == "NINFO"_sv)
         return ResourceType::NINFO;
-    if (name == "RKEY"sv)
+    if (name == "RKEY"_sv)
         return ResourceType::RKEY;
-    if (name == "TALINK"sv)
+    if (name == "TALINK"_sv)
         return ResourceType::TALINK;
-    if (name == "CDS"sv)
+    if (name == "CDS"_sv)
         return ResourceType::CDS;
-    if (name == "CDNSKEY"sv)
+    if (name == "CDNSKEY"_sv)
         return ResourceType::CDNSKEY;
-    if (name == "OPENPGPKEY"sv)
+    if (name == "OPENPGPKEY"_sv)
         return ResourceType::OPENPGPKEY;
-    if (name == "CSYNC"sv)
+    if (name == "CSYNC"_sv)
         return ResourceType::CSYNC;
-    if (name == "ZONEMD"sv)
+    if (name == "ZONEMD"_sv)
         return ResourceType::ZONEMD;
-    if (name == "SVCB"sv)
+    if (name == "SVCB"_sv)
         return ResourceType::SVCB;
-    if (name == "HTTPS"sv)
+    if (name == "HTTPS"_sv)
         return ResourceType::HTTPS;
-    if (name == "SPF"sv)
+    if (name == "SPF"_sv)
         return ResourceType::SPF;
-    if (name == "UINFO"sv)
+    if (name == "UINFO"_sv)
         return ResourceType::UINFO;
-    if (name == "UID"sv)
+    if (name == "UID"_sv)
         return ResourceType::UID;
-    if (name == "GID"sv)
+    if (name == "GID"_sv)
         return ResourceType::GID;
-    if (name == "UNSPEC"sv)
+    if (name == "UNSPEC"_sv)
         return ResourceType::UNSPEC;
-    if (name == "NID"sv)
+    if (name == "NID"_sv)
         return ResourceType::NID;
-    if (name == "L32"sv)
+    if (name == "L32"_sv)
         return ResourceType::L32;
-    if (name == "L64"sv)
+    if (name == "L64"_sv)
         return ResourceType::L64;
-    if (name == "LP"sv)
+    if (name == "LP"_sv)
         return ResourceType::LP;
-    if (name == "EUI48"sv)
+    if (name == "EUI48"_sv)
         return ResourceType::EUI48;
-    if (name == "EUI64"sv)
+    if (name == "EUI64"_sv)
         return ResourceType::EUI64;
-    if (name == "NXNAME"sv)
+    if (name == "NXNAME"_sv)
         return ResourceType::NXNAME;
-    if (name == "TKEY"sv)
+    if (name == "TKEY"_sv)
         return ResourceType::TKEY;
-    if (name == "TSIG"sv)
+    if (name == "TSIG"_sv)
         return ResourceType::TSIG;
-    if (name == "IXFR"sv)
+    if (name == "IXFR"_sv)
         return ResourceType::IXFR;
-    if (name == "AXFR"sv)
+    if (name == "AXFR"_sv)
         return ResourceType::AXFR;
-    if (name == "MAILB"sv)
+    if (name == "MAILB"_sv)
         return ResourceType::MAILB;
-    if (name == "MAILA"sv)
+    if (name == "MAILA"_sv)
         return ResourceType::MAILA;
-    if (name == "ANY"sv)
+    if (name == "ANY"_sv)
         return ResourceType::ANY;
-    if (name == "URI"sv)
+    if (name == "URI"_sv)
         return ResourceType::URI;
-    if (name == "CAA"sv)
+    if (name == "CAA"_sv)
         return ResourceType::CAA;
-    if (name == "AVC"sv)
+    if (name == "AVC"_sv)
         return ResourceType::AVC;
-    if (name == "DOA"sv)
+    if (name == "DOA"_sv)
         return ResourceType::DOA;
-    if (name == "AMTRELAY"sv)
+    if (name == "AMTRELAY"_sv)
         return ResourceType::AMTRELAY;
-    if (name == "RESINFO"sv)
+    if (name == "RESINFO"_sv)
         return ResourceType::RESINFO;
-    if (name == "WALLET"sv)
+    if (name == "WALLET"_sv)
         return ResourceType::WALLET;
-    if (name == "CLA"sv)
+    if (name == "CLA"_sv)
         return ResourceType::CLA;
-    if (name == "IPN"sv)
+    if (name == "IPN"_sv)
         return ResourceType::IPN;
-    if (name == "TA"sv)
+    if (name == "TA"_sv)
         return ResourceType::TA;
-    if (name == "DLV"sv)
+    if (name == "DLV"_sv)
         return ResourceType::DLV;
     return {};
 }
@@ -602,36 +602,36 @@ StringView to_string(Class class_)
 {
     switch (class_) {
     case Class::IN:
-        return "IN"sv;
+        return "IN"_sv;
     case Class::CH:
-        return "CH"sv;
+        return "CH"_sv;
     case Class::HS:
-        return "HS"sv;
+        return "HS"_sv;
     default:
-        return "UNKNOWN"sv;
+        return "UNKNOWN"_sv;
     }
 }
 
 StringView to_string(OpCode code)
 {
     if ((to_underlying(code) & to_underlying(OpCode::Reserved)) != 0)
-        return "Reserved"sv;
+        return "Reserved"_sv;
 
     switch (code) {
     case OpCode::Query:
-        return "Query"sv;
+        return "Query"_sv;
     case OpCode::IQuery:
-        return "IQuery"sv;
+        return "IQuery"_sv;
     case OpCode::Status:
-        return "Status"sv;
+        return "Status"_sv;
     case OpCode::Notify:
-        return "Notify"sv;
+        return "Notify"_sv;
     case OpCode::Update:
-        return "Update"sv;
+        return "Update"_sv;
     case OpCode::DSO:
-        return "DSO"sv;
+        return "DSO"_sv;
     default:
-        return "UNKNOWN"sv;
+        return "UNKNOWN"_sv;
     }
 }
 
@@ -1232,7 +1232,7 @@ ErrorOr<String> Records::SIG::to_string() const
     // Single line:
     // SIG Type covered: <type>, Algorithm: <algorithm>, Labels: <labels>, Original TTL: <ttl>, Signature expiration: <expiration>, Signature inception: <inception>, Key tag: <key tag>, Signer's name: <signer>, Signature: <signature>
     StringBuilder builder;
-    builder.append("SIG "sv);
+    builder.append("SIG "_sv);
     builder.appendff("Type covered: {}, ", Messages::to_string(type_covered));
     builder.appendff("Algorithm: {}, ", DNSSEC::to_string(algorithm));
     builder.appendff("Labels: {}, ", label_count);

@@ -65,17 +65,17 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "(HTML::SyntaxHighlighter) got token of type {}", token->to_string());
 
         if (token->is_start_tag()) {
-            if (token->tag_name() == "script"sv) {
+            if (token->tag_name() == "script"_sv) {
                 tokenizer.switch_to(HTMLTokenizer::State::ScriptData);
                 state = State::Javascript;
                 substring_start_position = { token->end_position().line, token->end_position().column };
-            } else if (token->tag_name() == "style"sv) {
+            } else if (token->tag_name() == "style"_sv) {
                 tokenizer.switch_to(HTMLTokenizer::State::RAWTEXT);
                 state = State::CSS;
                 substring_start_position = { token->end_position().line, token->end_position().column };
             }
         } else if (token->is_end_tag()) {
-            if (token->tag_name().is_one_of("script"sv, "style"sv)) {
+            if (token->tag_name().is_one_of("script"_sv, "style"_sv)) {
                 if (state == State::Javascript) {
                     VERIFY(static_cast<u64>(AugmentedTokenKind::__Count) + first_free_token_kind_serial_value() < JS_TOKEN_START_VALUE);
                     Syntax::ProxyHighlighterClient proxy_client {

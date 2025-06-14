@@ -18,21 +18,21 @@ namespace Unicode {
 
 Optional<TimeUnit> time_unit_from_string(StringView time_unit)
 {
-    if (time_unit == "second"sv)
+    if (time_unit == "second"_sv)
         return TimeUnit::Second;
-    if (time_unit == "minute"sv)
+    if (time_unit == "minute"_sv)
         return TimeUnit::Minute;
-    if (time_unit == "hour"sv)
+    if (time_unit == "hour"_sv)
         return TimeUnit::Hour;
-    if (time_unit == "day"sv)
+    if (time_unit == "day"_sv)
         return TimeUnit::Day;
-    if (time_unit == "week"sv)
+    if (time_unit == "week"_sv)
         return TimeUnit::Week;
-    if (time_unit == "month"sv)
+    if (time_unit == "month"_sv)
         return TimeUnit::Month;
-    if (time_unit == "quarter"sv)
+    if (time_unit == "quarter"_sv)
         return TimeUnit::Quarter;
-    if (time_unit == "year"sv)
+    if (time_unit == "year"_sv)
         return TimeUnit::Year;
     return {};
 }
@@ -41,21 +41,21 @@ StringView time_unit_to_string(TimeUnit time_unit)
 {
     switch (time_unit) {
     case TimeUnit::Second:
-        return "second"sv;
+        return "second"_sv;
     case TimeUnit::Minute:
-        return "minute"sv;
+        return "minute"_sv;
     case TimeUnit::Hour:
-        return "hour"sv;
+        return "hour"_sv;
     case TimeUnit::Day:
-        return "day"sv;
+        return "day"_sv;
     case TimeUnit::Week:
-        return "week"sv;
+        return "week"_sv;
     case TimeUnit::Month:
-        return "month"sv;
+        return "month"_sv;
     case TimeUnit::Quarter:
-        return "quarter"sv;
+        return "quarter"_sv;
     case TimeUnit::Year:
-        return "year"sv;
+        return "year"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -85,9 +85,9 @@ static constexpr URelativeDateTimeUnit icu_time_unit(TimeUnit unit)
 
 NumericDisplay numeric_display_from_string(StringView numeric_display)
 {
-    if (numeric_display == "always"sv)
+    if (numeric_display == "always"_sv)
         return NumericDisplay::Always;
-    if (numeric_display == "auto"sv)
+    if (numeric_display == "auto"_sv)
         return NumericDisplay::Auto;
     VERIFY_NOT_REACHED();
 }
@@ -96,9 +96,9 @@ StringView numeric_display_to_string(NumericDisplay numeric_display)
 {
     switch (numeric_display) {
     case NumericDisplay::Always:
-        return "always"sv;
+        return "always"_sv;
     case NumericDisplay::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -120,15 +120,15 @@ static constexpr StringView icu_relative_time_format_field_to_string(i32 field)
 {
     switch (field) {
     case PartitionRange::LITERAL_FIELD:
-        return "literal"sv;
+        return "literal"_sv;
     case UNUM_INTEGER_FIELD:
-        return "integer"sv;
+        return "integer"_sv;
     case UNUM_FRACTION_FIELD:
-        return "fraction"sv;
+        return "fraction"_sv;
     case UNUM_DECIMAL_SEPARATOR_FIELD:
-        return "decimal"sv;
+        return "decimal"_sv;
     case UNUM_GROUPING_SEPARATOR_FIELD:
-        return "group"sv;
+        return "group"_sv;
     }
     VERIFY_NOT_REACHED();
 }

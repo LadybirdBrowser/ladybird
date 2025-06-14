@@ -45,14 +45,14 @@ StringView Flex::unit_name() const
 {
     switch (m_type) {
     case Type::Fr:
-        return "fr"sv;
+        return "fr"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<Flex::Type> Flex::unit_from_name(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("fr"sv))
+    if (name.equals_ignoring_ascii_case("fr"_sv))
         return Type::Fr;
 
     return {};

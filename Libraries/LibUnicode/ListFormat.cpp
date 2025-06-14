@@ -14,11 +14,11 @@ namespace Unicode {
 
 ListFormatType list_format_type_from_string(StringView list_format_type)
 {
-    if (list_format_type == "conjunction"sv)
+    if (list_format_type == "conjunction"_sv)
         return ListFormatType::Conjunction;
-    if (list_format_type == "disjunction"sv)
+    if (list_format_type == "disjunction"_sv)
         return ListFormatType::Disjunction;
-    if (list_format_type == "unit"sv)
+    if (list_format_type == "unit"_sv)
         return ListFormatType::Unit;
     VERIFY_NOT_REACHED();
 }
@@ -27,11 +27,11 @@ StringView list_format_type_to_string(ListFormatType list_format_type)
 {
     switch (list_format_type) {
     case ListFormatType::Conjunction:
-        return "conjunction"sv;
+        return "conjunction"_sv;
     case ListFormatType::Disjunction:
-        return "disjunction"sv;
+        return "disjunction"_sv;
     case ListFormatType::Unit:
-        return "unit"sv;
+        return "unit"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -66,9 +66,9 @@ static constexpr StringView icu_list_format_field_to_string(i32 field)
 {
     switch (field) {
     case ULISTFMT_LITERAL_FIELD:
-        return "literal"sv;
+        return "literal"_sv;
     case ULISTFMT_ELEMENT_FIELD:
-        return "element"sv;
+        return "element"_sv;
     }
     VERIFY_NOT_REACHED();
 }

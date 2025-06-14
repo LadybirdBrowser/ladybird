@@ -16,7 +16,7 @@ static String time_to_string(UnixDateTime const& time)
 {
     // FIXME: This roundabout formatting should not be necessary; it also loses precision.
     auto local_time = Core::DateTime::from_timestamp(time.seconds_since_epoch());
-    return MUST(local_time.to_string("%Y-%m-%d %H:%M:%S %Z"sv));
+    return MUST(local_time.to_string("%Y-%m-%d %H:%M:%S %Z"_sv));
 }
 
 String Cookie::creation_time_to_string() const
@@ -38,24 +38,24 @@ StringView same_site_to_string(SameSite same_site)
 {
     switch (same_site) {
     case SameSite::Default:
-        return "Default"sv;
+        return "Default"_sv;
     case SameSite::None:
-        return "None"sv;
+        return "None"_sv;
     case SameSite::Lax:
-        return "Lax"sv;
+        return "Lax"_sv;
     case SameSite::Strict:
-        return "Strict"sv;
+        return "Strict"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 SameSite same_site_from_string(StringView same_site_mode)
 {
-    if (same_site_mode.equals_ignoring_ascii_case("None"sv))
+    if (same_site_mode.equals_ignoring_ascii_case("None"_sv))
         return SameSite::None;
-    if (same_site_mode.equals_ignoring_ascii_case("Strict"sv))
+    if (same_site_mode.equals_ignoring_ascii_case("Strict"_sv))
         return SameSite::Strict;
-    if (same_site_mode.equals_ignoring_ascii_case("Lax"sv))
+    if (same_site_mode.equals_ignoring_ascii_case("Lax"_sv))
         return SameSite::Lax;
     return SameSite::Default;
 }

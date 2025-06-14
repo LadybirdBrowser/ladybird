@@ -14,23 +14,23 @@ StringView DirectoryEntry::posix_name_from_directory_entry_type(Type type)
 {
     switch (type) {
     case Type::BlockDevice:
-        return "DT_BLK"sv;
+        return "DT_BLK"_sv;
     case Type::CharacterDevice:
-        return "DT_CHR"sv;
+        return "DT_CHR"_sv;
     case Type::Directory:
-        return "DT_DIR"sv;
+        return "DT_DIR"_sv;
     case Type::File:
-        return "DT_REG"sv;
+        return "DT_REG"_sv;
     case Type::NamedPipe:
-        return "DT_FIFO"sv;
+        return "DT_FIFO"_sv;
     case Type::Socket:
-        return "DT_SOCK"sv;
+        return "DT_SOCK"_sv;
     case Type::SymbolicLink:
-        return "DT_LNK"sv;
+        return "DT_LNK"_sv;
     case Type::Unknown:
-        return "DT_UNKNOWN"sv;
+        return "DT_UNKNOWN"_sv;
     case Type::Whiteout:
-        return "DT_WHT"sv;
+        return "DT_WHT"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -39,23 +39,23 @@ StringView DirectoryEntry::representative_name_from_directory_entry_type(Type ty
 {
     switch (type) {
     case Type::BlockDevice:
-        return "BlockDevice"sv;
+        return "BlockDevice"_sv;
     case Type::CharacterDevice:
-        return "CharacterDevice"sv;
+        return "CharacterDevice"_sv;
     case Type::Directory:
-        return "Directory"sv;
+        return "Directory"_sv;
     case Type::File:
-        return "File"sv;
+        return "File"_sv;
     case Type::NamedPipe:
-        return "NamedPipe"sv;
+        return "NamedPipe"_sv;
     case Type::Socket:
-        return "Socket"sv;
+        return "Socket"_sv;
     case Type::SymbolicLink:
-        return "SymbolicLink"sv;
+        return "SymbolicLink"_sv;
     case Type::Unknown:
-        return "Unknown"sv;
+        return "Unknown"_sv;
     case Type::Whiteout:
-        return "Whiteout"sv;
+        return "Whiteout"_sv;
     }
     VERIFY_NOT_REACHED();
 }

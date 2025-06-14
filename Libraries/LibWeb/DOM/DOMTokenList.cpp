@@ -214,11 +214,11 @@ WebIDL::ExceptionOr<bool> DOMTokenList::supports(StringView token)
     // https://html.spec.whatwg.org/multipage/links.html#linkTypes
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
     static HashMap<SupportedTokenKey, Vector<StringView>> supported_tokens_map = {
-        { { HTML::TagNames::link, HTML::AttributeNames::rel }, { "modulepreload"sv, "preload"sv, "preconnect"sv, "dns-prefetch"sv, "stylesheet"sv, "icon"sv, "alternate"sv, "prefetch"sv, "prerender"sv, "next"sv, "manifest"sv, "apple-touch-icon"sv, "apple-touch-icon-precomposed"sv, "canonical"sv } },
-        { { HTML::TagNames::a, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
-        { { HTML::TagNames::area, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
-        { { HTML::TagNames::form, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
-        { { HTML::TagNames::iframe, HTML::AttributeNames::sandbox }, { "allow-downloads"sv, "allow-forms"sv, "allow-modals"sv, "allow-orientation-lock"sv, "allow-pointer-lock"sv, "allow-popups"sv, "allow-popups-to-escape-sandbox"sv, "allow-presentation"sv, "allow-same-origin"sv, "allow-scripts"sv, "allow-top-navigation"sv, "allow-top-navigation-by-user-activation"sv, "allow-top-navigation-to-custom-protocols"sv } },
+        { { HTML::TagNames::link, HTML::AttributeNames::rel }, { "modulepreload"_sv, "preload"_sv, "preconnect"_sv, "dns-prefetch"_sv, "stylesheet"_sv, "icon"_sv, "alternate"_sv, "prefetch"_sv, "prerender"_sv, "next"_sv, "manifest"_sv, "apple-touch-icon"_sv, "apple-touch-icon-precomposed"_sv, "canonical"_sv } },
+        { { HTML::TagNames::a, HTML::AttributeNames::rel }, { "noreferrer"_sv, "noopener"_sv, "opener"_sv } },
+        { { HTML::TagNames::area, HTML::AttributeNames::rel }, { "noreferrer"_sv, "noopener"_sv, "opener"_sv } },
+        { { HTML::TagNames::form, HTML::AttributeNames::rel }, { "noreferrer"_sv, "noopener"_sv, "opener"_sv } },
+        { { HTML::TagNames::iframe, HTML::AttributeNames::sandbox }, { "allow-downloads"_sv, "allow-forms"_sv, "allow-modals"_sv, "allow-orientation-lock"_sv, "allow-pointer-lock"_sv, "allow-popups"_sv, "allow-popups-to-escape-sandbox"_sv, "allow-presentation"_sv, "allow-same-origin"_sv, "allow-scripts"_sv, "allow-top-navigation"_sv, "allow-top-navigation-by-user-activation"_sv, "allow-top-navigation-to-custom-protocols"_sv } },
     };
 
     // 1. If the associated attribute’s local name does not define supported tokens, throw a TypeError.

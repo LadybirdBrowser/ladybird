@@ -25,7 +25,7 @@ namespace WebView {
 #if defined(LADYBIRD_LIBEXECDIR)
 static constexpr auto libexec_path = STRINGIFY(LADYBIRD_LIBEXECDIR);
 #else
-static constexpr auto libexec_path = "libexec"sv;
+static constexpr auto libexec_path = "libexec"_sv;
 #endif
 
 ByteString s_ladybird_resource_root;
@@ -71,8 +71,8 @@ void platform_init(Optional<ByteString> ladybird_binary_path)
     s_ladybird_binary_path = move(ladybird_binary_path);
 
     s_ladybird_resource_root = [] {
-        auto home = Core::Environment::get("XDG_CONFIG_HOME"sv)
-                        .value_or_lazy_evaluated_optional([]() { return Core::Environment::get("HOME"sv); });
+        auto home = Core::Environment::get("XDG_CONFIG_HOME"_sv)
+                        .value_or_lazy_evaluated_optional([]() { return Core::Environment::get("HOME"_sv); });
         if (home.has_value()) {
             auto home_lagom = ByteString::formatted("{}/.lagom", home);
             if (FileSystem::is_directory(home_lagom))
@@ -80,9 +80,9 @@ void platform_init(Optional<ByteString> ladybird_binary_path)
         }
         auto app_dir = MUST(application_directory());
 #ifdef AK_OS_MACOS
-        return LexicalPath(app_dir).parent().append("Resources"sv).string();
+        return LexicalPath(app_dir).parent().append("Resources"_sv).string();
 #else
-        return find_prefix(LexicalPath(app_dir)).append("share/Lagom"sv).string();
+        return find_prefix(LexicalPath(app_dir)).append("share/Lagom"_sv).string();
 #endif
     }();
 
@@ -93,7 +93,7 @@ void copy_default_config_files(StringView config_path)
 {
     MUST(Core::Directory::create(config_path, Core::Directory::CreateDirectories::Yes));
 
-    auto config_resources = MUST(Core::Resource::load_from_uri("resource://ladybird/default-config"sv));
+    auto config_resources = MUST(Core::Resource::load_from_uri("resource://ladybird/default-config"_sv));
 
     config_resources->for_each_descendant_file([config_path](Core::Resource const& resource) -> IterationDecision {
         auto file_path = ByteString::formatted("{}/{}", config_path, resource.filename());
@@ -115,7 +115,7 @@ ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name
 #if !defined(AK_OS_MACOS) && !defined(AK_OS_WINDOWS)
     auto prefix = find_prefix(LexicalPath(application_path));
     TRY(paths.try_append(LexicalPath::join(prefix.string(), libexec_path, process_name).string()));
-    TRY(paths.try_append(LexicalPath::join(prefix.string(), "bin"sv, process_name).string()));
+    TRY(paths.try_append(LexicalPath::join(prefix.string(), "bin"_sv, process_name).string()));
 #endif
     TRY(paths.try_append(ByteString::formatted("{}/{}", application_path, process_name)));
     TRY(paths.try_append(ByteString::formatted("./{}", process_name)));

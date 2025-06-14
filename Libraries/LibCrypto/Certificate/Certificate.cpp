@@ -20,7 +20,7 @@ ErrorOr<Vector<int>> parse_ec_parameters(ASN1::Decoder& decoder, Vector<StringVi
     // ECParameters ::= CHOICE {
     //     namedCurve      OBJECT IDENTIFIER
     // }
-    PUSH_SCOPE("ECParameters"sv);
+    PUSH_SCOPE("ECParameters"_sv);
     READ_OBJECT(ObjectIdentifier, Vector<int>, named_curve);
     POP_SCOPE();
 
@@ -52,7 +52,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
     //     parameters ALGORITHM.&Type({SupportedAlgorithms}{@algorithm}) OPTIONAL,
     // ... }
     ENTER_TYPED_SCOPE(Sequence, "AlgorithmIdentifier");
-    PUSH_SCOPE("algorithm"sv);
+    PUSH_SCOPE("algorithm"_sv);
     READ_OBJECT(ObjectIdentifier, Vector<int>, algorithm);
     POP_SCOPE();
 
@@ -112,7 +112,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
     }
 
     if (is_rsa_null_algorithm) {
-        PUSH_SCOPE("RSA null parameter"sv);
+        PUSH_SCOPE("RSA null parameter"_sv);
         READ_OBJECT(Null, void*, forced_null);
         (void)forced_null;
         POP_SCOPE();
@@ -164,7 +164,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
 
         auto tag = TRY(decoder.peek());
         if (tag.kind == Crypto::ASN1::Kind::Null) {
-            PUSH_SCOPE("ecPublicKey null parameter"sv);
+            PUSH_SCOPE("ecPublicKey null parameter"_sv);
             READ_OBJECT(Null, void*, forced_null);
             (void)forced_null;
             POP_SCOPE();
@@ -196,7 +196,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(ASN1::Decoder& decoder, 
 
     public_key.algorithm = TRY(parse_algorithm_identifier(decoder, current_scope));
 
-    PUSH_SCOPE("subjectPublicKey"sv);
+    PUSH_SCOPE("subjectPublicKey"_sv);
     READ_OBJECT(BitString, Crypto::ASN1::BitStringView, value);
     POP_SCOPE();
 
@@ -243,7 +243,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(ASN1::Decoder& decoder, 
         }
     }
 
-    String algo_oid = TRY(String::join("."sv, public_key.algorithm.identifier));
+    String algo_oid = TRY(String::join("."_sv, public_key.algorithm.identifier));
     ERROR_WITH_SCOPE(TRY(String::formatted("Unhandled algorithm {}", algo_oid)));
 }
 
@@ -266,7 +266,7 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
     }
     private_key.algorithm = TRY(parse_algorithm_identifier(decoder, current_scope));
 
-    PUSH_SCOPE("privateKey"sv);
+    PUSH_SCOPE("privateKey"_sv);
     READ_OBJECT(OctetString, StringView, value);
     POP_SCOPE();
 
@@ -313,7 +313,7 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
         }
     }
 
-    String algo_oid = TRY(String::join("."sv, private_key.algorithm.identifier));
+    String algo_oid = TRY(String::join("."_sv, private_key.algorithm.identifier));
     ERROR_WITH_SCOPE(TRY(String::formatted("Unhandled algorithm {}", algo_oid)));
 }
 

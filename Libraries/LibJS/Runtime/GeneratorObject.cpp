@@ -62,7 +62,7 @@ ThrowCompletionOr<GeneratorObject::GeneratorState> GeneratorObject::validate(VM&
 
     // 3. If generator.[[GeneratorBrand]] is not the same value as generatorBrand, throw a TypeError exception.
     if (m_generator_brand != generator_brand)
-        return vm.throw_completion<TypeError>(ErrorType::GeneratorBrandMismatch, m_generator_brand.value_or("<empty>"sv), generator_brand.value_or("<empty>"sv));
+        return vm.throw_completion<TypeError>(ErrorType::GeneratorBrandMismatch, m_generator_brand.value_or("<empty>"_sv), generator_brand.value_or("<empty>"_sv));
 
     // 4. Assert: generator also has a [[GeneratorContext]] internal slot.
     // NOTE: Done by already being a GeneratorObject.

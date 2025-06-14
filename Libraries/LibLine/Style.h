@@ -145,7 +145,7 @@ public:
 
     static Style reset_style()
     {
-        return { Foreground(XtermColor::Default), Background(XtermColor::Default), Hyperlink(""sv) };
+        return { Foreground(XtermColor::Default), Background(XtermColor::Default), Hyperlink(""_sv) };
     }
 
     Style unified_with(Style const& other, bool prefer_other = true) const

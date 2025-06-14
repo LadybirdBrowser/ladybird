@@ -225,24 +225,24 @@ inline void TestRunner::print_test_results_as_json() const
                 StringView result_name;
                 switch (case_.result) {
                 case Result::Pass:
-                    result_name = "PASSED"sv;
+                    result_name = "PASSED"_sv;
                     break;
                 case Result::Fail:
-                    result_name = "FAILED"sv;
+                    result_name = "FAILED"_sv;
                     break;
                 case Result::Skip:
-                    result_name = "SKIPPED"sv;
+                    result_name = "SKIPPED"_sv;
                     break;
                 case Result::ExpectedFail:
-                    result_name = "XFAIL"sv;
+                    result_name = "XFAIL"_sv;
                     break;
                 case Result::Crashed:
-                    result_name = "PROCESS_ERROR"sv;
+                    result_name = "PROCESS_ERROR"_sv;
                     break;
                 }
 
                 auto name = suite.name;
-                if (name == "__$$TOP_LEVEL$$__"sv)
+                if (name == "__$$TOP_LEVEL$$__"_sv)
                     name = String {};
 
                 auto path = *LexicalPath::relative_path(suite.path, m_test_root);
@@ -251,28 +251,28 @@ inline void TestRunner::print_test_results_as_json() const
             }
         }
 
-        root.set("duration"sv, static_cast<double>(duration_us) / 1000000.);
-        root.set("results"sv, move(tests));
+        root.set("duration"_sv, static_cast<double>(duration_us) / 1000000.);
+        root.set("results"_sv, move(tests));
     } else {
         JsonObject suites;
-        suites.set("failed"sv, m_counts.suites_failed);
-        suites.set("passed"sv, m_counts.suites_passed);
-        suites.set("total"sv, m_counts.suites_failed + m_counts.suites_passed);
+        suites.set("failed"_sv, m_counts.suites_failed);
+        suites.set("passed"_sv, m_counts.suites_passed);
+        suites.set("total"_sv, m_counts.suites_failed + m_counts.suites_passed);
 
         JsonObject tests;
-        tests.set("failed"sv, m_counts.tests_failed);
-        tests.set("passed"sv, m_counts.tests_passed);
-        tests.set("skipped"sv, m_counts.tests_skipped);
-        tests.set("xfail"sv, m_counts.tests_expected_failed);
-        tests.set("total"sv, m_counts.tests_failed + m_counts.tests_passed + m_counts.tests_skipped + m_counts.tests_expected_failed);
+        tests.set("failed"_sv, m_counts.tests_failed);
+        tests.set("passed"_sv, m_counts.tests_passed);
+        tests.set("skipped"_sv, m_counts.tests_skipped);
+        tests.set("xfail"_sv, m_counts.tests_expected_failed);
+        tests.set("total"_sv, m_counts.tests_failed + m_counts.tests_passed + m_counts.tests_skipped + m_counts.tests_expected_failed);
 
         JsonObject results;
-        results.set("suites"sv, suites);
-        results.set("tests"sv, tests);
+        results.set("suites"_sv, suites);
+        results.set("tests"_sv, tests);
 
-        root.set("results"sv, results);
-        root.set("files_total"sv, m_counts.files_total);
-        root.set("duration"sv, m_total_elapsed_time_in_ms / 1000.0);
+        root.set("results"_sv, results);
+        root.set("files_total"_sv, m_counts.files_total);
+        root.set("duration"_sv, m_total_elapsed_time_in_ms / 1000.0);
     }
     outln("{}", root.serialized());
 }

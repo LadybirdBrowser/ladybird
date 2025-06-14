@@ -12,7 +12,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
 {
     AK::set_debug_enabled(false);
 
-    static constexpr StringView MAGIC_SEPARATOR = "|DATA|"sv;
+    static constexpr StringView MAGIC_SEPARATOR = "|DATA|"_sv;
     StringView data_string_view { data, size };
     auto separator_index = data_string_view.find(MAGIC_SEPARATOR);
     if (!separator_index.has_value())

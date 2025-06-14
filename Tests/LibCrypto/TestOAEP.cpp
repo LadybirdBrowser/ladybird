@@ -12,11 +12,11 @@
 // https://www.inf.pucrs.br/~calazans/graduate/TPVLSI_I/RSA-oaep_spec.pdf
 TEST_CASE(test_oaep)
 {
-    auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"sv.bytes();
+    auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"_sv.bytes();
 
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
     auto rsa = Crypto::PK::RSA_OAEP_EME(Crypto::Hash::HashKind::SHA1, keypair);
-    rsa.set_label("LABEL"sv.bytes());
+    rsa.set_label("LABEL"_sv.bytes());
 
     auto enc = TRY_OR_FAIL(rsa.encrypt(msg));
     auto dec = TRY_OR_FAIL(rsa.decrypt(enc));

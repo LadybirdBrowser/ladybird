@@ -66,11 +66,11 @@ constexpr StringView to_string(MatchResult result)
 {
     switch (result) {
     case MatchResult::False:
-        return "false"sv;
+        return "false"_sv;
     case MatchResult::True:
-        return "true"sv;
+        return "true"_sv;
     case MatchResult::Unknown:
-        return "unknown"sv;
+        return "unknown"_sv;
     }
     VERIFY_NOT_REACHED();
 }

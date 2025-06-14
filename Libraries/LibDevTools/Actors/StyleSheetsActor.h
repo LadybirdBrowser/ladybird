@@ -15,7 +15,7 @@ namespace DevTools {
 
 class StyleSheetsActor final : public Actor {
 public:
-    static constexpr auto base_name = "style-sheets"sv;
+    static constexpr auto base_name = "style-sheets"_sv;
 
     static NonnullRefPtr<StyleSheetsActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~StyleSheetsActor() override;

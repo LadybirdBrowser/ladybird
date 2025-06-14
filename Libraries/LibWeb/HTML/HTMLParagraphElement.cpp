@@ -41,13 +41,13 @@ void HTMLParagraphElement::apply_presentational_hints(GC::Ref<CSS::CascadedPrope
     HTMLElement::apply_presentational_hints(cascaded_properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
-            if (value.equals_ignoring_ascii_case("left"sv))
+            if (value.equals_ignoring_ascii_case("left"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Left));
-            else if (value.equals_ignoring_ascii_case("right"sv))
+            else if (value.equals_ignoring_ascii_case("right"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Right));
-            else if (value.equals_ignoring_ascii_case("center"sv))
+            else if (value.equals_ignoring_ascii_case("center"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
-            else if (value.equals_ignoring_ascii_case("justify"sv))
+            else if (value.equals_ignoring_ascii_case("justify"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Justify));
         }
     });

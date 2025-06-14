@@ -108,7 +108,7 @@ void initialize_main_thread_vm(AgentType type)
     s_main_thread_vm->host_ensure_can_add_private_element = [](JS::Object const& object) -> JS::ThrowCompletionOr<void> {
         // 1. If O is a WindowProxy object, or implements Location, then return Completion { [[Type]]: throw, [[Value]]: a new TypeError }.
         if (is<HTML::WindowProxy>(object) || is<HTML::Location>(object))
-            return s_main_thread_vm->throw_completion<JS::TypeError>("Cannot add private elements to window or location object"sv);
+            return s_main_thread_vm->throw_completion<JS::TypeError>("Cannot add private elements to window or location object"_sv);
 
         // 2. Return NormalCompletion(unused).
         return {};
@@ -459,7 +459,7 @@ void initialize_main_thread_vm(AgentType type)
                 for (auto const& module_request : referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules()) {
                     // 1. If moduleRequest.[[Attributes]] contains a Record entry such that entry.[[Key]] is not "type", then:
                     for (auto const& attribute : module_request.attributes) {
-                        if (attribute.key == "type"sv)
+                        if (attribute.key == "type"_sv)
                             continue;
 
                         // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: a new SyntaxError exception, [[Target]]: empty }.

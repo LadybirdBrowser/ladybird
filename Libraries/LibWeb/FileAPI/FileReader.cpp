@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
             // 2. If type is not failure, set encoding to the result of getting an encoding from type’s parameters["charset"].
             if (maybe_type.has_value()) {
                 auto const& type = maybe_type.value();
-                auto it = type.parameters().find("charset"sv);
+                auto it = type.parameters().find("charset"_sv);
                 if (it != type.parameters().end())
                     encoding = TextCodec::get_standardized_encoding(it->value);
             }
@@ -97,7 +97,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
 
         // 4. If encoding is failure, then set encoding to UTF-8.
         // 5. Decode bytes using fallback encoding encoding, and return the result.
-        auto decoder = TextCodec::decoder_for(encoding.value_or("UTF-8"sv));
+        auto decoder = TextCodec::decoder_for(encoding.value_or("UTF-8"_sv));
         VERIFY(decoder.has_value());
         return TRY_OR_THROW_OOM(realm.vm(), convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder.value(), bytes));
     }

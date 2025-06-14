@@ -131,7 +131,7 @@ template<class Parser>
 ByteString Regex<Parser>::error_string(Optional<ByteString> message) const
 {
     StringBuilder eb;
-    eb.append("Error during parsing of regular expression:\n"sv);
+    eb.append("Error during parsing of regular expression:\n"_sv);
     eb.appendff("    {}\n    ", pattern_value);
     for (size_t i = 0; i < parser_result.error_token.position(); ++i)
         eb.append(' ');

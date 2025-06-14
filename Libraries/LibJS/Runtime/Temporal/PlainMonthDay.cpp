@@ -89,7 +89,7 @@ ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM& vm, Value it
     TRY(get_temporal_overflow_option(vm, resolved_options));
 
     // 10. If calendar is "iso8601", then
-    if (calendar == "iso8601"sv) {
+    if (calendar == "iso8601"_sv) {
         // a. Let referenceISOYear be 1972 (the first ISO 8601 leap year after the epoch).
         static constexpr i32 reference_iso_year = 1972;
 
@@ -150,7 +150,7 @@ String temporal_month_day_to_string(PlainMonthDay const& month_day, ShowCalendar
     auto result = MUST(String::formatted("{:02}-{:02}", month_day.iso_date().month, month_day.iso_date().day));
 
     // 4. If showCalendar is one of ALWAYS or CRITICAL, or if monthDay.[[Calendar]] is not "iso8601", then
-    if (show_calendar == ShowCalendar::Always || show_calendar == ShowCalendar::Critical || month_day.calendar() != "iso8601"sv) {
+    if (show_calendar == ShowCalendar::Always || show_calendar == ShowCalendar::Critical || month_day.calendar() != "iso8601"_sv) {
         // a. Let year be PadISOYear(monthDay.[[ISODate]].[[Year]]).
         auto year = pad_iso_year(month_day.iso_date().year);
 

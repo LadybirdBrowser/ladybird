@@ -34,7 +34,7 @@ HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
     auto value = get_attribute_value(HTML::AttributeNames::type);
 
 #define __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(keyword, state) \
-    if (value.equals_ignoring_ascii_case(#keyword##sv))        \
+    if (value.equals_ignoring_ascii_case(#keyword##_sv))       \
         return HTMLButtonElement::TypeAttributeState::state;
     ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE
@@ -185,7 +185,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         auto is_popover = target->popover().has_value();
 
         // 4. If isPopover is false and command is not in the Custom state:
-        auto command_is_in_custom_state = command.starts_with_bytes("--"sv);
+        auto command_is_in_custom_state = command.starts_with_bytes("--"_sv);
         if (!is_popover && !command_is_in_custom_state) {
             // 1. Assert: target's namespace is the HTML namespace.
             VERIFY(target->namespace_uri() == Namespace::HTML);
@@ -296,7 +296,7 @@ String HTMLButtonElement::command() const
 
     // 2. If command is in the Custom state, then return command's value.
     //    A custom command keyword is a string that starts with "--".
-    if (command.has_value() && command.value().starts_with_bytes("--"sv)) {
+    if (command.has_value() && command.value().starts_with_bytes("--"_sv)) {
         return command.value();
     }
 

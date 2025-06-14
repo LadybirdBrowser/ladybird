@@ -13,7 +13,7 @@ namespace DevTools {
 
 class ConsoleActor final : public Actor {
 public:
-    static constexpr auto base_name = "console"sv;
+    static constexpr auto base_name = "console"_sv;
 
     static NonnullRefPtr<ConsoleActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~ConsoleActor() override;

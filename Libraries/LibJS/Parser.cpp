@@ -307,7 +307,7 @@ public:
                 local_variable_declaration_kind = LocalVariable::DeclarationKind::Function;
             }
 
-            if (m_type == ScopeType::Function && !m_is_arrow_function && identifier_group_name == "arguments"sv) {
+            if (m_type == ScopeType::Function && !m_is_arrow_function && identifier_group_name == "arguments"_sv) {
                 local_variable_declaration_kind = LocalVariable::DeclarationKind::ArgumentsObject;
             }
 
@@ -751,7 +751,7 @@ bool Parser::parse_directive(ScopeNode& body)
         if (!is<StringLiteral>(expression))
             break;
 
-        if (raw_value.is_one_of("'use strict'"sv, "\"use strict\"")) {
+        if (raw_value.is_one_of("'use strict'"_sv, "\"use strict\"")) {
             found_use_strict = true;
 
             if (m_state.string_legacy_octal_escape_sequence_in_scope)
@@ -878,7 +878,7 @@ NonnullRefPtr<Declaration const> Parser::parse_declaration()
     case TokenType::Const:
         return parse_variable_declaration();
     case TokenType::Identifier:
-        if (m_state.current_token.original_value() == "using"sv) {
+        if (m_state.current_token.original_value() == "using"_sv) {
             if (!m_state.current_scope_pusher->can_have_using_declaration())
                 syntax_error("'using' not allowed outside of block, for loop or function"_string);
 
@@ -972,18 +972,18 @@ bool Parser::match_invalid_escaped_keyword() const
     if (m_state.current_token.type() != TokenType::EscapedKeyword)
         return false;
     auto token_value = m_state.current_token.value();
-    if (token_value == "await"sv)
+    if (token_value == "await"_sv)
         return m_program_type == Program::Type::Module || m_state.await_expression_is_valid;
-    if (token_value == "async"sv)
+    if (token_value == "async"_sv)
         return false;
-    if (token_value == "yield"sv)
+    if (token_value == "yield"_sv)
         return m_state.in_generator_function_context;
     if (m_state.strict_mode)
         return true;
-    return token_value != "let"sv;
+    return token_value != "let"_sv;
 }
 
-static constexpr AK::Array<StringView, 9> strict_reserved_words = { "implements"sv, "interface"sv, "let"sv, "package"sv, "private"sv, "protected"sv, "public"sv, "static"sv, "yield"sv };
+static constexpr AK::Array<StringView, 9> strict_reserved_words = { "implements"_sv, "interface"_sv, "let"_sv, "package"_sv, "private"_sv, "protected"_sv, "public"_sv, "static"_sv, "yield"_sv };
 
 static bool is_strict_reserved_word(StringView str)
 {
@@ -1067,7 +1067,7 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
             parameters = fixme_launder_const_through_pointer_cast(const_correct_parameters);
             if (m_state.errors.size() > previous_syntax_errors) {
                 auto error_message = m_state.errors[previous_syntax_errors].message.bytes_as_string_view();
-                if (error_message.starts_with("Unexpected token"sv) || error_message.starts_with("Duplicate parameter names"sv)) {
+                if (error_message.starts_with("Unexpected token"_sv) || error_message.starts_with("Duplicate parameter names"_sv)) {
                     return nullptr;
                 }
             }
@@ -1079,9 +1079,9 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
             if (!match_identifier() && !match(TokenType::Yield) && !match(TokenType::Await))
                 return nullptr;
             auto token = consume_identifier_reference();
-            if (m_state.strict_mode && token.value().is_one_of("arguments"sv, "eval"sv))
+            if (m_state.strict_mode && token.value().is_one_of("arguments"_sv, "eval"_sv))
                 syntax_error("BindingIdentifier may not be 'arguments' or 'eval' in strict mode"_string);
-            if (is_async && token.value() == "await"sv)
+            if (is_async && token.value() == "await"_sv)
                 syntax_error("'await' is a reserved identifier in async functions"_string);
             auto identifier = create_ast_node<Identifier const>({ m_source_code, rule_start.position(), position() }, token.fly_string_value());
             parameters = FunctionParameters::create(Vector<FunctionParameter> { FunctionParameter { identifier, {} } });
@@ -1180,16 +1180,16 @@ RefPtr<LabelledStatement const> Parser::try_parse_labelled_statement(AllowLabell
         load_state();
     };
 
-    if (m_state.current_token.value() == "yield"sv && (m_state.strict_mode || m_state.in_generator_function_context)) {
+    if (m_state.current_token.value() == "yield"_sv && (m_state.strict_mode || m_state.in_generator_function_context)) {
         return {};
     }
 
-    if (m_state.current_token.value() == "await"sv && (m_program_type == Program::Type::Module || m_state.await_expression_is_valid || m_state.in_class_static_init_block)) {
+    if (m_state.current_token.value() == "await"_sv && (m_program_type == Program::Type::Module || m_state.await_expression_is_valid || m_state.in_class_static_init_block)) {
         return {};
     }
 
     auto identifier = [&] {
-        if (m_state.current_token.value() == "await"sv) {
+        if (m_state.current_token.value() == "await"_sv) {
             return consume().fly_string_value();
         }
         return consume_identifier_reference().fly_string_value();
@@ -1204,7 +1204,7 @@ RefPtr<LabelledStatement const> Parser::try_parse_labelled_statement(AllowLabell
     state_rollback_guard.disarm();
     discard_saved_state();
 
-    if (m_state.strict_mode && identifier == "let"sv) {
+    if (m_state.strict_mode && identifier == "let"_sv) {
         syntax_error("Strict mode reserved word 'let' is not allowed in label"_string, rule_start.position());
         return {};
     }
@@ -1270,7 +1270,7 @@ RefPtr<MetaProperty const> Parser::try_parse_new_target_expression()
     if (!match(TokenType::Identifier))
         return {};
     // The string 'target' cannot have escapes so we check original value.
-    if (consume().original_value() != "target"sv)
+    if (consume().original_value() != "target"_sv)
         return {};
 
     state_rollback_guard.disarm();
@@ -1299,7 +1299,7 @@ RefPtr<MetaProperty const> Parser::try_parse_import_meta_expression()
     if (!match(TokenType::Identifier))
         return {};
     // The string 'meta' cannot have escapes so we check original value.
-    if (consume().original_value() != "meta"sv)
+    if (consume().original_value() != "meta"_sv)
         return {};
 
     state_rollback_guard.disarm();
@@ -1366,7 +1366,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
     if (class_name)
         check_identifier_name_for_assignment_validity(class_name->string(), true);
-    if (m_state.in_class_static_init_block && class_name && class_name->string() == "await"sv)
+    if (m_state.in_class_static_init_block && class_name && class_name->string() == "await"_sv)
         syntax_error("Identifier must not be a reserved word in modules ('await')"_string);
 
     if (match(TokenType::Extends)) {
@@ -1434,7 +1434,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
         FlyString name;
         if (match_property_key() || match(TokenType::PrivateIdentifier)) {
-            if (!is_generator && !is_async && m_state.current_token.original_value() == "static"sv) {
+            if (!is_generator && !is_async && m_state.current_token.original_value() == "static"_sv) {
                 if (match(TokenType::Identifier)) {
                     consume();
                     is_static = true;
@@ -1453,10 +1453,10 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             if (match(TokenType::Identifier)) {
                 auto identifier_name = m_state.current_token.original_value();
 
-                if (identifier_name == "get"sv) {
+                if (identifier_name == "get"_sv) {
                     method_kind = ClassMethod::Kind::Getter;
                     consume();
-                } else if (identifier_name == "set"sv) {
+                } else if (identifier_name == "set"_sv) {
                     method_kind = ClassMethod::Kind::Setter;
                     consume();
                 }
@@ -1519,7 +1519,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
                 // https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
                 // ClassElement : static MethodDefinition
                 //   It is a Syntax Error if PropName of MethodDefinition is "prototype".
-                if (is_static && name == "prototype"sv)
+                if (is_static && name == "prototype"_sv)
                     syntax_error("Classes may not have a static property named 'prototype'"_string);
             } else if ((match(TokenType::ParenOpen) || match(TokenType::Equals) || match(TokenType::Semicolon) || match(TokenType::CurlyClose)) && (is_static || is_async || method_kind != ClassMethod::Kind::Method)) {
                 switch (method_kind) {
@@ -1573,7 +1573,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             }
 
             // Constructor may be a StringLiteral or an Identifier.
-            if (!is_static && name == "constructor"sv) {
+            if (!is_static && name == "constructor"_sv) {
                 if (method_kind != ClassMethod::Kind::Method)
                     syntax_error("Class constructor may not be an accessor"_string);
                 if (!constructor.is_null())
@@ -1616,7 +1616,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             expected("property key");
             consume();
         } else {
-            if (name == "constructor"sv)
+            if (name == "constructor"_sv)
                 syntax_error("Class cannot have field named 'constructor'"_string);
 
             RefPtr<Expression const> initializer;
@@ -1727,9 +1727,9 @@ Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
             new_expression.set_inside_parens();
         } else if (is<FunctionExpression>(*expression)) {
             auto& function = static_cast<FunctionExpression const&>(*expression);
-            if (function.kind() == FunctionKind::Generator && function.name() == "yield"sv)
+            if (function.kind() == FunctionKind::Generator && function.name() == "yield"_sv)
                 syntax_error("function is not allowed to be called 'yield' in this context"_string, function.source_range().start);
-            if (function.kind() == FunctionKind::Async && function.name() == "await"sv)
+            if (function.kind() == FunctionKind::Async && function.name() == "await"_sv)
                 syntax_error("function is not allowed to be called 'await' in this context"_string, function.source_range().start);
         }
         return { move(expression) };
@@ -2067,10 +2067,10 @@ NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
             function_kind = function_kind == FunctionKind::Normal ? FunctionKind::Generator : FunctionKind::AsyncGenerator;
         } else if (match_identifier()) {
             auto identifier = consume();
-            if (identifier.original_value() == "get"sv && match_property_key()) {
+            if (identifier.original_value() == "get"_sv && match_property_key()) {
                 property_type = ObjectProperty::Type::Getter;
                 property_key = parse_property_key();
-            } else if (identifier.original_value() == "set"sv && match_property_key()) {
+            } else if (identifier.original_value() == "set"_sv && match_property_key()) {
                 property_type = ObjectProperty::Type::Setter;
                 property_key = parse_property_key();
             } else {
@@ -2321,7 +2321,7 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
             }
         }
 
-        if (has_not_been_declared_as_variable && !m_state.strict_mode && identifier_instance->string() == "arguments"sv) {
+        if (has_not_been_declared_as_variable && !m_state.strict_mode && identifier_instance->string() == "arguments"_sv) {
             m_state.current_scope_pusher->set_contains_access_to_arguments_object_in_non_strict_mode();
         }
     }
@@ -2358,7 +2358,7 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
 
     if (is<CallExpression>(*expression) && m_state.current_scope_pusher) {
         auto& callee = static_ptr_cast<CallExpression const>(expression)->callee();
-        if (is<Identifier>(callee) && static_cast<Identifier const&>(callee).string() == "eval"sv) {
+        if (is<Identifier>(callee) && static_cast<Identifier const&>(callee).string() == "eval"_sv) {
             m_state.current_scope_pusher->set_contains_direct_call_to_eval();
             m_state.current_scope_pusher->set_uses_this();
         }
@@ -2665,7 +2665,7 @@ NonnullRefPtr<Identifier const> Parser::parse_identifier()
 {
     auto identifier_start = position();
     auto token = consume_identifier();
-    if (m_state.in_class_field_initializer && token.value() == "arguments"sv)
+    if (m_state.in_class_field_initializer && token.value() == "arguments"_sv)
         syntax_error("'arguments' is not allowed in class field initializer"_string);
     return create_identifier_and_register_in_current_scope({ m_source_code, identifier_start, position() }, token.fly_string_value());
 }
@@ -2858,10 +2858,10 @@ NonnullRefPtr<FunctionBody const> Parser::parse_function_body(NonnullRefPtr<Func
                     auto const& parameter_name = identifier.string();
 
                     check_identifier_name_for_assignment_validity(parameter_name, function_body->in_strict_mode());
-                    if (function_kind == FunctionKind::Generator && parameter_name == "yield"sv)
+                    if (function_kind == FunctionKind::Generator && parameter_name == "yield"_sv)
                         syntax_error("Parameter name 'yield' not allowed in this context"_string);
 
-                    if (function_kind == FunctionKind::Async && parameter_name == "await"sv)
+                    if (function_kind == FunctionKind::Async && parameter_name == "await"_sv)
                         syntax_error("Parameter name 'await' not allowed in this context"_string);
 
                     for (auto& previous_name : parameter_names) {
@@ -2877,10 +2877,10 @@ NonnullRefPtr<FunctionBody const> Parser::parse_function_body(NonnullRefPtr<Func
                     MUST(binding->for_each_bound_identifier([&](auto& bound_identifier) {
                         auto const& bound_name = bound_identifier.string();
 
-                        if (function_kind == FunctionKind::Generator && bound_name == "yield"sv)
+                        if (function_kind == FunctionKind::Generator && bound_name == "yield"_sv)
                             syntax_error("Parameter name 'yield' not allowed in this context"_string);
 
-                        if (function_kind == FunctionKind::Async && bound_name == "await"sv)
+                        if (function_kind == FunctionKind::Async && bound_name == "await"_sv)
                             syntax_error("Parameter name 'await' not allowed in this context"_string);
 
                         for (auto& previous_name : parameter_names) {
@@ -2972,10 +2972,10 @@ NonnullRefPtr<FunctionNodeType> Parser::parse_function_node(u16 parse_options, O
         if (name) {
             check_identifier_name_for_assignment_validity(name->string());
 
-            if (function_kind == FunctionKind::AsyncGenerator && (name->string() == "await"sv || name->string() == "yield"sv))
+            if (function_kind == FunctionKind::AsyncGenerator && (name->string() == "await"_sv || name->string() == "yield"_sv))
                 syntax_error(MUST(String::formatted("async generator function is not allowed to be called '{}'", name->string())));
 
-            if (m_state.in_class_static_init_block && name->string() == "await"sv)
+            if (m_state.in_class_static_init_block && name->string() == "await"_sv)
                 syntax_error("'await' is a reserved word"_string);
         }
     }
@@ -3109,7 +3109,7 @@ NonnullRefPtr<FunctionParameters const> Parser::parse_formal_parameters(int& fun
             default_value = parse_expression(2);
 
             bool is_generator = parse_options & FunctionNodeParseOptions::IsGeneratorFunction;
-            if ((is_generator || m_state.strict_mode) && default_value && default_value->fast_is<Identifier>() && static_cast<Identifier const&>(*default_value).string() == "yield"sv)
+            if ((is_generator || m_state.strict_mode) && default_value && default_value->fast_is<Identifier>() && static_cast<Identifier const&>(*default_value).string() == "yield"_sv)
                 syntax_error("Generator function parameter initializer cannot contain a reference to an identifier named \"yield\""_string);
         }
         parameters.append({ move(parameter), default_value, is_rest });
@@ -3191,7 +3191,7 @@ RefPtr<BindingPattern const> Parser::parse_binding_pattern(Parser::AllowDuplicat
                     name = create_identifier_and_register_in_current_scope({ m_source_code, rule_start.position(), position() }, string_literal->value());
                 } else if (match(TokenType::BigIntLiteral)) {
                     auto string_value = consume().fly_string_value();
-                    VERIFY(string_value.bytes_as_string_view().ends_with("n"sv));
+                    VERIFY(string_value.bytes_as_string_view().ends_with("n"_sv));
                     name = create_identifier_and_register_in_current_scope({ m_source_code, rule_start.position(), position() }, FlyString(MUST(string_value.to_string().substring_from_byte_offset(0, string_value.bytes().size() - 1))));
                 } else {
                     name = create_identifier_and_register_in_current_scope({ m_source_code, rule_start.position(), position() }, consume().fly_string_value());
@@ -3382,7 +3382,7 @@ NonnullRefPtr<VariableDeclaration const> Parser::parse_variable_declaration(IsFo
             if ((declaration_kind == DeclarationKind::Let || declaration_kind == DeclarationKind::Const)) {
                 // NOTE: Nothing in the callback throws an exception.
                 MUST(pattern->for_each_bound_identifier([this](auto& identifier) {
-                    if (identifier.string() == "let"sv)
+                    if (identifier.string() == "let"_sv)
                         syntax_error("Lexical binding may not be called 'let'"_string);
                 }));
             }
@@ -3390,7 +3390,7 @@ NonnullRefPtr<VariableDeclaration const> Parser::parse_variable_declaration(IsFo
             target = pattern.release_nonnull();
         } else if (auto lexical_binding = parse_lexical_binding(declaration_kind)) {
             check_identifier_name_for_assignment_validity(lexical_binding->string());
-            if ((declaration_kind == DeclarationKind::Let || declaration_kind == DeclarationKind::Const) && lexical_binding->string() == "let"sv)
+            if ((declaration_kind == DeclarationKind::Let || declaration_kind == DeclarationKind::Const) && lexical_binding->string() == "let"_sv)
                 syntax_error("Lexical binding may not be called 'let'"_string);
 
             target = lexical_binding.release_nonnull();
@@ -3444,7 +3444,7 @@ NonnullRefPtr<UsingDeclaration const> Parser::parse_using_declaration(IsForLoopV
 {
     //  using [no LineTerminator here] BindingList[?In, ?Yield, ?Await, +Using] ;
     auto rule_start = push_start();
-    VERIFY(m_state.current_token.original_value() == "using"sv);
+    VERIFY(m_state.current_token.original_value() == "using"_sv);
     consume(TokenType::Identifier);
     VERIFY(!m_state.current_token.trivia_contains_line_terminator());
     Vector<NonnullRefPtr<VariableDeclarator const>> declarations;
@@ -3457,7 +3457,7 @@ NonnullRefPtr<UsingDeclaration const> Parser::parse_using_declaration(IsForLoopV
         }
 
         check_identifier_name_for_assignment_validity(lexical_binding->string());
-        if (lexical_binding->string() == "let"sv)
+        if (lexical_binding->string() == "let"_sv)
             syntax_error("Lexical binding may not be called 'let'"_string);
 
         RefPtr<Expression const> initializer;
@@ -3924,7 +3924,7 @@ NonnullRefPtr<Statement const> Parser::parse_for_statement()
     ScopePusher for_loop_scope = ScopePusher::for_loop_scope(*this, *loop_scope_node);
 
     auto match_of = [&](Token const& token) {
-        return token.type() == TokenType::Identifier && token.original_value() == "of"sv;
+        return token.type() == TokenType::Identifier && token.original_value() == "of"_sv;
     };
 
     auto match_for_in_of = [&]() {
@@ -3957,14 +3957,14 @@ NonnullRefPtr<Statement const> Parser::parse_for_statement()
     if (!match(TokenType::Semicolon)) {
 
         auto match_for_using_declaration = [&] {
-            if (!match(TokenType::Identifier) || m_state.current_token.original_value() != "using"sv)
+            if (!match(TokenType::Identifier) || m_state.current_token.original_value() != "using"_sv)
                 return false;
 
             auto lookahead = next_token();
             if (lookahead.trivia_contains_line_terminator())
                 return false;
 
-            if (lookahead.original_value() == "of"sv)
+            if (lookahead.original_value() == "of"_sv)
                 return false;
 
             return token_is_identifier(lookahead);
@@ -4080,7 +4080,7 @@ NonnullRefPtr<Statement const> Parser::parse_for_in_of_statement(NonnullRefPtr<A
     if (!is_in) {
         if (is<MemberExpression>(*lhs)) {
             auto& member = static_cast<MemberExpression const&>(*lhs);
-            if (member.object().is_identifier() && static_cast<Identifier const&>(member.object()).string() == "let"sv)
+            if (member.object().is_identifier() && static_cast<Identifier const&>(member.object()).string() == "let"_sv)
                 syntax_error("For of statement may not start with let."_string);
         }
         if (has_annexB_for_in_init_extension)
@@ -4258,7 +4258,7 @@ bool Parser::match_declaration(AllowUsingDeclaration allow_using) const
         return lookahead_token.type() == TokenType::Function && !lookahead_token.trivia_contains_line_terminator();
     }
 
-    if (allow_using == AllowUsingDeclaration::Yes && type == TokenType::Identifier && m_state.current_token.original_value() == "using"sv)
+    if (allow_using == AllowUsingDeclaration::Yes && type == TokenType::Identifier && m_state.current_token.original_value() == "using"_sv)
         return try_match_using_declaration();
 
     return type == TokenType::Function
@@ -4286,7 +4286,7 @@ bool Parser::try_match_let_declaration() const
     VERIFY(m_state.current_token.type() == TokenType::Let);
     auto token_after = next_token();
 
-    if (token_after.is_identifier_name() && token_after.value() != "in"sv)
+    if (token_after.is_identifier_name() && token_after.value() != "in"_sv)
         return true;
 
     if (token_after.type() == TokenType::CurlyOpen || token_after.type() == TokenType::BracketOpen)
@@ -4298,7 +4298,7 @@ bool Parser::try_match_let_declaration() const
 bool Parser::try_match_using_declaration() const
 {
     VERIFY(m_state.current_token.type() == TokenType::Identifier);
-    VERIFY(m_state.current_token.original_value() == "using"sv);
+    VERIFY(m_state.current_token.original_value() == "using"_sv);
 
     auto token_after = next_token();
     if (token_after.trivia_contains_line_terminator())
@@ -4328,11 +4328,11 @@ bool Parser::match_identifier() const
 bool Parser::token_is_identifier(Token const& token) const
 {
     if (token.type() == TokenType::EscapedKeyword) {
-        if (token.value() == "let"sv)
+        if (token.value() == "let"_sv)
             return !m_state.strict_mode;
-        if (token.value() == "yield"sv)
+        if (token.value() == "yield"_sv)
             return !m_state.strict_mode && !m_state.in_generator_function_context;
-        if (token.value() == "await"sv)
+        if (token.value() == "await"_sv)
             return m_program_type != Program::Type::Module && !m_state.await_expression_is_valid && !m_state.in_class_static_init_block;
         return true;
     }
@@ -4388,7 +4388,7 @@ Token Parser::consume_and_allow_division()
     //       Basically any freestanding use of `arguments` in a function body. This is not perfect
     //       but avoids a lot of unnecessary arguments objects. We check if the previous token was
     //       a period to avoid creating `arguments` due to an unrelated property access (`o.arguments`)
-    if (old_token.type() == TokenType::Identifier && old_token.value().is_one_of("arguments"sv, "eval"sv) && !m_state.previous_token_was_period)
+    if (old_token.type() == TokenType::Identifier && old_token.value().is_one_of("arguments"_sv, "eval"_sv) && !m_state.previous_token_was_period)
         m_state.function_might_need_arguments_object = true;
 
     m_state.previous_token_was_period = old_token.type() == TokenType::Period;
@@ -4461,9 +4461,9 @@ Token Parser::consume_identifier_reference()
 
     if (match(TokenType::EscapedKeyword)) {
         auto name = m_state.current_token.value();
-        if (m_state.strict_mode && (name == "let"sv || name == "yield"sv))
+        if (m_state.strict_mode && (name == "let"_sv || name == "yield"_sv))
             syntax_error(MUST(String::formatted("'{}' is not allowed as an identifier in strict mode", name)));
-        if (m_program_type == Program::Type::Module && name == "await"sv)
+        if (m_program_type == Program::Type::Module && name == "await"_sv)
             syntax_error("'await' is not allowed as an identifier in module"_string);
 
         return consume_and_allow_division();
@@ -4582,7 +4582,7 @@ void Parser::check_identifier_name_for_assignment_validity(FlyString const& name
     if (any_of(s_reserved_words, [&](auto& value) { return name == value; })) {
         syntax_error("Binding pattern target may not be a reserved word"_string);
     } else if (m_state.strict_mode || force_strict) {
-        if (name.is_one_of("arguments"sv, "eval"sv))
+        if (name.is_one_of("arguments"_sv, "eval"_sv))
             syntax_error("Binding pattern target may not be called 'arguments' or 'eval' in strict mode"_string);
         else if (is_strict_reserved_word(name))
             syntax_error(MUST(String::formatted("Binding pattern target may not be called '{}' in strict mode", name)));
@@ -4689,7 +4689,7 @@ NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& pro
     };
 
     auto match_as = [&] {
-        return match(TokenType::Identifier) && m_state.current_token.original_value() == "as"sv;
+        return match(TokenType::Identifier) && m_state.current_token.original_value() == "as"_sv;
     };
 
     bool continue_parsing = true;
@@ -4799,7 +4799,7 @@ NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& pro
     }
 
     auto from_statement = consume(TokenType::Identifier).original_value();
-    if (from_statement != "from"sv)
+    if (from_statement != "from"_sv)
         syntax_error(MUST(String::formatted("Expected 'from' got {}", from_statement)));
 
     auto module_request = parse_module_request();
@@ -4841,15 +4841,15 @@ NonnullRefPtr<ExportStatement const> Parser::parse_export_statement(Program& pro
         syntax_error("Cannot use export statement outside a module"_string);
 
     auto match_as = [&] {
-        return match(TokenType::Identifier) && m_state.current_token.original_value() == "as"sv;
+        return match(TokenType::Identifier) && m_state.current_token.original_value() == "as"_sv;
     };
 
     auto match_from = [&] {
-        return match(TokenType::Identifier) && m_state.current_token.original_value() == "from"sv;
+        return match(TokenType::Identifier) && m_state.current_token.original_value() == "from"_sv;
     };
 
     auto match_default = [&] {
-        return match(TokenType::Default) && m_state.current_token.original_value() == "default"sv;
+        return match(TokenType::Default) && m_state.current_token.original_value() == "default"_sv;
     };
 
     consume(TokenType::Export);

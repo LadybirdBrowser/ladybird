@@ -80,63 +80,63 @@ static CategoryAndMaximumTokens determine_a_field_category(StringView const& fie
     // 2. Otherwise, let maximum tokens and category be the values of the cells in the second
     //    and third columns of that row respectively.
     // 3. Return the pair (category, maximum tokens).
-    CASE_CATEGORY("off"sv, 1, Off);
-    CASE_CATEGORY("on"sv, 1, Automatic);
-    CASE_CATEGORY("name"sv, 3, Normal);
-    CASE_CATEGORY("honorific-prefix"sv, 3, Normal);
-    CASE_CATEGORY("given-name"sv, 3, Normal);
-    CASE_CATEGORY("additional-name"sv, 3, Normal);
-    CASE_CATEGORY("family-name"sv, 3, Normal);
-    CASE_CATEGORY("honorific-suffix"sv, 3, Normal);
-    CASE_CATEGORY("nickname"sv, 3, Normal);
-    CASE_CATEGORY("organization-title"sv, 3, Normal);
-    CASE_CATEGORY("username"sv, 3, Normal);
-    CASE_CATEGORY("new-password"sv, 3, Normal);
-    CASE_CATEGORY("current-password"sv, 3, Normal);
-    CASE_CATEGORY("one-time-code"sv, 3, Normal);
-    CASE_CATEGORY("organization"sv, 3, Normal);
-    CASE_CATEGORY("street-address"sv, 3, Normal);
-    CASE_CATEGORY("address-line1"sv, 3, Normal);
-    CASE_CATEGORY("address-line2"sv, 3, Normal);
-    CASE_CATEGORY("address-line3"sv, 3, Normal);
-    CASE_CATEGORY("address-level4"sv, 3, Normal);
-    CASE_CATEGORY("address-level3"sv, 3, Normal);
-    CASE_CATEGORY("address-level2"sv, 3, Normal);
-    CASE_CATEGORY("address-level1"sv, 3, Normal);
-    CASE_CATEGORY("country"sv, 3, Normal);
-    CASE_CATEGORY("country-name"sv, 3, Normal);
-    CASE_CATEGORY("postal-code"sv, 3, Normal);
-    CASE_CATEGORY("cc-name"sv, 3, Normal);
-    CASE_CATEGORY("cc-given-name"sv, 3, Normal);
-    CASE_CATEGORY("cc-additional-name"sv, 3, Normal);
-    CASE_CATEGORY("cc-family-name"sv, 3, Normal);
-    CASE_CATEGORY("cc-number"sv, 3, Normal);
-    CASE_CATEGORY("cc-exp"sv, 3, Normal);
-    CASE_CATEGORY("cc-exp-month"sv, 3, Normal);
-    CASE_CATEGORY("cc-exp-year"sv, 3, Normal);
-    CASE_CATEGORY("cc-csc"sv, 3, Normal);
-    CASE_CATEGORY("cc-type"sv, 3, Normal);
-    CASE_CATEGORY("transaction-currency"sv, 3, Normal);
-    CASE_CATEGORY("transaction-amount"sv, 3, Normal);
-    CASE_CATEGORY("language"sv, 3, Normal);
-    CASE_CATEGORY("bday"sv, 3, Normal);
-    CASE_CATEGORY("bday-day"sv, 3, Normal);
-    CASE_CATEGORY("bday-month"sv, 3, Normal);
-    CASE_CATEGORY("bday-year"sv, 3, Normal);
-    CASE_CATEGORY("sex"sv, 3, Normal);
-    CASE_CATEGORY("url"sv, 3, Normal);
-    CASE_CATEGORY("photo"sv, 3, Normal);
-    CASE_CATEGORY("tel"sv, 4, Contact);
-    CASE_CATEGORY("tel-country-code"sv, 4, Contact);
-    CASE_CATEGORY("tel-national"sv, 4, Contact);
-    CASE_CATEGORY("tel-area-code"sv, 4, Contact);
-    CASE_CATEGORY("tel-local"sv, 4, Contact);
-    CASE_CATEGORY("tel-local-prefix"sv, 4, Contact);
-    CASE_CATEGORY("tel-local-suffix"sv, 4, Contact);
-    CASE_CATEGORY("tel-extension"sv, 4, Contact);
-    CASE_CATEGORY("email"sv, 4, Contact);
-    CASE_CATEGORY("impp"sv, 4, Contact);
-    CASE_CATEGORY("webauthn"sv, 5, Credential);
+    CASE_CATEGORY("off"_sv, 1, Off);
+    CASE_CATEGORY("on"_sv, 1, Automatic);
+    CASE_CATEGORY("name"_sv, 3, Normal);
+    CASE_CATEGORY("honorific-prefix"_sv, 3, Normal);
+    CASE_CATEGORY("given-name"_sv, 3, Normal);
+    CASE_CATEGORY("additional-name"_sv, 3, Normal);
+    CASE_CATEGORY("family-name"_sv, 3, Normal);
+    CASE_CATEGORY("honorific-suffix"_sv, 3, Normal);
+    CASE_CATEGORY("nickname"_sv, 3, Normal);
+    CASE_CATEGORY("organization-title"_sv, 3, Normal);
+    CASE_CATEGORY("username"_sv, 3, Normal);
+    CASE_CATEGORY("new-password"_sv, 3, Normal);
+    CASE_CATEGORY("current-password"_sv, 3, Normal);
+    CASE_CATEGORY("one-time-code"_sv, 3, Normal);
+    CASE_CATEGORY("organization"_sv, 3, Normal);
+    CASE_CATEGORY("street-address"_sv, 3, Normal);
+    CASE_CATEGORY("address-line1"_sv, 3, Normal);
+    CASE_CATEGORY("address-line2"_sv, 3, Normal);
+    CASE_CATEGORY("address-line3"_sv, 3, Normal);
+    CASE_CATEGORY("address-level4"_sv, 3, Normal);
+    CASE_CATEGORY("address-level3"_sv, 3, Normal);
+    CASE_CATEGORY("address-level2"_sv, 3, Normal);
+    CASE_CATEGORY("address-level1"_sv, 3, Normal);
+    CASE_CATEGORY("country"_sv, 3, Normal);
+    CASE_CATEGORY("country-name"_sv, 3, Normal);
+    CASE_CATEGORY("postal-code"_sv, 3, Normal);
+    CASE_CATEGORY("cc-name"_sv, 3, Normal);
+    CASE_CATEGORY("cc-given-name"_sv, 3, Normal);
+    CASE_CATEGORY("cc-additional-name"_sv, 3, Normal);
+    CASE_CATEGORY("cc-family-name"_sv, 3, Normal);
+    CASE_CATEGORY("cc-number"_sv, 3, Normal);
+    CASE_CATEGORY("cc-exp"_sv, 3, Normal);
+    CASE_CATEGORY("cc-exp-month"_sv, 3, Normal);
+    CASE_CATEGORY("cc-exp-year"_sv, 3, Normal);
+    CASE_CATEGORY("cc-csc"_sv, 3, Normal);
+    CASE_CATEGORY("cc-type"_sv, 3, Normal);
+    CASE_CATEGORY("transaction-currency"_sv, 3, Normal);
+    CASE_CATEGORY("transaction-amount"_sv, 3, Normal);
+    CASE_CATEGORY("language"_sv, 3, Normal);
+    CASE_CATEGORY("bday"_sv, 3, Normal);
+    CASE_CATEGORY("bday-day"_sv, 3, Normal);
+    CASE_CATEGORY("bday-month"_sv, 3, Normal);
+    CASE_CATEGORY("bday-year"_sv, 3, Normal);
+    CASE_CATEGORY("sex"_sv, 3, Normal);
+    CASE_CATEGORY("url"_sv, 3, Normal);
+    CASE_CATEGORY("photo"_sv, 3, Normal);
+    CASE_CATEGORY("tel"_sv, 4, Contact);
+    CASE_CATEGORY("tel-country-code"_sv, 4, Contact);
+    CASE_CATEGORY("tel-national"_sv, 4, Contact);
+    CASE_CATEGORY("tel-area-code"_sv, 4, Contact);
+    CASE_CATEGORY("tel-local"_sv, 4, Contact);
+    CASE_CATEGORY("tel-local-prefix"_sv, 4, Contact);
+    CASE_CATEGORY("tel-local-suffix"_sv, 4, Contact);
+    CASE_CATEGORY("tel-extension"_sv, 4, Contact);
+    CASE_CATEGORY("email"_sv, 4, Contact);
+    CASE_CATEGORY("impp"_sv, 4, Contact);
+    CASE_CATEGORY("webauthn"_sv, 5, Credential);
 
 #undef CASE_CATEGORY
 
@@ -263,7 +263,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 16. If category is Credential and the indexth token in tokens is an ASCII case-insensitive match for "webauthn",
     //     then run the substeps that follow:
-    if (category == Category::Credential && tokens[index].equals_ignoring_ascii_case("webauthn"sv)) {
+    if (category == Category::Credential && tokens[index].equals_ignoring_ascii_case("webauthn"_sv)) {
         // 1. Set credential type to "webauthn".
         credential_type = "webauthn"_string;
 
@@ -351,7 +351,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
 
     // 22. If the first eight characters of the indexth token in tokens are not an ASCII case-insensitive match for the string "section-",
     //     then jump to the step labeled default.
-    if (!tokens[index].to_ascii_lowercase().starts_with_bytes("section-"sv))
+    if (!tokens[index].to_ascii_lowercase().starts_with_bytes("section-"_sv))
         return step_default();
 
     // 23. Let section be the indexth token in tokens, converted to ASCII lowercase.

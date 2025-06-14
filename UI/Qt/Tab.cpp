@@ -44,7 +44,7 @@ namespace Ladybird {
 
 static QIcon default_favicon()
 {
-    static QIcon icon = load_icon_from_uri("resource://icons/48x48/app-browser.png"sv);
+    static QIcon icon = load_icon_from_uri("resource://icons/48x48/app-browser.png"_sv);
     return icon;
 }
 
@@ -476,7 +476,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     close_multiple_tabs_menu->addAction(close_other_tabs_action);
 
     auto* search_selected_text_action = new QAction("&Search for <query>", this);
-    search_selected_text_action->setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
+    search_selected_text_action->setIcon(load_icon_from_uri("resource://icons/16x16/find.png"_sv));
     QObject::connect(search_selected_text_action, &QAction::triggered, this, [this]() {
         auto const& search_engine = WebView::Application::settings().search_engine();
         if (!search_engine.has_value())
@@ -518,13 +518,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     auto* take_visible_screenshot_action = new QAction("Take &Visible Screenshot", this);
-    take_visible_screenshot_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
+    take_visible_screenshot_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"_sv));
     QObject::connect(take_visible_screenshot_action, &QAction::triggered, this, [take_screenshot]() {
         take_screenshot(WebView::ViewImplementation::ScreenshotType::Visible);
     });
 
     auto* take_full_screenshot_action = new QAction("Take &Full Screenshot", this);
-    take_full_screenshot_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
+    take_full_screenshot_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"_sv));
     QObject::connect(take_full_screenshot_action, &QAction::triggered, this, [take_screenshot]() {
         take_screenshot(WebView::ViewImplementation::ScreenshotType::Full);
     });
@@ -565,13 +565,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     auto* open_link_in_new_tab_action = new QAction("Open Link in New &Tab", this);
-    open_link_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
+    open_link_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"_sv));
     QObject::connect(open_link_in_new_tab_action, &QAction::triggered, this, [this]() {
         open_link_in_new_tab(m_link_context_menu_url);
     });
 
     m_link_context_menu_copy_url_action = new QAction("Copy &Link Address", this);
-    m_link_context_menu_copy_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+    m_link_context_menu_copy_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"_sv));
     QObject::connect(m_link_context_menu_copy_url_action, &QAction::triggered, this, [this]() {
         copy_link_url(m_link_context_menu_url);
     });
@@ -599,19 +599,19 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     auto* open_image_action = new QAction("&Open Image", this);
-    open_image_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
+    open_image_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"_sv));
     QObject::connect(open_image_action, &QAction::triggered, this, [this]() {
         open_link(m_image_context_menu_url);
     });
 
     auto* open_image_in_new_tab_action = new QAction("&Open Image in New &Tab", this);
-    open_image_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
+    open_image_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"_sv));
     QObject::connect(open_image_in_new_tab_action, &QAction::triggered, this, [this]() {
         open_link_in_new_tab(m_image_context_menu_url);
     });
 
     m_image_context_menu_copy_image_action = new QAction("&Copy Image", this);
-    m_image_context_menu_copy_image_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+    m_image_context_menu_copy_image_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"_sv));
     QObject::connect(m_image_context_menu_copy_image_action, &QAction::triggered, this, [this]() {
         if (!m_image_context_menu_bitmap.has_value())
             return;
@@ -633,7 +633,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     });
 
     auto* copy_image_url_action = new QAction("Copy Image &URL", this);
-    copy_image_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+    copy_image_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"_sv));
     QObject::connect(copy_image_url_action, &QAction::triggered, this, [this]() {
         copy_link_url(m_image_context_menu_url);
     });
@@ -653,10 +653,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_image_context_menu->exec(view().map_point_to_global_position(content_position));
     };
 
-    m_media_context_menu_play_icon = load_icon_from_uri("resource://icons/16x16/play.png"sv);
-    m_media_context_menu_pause_icon = load_icon_from_uri("resource://icons/16x16/pause.png"sv);
-    m_media_context_menu_mute_icon = load_icon_from_uri("resource://icons/16x16/audio-volume-muted.png"sv);
-    m_media_context_menu_unmute_icon = load_icon_from_uri("resource://icons/16x16/audio-volume-high.png"sv);
+    m_media_context_menu_play_icon = load_icon_from_uri("resource://icons/16x16/play.png"_sv);
+    m_media_context_menu_pause_icon = load_icon_from_uri("resource://icons/16x16/pause.png"_sv);
+    m_media_context_menu_mute_icon = load_icon_from_uri("resource://icons/16x16/audio-volume-muted.png"_sv);
+    m_media_context_menu_unmute_icon = load_icon_from_uri("resource://icons/16x16/audio-volume-high.png"_sv);
 
     m_media_context_menu_play_pause_action = new QAction("&Play", this);
     m_media_context_menu_play_pause_action->setIcon(m_media_context_menu_play_icon);
@@ -683,19 +683,19 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     });
 
     auto* open_audio_action = new QAction("&Open Audio", this);
-    open_audio_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-sound.png"sv));
+    open_audio_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-sound.png"_sv));
     QObject::connect(open_audio_action, &QAction::triggered, this, [this]() {
         open_link(m_media_context_menu_url);
     });
 
     auto* open_audio_in_new_tab_action = new QAction("Open Audio in New &Tab", this);
-    open_audio_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
+    open_audio_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"_sv));
     QObject::connect(open_audio_in_new_tab_action, &QAction::triggered, this, [this]() {
         open_link_in_new_tab(m_media_context_menu_url);
     });
 
     auto* copy_audio_url_action = new QAction("Copy Audio &URL", this);
-    copy_audio_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+    copy_audio_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"_sv));
     QObject::connect(copy_audio_url_action, &QAction::triggered, this, [this]() {
         copy_link_url(m_media_context_menu_url);
     });
@@ -712,19 +712,19 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_audio_context_menu->addAction(copy_audio_url_action);
 
     auto* open_video_action = new QAction("&Open Video", this);
-    open_video_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-video.png"sv));
+    open_video_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-video.png"_sv));
     QObject::connect(open_video_action, &QAction::triggered, this, [this]() {
         open_link(m_media_context_menu_url);
     });
 
     auto* open_video_in_new_tab_action = new QAction("Open Video in New &Tab", this);
-    open_video_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
+    open_video_in_new_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"_sv));
     QObject::connect(open_video_in_new_tab_action, &QAction::triggered, this, [this]() {
         open_link_in_new_tab(m_media_context_menu_url);
     });
 
     auto* copy_video_url_action = new QAction("Copy Video &URL", this);
-    copy_video_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+    copy_video_url_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"_sv));
     QObject::connect(copy_video_url_action, &QAction::triggered, this, [this]() {
         copy_link_url(m_media_context_menu_url);
     });

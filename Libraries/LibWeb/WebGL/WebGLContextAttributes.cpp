@@ -101,11 +101,11 @@ JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attribute
     if (!power_preference.is_undefined()) {
         auto power_preference_string = TRY(power_preference.to_string(vm));
 
-        if (power_preference_string == "high-performance"sv)
+        if (power_preference_string == "high-performance"_sv)
             power_preference_value = Bindings::WebGLPowerPreference::HighPerformance;
-        else if (power_preference_string == "low-power"sv)
+        else if (power_preference_string == "low-power"_sv)
             power_preference_value = Bindings::WebGLPowerPreference::LowPower;
-        else if (power_preference_string == "default"sv)
+        else if (power_preference_string == "default"_sv)
             power_preference_value = Bindings::WebGLPowerPreference::Default;
         else
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, power_preference_string, "WebGLPowerPreference");

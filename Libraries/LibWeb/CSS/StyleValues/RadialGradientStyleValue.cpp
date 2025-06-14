@@ -18,8 +18,8 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     if (is_repeating())
-        builder.append("repeating-"sv);
-    builder.append("radial-gradient("sv);
+        builder.append("repeating-"_sv);
+    builder.append("radial-gradient("_sv);
 
     bool has_size = !m_properties.size.has<Extent>() || m_properties.size.get<Extent>() != Extent::FarthestCorner;
     bool has_position = !m_properties.position->is_center();
@@ -30,14 +30,14 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
             builder.append([&] {
                 switch (extent) {
                 case Extent::ClosestCorner:
-                    return "closest-corner"sv;
+                    return "closest-corner"_sv;
                 case Extent::ClosestSide:
-                    return "closest-side"sv;
+                    return "closest-side"_sv;
                 case Extent::FarthestCorner:
                     // "farthest-corner" is the default value and isn't serialized
-                    return ""sv;
+                    return ""_sv;
                 case Extent::FarthestSide:
-                    return "farthest-side"sv;
+                    return "farthest-side"_sv;
                 default:
                     VERIFY_NOT_REACHED();
                 }
@@ -65,7 +65,7 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
     }
 
     if (has_size || has_position || has_color_space)
-        builder.append(", "sv);
+        builder.append(", "_sv);
 
     serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(')');

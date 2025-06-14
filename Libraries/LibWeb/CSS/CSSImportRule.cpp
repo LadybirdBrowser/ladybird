@@ -69,7 +69,7 @@ String CSSImportRule::serialized() const
     // The result of concatenating the following:
 
     // 1. The string "@import" followed by a single SPACE (U+0020).
-    builder.append("@import "sv);
+    builder.append("@import "_sv);
 
     // 2. The result of performing serialize a URL on the rule’s location.
     builder.append(m_url.to_string());
@@ -130,10 +130,10 @@ void CSSImportRule::fetch()
 
             // FIXME: 2. If parentStylesheet is in quirks mode and response is CORS-same-origin, let content type be "text/css".
             //           Otherwise, let content type be the Content Type metadata of response.
-            auto content_type = "text/css"sv;
+            auto content_type = "text/css"_sv;
 
             // 3. If content type is not "text/css", return.
-            if (content_type != "text/css"sv) {
+            if (content_type != "text/css"_sv) {
                 dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Rejecting loaded style sheet; content type isn't text/css; is: '{}'", content_type);
                 return;
             }
@@ -141,7 +141,7 @@ void CSSImportRule::fetch()
             // 4. Let importedStylesheet be the result of parsing byteStream given parsedUrl.
             // FIXME: Tidy up our parsing API. For now, do the decoding here.
             // FIXME: Get the encoding from the response somehow.
-            auto encoding = "utf-8"sv;
+            auto encoding = "utf-8"_sv;
             auto maybe_decoder = TextCodec::decoder_for(encoding);
             if (!maybe_decoder.has_value()) {
                 dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {} Unsupported encoding: {}", parsed_url, encoding);

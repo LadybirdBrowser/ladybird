@@ -94,8 +94,8 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         if (m_tooltip_hover_timer.isActive())
             m_tooltip_hover_timer.stop();
 
-        auto tooltip_without_carriage_return = tooltip.contains("\r"sv)
-            ? tooltip.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All)
+        auto tooltip_without_carriage_return = tooltip.contains("\r"_sv)
+            ? tooltip.replace("\r\n"_sv, "\n"_sv, ReplaceMode::All).replace("\r"_sv, "\n"_sv, ReplaceMode::All)
             : tooltip;
         QToolTip::showText(
             mapToGlobal(QPoint(position.x(), position.y())),
@@ -108,8 +108,8 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     };
 
     on_enter_tooltip_area = [this](auto const& tooltip) {
-        m_tooltip_text = tooltip.contains("\r"sv)
-            ? tooltip.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All)
+        m_tooltip_text = tooltip.contains("\r"_sv)
+            ? tooltip.replace("\r\n"_sv, "\n"_sv, ReplaceMode::All).replace("\r"_sv, "\n"_sv, ReplaceMode::All)
             : tooltip;
     };
 
@@ -569,7 +569,7 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
 {
     auto qt_palette = widget.palette();
 
-    auto theme_file = mode == WebContentView::PaletteMode::Default ? "Default"sv : "Dark"sv;
+    auto theme_file = mode == WebContentView::PaletteMode::Default ? "Default"_sv : "Dark"_sv;
     auto theme_ini = MUST(Core::Resource::load_from_uri(MUST(String::formatted("resource://themes/{}.ini", theme_file))));
     auto theme = Gfx::load_system_theme(theme_ini->filesystem_path().to_byte_string()).release_value_but_fixme_should_propagate_errors();
 

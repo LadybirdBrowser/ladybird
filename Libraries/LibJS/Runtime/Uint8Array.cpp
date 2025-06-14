@@ -45,13 +45,13 @@ static ThrowCompletionOr<Alphabet> parse_alphabet(VM& vm, Object& options)
 
     // If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
     if (alphabet.is_string()) {
-        if (alphabet.as_string().utf8_string_view() == "base64"sv)
+        if (alphabet.as_string().utf8_string_view() == "base64"_sv)
             return Alphabet::Base64;
-        if (alphabet.as_string().utf8_string_view() == "base64url"sv)
+        if (alphabet.as_string().utf8_string_view() == "base64url"_sv)
             return Alphabet::Base64URL;
     }
 
-    return vm.throw_completion<TypeError>(ErrorType::OptionIsNotValidValue, alphabet, "alphabet"sv);
+    return vm.throw_completion<TypeError>(ErrorType::OptionIsNotValidValue, alphabet, "alphabet"_sv);
 }
 
 static ThrowCompletionOr<AK::LastChunkHandling> parse_last_chunk_handling(VM& vm, Object& options)
@@ -65,15 +65,15 @@ static ThrowCompletionOr<AK::LastChunkHandling> parse_last_chunk_handling(VM& vm
 
     // If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
     if (last_chunk_handling.is_string()) {
-        if (last_chunk_handling.as_string().utf8_string_view() == "loose"sv)
+        if (last_chunk_handling.as_string().utf8_string_view() == "loose"_sv)
             return AK::LastChunkHandling::Loose;
-        if (last_chunk_handling.as_string().utf8_string_view() == "strict"sv)
+        if (last_chunk_handling.as_string().utf8_string_view() == "strict"_sv)
             return AK::LastChunkHandling::Strict;
-        if (last_chunk_handling.as_string().utf8_string_view() == "stop-before-partial"sv)
+        if (last_chunk_handling.as_string().utf8_string_view() == "stop-before-partial"_sv)
             return AK::LastChunkHandling::StopBeforePartial;
     }
 
-    return vm.throw_completion<TypeError>(ErrorType::OptionIsNotValidValue, last_chunk_handling, "lastChunkHandling"sv);
+    return vm.throw_completion<TypeError>(ErrorType::OptionIsNotValidValue, last_chunk_handling, "lastChunkHandling"_sv);
 }
 
 // 1 Uint8Array.prototype.toBase64 ( [ options ] ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tobase64
@@ -230,7 +230,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
 
     // 12. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 13. Let byteLength be TypedArrayLength(taRecord).
     auto byte_length = typed_array_length(typed_array_record);
@@ -327,7 +327,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_hex)
 
     // 5. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 6. Let byteLength be TypedArrayLength(taRecord).
     auto byte_length = typed_array_length(typed_array_record);
@@ -395,7 +395,7 @@ ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM& vm, TypedArrayBase const
 
     // 3. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 4. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -488,7 +488,7 @@ DecodeResult from_hex(VM& vm, StringView string, Optional<size_t> max_length)
     // 5. If length modulo 2 is not 0, then
     if (length % 2 != 0) {
         // a. Let error be a new SyntaxError exception.
-        auto error = vm.throw_completion<SyntaxError>("Hex string must have an even length"sv);
+        auto error = vm.throw_completion<SyntaxError>("Hex string must have an even length"_sv);
 
         // b. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
         return { .read = read, .bytes = move(bytes), .error = move(error) };
@@ -507,7 +507,7 @@ DecodeResult from_hex(VM& vm, StringView string, Optional<size_t> max_length)
         // b. If hexits contains any code units which are not in "0123456789abcdefABCDEF", then
         if (!byte.has_value()) {
             // i. Let error be a new SyntaxError exception.
-            auto error = vm.throw_completion<SyntaxError>("Hex string must only contain hex characters"sv);
+            auto error = vm.throw_completion<SyntaxError>("Hex string must only contain hex characters"_sv);
 
             // ii. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
             return { .read = read, .bytes = move(bytes), .error = move(error) };

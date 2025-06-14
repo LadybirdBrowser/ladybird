@@ -55,7 +55,7 @@ void KeyAlgorithm::initialize(JS::Realm& realm)
 
 JS_DEFINE_NATIVE_FUNCTION(KeyAlgorithm::name_getter)
 {
-    auto* impl = TRY(impl_from<KeyAlgorithm>(vm, "KeyAlgorithm"sv));
+    auto* impl = TRY(impl_from<KeyAlgorithm>(vm, "KeyAlgorithm"_sv));
     auto name = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->name(); }));
     return JS::PrimitiveString::create(vm, name);
 }
@@ -121,13 +121,13 @@ WebIDL::ExceptionOr<void> RsaKeyAlgorithm::set_public_exponent(::Crypto::Unsigne
 
 JS_DEFINE_NATIVE_FUNCTION(RsaKeyAlgorithm::modulus_length_getter)
 {
-    auto* impl = TRY(impl_from<RsaKeyAlgorithm>(vm, "RsaKeyAlgorithm"sv));
+    auto* impl = TRY(impl_from<RsaKeyAlgorithm>(vm, "RsaKeyAlgorithm"_sv));
     return JS::Value(impl->modulus_length());
 }
 
 JS_DEFINE_NATIVE_FUNCTION(RsaKeyAlgorithm::public_exponent_getter)
 {
-    auto* impl = TRY(impl_from<RsaKeyAlgorithm>(vm, "RsaKeyAlgorithm"sv));
+    auto* impl = TRY(impl_from<RsaKeyAlgorithm>(vm, "RsaKeyAlgorithm"_sv));
     return impl->public_exponent();
 }
 
@@ -150,7 +150,7 @@ void EcKeyAlgorithm::initialize(JS::Realm& realm)
 
 JS_DEFINE_NATIVE_FUNCTION(EcKeyAlgorithm::named_curve_getter)
 {
-    auto* impl = TRY(impl_from<EcKeyAlgorithm>(vm, "EcKeyAlgorithm"sv));
+    auto* impl = TRY(impl_from<EcKeyAlgorithm>(vm, "EcKeyAlgorithm"_sv));
     return JS::PrimitiveString::create(vm, impl->named_curve());
 }
 
@@ -174,7 +174,7 @@ void RsaHashedKeyAlgorithm::initialize(JS::Realm& realm)
 
 JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
 {
-    auto* impl = TRY(impl_from<RsaHashedKeyAlgorithm>(vm, "RsaHashedKeyAlgorithm"sv));
+    auto* impl = TRY(impl_from<RsaHashedKeyAlgorithm>(vm, "RsaHashedKeyAlgorithm"_sv));
     auto hash = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->hash(); }));
     return hash.visit(
         [&](String const& hash_string) -> JS::Value {
@@ -208,7 +208,7 @@ void AesKeyAlgorithm::initialize(JS::Realm& realm)
 
 JS_DEFINE_NATIVE_FUNCTION(AesKeyAlgorithm::length_getter)
 {
-    auto* impl = TRY(impl_from<AesKeyAlgorithm>(vm, "AesKeyAlgorithm"sv));
+    auto* impl = TRY(impl_from<AesKeyAlgorithm>(vm, "AesKeyAlgorithm"_sv));
     auto length = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->length(); }));
     return length;
 }
@@ -238,13 +238,13 @@ void HmacKeyAlgorithm::visit_edges(JS::Cell::Visitor& visitor)
 
 JS_DEFINE_NATIVE_FUNCTION(HmacKeyAlgorithm::hash_getter)
 {
-    auto* impl = TRY(impl_from<HmacKeyAlgorithm>(vm, "HmacKeyAlgorithm"sv));
+    auto* impl = TRY(impl_from<HmacKeyAlgorithm>(vm, "HmacKeyAlgorithm"_sv));
     return TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->hash(); }));
 }
 
 JS_DEFINE_NATIVE_FUNCTION(HmacKeyAlgorithm::length_getter)
 {
-    auto* impl = TRY(impl_from<HmacKeyAlgorithm>(vm, "HmacKeyAlgorithm"sv));
+    auto* impl = TRY(impl_from<HmacKeyAlgorithm>(vm, "HmacKeyAlgorithm"_sv));
     return TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->length(); }));
 }
 

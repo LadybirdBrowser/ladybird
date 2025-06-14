@@ -34,7 +34,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ASTNode::generate_bytec
 {
     return Bytecode::CodeGenerationError {
         this,
-        "Missing generate_bytecode()"sv,
+        "Missing generate_bytecode()"_sv,
     };
 }
 
@@ -474,7 +474,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> Identifier::generate_by
         return local;
     }
 
-    if (is_global() && m_string == "undefined"sv) {
+    if (is_global() && m_string == "undefined"_sv) {
         return generator.add_constant(js_undefined());
     }
 
@@ -591,7 +591,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     } else {
                         return Bytecode::CodeGenerationError {
                             &expression,
-                            "Unimplemented non-computed member expression"sv
+                            "Unimplemented non-computed member expression"_sv
                         };
                     }
 
@@ -659,13 +659,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     } else {
                         return Bytecode::CodeGenerationError {
                             &expression,
-                            "Unimplemented non-computed member expression"sv
+                            "Unimplemented non-computed member expression"_sv
                         };
                     }
                 } else {
                     return Bytecode::CodeGenerationError {
                         lhs,
-                        "Unimplemented/invalid node used a reference"sv
+                        "Unimplemented/invalid node used a reference"_sv
                     };
                 }
 
@@ -788,7 +788,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
     default:
         return Bytecode::CodeGenerationError {
             this,
-            "Unimplemented operation"sv,
+            "Unimplemented operation"_sv,
         };
     }
 
@@ -1391,7 +1391,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
                 // This needs some sort of SetVariableByValue opcode, as it's a runtime binding
                 return Bytecode::CodeGenerationError {
                     name.get<NonnullRefPtr<Expression const>>().ptr(),
-                    "Unimplemented name/alias pair: Empty/Expression"sv,
+                    "Unimplemented name/alias pair: Empty/Expression"_sv,
                 };
             }
 
@@ -1737,7 +1737,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         // NOTE: If the identifier refers to a known "local" or "global", we know it can't be
         //       a `with` binding, so we can skip this.
         auto& identifier = static_cast<Identifier const&>(*m_callee);
-        if (identifier.string() == "eval"sv) {
+        if (identifier.string() == "eval"_sv) {
             call_type = Bytecode::Op::CallType::DirectEval;
         }
         if (identifier.is_local()) {
@@ -3173,7 +3173,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
         // FIXME: Implement this.
         return Bytecode::CodeGenerationError {
             &node,
-            "Unimplemented: assignment destructuring in for/of"sv,
+            "Unimplemented: assignment destructuring in for/of"_sv,
         };
     }
     // 6. Repeat,
@@ -3332,7 +3332,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
         } else {
             return Bytecode::CodeGenerationError {
                 &node,
-                "Unimplemented: assignment destructuring in for/of"sv,
+                "Unimplemented: assignment destructuring in for/of"_sv,
             };
         }
     }

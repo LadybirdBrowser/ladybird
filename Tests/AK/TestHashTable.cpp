@@ -72,7 +72,7 @@ TEST_CASE(range_loop)
 
 TEST_CASE(range_loop_reverse)
 {
-    Array strings = { "One"sv, "Two"sv, "Three"sv };
+    Array strings = { "One"_sv, "Two"_sv, "Three"_sv };
     OrderedHashTable<ByteString> table;
     EXPECT_EQ(table.set(strings[0]), AK::HashSetResult::InsertedNewEntry);
     EXPECT_EQ(table.set(strings[1]), AK::HashSetResult::InsertedNewEntry);

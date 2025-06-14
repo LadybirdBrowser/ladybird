@@ -110,12 +110,12 @@ namespace Web::Bindings {
         definition_generator.append(R"~~~(
 WebIDL::ExceptionOr<void> GeneratedCSSStyleProperties::set_@name:acceptable_cpp@(StringView value)
 {
-    return generated_style_properties_to_css_style_properties().set_property("@name@"sv, value, ""sv);
+    return generated_style_properties_to_css_style_properties().set_property("@name@"_sv, value, ""_sv);
 }
 
 String GeneratedCSSStyleProperties::@name:acceptable_cpp@() const
 {
-    return generated_style_properties_to_css_style_properties().get_property_value("@name@"sv);
+    return generated_style_properties_to_css_style_properties().get_property_value("@name@"_sv);
 }
 )~~~");
     });
@@ -161,7 +161,7 @@ interface mixin GeneratedCSSStyleProperties {
         // For each CSS property property that is a supported CSS property and that begins with the string -webkit-,
         // the following partial interface applies where webkit-cased attribute is obtained by running the CSS property
         // to IDL attribute algorithm for property, with the lowercase first flag set.
-        if (name.starts_with_bytes("-webkit-"sv)) {
+        if (name.starts_with_bytes("-webkit-"_sv)) {
             member_generator.set("name:webkit", css_property_to_idl_attribute(name, /* lowercase_first= */ true));
             member_generator.append(R"~~~(
     [CEReactions, LegacyNullToEmptyString, AttributeCallbackName=@name:snakecase@_webkit, ImplementedAs=@name:acceptable_cpp@] attribute CSSOMString @name:webkit@;

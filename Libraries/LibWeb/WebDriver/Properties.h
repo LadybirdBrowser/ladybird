@@ -71,7 +71,7 @@ template<typename PropertyType = String>
 static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonValue const& payload, StringView key)
 {
     if (!payload.is_object())
-        return WebDriver::Error::from_code(ErrorCode::InvalidArgument, "Payload is not a JSON object"sv);
+        return WebDriver::Error::from_code(ErrorCode::InvalidArgument, "Payload is not a JSON object"_sv);
     return get_property<PropertyType>(payload.as_object(), key);
 }
 

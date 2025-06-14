@@ -28,7 +28,7 @@ TEST_CASE(file_watcher_child_events)
     EXPECT_NE(maybe_file_watcher.is_error(), true);
 
     // Ensure the testfile does not already exist.
-    (void)Core::System::unlink("/tmp/testfile"sv);
+    (void)Core::System::unlink("/tmp/testfile"_sv);
 
     auto file_watcher = maybe_file_watcher.release_value();
     auto watch_result = file_watcher->add_watch("/tmp/",
@@ -40,14 +40,14 @@ TEST_CASE(file_watcher_child_events)
     file_watcher->on_change = [&](Core::FileWatcherEvent const& event) {
         // Ignore path events under /tmp that can occur for anything else the OS is
         // doing to create/delete files there.
-        if (event.event_path != "/tmp/testfile"sv)
+        if (event.event_path != "/tmp/testfile"_sv)
             return;
 
         if (event_count == 0) {
             EXPECT(has_flag(event.type, Core::FileWatcherEvent::Type::ChildCreated));
         } else if (event_count == 1) {
             EXPECT(has_flag(event.type, Core::FileWatcherEvent::Type::ChildDeleted));
-            EXPECT(MUST(file_watcher->remove_watch("/tmp/"sv)));
+            EXPECT(MUST(file_watcher->remove_watch("/tmp/"_sv)));
 
             event_loop.quit(0);
         }
@@ -62,7 +62,7 @@ TEST_CASE(file_watcher_child_events)
     timer1->start();
 
     auto timer2 = Core::Timer::create_single_shot(2 * TIMEOUT_PER_STEP_IN_MS, [&] {
-        MUST(Core::System::unlink("/tmp/testfile"sv));
+        MUST(Core::System::unlink("/tmp/testfile"_sv));
     });
     timer2->start();
 
@@ -78,15 +78,15 @@ TEST_CASE(contents_changed)
 {
     auto event_loop = Core::EventLoop();
 
-    auto temp_path = MUST(FileSystem::real_path("/tmp"sv));
-    auto test_path = LexicalPath::join(temp_path, "testfile"sv);
+    auto temp_path = MUST(FileSystem::real_path("/tmp"_sv));
+    auto test_path = LexicalPath::join(temp_path, "testfile"_sv);
 
     auto write_file = [&](auto contents) {
         auto file = MUST(Core::File::open(test_path.string(), Core::File::OpenMode::Write));
         MUST(file->write_until_depleted(contents));
     };
 
-    write_file("line1\n"sv);
+    write_file("line1\n"_sv);
 
     auto file_watcher = MUST(Core::FileWatcher::create());
     MUST(file_watcher->add_watch(test_path.string(), Core::FileWatcherEvent::Type::ContentModified));
@@ -102,10 +102,10 @@ TEST_CASE(contents_changed)
         }
     };
 
-    auto timer1 = Core::Timer::create_single_shot(1 * TIMEOUT_PER_STEP_IN_MS, [&] { write_file("line2\n"sv); });
+    auto timer1 = Core::Timer::create_single_shot(1 * TIMEOUT_PER_STEP_IN_MS, [&] { write_file("line2\n"_sv); });
     timer1->start();
 
-    auto timer2 = Core::Timer::create_single_shot(2 * TIMEOUT_PER_STEP_IN_MS, [&] { write_file("line3\n"sv); });
+    auto timer2 = Core::Timer::create_single_shot(2 * TIMEOUT_PER_STEP_IN_MS, [&] { write_file("line3\n"_sv); });
     timer2->start();
 
     auto catchall_timer = Core::Timer::create_single_shot(3 * TIMEOUT_PER_STEP_IN_MS, [&] {
@@ -120,10 +120,10 @@ TEST_CASE(symbolic_link)
 {
     auto event_loop = Core::EventLoop();
 
-    auto temp_path = MUST(FileSystem::real_path("/tmp"sv));
-    auto test_file = LexicalPath::join(temp_path, "testfile"sv);
-    auto test_link1 = LexicalPath::join(temp_path, "testlink1"sv);
-    auto test_link2 = LexicalPath::join(temp_path, "testlink2"sv);
+    auto temp_path = MUST(FileSystem::real_path("/tmp"_sv));
+    auto test_file = LexicalPath::join(temp_path, "testfile"_sv);
+    auto test_link1 = LexicalPath::join(temp_path, "testlink1"_sv);
+    auto test_link2 = LexicalPath::join(temp_path, "testlink2"_sv);
 
     (void)MUST(Core::File::open(test_link1.string(), Core::File::OpenMode::ReadWrite));
     (void)MUST(Core::File::open(test_link2.string(), Core::File::OpenMode::ReadWrite));

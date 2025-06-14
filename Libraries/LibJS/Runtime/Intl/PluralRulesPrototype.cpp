@@ -113,9 +113,9 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select_range)
 
     // 3. If start is undefined or end is undefined, throw a TypeError exception.
     if (start.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "start"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "start"_sv);
     if (end.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "end"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "end"_sv);
 
     // 4. Let x be ? ToNumber(start).
     auto x = TRY(start.to_number(vm));

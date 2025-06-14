@@ -260,9 +260,9 @@ inline Vector<ByteString> TestRunner::get_test_paths() const
 {
     Vector<ByteString> paths;
     iterate_directory_recursively(m_test_root, [&](ByteString const& file_path) {
-        if (!file_path.ends_with(".js"sv))
+        if (!file_path.ends_with(".js"_sv))
             return;
-        if (!file_path.ends_with("test-common.js"sv))
+        if (!file_path.ends_with("test-common.js"_sv))
             paths.append(file_path);
     });
     quick_sort(paths);
@@ -376,9 +376,9 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
             Test::Case test { test_name, Test::Result::Fail, {}, 0 };
 
             VERIFY(test_value.is_object());
-            VERIFY(test_value.as_object().has("result"sv));
+            VERIFY(test_value.as_object().has("result"_sv));
 
-            auto result = test_value.as_object().get_string("result"sv);
+            auto result = test_value.as_object().get_string("result"_sv);
             VERIFY(result.has_value());
             auto result_string = result.value();
             if (result_string == "pass") {
@@ -388,8 +388,8 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
                 test.result = Test::Result::Fail;
                 m_counts.tests_failed++;
                 suite.most_severe_test_result = Test::Result::Fail;
-                VERIFY(test_value.as_object().has("details"sv));
-                auto details = test_value.as_object().get_string("details"sv);
+                VERIFY(test_value.as_object().has("details"_sv));
+                auto details = test_value.as_object().get_string("details"_sv);
                 VERIFY(result.has_value());
                 test.details = details.release_value();
             } else if (result_string == "xfail") {
@@ -404,7 +404,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
                 m_counts.tests_skipped++;
             }
 
-            test.duration_us = test_value.as_object().get_u64("duration"sv).value_or(0);
+            test.duration_us = test_value.as_object().get_u64("duration"_sv).value_or(0);
 
             suite.tests.append(test);
         });
@@ -440,7 +440,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
                 detail_builder.append(error.to_string_without_side_effects());
             } else {
                 detail_builder.append(name.to_string_without_side_effects());
-                detail_builder.append(": "sv);
+                detail_builder.append(": "_sv);
                 detail_builder.append(message.to_string_without_side_effects());
             }
 

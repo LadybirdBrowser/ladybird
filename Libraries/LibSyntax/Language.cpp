@@ -14,29 +14,29 @@ StringView language_to_string(Language language)
 {
     switch (language) {
     case Language::CMake:
-        return "CMake"sv;
+        return "CMake"_sv;
     case Language::CMakeCache:
-        return "CMakeCache"sv;
+        return "CMakeCache"_sv;
     case Language::Cpp:
-        return "C++"sv;
+        return "C++"_sv;
     case Language::CSS:
-        return "CSS"sv;
+        return "CSS"_sv;
     case Language::GitCommit:
-        return "Git"sv;
+        return "Git"_sv;
     case Language::GML:
-        return "GML"sv;
+        return "GML"_sv;
     case Language::HTML:
-        return "HTML"sv;
+        return "HTML"_sv;
     case Language::INI:
-        return "INI"sv;
+        return "INI"_sv;
     case Language::JavaScript:
-        return "JavaScript"sv;
+        return "JavaScript"_sv;
     case Language::Markdown:
-        return "Markdown"sv;
+        return "Markdown"_sv;
     case Language::PlainText:
-        return "Plain Text"sv;
+        return "Plain Text"_sv;
     case Language::Shell:
-        return "Shell"sv;
+        return "Shell"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -45,58 +45,58 @@ StringView common_language_extension(Language language)
 {
     switch (language) {
     case Language::CMake:
-        return "cmake"sv;
+        return "cmake"_sv;
     case Language::CMakeCache:
         return {};
     case Language::Cpp:
-        return "cpp"sv;
+        return "cpp"_sv;
     case Language::CSS:
-        return "css"sv;
+        return "css"_sv;
     case Language::GitCommit:
         return {};
     case Language::GML:
-        return "gml"sv;
+        return "gml"_sv;
     case Language::HTML:
-        return "html"sv;
+        return "html"_sv;
     case Language::INI:
-        return "ini"sv;
+        return "ini"_sv;
     case Language::JavaScript:
-        return "js"sv;
+        return "js"_sv;
     case Language::Markdown:
-        return "md"sv;
+        return "md"_sv;
     case Language::PlainText:
-        return "txt"sv;
+        return "txt"_sv;
     case Language::Shell:
-        return "sh"sv;
+        return "sh"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 Optional<Language> language_from_name(StringView name)
 {
-    if (name.equals_ignoring_ascii_case("CMake"sv))
+    if (name.equals_ignoring_ascii_case("CMake"_sv))
         return Language::CMake;
-    if (name.equals_ignoring_ascii_case("CMakeCache"sv))
+    if (name.equals_ignoring_ascii_case("CMakeCache"_sv))
         return Language::CMakeCache;
-    if (name.equals_ignoring_ascii_case("Cpp"sv))
+    if (name.equals_ignoring_ascii_case("Cpp"_sv))
         return Language::Cpp;
-    if (name.equals_ignoring_ascii_case("CSS"sv))
+    if (name.equals_ignoring_ascii_case("CSS"_sv))
         return Language::CSS;
-    if (name.equals_ignoring_ascii_case("GitCommit"sv))
+    if (name.equals_ignoring_ascii_case("GitCommit"_sv))
         return Language::GitCommit;
-    if (name.equals_ignoring_ascii_case("GML"sv))
+    if (name.equals_ignoring_ascii_case("GML"_sv))
         return Language::GML;
-    if (name.equals_ignoring_ascii_case("HTML"sv))
+    if (name.equals_ignoring_ascii_case("HTML"_sv))
         return Language::HTML;
-    if (name.equals_ignoring_ascii_case("INI"sv))
+    if (name.equals_ignoring_ascii_case("INI"_sv))
         return Language::INI;
-    if (name.equals_ignoring_ascii_case("JavaScript"sv))
+    if (name.equals_ignoring_ascii_case("JavaScript"_sv))
         return Language::JavaScript;
-    if (name.equals_ignoring_ascii_case("Markdown"sv))
+    if (name.equals_ignoring_ascii_case("Markdown"_sv))
         return Language::Markdown;
-    if (name.equals_ignoring_ascii_case("PlainText"sv))
+    if (name.equals_ignoring_ascii_case("PlainText"_sv))
         return Language::PlainText;
-    if (name.equals_ignoring_ascii_case("Shell"sv))
+    if (name.equals_ignoring_ascii_case("Shell"_sv))
         return Language::Shell;
 
     return {};
@@ -104,34 +104,34 @@ Optional<Language> language_from_name(StringView name)
 
 Optional<Language> language_from_filename(LexicalPath const& file)
 {
-    if (file.title() == "COMMIT_EDITMSG"sv)
+    if (file.title() == "COMMIT_EDITMSG"_sv)
         return Language::GitCommit;
 
     auto extension = file.extension();
     VERIFY(!extension.starts_with('.'));
-    if (extension == "cmake"sv || (extension == "txt"sv && file.title() == "CMakeLists"sv))
+    if (extension == "cmake"_sv || (extension == "txt"_sv && file.title() == "CMakeLists"_sv))
         return Language::CMake;
-    if (extension == "txt"sv && file.title() == "CMakeCache"sv)
+    if (extension == "txt"_sv && file.title() == "CMakeCache"_sv)
         return Language::CMakeCache;
-    if (extension.is_one_of("c"sv, "cc"sv, "cxx"sv, "cpp"sv, "c++", "h"sv, "hh"sv, "hxx"sv, "hpp"sv, "h++"sv))
+    if (extension.is_one_of("c"_sv, "cc"_sv, "cxx"_sv, "cpp"_sv, "c++", "h"_sv, "hh"_sv, "hxx"_sv, "hpp"_sv, "h++"_sv))
         return Language::Cpp;
-    if (extension == "css"sv)
+    if (extension == "css"_sv)
         return Language::CSS;
-    if (extension == "gml"sv)
+    if (extension == "gml"_sv)
         return Language::GML;
-    if (extension.is_one_of("html"sv, "htm"sv))
+    if (extension.is_one_of("html"_sv, "htm"_sv))
         return Language::HTML;
-    if (extension.is_one_of("ini"sv, "af"sv))
+    if (extension.is_one_of("ini"_sv, "af"_sv))
         return Language::INI;
-    if (extension.is_one_of("js"sv, "mjs"sv, "json"sv))
+    if (extension.is_one_of("js"_sv, "mjs"_sv, "json"_sv))
         return Language::JavaScript;
-    if (extension == "md"sv)
+    if (extension == "md"_sv)
         return Language::Markdown;
-    if (extension.is_one_of("sh"sv, "bash"sv))
+    if (extension.is_one_of("sh"_sv, "bash"_sv))
         return Language::Shell;
 
     // Check "txt" after the CMake related files that use "txt" as their extension.
-    if (extension == "txt"sv)
+    if (extension == "txt"_sv)
         return Language::PlainText;
 
     return {};

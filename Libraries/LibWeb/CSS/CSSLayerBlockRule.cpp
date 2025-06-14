@@ -45,11 +45,11 @@ String CSSLayerBlockRule::serialized() const
 {
     // AD-HOC: No spec yet, so this is based on the @media serialization algorithm.
     StringBuilder builder;
-    builder.append("@layer"sv);
+    builder.append("@layer"_sv);
     if (!m_name.is_empty())
         builder.appendff(" {}", m_name);
 
-    builder.append(" {\n"sv);
+    builder.append(" {\n"_sv);
     // AD-HOC: All modern browsers omit the ending newline if there are no CSS rules, so let's do the same.
     if (css_rules().length() == 0) {
         builder.append('}');
@@ -59,12 +59,12 @@ String CSSLayerBlockRule::serialized() const
     for (size_t i = 0; i < css_rules().length(); i++) {
         auto rule = css_rules().item(i);
         if (i != 0)
-            builder.append("\n"sv);
-        builder.append("  "sv);
+            builder.append("\n"_sv);
+        builder.append("  "_sv);
         builder.append(rule->css_text());
     }
 
-    builder.append("\n}"sv);
+    builder.append("\n}"_sv);
 
     return builder.to_string_without_validation();
 }

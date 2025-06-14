@@ -372,13 +372,13 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
     auto sandboxing_flag_set = active_document()->active_sandboxing_flag_set();
 
     // 4. If name is the empty string or an ASCII case-insensitive match for "_self", then set chosen to currentNavigable.
-    if (name.is_empty() || name.equals_ignoring_ascii_case("_self"sv)) {
+    if (name.is_empty() || name.equals_ignoring_ascii_case("_self"_sv)) {
         chosen = this;
     }
 
     // 5. Otherwise, if name is an ASCII case-insensitive match for "_parent",
     //    set chosen to currentNavigable's parent, if any, and currentNavigable otherwise.
-    else if (name.equals_ignoring_ascii_case("_parent"sv)) {
+    else if (name.equals_ignoring_ascii_case("_parent"_sv)) {
         if (auto parent = this->parent())
             chosen = parent;
         else
@@ -387,13 +387,13 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
 
     // 6. Otherwise, if name is an ASCII case-insensitive match for "_top",
     //    set chosen to currentNavigable's traversable navigable.
-    else if (name.equals_ignoring_ascii_case("_top"sv)) {
+    else if (name.equals_ignoring_ascii_case("_top"_sv)) {
         chosen = traversable_navigable();
     }
 
     // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank" and noopener is false, then set chosen
     //    to the result of finding a navigable by target name given name and currentNavigable.
-    else if (!name.equals_ignoring_ascii_case("_blank"sv) && no_opener == TokenizedFeature::NoOpener::No) {
+    else if (!name.equals_ignoring_ascii_case("_blank"_sv) && no_opener == TokenizedFeature::NoOpener::No) {
         chosen = find_a_navigable_by_target_name(name);
     }
 
@@ -434,7 +434,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
                 no_opener = TokenizedFeature::NoOpener::Yes;
 
                 // 2. Set name to "_blank".
-                name = "_blank"sv;
+                name = "_blank"_sv;
 
                 // 3. Set windowType to "new with no opener".
                 window_type = WindowType::NewWithNoOpener;
@@ -446,7 +446,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             String target_name;
 
             // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
-            if (!name.equals_ignoring_ascii_case("_blank"sv))
+            if (!name.equals_ignoring_ascii_case("_blank"_sv))
                 target_name = MUST(String::from_utf8(name));
 
             auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<Navigable> {
@@ -699,7 +699,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(URL::about_srcdoc());
 
-    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html"sv);
+    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"_sv, "text/html"_sv);
     response->header_list()->append(move(header));
 
     response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, document_resource.get<String>().bytes()));
@@ -806,7 +806,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     // 4. If documentResource is a POST resource, then:
     if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
         // 1. Set request's method to `POST`.
-        request->set_method(TRY_OR_THROW_OOM(vm, ByteBuffer::copy("POST"sv.bytes())));
+        request->set_method(TRY_OR_THROW_OOM(vm, ByteBuffer::copy("POST"_sv.bytes())));
 
         // 2. Set request's body to documentResource's request body.
         request->set_body(document_resource.get<POSTResource>().request_body.value());
@@ -815,11 +815,11 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         auto request_content_type = [&]() {
             switch (post_resource->request_content_type) {
             case POSTResource::RequestContentType::ApplicationXWWWFormUrlencoded:
-                return "application/x-www-form-urlencoded"sv;
+                return "application/x-www-form-urlencoded"_sv;
             case POSTResource::RequestContentType::MultipartFormData:
-                return "multipart/form-data"sv;
+                return "multipart/form-data"_sv;
             case POSTResource::RequestContentType::TextPlain:
-                return "text/plain"sv;
+                return "text/plain"_sv;
             default:
                 VERIFY_NOT_REACHED();
             }
@@ -835,7 +835,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
             request_content_type = request_content_type_buffer.string_view();
         }
 
-        auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, request_content_type);
+        auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"_sv, request_content_type);
         request->header_list()->append(move(header));
     }
 
@@ -1299,7 +1299,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
             auto error_html = load_error_page(entry->url(), error_message).release_value_but_fixme_should_propagate_errors();
             entry->document_state()->set_document(create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
-                auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"sv);
+                auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"_sv);
                 document.set_url(URL::about_error());
                 parser->run();
 
@@ -1565,7 +1565,7 @@ void Navigable::begin_navigation(NavigateParams params)
     set_ongoing_navigation(navigation_id);
 
     // 19. If url's scheme is "javascript", then:
-    if (url.scheme() == "javascript"sv) {
+    if (url.scheme() == "javascript"_sv) {
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, and initialInsertion.
         VERIFY(active_window());
         queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
@@ -1851,7 +1851,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(active_document()->url());
 
-    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html"sv);
+    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"_sv, "text/html"_sv);
     response->header_list()->append(move(header));
 
     response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, result.bytes()));
@@ -2017,7 +2017,7 @@ void Navigable::reload(UserNavigationInvolvement user_involvement)
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-navigation-must-be-a-replace
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document)
 {
-    return url.scheme() == "javascript"sv || document.is_initial_about_blank();
+    return url.scheme() == "javascript"_sv || document.is_initial_about_blank();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#allowed-to-navigate

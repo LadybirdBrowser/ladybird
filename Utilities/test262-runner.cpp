@@ -147,14 +147,14 @@ static ErrorOr<StringView, TestError> read_harness_file(StringView harness_file)
 
 static ErrorOr<GC::Ref<JS::Script>, TestError> parse_harness_contents(JS::Realm& realm, StringView harness_contents)
 {
-    auto program_or_error = parse_program<JS::Script>(realm, harness_contents, "<harness>"sv);
+    auto program_or_error = parse_program<JS::Script>(realm, harness_contents, "<harness>"_sv);
 
     if (program_or_error.is_error()) {
         return TestError {
             NegativePhase::Harness,
             program_or_error.error().type,
             program_or_error.error().details,
-            "<harness>"sv
+            "<harness>"_sv
         };
     }
 
@@ -172,9 +172,9 @@ enum class SkipTest {
     Yes,
 };
 
-static constexpr auto sta_harness_file = "sta.js"sv;
-static constexpr auto assert_harness_file = "assert.js"sv;
-static constexpr auto async_include = "doneprintHandle.js"sv;
+static constexpr auto sta_harness_file = "sta.js"_sv;
+static constexpr auto assert_harness_file = "assert.js"_sv;
+static constexpr auto async_include = "doneprintHandle.js"_sv;
 
 struct TestMetadata {
     Vector<StringView> harness_files { sta_harness_file, assert_harness_file };
@@ -242,7 +242,7 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
                 NegativePhase::Harness,
                 result.error().type,
                 result.error().details,
-                "<harness>"sv
+                "<harness>"_sv
             };
         }
     }
@@ -273,7 +273,7 @@ static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
         }
 
         auto list = line.substring_view(start.value() + 1, end.value() - start.value() - 1);
-        for (auto const& item : list.split_view(","sv))
+        for (auto const& item : list.split_view(","_sv))
             items.append(item.trim_whitespace(TrimMode::Both));
         return items;
     };
@@ -282,7 +282,7 @@ static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
         auto separator = line.find(' ');
         if (!separator.has_value() || separator.value() >= (line.length() - 1u)) {
             failed_message = MUST(String::formatted("Can't parse value after space in '{}'", line));
-            return ""sv;
+            return ""_sv;
         }
         return line.substring_view(separator.value() + 1);
     };
@@ -295,7 +295,7 @@ static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
         if (!failed_message.is_empty())
             break;
 
-        if (raw_line.starts_with("---*/"sv)) {
+        if (raw_line.starts_with("---*/"_sv)) {
             if (parsing_includes_list) {
                 for (auto& file : include_list)
                     metadata.harness_files.append(file);
@@ -324,21 +324,21 @@ static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
         }
 
         if (parsing_negative) {
-            if (line.starts_with("phase:"sv)) {
+            if (line.starts_with("phase:"_sv)) {
                 auto phase = second_word(line);
                 has_phase = true;
-                if (phase == "early"sv || phase == "parse"sv) {
+                if (phase == "early"_sv || phase == "parse"_sv) {
                     metadata.phase = NegativePhase::ParseOrEarly;
-                } else if (phase == "resolution"sv) {
+                } else if (phase == "resolution"_sv) {
                     metadata.phase = NegativePhase::Resolution;
-                } else if (phase == "runtime"sv) {
+                } else if (phase == "runtime"_sv) {
                     metadata.phase = NegativePhase::Runtime;
                 } else {
                     has_phase = false;
                     failed_message = MUST(String::formatted("Unknown negative phase: {}", phase));
                     break;
                 }
-            } else if (line.starts_with("type:"sv)) {
+            } else if (line.starts_with("type:"_sv)) {
                 metadata.type = second_word(line);
             } else {
                 if (!has_phase) {
@@ -354,32 +354,32 @@ static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
             }
         }
 
-        if (line.starts_with("flags:"sv)) {
+        if (line.starts_with("flags:"_sv)) {
             auto flags = parse_list(line);
 
             for (auto flag : flags) {
-                if (flag == "raw"sv) {
+                if (flag == "raw"_sv) {
                     metadata.strict_mode = StrictMode::NoStrict;
                     metadata.harness_files.clear();
-                } else if (flag == "noStrict"sv) {
+                } else if (flag == "noStrict"_sv) {
                     metadata.strict_mode = StrictMode::NoStrict;
-                } else if (flag == "onlyStrict"sv) {
+                } else if (flag == "onlyStrict"_sv) {
                     metadata.strict_mode = StrictMode::OnlyStrict;
-                } else if (flag == "module"sv) {
+                } else if (flag == "module"_sv) {
                     VERIFY(metadata.strict_mode == StrictMode::Both);
                     metadata.program_type = JS::Program::Type::Module;
                     metadata.strict_mode = StrictMode::NoStrict;
-                } else if (flag == "async"sv) {
+                } else if (flag == "async"_sv) {
                     metadata.harness_files.append(async_include);
                     metadata.is_async = true;
-                } else if (flag == "CanBlockIsFalse"sv) {
+                } else if (flag == "CanBlockIsFalse"_sv) {
                     // NOTE: This should only be skipped if AgentCanSuspend is set to true. This is currently always the case.
                     //       Ideally we would check that, but we don't have the VM by this stage. So for now, we rely on that
                     //       assumption.
                     metadata.skip_test = SkipTest::Yes;
                 }
             }
-        } else if (line.starts_with("includes:"sv)) {
+        } else if (line.starts_with("includes:"_sv)) {
             auto files = parse_list(line);
             if (files.is_empty()) {
                 parsing_includes_list = true;
@@ -387,7 +387,7 @@ static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
                 for (auto& file : files)
                     metadata.harness_files.append(file);
             }
-        } else if (line.starts_with("negative:"sv)) {
+        } else if (line.starts_with("negative:"_sv)) {
             metadata.is_negative = true;
             parsing_negative = true;
         }
@@ -403,48 +403,48 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
 {
     if (result.is_error()) {
         if (result.error().phase == NegativePhase::Harness) {
-            output.set("harness_error"sv, true);
-            output.set("harness_file"sv, String::from_utf8_with_replacement_character(result.error().harness_file));
-            output.set("result"sv, "harness_error"sv);
+            output.set("harness_error"_sv, true);
+            output.set("harness_file"_sv, String::from_utf8_with_replacement_character(result.error().harness_file));
+            output.set("result"_sv, "harness_error"_sv);
         } else if (result.error().phase == NegativePhase::Runtime) {
             auto& error_type = result.error().type;
             auto& error_details = result.error().details;
-            if ((error_type == "InternalError"sv && error_details.starts_with_bytes("TODO("sv))
-                || (error_type == "Test262Error"sv && error_details.ends_with_bytes(" but got a InternalError"sv))) {
-                output.set("todo_error"sv, true);
-                output.set("result"sv, "todo_error"sv);
+            if ((error_type == "InternalError"_sv && error_details.starts_with_bytes("TODO("_sv))
+                || (error_type == "Test262Error"_sv && error_details.ends_with_bytes(" but got a InternalError"_sv))) {
+                output.set("todo_error"_sv, true);
+                output.set("result"_sv, "todo_error"_sv);
             }
         }
     }
 
-    if (metadata.is_async && output.has("output"sv)) {
-        auto output_messages = output.get_string("output"sv);
+    if (metadata.is_async && output.has("output"_sv)) {
+        auto output_messages = output.get_string("output"_sv);
         VERIFY(output_messages.has_value());
-        if (output_messages->contains("AsyncTestFailure:InternalError: TODO("sv)) {
-            output.set("todo_error"sv, true);
-            output.set("result"sv, "todo_error"sv);
+        if (output_messages->contains("AsyncTestFailure:InternalError: TODO("_sv)) {
+            output.set("todo_error"_sv, true);
+            output.set("result"_sv, "todo_error"_sv);
         }
     }
 
     auto phase_to_string = [](NegativePhase phase) {
         switch (phase) {
         case NegativePhase::ParseOrEarly:
-            return "parse"sv;
+            return "parse"_sv;
         case NegativePhase::Resolution:
-            return "resolution"sv;
+            return "resolution"_sv;
         case NegativePhase::Runtime:
-            return "runtime"sv;
+            return "runtime"_sv;
         case NegativePhase::Harness:
-            return "harness"sv;
+            return "harness"_sv;
         }
         VERIFY_NOT_REACHED();
     };
 
     auto error_to_json = [&phase_to_string](TestError const& error) {
         JsonObject error_object;
-        error_object.set("phase"sv, phase_to_string(error.phase));
-        error_object.set("type"sv, error.type);
-        error_object.set("details"sv, error.details);
+        error_object.set("phase"_sv, phase_to_string(error.phase));
+        error_object.set("type"_sv, error.type);
+        error_object.set("details"_sv, error.details);
         return error_object;
     };
 
@@ -453,10 +453,10 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
 
     ScopeGuard set_error = [&] {
         JsonObject error_object;
-        error_object.set("expected"sv, expected_error);
-        error_object.set("got"sv, got_error);
+        error_object.set("expected"_sv, expected_error);
+        error_object.set("got"_sv, got_error);
 
-        output.set("error"sv, error_object);
+        output.set("error"_sv, error_object);
     };
 
     if (!metadata.is_negative) {
@@ -468,8 +468,8 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
     }
 
     JsonObject expected_error_object;
-    expected_error_object.set("phase"sv, phase_to_string(metadata.phase));
-    expected_error_object.set("type"sv, metadata.type);
+    expected_error_object.set("phase"_sv, phase_to_string(metadata.phase));
+    expected_error_object.set("type"_sv, metadata.type);
 
     expected_error = expected_error_object;
 
@@ -486,7 +486,7 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
 
     got_error = JsonValue { error_to_json(error) };
 
-    if (metadata.program_type == JS::Program::Type::Module && metadata.type == "SyntaxError"sv) {
+    if (metadata.program_type == JS::Program::Type::Module && metadata.type == "SyntaxError"_sv) {
         // NOTE: Since the "phase" of negative results is both not defined and hard to
         //       track throughout the entire Module life span we will just accept any
         //       SyntaxError as the correct one.
@@ -510,7 +510,7 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
 
 static bool extract_harness_directory(ByteString const& test_file_path)
 {
-    auto test_directory_index = test_file_path.find("test/"sv);
+    auto test_directory_index = test_file_path.find("test/"_sv);
     if (!test_directory_index.has_value()) {
         warnln("Attempted to find harness directory from test file '{}', but did not find 'test/'", test_file_path);
         return false;
@@ -530,10 +530,10 @@ static bool g_in_assert = false;
         // immediately stop if we are already in a failed assert.
         g_in_assert = true;
         JsonObject assert_fail_result;
-        assert_fail_result.set("test"sv, String::from_utf8_with_replacement_character(s_current_test));
-        assert_fail_result.set("assert_fail"sv, true);
-        assert_fail_result.set("result"sv, "assert_fail"sv);
-        assert_fail_result.set("output"sv, StringView { assert_failed_message, strlen(assert_failed_message) });
+        assert_fail_result.set("test"_sv, String::from_utf8_with_replacement_character(s_current_test));
+        assert_fail_result.set("assert_fail"_sv, true);
+        assert_fail_result.set("result"_sv, "assert_fail"_sv);
+        assert_fail_result.set("output"_sv, StringView { assert_failed_message, strlen(assert_failed_message) });
         outln(saved_stdout_fd, "RESULT {}{}", assert_fail_result.serialized(), '\0');
         // (Attempt to) Ensure that messages are written before quitting.
         fflush(saved_stdout_fd);
@@ -712,7 +712,7 @@ int main(int argc, char** argv)
         count++;
 
         ByteString source_with_strict;
-        static StringView use_strict = "'use strict';\n"sv;
+        static StringView use_strict = "'use strict';\n"_sv;
         static size_t strict_length = use_strict.length();
 
         {
@@ -732,7 +732,7 @@ int main(int argc, char** argv)
         StringView original_contents = source_with_strict.substring_view(strict_length);
 
         JsonObject result_object;
-        result_object.set("test"sv, path);
+        result_object.set("test"_sv, path);
 
         ScopeGuard output_guard = [&] {
             outln(saved_stdout_fd, "RESULT {}{}", result_object.serialized(), '\0');
@@ -741,22 +741,22 @@ int main(int argc, char** argv)
 
         auto metadata_or_error = extract_metadata(original_contents);
         if (metadata_or_error.is_error()) {
-            result_object.set("result"sv, "metadata_error"sv);
-            result_object.set("metadata_error"sv, true);
-            result_object.set("metadata_output"sv, metadata_or_error.release_error());
+            result_object.set("result"_sv, "metadata_error"_sv);
+            result_object.set("metadata_error"_sv, true);
+            result_object.set("metadata_output"_sv, metadata_or_error.release_error());
             continue;
         }
 
         auto& metadata = metadata_or_error.value();
         if (metadata.skip_test == SkipTest::Yes) {
-            result_object.set("result"sv, "skipped"sv);
+            result_object.set("result"_sv, "skipped"_sv);
             continue;
         }
 
         bool passed = true;
 
         if (metadata.strict_mode != StrictMode::OnlyStrict) {
-            result_object.set("strict_mode"sv, false);
+            result_object.set("strict_mode"_sv, false);
 
             ARM_TIMER();
             auto result = run_test(original_contents, path, metadata);
@@ -764,15 +764,15 @@ int main(int argc, char** argv)
 
             auto first_output = collect_output();
             if (first_output.has_value())
-                result_object.set("output"sv, String::from_utf8_with_replacement_character(*first_output));
+                result_object.set("output"_sv, String::from_utf8_with_replacement_character(*first_output));
 
             passed = verify_test(result, metadata, result_object);
             auto output = first_output.value_or("");
             if (metadata.is_async && !s_parse_only) {
-                if (!output.contains("Test262:AsyncTestComplete"sv) || output.contains("Test262:AsyncTestFailure"sv)) {
-                    result_object.set("async_fail"sv, true);
+                if (!output.contains("Test262:AsyncTestComplete"_sv) || output.contains("Test262:AsyncTestFailure"_sv)) {
+                    result_object.set("async_fail"_sv, true);
                     if (!first_output.has_value())
-                        result_object.set("output"sv, JsonValue {});
+                        result_object.set("output"_sv, JsonValue {});
 
                     passed = false;
                 }
@@ -780,7 +780,7 @@ int main(int argc, char** argv)
         }
 
         if (passed && metadata.strict_mode != StrictMode::NoStrict) {
-            result_object.set("strict_mode"sv, true);
+            result_object.set("strict_mode"_sv, true);
 
             ARM_TIMER();
             auto result = run_test(with_strict, path, metadata);
@@ -788,16 +788,16 @@ int main(int argc, char** argv)
 
             auto first_output = collect_output();
             if (first_output.has_value())
-                result_object.set("strict_output"sv, String::from_utf8_with_replacement_character(*first_output));
+                result_object.set("strict_output"_sv, String::from_utf8_with_replacement_character(*first_output));
 
             passed = verify_test(result, metadata, result_object);
             auto output = first_output.value_or("");
 
             if (metadata.is_async && !s_parse_only) {
-                if (!output.contains("Test262:AsyncTestComplete"sv) || output.contains("Test262:AsyncTestFailure"sv)) {
-                    result_object.set("async_fail"sv, true);
+                if (!output.contains("Test262:AsyncTestComplete"_sv) || output.contains("Test262:AsyncTestFailure"_sv)) {
+                    result_object.set("async_fail"_sv, true);
                     if (!first_output.has_value())
-                        result_object.set("output"sv, JsonValue {});
+                        result_object.set("output"_sv, JsonValue {});
 
                     passed = false;
                 }
@@ -805,10 +805,10 @@ int main(int argc, char** argv)
         }
 
         if (passed)
-            result_object.remove("strict_mode"sv);
+            result_object.remove("strict_mode"_sv);
 
-        if (!result_object.has("result"sv))
-            result_object.set("result"sv, passed ? "passed"sv : "failed"sv);
+        if (!result_object.has("result"_sv))
+            result_object.set("result"_sv, passed ? "passed"_sv : "failed"_sv);
     }
 
     s_current_test = "";

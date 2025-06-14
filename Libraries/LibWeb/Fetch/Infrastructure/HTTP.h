@@ -14,11 +14,11 @@ namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#http-tab-or-space
 // An HTTP tab or space is U+0009 TAB or U+0020 SPACE.
-inline constexpr StringView HTTP_TAB_OR_SPACE = "\t "sv;
+inline constexpr StringView HTTP_TAB_OR_SPACE = "\t "_sv;
 
 // https://fetch.spec.whatwg.org/#http-whitespace
 // HTTP whitespace is U+000A LF, U+000D CR, or an HTTP tab or space.
-inline constexpr StringView HTTP_WHITESPACE = "\n\r\t "sv;
+inline constexpr StringView HTTP_WHITESPACE = "\n\r\t "_sv;
 
 // https://fetch.spec.whatwg.org/#http-newline-byte
 // An HTTP newline byte is 0x0A (LF) or 0x0D (CR).

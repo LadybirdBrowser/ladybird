@@ -92,7 +92,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(JS::Realm& realm, St
 
     // 2. If parsedURL is failure, then throw a TypeError.
     if (!parsed_url.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"_sv };
 
     // 3. Initialize this with parsedURL.
     return initialize_a_url(realm, parsed_url.value());
@@ -137,7 +137,7 @@ void DOMURL::revoke_object_url(JS::VM&, StringView url)
         return;
 
     // 2. If url record’s scheme is not "blob", return.
-    if (url_record->scheme() != "blob"sv)
+    if (url_record->scheme() != "blob"_sv)
         return;
 
     // 3. Let entry be urlRecord’s blob URL entry.
@@ -195,7 +195,7 @@ WebIDL::ExceptionOr<void> DOMURL::set_href(String const& value)
 
     // 2. If parsedURL is failure, then throw a TypeError.
     if (!parsed_url.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"_sv };
 
     // 3. Set this’s URL to parsedURL.
     m_url = parsed_url.release_value();

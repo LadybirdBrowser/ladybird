@@ -35,9 +35,9 @@ static SelectionDirection string_to_selection_direction(Optional<String> value)
 {
     if (!value.has_value())
         return SelectionDirection::None;
-    if (value.value() == "forward"sv)
+    if (value.value() == "forward"_sv)
         return SelectionDirection::Forward;
-    if (value.value() == "backward"sv)
+    if (value.value() == "backward"_sv)
         return SelectionDirection::Backward;
     return SelectionDirection::None;
 }

@@ -126,7 +126,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
                 if (property_value_strings[i].value() != intial_property_string_value) {
                     if (!builder.is_empty())
-                        builder.append(" "sv);
+                        builder.append(" "_sv);
                     builder.append(property_value_strings[i].value());
                 }
             }
@@ -156,7 +156,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         StringBuilder builder;
         for (size_t i = 0; i < layer_count; i++) {
             if (i)
-                builder.append(", "sv);
+                builder.append(", "_sv);
 
             Optional<String> maybe_color_value_string;
             if (i == layer_count - 1)
@@ -191,7 +191,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         StringBuilder builder;
         for (size_t i = 0; i < layer_count; i++) {
             if (i)
-                builder.append(", "sv);
+                builder.append(", "_sv);
 
             builder.appendff("{} {}", get_layer_value_string(x_edges, i), get_layer_value_string(y_edges, i));
         }
@@ -250,9 +250,9 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         if (column_width == column_count)
             return column_width;
-        if (column_width.equals_ignoring_ascii_case("auto"sv))
+        if (column_width.equals_ignoring_ascii_case("auto"_sv))
             return column_count;
-        if (column_count.equals_ignoring_ascii_case("auto"sv))
+        if (column_count.equals_ignoring_ascii_case("auto"_sv))
             return column_width;
 
         return MUST(String::formatted("{} {}", column_width, column_count));
@@ -271,7 +271,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         // Some longhands prevent serialization if they are not allowed in the shorthand.
         // <font-variant-css2> = normal | small-caps
         auto font_variant_string = font_variant->to_string(mode);
-        if (!first_is_one_of(font_variant_string, "normal"sv, "small-caps"sv) && !CSS::is_css_wide_keyword(font_variant_string)) {
+        if (!first_is_one_of(font_variant_string, "normal"_sv, "small-caps"_sv) && !CSS::is_css_wide_keyword(font_variant_string)) {
             return {};
         }
         // <font-width-css3> = normal | ultra-condensed | extra-condensed | condensed | semi-condensed | semi-expanded | expanded | extra-expanded | ultra-expanded
@@ -299,12 +299,12 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             builder.append(string);
         };
         auto font_style_string = font_style->to_string(mode);
-        if (font_style_string != "normal"sv)
+        if (font_style_string != "normal"_sv)
             append(font_style_string);
-        if (font_variant_string != "normal"sv && font_variant_string != "initial"sv)
+        if (font_variant_string != "normal"_sv && font_variant_string != "initial"_sv)
             append(font_variant_string);
         auto font_weight_string = font_weight->to_string(mode);
-        if (font_weight_string != "normal"sv && font_weight_string != "initial"sv && font_weight_string != "400"sv)
+        if (font_weight_string != "normal"_sv && font_weight_string != "initial"_sv && font_weight_string != "400"_sv)
             append(font_weight_string);
         if (font_width->to_keyword() != Keyword::Normal && font_width->to_keyword() != Keyword::Initial)
             append(font_width->to_string(mode));
@@ -381,13 +381,13 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             size_t idx = 0;
             for (auto const& row : rows.grid_track_size_list().track_list()) {
                 if (areas.grid_template_area().size() > idx) {
-                    builder.append("\""sv);
+                    builder.append("\""_sv);
                     for (size_t y = 0; y < areas.grid_template_area()[idx].size(); ++y) {
                         builder.append(areas.grid_template_area()[idx][y]);
                         if (y != areas.grid_template_area()[idx].size() - 1)
-                            builder.append(" "sv);
+                            builder.append(" "_sv);
                     }
-                    builder.append("\" "sv);
+                    builder.append("\" "_sv);
                 }
                 builder.append(row.to_string());
                 if (idx < rows.grid_track_size_list().track_list().size() - 1)

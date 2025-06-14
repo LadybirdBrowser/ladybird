@@ -40,12 +40,12 @@ template<>
 struct AK::Formatter<Foo> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Foo const&)
     {
-        return Formatter<StringView>::format(builder, ":^)"sv);
+        return Formatter<StringView>::format(builder, ":^)"_sv);
     }
 };
 
 TEST_CASE(formatter)
 {
     auto foo = make<Foo>();
-    EXPECT_EQ(MUST(String::formatted("{}", foo)), ":^)"sv);
+    EXPECT_EQ(MUST(String::formatted("{}", foo)), ":^)"_sv);
 }

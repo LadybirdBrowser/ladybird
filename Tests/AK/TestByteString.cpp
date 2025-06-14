@@ -43,14 +43,14 @@ TEST_CASE(equal)
 
 TEST_CASE(compare)
 {
-    EXPECT("a"sv < ByteString("b"));
-    EXPECT(!("a"sv > ByteString("b")));
-    EXPECT("b"sv > ByteString("a"));
-    EXPECT(!("b"sv < ByteString("b")));
-    EXPECT("a"sv >= ByteString("a"));
-    EXPECT(!("a"sv >= ByteString("b")));
-    EXPECT("a"sv <= ByteString("a"));
-    EXPECT(!("b"sv <= ByteString("a")));
+    EXPECT("a"_sv < ByteString("b"));
+    EXPECT(!("a"_sv > ByteString("b")));
+    EXPECT("b"_sv > ByteString("a"));
+    EXPECT(!("b"_sv < ByteString("b")));
+    EXPECT("a"_sv >= ByteString("a"));
+    EXPECT(!("a"_sv >= ByteString("b")));
+    EXPECT("a"_sv <= ByteString("a"));
+    EXPECT(!("b"_sv <= ByteString("a")));
 
     EXPECT(ByteString("a") > ByteString());
     EXPECT(!(ByteString() > ByteString("a")));
@@ -77,25 +77,25 @@ TEST_CASE(index_access)
 TEST_CASE(starts_with)
 {
     ByteString test_string = "ABCDEF";
-    EXPECT(test_string.starts_with("AB"sv));
+    EXPECT(test_string.starts_with("AB"_sv));
     EXPECT(test_string.starts_with('A'));
     EXPECT(!test_string.starts_with('B'));
-    EXPECT(test_string.starts_with("ABCDEF"sv));
-    EXPECT(!test_string.starts_with("DEF"sv));
-    EXPECT(test_string.starts_with("abc"sv, CaseSensitivity::CaseInsensitive));
-    EXPECT(!test_string.starts_with("abc"sv, CaseSensitivity::CaseSensitive));
+    EXPECT(test_string.starts_with("ABCDEF"_sv));
+    EXPECT(!test_string.starts_with("DEF"_sv));
+    EXPECT(test_string.starts_with("abc"_sv, CaseSensitivity::CaseInsensitive));
+    EXPECT(!test_string.starts_with("abc"_sv, CaseSensitivity::CaseSensitive));
 }
 
 TEST_CASE(ends_with)
 {
     ByteString test_string = "ABCDEF";
-    EXPECT(test_string.ends_with("EF"sv));
+    EXPECT(test_string.ends_with("EF"_sv));
     EXPECT(test_string.ends_with('F'));
     EXPECT(!test_string.ends_with('E'));
-    EXPECT(test_string.ends_with("ABCDEF"sv));
-    EXPECT(!test_string.ends_with("ABC"sv));
-    EXPECT(test_string.ends_with("def"sv, CaseSensitivity::CaseInsensitive));
-    EXPECT(!test_string.ends_with("def"sv, CaseSensitivity::CaseSensitive));
+    EXPECT(test_string.ends_with("ABCDEF"_sv));
+    EXPECT(!test_string.ends_with("ABC"_sv));
+    EXPECT(test_string.ends_with("def"_sv, CaseSensitivity::CaseInsensitive));
+    EXPECT(!test_string.ends_with("def"_sv, CaseSensitivity::CaseSensitive));
 }
 
 TEST_CASE(copy_string)
@@ -142,40 +142,40 @@ TEST_CASE(replace)
 {
     ByteString test_string = "Well, hello Friends!";
 
-    test_string = test_string.replace("Friends"sv, "Testers"sv, ReplaceMode::FirstOnly);
+    test_string = test_string.replace("Friends"_sv, "Testers"_sv, ReplaceMode::FirstOnly);
     EXPECT(test_string == "Well, hello Testers!");
 
-    test_string = test_string.replace("ell"sv, "e're"sv, ReplaceMode::All);
+    test_string = test_string.replace("ell"_sv, "e're"_sv, ReplaceMode::All);
     EXPECT(test_string == "We're, he'reo Testers!");
 
-    test_string = test_string.replace("!"sv, " :^)"sv, ReplaceMode::FirstOnly);
+    test_string = test_string.replace("!"_sv, " :^)"_sv, ReplaceMode::FirstOnly);
     EXPECT(test_string == "We're, he'reo Testers :^)");
 
     test_string = ByteString("111._.111._.111");
-    test_string = test_string.replace("111"sv, "|||"sv, ReplaceMode::All);
+    test_string = test_string.replace("111"_sv, "|||"_sv, ReplaceMode::All);
     EXPECT(test_string == "|||._.|||._.|||");
 
-    test_string = test_string.replace("|||"sv, "111"sv, ReplaceMode::FirstOnly);
+    test_string = test_string.replace("|||"_sv, "111"_sv, ReplaceMode::FirstOnly);
     EXPECT(test_string == "111._.|||._.|||");
 }
 
 TEST_CASE(count)
 {
     ByteString test_string = "Well, hello Friends!";
-    u32 count = test_string.count("Friends"sv);
+    u32 count = test_string.count("Friends"_sv);
     EXPECT(count == 1);
 
-    count = test_string.count("ell"sv);
+    count = test_string.count("ell"_sv);
     EXPECT(count == 2);
 
-    count = test_string.count("!"sv);
+    count = test_string.count("!"_sv);
     EXPECT(count == 1);
 
     test_string = ByteString("111._.111._.111");
-    count = test_string.count("111"sv);
+    count = test_string.count("111"_sv);
     EXPECT(count == 3);
 
-    count = test_string.count("._."sv);
+    count = test_string.count("._."_sv);
     EXPECT(count == 2);
 }
 
@@ -227,7 +227,7 @@ TEST_CASE(split)
 TEST_CASE(builder_zero_initial_capacity)
 {
     StringBuilder builder(0);
-    builder.append(""sv);
+    builder.append(""_sv);
     auto built = builder.to_byte_string();
     EXPECT_EQ(built.length(), 0u);
 }
@@ -235,10 +235,10 @@ TEST_CASE(builder_zero_initial_capacity)
 TEST_CASE(find)
 {
     ByteString a = "foobarbar";
-    EXPECT_EQ(a.find("bar"sv), Optional<size_t> { 3 });
-    EXPECT_EQ(a.find("baz"sv), Optional<size_t> {});
-    EXPECT_EQ(a.find("bar"sv, 4), Optional<size_t> { 6 });
-    EXPECT_EQ(a.find("bar"sv, 9), Optional<size_t> {});
+    EXPECT_EQ(a.find("bar"_sv), Optional<size_t> { 3 });
+    EXPECT_EQ(a.find("baz"_sv), Optional<size_t> {});
+    EXPECT_EQ(a.find("bar"_sv, 4), Optional<size_t> { 6 });
+    EXPECT_EQ(a.find("bar"_sv, 9), Optional<size_t> {});
 
     EXPECT_EQ(a.find('f'), Optional<size_t> { 0 });
     EXPECT_EQ(a.find('x'), Optional<size_t> {});
@@ -251,10 +251,10 @@ TEST_CASE(find)
 TEST_CASE(find_with_empty_needle)
 {
     ByteString string = "";
-    EXPECT_EQ(string.find(""sv), 0u);
-    EXPECT_EQ(string.find_all(""sv), (Vector<size_t> { 0u }));
+    EXPECT_EQ(string.find(""_sv), 0u);
+    EXPECT_EQ(string.find_all(""_sv), (Vector<size_t> { 0u }));
 
     string = "abc";
-    EXPECT_EQ(string.find(""sv), 0u);
-    EXPECT_EQ(string.find_all(""sv), (Vector<size_t> { 0u, 1u, 2u, 3u }));
+    EXPECT_EQ(string.find(""_sv), 0u);
+    EXPECT_EQ(string.find_all(""_sv), (Vector<size_t> { 0u, 1u, 2u, 3u }));
 }

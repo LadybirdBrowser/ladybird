@@ -13,7 +13,7 @@ namespace DevTools {
 
 class PreferenceActor final : public Actor {
 public:
-    static constexpr auto base_name = "preference"sv;
+    static constexpr auto base_name = "preference"_sv;
 
     static NonnullRefPtr<PreferenceActor> create(DevToolsServer&, String name);
     virtual ~PreferenceActor() override;

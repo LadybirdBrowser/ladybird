@@ -56,9 +56,9 @@ ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM& vm, PluralRu
 {
     // 1. If x is NaN or y is NaN, throw a RangeError exception.
     if (start.is_nan())
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "start"sv);
+        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "start"_sv);
     if (end.is_nan())
-        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "end"sv);
+        return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "end"_sv);
 
     // 2. Let xp be ResolvePlural(pluralRules, x).
     // 3. Let yp be ResolvePlural(pluralRules, y).

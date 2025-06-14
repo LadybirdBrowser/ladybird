@@ -15,15 +15,15 @@ namespace WebView {
 
 ProcessType process_type_from_name(StringView name)
 {
-    if (name == "Browser"sv)
+    if (name == "Browser"_sv)
         return ProcessType::Browser;
-    if (name == "WebContent"sv)
+    if (name == "WebContent"_sv)
         return ProcessType::WebContent;
-    if (name == "WebWorker"sv)
+    if (name == "WebWorker"_sv)
         return ProcessType::WebWorker;
-    if (name == "RequestServer"sv)
+    if (name == "RequestServer"_sv)
         return ProcessType::RequestServer;
-    if (name == "ImageDecoder"sv)
+    if (name == "ImageDecoder"_sv)
         return ProcessType::ImageDecoder;
 
     dbgln("Unknown process type: '{}'", name);
@@ -34,15 +34,15 @@ StringView process_name_from_type(ProcessType type)
 {
     switch (type) {
     case ProcessType::Browser:
-        return "Browser"sv;
+        return "Browser"_sv;
     case ProcessType::WebContent:
-        return "WebContent"sv;
+        return "WebContent"_sv;
     case ProcessType::WebWorker:
-        return "WebWorker"sv;
+        return "WebWorker"_sv;
     case ProcessType::RequestServer:
-        return "RequestServer"sv;
+        return "RequestServer"_sv;
     case ProcessType::ImageDecoder:
-        return "ImageDecoder"sv;
+        return "ImageDecoder"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -142,10 +142,10 @@ JsonValue ProcessManager::serialize_json()
             : String::from_utf8_without_validation(type.bytes());
 
         JsonObject object;
-        object.set("name"sv, move(process_name));
-        object.set("pid"sv, process.pid);
-        object.set("cpu"sv, process.cpu_percent);
-        object.set("memory"sv, process.memory_usage_bytes);
+        object.set("name"_sv, move(process_name));
+        object.set("pid"_sv, process.pid);
+        object.set("cpu"_sv, process.cpu_percent);
+        object.set("memory"_sv, process.memory_usage_bytes);
         serialized.must_append(move(object));
     });
 

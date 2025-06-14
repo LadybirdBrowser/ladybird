@@ -53,15 +53,15 @@ ErrorOr<StringView> hash_kind_to_openssl_digest_name(Hash::HashKind hash)
 {
     switch (hash) {
     case Hash::HashKind::MD5:
-        return "MD5"sv;
+        return "MD5"_sv;
     case Hash::HashKind::SHA1:
-        return "SHA1"sv;
+        return "SHA1"_sv;
     case Hash::HashKind::SHA256:
-        return "SHA256"sv;
+        return "SHA256"_sv;
     case Hash::HashKind::SHA384:
-        return "SHA384"sv;
+        return "SHA384"_sv;
     case Hash::HashKind::SHA512:
-        return "SHA512"sv;
+        return "SHA512"_sv;
     default:
         return Error::from_string_literal("Unsupported hash kind");
     }

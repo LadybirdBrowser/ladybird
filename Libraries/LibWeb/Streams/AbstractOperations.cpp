@@ -45,7 +45,7 @@ WebIDL::ExceptionOr<double> extract_high_water_mark(QueuingStrategy const& strat
 
     // 3. If highWaterMark is NaN or highWaterMark < 0, throw a RangeError exception.
     if (isnan(high_water_mark) || high_water_mark < 0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid value for high water mark"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid value for high water mark"_sv };
 
     // 4. Return highWaterMark.
     return high_water_mark;
@@ -108,7 +108,7 @@ static void add_message_event_listener(JS::Realm& realm, HTML::MessagePort& port
 void cross_realm_transform_send_error(JS::Realm& realm, HTML::MessagePort& port, JS::Value error)
 {
     // 1. Perform PackAndPostMessage(port, "error", error), discarding the result.
-    (void)pack_and_post_message(realm, port, "error"sv, error);
+    (void)pack_and_post_message(realm, port, "error"_sv, error);
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-packandpostmessagehandlingerror
@@ -181,12 +181,12 @@ void set_up_cross_realm_transform_readable(JS::Realm& realm, ReadableStream& str
             auto type_string = type.as_string().utf8_string_view();
 
             // 6. If type is "chunk",
-            if (type_string == "chunk"sv) {
+            if (type_string == "chunk"_sv) {
                 // 1. Perform ! ReadableStreamDefaultControllerEnqueue(controller, value).
                 MUST(readable_stream_default_controller_enqueue(controller, value));
             }
             // 7. Otherwise, if type is "close",
-            else if (type_string == "close"sv) {
+            else if (type_string == "close"_sv) {
                 // 1. Perform ! ReadableStreamDefaultControllerClose(controller).
                 readable_stream_default_controller_close(controller);
 
@@ -194,7 +194,7 @@ void set_up_cross_realm_transform_readable(JS::Realm& realm, ReadableStream& str
                 port.disentangle();
             }
             // 8. Otherwise, if type is "error",
-            else if (type_string == "error"sv) {
+            else if (type_string == "error"_sv) {
                 // 1. Perform ! ReadableStreamDefaultControllerError(controller, value).
                 readable_stream_default_controller_error(controller, value);
 
@@ -230,7 +230,7 @@ void set_up_cross_realm_transform_readable(JS::Realm& realm, ReadableStream& str
     // 7. Let pullAlgorithm be the following steps:
     auto pull_algorithm = GC::create_function(realm.heap(), [&realm, &port]() -> GC::Ref<WebIDL::Promise> {
         // 1. Perform ! PackAndPostMessage(port, "pull", undefined).
-        MUST(pack_and_post_message(realm, port, "pull"sv, JS::js_undefined()));
+        MUST(pack_and_post_message(realm, port, "pull"_sv, JS::js_undefined()));
 
         // 2. Return a promise resolved with undefined.
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -239,7 +239,7 @@ void set_up_cross_realm_transform_readable(JS::Realm& realm, ReadableStream& str
     // 8. Let cancelAlgorithm be the following steps, taking a reason argument:
     auto cancel_algorithm = GC::create_function(realm.heap(), [&realm, &port](JS::Value reason) -> GC::Ref<WebIDL::Promise> {
         // 1. Let result be PackAndPostMessageHandlingError(port, "error", reason).
-        auto result = pack_and_post_message_handling_error(realm, port, "error"sv, reason);
+        auto result = pack_and_post_message_handling_error(realm, port, "error"_sv, reason);
 
         // 2. Disentangle port.
         port.disentangle();
@@ -292,7 +292,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
             auto type_string = type.as_string().utf8_string_view();
 
             // 6. If type is "pull",
-            if (type_string == "pull"sv) {
+            if (type_string == "pull"_sv) {
                 // 1. If backpressurePromise is not undefined,
                 if (backpressure_promise->promise) {
                     // 1. Resolve backpressurePromise with undefined.
@@ -303,7 +303,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
                 }
             }
             // 7. Otherwise, if type is "error",
-            else if (type_string == "error"sv) {
+            else if (type_string == "error"_sv) {
                 // 1. Perform ! WritableStreamDefaultControllerErrorIfNeeded(controller, value).
                 writable_stream_default_controller_error_if_needed(controller, value);
 
@@ -361,7 +361,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
                 backpressure_promise->promise = WebIDL::create_promise(realm);
 
                 // 2. Let result be PackAndPostMessageHandlingError(port, "chunk", chunk).
-                auto result = pack_and_post_message_handling_error(realm, port, "chunk"sv, chunk);
+                auto result = pack_and_post_message_handling_error(realm, port, "chunk"_sv, chunk);
 
                 // 3. If result is an abrupt completion,
                 if (result.is_error()) {
@@ -386,7 +386,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
     // 9. Let closeAlgorithm be the folowing steps:
     auto close_algorithm = GC::create_function(realm.heap(), [&realm, &port]() -> GC::Ref<WebIDL::Promise> {
         // 1. Perform ! PackAndPostMessage(port, "close", undefined).
-        MUST(pack_and_post_message(realm, port, "close"sv, JS::js_undefined()));
+        MUST(pack_and_post_message(realm, port, "close"_sv, JS::js_undefined()));
 
         // 2. Disentangle port.
         port.disentangle();
@@ -398,7 +398,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
     // 10. Let abortAlgorithm be the following steps, taking a reason argument:
     auto abort_algorithm = GC::create_function(realm.heap(), [&realm, &port](JS::Value reason) -> GC::Ref<WebIDL::Promise> {
         // 1. Let result be PackAndPostMessageHandlingError(port, "error", reason).
-        auto result = pack_and_post_message_handling_error(realm, port, "error"sv, reason);
+        auto result = pack_and_post_message_handling_error(realm, port, "error"_sv, reason);
 
         // 2. Disentangle port.
         port.disentangle();

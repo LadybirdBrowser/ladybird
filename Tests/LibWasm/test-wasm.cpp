@@ -64,7 +64,7 @@ public:
         linker.link(spec_test_namespace());
         auto link_result = linker.finish();
         if (link_result.is_error())
-            return vm.throw_completion<JS::TypeError>("Link failed"sv);
+            return vm.throw_completion<JS::TypeError>("Link failed"_sv);
         auto result = machine().instantiate(*instance->m_module, link_result.release_value());
         if (result.is_error())
             return vm.throw_completion<JS::TypeError>(result.release_error().error);
@@ -161,7 +161,7 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
     auto& realm = *vm.current_realm();
     auto object = TRY(vm.argument(0).to_object(vm));
     if (!is<JS::Uint8Array>(*object))
-        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to parse_webassembly_module"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to parse_webassembly_module"_sv);
     auto& array = static_cast<JS::Uint8Array&>(*object);
     FixedMemoryStream stream { array.data() };
     auto result = Wasm::Module::parse(stream);
@@ -191,11 +191,11 @@ TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
 {
     auto lhs = TRY(vm.argument(0).to_object(vm));
     if (!is<JS::TypedArrayBase>(*lhs))
-        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"_sv);
     auto& lhs_array = static_cast<JS::TypedArrayBase&>(*lhs);
     auto rhs = TRY(vm.argument(1).to_object(vm));
     if (!is<JS::TypedArrayBase>(*rhs))
-        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"_sv);
     auto& rhs_array = static_cast<JS::TypedArrayBase&>(*rhs);
     return JS::Value(lhs_array.viewed_array_buffer()->buffer() == rhs_array.viewed_array_buffer()->buffer());
 }
@@ -238,11 +238,11 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
 {
     auto expected = TRY(vm.argument(0).to_object(vm));
     if (!is<JS::Array>(*expected))
-        return vm.throw_completion<JS::TypeError>("Expected an Array"sv);
+        return vm.throw_completion<JS::TypeError>("Expected an Array"_sv);
     auto& expected_array = static_cast<JS::Array&>(*expected);
     auto got = TRY(vm.argument(1).to_object(vm));
     if (!is<JS::TypedArrayBase>(*got))
-        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"_sv);
     auto& got_array = static_cast<JS::TypedArrayBase&>(*got);
     auto element_size = 128 / TRY(TRY(expected_array.get("length"_fly_string)).to_u32(vm));
     size_t i = 0;
@@ -252,7 +252,7 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
         auto expect = TRY(expected_array.get(it.index()));
         if (expect.is_string()) {
             if (element_size != 32 && element_size != 64)
-                return vm.throw_completion<JS::TypeError>("Expected element of size 32 or 64"sv);
+                return vm.throw_completion<JS::TypeError>("Expected element of size 32 or 64"_sv);
             auto string = expect.as_string().utf8_string();
             if (string == "nan:canonical") {
                 auto is_canonical = element_size == 32 ? _is_canonical_nan32(got) : _is_canonical_nan64(got);
@@ -288,7 +288,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
     auto this_value = vm.this_value();
     auto object = TRY(this_value.to_object(vm));
     if (!is<WebAssemblyModule>(*object))
-        return vm.throw_completion<JS::TypeError>("Not a WebAssemblyModule"sv);
+        return vm.throw_completion<JS::TypeError>("Not a WebAssemblyModule"_sv);
     auto& instance = static_cast<WebAssemblyModule&>(*object);
     for (auto& entry : instance.module_instance().exports()) {
         if (entry.name() == name.to_byte_string()) {
@@ -330,12 +330,12 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     Wasm::FunctionAddress function_address { address };
     auto function_instance = WebAssemblyModule::machine().store().get(function_address);
     if (!function_instance)
-        return vm.throw_completion<JS::TypeError>("Invalid function address"sv);
+        return vm.throw_completion<JS::TypeError>("Invalid function address"_sv);
 
     Wasm::FunctionType const* type { nullptr };
     function_instance->visit([&](auto& value) { type = &value.type(); });
     if (!type)
-        return vm.throw_completion<JS::TypeError>("Invalid function found at given address"sv);
+        return vm.throw_completion<JS::TypeError>("Invalid function found at given address"_sv);
 
     Vector<Wasm::Value> arguments;
     if (type->parameters().size() + 1 > vm.argument_count())
@@ -372,7 +372,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         case Wasm::ValueType::Kind::V128: {
             auto object = MUST(argument.to_object(vm));
             if (!is<JS::TypedArrayBase>(*object))
-                return vm.throw_completion<JS::TypeError>("Expected typed array"sv);
+                return vm.throw_completion<JS::TypeError>("Expected typed array"_sv);
             auto& array = static_cast<JS::TypedArrayBase&>(*object);
             u128 bits = 0;
             auto* ptr = bit_cast<u8*>(&bits);

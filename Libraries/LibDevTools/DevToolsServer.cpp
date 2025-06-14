@@ -23,7 +23,7 @@ static u64 s_server_count = 0;
 
 ErrorOr<NonnullOwnPtr<DevToolsServer>> DevToolsServer::create(DevToolsDelegate& delegate, u16 port)
 {
-    auto address = IPv4Address::from_string("0.0.0.0"sv).release_value();
+    auto address = IPv4Address::from_string("0.0.0.0"_sv).release_value();
 
     auto server = TRY(Core::TCPServer::try_create());
     TRY(server->listen(address, port, Core::TCPServer::AllowAddressReuse::Yes));
@@ -85,9 +85,9 @@ ErrorOr<void> DevToolsServer::on_new_client()
 
 void DevToolsServer::on_message_received(JsonObject message)
 {
-    auto to = message.get_string("to"sv);
+    auto to = message.get_string("to"_sv);
     if (!to.has_value()) {
-        m_root_actor->send_missing_parameter_error({}, "to"sv);
+        m_root_actor->send_missing_parameter_error({}, "to"_sv);
         return;
     }
 
@@ -97,9 +97,9 @@ void DevToolsServer::on_message_received(JsonObject message)
         return;
     }
 
-    auto type = message.get_string("type"sv);
+    auto type = message.get_string("type"_sv);
     if (!type.has_value()) {
-        actor->value->send_missing_parameter_error({}, "type"sv);
+        actor->value->send_missing_parameter_error({}, "type"_sv);
         return;
     }
 

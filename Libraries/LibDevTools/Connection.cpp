@@ -36,7 +36,7 @@ void Connection::send_message(JsonValue const& message)
     auto serialized = message.serialized();
 
     if constexpr (DEVTOOLS_DEBUG) {
-        if (message.is_object() && message.as_object().get("error"sv).has_value())
+        if (message.is_object() && message.as_object().get("error"_sv).has_value())
             dbgln("\x1b[1;31m<<\x1b[0m {}", serialized);
         else
             dbgln("\x1b[1;32m<<\x1b[0m {}", serialized);

@@ -66,7 +66,7 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     auto options = TRY(coerce_options_to_object(vm, options_value));
 
     // 7. Let usage be ? GetOption(options, "usage", string, « "sort", "search" », "sort").
-    auto usage = TRY(get_option(vm, options, vm.names.usage, OptionType::String, { "sort"sv, "search"sv }, "sort"sv));
+    auto usage = TRY(get_option(vm, options, vm.names.usage, OptionType::String, { "sort"_sv, "search"_sv }, "sort"_sv));
 
     // 8. Set collator.[[Usage]] to usage.
     collator->set_usage(usage.as_string().utf8_string_view());
@@ -106,10 +106,10 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     // 19. If usage is "sort", let defaultSensitivity be "variant". Otherwise, let defaultSensitivity be resolvedLocaleData.[[sensitivity]].
     // NOTE: We do not acquire resolvedLocaleData.[[sensitivity]] here. Instead, we let LibUnicode fill in the
     //       default value if an override was not provided here.
-    auto default_sensitivity = collator->usage() == Unicode::Usage::Sort ? "variant"sv : OptionDefault {};
+    auto default_sensitivity = collator->usage() == Unicode::Usage::Sort ? "variant"_sv : OptionDefault {};
 
     // 20. Set collator.[[Sensitivity]] to ? GetOption(options, "sensitivity", string, « "base", "accent", "case", "variant" », defaultSensitivity).
-    auto sensitivity_value = TRY(get_option(vm, options, vm.names.sensitivity, OptionType::String, { "base"sv, "accent"sv, "case"sv, "variant"sv }, default_sensitivity));
+    auto sensitivity_value = TRY(get_option(vm, options, vm.names.sensitivity, OptionType::String, { "base"_sv, "accent"_sv, "case"_sv, "variant"_sv }, default_sensitivity));
 
     Optional<Unicode::Sensitivity> sensitivity;
     if (!sensitivity_value.is_undefined())

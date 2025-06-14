@@ -144,7 +144,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
     auto document = TRY(DOM::Document::create_and_initialize(DOM::Document::Type::XML, type.essence(), navigation_params));
 
     Optional<String> content_encoding;
-    if (auto maybe_encoding = type.parameters().get("charset"sv); maybe_encoding.has_value())
+    if (auto maybe_encoding = type.parameters().get("charset"_sv); maybe_encoding.has_value())
         content_encoding = maybe_encoding.value();
 
     auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
@@ -234,7 +234,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
         auto parser = HTML::HTMLParser::create_for_scripting(document);
         parser->tokenizer().update_insertion_point();
 
-        parser->tokenizer().insert_input_at_insertion_point("<pre>\n"sv);
+        parser->tokenizer().insert_input_at_insertion_point("<pre>\n"_sv);
         parser->run();
 
         parser->tokenizer().switch_to(HTML::HTMLTokenizer::State::PLAINTEXT);
@@ -317,7 +317,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         TRY(document->body()->append_child(img_element));
         TRY(insert_title(document, MUST(String::from_byte_string(LexicalPath::basename(url_string.to_byte_string())))));
 
-    } else if (type.type() == "video"sv) {
+    } else if (type.type() == "video"_sv) {
         auto video_element = TRY(DOM::create_element(document, HTML::TagNames::video, Namespace::HTML));
         TRY(video_element->set_attribute(HTML::AttributeNames::src, url_string));
         TRY(video_element->set_attribute(HTML::AttributeNames::autoplay, String {}));
@@ -325,7 +325,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         TRY(document->body()->append_child(video_element));
         TRY(insert_title(document, MUST(String::from_byte_string(LexicalPath::basename(url_string.to_byte_string())))));
 
-    } else if (type.type() == "audio"sv) {
+    } else if (type.type() == "audio"_sv) {
         auto audio_element = TRY(DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML));
         TRY(audio_element->set_attribute(HTML::AttributeNames::src, url_string));
         TRY(audio_element->set_attribute(HTML::AttributeNames::autoplay, String {}));
@@ -387,7 +387,7 @@ bool can_load_document_with_type(MimeSniff::MimeType const& type)
         return true;
     if (type.essence() == "application/pdf"_string || type.essence() == "text/pdf"_string)
         return true;
-    if (type.essence() == "text/markdown"sv)
+    if (type.essence() == "text/markdown"_sv)
         return true;
     return false;
 }

@@ -85,9 +85,9 @@ JS::ThrowCompletionOr<CanvasRenderingContext2DSettings> CanvasRenderingContext2D
     JS::Value color_space = TRY(value_object.get("colorSpace"_fly_string));
     if (!color_space.is_undefined()) {
         auto color_space_string = TRY(color_space.to_string(vm));
-        if (color_space_string == "srgb"sv)
+        if (color_space_string == "srgb"_sv)
             settings.color_space = Bindings::PredefinedColorSpace::Srgb;
-        else if (color_space_string == "display-p3"sv)
+        else if (color_space_string == "display-p3"_sv)
             settings.color_space = Bindings::PredefinedColorSpace::DisplayP3;
         else
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, color_space_string, "colorSpace");
@@ -96,9 +96,9 @@ JS::ThrowCompletionOr<CanvasRenderingContext2DSettings> CanvasRenderingContext2D
     JS::Value color_type = TRY(value_object.get("colorType"_fly_string));
     if (!color_type.is_undefined()) {
         auto color_type_string = TRY(color_type.to_string(vm));
-        if (color_type_string == "unorm8"sv)
+        if (color_type_string == "unorm8"_sv)
             settings.color_type = Bindings::CanvasColorType::Unorm8;
-        else if (color_type_string == "float16"sv)
+        else if (color_type_string == "float16"_sv)
             settings.color_type = Bindings::CanvasColorType::Float16;
         else
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, color_type_string, "colorType");
@@ -429,9 +429,9 @@ void CanvasRenderingContext2D::stroke(Path2D const& path)
 
 static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
 {
-    if (fill_rule == "evenodd"sv)
+    if (fill_rule == "evenodd"_sv)
         return Gfx::WindingRule::EvenOdd;
-    if (fill_rule == "nonzero"sv)
+    if (fill_rule == "nonzero"_sv)
         return Gfx::WindingRule::Nonzero;
     dbgln("Unrecognized fillRule for CRC2D.fill() - this problem goes away once we pass an enum instead of a string");
     return Gfx::WindingRule::Nonzero;
@@ -638,7 +638,7 @@ RefPtr<Gfx::FontCascadeList const> CanvasRenderingContext2D::font_cascade_list()
 {
     // When font style value is empty load default font
     if (!drawing_state().font_style_value) {
-        set_font("10px sans-serif"sv);
+        set_font("10px sans-serif"_sv);
     }
 
     // Get current loaded font
@@ -921,7 +921,7 @@ void CanvasRenderingContext2D::set_global_composite_operation(String global_comp
     // 2. Otherwise, set this's current compositing and blending operator to the given value.
 #undef __ENUMERATE
 #define __ENUMERATE(operation, compositing_and_blending_operator)                                                                           \
-    if (global_composite_operation == operation##sv) {                                                                                      \
+    if (global_composite_operation == operation##_sv) {                                                                                     \
         drawing_state().current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator; \
         return;                                                                                                                             \
     }
@@ -1041,7 +1041,7 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
 String CanvasRenderingContext2D::filter() const
 {
     if (!drawing_state().filter_string.has_value()) {
-        return String::from_utf8_without_validation("none"sv.bytes());
+        return String::from_utf8_without_validation("none"_sv.bytes());
     }
 
     return drawing_state().filter_string.value();
@@ -1053,7 +1053,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
     drawing_state().filter.clear();
 
     // 1. If the given value is "none", then set this's current filter to "none" and return.
-    if (filter == "none"sv) {
+    if (filter == "none"_sv) {
         drawing_state().filter_string.clear();
         return;
     }

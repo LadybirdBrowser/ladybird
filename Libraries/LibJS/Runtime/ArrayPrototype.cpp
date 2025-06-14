@@ -1627,7 +1627,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::to_locale_string)
     auto length = TRY(length_of_array_like(vm, this_object));
 
     // 3. Let separator be the implementation-defined list-separator String value appropriate for the host environment's current locale (such as ", ").
-    constexpr auto separator = ","sv;
+    constexpr auto separator = ","_sv;
 
     // 4. Let R be the empty String.
     StringBuilder builder;

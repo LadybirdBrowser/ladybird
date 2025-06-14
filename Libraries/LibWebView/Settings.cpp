@@ -21,27 +21,27 @@
 
 namespace WebView {
 
-static constexpr auto new_tab_page_url_key = "newTabPageURL"sv;
+static constexpr auto new_tab_page_url_key = "newTabPageURL"_sv;
 
-static constexpr auto languages_key = "languages"sv;
+static constexpr auto languages_key = "languages"_sv;
 static auto default_language = "en"_string;
 
-static constexpr auto search_engine_key = "searchEngine"sv;
-static constexpr auto search_engine_custom_key = "custom"sv;
-static constexpr auto search_engine_name_key = "name"sv;
-static constexpr auto search_engine_url_key = "url"sv;
+static constexpr auto search_engine_key = "searchEngine"_sv;
+static constexpr auto search_engine_custom_key = "custom"_sv;
+static constexpr auto search_engine_name_key = "name"_sv;
+static constexpr auto search_engine_url_key = "url"_sv;
 
-static constexpr auto autocomplete_engine_key = "autocompleteEngine"sv;
-static constexpr auto autocomplete_engine_name_key = "name"sv;
+static constexpr auto autocomplete_engine_key = "autocompleteEngine"_sv;
+static constexpr auto autocomplete_engine_name_key = "name"_sv;
 
-static constexpr auto site_setting_enabled_globally_key = "enabledGlobally"sv;
-static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
+static constexpr auto site_setting_enabled_globally_key = "enabledGlobally"_sv;
+static constexpr auto site_setting_site_filters_key = "siteFilters"_sv;
 
-static constexpr auto autoplay_key = "autoplay"sv;
+static constexpr auto autoplay_key = "autoplay"_sv;
 
-static constexpr auto do_not_track_key = "doNotTrack"sv;
+static constexpr auto do_not_track_key = "doNotTrack"_sv;
 
-static constexpr auto dns_settings_key = "dnsSettings"sv;
+static constexpr auto dns_settings_key = "dnsSettings"_sv;
 
 static ErrorOr<JsonObject> read_settings_file(StringView settings_path)
 {
@@ -199,8 +199,8 @@ JsonValue Settings::serialize_json() const
             site_filters.must_append(site_filter);
 
         JsonObject setting;
-        setting.set("enabledGlobally"sv, site_setting.enabled_globally);
-        setting.set("siteFilters"sv, move(site_filters));
+        setting.set("enabledGlobally"_sv, site_setting.enabled_globally);
+        setting.set("siteFilters"_sv, move(site_filters));
 
         settings.set(key, move(setting));
     };
@@ -213,23 +213,23 @@ JsonValue Settings::serialize_json() const
     JsonObject dns_settings;
     m_dns_settings.visit(
         [&](SystemDNS) {
-            dns_settings.set("mode"sv, "system"sv);
+            dns_settings.set("mode"_sv, "system"_sv);
         },
         [&](DNSOverTLS const& dot) {
-            dns_settings.set("mode"sv, "custom"sv);
-            dns_settings.set("server"sv, dot.server_address.view());
-            dns_settings.set("port"sv, dot.port);
-            dns_settings.set("type"sv, "tls"sv);
-            dns_settings.set("dnssec"sv, dot.validate_dnssec_locally);
-            dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
+            dns_settings.set("mode"_sv, "custom"_sv);
+            dns_settings.set("server"_sv, dot.server_address.view());
+            dns_settings.set("port"_sv, dot.port);
+            dns_settings.set("type"_sv, "tls"_sv);
+            dns_settings.set("dnssec"_sv, dot.validate_dnssec_locally);
+            dns_settings.set("forciblyEnabled"_sv, m_dns_override_by_command_line);
         },
         [&](DNSOverUDP const& dns) {
-            dns_settings.set("mode"sv, "custom"sv);
-            dns_settings.set("server"sv, dns.server_address.view());
-            dns_settings.set("port"sv, dns.port);
-            dns_settings.set("type"sv, "udp"sv);
-            dns_settings.set("dnssec"sv, dns.validate_dnssec_locally);
-            dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
+            dns_settings.set("mode"_sv, "custom"_sv);
+            dns_settings.set("server"_sv, dns.server_address.view());
+            dns_settings.set("port"_sv, dns.port);
+            dns_settings.set("type"_sv, "udp"_sv);
+            dns_settings.set("dnssec"_sv, dns.validate_dnssec_locally);
+            dns_settings.set("forciblyEnabled"_sv, m_dns_override_by_command_line);
         });
     settings.set(dns_settings_key, move(dns_settings));
 
@@ -435,20 +435,20 @@ DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)
 
     auto const& dns_settings_object = dns_settings.as_object();
 
-    if (auto mode = dns_settings_object.get_string("mode"sv); mode.has_value()) {
-        if (*mode == "system"sv)
+    if (auto mode = dns_settings_object.get_string("mode"_sv); mode.has_value()) {
+        if (*mode == "system"_sv)
             return SystemDNS {};
 
-        if (*mode == "custom"sv) {
-            auto server = dns_settings_object.get_string("server"sv);
-            auto port = dns_settings_object.get_u16("port"sv);
-            auto type = dns_settings_object.get_string("type"sv);
-            auto validate_dnssec_locally = dns_settings_object.get_bool("dnssec"sv);
+        if (*mode == "custom"_sv) {
+            auto server = dns_settings_object.get_string("server"_sv);
+            auto port = dns_settings_object.get_u16("port"_sv);
+            auto type = dns_settings_object.get_string("type"_sv);
+            auto validate_dnssec_locally = dns_settings_object.get_bool("dnssec"_sv);
 
             if (server.has_value() && port.has_value() && type.has_value()) {
-                if (*type == "tls"sv)
+                if (*type == "tls"_sv)
                     return DNSOverTLS { .server_address = server->to_byte_string(), .port = *port, .validate_dnssec_locally = validate_dnssec_locally.value_or(false) };
-                if (*type == "udp"sv)
+                if (*type == "udp"_sv)
                     return DNSOverUDP { .server_address = server->to_byte_string(), .port = *port, .validate_dnssec_locally = validate_dnssec_locally.value_or(false) };
             }
         }

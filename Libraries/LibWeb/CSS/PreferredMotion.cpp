@@ -10,9 +10,9 @@ namespace Web::CSS {
 
 PreferredMotion preferred_motion_from_string(StringView value)
 {
-    if (value.equals_ignoring_ascii_case("no-preference"sv))
+    if (value.equals_ignoring_ascii_case("no-preference"_sv))
         return PreferredMotion::NoPreference;
-    if (value.equals_ignoring_ascii_case("reduce"sv))
+    if (value.equals_ignoring_ascii_case("reduce"_sv))
         return PreferredMotion::Reduce;
     return PreferredMotion::Auto;
 }
@@ -21,11 +21,11 @@ StringView preferred_motion_to_string(PreferredMotion value)
 {
     switch (value) {
     case PreferredMotion::Auto:
-        return "auto"sv;
+        return "auto"_sv;
     case PreferredMotion::NoPreference:
-        return "no-preference"sv;
+        return "no-preference"_sv;
     case PreferredMotion::Reduce:
-        return "reduce"sv;
+        return "reduce"_sv;
     }
     VERIFY_NOT_REACHED();
 }

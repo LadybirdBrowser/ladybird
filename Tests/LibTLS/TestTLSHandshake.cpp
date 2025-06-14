@@ -14,10 +14,10 @@
 #include <LibTLS/TLSv12.h>
 #include <LibTest/TestCase.h>
 
-static StringView ca_certs_file = "./cacert.pem"sv;
+static StringView ca_certs_file = "./cacert.pem"_sv;
 static int port = 443;
 
-constexpr auto DEFAULT_SERVER = "www.google.com"sv;
+constexpr auto DEFAULT_SERVER = "www.google.com"_sv;
 
 static ByteBuffer operator""_b(char const* string, size_t length)
 {

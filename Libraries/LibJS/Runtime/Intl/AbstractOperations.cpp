@@ -155,7 +155,7 @@ Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
             auto primary = identifier;
 
             // b. If identifier is a Link name and identifier is not "UTC", then
-            if (identifier != "UTC"sv) {
+            if (identifier != "UTC"_sv) {
                 if (auto resolved = Unicode::resolve_primary_time_zone(identifier); resolved.has_value() && identifier != resolved) {
                     // i. Set primary to the Zone name that identifier resolves to, according to the rules for resolving Link
                     //    names in the IANA Time Zone Database.
@@ -166,7 +166,7 @@ Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
             }
 
             // c. If primary is one of "Etc/UTC", "Etc/GMT", or "GMT", set primary to "UTC".
-            if (primary.is_one_of("Etc/UTC"sv, "Etc/GMT"sv, "GMT"sv))
+            if (primary.is_one_of("Etc/UTC"_sv, "Etc/GMT"_sv, "GMT"_sv))
                 primary = "UTC"_string;
 
             // d. Let record be the Time Zone Identifier Record { [[Identifier]]: identifier, [[PrimaryIdentifier]]: primary }.
@@ -175,7 +175,7 @@ Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
             // e. Append record to result.
             result.unchecked_append(move(record));
 
-            if (!found_utc && identifier == "UTC"sv && primary == "UTC"sv)
+            if (!found_utc && identifier == "UTC"_sv && primary == "UTC"_sv)
                 found_utc = true;
         }
 
@@ -221,7 +221,7 @@ bool is_well_formed_unit_identifier(StringView unit_identifier)
     }
 
     // 2. Let i be StringIndexOf(unitIdentifier, "-per-", 0).
-    auto indices = unit_identifier.find_all("-per-"sv);
+    auto indices = unit_identifier.find_all("-per-"_sv);
 
     // 3. If i is -1 or StringIndexOf(unitIdentifier, "-per-", i + 1) is not -1, then
     if (indices.size() != 1) {
@@ -403,17 +403,17 @@ String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale, Vecto
 template<typename T>
 static auto& find_key_in_value(T& value, StringView key)
 {
-    if (key == "ca"sv)
+    if (key == "ca"_sv)
         return value.ca;
-    if (key == "co"sv)
+    if (key == "co"_sv)
         return value.co;
-    if (key == "hc"sv)
+    if (key == "hc"_sv)
         return value.hc;
-    if (key == "kf"sv)
+    if (key == "kf"_sv)
         return value.kf;
-    if (key == "kn"sv)
+    if (key == "kn"_sv)
         return value.kn;
-    if (key == "nu"sv)
+    if (key == "nu"_sv)
         return value.nu;
 
     // If you hit this point, you must add any missing keys from [[RelevantExtensionKeys]] to LocaleOptions and ResolvedLocale.
@@ -430,7 +430,7 @@ static Vector<LocaleKey> available_keyword_values(StringView locale, StringView 
     for (auto& keyword : key_locale_data)
         result.unchecked_append(move(keyword));
 
-    if (key == "hc"sv) {
+    if (key == "hc"_sv) {
         // https://tc39.es/ecma402/#sec-intl.datetimeformat-internal-slots
         // [[LocaleData]].[[<locale>]].[[hc]] must be « null, "h11", "h12", "h23", "h24" ».
         result.prepend(Empty {});
@@ -450,7 +450,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
     Optional<MatchedLocale> matcher_result;
 
     // 2. If matcher is "lookup", then
-    if (matcher.is_string() && matcher.as_string().utf8_string_view() == "lookup"sv) {
+    if (matcher.is_string() && matcher.as_string().utf8_string_view() == "lookup"_sv) {
         // a. Let r be LookupMatchingLocaleByPrefix(availableLocales, requestedLocales).
         matcher_result = lookup_matching_locale_by_prefix(requested_locales);
     }
@@ -608,7 +608,7 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
 
     // 2. If specialBehaviours is present and contains REQUIRE-OPTIONS and options is undefined, throw a TypeError exception.
     if (has_flag(special_behaviours, SpecialBehaviors::RequireOptions) && options_value.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "options"sv);
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "options"_sv);
 
     // 3. If specialBehaviours is present and contains COERCE-OPTIONS, set options to ? CoerceOptionsToObject(options).
     //    Otherwise, set options to ? GetOptionsObject(options).
@@ -617,7 +617,7 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
         : TRY(get_options_object(vm, options_value));
 
     // 4. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
+    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"_sv, "best fit"_sv }, "best fit"_sv));
 
     // 5. Let opt be the Record { [[localeMatcher]]: matcher }.
     LocaleOptions opt {};
@@ -677,7 +677,7 @@ ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> re
     auto options = TRY(coerce_options_to_object(vm, options_value));
 
     // 2. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
+    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"_sv, "best fit"_sv }, "best fit"_sv));
 
     // 3. Let subset be a new empty List.
     Vector<String> subset;
@@ -687,7 +687,7 @@ ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> re
         Optional<MatchedLocale> match;
 
         // a. If matcher is "lookup", then
-        if (matcher.as_string().utf8_string_view() == "lookup"sv) {
+        if (matcher.as_string().utf8_string_view() == "lookup"_sv) {
             // i. Let match be LookupMatchingLocaleByPrefix(availableLocales, « locale »).
             match = lookup_matching_locale_by_prefix({ { locale } });
         }

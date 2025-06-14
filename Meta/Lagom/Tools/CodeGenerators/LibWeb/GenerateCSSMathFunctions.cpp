@@ -30,7 +30,7 @@ enum class MathFunction {
     functions_data.for_each_member([&](auto& name, auto&) {
         auto member_generator = generator.fork();
         member_generator.set("name:titlecase", title_casify(name));
-        member_generator.appendln("    @name:titlecase@,"sv);
+        member_generator.appendln("    @name:titlecase@,"_sv);
     });
 
     generator.append(R"~~~(
@@ -50,27 +50,27 @@ String generate_calculation_type_check(StringView calculation_variable_name, Str
     bool first_type_check = true;
     for (auto const& allowed_type_name : allowed_types) {
         if (!first_type_check)
-            builder.append(" || "sv);
+            builder.append(" || "_sv);
         first_type_check = false;
 
-        if (allowed_type_name == "<angle>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_angle(percentages_resolve_as)"sv);
-        } else if (allowed_type_name == "<dimension>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_dimension()"sv);
-        } else if (allowed_type_name == "<flex>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_flex(percentages_resolve_as)"sv);
-        } else if (allowed_type_name == "<frequency>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_frequency(percentages_resolve_as)"sv);
-        } else if (allowed_type_name == "<length>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_length(percentages_resolve_as)"sv);
-        } else if (allowed_type_name == "<number>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_number(percentages_resolve_as)"sv);
-        } else if (allowed_type_name == "<percentage>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_percentage()"sv);
-        } else if (allowed_type_name == "<resolution>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_resolution(percentages_resolve_as)"sv);
-        } else if (allowed_type_name == "<time>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_time(percentages_resolve_as)"sv);
+        if (allowed_type_name == "<angle>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_angle(percentages_resolve_as)"_sv);
+        } else if (allowed_type_name == "<dimension>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_dimension()"_sv);
+        } else if (allowed_type_name == "<flex>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_flex(percentages_resolve_as)"_sv);
+        } else if (allowed_type_name == "<frequency>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_frequency(percentages_resolve_as)"_sv);
+        } else if (allowed_type_name == "<length>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_length(percentages_resolve_as)"_sv);
+        } else if (allowed_type_name == "<number>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_number(percentages_resolve_as)"_sv);
+        } else if (allowed_type_name == "<percentage>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_percentage()"_sv);
+        } else if (allowed_type_name == "<resolution>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_resolution(percentages_resolve_as)"_sv);
+        } else if (allowed_type_name == "<time>"_sv) {
+            builder.appendff("{}.{}", calculation_variable_name, "matches_time(percentages_resolve_as)"_sv);
         } else {
             dbgln("I don't know what '{}' is!", allowed_type_name);
             VERIFY_NOT_REACHED();
@@ -126,15 +126,15 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
 
     functions_data.for_each_member([&](auto& name, JsonValue const& value) -> void {
         auto& function_data = value.as_object();
-        auto& parameters = function_data.get_array("parameters"sv).value();
-        auto parameter_validation_rule = function_data.get_string("parameter-validation"sv);
-        bool requires_same_parameters = parameter_validation_rule.has_value() ? (parameter_validation_rule == "same"sv) : true;
+        auto& parameters = function_data.get_array("parameters"_sv).value();
+        auto parameter_validation_rule = function_data.get_string("parameter-validation"_sv);
+        bool requires_same_parameters = parameter_validation_rule.has_value() ? (parameter_validation_rule == "same"_sv) : true;
 
         auto function_generator = generator.fork();
         function_generator.set("name:lowercase", name);
         function_generator.set("name:titlecase", title_casify(name));
-        function_generator.appendln("    if (function.name.equals_ignoring_ascii_case(\"@name:lowercase@\"sv)) {");
-        if (function_data.get_bool("is-variadic"sv).value_or(false)) {
+        function_generator.appendln("    if (function.name.equals_ignoring_ascii_case(\"@name:lowercase@\"_sv)) {");
+        if (function_data.get_bool("is-variadic"_sv).value_or(false)) {
             // Variadic function
             function_generator.append(R"~~~(
         Optional<CSSNumericType> determined_argument_type;
@@ -159,8 +159,8 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             // Generate some type checks
             VERIFY(parameters.size() == 1);
             auto& parameter_data = parameters[0].as_object();
-            auto parameter_type_string = parameter_data.get_string("type"sv).value();
-            function_generator.set("type_check", generate_calculation_type_check("argument_type"sv, parameter_type_string));
+            auto parameter_type_string = parameter_data.get_string("type"_sv).value();
+            function_generator.set("type_check", generate_calculation_type_check("argument_type"_sv, parameter_type_string));
             function_generator.append(R"~~~(
             if (!(@type_check@)) {
                 dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} type ({}) is not an accepted type", parsed_arguments.size(), argument_type.dump());
@@ -204,7 +204,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             size_t max_argument_count = parameters.size();
             parameters.for_each([&](JsonValue const& parameter_value) {
                 auto& parameter = parameter_value.as_object();
-                if (parameter.get_bool("required"sv) == true)
+                if (parameter.get_bool("required"_sv) == true)
                     min_argument_count++;
             });
             function_generator.set("min_argument_count", String::number(min_argument_count));
@@ -222,11 +222,11 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             size_t parameter_index = 0;
             parameters.for_each([&](JsonValue const& parameter_value) {
                 auto& parameter = parameter_value.as_object();
-                auto parameter_type_string = parameter.get_string("type"sv).value();
-                auto parameter_required = parameter.get_bool("required"sv).value();
+                auto parameter_type_string = parameter.get_string("type"_sv).value();
+                auto parameter_required = parameter.get_bool("required"_sv).value();
 
                 auto parameter_generator = function_generator.fork();
-                parameter_generator.set("parameter_name", parameter.get_string("name"sv).value());
+                parameter_generator.set("parameter_name", parameter.get_string("name"_sv).value());
                 parameter_generator.set("parameter_index", String::number(parameter_index));
 
                 bool parameter_is_calculation;
@@ -236,7 +236,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     parameter_generator.set("parse_function", "parse_rounding_strategy(arguments[argument_index])"_string);
                     parameter_generator.set("check_function", ".has_value()"_string);
                     parameter_generator.set("release_function", ".release_value()"_string);
-                    if (auto default_value = parameter.get_string("default"sv); default_value.has_value()) {
+                    if (auto default_value = parameter.get_string("default"_sv); default_value.has_value()) {
                         parameter_generator.set("parameter_default", MUST(String::formatted(" = RoundingStrategy::{}", title_casify(default_value.value()))));
                     } else {
                         parameter_generator.set("parameter_default", ""_string);
@@ -251,7 +251,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
 
                     // NOTE: We have exactly one default value in the data right now, and it's a `<calc-constant>`,
                     //       so that's all we handle.
-                    if (auto default_value = parameter.get_string("default"sv); default_value.has_value()) {
+                    if (auto default_value = parameter.get_string("default"_sv); default_value.has_value()) {
                         parameter_generator.set("parameter_default", MUST(String::formatted(" = NumericCalculationNode::from_keyword(Keyword::{}, context)", title_casify(default_value.value()))));
                     } else {
                         parameter_generator.set("parameter_default", ""_string);
@@ -340,26 +340,26 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             });
 
             // Generate the call to the constructor
-            function_generator.append("        return @name:titlecase@CalculationNode::create("sv);
+            function_generator.append("        return @name:titlecase@CalculationNode::create("_sv);
             parameter_index = 0;
             parameters.for_each([&](JsonValue const& parameter_value) {
                 auto& parameter = parameter_value.as_object();
-                auto parameter_type_string = parameter.get_string("type"sv).value();
+                auto parameter_type_string = parameter.get_string("type"_sv).value();
 
                 auto parameter_generator = function_generator.fork();
-                parameter_generator.set("parameter_index"sv, String::number(parameter_index));
+                parameter_generator.set("parameter_index"_sv, String::number(parameter_index));
 
-                if (parameter_type_string == "<rounding-strategy>"sv) {
-                    parameter_generator.set("release_value"sv, ""_string);
+                if (parameter_type_string == "<rounding-strategy>"_sv) {
+                    parameter_generator.set("release_value"_sv, ""_string);
                 } else {
                     // NOTE: This assumes everything not handled above is a calculation node of some kind.
-                    parameter_generator.set("release_value"sv, ".release_nonnull()"_string);
+                    parameter_generator.set("release_value"_sv, ".release_nonnull()"_string);
                 }
 
                 if (parameter_index == 0) {
-                    parameter_generator.append("parameter_@parameter_index@@release_value@"sv);
+                    parameter_generator.append("parameter_@parameter_index@@release_value@"_sv);
                 } else {
-                    parameter_generator.append(", parameter_@parameter_index@@release_value@"sv);
+                    parameter_generator.append(", parameter_@parameter_index@@release_value@"_sv);
                 }
                 parameter_index++;
             });

@@ -653,7 +653,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::normalize)
     }
 
     // 5. If f is not one of "NFC", "NFD", "NFKC", or "NFKD", throw a RangeError exception.
-    if (!form.is_one_of("NFC"sv, "NFD"sv, "NFKC"sv, "NFKD"sv))
+    if (!form.is_one_of("NFC"_sv, "NFD"_sv, "NFKC"_sv, "NFKD"_sv))
         return vm.throw_completion<RangeError>(ErrorType::InvalidNormalizationForm, form);
 
     // 6. Let ns be the String value that is the result of normalizing S into the normalization form named by f as specified in https://unicode.org/reports/tr15/.
@@ -1268,7 +1268,7 @@ static ThrowCompletionOr<String> transform_case(VM& vm, String const& string, Va
     auto match = Intl::lookup_matching_locale_by_prefix({ { requested_locale } });
 
     // 6. If match is not undefined, let locale be match.[[locale]]; else let locale be "und".
-    StringView locale = match.has_value() ? match->locale : "und"sv;
+    StringView locale = match.has_value() ? match->locale : "und"_sv;
 
     // 7. Let codePoints be StringToCodePoints(S).
 
@@ -1529,7 +1529,7 @@ static ThrowCompletionOr<Value> create_html(VM& vm, Value string, StringView tag
         auto value_string = TRY(value.to_string(vm));
 
         // b. Let escapedV be the String value that is the same as V except that each occurrence of the code unit 0x0022 (QUOTATION MARK) in V has been replaced with the six code unit sequence "&quot;".
-        auto escaped_value_string = MUST(value_string.replace("\""sv, "&quot;"sv, ReplaceMode::All));
+        auto escaped_value_string = MUST(value_string.replace("\""_sv, "&quot;"_sv, ReplaceMode::All));
 
         // c. Set p1 to the string-concatenation of:
         // - p1
@@ -1539,7 +1539,7 @@ static ThrowCompletionOr<Value> create_html(VM& vm, Value string, StringView tag
         builder.append(attribute);
         // - the code unit 0x003D (EQUALS SIGN)
         // - the code unit 0x0022 (QUOTATION MARK)
-        builder.append("=\""sv);
+        builder.append("=\""_sv);
         // - escapedV
         builder.append(escaped_value_string);
         // - the code unit 0x0022 (QUOTATION MARK)
@@ -1553,7 +1553,7 @@ static ThrowCompletionOr<Value> create_html(VM& vm, Value string, StringView tag
     builder.append(str);
 
     // 7. Let p4 be the string-concatenation of p3, "</", tag, and ">".
-    builder.append("</"sv);
+    builder.append("</"_sv);
     builder.append(tag);
     builder.append('>');
 
@@ -1568,7 +1568,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::anchor)
 
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "a", "name", name).
-    return create_html(vm, vm.this_value(), "a"sv, "name"sv, name);
+    return create_html(vm, vm.this_value(), "a"_sv, "name"_sv, name);
 }
 
 // B.2.2.3 String.prototype.big ( ), https://tc39.es/ecma262/#sec-string.prototype.big
@@ -1576,7 +1576,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::big)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "big", "", "").
-    return create_html(vm, vm.this_value(), "big"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "big"_sv, {}, Value());
 }
 
 // B.2.2.4 String.prototype.blink ( ), https://tc39.es/ecma262/#sec-string.prototype.blink
@@ -1584,7 +1584,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::blink)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "blink", "", "").
-    return create_html(vm, vm.this_value(), "blink"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "blink"_sv, {}, Value());
 }
 
 // B.2.2.5 String.prototype.bold ( ), https://tc39.es/ecma262/#sec-string.prototype.bold
@@ -1592,7 +1592,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::bold)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "b", "", "").
-    return create_html(vm, vm.this_value(), "b"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "b"_sv, {}, Value());
 }
 
 // B.2.2.6 String.prototype.fixed ( ), https://tc39.es/ecma262/#sec-string.prototype.fixed
@@ -1600,7 +1600,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::fixed)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "tt", "", "").
-    return create_html(vm, vm.this_value(), "tt"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "tt"_sv, {}, Value());
 }
 
 // B.2.2.7 String.prototype.fontcolor ( color ), https://tc39.es/ecma262/#sec-string.prototype.fontcolor
@@ -1610,7 +1610,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::fontcolor)
 
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "font", "color", color).
-    return create_html(vm, vm.this_value(), "font"sv, "color"sv, color);
+    return create_html(vm, vm.this_value(), "font"_sv, "color"_sv, color);
 }
 
 // B.2.2.8 String.prototype.fontsize ( size ), https://tc39.es/ecma262/#sec-string.prototype.fontsize
@@ -1620,7 +1620,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::fontsize)
 
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "font", "size", size).
-    return create_html(vm, vm.this_value(), "font"sv, "size"sv, size);
+    return create_html(vm, vm.this_value(), "font"_sv, "size"_sv, size);
 }
 
 // B.2.2.9 String.prototype.italics ( ), https://tc39.es/ecma262/#sec-string.prototype.italics
@@ -1628,7 +1628,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::italics)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "i", "", "").
-    return create_html(vm, vm.this_value(), "i"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "i"_sv, {}, Value());
 }
 
 // B.2.2.10 String.prototype.link ( url ), https://tc39.es/ecma262/#sec-string.prototype.link
@@ -1638,7 +1638,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::link)
 
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "a", "href", url).
-    return create_html(vm, vm.this_value(), "a"sv, "href"sv, url);
+    return create_html(vm, vm.this_value(), "a"_sv, "href"_sv, url);
 }
 
 // B.2.2.11 String.prototype.small ( ), https://tc39.es/ecma262/#sec-string.prototype.small
@@ -1646,7 +1646,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::small)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "small", "", "").
-    return create_html(vm, vm.this_value(), "small"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "small"_sv, {}, Value());
 }
 
 // B.2.2.12 String.prototype.strike ( ), https://tc39.es/ecma262/#sec-string.prototype.strike
@@ -1654,7 +1654,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::strike)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "strike", "", "").
-    return create_html(vm, vm.this_value(), "strike"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "strike"_sv, {}, Value());
 }
 
 // B.2.2.13 String.prototype.sub ( ), https://tc39.es/ecma262/#sec-string.prototype.sub
@@ -1662,7 +1662,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::sub)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "sub", "", "").
-    return create_html(vm, vm.this_value(), "sub"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "sub"_sv, {}, Value());
 }
 
 // B.2.2.14 String.prototype.sup ( ), https://tc39.es/ecma262/#sec-string.prototype.sup
@@ -1670,7 +1670,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::sup)
 {
     // 1. Let S be the this value.
     // 2. Return ? CreateHTML(S, "sup", "", "").
-    return create_html(vm, vm.this_value(), "sup"sv, {}, Value());
+    return create_html(vm, vm.this_value(), "sup"_sv, {}, Value());
 }
 
 }

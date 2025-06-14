@@ -131,7 +131,7 @@ Optional<UnixDateTime> parse_utc_time(StringView time)
     Optional<unsigned> seconds, offset_hours, offset_minutes;
     [[maybe_unused]] bool negative_offset = false;
 
-    if (lexer.next_is(is_any_of("0123456789"sv))) {
+    if (lexer.next_is(is_any_of("0123456789"_sv))) {
         seconds = lexer.consume(2).to_number<unsigned>();
         if (!seconds.has_value()) {
             return {};
@@ -140,7 +140,7 @@ Optional<UnixDateTime> parse_utc_time(StringView time)
 
     if (lexer.next_is('Z')) {
         lexer.consume();
-    } else if (lexer.next_is(is_any_of("+-"sv))) {
+    } else if (lexer.next_is(is_any_of("+-"_sv))) {
         negative_offset = lexer.consume() == '-';
         offset_hours = lexer.consume(2).to_number<unsigned>();
         offset_minutes = lexer.consume(2).to_number<unsigned>();
@@ -182,7 +182,7 @@ Optional<UnixDateTime> parse_generalized_time(StringView time)
         if (lexer.consume_specific('Z'))
             goto done_parsing;
 
-        if (!lexer.next_is(is_any_of("+-"sv))) {
+        if (!lexer.next_is(is_any_of("+-"_sv))) {
             minute = lexer.consume(2).to_number<unsigned>();
             if (!minute.has_value()) {
                 return {};
@@ -191,7 +191,7 @@ Optional<UnixDateTime> parse_generalized_time(StringView time)
                 goto done_parsing;
         }
 
-        if (!lexer.next_is(is_any_of("+-"sv))) {
+        if (!lexer.next_is(is_any_of("+-"_sv))) {
             seconds = lexer.consume(2).to_number<unsigned>();
             if (!seconds.has_value()) {
                 return {};
@@ -209,7 +209,7 @@ Optional<UnixDateTime> parse_generalized_time(StringView time)
                 goto done_parsing;
         }
 
-        if (lexer.next_is(is_any_of("+-"sv))) {
+        if (lexer.next_is(is_any_of("+-"_sv))) {
             negative_offset = lexer.consume() == '-';
             offset_hours = lexer.consume(2).to_number<unsigned>();
             offset_minutes = lexer.consume(2).to_number<unsigned>();

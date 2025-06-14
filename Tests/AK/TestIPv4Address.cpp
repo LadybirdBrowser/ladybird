@@ -66,7 +66,7 @@ TEST_CASE(should_convert_to_string)
 
 TEST_CASE(should_make_ipv4_address_from_string)
 {
-    auto const addr = IPv4Address::from_string("192.168.0.1"sv);
+    auto const addr = IPv4Address::from_string("192.168.0.1"_sv);
 
     EXPECT(addr.has_value());
     EXPECT_EQ(192, addr.value()[0]);
@@ -77,21 +77,21 @@ TEST_CASE(should_make_ipv4_address_from_string)
 
 TEST_CASE(should_make_empty_optional_from_bad_string)
 {
-    auto const addr = IPv4Address::from_string("bad string"sv);
+    auto const addr = IPv4Address::from_string("bad string"_sv);
 
     EXPECT(!addr.has_value());
 }
 
 TEST_CASE(should_make_empty_optional_from_out_of_range_values)
 {
-    auto const addr = IPv4Address::from_string("192.168.0.500"sv);
+    auto const addr = IPv4Address::from_string("192.168.0.500"_sv);
 
     EXPECT(!addr.has_value());
 }
 
 TEST_CASE(should_fill_d_octet_from_1_part)
 {
-    auto const addr = IPv4Address::from_string("1"sv);
+    auto const addr = IPv4Address::from_string("1"_sv);
 
     EXPECT(addr.has_value());
     EXPECT_EQ(0, addr.value()[0]);
@@ -102,7 +102,7 @@ TEST_CASE(should_fill_d_octet_from_1_part)
 
 TEST_CASE(should_fill_a_and_d_octets_from_2_parts)
 {
-    auto const addr = IPv4Address::from_string("192.1"sv);
+    auto const addr = IPv4Address::from_string("192.1"_sv);
 
     EXPECT(addr.has_value());
     EXPECT_EQ(192, addr.value()[0]);
@@ -113,7 +113,7 @@ TEST_CASE(should_fill_a_and_d_octets_from_2_parts)
 
 TEST_CASE(should_fill_a_b_d_octets_from_3_parts)
 {
-    auto const addr = IPv4Address::from_string("192.168.1"sv);
+    auto const addr = IPv4Address::from_string("192.168.1"_sv);
 
     EXPECT(addr.has_value());
     EXPECT_EQ(192, addr.value()[0]);

@@ -102,15 +102,15 @@ PatternErrorOr<void> PatternParser::add_a_part(String const& prefix, Optional<To
     // 2. If modifier token is not null:
     if (modifier_token.has_value()) {
         // 1. If modifier token’s value is "?" then set modifier to "optional".
-        if (modifier_token->value == "?"sv) {
+        if (modifier_token->value == "?"_sv) {
             modifier = Part::Modifier::Optional;
         }
         // 2. Otherwise if modifier token’s value is "*" then set modifier to "zero-or-more".
-        else if (modifier_token->value == "*"sv) {
+        else if (modifier_token->value == "*"_sv) {
             modifier = Part::Modifier::ZeroOrMore;
         }
         // 3. Otherwise if modifier token’s value is "+" then set modifier to "one-or-more".
-        else if (modifier_token->value == "+"sv) {
+        else if (modifier_token->value == "+"_sv) {
             modifier = Part::Modifier::OneOrMore;
         }
     }

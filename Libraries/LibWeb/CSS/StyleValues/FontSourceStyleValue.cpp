@@ -30,7 +30,7 @@ String FontSourceStyleValue::to_string(SerializationMode) const
             // To serialize a LOCAL means to create a string represented by "local(",
             // followed by the serialization of the LOCAL as a string, followed by ")".
             StringBuilder builder;
-            builder.append("local("sv);
+            builder.append("local("_sv);
             builder.append(local.name->to_string(SerializationMode::Normal));
             builder.append(')');
             return builder.to_string_without_validation();
@@ -41,17 +41,17 @@ String FontSourceStyleValue::to_string(SerializationMode) const
             builder.append(url.to_string());
 
             if (m_format.has_value()) {
-                builder.append(" format("sv);
+                builder.append(" format("_sv);
                 serialize_an_identifier(builder, *m_format);
-                builder.append(")"sv);
+                builder.append(")"_sv);
             }
 
             if (!m_tech.is_empty()) {
-                builder.append(" tech("sv);
+                builder.append(" tech("_sv);
                 serialize_a_comma_separated_list(builder, m_tech, [](auto& builder, FontTech const tech) {
                     return builder.append(CSS::to_string(tech));
                 });
-                builder.append(")"sv);
+                builder.append(")"_sv);
             }
 
             return builder.to_string_without_validation();

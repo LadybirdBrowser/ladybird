@@ -115,33 +115,33 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     Optional<Variant<ReadonlySpan<StringView>, ReadonlySpan<String>>> list;
 
     // 2. If key is "calendar", then
-    if (key == "calendar"sv) {
+    if (key == "calendar"_sv) {
         // a. Let list be ! AvailableCanonicalCalendars( ).
         list = Unicode::available_calendars().span();
     }
     // 3. Else if key is "collation", then
-    else if (key == "collation"sv) {
+    else if (key == "collation"_sv) {
         // a. Let list be ! AvailableCanonicalCollations( ).
         list = Unicode::available_collations().span();
     }
     // 4. Else if key is "currency", then
-    else if (key == "currency"sv) {
+    else if (key == "currency"_sv) {
         // a. Let list be ! AvailableCanonicalCurrencies( ).
         list = Unicode::available_currencies().span();
     }
     // 5. Else if key is "numberingSystem", then
-    else if (key == "numberingSystem"sv) {
+    else if (key == "numberingSystem"_sv) {
         // a. Let list be ! AvailableCanonicalNumberingSystems( ).
         list = Unicode::available_number_systems().span();
     }
     // 6. Else if key is "timeZone", then
-    else if (key == "timeZone"sv) {
+    else if (key == "timeZone"_sv) {
         // a. Let list be ! AvailablePrimaryTimeZoneIdentifiers( ).
         static auto const time_zones = available_primary_time_zone_identifiers();
         list = time_zones.span();
     }
     // 7. Else if key is "unit", then
-    else if (key == "unit"sv) {
+    else if (key == "unit"_sv) {
         // a. Let list be ! AvailableCanonicalUnits( ).
         static auto const units = sanctioned_single_unit_identifiers();
         list = units.span();

@@ -181,11 +181,11 @@ void WebSocket::send_client_handshake()
         builder.appendff(":{}", url.port_or_default());
     else if (m_connection.is_secure() && url.port_or_default() != 443)
         builder.appendff(":{}", url.port_or_default());
-    builder.append("\r\n"sv);
+    builder.append("\r\n"_sv);
 
     // 5. and 6. Connection Upgrade
-    builder.append("Upgrade: websocket\r\n"sv);
-    builder.append("Connection: Upgrade\r\n"sv);
+    builder.append("Upgrade: websocket\r\n"_sv);
+    builder.append("Connection: Upgrade\r\n"_sv);
 
     // 7. 16-byte nonce encoded as Base64
     u8 nonce_data[16];
@@ -200,20 +200,20 @@ void WebSocket::send_client_handshake()
     }
 
     // 9. Websocket version
-    builder.append("Sec-WebSocket-Version: 13\r\n"sv);
+    builder.append("Sec-WebSocket-Version: 13\r\n"_sv);
 
     // 10. Websocket protocol (optional field)
     if (!m_connection.protocols().is_empty()) {
-        builder.append("Sec-WebSocket-Protocol: "sv);
+        builder.append("Sec-WebSocket-Protocol: "_sv);
         builder.join(',', m_connection.protocols());
-        builder.append("\r\n"sv);
+        builder.append("\r\n"_sv);
     }
 
     // 11. Websocket extensions (optional field)
     if (!m_connection.extensions().is_empty()) {
-        builder.append("Sec-WebSocket-Extensions: "sv);
+        builder.append("Sec-WebSocket-Extensions: "_sv);
         builder.join(',', m_connection.extensions());
-        builder.append("\r\n"sv);
+        builder.append("\r\n"_sv);
     }
 
     // 12. Additional headers
@@ -221,7 +221,7 @@ void WebSocket::send_client_handshake()
         builder.appendff("{}: {}\r\n", header.name, header.value);
     }
 
-    builder.append("\r\n"sv);
+    builder.append("\r\n"_sv);
 
     set_state(WebSocket::InternalState::WaitingForServerHandshake);
     auto success = m_impl->send(builder.string_view().bytes());
@@ -306,9 +306,9 @@ void WebSocket::read_server_handshake()
 
         auto header_name = parts[0];
 
-        if (header_name.equals_ignoring_ascii_case("Upgrade"sv)) {
+        if (header_name.equals_ignoring_ascii_case("Upgrade"_sv)) {
             // 2. |Upgrade| should be case-insensitive "websocket"
-            if (!parts[1].trim_whitespace().equals_ignoring_ascii_case("websocket"sv)) {
+            if (!parts[1].trim_whitespace().equals_ignoring_ascii_case("websocket"_sv)) {
                 fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Upgrade| should be 'websocket', got '{}'. Failing connection.", parts[1]));
                 return;
             }
@@ -317,9 +317,9 @@ void WebSocket::read_server_handshake()
             continue;
         }
 
-        if (header_name.equals_ignoring_ascii_case("Connection"sv)) {
+        if (header_name.equals_ignoring_ascii_case("Connection"_sv)) {
             // 3. |Connection| should be case-insensitive "Upgrade"
-            if (!parts[1].trim_whitespace().equals_ignoring_ascii_case("Upgrade"sv)) {
+            if (!parts[1].trim_whitespace().equals_ignoring_ascii_case("Upgrade"_sv)) {
                 fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Connection| should be 'Upgrade', got '{}'. Failing connection.", parts[1]));
                 return;
             }
@@ -328,7 +328,7 @@ void WebSocket::read_server_handshake()
             continue;
         }
 
-        if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Accept"sv)) {
+        if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Accept"_sv)) {
             // 4. |Sec-WebSocket-Accept| should be base64(SHA1(|Sec-WebSocket-Key| + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
             auto expected_content = ByteString::formatted("{}258EAFA5-E914-47DA-95CA-C5AB0DC85B11", m_websocket_key);
 
@@ -347,7 +347,7 @@ void WebSocket::read_server_handshake()
             continue;
         }
 
-        if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Extensions"sv)) {
+        if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Extensions"_sv)) {
             // 5. |Sec-WebSocket-Extensions| should not contain an extension that doesn't appear in m_connection->extensions()
             auto server_extensions = parts[1].split(',');
             for (auto const& extension : server_extensions) {
@@ -366,7 +366,7 @@ void WebSocket::read_server_handshake()
             continue;
         }
 
-        if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Protocol"sv)) {
+        if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Protocol"_sv)) {
             // 6. If the response includes a |Sec-WebSocket-Protocol| header field and this header field indicates the use of a subprotocol that was not present in the client's handshake (the server has indicated a subprotocol not requested by the client), the client MUST _Fail the WebSocket Connection_.
             // Additionally, Section 4.2.2 says this is "Either a single value representing the subprotocol the server is ready to use or null."
             auto server_protocol = parts[1].trim_whitespace();

@@ -238,7 +238,7 @@ WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node 
 
     // -> Anything else
     //    Throw a TypeError. Only Nodes and Attr objects can be serialized by this algorithm.
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can only serialize Nodes or Attributes."sv };
+    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can only serialize Nodes or Attributes."_sv };
 }
 
 // https://w3c.github.io/DOM-Parsing/#dfn-recording-the-namespace-information
@@ -279,7 +279,7 @@ static Optional<FlyString> record_namespace_information(DOM::Element const& elem
                 continue;
 
             // 4. If namespace definition is the empty string (the declarative form of having no namespace), then let namespace definition be null instead.
-            if (namespace_definition == ""sv)
+            if (namespace_definition == ""_sv)
                 namespace_definition = {};
 
             // 5. If prefix definition is found in map given the namespace namespace definition, then stop running these steps, and return to Main to visit the next attribute.
@@ -312,16 +312,16 @@ static WebIDL::ExceptionOr<String> serialize_an_attribute_value(Optional<FlyStri
     auto final_attribute_value = attribute_value->to_string();
 
     // 1. "&" with "&amp;"
-    final_attribute_value = MUST(final_attribute_value.replace("&"sv, "&amp;"sv, ReplaceMode::All));
+    final_attribute_value = MUST(final_attribute_value.replace("&"_sv, "&amp;"_sv, ReplaceMode::All));
 
     // 2. """ with "&quot;"
-    final_attribute_value = MUST(final_attribute_value.replace("\""sv, "&quot;"sv, ReplaceMode::All));
+    final_attribute_value = MUST(final_attribute_value.replace("\""_sv, "&quot;"_sv, ReplaceMode::All));
 
     // 3. "<" with "&lt;"
-    final_attribute_value = MUST(final_attribute_value.replace("<"sv, "&lt;"sv, ReplaceMode::All));
+    final_attribute_value = MUST(final_attribute_value.replace("<"_sv, "&lt;"_sv, ReplaceMode::All));
 
     // 4. ">" with "&gt;"
-    final_attribute_value = MUST(final_attribute_value.replace(">"sv, "&gt;"sv, ReplaceMode::All));
+    final_attribute_value = MUST(final_attribute_value.replace(">"_sv, "&gt;"_sv, ReplaceMode::All));
 
     return final_attribute_value;
 }
@@ -418,7 +418,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
                     return WebIDL::InvalidStateError::create(realm, "Attribute's value is empty"_string);
 
                 // 4. [If] the attr's prefix matches the string "xmlns", then let candidate prefix be the string "xmlns".
-                if (attribute->prefix() == "xmlns"sv)
+                if (attribute->prefix() == "xmlns"_sv)
                     candidate_prefix = "xmlns"_fly_string;
             }
 
@@ -430,14 +430,14 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
                 // 2. Append the following to result, in the order listed:
                 // 1. " " (U+0020 SPACE);
                 // 2. The string "xmlns:";
-                result.append(" xmlns:"sv);
+                result.append(" xmlns:"_sv);
 
                 // 3. The value of candidate prefix;
                 VERIFY(candidate_prefix.has_value());
                 result.append(candidate_prefix.value());
 
                 // 4. "="" (U+003D EQUALS SIGN, U+0022 QUOTATION MARK);
-                result.append("=\""sv);
+                result.append("=\""_sv);
 
                 // 5. The result of serializing an attribute value given attribute namespace and the require well-formed flag as input
                 result.append(TRY(serialize_an_attribute_value(attribute->namespace_uri(), require_well_formed)));
@@ -462,7 +462,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
 
             // FIXME: Check attribute's local name against the XML Name production.
 
-            if (attribute->local_name() == "xmlns"sv && !attribute->namespace_uri().has_value())
+            if (attribute->local_name() == "xmlns"_sv && !attribute->namespace_uri().has_value())
                 return WebIDL::InvalidStateError::create(realm, "Attribute's local name is 'xmlns' and the attribute has no namespace"_string);
         }
 
@@ -471,7 +471,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
         result.append(attribute->local_name());
 
         // 2. "="" (U+003D EQUALS SIGN, U+0022 QUOTATION MARK);
-        result.append("=\""sv);
+        result.append("=\""_sv);
 
         // 3. The result of serializing an attribute value given attr's value attribute and the require well-formed flag as input;
         result.append(TRY(serialize_an_attribute_value(attribute->value(), require_well_formed)));
@@ -562,7 +562,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
         auto candidate_prefix = retrieve_a_preferred_prefix_string(prefix, map, ns);
 
         // 3. If the value of prefix matches "xmlns", then run the following steps:
-        if (prefix == "xmlns"sv) {
+        if (prefix == "xmlns"_sv) {
             // 1. If the require well-formed flag is set, then throw an error. An Element with prefix "xmlns" will not legally round-trip in a conforming XML parser.
             if (require_well_formed == RequireWellFormed::Yes)
                 return WebIDL::InvalidStateError::create(realm, "Elements prefix is 'xmlns'"_string);
@@ -608,13 +608,13 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
             // 5. Append the following to markup, in the order listed:
             // 1. " " (U+0020 SPACE);
             // 2. The string "xmlns:";
-            markup.append(" xmlns:"sv);
+            markup.append(" xmlns:"_sv);
 
             // 3. The value of prefix;
             markup.append(prefix.value());
 
             // 4. "="" (U+003D EQUALS SIGN, U+0022 QUOTATION MARK);
-            markup.append("=\""sv);
+            markup.append("=\""_sv);
 
             // 5. The result of serializing an attribute value given ns and the require well-formed flag as input;
             markup.append(TRY(serialize_an_attribute_value(ns, require_well_formed)));
@@ -650,7 +650,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
             // 1. " " (U+0020 SPACE);
             // 2. The string "xmlns";
             // 3. "="" (U+003D EQUALS SIGN, U+0022 QUOTATION MARK);
-            markup.append(" xmlns=\""sv);
+            markup.append(" xmlns=\""_sv);
 
             // 4. The result of serializing an attribute value given ns and the require well-formed flag as input;
             markup.append(TRY(serialize_an_attribute_value(ns, require_well_formed)));
@@ -680,7 +680,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     if (ns == Namespace::HTML && !element.has_children() && element.local_name().is_one_of(HTML::TagNames::area, HTML::TagNames::area, HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::br, HTML::TagNames::col, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::hr, HTML::TagNames::img, HTML::TagNames::input, HTML::TagNames::keygen, HTML::TagNames::link, HTML::TagNames::menuitem, HTML::TagNames::meta, HTML::TagNames::param, HTML::TagNames::source, HTML::TagNames::track, HTML::TagNames::wbr)) {
         // 1. " " (U+0020 SPACE);
         // 2. "/" (U+002F SOLIDUS).
-        markup.append(" /"sv);
+        markup.append(" /"_sv);
 
         // and set the skip end tag flag to true.
         skip_end_tag = true;
@@ -714,7 +714,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
 
     // 20. Append the following to markup, in the order listed:
     // 1. "</" (U+003C LESS-THAN SIGN, U+002F SOLIDUS);
-    markup.append("</"sv);
+    markup.append("</"_sv);
 
     // 2. The value of qualified name;
     markup.append(qualified_name.string_view());
@@ -755,7 +755,7 @@ static WebIDL::ExceptionOr<String> serialize_comment(DOM::Comment const& comment
     if (require_well_formed == RequireWellFormed::Yes) {
         // FIXME: Check comment's data against the XML Char production.
 
-        if (comment.data().contains("--"sv))
+        if (comment.data().contains("--"_sv))
             return WebIDL::InvalidStateError::create(comment.realm(), "Comment data contains two adjacent hyphens"_string);
 
         if (comment.data().ends_with('-'))
@@ -790,13 +790,13 @@ static WebIDL::ExceptionOr<String> serialize_text(DOM::Text const& text, Require
     auto markup = text.data();
 
     // 3. Replace any occurrences of "&" in markup by "&amp;".
-    markup = MUST(markup.replace("&"sv, "&amp;"sv, ReplaceMode::All));
+    markup = MUST(markup.replace("&"_sv, "&amp;"_sv, ReplaceMode::All));
 
     // 4. Replace any occurrences of "<" in markup by "&lt;".
-    markup = MUST(markup.replace("<"sv, "&lt;"sv, ReplaceMode::All));
+    markup = MUST(markup.replace("<"_sv, "&lt;"_sv, ReplaceMode::All));
 
     // 5. Replace any occurrences of ">" in markup by "&gt;".
-    markup = MUST(markup.replace(">"sv, "&gt;"sv, ReplaceMode::All));
+    markup = MUST(markup.replace(">"_sv, "&gt;"_sv, ReplaceMode::All));
 
     // 6. Return the value of markup.
     return markup;
@@ -836,7 +836,7 @@ static WebIDL::ExceptionOr<String> serialize_document_type(DOM::DocumentType con
 
     // 4. Append the string "<!DOCTYPE" to markup.
     // 5. Append " " (U+0020 SPACE) to markup.
-    markup.append("<!DOCTYPE "sv);
+    markup.append("<!DOCTYPE "_sv);
 
     // 6. Append the value of the node's name attribute to markup. For a node belonging to an HTML document, the value will be all lowercase.
     markup.append(document_type.name());
@@ -847,7 +847,7 @@ static WebIDL::ExceptionOr<String> serialize_document_type(DOM::DocumentType con
         // 2. The string "PUBLIC";
         // 3. " " (U+0020 SPACE);
         // 4. """ (U+0022 QUOTATION MARK);
-        markup.append(" PUBLIC \""sv);
+        markup.append(" PUBLIC \""_sv);
 
         // 5. The value of the node's publicId attribute;
         markup.append(document_type.public_id());
@@ -860,14 +860,14 @@ static WebIDL::ExceptionOr<String> serialize_document_type(DOM::DocumentType con
     if (!document_type.system_id().is_empty() && document_type.public_id().is_empty()) {
         // 1. " " (U+0020 SPACE);
         // 2. The string "SYSTEM".
-        markup.append(" SYSTEM"sv);
+        markup.append(" SYSTEM"_sv);
     }
 
     // 9. If the node's systemId is not the empty string then append the following, in the order listed, to markup:
     if (!document_type.system_id().is_empty()) {
         // 1. " " (U+0020 SPACE);
         // 2. """ (U+0022 QUOTATION MARK);
-        markup.append(" \""sv);
+        markup.append(" \""_sv);
 
         // 3. The value of the node's systemId attribute;
         markup.append(document_type.system_id());
@@ -892,13 +892,13 @@ static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::Process
         if (processing_instruction.target().contains(':'))
             return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target contains a colon"_string);
 
-        if (processing_instruction.target().equals_ignoring_ascii_case("xml"sv))
+        if (processing_instruction.target().equals_ignoring_ascii_case("xml"_sv))
             return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target is equal to 'xml'"_string);
 
         // 2. If the require well-formed flag is set (its value is true), and node's data contains characters that are not matched by the XML Char production or contains
         //    the string "?>" (U+003F QUESTION MARK, U+003E GREATER-THAN SIGN), then throw an exception; the serialization of this node's data would not be well-formed.
         // FIXME: Check data against the XML Char production.
-        if (processing_instruction.data().contains("?>"sv))
+        if (processing_instruction.data().contains("?>"_sv))
             return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction data contains a terminator"_string);
     }
 
@@ -906,7 +906,7 @@ static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::Process
     StringBuilder markup;
 
     // 1. "<?" (U+003C LESS-THAN SIGN, U+003F QUESTION MARK);
-    markup.append("<?"sv);
+    markup.append("<?"_sv);
 
     // 2. The value of node's target;
     markup.append(processing_instruction.target());
@@ -918,7 +918,7 @@ static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::Process
     markup.append(processing_instruction.data());
 
     // 5. "?>" (U+003F QUESTION MARK, U+003E GREATER-THAN SIGN).
-    markup.append("?>"sv);
+    markup.append("?>"_sv);
 
     // 4. Return the value of markup.
     return MUST(markup.to_string());
@@ -927,13 +927,13 @@ static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::Process
 // FIXME: This is ad-hoc
 static WebIDL::ExceptionOr<String> serialize_cdata_section(DOM::CDATASection const& cdata_section, RequireWellFormed require_well_formed)
 {
-    if (require_well_formed == RequireWellFormed::Yes && cdata_section.data().contains("]]>"sv))
+    if (require_well_formed == RequireWellFormed::Yes && cdata_section.data().contains("]]>"_sv))
         return WebIDL::InvalidStateError::create(cdata_section.realm(), "CDATA section data contains a CDATA section end delimiter"_string);
 
     StringBuilder markup;
-    markup.append("<![CDATA["sv);
+    markup.append("<![CDATA["_sv);
     markup.append(cdata_section.data());
-    markup.append("]]>"sv);
+    markup.append("]]>"_sv);
 
     return MUST(markup.to_string());
 }

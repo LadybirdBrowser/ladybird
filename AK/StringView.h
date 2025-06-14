@@ -394,7 +394,7 @@ struct CaseInsensitiveASCIIStringViewTraits : public Traits<StringView> {
 #    define AK_STRING_VIEW_LITERAL_CONSTEVAL consteval
 #endif
 
-[[nodiscard]] ALWAYS_INLINE AK_STRING_VIEW_LITERAL_CONSTEVAL AK::StringView operator""sv(char const* cstring, size_t length)
+[[nodiscard]] ALWAYS_INLINE AK_STRING_VIEW_LITERAL_CONSTEVAL AK::StringView operator""_sv(char const* cstring, size_t length)
 {
     return AK::StringView(cstring, length);
 }

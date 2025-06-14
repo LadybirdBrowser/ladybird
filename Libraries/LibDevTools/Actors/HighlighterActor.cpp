@@ -31,23 +31,23 @@ void HighlighterActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "show"sv) {
-        auto node = get_required_parameter<String>(message, "node"sv);
+    if (message.type == "show"_sv) {
+        auto node = get_required_parameter<String>(message, "node"_sv);
         if (!node.has_value())
             return;
 
-        response.set("value"sv, false);
+        response.set("value"_sv, false);
 
         if (auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), *node); dom_node.has_value()) {
             devtools().delegate().highlight_dom_node(dom_node->tab->description(), dom_node->identifier.id, dom_node->identifier.pseudo_element);
-            response.set("value"sv, true);
+            response.set("value"_sv, true);
         }
 
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "hide"sv) {
+    if (message.type == "hide"_sv) {
         if (auto tab = InspectorActor::tab_for(m_inspector))
             devtools().delegate().clear_highlighted_dom_node(tab->description());
 
@@ -61,7 +61,7 @@ void HighlighterActor::handle_message(Message const& message)
 JsonValue HighlighterActor::serialize_highlighter() const
 {
     JsonObject highlighter;
-    highlighter.set("actor"sv, name());
+    highlighter.set("actor"_sv, name());
     return highlighter;
 }
 

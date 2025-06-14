@@ -56,22 +56,22 @@ void CSSMarginRule::visit_edges(Visitor& visitor)
 // https://drafts.csswg.org/css-page-3/#syntax-page-selector
 bool is_margin_rule_name(StringView name)
 {
-    return name.equals_ignoring_ascii_case("top-left-corner"sv)
-        || name.equals_ignoring_ascii_case("top-left"sv)
-        || name.equals_ignoring_ascii_case("top-center"sv)
-        || name.equals_ignoring_ascii_case("top-right"sv)
-        || name.equals_ignoring_ascii_case("top-right-corner"sv)
-        || name.equals_ignoring_ascii_case("bottom-left-corner"sv)
-        || name.equals_ignoring_ascii_case("bottom-left"sv)
-        || name.equals_ignoring_ascii_case("bottom-center"sv)
-        || name.equals_ignoring_ascii_case("bottom-right"sv)
-        || name.equals_ignoring_ascii_case("bottom-right-corner"sv)
-        || name.equals_ignoring_ascii_case("left-top"sv)
-        || name.equals_ignoring_ascii_case("left-middle"sv)
-        || name.equals_ignoring_ascii_case("left-bottom"sv)
-        || name.equals_ignoring_ascii_case("right-top"sv)
-        || name.equals_ignoring_ascii_case("right-middle"sv)
-        || name.equals_ignoring_ascii_case("right-bottom"sv);
+    return name.equals_ignoring_ascii_case("top-left-corner"_sv)
+        || name.equals_ignoring_ascii_case("top-left"_sv)
+        || name.equals_ignoring_ascii_case("top-center"_sv)
+        || name.equals_ignoring_ascii_case("top-right"_sv)
+        || name.equals_ignoring_ascii_case("top-right-corner"_sv)
+        || name.equals_ignoring_ascii_case("bottom-left-corner"_sv)
+        || name.equals_ignoring_ascii_case("bottom-left"_sv)
+        || name.equals_ignoring_ascii_case("bottom-center"_sv)
+        || name.equals_ignoring_ascii_case("bottom-right"_sv)
+        || name.equals_ignoring_ascii_case("bottom-right-corner"_sv)
+        || name.equals_ignoring_ascii_case("left-top"_sv)
+        || name.equals_ignoring_ascii_case("left-middle"_sv)
+        || name.equals_ignoring_ascii_case("left-bottom"_sv)
+        || name.equals_ignoring_ascii_case("right-top"_sv)
+        || name.equals_ignoring_ascii_case("right-middle"_sv)
+        || name.equals_ignoring_ascii_case("right-bottom"_sv);
 }
 
 }

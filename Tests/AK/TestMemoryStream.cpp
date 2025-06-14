@@ -22,7 +22,7 @@ TEST_CASE(allocating_memory_stream_empty)
     }
 
     {
-        auto offset = MUST(stream.offset_of("test"sv.bytes()));
+        auto offset = MUST(stream.offset_of("test"_sv.bytes()));
         EXPECT(!offset.has_value());
     }
 }
@@ -30,40 +30,40 @@ TEST_CASE(allocating_memory_stream_empty)
 TEST_CASE(allocating_memory_stream_offset_of)
 {
     AllocatingMemoryStream stream;
-    MUST(stream.write_until_depleted("Well Hello Friends! :^)"sv.bytes()));
+    MUST(stream.write_until_depleted("Well Hello Friends! :^)"_sv.bytes()));
 
     {
-        auto offset = MUST(stream.offset_of(" "sv.bytes()));
+        auto offset = MUST(stream.offset_of(" "_sv.bytes()));
         EXPECT(offset.has_value());
         EXPECT_EQ(offset.value(), 4ul);
     }
 
     {
-        auto offset = MUST(stream.offset_of("W"sv.bytes()));
+        auto offset = MUST(stream.offset_of("W"_sv.bytes()));
         EXPECT(offset.has_value());
         EXPECT_EQ(offset.value(), 0ul);
     }
 
     {
-        auto offset = MUST(stream.offset_of(")"sv.bytes()));
+        auto offset = MUST(stream.offset_of(")"_sv.bytes()));
         EXPECT(offset.has_value());
         EXPECT_EQ(offset.value(), 22ul);
     }
 
     {
-        auto offset = MUST(stream.offset_of("-"sv.bytes()));
+        auto offset = MUST(stream.offset_of("-"_sv.bytes()));
         EXPECT(!offset.has_value());
     }
 
     MUST(stream.discard(1));
 
     {
-        auto offset = MUST(stream.offset_of("W"sv.bytes()));
+        auto offset = MUST(stream.offset_of("W"_sv.bytes()));
         EXPECT(!offset.has_value());
     }
 
     {
-        auto offset = MUST(stream.offset_of("e"sv.bytes()));
+        auto offset = MUST(stream.offset_of("e"_sv.bytes()));
         EXPECT(offset.has_value());
         EXPECT_EQ(offset.value(), 0ul);
     }
@@ -79,15 +79,15 @@ TEST_CASE(allocating_memory_stream_offset_of_oob)
 
     // First, fill exactly one chunk (in groups of 16 bytes).
     for (size_t i = 0; i < AllocatingMemoryStream::CHUNK_SIZE / 16; ++i)
-        MUST(stream.write_until_depleted("AAAAAAAAAAAAAAAA"sv.bytes()));
+        MUST(stream.write_until_depleted("AAAAAAAAAAAAAAAA"_sv.bytes()));
 
     // Then discard it all.
     MUST(stream.discard(AllocatingMemoryStream::CHUNK_SIZE));
     // Now we can write into this chunk again, knowing that it's initialized to all 'A's.
-    MUST(stream.write_until_depleted("Well Hello Friends! :^)"sv.bytes()));
+    MUST(stream.write_until_depleted("Well Hello Friends! :^)"_sv.bytes()));
 
     {
-        auto offset = MUST(stream.offset_of("A"sv.bytes()));
+        auto offset = MUST(stream.offset_of("A"_sv.bytes()));
         EXPECT(!offset.has_value());
     }
 }
@@ -98,28 +98,28 @@ TEST_CASE(allocating_memory_stream_offset_of_after_chunk_reorder)
 
     // First, fill exactly one chunk (in groups of 16 bytes). This chunk will be reordered.
     for (size_t i = 0; i < AllocatingMemoryStream::CHUNK_SIZE / 16; ++i)
-        MUST(stream.write_until_depleted("AAAAAAAAAAAAAAAA"sv.bytes()));
+        MUST(stream.write_until_depleted("AAAAAAAAAAAAAAAA"_sv.bytes()));
 
     // Append a few additional bytes to create a second chunk.
-    MUST(stream.write_until_depleted("BCDEFGHIJKLMNOPQ"sv.bytes()));
+    MUST(stream.write_until_depleted("BCDEFGHIJKLMNOPQ"_sv.bytes()));
 
     // Read back the first chunk, which should reorder it to the end of the list.
     // The chunk that we wrote to the second time is now the first one.
     MUST(stream.discard(AllocatingMemoryStream::CHUNK_SIZE));
 
     {
-        auto offset = MUST(stream.offset_of("A"sv.bytes()));
+        auto offset = MUST(stream.offset_of("A"_sv.bytes()));
         EXPECT(!offset.has_value());
     }
 
     {
-        auto offset = MUST(stream.offset_of("B"sv.bytes()));
+        auto offset = MUST(stream.offset_of("B"_sv.bytes()));
         EXPECT(offset.has_value());
         EXPECT_EQ(offset.value(), 0ul);
     }
 
     {
-        auto offset = MUST(stream.offset_of("Q"sv.bytes()));
+        auto offset = MUST(stream.offset_of("Q"_sv.bytes()));
         EXPECT(offset.has_value());
         EXPECT_EQ(offset.value(), 15ul);
     }
@@ -134,20 +134,20 @@ TEST_CASE(allocating_memory_stream_offset_of_with_write_offset_multiple_of_chunk
 
     // First, fill exactly one chunk (in groups of 16 bytes).
     for (size_t i = 0; i < (AllocatingMemoryStream::CHUNK_SIZE / 16) - 1; ++i)
-        MUST(stream.write_until_depleted("AAAAAAAAAAAAAAAA"sv.bytes()));
-    MUST(stream.write_until_depleted("BCDEFGHIJKLMNOPQ"sv.bytes()));
+        MUST(stream.write_until_depleted("AAAAAAAAAAAAAAAA"_sv.bytes()));
+    MUST(stream.write_until_depleted("BCDEFGHIJKLMNOPQ"_sv.bytes()));
 
     // Read a few bytes from the beginning to ensure that we are trying to slice into the zero-sized block.
     MUST(stream.discard(32));
 
     {
-        auto offset = MUST(stream.offset_of("B"sv.bytes()));
+        auto offset = MUST(stream.offset_of("B"_sv.bytes()));
         EXPECT(offset.has_value());
         EXPECT_EQ(offset.value(), AllocatingMemoryStream::CHUNK_SIZE - 32 - 16);
     }
 
     {
-        auto offset = MUST(stream.offset_of("Q"sv.bytes()));
+        auto offset = MUST(stream.offset_of("Q"_sv.bytes()));
         EXPECT(offset.has_value());
         EXPECT_EQ(offset.value(), AllocatingMemoryStream::CHUNK_SIZE - 32 - 1);
     }
@@ -155,7 +155,7 @@ TEST_CASE(allocating_memory_stream_offset_of_with_write_offset_multiple_of_chunk
 
 TEST_CASE(fixed_memory_read_write)
 {
-    constexpr auto some_words = "These are some words"sv;
+    constexpr auto some_words = "These are some words"_sv;
 
     auto empty = TRY_OR_FAIL(ByteBuffer::create_uninitialized(some_words.length()));
     FixedMemoryStream stream { empty.bytes() };
@@ -182,7 +182,7 @@ TEST_CASE(fixed_memory_close)
 
 TEST_CASE(fixed_memory_read_only)
 {
-    constexpr auto some_words = "These are some words"sv;
+    constexpr auto some_words = "These are some words"_sv;
 
     FixedMemoryStream stream { ReadonlyBytes { some_words.bytes() } };
 
@@ -247,7 +247,7 @@ TEST_CASE(fixed_memory_truncate)
 
 TEST_CASE(fixed_memory_read_in_place)
 {
-    constexpr auto some_words = "These are some words"sv;
+    constexpr auto some_words = "These are some words"_sv;
 
     FixedMemoryStream readonly_stream { ReadonlyBytes { some_words.bytes() } };
 
@@ -291,7 +291,7 @@ TEST_CASE(buffered_memory_stream_read_line)
 
     auto read_bytes = TRY_OR_FAIL(buffered_stream->read_line(buffer));
 
-    EXPECT_EQ(read_bytes, "AAAAAAA"sv);
+    EXPECT_EQ(read_bytes, "AAAAAAA"_sv);
 
     auto read_or_error = buffered_stream->read_line(buffer);
 
@@ -318,12 +318,12 @@ TEST_CASE(buffered_memory_stream_read_line_with_resizing_where_stream_buffer_is_
     auto read_bytes = TRY_OR_FAIL(buffered_stream->read_line_with_resize(buffer));
 
     // The first line, which is 8 A's, should be read in.
-    EXPECT_EQ(read_bytes, "AAAAAAAA"sv);
+    EXPECT_EQ(read_bytes, "AAAAAAAA"_sv);
 
     read_bytes = TRY_OR_FAIL(buffered_stream->read_line_with_resize(buffer));
 
     // The second line, which is 14 A's, should be read in.
-    EXPECT_EQ(read_bytes, "AAAAAAAAAAAAAA"sv);
+    EXPECT_EQ(read_bytes, "AAAAAAAAAAAAAA"_sv);
 
     // A resize should have happened because the user supplied buffer was too small.
     EXPECT(buffer.size() > initial_buffer_size);
@@ -355,12 +355,12 @@ TEST_CASE(buffered_memory_stream_read_line_with_resizing_where_stream_buffer_is_
     auto read_bytes = TRY_OR_FAIL(buffered_stream->read_line_with_resize(buffer));
 
     // The first line, which is 8 A's, should be read in.
-    EXPECT_EQ(read_bytes, "AAAAAAAA"sv);
+    EXPECT_EQ(read_bytes, "AAAAAAAA"_sv);
 
     read_bytes = TRY_OR_FAIL(buffered_stream->read_line_with_resize(buffer));
 
     // The second line, which is 14 A's, should be read in.
-    EXPECT_EQ(read_bytes, "AAAAAAAAAAAAAA"sv);
+    EXPECT_EQ(read_bytes, "AAAAAAAAAAAAAA"_sv);
 
     // A resize should have happened because the user supplied buffer was too small.
     EXPECT(buffer.size() > initial_buffer_size);

@@ -117,13 +117,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     file_menu->addAction(m_new_window_action);
 
     auto* close_current_tab_action = new QAction("&Close Current Tab", this);
-    close_current_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/close-tab.png"sv));
+    close_current_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/close-tab.png"_sv));
     close_current_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Close));
     m_hamburger_menu->addAction(close_current_tab_action);
     file_menu->addAction(close_current_tab_action);
 
     auto* open_file_action = new QAction("&Open File...", this);
-    open_file_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-folder-open.png"sv));
+    open_file_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-folder-open.png"_sv));
     open_file_action->setShortcut(QKeySequence(QKeySequence::StandardKey::Open));
     m_hamburger_menu->addAction(open_file_action);
     file_menu->addAction(open_file_action);
@@ -134,19 +134,19 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     menuBar()->addMenu(edit_menu);
 
     m_copy_selection_action = new QAction("&Copy", this);
-    m_copy_selection_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+    m_copy_selection_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"_sv));
     m_copy_selection_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Copy));
     edit_menu->addAction(m_copy_selection_action);
     QObject::connect(m_copy_selection_action, &QAction::triggered, this, &BrowserWindow::copy_selected_text);
 
     m_paste_action = new QAction("&Paste", this);
-    m_paste_action->setIcon(load_icon_from_uri("resource://icons/16x16/paste.png"sv));
+    m_paste_action->setIcon(load_icon_from_uri("resource://icons/16x16/paste.png"_sv));
     m_paste_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Paste));
     edit_menu->addAction(m_paste_action);
     QObject::connect(m_paste_action, &QAction::triggered, this, &BrowserWindow::paste);
 
     m_select_all_action = new QAction("Select &All", this);
-    m_select_all_action->setIcon(load_icon_from_uri("resource://icons/16x16/select-all.png"sv));
+    m_select_all_action->setIcon(load_icon_from_uri("resource://icons/16x16/select-all.png"_sv));
     m_select_all_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::SelectAll));
     edit_menu->addAction(m_select_all_action);
     QObject::connect(m_select_all_action, &QAction::triggered, this, &BrowserWindow::select_all);
@@ -154,7 +154,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     edit_menu->addSeparator();
 
     m_find_in_page_action = new QAction("&Find in Page...", this);
-    m_find_in_page_action->setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
+    m_find_in_page_action->setIcon(load_icon_from_uri("resource://icons/16x16/find.png"_sv));
     m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
 
     auto find_previous_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::FindPrevious);
@@ -177,7 +177,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     edit_menu->addSeparator();
 
     auto* settings_action = new QAction("&Settings", this);
-    settings_action->setIcon(load_icon_from_uri("resource://icons/16x16/settings.png"sv));
+    settings_action->setIcon(load_icon_from_uri("resource://icons/16x16/settings.png"_sv));
     settings_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Preferences));
     edit_menu->addAction(settings_action);
     QObject::connect(settings_action, &QAction::triggered, this, [this] {
@@ -202,7 +202,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     m_zoom_menu = view_menu->addMenu("&Zoom");
 
     auto* zoom_in_action = new QAction("Zoom &In", this);
-    zoom_in_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-in.png"sv));
+    zoom_in_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-in.png"_sv));
     auto zoom_in_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::ZoomIn);
     auto secondary_zoom_shortcut = QKeySequence(Qt::CTRL | Qt::Key_Equal);
     if (!zoom_in_shortcuts.contains(secondary_zoom_shortcut))
@@ -213,13 +213,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(zoom_in_action, &QAction::triggered, this, &BrowserWindow::zoom_in);
 
     auto* zoom_out_action = new QAction("Zoom &Out", this);
-    zoom_out_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-out.png"sv));
+    zoom_out_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-out.png"_sv));
     zoom_out_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::ZoomOut));
     m_zoom_menu->addAction(zoom_out_action);
     QObject::connect(zoom_out_action, &QAction::triggered, this, &BrowserWindow::zoom_out);
 
     auto* reset_zoom_action = new QAction("&Reset Zoom", this);
-    reset_zoom_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-reset.png"sv));
+    reset_zoom_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-reset.png"_sv));
     reset_zoom_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
     m_zoom_menu->addAction(reset_zoom_action);
     QObject::connect(reset_zoom_action, &QAction::triggered, this, &BrowserWindow::reset_zoom);
@@ -321,7 +321,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     menuBar()->addMenu(inspect_menu);
 
     m_view_source_action = new QAction("View &Source", this);
-    m_view_source_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-html.png"sv));
+    m_view_source_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-html.png"_sv));
     m_view_source_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_U));
     inspect_menu->addAction(m_view_source_action);
     QObject::connect(m_view_source_action, &QAction::triggered, this, [this] {
@@ -331,7 +331,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     m_enable_devtools_action = new QAction("Enable &DevTools", this);
-    m_enable_devtools_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
+    m_enable_devtools_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"_sv));
     m_enable_devtools_action->setShortcuts({
         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I),
         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C),
@@ -355,7 +355,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     auto* task_manager_action = new QAction("Open Task &Manager", this);
-    task_manager_action->setIcon(load_icon_from_uri("resource://icons/16x16/app-system-monitor.png"sv));
+    task_manager_action->setIcon(load_icon_from_uri("resource://icons/16x16/app-system-monitor.png"_sv));
     task_manager_action->setShortcuts({ QKeySequence("Ctrl+Shift+M") });
     inspect_menu->addAction(task_manager_action);
     QObject::connect(task_manager_action, &QAction::triggered, this, [this]() {
@@ -366,63 +366,63 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     menuBar()->addMenu(debug_menu);
 
     auto* dump_session_history_tree_action = new QAction("Dump Session History Tree", this);
-    dump_session_history_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/history.png"sv));
+    dump_session_history_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/history.png"_sv));
     debug_menu->addAction(dump_session_history_tree_action);
     QObject::connect(dump_session_history_tree_action, &QAction::triggered, this, [this] {
         debug_request("dump-session-history");
     });
 
     auto* dump_dom_tree_action = new QAction("Dump &DOM Tree", this);
-    dump_dom_tree_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
+    dump_dom_tree_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"_sv));
     debug_menu->addAction(dump_dom_tree_action);
     QObject::connect(dump_dom_tree_action, &QAction::triggered, this, [this] {
         debug_request("dump-dom-tree");
     });
 
     auto* dump_layout_tree_action = new QAction("Dump &Layout Tree", this);
-    dump_layout_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"sv));
+    dump_layout_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"_sv));
     debug_menu->addAction(dump_layout_tree_action);
     QObject::connect(dump_layout_tree_action, &QAction::triggered, this, [this] {
         debug_request("dump-layout-tree");
     });
 
     auto* dump_paint_tree_action = new QAction("Dump &Paint Tree", this);
-    dump_paint_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"sv));
+    dump_paint_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"_sv));
     debug_menu->addAction(dump_paint_tree_action);
     QObject::connect(dump_paint_tree_action, &QAction::triggered, this, [this] {
         debug_request("dump-paint-tree");
     });
 
     auto* dump_stacking_context_tree_action = new QAction("Dump S&tacking Context Tree", this);
-    dump_stacking_context_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layers.png"sv));
+    dump_stacking_context_tree_action->setIcon(load_icon_from_uri("resource://icons/16x16/layers.png"_sv));
     debug_menu->addAction(dump_stacking_context_tree_action);
     QObject::connect(dump_stacking_context_tree_action, &QAction::triggered, this, [this] {
         debug_request("dump-stacking-context-tree");
     });
 
     auto* dump_style_sheets_action = new QAction("Dump &Style Sheets", this);
-    dump_style_sheets_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-css.png"sv));
+    dump_style_sheets_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-css.png"_sv));
     debug_menu->addAction(dump_style_sheets_action);
     QObject::connect(dump_style_sheets_action, &QAction::triggered, this, [this] {
         debug_request("dump-style-sheets");
     });
 
     auto* dump_styles_action = new QAction("Dump &All Resolved Styles", this);
-    dump_styles_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-css.png"sv));
+    dump_styles_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-css.png"_sv));
     debug_menu->addAction(dump_styles_action);
     QObject::connect(dump_styles_action, &QAction::triggered, this, [this] {
         debug_request("dump-all-resolved-styles");
     });
 
     auto* dump_cookies_action = new QAction("Dump C&ookies", this);
-    dump_cookies_action->setIcon(load_icon_from_uri("resource://icons/browser/cookie.png"sv));
+    dump_cookies_action->setIcon(load_icon_from_uri("resource://icons/browser/cookie.png"_sv));
     debug_menu->addAction(dump_cookies_action);
     QObject::connect(dump_cookies_action, &QAction::triggered, this, [] {
         WebView::Application::cookie_jar().dump_cookies();
     });
 
     auto* dump_local_storage_action = new QAction("Dump Loc&al Storage", this);
-    dump_local_storage_action->setIcon(load_icon_from_uri("resource://icons/browser/local-storage.png"sv));
+    dump_local_storage_action->setIcon(load_icon_from_uri("resource://icons/browser/local-storage.png"_sv));
     debug_menu->addAction(dump_local_storage_action);
     QObject::connect(dump_local_storage_action, &QAction::triggered, this, [this] {
         debug_request("dump-local-storage");
@@ -432,7 +432,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_show_line_box_borders_action = new QAction("Show Line Box Borders", this);
     m_show_line_box_borders_action->setCheckable(true);
-    m_show_line_box_borders_action->setIcon(load_icon_from_uri("resource://icons/16x16/box.png"sv));
+    m_show_line_box_borders_action->setIcon(load_icon_from_uri("resource://icons/16x16/box.png"_sv));
     debug_menu->addAction(m_show_line_box_borders_action);
     QObject::connect(m_show_line_box_borders_action, &QAction::triggered, this, [this] {
         bool state = m_show_line_box_borders_action->isChecked();
@@ -445,7 +445,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     auto* collect_garbage_action = new QAction("Collect &Garbage", this);
     collect_garbage_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
-    collect_garbage_action->setIcon(load_icon_from_uri("resource://icons/16x16/trash-can.png"sv));
+    collect_garbage_action->setIcon(load_icon_from_uri("resource://icons/16x16/trash-can.png"_sv));
     debug_menu->addAction(collect_garbage_action);
     QObject::connect(collect_garbage_action, &QAction::triggered, this, [this] {
         debug_request("collect-garbage");
@@ -463,7 +463,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     auto* clear_cache_action = new QAction("Clear &Cache", this);
-    clear_cache_action->setIcon(load_icon_from_uri("resource://icons/browser/clear-cache.png"sv));
+    clear_cache_action->setIcon(load_icon_from_uri("resource://icons/browser/clear-cache.png"_sv));
     debug_menu->addAction(clear_cache_action);
     QObject::connect(clear_cache_action, &QAction::triggered, this, [this] {
         debug_request("clear-cache");
@@ -476,7 +476,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     auto* spoof_user_agent_menu = debug_menu->addMenu("Spoof &User Agent");
-    spoof_user_agent_menu->setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
+    spoof_user_agent_menu->setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"_sv));
 
     auto* user_agent_group = new QActionGroup(this);
 
@@ -497,7 +497,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset;
     set_user_agent_string(user_agent_preset.has_value() ? *WebView::user_agents.get(*user_agent_preset) : Web::default_user_agent);
 
-    auto* disable_spoofing = add_user_agent("Disabled"sv, Web::default_user_agent);
+    auto* disable_spoofing = add_user_agent("Disabled"_sv, Web::default_user_agent);
     disable_spoofing->setChecked(!user_agent_preset.has_value());
     for (auto const& user_agent : WebView::user_agents) {
         auto* spoofed_user_agent = add_user_agent(user_agent.key, user_agent.value.to_byte_string());
@@ -522,7 +522,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     auto* navigator_compatibility_mode_menu = debug_menu->addMenu("Navigator Compatibility Mode");
-    navigator_compatibility_mode_menu->setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
+    navigator_compatibility_mode_menu->setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"_sv));
 
     auto* navigator_compatibility_mode_group = new QActionGroup(this);
 
@@ -539,10 +539,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         });
         return action;
     };
-    auto* chrome_compatibility_mode = add_navigator_compatibility_mode("Chrome"_string, "chrome"sv.to_byte_string());
+    auto* chrome_compatibility_mode = add_navigator_compatibility_mode("Chrome"_string, "chrome"_sv.to_byte_string());
     chrome_compatibility_mode->setChecked(true);
-    add_navigator_compatibility_mode("Gecko"_string, "gecko"sv.to_byte_string());
-    add_navigator_compatibility_mode("WebKit"_string, "webkit"sv.to_byte_string());
+    add_navigator_compatibility_mode("Gecko"_string, "gecko"_sv.to_byte_string());
+    add_navigator_compatibility_mode("WebKit"_string, "webkit"_sv.to_byte_string());
     set_navigator_compatibility_mode("chrome");
 
     debug_menu->addSeparator();

@@ -54,7 +54,7 @@ ErrorOr<NonnullOwnPtr<File>> File::standard_error()
 
 ErrorOr<NonnullOwnPtr<File>> File::open_file_or_standard_stream(StringView filename, OpenMode mode)
 {
-    if (!filename.is_empty() && filename != "-"sv)
+    if (!filename.is_empty() && filename != "-"_sv)
         return File::open(filename, mode);
 
     switch (mode) {

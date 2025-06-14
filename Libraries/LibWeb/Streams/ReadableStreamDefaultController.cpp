@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<void> ReadableStreamDefaultController::close()
 {
     // 1. If ! ReadableStreamDefaultControllerCanCloseOrEnqueue(this) is false, throw a TypeError exception.
     if (!readable_stream_default_controller_can_close_or_enqueue(*this)) {
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is not closable"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is not closable"_sv };
     }
 
     // 2. Perform ! ReadableStreamDefaultControllerClose(this).
@@ -49,7 +49,7 @@ WebIDL::ExceptionOr<void> ReadableStreamDefaultController::enqueue(JS::Value chu
 {
     // 1. If ! ReadableStreamDefaultControllerCanCloseOrEnqueue(this) is false, throw a TypeError exception.
     if (!readable_stream_default_controller_can_close_or_enqueue(*this))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot enqueue chunk to stream"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot enqueue chunk to stream"_sv };
 
     // 2. Perform ? ReadableStreamDefaultControllerEnqueue(this, chunk).
     TRY(readable_stream_default_controller_enqueue(*this, chunk));

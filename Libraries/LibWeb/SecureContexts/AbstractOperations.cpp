@@ -24,7 +24,7 @@ Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
 
     // 3. If origin’s scheme is either "https" or "wss", return "Potentially Trustworthy".
     // Note: This is meant to be analog to the a priori authenticated URL concept in [MIX].
-    if (auto& scheme = origin.scheme(); scheme.has_value() && scheme->is_one_of("https"sv, "wss"sv))
+    if (auto& scheme = origin.scheme(); scheme.has_value() && scheme->is_one_of("https"_sv, "wss"_sv))
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 4. If origin’s host matches one of the CIDR notations 127.0.0.0/8 or ::1/128 [RFC4632], return "Potentially Trustworthy".
@@ -46,16 +46,16 @@ Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
     // Note: See § 5.2 localhost for details on the requirements here.
     if (origin.host().has<String>()) {
         auto const& host = origin.host().get<String>();
-        if (host.is_one_of("localhost"sv, "localhost.")
-            || host.ends_with_bytes(".localhost"sv)
-            || host.ends_with_bytes(".localhost."sv)) {
+        if (host.is_one_of("localhost"_sv, "localhost.")
+            || host.ends_with_bytes(".localhost"_sv)
+            || host.ends_with_bytes(".localhost."_sv)) {
             return Trustworthiness::PotentiallyTrustworthy;
         }
     }
 
     // 6. If origin’s scheme is "file", return "Potentially Trustworthy".
     // AD-HOC: Our resource:// is basically an alias to file://
-    if (origin.scheme() == "file"sv || origin.scheme() == "resource"sv)
+    if (origin.scheme() == "file"_sv || origin.scheme() == "resource"_sv)
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 7. If origin’s scheme component is one which the user agent considers to be authenticated, return "Potentially Trustworthy".
@@ -76,7 +76,7 @@ Trustworthiness is_url_potentially_trustworthy(URL::URL const& url)
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 2. If url’s scheme is "data", return "Potentially Trustworthy".
-    if (url.scheme() == "data"sv)
+    if (url.scheme() == "data"_sv)
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 3. Return the result of executing § 3.1 Is origin potentially trustworthy? on url’s origin.

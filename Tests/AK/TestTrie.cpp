@@ -12,7 +12,7 @@
 TEST_CASE(normal_behavior)
 {
     Trie<char, ByteString> dictionary('/', "");
-    constexpr StringView data[] { "test"sv, "example"sv, "foo"sv, "foobar"sv };
+    constexpr StringView data[] { "test"_sv, "example"_sv, "foo"_sv, "foobar"_sv };
     constexpr size_t total_chars = 18; // root (1), 'test' (4), 'example' (7), 'foo' (3), 'foobar' (3, "foo" already stored).
     for (auto& view : data) {
         auto it = view.begin();
@@ -33,7 +33,7 @@ TEST_CASE(normal_behavior)
         EXPECT_EQ(view, node.metadata_value());
     }
 
-    constexpr StringView test_data_with_prefix_in_dict[] { "testx"sv, "exampley"sv, "fooa"sv, "foobarb"sv, "fox"sv, "text"sv };
+    constexpr StringView test_data_with_prefix_in_dict[] { "testx"_sv, "exampley"_sv, "fooa"_sv, "foobarb"_sv, "fox"_sv, "text"_sv };
     for (auto& view : test_data_with_prefix_in_dict) {
         auto it = view.begin();
         auto& node = dictionary.traverse_until_last_accessible_node(it, view.end());

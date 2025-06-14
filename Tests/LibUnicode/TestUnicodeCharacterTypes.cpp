@@ -17,32 +17,32 @@ TEST_CASE(general_category)
         return *general_category;
     };
 
-    auto general_category_c = general_category("C"sv);
-    auto general_category_other = general_category("Other"sv);
+    auto general_category_c = general_category("C"_sv);
+    auto general_category_other = general_category("Other"_sv);
     EXPECT_EQ(general_category_c, general_category_other);
 
-    auto general_category_cc = general_category("Cc"sv);
-    auto general_category_control = general_category("Control"sv);
+    auto general_category_cc = general_category("Cc"_sv);
+    auto general_category_control = general_category("Control"_sv);
     EXPECT_EQ(general_category_cc, general_category_control);
 
-    auto general_category_co = general_category("Co"sv);
-    auto general_category_private_use = general_category("Private_Use"sv);
+    auto general_category_co = general_category("Co"_sv);
+    auto general_category_private_use = general_category("Private_Use"_sv);
     EXPECT_EQ(general_category_co, general_category_private_use);
 
-    auto general_category_cn = general_category("Cn"sv);
-    auto general_category_unassigned = general_category("Unassigned"sv);
+    auto general_category_cn = general_category("Cn"_sv);
+    auto general_category_unassigned = general_category("Unassigned"_sv);
     EXPECT_EQ(general_category_cn, general_category_unassigned);
 
-    auto general_category_lc = general_category("LC"sv);
-    auto general_category_cased_letter = general_category("Cased_Letter"sv);
+    auto general_category_lc = general_category("LC"_sv);
+    auto general_category_cased_letter = general_category("Cased_Letter"_sv);
     EXPECT_EQ(general_category_lc, general_category_cased_letter);
 
-    auto general_category_ll = general_category("Ll"sv);
-    auto general_category_lowercase_letter = general_category("Lowercase_Letter"sv);
+    auto general_category_ll = general_category("Ll"_sv);
+    auto general_category_lowercase_letter = general_category("Lowercase_Letter"_sv);
     EXPECT_EQ(general_category_ll, general_category_lowercase_letter);
 
-    auto general_category_lu = general_category("Lu"sv);
-    auto general_category_uppercase_letter = general_category("Uppercase_Letter"sv);
+    auto general_category_lu = general_category("Lu"_sv);
+    auto general_category_uppercase_letter = general_category("Uppercase_Letter"_sv);
     EXPECT_EQ(general_category_lu, general_category_uppercase_letter);
 
     for (u32 code_point = 0; code_point <= 0x1f; ++code_point) {
@@ -103,7 +103,7 @@ TEST_CASE(general_category)
 
 BENCHMARK_CASE(general_category_performance)
 {
-    auto general_category_cased_letter = Unicode::general_category_from_string("Cased_Letter"sv).value();
+    auto general_category_cased_letter = Unicode::general_category_from_string("Cased_Letter"_sv).value();
 
     for (size_t i = 0; i < 1'000'000; ++i) {
         for (u32 code_point = 0; code_point <= 0x1f; ++code_point)
@@ -131,18 +131,18 @@ TEST_CASE(property)
         return *property;
     };
 
-    auto property_any = property("Any"sv);
-    auto property_assigned = property("Assigned"sv);
-    auto property_ascii = property("ASCII"sv);
+    auto property_any = property("Any"_sv);
+    auto property_assigned = property("Assigned"_sv);
+    auto property_ascii = property("ASCII"_sv);
 
-    auto property_white_space = property("White_Space"sv);
-    auto property_wspace = property("WSpace"sv);
-    auto property_space = property("space"sv);
+    auto property_white_space = property("White_Space"_sv);
+    auto property_wspace = property("WSpace"_sv);
+    auto property_space = property("space"_sv);
     EXPECT_EQ(property_white_space, property_wspace);
     EXPECT_EQ(property_white_space, property_space);
 
-    auto property_emoji_presentation = property("Emoji_Presentation"sv);
-    auto property_epres = property("EPres"sv);
+    auto property_emoji_presentation = property("Emoji_Presentation"_sv);
+    auto property_epres = property("EPres"_sv);
     EXPECT_EQ(property_emoji_presentation, property_epres);
 
     for (u32 code_point = 0; code_point <= 0x10ffff; code_point += 1000)
@@ -201,16 +201,16 @@ TEST_CASE(script)
         return *script;
     };
 
-    auto script_latin = script("Latin"sv);
-    auto script_latn = script("Latn"sv);
+    auto script_latin = script("Latin"_sv);
+    auto script_latn = script("Latn"_sv);
     EXPECT_EQ(script_latin, script_latn);
 
-    auto script_cyrillic = script("Cyrillic"sv);
-    auto script_cyrl = script("Cyrl"sv);
+    auto script_cyrillic = script("Cyrillic"_sv);
+    auto script_cyrl = script("Cyrl"_sv);
     EXPECT_EQ(script_cyrillic, script_cyrl);
 
-    auto script_greek = script("Greek"sv);
-    auto script_grek = script("Grek"sv);
+    auto script_greek = script("Greek"_sv);
+    auto script_grek = script("Grek"_sv);
     EXPECT_EQ(script_greek, script_grek);
 
     for (u32 code_point = 0x41; code_point <= 0x5a; ++code_point) {
@@ -254,8 +254,8 @@ TEST_CASE(script_extension)
         return *script;
     };
 
-    auto script_latin = script("Latin"sv);
-    auto script_greek = script("Greek"sv);
+    auto script_latin = script("Latin"_sv);
+    auto script_greek = script("Greek"_sv);
 
     for (u32 code_point = 0x363; code_point <= 0x36f; ++code_point) {
         EXPECT(!Unicode::code_point_has_script(code_point, script_latin));
@@ -274,8 +274,8 @@ TEST_CASE(script_extension)
     EXPECT(!Unicode::code_point_has_script(0x1dc1, script_greek));
     EXPECT(Unicode::code_point_has_script_extension(0x1dc1, script_greek));
 
-    auto script_common = script("Common"sv);
-    auto script_zyyy = script("Zyyy"sv);
+    auto script_common = script("Common"_sv);
+    auto script_zyyy = script("Zyyy"_sv);
     EXPECT_EQ(script_common, script_zyyy);
 
     EXPECT(Unicode::code_point_has_script(0x202f, script_common));
@@ -284,9 +284,9 @@ TEST_CASE(script_extension)
     EXPECT(Unicode::code_point_has_script(0x3000, script_common));
     EXPECT(Unicode::code_point_has_script_extension(0x3000, script_common));
 
-    auto script_inherited = script("Inherited"sv);
-    auto script_qaai = script("Qaai"sv);
-    auto script_zinh = script("Zinh"sv);
+    auto script_inherited = script("Inherited"_sv);
+    auto script_qaai = script("Qaai"_sv);
+    auto script_zinh = script("Zinh"_sv);
     EXPECT_EQ(script_inherited, script_qaai);
     EXPECT_EQ(script_inherited, script_zinh);
 

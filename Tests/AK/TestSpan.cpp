@@ -158,16 +158,16 @@ TEST_CASE(contains_slow)
     auto span = list.span();
 
     EXPECT(span.contains_slow("abc"_string));
-    EXPECT(span.contains_slow("abc"sv));
+    EXPECT(span.contains_slow("abc"_sv));
 
     EXPECT(span.contains_slow("def"_string));
-    EXPECT(span.contains_slow("def"sv));
+    EXPECT(span.contains_slow("def"_sv));
 
     EXPECT(span.contains_slow("ghi"_string));
-    EXPECT(span.contains_slow("ghi"sv));
+    EXPECT(span.contains_slow("ghi"_sv));
 
     EXPECT(!span.contains_slow("whf"_string));
-    EXPECT(!span.contains_slow("whf"sv));
+    EXPECT(!span.contains_slow("whf"_sv));
 
     EXPECT(!span.contains_slow(String {}));
     EXPECT(!span.contains_slow(StringView {}));

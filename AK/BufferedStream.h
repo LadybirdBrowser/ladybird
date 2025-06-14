@@ -67,7 +67,7 @@ public:
     // read. Returns the bytes read as a StringView.
     ErrorOr<StringView> read_line(Bytes buffer)
     {
-        return StringView { TRY(read_until(buffer, "\n"sv)) };
+        return StringView { TRY(read_until(buffer, "\n"_sv)) };
     }
 
     ErrorOr<Bytes> read_until(Bytes buffer, StringView candidate)
@@ -117,7 +117,7 @@ public:
 
     ErrorOr<StringView> read_line_with_resize(ByteBuffer& buffer)
     {
-        return StringView { TRY(read_until_with_resize(buffer, "\n"sv)) };
+        return StringView { TRY(read_until_with_resize(buffer, "\n"_sv)) };
     }
 
     ErrorOr<Bytes> read_until_with_resize(ByteBuffer& buffer, StringView candidate)
@@ -347,7 +347,7 @@ public:
     ErrorOr<StringView> read_line(Bytes buffer) { return m_helper.read_line(buffer); }
     ErrorOr<bool> can_read_line()
     {
-        return TRY(m_helper.can_read_up_to_delimiter("\n"sv.bytes())) || m_helper.is_eof_with_data_left_over();
+        return TRY(m_helper.can_read_up_to_delimiter("\n"_sv.bytes())) || m_helper.is_eof_with_data_left_over();
     }
     ErrorOr<Bytes> read_until(Bytes buffer, StringView candidate) { return m_helper.read_until(buffer, candidate); }
     template<size_t N>

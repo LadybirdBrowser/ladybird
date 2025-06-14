@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags cons
     if (flags.has_one_or_more_true_values() && (!message.has_value() || message->is_empty())) {
         return WebIDL::SimpleException {
             WebIDL::SimpleExceptionType::TypeError,
-            "Invalid flag(s) and empty message"sv
+            "Invalid flag(s) and empty message"_sv
         };
     }
 

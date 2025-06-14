@@ -28,7 +28,7 @@ bool is_url_suitable_for_same_process_navigation(URL::URL const& current_url, UR
         return true;
 
     // Make sure JavaScript URLs run in the same process.
-    if (target_url.scheme() == "javascript"sv)
+    if (target_url.scheme() == "javascript"_sv)
         return true;
 
     // Allow cross-scheme non-HTTP(S) navigation. Disallow cross-scheme HTTP(s) navigation.

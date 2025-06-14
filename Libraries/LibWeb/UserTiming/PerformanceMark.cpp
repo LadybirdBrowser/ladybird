@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     if (mark_options.start_time.has_value()) {
         // 1. If markOptions's startTime is negative, throw a TypeError.
         if (mark_options.start_time.value() < 0.0)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "startTime cannot be negative"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "startTime cannot be negative"_sv };
 
         // 2. Otherwise, set entry's startTime to the value of markOptions's startTime.
         start_time = mark_options.start_time.value();

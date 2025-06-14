@@ -23,14 +23,14 @@ static Crypto::UnsignedBigInteger bigint_fibonacci(size_t n)
 TEST_CASE(roundtrip_from_string)
 {
     Array valid_number_strings {
-        "0.1"sv,
-        "-0.1"sv,
-        "0.9"sv,
-        "-0.9"sv,
-        "1.2"sv,
-        "-1.2"sv,
-        "610888968122787804679.305596150292503043363"sv,
-        "-610888968122787804679.305596150292503043363"sv
+        "0.1"_sv,
+        "-0.1"_sv,
+        "0.9"_sv,
+        "-0.9"_sv,
+        "1.2"_sv,
+        "-1.2"_sv,
+        "610888968122787804679.305596150292503043363"_sv,
+        "-610888968122787804679.305596150292503043363"_sv
     };
 
     for (auto valid_number_string : valid_number_strings) {

@@ -68,11 +68,11 @@ void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedPrope
             return;
         }
         if (name == HTML::AttributeNames::align) {
-            if (value.equals_ignoring_ascii_case("center"sv) || value.equals_ignoring_ascii_case("middle"sv)) {
+            if (value.equals_ignoring_ascii_case("center"_sv) || value.equals_ignoring_ascii_case("middle"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebCenter));
-            } else if (value.equals_ignoring_ascii_case("left"sv)) {
+            } else if (value.equals_ignoring_ascii_case("left"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebLeft));
-            } else if (value.equals_ignoring_ascii_case("right"sv)) {
+            } else if (value.equals_ignoring_ascii_case("right"_sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebRight));
             } else {
                 if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::TextAlign))

@@ -34,17 +34,17 @@ ReadonlySpan<ResolutionOptionDescriptor> DisplayNames::resolution_option_descrip
 
 void DisplayNames::set_type(StringView type)
 {
-    if (type == "language"sv)
+    if (type == "language"_sv)
         m_type = Type::Language;
-    else if (type == "region"sv)
+    else if (type == "region"_sv)
         m_type = Type::Region;
-    else if (type == "script"sv)
+    else if (type == "script"_sv)
         m_type = Type::Script;
-    else if (type == "currency"sv)
+    else if (type == "currency"_sv)
         m_type = Type::Currency;
-    else if (type == "calendar"sv)
+    else if (type == "calendar"_sv)
         m_type = Type::Calendar;
-    else if (type == "dateTimeField"sv)
+    else if (type == "dateTimeField"_sv)
         m_type = Type::DateTimeField;
     else
         VERIFY_NOT_REACHED();
@@ -54,17 +54,17 @@ StringView DisplayNames::type_string() const
 {
     switch (m_type) {
     case Type::Language:
-        return "language"sv;
+        return "language"_sv;
     case Type::Region:
-        return "region"sv;
+        return "region"_sv;
     case Type::Script:
-        return "script"sv;
+        return "script"_sv;
     case Type::Currency:
-        return "currency"sv;
+        return "currency"_sv;
     case Type::Calendar:
-        return "calendar"sv;
+        return "calendar"_sv;
     case Type::DateTimeField:
-        return "dateTimeField"sv;
+        return "dateTimeField"_sv;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -72,9 +72,9 @@ StringView DisplayNames::type_string() const
 
 void DisplayNames::set_fallback(StringView fallback)
 {
-    if (fallback == "none"sv)
+    if (fallback == "none"_sv)
         m_fallback = Fallback::None;
-    else if (fallback == "code"sv)
+    else if (fallback == "code"_sv)
         m_fallback = Fallback::Code;
     else
         VERIFY_NOT_REACHED();
@@ -84,9 +84,9 @@ StringView DisplayNames::fallback_string() const
 {
     switch (m_fallback) {
     case Fallback::None:
-        return "none"sv;
+        return "none"_sv;
     case Fallback::Code:
-        return "code"sv;
+        return "code"_sv;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -99,7 +99,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     if (type == DisplayNames::Type::Language) {
         // a. If code does not match the unicode_language_id production, throw a RangeError exception.
         if (!Unicode::parse_unicode_language_id(code).has_value())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "language"sv);
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "language"_sv);
 
         // b. If IsStructurallyValidLanguageTag(code) is false, throw a RangeError exception.
         if (!is_structurally_valid_language_tag(code))
@@ -114,7 +114,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     if (type == DisplayNames::Type::Region) {
         // a. If code does not match the unicode_region_subtag production, throw a RangeError exception.
         if (!Unicode::is_unicode_region_subtag(code))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "region"sv);
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "region"_sv);
 
         // b. Return the ASCII-uppercase of code.
         return PrimitiveString::create(vm, code.to_ascii_uppercase_string());
@@ -124,7 +124,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     if (type == DisplayNames::Type::Script) {
         // a. If code does not match the unicode_script_subtag production, throw a RangeError exception.
         if (!Unicode::is_unicode_script_subtag(code))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "script"sv);
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "script"_sv);
 
         // Assert: The length of code is 4, and every code unit of code represents an ASCII letter (0x0041 through 0x005A and 0x0061 through 0x007A, both inclusive).
         VERIFY(code.length() == 4);
@@ -140,11 +140,11 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     if (type == DisplayNames::Type::Calendar) {
         // a. If code does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
         if (!Unicode::is_type_identifier(code))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "calendar"sv);
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "calendar"_sv);
 
         // b. If code uses any of the backwards compatibility syntax described in Unicode Technical Standard #35 LDML § 3.3 BCP 47 Conformance, throw a RangeError exception.
         if (code.contains('_'))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "calendar"sv);
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "calendar"_sv);
 
         // c. Return the ASCII-lowercase of code.
         return PrimitiveString::create(vm, code.to_ascii_lowercase_string());
@@ -154,7 +154,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     if (type == DisplayNames::Type::DateTimeField) {
         // a. If the result of IsValidDateTimeFieldCode(code) is false, throw a RangeError exception.
         if (!is_valid_date_time_field_code(code))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "dateTimeField"sv);
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "dateTimeField"_sv);
 
         // b. Return code.
         return PrimitiveString::create(vm, code);
@@ -165,7 +165,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
 
     // 7. If ! IsWellFormedCurrencyCode(code) is false, throw a RangeError exception.
     if (!is_well_formed_currency_code(code))
-        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "currency"sv);
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "currency"_sv);
 
     // 8. Return the ASCII-uppercase of code.
     return PrimitiveString::create(vm, code.to_ascii_uppercase_string());
@@ -176,7 +176,7 @@ bool is_valid_date_time_field_code(StringView field)
 {
     // 1. If field is listed in the Code column of Table 19, return true.
     // 2. Return false.
-    return field.is_one_of("era"sv, "year"sv, "quarter"sv, "month"sv, "weekOfYear"sv, "weekday"sv, "day"sv, "dayPeriod"sv, "hour"sv, "minute"sv, "second"sv, "timeZoneName"sv);
+    return field.is_one_of("era"_sv, "year"_sv, "quarter"_sv, "month"_sv, "weekOfYear"_sv, "weekday"_sv, "day"_sv, "dayPeriod"_sv, "hour"_sv, "minute"_sv, "second"_sv, "timeZoneName"_sv);
 }
 
 }

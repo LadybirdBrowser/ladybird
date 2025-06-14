@@ -30,9 +30,9 @@ public:
         // 15.2.2 Internal slots, https://tc39.es/ecma402/#sec-intl.locale-internal-slots
         // 1.3.2 Internal slots, https://tc39.es/proposal-intl-locale-info/#sec-intl.locale-internal-slots
         // The value of the [[LocaleExtensionKeys]] internal slot is a List that must include all elements of
-        // « "ca", "co", "fw"sv, "hc", "nu" », must additionally include any element of « "kf", "kn" » that is also an
+        // « "ca", "co", "fw"_sv, "hc", "nu" », must additionally include any element of « "kf", "kn" » that is also an
         // element of %Intl.Collator%.[[RelevantExtensionKeys]], and must not include any other elements.
-        return AK::Array { "ca"sv, "co"sv, "fw"sv, "hc"sv, "kf"sv, "kn"sv, "nu"sv };
+        return AK::Array { "ca"_sv, "co"_sv, "fw"_sv, "hc"_sv, "kf"_sv, "kn"_sv, "nu"_sv };
     }
 
     virtual ~Locale() override = default;

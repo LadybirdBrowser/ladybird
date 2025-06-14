@@ -124,7 +124,7 @@ ByteString Token::string_value(StringValueStatus& status) const
         }
 
         // Unicode escape
-        if (lexer.next_is("\\u"sv)) {
+        if (lexer.next_is("\\u"_sv)) {
             auto code_point_or_error = lexer.consume_escaped_code_point();
 
             if (code_point_or_error.is_error()) {
@@ -208,7 +208,7 @@ ByteString Token::string_value(StringValueStatus& status) const
         }
 
         lexer.retreat();
-        builder.append(lexer.consume_escaped_character('\\', "b\bf\fn\nr\rt\tv\v"sv));
+        builder.append(lexer.consume_escaped_character('\\', "b\bf\fn\nr\rt\tv\v"_sv));
     }
     return builder.to_byte_string();
 }
@@ -216,7 +216,7 @@ ByteString Token::string_value(StringValueStatus& status) const
 // 12.8.6.2 Static Semantics: TRV, https://tc39.es/ecma262/#sec-static-semantics-trv
 ByteString Token::raw_template_value() const
 {
-    return value().replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All);
+    return value().replace("\r\n"_sv, "\n"_sv, ReplaceMode::All).replace("\r"_sv, "\n"_sv, ReplaceMode::All);
 }
 
 bool Token::bool_value() const

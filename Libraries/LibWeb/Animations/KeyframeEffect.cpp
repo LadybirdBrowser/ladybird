@@ -88,7 +88,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         if (string_value == "auto")
             return Bindings::CompositeOperationOrAuto::Auto;
 
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid composite value"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid composite value"_sv };
     };
 
     // 1. Run the procedure to convert an ECMAScript value to a dictionary type with keyframe input as the ECMAScript
@@ -157,7 +157,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
             continue;
 
         auto name = input_property.as_string().utf8_string();
-        if (name == "all"sv) {
+        if (name == "all"_sv) {
             all_value = TRY(keyframe_object.get(vm.names.all));
             for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
                 auto property = static_cast<CSS::PropertyID>(i);
@@ -166,9 +166,9 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
             }
         } else {
             // Handle the two special cases
-            if (name == "cssFloat"sv || name == "cssOffset"sv) {
+            if (name == "cssFloat"_sv || name == "cssOffset"_sv) {
                 animation_properties.append(name);
-            } else if (name == "float"sv || name == "offset"sv) {
+            } else if (name == "float"_sv || name == "offset"_sv) {
                 // Ignore these property names
             } else if (auto property = CSS::property_id_from_camel_case_string(name); property.has_value()) {
                 if (CSS::is_animatable_property(property.value()))
@@ -504,7 +504,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
 
     // 6. If processed keyframes is not loosely sorted by offset, throw a TypeError and abort these steps.
     if (!is_loosely_sorted_by_offset(processed_keyframes))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Keyframes are not in ascending order based on offset"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Keyframes are not in ascending order based on offset"_sv };
 
     // 7. If there exist any keyframe in processed keyframes whose keyframe offset is non-null and less than zero or
     //    greater than one, throw a TypeError and abort these steps.
@@ -531,11 +531,11 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
             Optional<CSS::PropertyID> property_id;
 
             // Handle some special cases
-            if (property_string == "cssFloat"sv) {
+            if (property_string == "cssFloat"_sv) {
                 property_id = CSS::PropertyID::Float;
-            } else if (property_string == "cssOffset"sv) {
+            } else if (property_string == "cssOffset"_sv) {
                 // FIXME: Support CSS offset property
-            } else if (property_string == "float"sv || property_string == "offset"sv) {
+            } else if (property_string == "float"_sv || property_string == "offset"_sv) {
                 // Ignore these properties
             } else if (auto property = CSS::property_id_from_camel_case_string(property_string); property.has_value()) {
                 property_id = *property;
@@ -816,13 +816,13 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value->to_string(CSS::SerializationMode::Normal)), ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), ShouldThrowExceptions::Yes));
+                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"_sv), ShouldThrowExceptions::Yes));
             } else if (keyframe.composite == Bindings::CompositeOperationOrAuto::Add) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "add"sv), ShouldThrowExceptions::Yes));
+                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "add"_sv), ShouldThrowExceptions::Yes));
             } else if (keyframe.composite == Bindings::CompositeOperationOrAuto::Accumulate) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "accumulate"sv), ShouldThrowExceptions::Yes));
+                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "accumulate"_sv), ShouldThrowExceptions::Yes));
             } else {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "auto"sv), ShouldThrowExceptions::Yes));
+                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "auto"_sv), ShouldThrowExceptions::Yes));
             }
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {

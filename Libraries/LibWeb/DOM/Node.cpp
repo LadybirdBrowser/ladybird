@@ -407,7 +407,7 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
 {
 #define __ENUMERATE_STYLE_INVALIDATION_REASON(reason) \
     case StyleInvalidationReason::reason:             \
-        return #reason##sv;
+        return #reason##_sv;
     switch (reason) {
         ENUMERATE_STYLE_INVALIDATION_REASONS(__ENUMERATE_STYLE_INVALIDATION_REASON)
     default:
@@ -1867,19 +1867,19 @@ bool Node::is_uninteresting_whitespace_node() const
 
 void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) const
 {
-    MUST(object.add("name"sv, node_name()));
-    MUST(object.add("id"sv, unique_id().value()));
+    MUST(object.add("name"_sv, node_name()));
+    MUST(object.add("id"_sv, unique_id().value()));
     if (is_document()) {
-        MUST(object.add("type"sv, "document"));
+        MUST(object.add("type"_sv, "document"));
     } else if (is_element()) {
-        MUST(object.add("type"sv, "element"));
+        MUST(object.add("type"_sv, "element"));
 
         auto const* element = static_cast<DOM::Element const*>(this);
         if (element->namespace_uri().has_value())
-            MUST(object.add("namespace"sv, element->namespace_uri().value()));
+            MUST(object.add("namespace"_sv, element->namespace_uri().value()));
 
         if (element->has_attributes()) {
-            auto attributes = MUST(object.add_object("attributes"sv));
+            auto attributes = MUST(object.add_object("attributes"_sv));
             element->for_each_attribute([&attributes](auto& name, auto& value) {
                 MUST(attributes.add(name, value));
             });
@@ -1889,7 +1889,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         if (element->is_navigable_container()) {
             auto const* container = static_cast<HTML::NavigableContainer const*>(element);
             if (auto const* content_document = container->content_document()) {
-                auto children = MUST(object.add_array("children"sv));
+                auto children = MUST(object.add_array("children"_sv));
                 JsonObjectSerializer<StringBuilder> content_document_object = MUST(children.add_object());
                 content_document->serialize_tree_as_json(content_document_object);
                 MUST(content_document_object.finish());
@@ -1899,35 +1899,35 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
 
         if (paintable_box()) {
             if (paintable_box()->could_be_scrolled_by_wheel_event()) {
-                MUST(object.add("scrollable"sv, true));
+                MUST(object.add("scrollable"_sv, true));
             }
             if (!paintable_box()->is_visible()) {
-                MUST(object.add("invisible"sv, true));
+                MUST(object.add("invisible"_sv, true));
             }
             if (paintable_box()->has_stacking_context()) {
-                MUST(object.add("stackingContext"sv, true));
+                MUST(object.add("stackingContext"_sv, true));
             }
         }
     } else if (is_text()) {
-        MUST(object.add("type"sv, "text"));
+        MUST(object.add("type"_sv, "text"));
 
         auto text_node = static_cast<DOM::Text const*>(this);
-        MUST(object.add("text"sv, text_node->data()));
+        MUST(object.add("text"_sv, text_node->data()));
     } else if (is_comment()) {
-        MUST(object.add("type"sv, "comment"sv));
-        MUST(object.add("data"sv, static_cast<DOM::Comment const&>(*this).data()));
+        MUST(object.add("type"_sv, "comment"_sv));
+        MUST(object.add("data"_sv, static_cast<DOM::Comment const&>(*this).data()));
     } else if (is_shadow_root()) {
-        MUST(object.add("type"sv, "shadow-root"));
-        MUST(object.add("mode"sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv));
+        MUST(object.add("type"_sv, "shadow-root"));
+        MUST(object.add("mode"_sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == Bindings::ShadowRootMode::Open ? "open"_sv : "closed"_sv));
     }
 
-    MUST((object.add("visible"sv, !!layout_node())));
+    MUST((object.add("visible"_sv, !!layout_node())));
 
     auto const* element = is_element() ? static_cast<DOM::Element const*>(this) : nullptr;
 
     if (has_child_nodes()
         || (element && (element->is_shadow_host() || element->has_pseudo_elements()))) {
-        auto children = MUST(object.add_array("children"sv));
+        auto children = MUST(object.add_array("children"_sv));
         auto add_child = [&children](DOM::Node const& child) {
             if (child.is_uninteresting_whitespace_node())
                 return IterationDecision::Continue;
@@ -2754,7 +2754,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             StringBuilder builder;
             for (u32 i = 0; i < labels->length(); i++) {
                 if (!builder.is_empty())
-                    builder.append(" "sv);
+                    builder.append(" "_sv);
                 auto nodes = labels->item(i)->children_as_vector();
                 for (auto const& node : nodes) {
                     // AD-HOC: https://wpt.fyi/results/accname/name/comp_host_language_label.html has “encapsulation”
@@ -3064,7 +3064,7 @@ ErrorOr<String> Node::accessible_description(Document const& document) const
                 if (builder.is_empty()) {
                     builder.append(description);
                 } else {
-                    builder.append(" "sv);
+                    builder.append(" "_sv);
                     builder.append(description);
                 }
             }

@@ -263,7 +263,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_n
     }
 
     // 4. If priority is not the empty string and is not an ASCII case-insensitive match for the string "important", then return.
-    if (!priority.is_empty() && !priority.equals_ignoring_ascii_case("important"sv))
+    if (!priority.is_empty() && !priority.equals_ignoring_ascii_case("important"_sv))
         return {};
 
     // 5. Let component value list be the result of parsing value for property property.
@@ -455,12 +455,12 @@ StringView CSSStyleProperties::get_property_priority(StringView property_name) c
         auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
         if (!maybe_custom_property.has_value())
             return {};
-        return maybe_custom_property.value().important == Important::Yes ? "important"sv : ""sv;
+        return maybe_custom_property.value().important == Important::Yes ? "important"_sv : ""_sv;
     }
     auto maybe_property = property(property_id.value());
     if (!maybe_property.has_value())
         return {};
-    return maybe_property->important == Important::Yes ? "important"sv : ""sv;
+    return maybe_property->important == Important::Yes ? "important"_sv : ""_sv;
 }
 
 static Optional<StyleProperty> style_property_for_sided_shorthand(PropertyID property_id, Optional<StyleProperty> const& top, Optional<StyleProperty> const& right, Optional<StyleProperty> const& bottom, Optional<StyleProperty> const& left)
@@ -1168,14 +1168,14 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(PropertyID prope
 String CSSStyleProperties::css_float() const
 {
     // The cssFloat attribute, on getting, must return the result of invoking getPropertyValue() with float as argument.
-    return get_property_value("float"sv);
+    return get_property_value("float"_sv);
 }
 
 WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_float(StringView value)
 {
     // On setting, the attribute must invoke setProperty() with float as first argument, as second argument the given value,
     // and no third argument. Any exceptions thrown must be re-thrown.
-    return set_property("float"sv, value, ""sv);
+    return set_property("float"_sv, value, ""_sv);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block

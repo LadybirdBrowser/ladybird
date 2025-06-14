@@ -238,16 +238,16 @@ TEST_CASE(discard_too_much)
 
 TEST_CASE(offset_of)
 {
-    auto const source = "Well Hello Friends!"sv;
+    auto const source = "Well Hello Friends!"_sv;
     auto byte_buffer = TRY_OR_FAIL(ByteBuffer::copy(source.bytes()));
 
     auto circular_buffer = TRY_OR_FAIL(CircularBuffer::create_initialized(byte_buffer));
 
-    auto result = circular_buffer.offset_of("Well"sv);
+    auto result = circular_buffer.offset_of("Well"_sv);
     EXPECT(result.has_value());
     EXPECT_EQ(result.value(), 0ul);
 
-    result = circular_buffer.offset_of("Hello"sv);
+    result = circular_buffer.offset_of("Hello"_sv);
     EXPECT(result.has_value());
     EXPECT_EQ(result.value(), 5ul);
 
@@ -256,51 +256,51 @@ TEST_CASE(offset_of)
     auto written_bytes = circular_buffer.write(byte_buffer.span().trim(5));
     EXPECT_EQ(written_bytes, 5ul);
 
-    result = circular_buffer.offset_of("!Well"sv);
+    result = circular_buffer.offset_of("!Well"_sv);
     EXPECT(result.has_value());
     EXPECT_EQ(result.value(), 13ul);
 
-    result = circular_buffer.offset_of("!Well"sv, {}, 12);
+    result = circular_buffer.offset_of("!Well"_sv, {}, 12);
     EXPECT(!result.has_value());
 
-    result = circular_buffer.offset_of("e"sv, 2);
+    result = circular_buffer.offset_of("e"_sv, 2);
     EXPECT(result.has_value());
     EXPECT_EQ(result.value(), 9ul);
 }
 
 TEST_CASE(offset_of_with_until_and_after)
 {
-    auto const source = "Well Hello Friends!"sv;
+    auto const source = "Well Hello Friends!"_sv;
     auto byte_buffer = TRY_OR_FAIL(ByteBuffer::copy(source.bytes()));
 
     auto circular_buffer = TRY_OR_FAIL(CircularBuffer::create_initialized(byte_buffer));
 
-    auto result = circular_buffer.offset_of("Well Hello Friends!"sv, 0, 19);
+    auto result = circular_buffer.offset_of("Well Hello Friends!"_sv, 0, 19);
     EXPECT_EQ(result.value_or(42), 0ul);
 
-    result = circular_buffer.offset_of(" Hello"sv, 4, 10);
+    result = circular_buffer.offset_of(" Hello"_sv, 4, 10);
     EXPECT_EQ(result.value_or(42), 4ul);
 
-    result = circular_buffer.offset_of("el"sv, 3, 10);
+    result = circular_buffer.offset_of("el"_sv, 3, 10);
     EXPECT_EQ(result.value_or(42), 6ul);
 
     safe_discard(circular_buffer, 5);
     auto written_bytes = circular_buffer.write(byte_buffer.span().trim(5));
     EXPECT_EQ(written_bytes, 5ul);
 
-    result = circular_buffer.offset_of("Hello Friends!Well "sv, 0, 19);
+    result = circular_buffer.offset_of("Hello Friends!Well "_sv, 0, 19);
     EXPECT_EQ(result.value_or(42), 0ul);
 
-    result = circular_buffer.offset_of("o Frie"sv, 4, 10);
+    result = circular_buffer.offset_of("o Frie"_sv, 4, 10);
     EXPECT_EQ(result.value_or(42), 4ul);
 
-    result = circular_buffer.offset_of("el"sv, 3, 17);
+    result = circular_buffer.offset_of("el"_sv, 3, 17);
     EXPECT_EQ(result.value_or(42), 15ul);
 }
 
 TEST_CASE(offset_of_with_until_and_after_wrapping_around)
 {
-    auto const source = "Well Hello Friends!"sv;
+    auto const source = "Well Hello Friends!"_sv;
     auto byte_buffer = TRY_OR_FAIL(ByteBuffer::copy(source.bytes()));
 
     auto circular_buffer = TRY_OR_FAIL(CircularBuffer::create_empty(19));
@@ -308,31 +308,31 @@ TEST_CASE(offset_of_with_until_and_after_wrapping_around)
     auto written_bytes = circular_buffer.write(byte_buffer.span().trim(5));
     EXPECT_EQ(written_bytes, 5ul);
 
-    auto result = circular_buffer.offset_of("Well "sv, 0, 5);
+    auto result = circular_buffer.offset_of("Well "_sv, 0, 5);
     EXPECT_EQ(result.value_or(42), 0ul);
 
     written_bytes = circular_buffer.write(byte_buffer.span().slice(5));
     EXPECT_EQ(written_bytes, 14ul);
 
-    result = circular_buffer.offset_of("Hello Friends!"sv, 5, 19);
+    result = circular_buffer.offset_of("Hello Friends!"_sv, 5, 19);
     EXPECT_EQ(result.value_or(42), 5ul);
 
     safe_discard(circular_buffer, 5);
 
-    result = circular_buffer.offset_of("Hello Friends!"sv, 0, 14);
+    result = circular_buffer.offset_of("Hello Friends!"_sv, 0, 14);
     EXPECT_EQ(result.value_or(42), 0ul);
 
     written_bytes = circular_buffer.write(byte_buffer.span().trim(5));
     EXPECT_EQ(written_bytes, 5ul);
 
-    result = circular_buffer.offset_of("Well "sv, 14, 19);
+    result = circular_buffer.offset_of("Well "_sv, 14, 19);
     EXPECT_EQ(result.value_or(42), 14ul);
 }
 
 TEST_CASE(find_copy_in_seekback)
 {
-    auto haystack = "ABABCABCDAB"sv.bytes();
-    auto needle = "ABCD"sv.bytes();
+    auto haystack = "ABABCABCDAB"_sv.bytes();
+    auto needle = "ABCD"_sv.bytes();
 
     // Set up the buffer for testing.
     auto buffer = MUST(SearchableCircularBuffer::create_empty(haystack.size() + needle.size()));
@@ -432,7 +432,7 @@ BENCHMARK_CASE(looping_copy_from_seekback)
     auto circular_buffer = MUST(CircularBuffer::create_empty(16 * MiB));
 
     {
-        auto written_bytes = circular_buffer.write("\0"sv.bytes());
+        auto written_bytes = circular_buffer.write("\0"_sv.bytes());
         EXPECT_EQ(written_bytes, 1ul);
     }
 

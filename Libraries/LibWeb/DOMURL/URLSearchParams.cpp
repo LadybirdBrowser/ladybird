@@ -52,7 +52,7 @@ String url_encode(Vector<QueryParam> const& tuples, StringView encoding)
     auto encoder = TextCodec::encoder_for(encoding);
     if (!encoder.has_value()) {
         // NOTE: Fallback to default utf-8 encoder.
-        encoder = TextCodec::encoder_for("utf-8"sv);
+        encoder = TextCodec::encoder_for("utf-8"_sv);
     }
 
     // 2. Let output be the empty string.
@@ -109,12 +109,12 @@ Vector<QueryParam> url_decode(StringView input)
         // 3. Otherwise, let name have the value of bytes and let value be the empty byte sequence.
         else {
             name = bytes;
-            value = ""sv;
+            value = ""_sv;
         }
 
         // 4. Replace any 0x2B (+) in name and value with 0x20 (SP).
-        auto space_decoded_name = name.replace("+"sv, " "sv, ReplaceMode::All);
-        auto space_decoded_value = value.replace("+"sv, " "sv, ReplaceMode::All);
+        auto space_decoded_name = name.replace("+"_sv, " "_sv, ReplaceMode::All);
+        auto space_decoded_value = value.replace("+"_sv, " "_sv, ReplaceMode::All);
 
         // 5. Let nameString and valueString be the result of running UTF-8 decode without BOM on the percent-decoding of name and value, respectively.
         auto name_string = String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_name), String::WithBOMHandling::No);

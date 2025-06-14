@@ -17,7 +17,7 @@ namespace JS {
 
 class Lexer {
 public:
-    explicit Lexer(StringView source, StringView filename = "(unknown)"sv, size_t line_number = 1, size_t line_column = 0);
+    explicit Lexer(StringView source, StringView filename = "(unknown)"_sv, size_t line_number = 1, size_t line_column = 0);
 
     Token next();
 

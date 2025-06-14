@@ -24,7 +24,7 @@ public:
 
     Percentage const& percentage() const { return m_percentage; }
     virtual double value() const override { return m_percentage.value(); }
-    virtual StringView unit() const override { return "percent"sv; }
+    virtual StringView unit() const override { return "percent"_sv; }
 
     virtual String to_string(SerializationMode) const override { return m_percentage.to_string(); }
 

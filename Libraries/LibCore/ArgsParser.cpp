@@ -46,7 +46,7 @@ bool ArgsParser::parse(Span<StringView> arguments, FailureBehavior failure_behav
     };
 
     if (arguments.is_empty()) {
-        fail_impl("<exe>"sv);
+        fail_impl("<exe>"_sv);
         return false;
     }
 
@@ -221,7 +221,7 @@ void ArgsParser::print_usage_terminal(FILE* file, StringView argv0)
         if (opt.argument_mode == OptionArgumentMode::Required)
             out(file, " [{} {}]", opt.name_for_display(), opt.value_name);
         else if (opt.argument_mode == OptionArgumentMode::Optional)
-            out(file, " [{}[{}{}]]", opt.name_for_display(), opt.long_name ? "="sv : ""sv, opt.value_name);
+            out(file, " [{}[{}{}]]", opt.name_for_display(), opt.long_name ? "="_sv : ""_sv, opt.value_name);
         else
             out(file, " [{}]", opt.name_for_display());
     }
@@ -262,13 +262,13 @@ void ArgsParser::print_usage_terminal(FILE* file, StringView argv0)
         out(file, "\t");
         if (opt.short_name) {
             out(file, "\033[1m-{}\033[0m", opt.short_name);
-            print_argument(""sv);
+            print_argument(""_sv);
         }
         if (opt.short_name && opt.long_name)
             out(file, ", ");
         if (opt.long_name) {
             out(file, "\033[1m--{}\033[0m", opt.long_name);
-            print_argument("="sv);
+            print_argument("="_sv);
         }
 
         if (opt.help_string)
@@ -302,7 +302,7 @@ void ArgsParser::print_usage_markdown(FILE* file, StringView argv0)
         if (opt.argument_mode == OptionArgumentMode::Required)
             out(file, " [{} {}]", opt.name_for_display(), opt.value_name ?: "");
         else if (opt.argument_mode == OptionArgumentMode::Optional)
-            out(file, " [{}[{}{}]]", opt.name_for_display(), opt.long_name ? "="sv : ""sv, opt.value_name);
+            out(file, " [{}[{}{}]]", opt.name_for_display(), opt.long_name ? "="_sv : ""_sv, opt.value_name);
         else
             out(file, " [{}]", opt.name_for_display());
     }
@@ -353,14 +353,14 @@ void ArgsParser::print_usage_markdown(FILE* file, StringView argv0)
         out(file, "* ");
         if (opt.short_name != '\0') {
             out(file, "`-{}", opt.short_name);
-            print_argument(""sv);
+            print_argument(""_sv);
             out(file, "`");
         }
         if (opt.short_name != '\0' && opt.long_name != nullptr)
             out(file, ", ");
         if (opt.long_name != nullptr) {
             out(file, "`--{}", opt.long_name);
-            print_argument("="sv);
+            print_argument("="_sv);
             out(file, "`");
         }
 
@@ -701,7 +701,7 @@ void ArgsParser::autocomplete(FILE* file, StringView program_name, ReadonlySpan<
             continue;
         }
 
-        if (argument.starts_with("--"sv)) {
+        if (argument.starts_with("--"_sv)) {
             option_to_complete = argument;
             completing_option = true;
 
@@ -749,15 +749,15 @@ void ArgsParser::autocomplete(FILE* file, StringView program_name, ReadonlySpan<
 
     auto write_completion = [&](auto format, auto& option, auto has_invariant, auto... args) {
         JsonObject object;
-        object.set("completion"sv, MUST(String::formatted(StringView { format, strlen(format) }, args...)));
-        object.set("static_offset"sv, 0);
-        object.set("invariant_offset"sv, has_invariant ? option_to_complete.length() : 0u);
-        object.set("display_trivia"sv, StringView { option.help_string, strlen(option.help_string) });
-        object.set("trailing_trivia"sv, option.argument_mode == OptionArgumentMode::Required ? " "sv : ""sv);
+        object.set("completion"_sv, MUST(String::formatted(StringView { format, strlen(format) }, args...)));
+        object.set("static_offset"_sv, 0);
+        object.set("invariant_offset"_sv, has_invariant ? option_to_complete.length() : 0u);
+        object.set("display_trivia"_sv, StringView { option.help_string, strlen(option.help_string) });
+        object.set("trailing_trivia"_sv, option.argument_mode == OptionArgumentMode::Required ? " "_sv : ""_sv);
         outln(file, "{}", object.serialized());
     };
 
-    if (option_to_complete.starts_with("--"sv)) {
+    if (option_to_complete.starts_with("--"_sv)) {
         // Complete a long option.
         auto option_pattern = option_to_complete.substring_view(2);
         for (auto& option : m_options) {

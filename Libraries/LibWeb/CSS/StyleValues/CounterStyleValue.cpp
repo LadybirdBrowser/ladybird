@@ -138,11 +138,11 @@ String CounterStyleValue::to_string(SerializationMode mode) const
 
     // 2. If <counter> has three CSS component values append the string "counters(" to s.
     if (m_properties.function == CounterFunction::Counters)
-        s.append("counters("sv);
+        s.append("counters("_sv);
 
     // 3. If <counter> has two CSS component values append the string "counter(" to s.
     else if (m_properties.function == CounterFunction::Counter)
-        s.append("counter("sv);
+        s.append("counter("_sv);
 
     // 4. Let list be a list of CSS component values belonging to <counter>,
     //    omitting the last CSS component value if it is "decimal".
@@ -150,7 +150,7 @@ String CounterStyleValue::to_string(SerializationMode mode) const
     list.append(CustomIdentStyleValue::create(m_properties.counter_name));
     if (m_properties.function == CounterFunction::Counters)
         list.append(StringStyleValue::create(m_properties.join_string.to_string()));
-    if (m_properties.counter_style->to_string(mode) != "decimal"sv)
+    if (m_properties.counter_style->to_string(mode) != "decimal"_sv)
         list.append(m_properties.counter_style);
 
     // 5. Let each item in list be the result of invoking serialize a CSS component value on that item.
@@ -160,7 +160,7 @@ String CounterStyleValue::to_string(SerializationMode mode) const
     });
 
     // 7. Append ")" (U+0029) to s.
-    s.append(")"sv);
+    s.append(")"_sv);
 
     // 8. Return s.
     return MUST(s.to_string());

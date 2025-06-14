@@ -33,7 +33,7 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
 {
     if (!s_font_manager) {
 #ifdef AK_OS_MACOS
-        if (Gfx::FontDatabase::the().system_font_provider_name() != "FontConfig"sv) {
+        if (Gfx::FontDatabase::the().system_font_provider_name() != "FontConfig"_sv) {
             s_font_manager = SkFontMgr_New_CoreText(nullptr);
         }
 #endif

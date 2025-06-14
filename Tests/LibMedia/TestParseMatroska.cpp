@@ -10,7 +10,7 @@
 
 TEST_CASE(master_elements_containing_crc32)
 {
-    auto matroska_reader = MUST(Media::Matroska::Reader::from_file("master_elements_containing_crc32.mkv"sv));
+    auto matroska_reader = MUST(Media::Matroska::Reader::from_file("master_elements_containing_crc32.mkv"_sv));
     u64 video_track = 0;
     MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Video, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
         video_track = track_entry.track_number();

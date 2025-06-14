@@ -392,7 +392,7 @@ void Editor::enter_search()
             return false;
         });
 
-        auto search_prompt = "\x1b[32msearch:\x1b[0m "sv;
+        auto search_prompt = "\x1b[32msearch:\x1b[0m "_sv;
 
         // While the search editor is active, we do not want editing events.
         m_is_editing = false;

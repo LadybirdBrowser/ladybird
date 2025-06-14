@@ -20,7 +20,7 @@ struct TabDescription {
 
 class TabActor final : public Actor {
 public:
-    static constexpr auto base_name = "tab"sv;
+    static constexpr auto base_name = "tab"_sv;
 
     static NonnullRefPtr<TabActor> create(DevToolsServer&, String name, TabDescription);
     virtual ~TabActor() override;

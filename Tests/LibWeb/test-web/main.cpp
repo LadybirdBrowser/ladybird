@@ -40,22 +40,22 @@ static constexpr StringView test_result_to_string(TestResult result)
 {
     switch (result) {
     case TestResult::Pass:
-        return "Pass"sv;
+        return "Pass"_sv;
     case TestResult::Fail:
-        return "Fail"sv;
+        return "Fail"_sv;
     case TestResult::Skipped:
-        return "Skipped"sv;
+        return "Skipped"_sv;
     case TestResult::Timeout:
-        return "Timeout"sv;
+        return "Timeout"_sv;
     case TestResult::Crashed:
-        return "Crashed"sv;
+        return "Crashed"_sv;
     }
     VERIFY_NOT_REACHED();
 }
 
 static ErrorOr<void> load_test_config(StringView test_root_path)
 {
-    auto config_path = LexicalPath::join(test_root_path, "TestConfig.ini"sv);
+    auto config_path = LexicalPath::join(test_root_path, "TestConfig.ini"_sv);
     auto config_or_error = Core::ConfigFile::open(config_path.string());
 
     if (config_or_error.is_error()) {
@@ -68,7 +68,7 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     auto config = config_or_error.release_value();
 
     for (auto const& group : config->groups()) {
-        if (group == "Skipped"sv) {
+        if (group == "Skipped"_sv) {
             for (auto& key : config->keys(group))
                 s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
         } else {
@@ -81,7 +81,7 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
 
 static bool is_valid_test_name(StringView test_name)
 {
-    auto valid_test_file_suffixes = { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv };
+    auto valid_test_file_suffixes = { ".htm"_sv, ".html"_sv, ".svg"_sv, ".xhtml"_sv, ".xht"_sv };
     return AK::any_of(valid_test_file_suffixes, [&](auto suffix) { return test_name.ends_with(suffix); });
 }
 
@@ -187,8 +187,8 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
         if (auto expectation_file = open_expectation_file(Core::File::OpenMode::Read); !expectation_file.is_error()) {
             expectation = TRY(expectation_file.value()->read_until_eof());
 
-            auto result_trimmed = StringView { test.text }.trim("\n"sv, TrimMode::Right);
-            auto expectation_trimmed = StringView { expectation }.trim("\n"sv, TrimMode::Right);
+            auto result_trimmed = StringView { test.text }.trim("\n"_sv, TrimMode::Right);
+            auto expectation_trimmed = StringView { expectation }.trim("\n"_sv, TrimMode::Right);
 
             if (result_trimmed == expectation_trimmed)
                 return TestResult::Pass;
@@ -359,7 +359,7 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
                 return {};
             };
 
-            TRY(Core::Directory::create("test-dumps"sv, Core::Directory::CreateDirectories::Yes));
+            TRY(Core::Directory::create("test-dumps"_sv, Core::Directory::CreateDirectories::Yes));
 
             auto title = LexicalPath::title(URL::percent_decode(url.serialize_path()));
             TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("test-dumps/{}.png", title)));
@@ -392,7 +392,7 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
 
     view.on_test_finish = [&view, &test, on_test_complete = move(on_test_complete)](auto const&) {
         if (test.actual_screenshot) {
-            if (view.url().query().has_value() && view.url().query()->equals_ignoring_ascii_case("mismatch"sv)) {
+            if (view.url().query().has_value() && view.url().query()->equals_ignoring_ascii_case("mismatch"_sv)) {
                 test.ref_test_expectation_type = RefTestExpectationType::Mismatch;
             } else {
                 test.ref_test_expectation_type = RefTestExpectationType::Match;
@@ -476,30 +476,30 @@ static void set_ui_callbacks_for_tests(TestWebView& view)
             filter.visit(
                 [](Web::HTML::FileFilter::FileType) {},
                 [&](Web::HTML::FileFilter::MimeType const& mime_type) {
-                    if (mime_type.value == "text/plain"sv)
+                    if (mime_type.value == "text/plain"_sv)
                         add_txt_files = true;
                 },
                 [&](Web::HTML::FileFilter::Extension const& extension) {
-                    if (extension.value == "cpp"sv)
+                    if (extension.value == "cpp"_sv)
                         add_cpp_files = true;
                 });
         }
 
         if (add_txt_files) {
-            selected_files.empend("file1"sv, MUST(ByteBuffer::copy("Contents for file1"sv.bytes())));
+            selected_files.empend("file1"_sv, MUST(ByteBuffer::copy("Contents for file1"_sv.bytes())));
 
             if (allow_multiple_files == Web::HTML::AllowMultipleFiles::Yes) {
-                selected_files.empend("file2"sv, MUST(ByteBuffer::copy("Contents for file2"sv.bytes())));
-                selected_files.empend("file3"sv, MUST(ByteBuffer::copy("Contents for file3"sv.bytes())));
-                selected_files.empend("file4"sv, MUST(ByteBuffer::copy("Contents for file4"sv.bytes())));
+                selected_files.empend("file2"_sv, MUST(ByteBuffer::copy("Contents for file2"_sv.bytes())));
+                selected_files.empend("file3"_sv, MUST(ByteBuffer::copy("Contents for file3"_sv.bytes())));
+                selected_files.empend("file4"_sv, MUST(ByteBuffer::copy("Contents for file4"_sv.bytes())));
             }
         }
 
         if (add_cpp_files) {
-            selected_files.empend("file1.cpp"sv, MUST(ByteBuffer::copy("int main() {{ return 1; }}"sv.bytes())));
+            selected_files.empend("file1.cpp"_sv, MUST(ByteBuffer::copy("int main() {{ return 1; }}"_sv.bytes())));
 
             if (allow_multiple_files == Web::HTML::AllowMultipleFiles::Yes) {
-                selected_files.empend("file2.cpp"sv, MUST(ByteBuffer::copy("int main() {{ return 2; }}"sv.bytes())));
+                selected_files.empend("file2.cpp"_sv, MUST(ByteBuffer::copy("int main() {{ return 2; }}"_sv.bytes())));
             }
         }
 
@@ -522,21 +522,21 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     for (auto& glob : app.test_globs)
         glob = ByteString::formatted("*{}*", glob);
     if (app.test_globs.is_empty())
-        app.test_globs.append("*"sv);
+        app.test_globs.append("*"_sv);
 
-    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
-    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
-    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
-    TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
+    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."_sv, TestMode::Layout));
+    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."_sv, TestMode::Text));
+    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."_sv));
+    TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."_sv));
 #if defined(AK_OS_LINUX) && ARCH(X86_64)
-    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
+    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."_sv));
 #endif
 
     tests.remove_all_matching([&](auto const& test) {
         static constexpr Array support_file_patterns {
-            "*/wpt-import/*/support/*"sv,
-            "*/wpt-import/*/resources/*"sv,
-            "*/wpt-import/common/*"sv,
+            "*/wpt-import/*/support/*"_sv,
+            "*/wpt-import/*/resources/*"_sv,
+            "*/wpt-import/common/*"_sv,
         };
         bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test.input_path.matches(pattern); });
         bool match_glob = any_of(app.test_globs, [&](auto const& glob) { return test.relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
@@ -716,7 +716,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto app = TRY(TestWeb::Application::create(arguments, OptionalNone {}));
 #endif
 
-    auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
+    auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"_sv, "Default.ini"_sv);
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
 
     auto const& browser_options = TestWeb::Application::browser_options();

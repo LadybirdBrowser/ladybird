@@ -456,18 +456,18 @@ int CSSStyleValue::to_font_slope() const
     if (is_font_style()) {
         switch (as_font_style().font_style()) {
         case FontStyle::Italic:
-            static int italic_slope = Gfx::name_to_slope("Italic"sv);
+            static int italic_slope = Gfx::name_to_slope("Italic"_sv);
             return italic_slope;
         case FontStyle::Oblique:
-            static int oblique_slope = Gfx::name_to_slope("Oblique"sv);
+            static int oblique_slope = Gfx::name_to_slope("Oblique"_sv);
             return oblique_slope;
         case FontStyle::Normal:
         default:
-            static int normal_slope = Gfx::name_to_slope("Normal"sv);
+            static int normal_slope = Gfx::name_to_slope("Normal"_sv);
             return normal_slope;
         }
     }
-    static int normal_slope = Gfx::name_to_slope("Normal"sv);
+    static int normal_slope = Gfx::name_to_slope("Normal"_sv);
     return normal_slope;
 }
 

@@ -176,7 +176,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             }
         }
         // 9. Otherwise, if the field element is an input element whose type attribute is in the Hidden state and name is an ASCII case-insensitive match for "_charset_":
-        else if (auto* hidden_input = dynamic_cast<HTML::HTMLInputElement*>(control.ptr()); hidden_input && hidden_input->type_state() == HTMLInputElement::TypeAttributeState::Hidden && name.equals_ignoring_ascii_case("_charset_"sv)) {
+        else if (auto* hidden_input = dynamic_cast<HTML::HTMLInputElement*>(control.ptr()); hidden_input && hidden_input->type_state() == HTMLInputElement::TypeAttributeState::Hidden && name.equals_ignoring_ascii_case("_charset_"_sv)) {
             // 1. Let charset be the name of encoding if encoding is given, and "UTF-8" otherwise.
             auto charset = encoding.has_value() ? encoding.value() : "UTF-8"_string;
 
@@ -194,7 +194,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             String dirname = attribute.value();
 
             // 2. Let dir be the string "ltr" if the directionality of the element is 'ltr', and "rtl" otherwise (i.e., when the directionality of the element is 'rtl').
-            String dir = MUST((control->directionality() == DOM::Element::Directionality::Ltr) ? String::from_utf8("ltr"sv) : String::from_utf8("rtl"sv));
+            String dir = MUST((control->directionality() == DOM::Element::Directionality::Ltr) ? String::from_utf8("ltr"_sv) : String::from_utf8("rtl"_sv));
 
             // 3. Create an entry with dirname and dir, and append it to entry list.
             entry_list.append(TRY(create_entry(realm, dirname, dir)));
@@ -224,9 +224,9 @@ ErrorOr<String> normalize_line_breaks(StringView value)
     StringBuilder builder;
     GenericLexer lexer { value };
     while (!lexer.is_eof()) {
-        TRY(builder.try_append(lexer.consume_until(is_any_of("\r\n"sv))));
+        TRY(builder.try_append(lexer.consume_until(is_any_of("\r\n"_sv))));
         if ((lexer.peek() == '\r' && lexer.peek(1) != '\n') || lexer.peek() == '\n') {
-            TRY(builder.try_append("\r\n"sv));
+            TRY(builder.try_append("\r\n"_sv));
             lexer.ignore(1);
         } else {
             lexer.ignore(2);
@@ -242,16 +242,16 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(Vector<XHR::FormDat
         StringBuilder builder;
         GenericLexer lexer { value };
         while (!lexer.is_eof()) {
-            TRY(builder.try_append(lexer.consume_until(is_any_of("\r\n\""sv))));
+            TRY(builder.try_append(lexer.consume_until(is_any_of("\r\n\""_sv))));
             switch (lexer.peek()) {
             case '\r':
-                TRY(builder.try_append("%0D"sv));
+                TRY(builder.try_append("%0D"_sv));
                 break;
             case '\n':
-                TRY(builder.try_append("%0A"sv));
+                TRY(builder.try_append("%0A"_sv));
                 break;
             case '\"':
-                TRY(builder.try_append("%22"sv));
+                TRY(builder.try_append("%22"_sv));
                 break;
             }
             lexer.ignore(1);
@@ -283,10 +283,10 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(Vector<XHR::FormDat
                 if (!file->type().is_empty()) {
                     TRY(builder.try_append(TRY(String::formatted("Content-Type: {}\r\n\r\n", file->type()))));
                 } else {
-                    TRY(builder.try_append("Content-Type: application/octet-stream\r\n\r\n"sv));
+                    TRY(builder.try_append("Content-Type: application/octet-stream\r\n\r\n"_sv));
                 }
                 TRY(builder.try_append(file->raw_bytes()));
-                TRY(builder.try_append("\r\n"sv));
+                TRY(builder.try_append("\r\n"_sv));
                 return {};
             },
             [&](String const& string) -> ErrorOr<void> {

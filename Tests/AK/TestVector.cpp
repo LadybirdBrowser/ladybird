@@ -76,8 +76,8 @@ TEST_CASE(strings_insert_ordered)
     strings.append("def");
     strings.append("ghi");
 
-    strings.insert_before_matching("f-g"sv, [](auto& entry) {
-        return "f-g"sv < entry;
+    strings.insert_before_matching("f-g"_sv, [](auto& entry) {
+        return "f-g"_sv < entry;
     });
 
     EXPECT_EQ(strings[0], "abc");
@@ -447,7 +447,7 @@ TEST_CASE(should_find_using_a_hashcompatible_value)
 {
     // Tests whether a hash-compatible value can be used to compare (Strings cannot be impliticly constructed from a StringView.)
     Vector v { "hello!"_string };
-    EXPECT(v.contains_slow("hello!"sv));
+    EXPECT(v.contains_slow("hello!"_sv));
 }
 
 TEST_CASE(should_contain_start)

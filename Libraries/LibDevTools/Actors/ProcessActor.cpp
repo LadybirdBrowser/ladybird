@@ -30,15 +30,15 @@ void ProcessActor::handle_message(Message const& message)
 JsonObject ProcessActor::serialize_description() const
 {
     JsonObject traits;
-    traits.set("watcher"sv, m_description.is_parent);
-    traits.set("supportsReloadDescriptor"sv, true);
+    traits.set("watcher"_sv, m_description.is_parent);
+    traits.set("supportsReloadDescriptor"_sv, true);
 
     JsonObject description;
-    description.set("actor"sv, name());
-    description.set("id"sv, m_description.id);
-    description.set("isParent"sv, m_description.is_parent);
-    description.set("isWindowlessParent"sv, m_description.is_windowless_parent);
-    description.set("traits"sv, move(traits));
+    description.set("actor"_sv, name());
+    description.set("id"_sv, m_description.id);
+    description.set("isParent"_sv, m_description.is_parent);
+    description.set("isWindowlessParent"_sv, m_description.is_windowless_parent);
+    description.set("traits"_sv, move(traits));
     return description;
 }
 

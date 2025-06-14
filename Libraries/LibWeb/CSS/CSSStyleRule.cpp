@@ -56,7 +56,7 @@ String CSSStyleRule::serialized() const
     // 1. Let s initially be the result of performing serialize a group of selectors on the rule’s associated selectors,
     //    followed by the string " {", i.e., a single SPACE (U+0020), followed by LEFT CURLY BRACKET (U+007B).
     builder.append(serialize_a_group_of_selectors(selectors()));
-    builder.append(" {"sv);
+    builder.append(" {"_sv);
 
     // 2. Let decls be the result of performing serialize a CSS declaration block on the rule’s associated declarations,
     //    or null if there are no such declarations.
@@ -71,7 +71,7 @@ String CSSStyleRule::serialized() const
 
     // 4. If decls and rules are both null, append " }" to s (i.e. a single SPACE (U+0020) followed by RIGHT CURLY BRACKET (U+007D)) and return s.
     if (!decls.has_value() && rules.is_empty()) {
-        builder.append(" }"sv);
+        builder.append(" }"_sv);
         return builder.to_string_without_validation();
     }
 
@@ -82,7 +82,7 @@ String CSSStyleRule::serialized() const
         // 2. Append decls to s
         builder.append(*decls);
         // 3. Append " }" to s (i.e. a single SPACE (U+0020) followed by RIGHT CURLY BRACKET (U+007D)).
-        builder.append(" }"sv);
+        builder.append(" }"_sv);
         // 4. Return s.
         return builder.to_string_without_validation();
     }
@@ -106,7 +106,7 @@ String CSSStyleRule::serialized() const
         }
 
         // 3. Append a newline followed by RIGHT CURLY BRACKET (U+007D) to s.
-        builder.append("\n}"sv);
+        builder.append("\n}"_sv);
 
         // 4. Return s.
         return builder.to_string_without_validation();

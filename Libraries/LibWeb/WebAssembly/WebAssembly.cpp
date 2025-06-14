@@ -225,7 +225,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
     // https://webassembly.github.io/spec/js-api/index.html#read-the-imports
     // 1. If module.imports is not empty, and importObject is undefined, throw a TypeError exception.
     if (!module.import_section().imports().is_empty() && !import_object) {
-        return vm.throw_completion<JS::TypeError>("ImportObject must be provided when module has imports"sv);
+        return vm.throw_completion<JS::TypeError>("ImportObject must be provided when module has imports"_sv);
     }
     // 2. Let imports be « ».
     HashMap<Wasm::Linker::Name, Wasm::ExternValue> resolved_imports;
@@ -327,17 +327,17 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                         // 3.5.1.1. If valtype is i64 and v is a Number,
                         if (import_.is_number() && type.type().kind() == Wasm::ValueType::I64) {
                             // 3.5.1.1.1. Throw a LinkError exception.
-                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number to a BigInteger"sv);
+                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number to a BigInteger"_sv);
                         }
                         // 3.5.1.2. If valtype is not i64 and v is a BigInt,
                         if (import_.is_bigint() && type.type().kind() != Wasm::ValueType::I64) {
                             // 3.5.1.2.1. Throw a LinkError exception.
-                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a BigInteger to a Number"sv);
+                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a BigInteger to a Number"_sv);
                         }
                         // 3.5.1.3. If valtype is v128,
                         if (type.type().kind() == Wasm::ValueType::V128) {
                             // 3.5.1.3.1. Throw a LinkError exception.
-                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number or BigInt to a V128"sv);
+                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number or BigInt to a V128"_sv);
                         }
                         // 3.5.1.4. Let value be ToWebAssemblyValue(v, valtype).
                         auto cast_value = TRY(to_webassembly_value(vm, import_, type.type()));
@@ -351,7 +351,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     // 3.5.3. Otherwise,
                     else {
                         // 3.5.3.1. Throw a LinkError exception.
-                        return vm.throw_completion<LinkError>("Invalid value for global type"sv);
+                        return vm.throw_completion<LinkError>("Invalid value for global type"_sv);
                     }
 
                     // 3.5.4. Let externglobal be global globaladdr.
@@ -363,7 +363,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 [&](Wasm::MemoryType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.6.1. If v does not implement Memory, throw a LinkError exception.
                     if (!import_.is_object() || !is<WebAssembly::Memory>(import_.as_object())) {
-                        return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
+                        return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"_sv);
                     }
                     // 3.6.2. Let externmem be the external value mem v.[[Memory]].
                     auto address = static_cast<WebAssembly::Memory const&>(import_.as_object()).address();
@@ -375,7 +375,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 [&](Wasm::TableType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.7.1. If v does not implement Table, throw a LinkError exception.
                     if (!import_.is_object() || !is<WebAssembly::Table>(import_.as_object())) {
-                        return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
+                        return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"_sv);
                     }
                     // 3.7.2. Let tableaddr be v.[[Table]].
                     // 3.7.3. Let externtable be the external value table tableaddr.
@@ -396,7 +396,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
     auto link_result = linker.finish();
     if (link_result.is_error()) {
         StringBuilder builder;
-        builder.append("Missing "sv);
+        builder.append("Missing "_sv);
         builder.join(' ', link_result.error().missing_imports);
         return vm.throw_completion<LinkError>(MUST(builder.to_string()));
     }
@@ -559,7 +559,7 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
         return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { extern_addr } } };
     }
     case Wasm::ValueType::V128:
-        return vm.throw_completion<JS::TypeError>("Cannot convert a vector value to a javascript value"sv);
+        return vm.throw_completion<JS::TypeError>("Cannot convert a vector value to a javascript value"_sv);
     }
 
     VERIFY_NOT_REACHED();
@@ -810,20 +810,20 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         // 5. If mimeType is not a byte-case-insensitive match for `application/wasm`, reject returnValue with a TypeError and abort these substeps.
         // Note: extra parameters are not allowed, including the empty `application/wasm;`.
         // FIXME: Validate these extra constraints that are not checked by extract_mime_type()
-        if (auto mime = response->header_list()->extract_mime_type(); !mime.has_value() || mime.value().essence() != "application/wasm"sv) {
-            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response does not match the application/wasm MIME type"sv).value());
+        if (auto mime = response->header_list()->extract_mime_type(); !mime.has_value() || mime.value().essence() != "application/wasm"_sv) {
+            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response does not match the application/wasm MIME type"_sv).value());
             return JS::js_undefined();
         }
 
         // 6. If response is not CORS-same-origin, reject returnValue with a TypeError and abort these substeps.
         if (!response->is_cors_same_origin()) {
-            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response is not CORS-same-origin"sv).value());
+            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response is not CORS-same-origin"_sv).value());
             return JS::js_undefined();
         }
 
         // 7. If response’s status is not an ok status, reject returnValue with a TypeError and abort these substeps.
         if (!response_object.ok()) {
-            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response does not represent an ok status"sv).value());
+            WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>("Response does not represent an ok status"_sv).value());
             return JS::js_undefined();
         }
 

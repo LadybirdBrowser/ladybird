@@ -80,13 +80,13 @@ public:
     void trim(size_t count);
 
     template<class SeparatorType, class CollectionType>
-    void join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"sv)
+    void join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"_sv)
     {
         MUST(try_join(separator, collection, fmtstr));
     }
 
     template<class SeparatorType, class CollectionType>
-    ErrorOr<void> try_join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"sv)
+    ErrorOr<void> try_join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"_sv)
     {
         bool first = true;
         for (auto& item : collection) {

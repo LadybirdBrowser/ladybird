@@ -45,7 +45,7 @@ ErrorOr<int> open(StringView path, int options, mode_t mode)
     ByteString str = path;
     int fd = _open(str.characters(), options | O_BINARY | _O_OBTAIN_DIR, mode);
     if (fd < 0)
-        return Error::from_syscall("open"sv, errno);
+        return Error::from_syscall("open"_sv, errno);
     ScopeGuard guard = [&] { _close(fd); };
     return dup(_get_osfhandle(fd));
 }
@@ -105,7 +105,7 @@ ErrorOr<struct stat> fstat(int handle)
     int fd = _open_osfhandle(TRY(dup(handle)), 0);
     ScopeGuard guard = [&] { _close(fd); };
     if (::fstat(fd, &st) < 0)
-        return Error::from_syscall("fstat"sv, errno);
+        return Error::from_syscall("fstat"_sv, errno);
     return st;
 }
 
@@ -119,7 +119,7 @@ ErrorOr<ByteString> getcwd()
 {
     auto* cwd = _getcwd(nullptr, 0);
     if (!cwd)
-        return Error::from_syscall("getcwd"sv, errno);
+        return Error::from_syscall("getcwd"_sv, errno);
 
     ByteString string_cwd(cwd);
     free(cwd);
@@ -133,19 +133,19 @@ ErrorOr<void> chdir(StringView path)
 
     ByteString path_string = path;
     if (::_chdir(path_string.characters()) < 0)
-        return Error::from_syscall("chdir"sv, errno);
+        return Error::from_syscall("chdir"_sv, errno);
     return {};
 }
 
 ErrorOr<struct stat> stat(StringView path)
 {
     if (path.is_null())
-        return Error::from_syscall("stat"sv, EFAULT);
+        return Error::from_syscall("stat"_sv, EFAULT);
 
     struct stat st = {};
     ByteString path_string = path;
     if (::stat(path_string.characters(), &st) < 0)
-        return Error::from_syscall("stat"sv, errno);
+        return Error::from_syscall("stat"_sv, errno);
     return st;
 }
 
@@ -156,7 +156,7 @@ ErrorOr<void> rmdir(StringView path)
 
     ByteString path_string = path;
     if (_rmdir(path_string.characters()) < 0)
-        return Error::from_syscall("rmdir"sv, errno);
+        return Error::from_syscall("rmdir"_sv, errno);
     return {};
 }
 
@@ -167,7 +167,7 @@ ErrorOr<void> unlink(StringView path)
 
     ByteString path_string = path;
     if (_unlink(path_string.characters()) < 0)
-        return Error::from_syscall("unlink"sv, errno);
+        return Error::from_syscall("unlink"_sv, errno);
     return {};
 }
 
@@ -175,7 +175,7 @@ ErrorOr<void> mkdir(StringView path, mode_t)
 {
     ByteString str = path;
     if (_mkdir(str.characters()) < 0)
-        return Error::from_syscall("mkdir"sv, errno);
+        return Error::from_syscall("mkdir"_sv, errno);
     return {};
 }
 
@@ -199,14 +199,14 @@ ErrorOr<void*> mmap(void* address, size_t size, int protection, int flags, int f
     ScopeGuard guard = [&] { _close(fd); };
     void* ptr = ::mmap(address, size, protection, flags, fd, offset);
     if (ptr == MAP_FAILED)
-        return Error::from_syscall("mmap"sv, errno);
+        return Error::from_syscall("mmap"_sv, errno);
     return ptr;
 }
 
 ErrorOr<void> munmap(void* address, size_t size)
 {
     if (::munmap(address, size) < 0)
-        return Error::from_syscall("munmap"sv, errno);
+        return Error::from_syscall("munmap"_sv, errno);
     return {};
 }
 

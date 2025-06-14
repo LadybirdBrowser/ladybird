@@ -47,7 +47,7 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
     // 1. If the implementation is an endpoint node, and the list of active HTTP sessions is not empty, or otherwise if
     //    the implementation is unable to start an additional session, return error with error code session not created.
     if (Session::session_count(Web::WebDriver::SessionFlags::Http) > 0)
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "There is already an active HTTP session"sv);
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "There is already an active HTTP session"_sv);
 
     // FIXME: 2. If the remote end is an intermediary node, take implementation-defined steps that either result in returning
     //           an error with error code session not created, or in returning a success with data that is isomorphic to that
@@ -63,7 +63,7 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
 
     // 5. If capabilities's is null, return error with error code session not created.
     if (capabilities.is_null())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "Could not match capabilities"sv);
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "Could not match capabilities"_sv);
 
     // 6. Let session be the result of create a session, with capabilities, and flags.
     auto maybe_session = Session::create(*this, capabilities.as_object(), flags);
@@ -76,10 +76,10 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
     JsonObject body;
     // "sessionId"
     //     session's session ID.
-    body.set("sessionId"sv, JsonValue { session->session_id() });
+    body.set("sessionId"_sv, JsonValue { session->session_id() });
     // "capabilities"
     //     capabilities
-    body.set("capabilities"sv, move(capabilities));
+    body.set("capabilities"_sv, move(capabilities));
 
     // 8. Set session' current top-level browsing context to one of the endpoint node's top-level browsing contexts,
     //    preferring the top-level browsing context that has system focus, or otherwise preferring any top-level
@@ -130,8 +130,8 @@ Web::WebDriver::Response Client::get_status(Web::WebDriver::Parameters, JsonValu
     //    "message"
     //        An implementation-defined string explaining the remote end's readiness state.
     JsonObject body;
-    body.set("ready"sv, readiness_state);
-    body.set("message"sv, MUST(String::formatted("{} to accept a new session", readiness_state ? "Ready"sv : "Not ready"sv)));
+    body.set("ready"_sv, readiness_state);
+    body.set("message"_sv, MUST(String::formatted("{} to accept a new session", readiness_state ? "Ready"_sv : "Not ready"_sv)));
 
     // 2. Return success with data body.
     return JsonValue { body };
@@ -258,14 +258,14 @@ Web::WebDriver::Response Client::switch_to_window(Web::WebDriver::Parameters par
     auto session = TRY(Session::find_session(parameters[0], Web::WebDriver::SessionFlags::Default, Session::AllowInvalidWindowHandle::Yes));
 
     if (!payload.is_object())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"sv);
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"_sv);
 
     // 1. Let handle be the result of getting the property "handle" from the parameters argument.
-    auto handle = payload.as_object().get("handle"sv);
+    auto handle = payload.as_object().get("handle"_sv);
 
     // 2. If handle is undefined, return error with error code invalid argument.
     if (!handle.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "No property called 'handle' present"sv);
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "No property called 'handle' present"_sv);
 
     return session->switch_to_window(handle->as_string());
 }
@@ -295,12 +295,12 @@ Web::WebDriver::Response Client::new_window(Web::WebDriver::Parameters parameter
     auto timer = Core::Timer::create_single_shot(CONNECTION_TIMEOUT_MS, [&timeout_fired] { timeout_fired = true; });
     timer->start();
 
-    Core::EventLoop::current().spin_until([&session, &timeout_fired, handle = handle.as_object().get("handle"sv)->as_string()]() {
+    Core::EventLoop::current().spin_until([&session, &timeout_fired, handle = handle.as_object().get("handle"_sv)->as_string()]() {
         return session->has_window_handle(handle) || timeout_fired;
     });
 
     if (timeout_fired)
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Timed out waiting for window handle"sv);
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Timed out waiting for window handle"_sv);
 
     return handle;
 }

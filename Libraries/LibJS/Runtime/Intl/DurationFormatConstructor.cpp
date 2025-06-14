@@ -80,7 +80,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         duration_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 12. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow", "digital" », "short").
-    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv, "digital"sv }, "short"sv));
+    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"_sv, "short"_sv, "narrow"_sv, "digital"_sv }, "short"_sv));
 
     // 13. Set durationFormat.[[Style]] to style.
     duration_format->set_style(style.as_string().utf8_string_view());

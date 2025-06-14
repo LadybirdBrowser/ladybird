@@ -106,8 +106,8 @@ TEST_CASE(swap_same_complex_object)
         Vector<Type1> bar;
     };
 
-    Variant<Type1, Type2> value1 { Type1 { "hello"sv } };
-    Variant<Type1, Type2> value2 { Type2 { {}, { { "goodbye"sv } } } };
+    Variant<Type1, Type2> value1 { Type1 { "hello"_sv } };
+    Variant<Type1, Type2> value2 { Type2 { {}, { { "goodbye"_sv } } } };
 
     swap(value1, value2);
 

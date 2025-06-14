@@ -16,27 +16,27 @@ StringView ConstructorStringParser::state_to_string() const
 {
     switch (m_state) {
     case State::Initial:
-        return "Initial"sv;
+        return "Initial"_sv;
     case State::Protocol:
-        return "Protocol"sv;
+        return "Protocol"_sv;
     case State::Authority:
-        return "Authority"sv;
+        return "Authority"_sv;
     case State::Username:
-        return "Username"sv;
+        return "Username"_sv;
     case State::Password:
-        return "Password"sv;
+        return "Password"_sv;
     case State::Hostname:
-        return "Hostname"sv;
+        return "Hostname"_sv;
     case State::Port:
-        return "Port"sv;
+        return "Port"_sv;
     case State::Pathname:
-        return "Pathname"sv;
+        return "Pathname"_sv;
     case State::Search:
-        return "Search"sv;
+        return "Search"_sv;
     case State::Hash:
-        return "Hash"sv;
+        return "Hash"_sv;
     case State::Done:
-        return "Done"sv;
+        return "Done"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -566,7 +566,7 @@ bool ConstructorStringParser::is_a_search_prefix() const
         return true;
 
     // 2. If parser’s token list[parser’s token index]'s value is not "?", then return false.
-    if (m_token_list[m_token_index].value != "?"sv)
+    if (m_token_list[m_token_index].value != "?"_sv)
         return false;
 
     // 3. Let previous index be parser’s token index − 1.

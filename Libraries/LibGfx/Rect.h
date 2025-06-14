@@ -1026,7 +1026,7 @@ template<typename T>
 struct Formatter<Gfx::Rect<T>> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Gfx::Rect<T> const& value)
     {
-        return Formatter<FormatString>::format(builder, "[{},{} {}x{}]"sv, value.x(), value.y(), value.width(), value.height());
+        return Formatter<FormatString>::format(builder, "[{},{} {}x{}]"_sv, value.x(), value.y(), value.width(), value.height());
     }
 };
 

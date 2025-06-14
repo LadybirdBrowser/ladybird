@@ -411,7 +411,7 @@ ThrowCompletionOr<Value> Console::count()
     auto& vm = realm().vm();
 
     // NOTE: "default" is the default value in the IDL. https://console.spec.whatwg.org/#ref-for-count
-    auto label = TRY(label_or_fallback(vm, "default"sv));
+    auto label = TRY(label_or_fallback(vm, "default"_sv));
 
     // 1. Let map be the associated count map.
     auto& map = m_counters;
@@ -442,7 +442,7 @@ ThrowCompletionOr<Value> Console::count_reset()
     auto& vm = realm().vm();
 
     // NOTE: "default" is the default value in the IDL. https://console.spec.whatwg.org/#ref-for-countreset
-    auto label = TRY(label_or_fallback(vm, "default"sv));
+    auto label = TRY(label_or_fallback(vm, "default"_sv));
 
     // 1. Let map be the associated count map.
     auto& map = m_counters;
@@ -554,7 +554,7 @@ ThrowCompletionOr<Value> Console::time()
     auto& vm = realm().vm();
 
     // NOTE: "default" is the default value in the IDL. https://console.spec.whatwg.org/#ref-for-time
-    auto label = TRY(label_or_fallback(vm, "default"sv));
+    auto label = TRY(label_or_fallback(vm, "default"_sv));
 
     // 1. If the associated timer table contains an entry with key label, return, optionally reporting
     //    a warning to the console indicating that a timer with label `label` has already been started.
@@ -581,7 +581,7 @@ ThrowCompletionOr<Value> Console::time_log()
     auto& vm = realm().vm();
 
     // NOTE: "default" is the default value in the IDL. https://console.spec.whatwg.org/#ref-for-timelog
-    auto label = TRY(label_or_fallback(vm, "default"sv));
+    auto label = TRY(label_or_fallback(vm, "default"_sv));
 
     // 1. Let timerTable be the associated timer table.
 
@@ -627,7 +627,7 @@ ThrowCompletionOr<Value> Console::time_end()
     auto& vm = realm().vm();
 
     // NOTE: "default" is the default value in the IDL. https://console.spec.whatwg.org/#ref-for-timeend
-    auto label = TRY(label_or_fallback(vm, "default"sv));
+    auto label = TRY(label_or_fallback(vm, "default"_sv));
 
     // 1. Let timerTable be the associated timer table.
 
@@ -823,11 +823,11 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
         Optional<Value> converted;
 
         // 1. If specifier is %s, let converted be the result of Call(%String%, undefined, « current »).
-        if (specifier == "%s"sv) {
+        if (specifier == "%s"_sv) {
             converted = TRY(call(vm, *realm.intrinsics().string_constructor(), js_undefined(), current));
         }
         // 2. If specifier is %d or %i:
-        else if (specifier.is_one_of("%d"sv, "%i"sv)) {
+        else if (specifier.is_one_of("%d"_sv, "%i"_sv)) {
             // 1. If current is a Symbol, let converted be NaN
             if (current.is_symbol()) {
                 converted = js_nan();
@@ -838,7 +838,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
             }
         }
         // 3. If specifier is %f:
-        else if (specifier == "%f"sv) {
+        else if (specifier == "%f"_sv) {
             // 1. If current is a Symbol, let converted be NaN
             if (current.is_symbol()) {
                 converted = js_nan();
@@ -849,17 +849,17 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
             }
         }
         // 4. If specifier is %o, optionally let converted be current with optimally useful formatting applied.
-        else if (specifier == "%o"sv) {
+        else if (specifier == "%o"_sv) {
             // TODO: "Optimally-useful formatting"
             converted = current;
         }
         // 5. If specifier is %O, optionally let converted be current with generic JavaScript object formatting applied.
-        else if (specifier == "%O"sv) {
+        else if (specifier == "%O"_sv) {
             // TODO: "generic JavaScript object formatting"
             converted = current;
         }
         // 6. TODO: process %c
-        else if (specifier == "%c"sv) {
+        else if (specifier == "%c"_sv) {
             // NOTE: This has no spec yet. `%c` specifiers treat the argument as CSS styling for the log message.
             add_css_style_to_current_message(TRY(current.to_string(vm)));
             converted = PrimitiveString::create(vm, String {});
@@ -889,7 +889,7 @@ ThrowCompletionOr<String> ConsoleClient::generically_format_values(GC::RootVecto
     bool first = true;
     for (auto const& value : values) {
         if (!first)
-            TRY_OR_THROW_OOM(vm, stream.write_until_depleted(" "sv.bytes()));
+            TRY_OR_THROW_OOM(vm, stream.write_until_depleted(" "_sv.bytes()));
         TRY_OR_THROW_OOM(vm, JS::print(value, ctx));
         first = false;
     }

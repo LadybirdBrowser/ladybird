@@ -15,54 +15,54 @@ String HTMLToken::to_string() const
 
     switch (type()) {
     case HTMLToken::Type::DOCTYPE:
-        builder.append("DOCTYPE"sv);
-        builder.append(" { name: '"sv);
+        builder.append("DOCTYPE"_sv);
+        builder.append(" { name: '"_sv);
         builder.append(doctype_data().name);
-        builder.append("' }"sv);
+        builder.append("' }"_sv);
         break;
     case HTMLToken::Type::StartTag:
-        builder.append("StartTag"sv);
+        builder.append("StartTag"_sv);
         break;
     case HTMLToken::Type::EndTag:
-        builder.append("EndTag"sv);
+        builder.append("EndTag"_sv);
         break;
     case HTMLToken::Type::Comment:
-        builder.append("Comment"sv);
+        builder.append("Comment"_sv);
         break;
     case HTMLToken::Type::Character:
-        builder.append("Character"sv);
+        builder.append("Character"_sv);
         break;
     case HTMLToken::Type::EndOfFile:
-        builder.append("EndOfFile"sv);
+        builder.append("EndOfFile"_sv);
         break;
     case HTMLToken::Type::Invalid:
         VERIFY_NOT_REACHED();
     }
 
     if (type() == HTMLToken::Type::StartTag || type() == HTMLToken::Type::EndTag) {
-        builder.append(" { name: '"sv);
+        builder.append(" { name: '"_sv);
         builder.append(tag_name());
-        builder.append("', { "sv);
+        builder.append("', { "_sv);
         for_each_attribute([&](auto& attribute) {
             builder.append(attribute.local_name);
-            builder.append("=\""sv);
+            builder.append("=\""_sv);
             builder.append(attribute.value);
-            builder.append("\" "sv);
+            builder.append("\" "_sv);
             return IterationDecision::Continue;
         });
-        builder.append("} }"sv);
+        builder.append("} }"_sv);
     }
 
     if (is_comment()) {
-        builder.append(" { data: '"sv);
+        builder.append(" { data: '"_sv);
         builder.append(comment());
-        builder.append("' }"sv);
+        builder.append("' }"_sv);
     }
 
     if (is_character()) {
-        builder.append(" { data: '"sv);
+        builder.append(" { data: '"_sv);
         builder.append_code_point(code_point());
-        builder.append("' }"sv);
+        builder.append("' }"_sv);
     }
 
     if (type() == HTMLToken::Type::Character) {

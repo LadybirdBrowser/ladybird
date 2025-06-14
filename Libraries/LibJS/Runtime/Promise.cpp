@@ -99,7 +99,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
             dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Promise can't be resolved with itself, rejecting with error", &promise);
 
             // a. Let selfResolutionError be a newly created TypeError object.
-            auto self_resolution_error = TypeError::create(realm, "Cannot resolve promise with itself"sv);
+            auto self_resolution_error = TypeError::create(realm, "Cannot resolve promise with itself"_sv);
 
             // b. Perform RejectPromise(promise, selfResolutionError).
             promise.reject(self_resolution_error);

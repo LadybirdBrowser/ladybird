@@ -39,7 +39,7 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Tabl
         : TRY(Detail::to_webassembly_value(vm, value, reference_type));
 
     if (descriptor.maximum.has_value() && descriptor.maximum.value() < descriptor.initial)
-        return vm.throw_completion<JS::RangeError>("Maximum should not be less than initial in table type"sv);
+        return vm.throw_completion<JS::RangeError>("Maximum should not be less than initial in table type"_sv);
 
     Wasm::Limits limits { descriptor.initial, move(descriptor.maximum) };
     Wasm::TableType table_type { reference_type, move(limits) };
@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Tabl
     auto& cache = Detail::get_cache(realm);
     auto address = cache.abstract_machine().store().allocate(table_type);
     if (!address.has_value())
-        return vm.throw_completion<JS::TypeError>("Wasm Table allocation failed"sv);
+        return vm.throw_completion<JS::TypeError>("Wasm Table allocation failed"_sv);
 
     auto const& reference = reference_value.to<Wasm::Reference>();
     auto& table = *cache.abstract_machine().store().get(*address);
@@ -77,7 +77,7 @@ WebIDL::ExceptionOr<u32> Table::grow(u32 delta, JS::Value value)
     auto& cache = Detail::get_cache(realm());
     auto* table = cache.abstract_machine().store().get(address());
     if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table to grow"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory table to grow"_sv);
 
     auto initial_size = table->elements().size();
 
@@ -87,7 +87,7 @@ WebIDL::ExceptionOr<u32> Table::grow(u32 delta, JS::Value value)
     auto const& reference = reference_value.to<Wasm::Reference>();
 
     if (!table->grow(delta, reference))
-        return vm.throw_completion<JS::RangeError>("Failed to grow table"sv);
+        return vm.throw_completion<JS::RangeError>("Failed to grow table"_sv);
 
     return initial_size;
 }
@@ -100,10 +100,10 @@ WebIDL::ExceptionOr<JS::Value> Table::get(u32 index) const
     auto& cache = Detail::get_cache(realm());
     auto* table = cache.abstract_machine().store().get(address());
     if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory table"_sv);
 
     if (table->elements().size() <= index)
-        return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
+        return vm.throw_completion<JS::RangeError>("Table element index out of range"_sv);
 
     auto& ref = table->elements()[index];
 
@@ -119,10 +119,10 @@ WebIDL::ExceptionOr<void> Table::set(u32 index, JS::Value value)
     auto& cache = Detail::get_cache(realm());
     auto* table = cache.abstract_machine().store().get(address());
     if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory table"_sv);
 
     if (table->elements().size() <= index)
-        return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
+        return vm.throw_completion<JS::RangeError>("Table element index out of range"_sv);
 
     auto reference_value = vm.argument_count() == 1
         ? Detail::default_webassembly_value(vm, table->type().element_type())
@@ -142,7 +142,7 @@ WebIDL::ExceptionOr<u32> Table::length() const
     auto& cache = Detail::get_cache(realm());
     auto* table = cache.abstract_machine().store().get(address());
     if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory table"_sv);
 
     return table->elements().size();
 }

@@ -17,7 +17,7 @@ TEST_CASE(test_private_key_info_decode)
                             "9Kht5rR77F9KsRlgUbkCIQDuQ7YzLpQ8V8BJwKbDeXw1vQvcPEnyKnTOoALpF6bq"
                             "RwIhAIDSm8Ajgf7m3RQEoLVrCe/l8WtCqsuWliOsr6rbQq4hAiEAx8R16wvOtZlN"
                             "W4jvSU1+WwAaBZl21lfKf8OhLRXrmNkCIG9IRdcSiNR/Ut8QfD3N9Bb1HsUm+Bvz"
-                            "c8yGzl89pYST"sv;
+                            "c8yGzl89pYST"_sv;
 
     static_assert(keyder.length() == 460u, "keyder length is not 340");
 

@@ -58,10 +58,10 @@ String CSSFontFaceRule::serialized() const
     // The result of concatenating the following:
 
     // 1. The string "@font-face {", followed by a single SPACE (U+0020).
-    builder.append("@font-face { "sv);
+    builder.append("@font-face { "_sv);
 
     // 2. The string "font-family:", followed by a single SPACE (U+0020).
-    builder.append("font-family: "sv);
+    builder.append("font-family: "_sv);
 
     // 3. The result of performing serialize a string on the rule’s font family name.
     builder.append(descriptors.descriptor(DescriptorID::FontFamily)->to_string(SerializationMode::Normal));
@@ -72,7 +72,7 @@ String CSSFontFaceRule::serialized() const
     // 5. If the rule’s associated source list is not empty, follow these substeps:
     if (auto sources = descriptors.descriptor(DescriptorID::Src)) {
         // 1. A single SPACE (U+0020), followed by the string "src:", followed by a single SPACE (U+0020).
-        builder.append(" src: "sv);
+        builder.append(" src: "_sv);
 
         // 2. The result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
         builder.append(sources->to_string(SerializationMode::Normal));
@@ -83,7 +83,7 @@ String CSSFontFaceRule::serialized() const
 
     // 6. If rule’s associated unicode-range descriptor is present, a single SPACE (U+0020), followed by the string "unicode-range:", followed by a single SPACE (U+0020), followed by the result of performing serialize a <'unicode-range'>, followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto unicode_range = descriptors.descriptor(DescriptorID::UnicodeRange)) {
-        builder.append(" unicode-range: "sv);
+        builder.append(" unicode-range: "_sv);
         builder.append(unicode_range->to_string(SerializationMode::Normal));
         builder.append(';');
     }
@@ -98,9 +98,9 @@ String CSSFontFaceRule::serialized() const
     //    followed by the result of performing serialize a <'font-feature-settings'>,
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto font_feature_settings = descriptors.descriptor(DescriptorID::FontFeatureSettings)) {
-        builder.append(" font-feature-settings: "sv);
+        builder.append(" font-feature-settings: "_sv);
         builder.append(font_feature_settings->to_string(SerializationMode::Normal));
-        builder.append(";"sv);
+        builder.append(";"_sv);
     }
 
     // 9. If rule’s associated font-stretch descriptor is present, a single SPACE (U+0020),
@@ -109,9 +109,9 @@ String CSSFontFaceRule::serialized() const
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
     // NOTE: font-stretch is now an alias for font-width, so we use that instead.
     if (auto font_width = descriptors.descriptor(DescriptorID::FontWidth)) {
-        builder.append(" font-stretch: "sv);
+        builder.append(" font-stretch: "_sv);
         builder.append(font_width->to_string(SerializationMode::Normal));
-        builder.append(";"sv);
+        builder.append(";"_sv);
     }
 
     // 10. If rule’s associated font-weight descriptor is present, a single SPACE (U+0020),
@@ -119,9 +119,9 @@ String CSSFontFaceRule::serialized() const
     //     followed by the result of performing serialize a <'font-weight'>,
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto font_weight = descriptors.descriptor(DescriptorID::FontWeight)) {
-        builder.append(" font-weight: "sv);
+        builder.append(" font-weight: "_sv);
         builder.append(font_weight->to_string(SerializationMode::Normal));
-        builder.append(";"sv);
+        builder.append(";"_sv);
     }
 
     // 11. If rule’s associated font-style descriptor is present, a single SPACE (U+0020),
@@ -129,13 +129,13 @@ String CSSFontFaceRule::serialized() const
     //     followed by the result of performing serialize a <'font-style'>,
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto font_style = descriptors.descriptor(DescriptorID::FontStyle)) {
-        builder.append(" font-style: "sv);
+        builder.append(" font-style: "_sv);
         builder.append(font_style->to_string(SerializationMode::Normal));
-        builder.append(";"sv);
+        builder.append(";"_sv);
     }
 
     // 12. A single SPACE (U+0020), followed by the string "}", i.e., RIGHT CURLY BRACKET (U+007D).
-    builder.append(" }"sv);
+    builder.append(" }"_sv);
 
     return MUST(builder.to_string());
 }

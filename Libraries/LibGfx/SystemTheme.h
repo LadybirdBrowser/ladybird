@@ -160,11 +160,11 @@ inline StringView to_string(ColorRole role)
 {
     switch (role) {
     case ColorRole::NoRole:
-        return "NoRole"sv;
+        return "NoRole"_sv;
 #undef __ENUMERATE_COLOR_ROLE
 #define __ENUMERATE_COLOR_ROLE(role) \
     case ColorRole::role:            \
-        return #role##sv;
+        return #role##_sv;
         ENUMERATE_COLOR_ROLES(__ENUMERATE_COLOR_ROLE)
 #undef __ENUMERATE_COLOR_ROLE
     default:
@@ -187,11 +187,11 @@ inline StringView to_string(AlignmentRole role)
 {
     switch (role) {
     case AlignmentRole::NoRole:
-        return "NoRole"sv;
+        return "NoRole"_sv;
 #undef __ENUMERATE_ALIGNMENT_ROLE
 #define __ENUMERATE_ALIGNMENT_ROLE(role) \
     case AlignmentRole::role:            \
-        return #role##sv;
+        return #role##_sv;
         ENUMERATE_ALIGNMENT_ROLES(__ENUMERATE_ALIGNMENT_ROLE)
 #undef __ENUMERATE_ALIGNMENT_ROLE
     default:
@@ -214,11 +214,11 @@ inline StringView to_string(FlagRole role)
 {
     switch (role) {
     case FlagRole::NoRole:
-        return "NoRole"sv;
+        return "NoRole"_sv;
 #undef __ENUMERATE_FLAG_ROLE
 #define __ENUMERATE_FLAG_ROLE(role) \
     case FlagRole::role:            \
-        return #role##sv;
+        return #role##_sv;
         ENUMERATE_FLAG_ROLES(__ENUMERATE_FLAG_ROLE)
 #undef __ENUMERATE_FLAG_ROLE
     default:
@@ -241,11 +241,11 @@ inline StringView to_string(MetricRole role)
 {
     switch (role) {
     case MetricRole::NoRole:
-        return "NoRole"sv;
+        return "NoRole"_sv;
 #undef __ENUMERATE_METRIC_ROLE
 #define __ENUMERATE_METRIC_ROLE(role) \
     case MetricRole::role:            \
-        return #role##sv;
+        return #role##_sv;
         ENUMERATE_METRIC_ROLES(__ENUMERATE_METRIC_ROLE)
 #undef __ENUMERATE_METRIC_ROLE
     default:
@@ -268,11 +268,11 @@ inline StringView to_string(PathRole role)
 {
     switch (role) {
     case PathRole::NoRole:
-        return "NoRole"sv;
+        return "NoRole"_sv;
 #undef __ENUMERATE_PATH_ROLE
 #define __ENUMERATE_PATH_ROLE(role) \
     case PathRole::role:            \
-        return #role##sv;
+        return #role##_sv;
         ENUMERATE_PATH_ROLES(__ENUMERATE_PATH_ROLE)
 #undef __ENUMERATE_PATH_ROLE
     default:

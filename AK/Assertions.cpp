@@ -58,7 +58,7 @@ void dump_backtrace()
         // If there is a C++ symbol name in the line of the backtrace, demangle it
         StringView sym(syms[i], strlen(syms[i]));
         StringBuilder error_builder;
-        if (auto idx = sym.find("_Z"sv); idx.has_value()) {
+        if (auto idx = sym.find("_Z"_sv); idx.has_value()) {
             // Play C games with the original string so we can print before and after the mangled symbol with a C API
             // We don't want to call dbgln() here on substring StringView because we might VERIFY() within AK::Format
             syms[i][idx.value() - 1] = '\0';
@@ -66,7 +66,7 @@ void dump_backtrace()
             error_builder.append(' ');
 
             auto sym_substring = sym.substring_view(idx.value());
-            auto end_of_sym = sym_substring.find_any_of("+ "sv).value_or(sym_substring.length() - 1);
+            auto end_of_sym = sym_substring.find_any_of("+ "_sv).value_or(sym_substring.length() - 1);
             syms[i][idx.value() + end_of_sym] = '\0';
 
             size_t buf_size = 128u;

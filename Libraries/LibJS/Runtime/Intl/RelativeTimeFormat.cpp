@@ -23,7 +23,7 @@ RelativeTimeFormat::RelativeTimeFormat(Object& prototype)
 ReadonlySpan<StringView> RelativeTimeFormat::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
-    static constexpr AK::Array keys { "nu"sv };
+    static constexpr AK::Array keys { "nu"_sv };
     return keys;
 }
 
@@ -32,7 +32,7 @@ ReadonlySpan<ResolutionOptionDescriptor> RelativeTimeFormat::resolution_option_d
 {
     // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "nu", [[Property]]: "numberingSystem" } ».
     static auto descriptors = to_array<ResolutionOptionDescriptor>({
-        { .key = "nu"sv, .property = vm.names.numberingSystem },
+        { .key = "nu"_sv, .property = vm.names.numberingSystem },
     });
 
     return descriptors;
@@ -42,28 +42,28 @@ ReadonlySpan<ResolutionOptionDescriptor> RelativeTimeFormat::resolution_option_d
 ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM& vm, StringView unit)
 {
     // 1. If unit is "seconds", return "second".
-    if (unit == "seconds"sv)
+    if (unit == "seconds"_sv)
         return Unicode::TimeUnit::Second;
     // 2. If unit is "minutes", return "minute".
-    if (unit == "minutes"sv)
+    if (unit == "minutes"_sv)
         return Unicode::TimeUnit::Minute;
     // 3. If unit is "hours", return "hour".
-    if (unit == "hours"sv)
+    if (unit == "hours"_sv)
         return Unicode::TimeUnit::Hour;
     // 4. If unit is "days", return "day".
-    if (unit == "days"sv)
+    if (unit == "days"_sv)
         return Unicode::TimeUnit::Day;
     // 5. If unit is "weeks", return "week".
-    if (unit == "weeks"sv)
+    if (unit == "weeks"_sv)
         return Unicode::TimeUnit::Week;
     // 6. If unit is "months", return "month".
-    if (unit == "months"sv)
+    if (unit == "months"_sv)
         return Unicode::TimeUnit::Month;
     // 7. If unit is "quarters", return "quarter".
-    if (unit == "quarters"sv)
+    if (unit == "quarters"_sv)
         return Unicode::TimeUnit::Quarter;
     // 8. If unit is "years", return "year".
-    if (unit == "years"sv)
+    if (unit == "years"_sv)
         return Unicode::TimeUnit::Year;
 
     // 9. If unit is not one of "second", "minute", "hour", "day", "week", "month", "quarter", or "year", throw a RangeError exception.

@@ -35,11 +35,11 @@ static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_so
 
 static ErrorOr<Web::Bindings::AgentType> agent_type_from_string(StringView type)
 {
-    if (type == "dedicated"sv)
+    if (type == "dedicated"_sv)
         return Web::Bindings::AgentType::DedicatedWorker;
-    if (type == "shared"sv)
+    if (type == "shared"_sv)
         return Web::Bindings::AgentType::SharedWorker;
-    if (type == "service"sv)
+    if (type == "service"_sv)
         return Web::Bindings::AgentType::ServiceWorker;
 
     return Error::from_string_literal("Invalid worker type, must be one of: 'dedicated', 'shared', or 'service'");

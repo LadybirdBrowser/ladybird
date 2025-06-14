@@ -49,23 +49,23 @@ inline static StringView get_second_codepoint_enum_name(u32 codepoint)
 {
     switch (codepoint) {
     case 0x0338:
-        return "CombiningLongSolidusOverlay"sv;
+        return "CombiningLongSolidusOverlay"_sv;
     case 0x20D2:
-        return "CombiningLongVerticalLineOverlay"sv;
+        return "CombiningLongVerticalLineOverlay"_sv;
     case 0x200A:
-        return "HairSpace"sv;
+        return "HairSpace"_sv;
     case 0x0333:
-        return "CombiningDoubleLowLine"sv;
+        return "CombiningDoubleLowLine"_sv;
     case 0x20E5:
-        return "CombiningReverseSolidusOverlay"sv;
+        return "CombiningReverseSolidusOverlay"_sv;
     case 0xFE00:
-        return "VariationSelector1"sv;
+        return "VariationSelector1"_sv;
     case 0x006A:
-        return "LatinSmallLetterJ"sv;
+        return "LatinSmallLetterJ"_sv;
     case 0x0331:
-        return "CombiningMacronBelow"sv;
+        return "CombiningMacronBelow"_sv;
     default:
-        return "None"sv;
+        return "None"_sv;
     }
 }
 
@@ -386,7 +386,7 @@ ErrorOr<void> generate_implementation_file(JsonObject& named_character_reference
     auto index_to_codepoints = MUST(FixedArray<Codepoints>::create(named_character_reference_data.size()));
 
     named_character_reference_data.for_each_member([&](auto& key, auto& value) {
-        auto codepoints = value.as_object().get_array("codepoints"sv).value();
+        auto codepoints = value.as_object().get_array("codepoints"_sv).value();
         auto unique_index = dafsa_builder.get_unique_index(key.bytes_as_string_view().substring_view(1)).value();
         auto array_index = unique_index - 1;
         u32 second_codepoint = 0;

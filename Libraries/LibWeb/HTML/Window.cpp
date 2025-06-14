@@ -180,7 +180,7 @@ static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document con
     auto noopener = TokenizedFeature::NoOpener::No;
 
     // 3. If tokenizedFeatures["noopener"] exists, then set noopener to the result of parsing tokenizedFeatures["noopener"] as a boolean feature.
-    if (auto value = tokenized_features.get("noopener"sv); value.has_value()) {
+    if (auto value = tokenized_features.get("noopener"_sv); value.has_value()) {
         noopener = parse_boolean_feature<TokenizedFeature::NoOpener>(*value);
     }
 
@@ -213,7 +213,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
     // 5. If target is the empty string, then set target to "_blank".
     if (target.is_empty())
-        target = "_blank"sv;
+        target = "_blank"_sv;
 
     // 6. Let tokenizedFeatures be the result of tokenizing features.
     auto tokenized_features = tokenize_open_features(features);
@@ -222,7 +222,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
     auto no_referrer = TokenizedFeature::NoReferrer::No;
 
     // 8. If tokenizedFeatures["noreferrer"] exists, then set noreferrer to the result of parsing tokenizedFeatures["noreferrer"] as a boolean feature.
-    if (auto no_referrer_feature = tokenized_features.get("noreferrer"sv); no_referrer_feature.has_value()) {
+    if (auto no_referrer_feature = tokenized_features.get("noreferrer"_sv); no_referrer_feature.has_value()) {
         no_referrer = parse_boolean_feature<TokenizedFeature::NoReferrer>(*no_referrer_feature);
     }
 
@@ -230,8 +230,8 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
     auto no_opener = get_noopener_for_window_open(source_document, tokenized_features, url_record);
 
     // 10. Remove tokenizedFeatures["noopener"] and tokenizedFeatures["noreferrer"].
-    tokenized_features.remove("noopener"sv);
-    tokenized_features.remove("noreferrer"sv);
+    tokenized_features.remove("noopener"_sv);
+    tokenized_features.remove("noreferrer"_sv);
 
     // 11. Let referrerPolicy be the empty string.
     auto referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
@@ -1160,11 +1160,11 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
     Variant<String, URL::Origin> target_origin = options.target_origin;
 
     // 4. If targetOrigin is a single U+002F SOLIDUS character (/), then set targetOrigin to incumbentSettings's origin.
-    if (options.target_origin == "/"sv) {
+    if (options.target_origin == "/"_sv) {
         target_origin = incumbent_settings.origin();
     }
     // 5. Otherwise, if targetOrigin is not a single U+002A ASTERISK character (*), then:
-    else if (options.target_origin != "*"sv) {
+    else if (options.target_origin != "*"_sv) {
         // 1. Let parsedURL be the result of running the URL parser on targetOrigin.
         auto parsed_url = DOMURL::parse(options.target_origin);
 

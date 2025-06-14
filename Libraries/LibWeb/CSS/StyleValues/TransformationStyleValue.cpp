@@ -136,11 +136,11 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         StringBuilder builder;
         builder.append(x_value);
         if (x_value != y_value || z_value.has_value()) {
-            builder.append(" "sv);
+            builder.append(" "_sv);
             builder.append(y_value);
         }
         if (z_value.has_value()) {
-            builder.append(" "sv);
+            builder.append(" "_sv);
             builder.append(z_value.value());
         }
         return builder.to_string_without_validation();
@@ -163,11 +163,11 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         StringBuilder builder;
         builder.append(x_value.value_or("0px"_string));
         if (y_value.has_value() || z_value.has_value()) {
-            builder.append(" "sv);
+            builder.append(" "_sv);
             builder.append(y_value.value_or("0px"_string));
         }
         if (z_value.has_value()) {
-            builder.append(" "sv);
+            builder.append(" "_sv);
             builder.append(z_value.value());
         }
 
@@ -195,7 +195,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         }
 
         if (i != m_properties.values.size() - 1)
-            builder.append(", "sv);
+            builder.append(", "_sv);
     }
     builder.append(')');
 

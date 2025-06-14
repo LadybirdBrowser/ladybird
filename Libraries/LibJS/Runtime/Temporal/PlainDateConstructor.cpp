@@ -69,7 +69,7 @@ ThrowCompletionOr<GC::Ref<Object>> PlainDateConstructor::construct(FunctionObjec
 
     // 6. If calendar is not a String, throw a TypeError exception.
     if (!calendar_value.is_string())
-        return vm.throw_completion<TypeError>(ErrorType::NotAString, "calendar"sv);
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, "calendar"_sv);
 
     // 7. Set calendar to ? CanonicalizeCalendar(calendar).
     auto calendar = TRY(canonicalize_calendar(vm, calendar_value.as_string().utf8_string_view()));

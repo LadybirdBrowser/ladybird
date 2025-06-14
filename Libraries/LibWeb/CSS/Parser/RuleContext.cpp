@@ -45,19 +45,19 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
 
 RuleContext rule_context_type_for_at_rule(FlyString const& name)
 {
-    if (name.equals_ignoring_ascii_case("media"sv))
+    if (name.equals_ignoring_ascii_case("media"_sv))
         return RuleContext::AtMedia;
-    if (name.equals_ignoring_ascii_case("font-face"sv))
+    if (name.equals_ignoring_ascii_case("font-face"_sv))
         return RuleContext::AtFontFace;
-    if (name.equals_ignoring_ascii_case("keyframes"sv))
+    if (name.equals_ignoring_ascii_case("keyframes"_sv))
         return RuleContext::AtKeyframes;
-    if (name.equals_ignoring_ascii_case("supports"sv))
+    if (name.equals_ignoring_ascii_case("supports"_sv))
         return RuleContext::AtSupports;
-    if (name.equals_ignoring_ascii_case("layer"sv))
+    if (name.equals_ignoring_ascii_case("layer"_sv))
         return RuleContext::AtLayer;
-    if (name.equals_ignoring_ascii_case("property"sv))
+    if (name.equals_ignoring_ascii_case("property"_sv))
         return RuleContext::AtProperty;
-    if (name.equals_ignoring_ascii_case("page"sv))
+    if (name.equals_ignoring_ascii_case("page"_sv))
         return RuleContext::AtPage;
     if (is_margin_rule_name(name))
         return RuleContext::Margin;

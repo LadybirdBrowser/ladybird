@@ -164,7 +164,7 @@ ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(We
 {
     // 1. If object has no own property web element identifier, return error with error code invalid argument.
     if (!object.has_string(web_element_identifier))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element"_sv);
 
     // 2. Let reference be the result of getting the web element identifier property from object.
     auto reference = extract_web_element_reference(object);
@@ -182,7 +182,7 @@ ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(We
     // 1. If object has no own property web element identifier, return error with error code invalid argument.
     auto property = object.get(web_element_identifier_key);
     if (property.is_error() || !property.value().is_string())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element"_sv);
 
     // 2. Let reference be the result of getting the web element identifier property from object.
     auto reference = property.value().as_string().utf8_string();
@@ -454,7 +454,7 @@ ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root
 {
     // 1. If object has no own property shadow root identifier, return error with error code invalid argument.
     if (!object.has_string(shadow_root_identifier))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root"_sv);
 
     // 2. Let reference be the result of getting the shadow root identifier property from object.
     auto const& reference = object.get_string(shadow_root_identifier).release_value();
@@ -472,7 +472,7 @@ ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root
     // 1. If object has no own property shadow root identifier, return error with error code invalid argument.
     auto property = object.get(shadow_root_identifier_key);
     if (property.is_error() || !property.value().is_string())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root"_sv);
 
     // 2. Let reference be the result of getting the shadow root identifier property from object.
     auto reference = property.value().as_string().utf8_string();

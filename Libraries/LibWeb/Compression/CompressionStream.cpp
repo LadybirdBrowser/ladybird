@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<void> CompressionStream::compress_and_enqueue_chunk(JS::Valu
 
     // 1. If chunk is not a BufferSource type, then throw a TypeError.
     if (!WebIDL::is_buffer_source_type(chunk))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"_sv };
 
     // 2. Let buffer be the result of compressing chunk with cs's format and context.
     auto maybe_buffer = [&]() -> ErrorOr<ByteBuffer> {

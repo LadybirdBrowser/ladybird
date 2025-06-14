@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::
 
     // 1. If chunk is not a BufferSource type, then throw a TypeError.
     if (!WebIDL::is_buffer_source_type(chunk))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"_sv };
 
     // 2. Let buffer be the result of decompressing chunk with ds's format and context. If this results in an error,
     //    then throw a TypeError.
@@ -159,7 +159,7 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_flush_and_enqueue()
 
     // 2. If the end of the compressed input has not been reached, then throw a TypeError.
     if (m_decompressor.visit([](auto const& decompressor) { return !decompressor->is_eof(); }))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "End of compressed input has not been reached"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "End of compressed input has not been reached"_sv };
 
     // 3. If buffer is empty, return.
     if (buffer.is_empty())

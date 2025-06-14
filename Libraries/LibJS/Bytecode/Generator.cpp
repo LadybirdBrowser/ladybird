@@ -675,7 +675,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
     if (!is<MemberExpression>(node)) {
         return CodeGenerationError {
             &node,
-            "Unimplemented/invalid node used as a reference"sv
+            "Unimplemented/invalid node used as a reference"_sv
         };
     }
     auto& expression = static_cast<MemberExpression const&>(node);
@@ -739,7 +739,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
     }
     return CodeGenerationError {
         &expression,
-        "Unimplemented non-computed member expression"sv
+        "Unimplemented non-computed member expression"_sv
     };
 }
 
@@ -782,7 +782,7 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
             } else {
                 return CodeGenerationError {
                     &expression,
-                    "Unimplemented non-computed member expression"sv
+                    "Unimplemented non-computed member expression"_sv
                 };
             }
         }
@@ -792,7 +792,7 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
 
     return CodeGenerationError {
         &node,
-        "Unimplemented/invalid node used a reference"sv
+        "Unimplemented/invalid node used a reference"_sv
     };
 }
 
@@ -859,7 +859,7 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
             // NOTE: Trying to delete a private field generates a SyntaxError in the parser.
             return CodeGenerationError {
                 &expression,
-                "Unimplemented non-computed member expression"sv
+                "Unimplemented non-computed member expression"_sv
             };
         }
         return dst;
@@ -989,7 +989,7 @@ void Generator::generate_scoped_jump(JumpType type)
         case ReturnToFinally: {
             VERIFY(m_current_unwind_context->finalizer().has_value());
             m_current_unwind_context = m_current_unwind_context->previous();
-            auto jump_type_name = type == JumpType::Break ? "break"sv : "continue"sv;
+            auto jump_type_name = type == JumpType::Break ? "break"_sv : "continue"_sv;
             auto block_name = MUST(String::formatted("{}.{}", current_block().name(), jump_type_name));
             auto& block = make_block(block_name);
             emit<Op::ScheduleJump>(Label { block });
@@ -1028,7 +1028,7 @@ void Generator::generate_labelled_jump(JumpType type, FlyString const& label)
             } else if (boundary == BlockBoundaryType::ReturnToFinally) {
                 VERIFY(m_current_unwind_context->finalizer().has_value());
                 m_current_unwind_context = m_current_unwind_context->previous();
-                auto jump_type_name = type == JumpType::Break ? "break"sv : "continue"sv;
+                auto jump_type_name = type == JumpType::Break ? "break"_sv : "continue"_sv;
                 auto block_name = MUST(String::formatted("{}.{}", current_block().name(), jump_type_name));
                 auto& block = make_block(block_name);
                 emit<Op::ScheduleJump>(Label { block });
@@ -1111,7 +1111,7 @@ CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymo
 
 void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier)
 {
-    if (m_identifier_table->get(property_identifier) == "length"sv) {
+    if (m_identifier_table->get(property_identifier) == "length"_sv) {
         m_length_identifier = property_identifier;
         emit<Op::GetLength>(dst, base, move(base_identifier), m_next_property_lookup_cache++);
         return;
@@ -1121,7 +1121,7 @@ void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, Identifier
 
 void Generator::emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex id, ScopedOperand this_value)
 {
-    if (m_identifier_table->get(id) == "length"sv) {
+    if (m_identifier_table->get(id) == "length"_sv) {
         m_length_identifier = id;
         emit<Op::GetLengthWithThis>(dst, base, this_value, m_next_property_lookup_cache++);
         return;

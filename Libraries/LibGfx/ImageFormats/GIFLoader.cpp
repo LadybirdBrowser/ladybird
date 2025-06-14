@@ -98,8 +98,8 @@ enum class GIFFormat {
 
 static ErrorOr<GIFFormat> decode_gif_header(Stream& stream)
 {
-    static auto valid_header_87 = "GIF87a"sv;
-    static auto valid_header_89 = "GIF89a"sv;
+    static auto valid_header_87 = "GIF87a"_sv;
+    static auto valid_header_89 = "GIF89a"_sv;
 
     Array<u8, 6> header;
     TRY(stream.read_until_filled(header));

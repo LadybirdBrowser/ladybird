@@ -186,7 +186,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
     if (supported_extension_iterator == supported_extensions->end())
         return nullptr;
 
-    if (name.equals_ignoring_ascii_case("ANGLE_instanced_arrays"sv)) {
+    if (name.equals_ignoring_ascii_case("ANGLE_instanced_arrays"_sv)) {
         if (!m_angle_instanced_arrays_extension) {
             m_angle_instanced_arrays_extension = MUST(Extensions::ANGLEInstancedArrays::create(realm(), *this));
         }
@@ -195,7 +195,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         return m_angle_instanced_arrays_extension;
     }
 
-    if (name.equals_ignoring_ascii_case("EXT_blend_minmax"sv)) {
+    if (name.equals_ignoring_ascii_case("EXT_blend_minmax"_sv)) {
         if (!m_ext_blend_min_max_extension) {
             m_ext_blend_min_max_extension = MUST(Extensions::EXTBlendMinMax::create(realm(), *this));
         }
@@ -204,7 +204,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         return m_ext_blend_min_max_extension;
     }
 
-    if (name.equals_ignoring_ascii_case("OES_vertex_array_object"sv)) {
+    if (name.equals_ignoring_ascii_case("OES_vertex_array_object"_sv)) {
         if (!m_oes_vertex_array_object_extension) {
             m_oes_vertex_array_object_extension = MUST(Extensions::OESVertexArrayObject::create(realm(), *this));
         }
@@ -213,7 +213,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         return m_oes_vertex_array_object_extension;
     }
 
-    if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc"sv)) {
+    if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc"_sv)) {
         if (!m_webgl_compressed_texture_s3tc_extension) {
             m_webgl_compressed_texture_s3tc_extension = MUST(Extensions::WebGLCompressedTextureS3tc::create(realm(), this));
         }
@@ -222,7 +222,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         return m_webgl_compressed_texture_s3tc_extension;
     }
 
-    if (name.equals_ignoring_ascii_case("WEBGL_draw_buffers"sv)) {
+    if (name.equals_ignoring_ascii_case("WEBGL_draw_buffers"_sv)) {
         if (!m_webgl_draw_buffers_extension) {
             m_webgl_draw_buffers_extension = MUST(Extensions::WebGLDrawBuffers::create(realm(), *this));
         }

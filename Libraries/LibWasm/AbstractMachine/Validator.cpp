@@ -37,7 +37,7 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
                 if (m_context.types.size() > index.value())
                     m_context.functions.append(m_context.types[index.value()]);
                 else
-                    return Errors::invalid("TypeIndex"sv);
+                    return Errors::invalid("TypeIndex"_sv);
                 m_context.imported_function_count++;
                 return {};
             },
@@ -62,14 +62,14 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     }
 
     if (module.code_section().functions().size() != module.function_section().types().size())
-        return Errors::invalid("FunctionSection"sv);
+        return Errors::invalid("FunctionSection"_sv);
 
     m_context.functions.ensure_capacity(module.function_section().types().size() + m_context.functions.size());
     for (auto& index : module.function_section().types())
         if (m_context.types.size() > index.value())
             m_context.functions.append(m_context.types[index.value()]);
         else
-            return Errors::invalid("TypeIndex"sv);
+            return Errors::invalid("TypeIndex"_sv);
 
     m_context.tables.ensure_capacity(m_context.tables.size() + module.table_section().tables().size());
     for (auto& table : module.table_section().tables())
@@ -163,14 +163,14 @@ ErrorOr<void, ValidationError> Validator::validate(StartSection const& section)
     TRY(validate(section.function()->index()));
     FunctionType const& type = m_context.functions[section.function()->index().value()];
     if (!type.parameters().is_empty() || !type.results().is_empty())
-        return Errors::invalid("start function signature"sv);
+        return Errors::invalid("start function signature"_sv);
     return {};
 }
 
 ErrorOr<void, ValidationError> Validator::validate(DataSection const& section)
 {
     if (m_context.data_count.has_value() && section.data().size() != m_context.data_count)
-        return Errors::invalid("data count does not match segment count"sv);
+        return Errors::invalid("data count does not match segment count"_sv);
     for (auto& entry : section.data()) {
         TRY(entry.value().visit(
             [](DataSection::Data::Passive const&) { return ErrorOr<void, ValidationError> {}; },
@@ -180,10 +180,10 @@ ErrorOr<void, ValidationError> Validator::validate(DataSection const& section)
                 auto expression_result = TRY(validate(active.offset, { ValueType(ValueType::I32) }));
 
                 if (!expression_result.is_constant)
-                    return Errors::invalid("active data initializer"sv);
+                    return Errors::invalid("active data initializer"_sv);
 
                 if (expression_result.result_types.size() != 1 || !expression_result.result_types.first().is_of_kind(ValueType::I32))
-                    return Errors::invalid("active data initializer type"sv, ValueType(ValueType::I32), expression_result.result_types);
+                    return Errors::invalid("active data initializer type"_sv, ValueType(ValueType::I32), expression_result.result_types);
 
                 return {};
             }));
@@ -202,12 +202,12 @@ ErrorOr<void, ValidationError> Validator::validate(ElementSection const& section
                 TRY(validate(active.index));
                 auto table = m_context.tables[active.index.value()];
                 if (table.element_type() != segment.type)
-                    return Errors::invalid("active element reference type"sv);
+                    return Errors::invalid("active element reference type"_sv);
                 auto expression_result = TRY(validate(active.expression, { ValueType(ValueType::I32) }));
                 if (!expression_result.is_constant)
-                    return Errors::invalid("active element initializer"sv);
+                    return Errors::invalid("active element initializer"_sv);
                 if (expression_result.result_types.size() != 1 || !expression_result.result_types.first().is_of_kind(ValueType::I32))
-                    return Errors::invalid("active element initializer type"sv, ValueType(ValueType::I32), expression_result.result_types);
+                    return Errors::invalid("active element initializer type"_sv, ValueType(ValueType::I32), expression_result.result_types);
                 return {};
             }));
 
@@ -216,7 +216,7 @@ ErrorOr<void, ValidationError> Validator::validate(ElementSection const& section
                 continue;
             auto result = TRY(validate(expression, { segment.type }));
             if (!result.is_constant)
-                return Errors::invalid("element initializer"sv);
+                return Errors::invalid("element initializer"_sv);
         }
     }
     return {};
@@ -231,9 +231,9 @@ ErrorOr<void, ValidationError> Validator::validate(GlobalSection const& section)
         TRY(validate(type));
         auto expression_result = TRY(validate(entry.expression(), { type.type() }));
         if (!expression_result.is_constant)
-            return Errors::invalid("global variable initializer"sv);
+            return Errors::invalid("global variable initializer"_sv);
         if (expression_result.result_types.size() != 1 || !expression_result.result_types.first().is_of_kind(type.type().kind()))
-            return Errors::invalid("global variable initializer type"sv, ValueType(ValueType::I32), expression_result.result_types);
+            return Errors::invalid("global variable initializer type"_sv, ValueType(ValueType::I32), expression_result.result_types);
     }
 
     return {};
@@ -274,7 +274,7 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 
         auto results = TRY(function_validator.validate(function.body(), function_type.results()));
         if (results.result_types.size() != function_type.results().size())
-            return Errors::invalid("function result"sv, function_type.results(), results.result_types);
+            return Errors::invalid("function result"_sv, function_type.results(), results.result_types);
     }
 
     return {};
@@ -306,7 +306,7 @@ ErrorOr<FunctionType, ValidationError> Validator::validate(BlockType const& type
     if (type.kind() == BlockType::Empty)
         return FunctionType { {}, {} };
 
-    return Errors::invalid("BlockType"sv);
+    return Errors::invalid("BlockType"_sv);
 }
 
 ErrorOr<void, ValidationError> Validator::validate(Limits const& limits, u64 bound)
@@ -316,10 +316,10 @@ ErrorOr<void, ValidationError> Validator::validate(Limits const& limits, u64 bou
     };
 
     if (!check_bound(limits.min()))
-        return Errors::out_of_bounds("limit minimum"sv, limits.min(), 0, bound);
+        return Errors::out_of_bounds("limit minimum"_sv, limits.min(), 0, bound);
 
     if (limits.max().has_value() && (limits.max().value() < limits.min() || !check_bound(*limits.max()))) {
-        return Errors::out_of_bounds("limit maximum"sv, limits.max().value(), limits.min(), bound);
+        return Errors::out_of_bounds("limit maximum"_sv, limits.max().value(), limits.min(), bound);
     }
 
     return {};
@@ -1288,7 +1288,7 @@ VALIDATE_INSTRUCTION(ref_func)
     TRY(validate(index));
 
     if (m_context.references->tree.find(index.value()) == nullptr)
-        return Errors::invalid("function reference"sv);
+        return Errors::invalid("function reference"_sv);
 
     is_constant = true;
     stack.append(ValueType(ValueType::FunctionReference));
@@ -1309,7 +1309,7 @@ VALIDATE_INSTRUCTION(select)
     auto arg1_type = TRY(stack.take_last());
 
     if (arg0_type != arg1_type || arg0_type.concrete_type.is_reference() || arg1_type.concrete_type.is_reference())
-        return Errors::invalid("select argument types"sv, Vector { arg0_type, arg0_type }, Vector { arg0_type, arg1_type });
+        return Errors::invalid("select argument types"_sv, Vector { arg0_type, arg0_type }, Vector { arg0_type, arg1_type });
 
     stack.append(arg0_type.is_known ? arg0_type : arg1_type);
 
@@ -1320,14 +1320,14 @@ VALIDATE_INSTRUCTION(select_typed)
 {
     auto& required_types = instruction.arguments().get<Vector<ValueType>>();
     if (required_types.size() != 1)
-        return Errors::invalid("select types"sv, "exactly one type"sv, required_types);
+        return Errors::invalid("select types"_sv, "exactly one type"_sv, required_types);
 
     TRY(stack.take<ValueType::I32>());
     auto arg0_type = TRY(stack.take_last());
     auto arg1_type = TRY(stack.take_last());
 
     if (arg0_type != arg1_type || arg0_type != required_types.first())
-        return Errors::invalid("select argument types"sv, Vector { required_types.first(), required_types.first() }, Vector { arg0_type, arg1_type });
+        return Errors::invalid("select argument types"_sv, Vector { required_types.first(), required_types.first() }, Vector { arg0_type, arg1_type });
 
     stack.append(arg0_type.is_known ? arg0_type : arg1_type);
 
@@ -1387,7 +1387,7 @@ VALIDATE_INSTRUCTION(global_set)
     auto& global = m_context.globals[index.value()];
 
     if (!global.is_mutable())
-        return Errors::invalid("global variable for global.set"sv);
+        return Errors::invalid("global variable for global.set"_sv);
 
     TRY(stack.take(global.type()));
 
@@ -1467,10 +1467,10 @@ VALIDATE_INSTRUCTION(table_copy)
     auto& rhs_table = m_context.tables[args.rhs.value()];
 
     if (lhs_table.element_type() != rhs_table.element_type())
-        return Errors::non_conforming_types("table.copy"sv, lhs_table.element_type(), rhs_table.element_type());
+        return Errors::non_conforming_types("table.copy"_sv, lhs_table.element_type(), rhs_table.element_type());
 
     if (!lhs_table.element_type().is_reference())
-        return Errors::invalid("table.copy element type"sv, "a reference type"sv, lhs_table.element_type());
+        return Errors::invalid("table.copy element type"_sv, "a reference type"_sv, lhs_table.element_type());
 
     TRY((stack.take<ValueType::I32, ValueType::I32, ValueType::I32>()));
 
@@ -1488,7 +1488,7 @@ VALIDATE_INSTRUCTION(table_init)
     auto& element_type = m_context.elements[args.element_index.value()];
 
     if (table.element_type() != element_type)
-        return Errors::non_conforming_types("table.init"sv, table.element_type(), element_type);
+        return Errors::non_conforming_types("table.init"_sv, table.element_type(), element_type);
 
     TRY((stack.take<ValueType::I32, ValueType::I32, ValueType::I32>()));
 
@@ -1511,7 +1511,7 @@ VALIDATE_INSTRUCTION(i32_load)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(i32))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(i32));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(i32));
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I32));
@@ -1525,7 +1525,7 @@ VALIDATE_INSTRUCTION(i64_load)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(i64))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(i64));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(i64));
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I64));
@@ -1539,7 +1539,7 @@ VALIDATE_INSTRUCTION(f32_load)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(float))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(float));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(float));
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::F32));
@@ -1553,7 +1553,7 @@ VALIDATE_INSTRUCTION(f64_load)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(double))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(double));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(double));
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::F64));
@@ -1567,7 +1567,7 @@ VALIDATE_INSTRUCTION(i32_load16_s)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 16 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 16 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 16 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I32));
@@ -1581,7 +1581,7 @@ VALIDATE_INSTRUCTION(i32_load16_u)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 16 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 16 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 16 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I32));
@@ -1595,7 +1595,7 @@ VALIDATE_INSTRUCTION(i32_load8_s)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 8 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 8 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 8 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I32));
@@ -1609,7 +1609,7 @@ VALIDATE_INSTRUCTION(i32_load8_u)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 8 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 8 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 8 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I32));
@@ -1623,7 +1623,7 @@ VALIDATE_INSTRUCTION(i64_load32_s)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 32 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 32 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 32 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I64));
@@ -1637,7 +1637,7 @@ VALIDATE_INSTRUCTION(i64_load32_u)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 32 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 32 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 32 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I64));
@@ -1651,7 +1651,7 @@ VALIDATE_INSTRUCTION(i64_load16_s)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 16 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 16 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 16 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I64));
@@ -1665,7 +1665,7 @@ VALIDATE_INSTRUCTION(i64_load16_u)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 16 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 16 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 16 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I64));
@@ -1679,7 +1679,7 @@ VALIDATE_INSTRUCTION(i64_load8_s)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 8 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 8 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 8 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I64));
@@ -1693,7 +1693,7 @@ VALIDATE_INSTRUCTION(i64_load8_u)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 8 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 8 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 8 / 8);
 
     TRY((stack.take<ValueType::I32>()));
     stack.append(ValueType(ValueType::I64));
@@ -1707,7 +1707,7 @@ VALIDATE_INSTRUCTION(i32_store)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(i32))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(i32));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(i32));
 
     TRY((stack.take<ValueType::I32, ValueType::I32>()));
 
@@ -1721,7 +1721,7 @@ VALIDATE_INSTRUCTION(i64_store)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(i64))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(i64));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(i64));
 
     TRY((stack.take<ValueType::I64, ValueType::I32>()));
 
@@ -1735,7 +1735,7 @@ VALIDATE_INSTRUCTION(f32_store)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(float))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(float));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(float));
 
     TRY((stack.take<ValueType::F32, ValueType::I32>()));
 
@@ -1749,7 +1749,7 @@ VALIDATE_INSTRUCTION(f64_store)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(double))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(double));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(double));
 
     TRY((stack.take<ValueType::F64, ValueType::I32>()));
 
@@ -1763,7 +1763,7 @@ VALIDATE_INSTRUCTION(i32_store16)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 16 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 16 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 16 / 8);
 
     TRY((stack.take<ValueType::I32, ValueType::I32>()));
 
@@ -1777,7 +1777,7 @@ VALIDATE_INSTRUCTION(i32_store8)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 8 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 8 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 8 / 8);
 
     TRY((stack.take<ValueType::I32, ValueType::I32>()));
 
@@ -1791,7 +1791,7 @@ VALIDATE_INSTRUCTION(i64_store32)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 32 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 32 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 32 / 8);
 
     TRY((stack.take<ValueType::I64, ValueType::I32>()));
 
@@ -1805,7 +1805,7 @@ VALIDATE_INSTRUCTION(i64_store16)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 16 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 16 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 16 / 8);
 
     TRY((stack.take<ValueType::I64, ValueType::I32>()));
 
@@ -1819,7 +1819,7 @@ VALIDATE_INSTRUCTION(i64_store8)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > 8 / 8)
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, 8 / 8);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, 8 / 8);
 
     TRY((stack.take<ValueType::I64, ValueType::I32>()));
 
@@ -1867,7 +1867,7 @@ VALIDATE_INSTRUCTION(memory_copy)
 VALIDATE_INSTRUCTION(memory_init)
 {
     if (!m_context.data_count.has_value())
-        return Errors::invalid("memory.init, requires data count section"sv);
+        return Errors::invalid("memory.init, requires data count section"_sv);
 
     auto& args = instruction.arguments().get<Instruction::MemoryInitArgs>();
 
@@ -1882,7 +1882,7 @@ VALIDATE_INSTRUCTION(memory_init)
 VALIDATE_INSTRUCTION(data_drop)
 {
     if (!m_context.data_count.has_value())
-        return Errors::invalid("data.drop, requires data count section"sv);
+        return Errors::invalid("data.drop, requires data count section"_sv);
 
     auto index = instruction.arguments().get<DataIndex>();
     TRY(validate(index));
@@ -1909,7 +1909,7 @@ VALIDATE_INSTRUCTION(unreachable)
 VALIDATE_INSTRUCTION(structured_end)
 {
     if (m_frames.is_empty())
-        return Errors::invalid("usage of structured end"sv);
+        return Errors::invalid("usage of structured end"_sv);
 
     auto& last_frame = m_frames.last();
 
@@ -1938,10 +1938,10 @@ VALIDATE_INSTRUCTION(structured_end)
 VALIDATE_INSTRUCTION(structured_else)
 {
     if (m_frames.is_empty())
-        return Errors::invalid("usage of structured else"sv);
+        return Errors::invalid("usage of structured else"_sv);
 
     if (m_frames.last().kind != FrameKind::If)
-        return Errors::invalid("usage of structured else"sv);
+        return Errors::invalid("usage of structured else"_sv);
 
     auto& frame = m_frames.last();
     auto& block_type = frame.type;
@@ -2067,7 +2067,7 @@ VALIDATE_INSTRUCTION(br_table)
     for (auto& label : args.labels) {
         auto& label_types = m_frames[(m_frames.size() - 1) - label.value()].labels();
         if (label_types.size() != arity)
-            return Errors::invalid("br_table label arity mismatch"sv);
+            return Errors::invalid("br_table label arity mismatch"_sv);
         Vector<StackEntry> popped {};
         for (size_t i = 0; i < arity; ++i) {
             auto stack_entry = TRY(stack.take(label_types[label_types.size() - i - 1]));
@@ -2123,7 +2123,7 @@ VALIDATE_INSTRUCTION(call_indirect)
 
     auto& table = m_context.tables[args.table.value()];
     if (table.element_type().kind() != ValueType::FunctionReference)
-        return Errors::invalid("table element type for call.indirect"sv, "a function reference"sv, table.element_type());
+        return Errors::invalid("table element type for call.indirect"_sv, "a function reference"_sv, table.element_type());
 
     auto& type = m_context.types[args.type.value()];
 
@@ -2145,7 +2145,7 @@ VALIDATE_INSTRUCTION(v128_load)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(u128))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(u128));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(u128));
 
     TRY((stack.take_and_put<ValueType::I32>(ValueType::V128)));
 
@@ -2162,7 +2162,7 @@ VALIDATE_INSTRUCTION(v128_load8x8_s)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2177,7 +2177,7 @@ VALIDATE_INSTRUCTION(v128_load8x8_u)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2192,7 +2192,7 @@ VALIDATE_INSTRUCTION(v128_load16x4_s)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2207,7 +2207,7 @@ VALIDATE_INSTRUCTION(v128_load16x4_u)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2222,7 +2222,7 @@ VALIDATE_INSTRUCTION(v128_load32x2_s)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2237,7 +2237,7 @@ VALIDATE_INSTRUCTION(v128_load32x2_u)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2251,7 +2251,7 @@ VALIDATE_INSTRUCTION(v128_load8_splat)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2265,7 +2265,7 @@ VALIDATE_INSTRUCTION(v128_load16_splat)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2279,7 +2279,7 @@ VALIDATE_INSTRUCTION(v128_load32_splat)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2293,7 +2293,7 @@ VALIDATE_INSTRUCTION(v128_load64_splat)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2305,7 +2305,7 @@ VALIDATE_INSTRUCTION(v128_store)
     TRY(validate(arg.memory_index));
 
     if ((1ull << arg.align) > sizeof(u128))
-        return Errors::out_of_bounds("memory op alignment"sv, 1ull << arg.align, 0, sizeof(u128));
+        return Errors::out_of_bounds("memory op alignment"_sv, 1ull << arg.align, 0, sizeof(u128));
 
     TRY((stack.take<ValueType::V128, ValueType::I32>()));
 
@@ -2324,7 +2324,7 @@ VALIDATE_INSTRUCTION(i8x16_shuffle)
     auto const& arg = instruction.arguments().get<Instruction::ShuffleArgument>();
     for (auto lane : arg.lanes) {
         if (lane >= 32)
-            return Errors::out_of_bounds("shuffle lane"sv, lane, 0, 32);
+            return Errors::out_of_bounds("shuffle lane"_sv, lane, 0, 32);
     }
     return stack.take_and_put<ValueType::V128, ValueType::V128>(ValueType::V128);
 }
@@ -2422,7 +2422,7 @@ VALIDATE_INSTRUCTION(i8x16_extract_lane_s)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<ValueType::V128>(unpacked<shape>());
 }
 
@@ -2433,7 +2433,7 @@ VALIDATE_INSTRUCTION(i8x16_extract_lane_u)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<ValueType::V128>(unpacked<shape>());
 }
 
@@ -2444,7 +2444,7 @@ VALIDATE_INSTRUCTION(i8x16_replace_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<unpacked<shape>(), ValueType::V128>(ValueType::V128);
 }
 
@@ -2455,7 +2455,7 @@ VALIDATE_INSTRUCTION(i16x8_extract_lane_s)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<ValueType::V128>(unpacked<shape>());
 }
 
@@ -2466,7 +2466,7 @@ VALIDATE_INSTRUCTION(i16x8_extract_lane_u)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<ValueType::V128>(unpacked<shape>());
 }
 
@@ -2477,7 +2477,7 @@ VALIDATE_INSTRUCTION(i16x8_replace_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<unpacked<shape>(), ValueType::V128>(ValueType::V128);
 }
 
@@ -2488,7 +2488,7 @@ VALIDATE_INSTRUCTION(i32x4_extract_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<ValueType::V128>(unpacked<shape>());
 }
 
@@ -2499,7 +2499,7 @@ VALIDATE_INSTRUCTION(i32x4_replace_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<unpacked<shape>(), ValueType::V128>(ValueType::V128);
 }
 
@@ -2510,7 +2510,7 @@ VALIDATE_INSTRUCTION(i64x2_extract_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<ValueType::V128>(unpacked<shape>());
 }
 
@@ -2521,7 +2521,7 @@ VALIDATE_INSTRUCTION(i64x2_replace_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<unpacked<shape>(), ValueType::V128>(ValueType::V128);
 }
 
@@ -2532,7 +2532,7 @@ VALIDATE_INSTRUCTION(f32x4_extract_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<ValueType::V128>(unpacked<shape>());
 }
 
@@ -2543,7 +2543,7 @@ VALIDATE_INSTRUCTION(f32x4_replace_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<unpacked<shape>(), ValueType::V128>(ValueType::V128);
 }
 
@@ -2554,7 +2554,7 @@ VALIDATE_INSTRUCTION(f64x2_extract_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<ValueType::V128>(unpacked<shape>());
 }
 
@@ -2565,7 +2565,7 @@ VALIDATE_INSTRUCTION(f64x2_replace_lane)
     constexpr auto max_lane = dimensions<shape>();
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("extract lane"sv, arg.lane, 0, max_lane);
+        return Errors::out_of_bounds("extract lane"_sv, arg.lane, 0, max_lane);
     return stack.take_and_put<unpacked<shape>(), ValueType::V128>(ValueType::V128);
 }
 
@@ -2822,12 +2822,12 @@ VALIDATE_INSTRUCTION(v128_load8_lane)
     constexpr auto max_alignment = N / 8;
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("lane index"sv, arg.lane, 0u, max_lane);
+        return Errors::out_of_bounds("lane index"_sv, arg.lane, 0u, max_lane);
 
     TRY(validate(arg.memory.memory_index));
 
     if ((1 << arg.memory.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.memory.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::V128, ValueType::I32>(ValueType::V128);
 }
@@ -2840,12 +2840,12 @@ VALIDATE_INSTRUCTION(v128_load16_lane)
     constexpr auto max_alignment = N / 8;
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("lane index"sv, arg.lane, 0u, max_lane);
+        return Errors::out_of_bounds("lane index"_sv, arg.lane, 0u, max_lane);
 
     TRY(validate(arg.memory.memory_index));
 
     if ((1 << arg.memory.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.memory.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::V128, ValueType::I32>(ValueType::V128);
 }
@@ -2858,12 +2858,12 @@ VALIDATE_INSTRUCTION(v128_load32_lane)
     constexpr auto max_alignment = N / 8;
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("lane index"sv, arg.lane, 0u, max_lane);
+        return Errors::out_of_bounds("lane index"_sv, arg.lane, 0u, max_lane);
 
     TRY(validate(arg.memory.memory_index));
 
     if ((1 << arg.memory.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.memory.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::V128, ValueType::I32>(ValueType::V128);
 }
@@ -2876,12 +2876,12 @@ VALIDATE_INSTRUCTION(v128_load64_lane)
     constexpr auto max_alignment = N / 8;
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("lane index"sv, arg.lane, 0u, max_lane);
+        return Errors::out_of_bounds("lane index"_sv, arg.lane, 0u, max_lane);
 
     TRY(validate(arg.memory.memory_index));
 
     if ((1 << arg.memory.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.memory.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::V128, ValueType::I32>(ValueType::V128);
 }
@@ -2894,12 +2894,12 @@ VALIDATE_INSTRUCTION(v128_store8_lane)
     constexpr auto max_alignment = N / 8;
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("lane index"sv, arg.lane, 0u, max_lane);
+        return Errors::out_of_bounds("lane index"_sv, arg.lane, 0u, max_lane);
 
     TRY(validate(arg.memory.memory_index));
 
     if ((1 << arg.memory.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.memory.align, 0u, max_alignment);
 
     return stack.take<ValueType::V128, ValueType::I32>();
 }
@@ -2912,12 +2912,12 @@ VALIDATE_INSTRUCTION(v128_store16_lane)
     constexpr auto max_alignment = N / 8;
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("lane index"sv, arg.lane, 0u, max_lane);
+        return Errors::out_of_bounds("lane index"_sv, arg.lane, 0u, max_lane);
 
     TRY(validate(arg.memory.memory_index));
 
     if ((1 << arg.memory.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.memory.align, 0u, max_alignment);
 
     return stack.take<ValueType::V128, ValueType::I32>();
 }
@@ -2930,12 +2930,12 @@ VALIDATE_INSTRUCTION(v128_store32_lane)
     constexpr auto max_alignment = N / 8;
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("lane index"sv, arg.lane, 0u, max_lane);
+        return Errors::out_of_bounds("lane index"_sv, arg.lane, 0u, max_lane);
 
     TRY(validate(arg.memory.memory_index));
 
     if ((1 << arg.memory.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.memory.align, 0u, max_alignment);
 
     return stack.take<ValueType::V128, ValueType::I32>();
 }
@@ -2948,12 +2948,12 @@ VALIDATE_INSTRUCTION(v128_store64_lane)
     constexpr auto max_alignment = N / 8;
 
     if (arg.lane >= max_lane)
-        return Errors::out_of_bounds("lane index"sv, arg.lane, 0u, max_lane);
+        return Errors::out_of_bounds("lane index"_sv, arg.lane, 0u, max_lane);
 
     TRY(validate(arg.memory.memory_index));
 
     if ((1 << arg.memory.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.memory.align, 0u, max_alignment);
 
     return stack.take<ValueType::V128, ValueType::I32>();
 }
@@ -2967,7 +2967,7 @@ VALIDATE_INSTRUCTION(v128_load32_zero)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }
@@ -2981,7 +2981,7 @@ VALIDATE_INSTRUCTION(v128_load64_zero)
     TRY(validate(arg.memory_index));
 
     if ((1 << arg.align) > max_alignment)
-        return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.align, 0u, max_alignment);
+        return Errors::out_of_bounds("memory op alignment"_sv, 1 << arg.align, 0u, max_alignment);
 
     return stack.take_and_put<ValueType::I32>(ValueType::V128);
 }

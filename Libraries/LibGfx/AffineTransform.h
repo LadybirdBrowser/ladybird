@@ -93,6 +93,6 @@ template<>
 struct AK::Formatter<Gfx::AffineTransform> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Gfx::AffineTransform const& value)
     {
-        return Formatter<FormatString>::format(builder, "[{} {} {} {} {} {}]"sv, value.a(), value.b(), value.c(), value.d(), value.e(), value.f());
+        return Formatter<FormatString>::format(builder, "[{} {} {} {} {} {}]"_sv, value.a(), value.b(), value.c(), value.d(), value.e(), value.f());
     }
 };

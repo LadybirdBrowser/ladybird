@@ -13,7 +13,7 @@ namespace DevTools {
 
 class ThreadConfigurationActor final : public Actor {
 public:
-    static constexpr auto base_name = "thread-configuration"sv;
+    static constexpr auto base_name = "thread-configuration"_sv;
 
     static NonnullRefPtr<ThreadConfigurationActor> create(DevToolsServer&, String name);
     virtual ~ThreadConfigurationActor() override;

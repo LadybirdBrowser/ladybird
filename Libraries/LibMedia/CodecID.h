@@ -41,43 +41,43 @@ struct Formatter<Media::CodecID> : Formatter<StringView> {
         StringView codec;
         switch (value) {
         case Media::CodecID::Unknown:
-            codec = "Unknown"sv;
+            codec = "Unknown"_sv;
             break;
         case Media::CodecID::VP8:
-            codec = "VP8"sv;
+            codec = "VP8"_sv;
             break;
         case Media::CodecID::VP9:
-            codec = "VP9"sv;
+            codec = "VP9"_sv;
             break;
         case Media::CodecID::H261:
-            codec = "H.261"sv;
+            codec = "H.261"_sv;
             break;
         case Media::CodecID::H262:
-            codec = "H.262"sv;
+            codec = "H.262"_sv;
             break;
         case Media::CodecID::H263:
-            codec = "H.263"sv;
+            codec = "H.263"_sv;
             break;
         case Media::CodecID::H264:
-            codec = "H.264"sv;
+            codec = "H.264"_sv;
             break;
         case Media::CodecID::H265:
-            codec = "H.265"sv;
+            codec = "H.265"_sv;
             break;
         case Media::CodecID::MPEG1:
-            codec = "MPEG1"sv;
+            codec = "MPEG1"_sv;
             break;
         case Media::CodecID::AV1:
-            codec = "AV1"sv;
+            codec = "AV1"_sv;
             break;
         case Media::CodecID::Theora:
-            codec = "Theora"sv;
+            codec = "Theora"_sv;
             break;
         case Media::CodecID::Vorbis:
-            codec = "Vorbis"sv;
+            codec = "Vorbis"_sv;
             break;
         case Media::CodecID::Opus:
-            codec = "Opus"sv;
+            codec = "Opus"_sv;
             break;
         }
         return builder.put_string(codec);

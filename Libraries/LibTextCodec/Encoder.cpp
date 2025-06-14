@@ -58,75 +58,75 @@ SingleByteEncoder s_mac_cyrillic_encoder { s_x_mac_cyrillic_index };
 
 Optional<Encoder&> encoder_for_exact_name(StringView encoding)
 {
-    if (encoding.equals_ignoring_ascii_case("utf-8"sv))
+    if (encoding.equals_ignoring_ascii_case("utf-8"_sv))
         return s_utf8_encoder;
-    if (encoding.equals_ignoring_ascii_case("big5"sv))
+    if (encoding.equals_ignoring_ascii_case("big5"_sv))
         return s_big5_encoder;
-    if (encoding.equals_ignoring_ascii_case("euc-jp"sv))
+    if (encoding.equals_ignoring_ascii_case("euc-jp"_sv))
         return s_euc_jp_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-2022-jp"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-2022-jp"_sv))
         return s_iso_2022_jp_encoder;
-    if (encoding.equals_ignoring_ascii_case("shift_jis"sv))
+    if (encoding.equals_ignoring_ascii_case("shift_jis"_sv))
         return s_shift_jis_encoder;
-    if (encoding.equals_ignoring_ascii_case("euc-kr"sv))
+    if (encoding.equals_ignoring_ascii_case("euc-kr"_sv))
         return s_euc_kr_encoder;
-    if (encoding.equals_ignoring_ascii_case("gb18030"sv))
+    if (encoding.equals_ignoring_ascii_case("gb18030"_sv))
         return s_gb18030_encoder;
-    if (encoding.equals_ignoring_ascii_case("gbk"sv))
+    if (encoding.equals_ignoring_ascii_case("gbk"_sv))
         return s_gbk_encoder;
-    if (encoding.equals_ignoring_ascii_case("ibm866"sv))
+    if (encoding.equals_ignoring_ascii_case("ibm866"_sv))
         return s_ibm866_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-2"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-2"_sv))
         return s_latin2_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-3"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-3"_sv))
         return s_latin3_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-4"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-4"_sv))
         return s_latin4_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-5"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-5"_sv))
         return s_latin_cyrillic_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-6"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-6"_sv))
         return s_latin_arabic_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-7"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-7"_sv))
         return s_latin_greek_encoder;
-    if (encoding.is_one_of_ignoring_ascii_case("iso-8859-8"sv, "iso-8859-8-i"sv))
+    if (encoding.is_one_of_ignoring_ascii_case("iso-8859-8"_sv, "iso-8859-8-i"_sv))
         return s_latin_hebrew_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-10"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-10"_sv))
         return s_latin6_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-13"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-13"_sv))
         return s_latin7_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-14"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-14"_sv))
         return s_latin8_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-15"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-15"_sv))
         return s_latin9_encoder;
-    if (encoding.equals_ignoring_ascii_case("iso-8859-16"sv))
+    if (encoding.equals_ignoring_ascii_case("iso-8859-16"_sv))
         return s_latin10_encoder;
-    if (encoding.equals_ignoring_ascii_case("koi8-r"sv))
+    if (encoding.equals_ignoring_ascii_case("koi8-r"_sv))
         return s_koi8r_encoder;
-    if (encoding.equals_ignoring_ascii_case("koi8-u"sv))
+    if (encoding.equals_ignoring_ascii_case("koi8-u"_sv))
         return s_koi8u_encoder;
-    if (encoding.equals_ignoring_ascii_case("macintosh"sv))
+    if (encoding.equals_ignoring_ascii_case("macintosh"_sv))
         return s_mac_roman_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-874"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-874"_sv))
         return s_windows874_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1250"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1250"_sv))
         return s_centraleurope_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1251"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1251"_sv))
         return s_cyrillic_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1252"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1252"_sv))
         return s_windows1252_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1253"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1253"_sv))
         return s_windows1253_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1254"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1254"_sv))
         return s_turkish_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1255"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1255"_sv))
         return s_hebrew_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1256"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1256"_sv))
         return s_windows1256_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1257"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1257"_sv))
         return s_windows1257_encoder;
-    if (encoding.equals_ignoring_ascii_case("windows-1258"sv))
+    if (encoding.equals_ignoring_ascii_case("windows-1258"_sv))
         return s_windows1258_encoder;
-    if (encoding.equals_ignoring_ascii_case("x-mac-cyrillic"sv))
+    if (encoding.equals_ignoring_ascii_case("x-mac-cyrillic"_sv))
         return s_mac_cyrillic_encoder;
     dbgln("TextCodec: No encoder implemented for encoding '{}'", encoding);
     return {};

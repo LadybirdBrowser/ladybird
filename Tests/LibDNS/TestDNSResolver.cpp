@@ -16,7 +16,7 @@ TEST_CASE(test_udp)
 
     DNS::Resolver resolver {
         [&] -> ErrorOr<DNS::Resolver::SocketResult> {
-            Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"sv).value(), static_cast<u16>(53) };
+            Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"_sv).value(), static_cast<u16>(53) };
             return DNS::Resolver::SocketResult {
                 TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(addr)))),
                 DNS::Resolver::ConnectionMode::UDP,
@@ -45,7 +45,7 @@ TEST_CASE(test_tcp)
 
     DNS::Resolver resolver {
         [&] -> ErrorOr<DNS::Resolver::SocketResult> {
-            Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"sv).value(), static_cast<u16>(53) };
+            Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"_sv).value(), static_cast<u16>(53) };
 
             auto tcp_socket = TRY(Core::TCPSocket::connect(addr));
             TRY(tcp_socket->set_blocking(false));
@@ -72,7 +72,7 @@ TEST_CASE(test_tcp)
     EXPECT_EQ(0, loop.exec());
 }
 
-static StringView ca_certs_file = "./cacert.pem"sv;
+static StringView ca_certs_file = "./cacert.pem"_sv;
 static Optional<ByteString> locate_ca_certs_file()
 {
     if (FileSystem::exists(ca_certs_file)) {
@@ -91,7 +91,7 @@ TEST_CASE(test_tls)
 
     DNS::Resolver resolver {
         [&] -> ErrorOr<DNS::Resolver::SocketResult> {
-            Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"sv).value(), static_cast<u16>(853) };
+            Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"_sv).value(), static_cast<u16>(853) };
 
             TLS::Options options;
             options.set_root_certificates_path(locate_ca_certs_file());

@@ -38,7 +38,7 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::
 
     // 3. If underlyingSinkDict["type"] exists, throw a RangeError exception.
     if (underlying_sink_dict.type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'type'"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'type'"_sv };
 
     // 4. Perform ! InitializeWritableStream(this).
     // Note: This AO configures slot values which are already specified in the class's field initializers.
@@ -97,13 +97,13 @@ GC::Ref<WebIDL::Promise> WritableStream::close()
 
     // 1. If ! IsWritableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(*this)) {
-        auto exception = JS::TypeError::create(realm, "Cannot close a locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot close a locked stream"_sv);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 2. If ! WritableStreamCloseQueuedOrInFlight(this) is true, return a promise rejected with a TypeError exception.
     if (writable_stream_close_queued_or_in_flight(*this)) {
-        auto exception = JS::TypeError::create(realm, "Cannot close a stream that is already closed or errored"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot close a stream that is already closed or errored"_sv);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
@@ -118,7 +118,7 @@ GC::Ref<WebIDL::Promise> WritableStream::abort(JS::Value reason)
 
     // 1. If ! IsWritableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(*this)) {
-        auto exception = JS::TypeError::create(realm, "Cannot abort a locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot abort a locked stream"_sv);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 

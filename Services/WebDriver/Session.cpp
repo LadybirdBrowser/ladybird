@@ -37,7 +37,7 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
 
     // 3. Let proxy be the result of getting property "proxy" from capabilities and run the substeps of the first matching statement:
     // -> proxy is a proxy configuration object
-    if (auto proxy = capabilities.get_object("proxy"sv); proxy.has_value()) {
+    if (auto proxy = capabilities.get_object("proxy"_sv); proxy.has_value()) {
         // Take implementation-defined steps to set the user agent proxy using the extracted proxy configuration. If the
         // defined proxy cannot be configured return error with error code session not created. Otherwise set the has
         // proxy configuration flag to true.
@@ -46,14 +46,14 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
     // -> Otherwise
     else {
         // Set a property of capabilities with name "proxy" and a value that is a new JSON Object.
-        capabilities.set("proxy"sv, JsonObject {});
+        capabilities.set("proxy"_sv, JsonObject {});
     }
 
     // FIXME: 4. If capabilites has a property named "acceptInsecureCerts", set the endpoint node's accept insecure TLS flag
     //           to the result of getting a property named "acceptInsecureCerts" from capabilities.
 
     // 5. Let user prompt handler capability be the result of getting property "unhandledPromptBehavior" from capabilities.
-    auto user_prompt_handler_capability = capabilities.get_object("unhandledPromptBehavior"sv);
+    auto user_prompt_handler_capability = capabilities.get_object("unhandledPromptBehavior"_sv);
 
     // 6. If user prompt handler capability is not undefined, update the user prompt handler with user prompt handler capability.
     if (user_prompt_handler_capability.has_value())
@@ -65,37 +65,37 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
     auto serialized_user_prompt_handler = Web::WebDriver::serialize_the_user_prompt_handler();
 
     // 8. Set a property on capabilities with the name "unhandledPromptBehavior", and the value serialized user prompt handler.
-    capabilities.set("unhandledPromptBehavior"sv, move(serialized_user_prompt_handler));
+    capabilities.set("unhandledPromptBehavior"_sv, move(serialized_user_prompt_handler));
 
     // 9. If flags contains "http":
     if (has_flag(flags, Web::WebDriver::SessionFlags::Http)) {
         // 1. Let strategy be the result of getting property "pageLoadStrategy" from capabilities. If strategy is a
         //    string, set the session's page loading strategy to strategy. Otherwise, set the page loading strategy to
         //    normal and set a property of capabilities with name "pageLoadStrategy" and value "normal".
-        if (auto strategy = capabilities.get_string("pageLoadStrategy"sv); strategy.has_value()) {
+        if (auto strategy = capabilities.get_string("pageLoadStrategy"_sv); strategy.has_value()) {
             session->m_page_load_strategy = Web::WebDriver::page_load_strategy_from_string(*strategy);
             session->web_content_connection().async_set_page_load_strategy(session->m_page_load_strategy);
         } else {
-            capabilities.set("pageLoadStrategy"sv, "normal"sv);
+            capabilities.set("pageLoadStrategy"_sv, "normal"_sv);
         }
 
         // 3. Let strictFileInteractability be the result of getting property "strictFileInteractability" from .
         //    capabilities. If strictFileInteractability is a boolean, set session's strict file interactability to
         //    strictFileInteractability.
-        if (auto strict_file_interactiblity = capabilities.get_bool("strictFileInteractability"sv); strict_file_interactiblity.has_value()) {
+        if (auto strict_file_interactiblity = capabilities.get_bool("strictFileInteractability"_sv); strict_file_interactiblity.has_value()) {
             session->m_strict_file_interactiblity = *strict_file_interactiblity;
             session->web_content_connection().async_set_strict_file_interactability(session->m_strict_file_interactiblity);
         }
 
         // 4. Let timeouts be the result of getting a property "timeouts" from capabilities. If timeouts is not
         //    undefined, set session's session timeouts to timeouts.
-        if (auto timeouts = capabilities.get_object("timeouts"sv); timeouts.has_value()) {
+        if (auto timeouts = capabilities.get_object("timeouts"_sv); timeouts.has_value()) {
             MUST(session->set_timeouts(*timeouts));
         }
 
         // 5. Set a property on capabilities with name "timeouts" and value serialize the timeouts configuration with
         //    session's session timeouts.
-        capabilities.set("timeouts"sv, session->m_timeouts_configuration.value_or_lazy_evaluated([]() {
+        capabilities.set("timeouts"_sv, session->m_timeouts_configuration.value_or_lazy_evaluated([]() {
             return Web::WebDriver::timeouts_object({});
         }));
     }
@@ -138,7 +138,7 @@ ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Session::find_session(Str
         return *session.release_value();
     }
 
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id"sv);
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id"_sv);
 }
 
 size_t Session::session_count(Web::WebDriver::SessionFlags session_flags)
@@ -302,7 +302,7 @@ Web::WebDriver::Response Session::switch_to_window(StringView handle)
     if (auto it = m_windows.find(handle); it != m_windows.end())
         m_current_window_handle = it->key;
     else
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"_sv);
 
     // 5. Update any implementation-specific state that would result from the user selecting the current
     //    browsing context for interaction, without altering OS-level focus.
@@ -331,7 +331,7 @@ ErrorOr<void, Web::WebDriver::Error> Session::ensure_current_window_handle_is_va
 {
     if (auto current_window = m_windows.get(m_current_window_handle); current_window.has_value())
         return {};
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"_sv);
 }
 
 }

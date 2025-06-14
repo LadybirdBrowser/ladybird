@@ -151,7 +151,7 @@ static ErrorOr<FixedArray<Sample>> extract_samples_from_frame(AVFrame& frame)
 
     // FIXME: handle number_of_channels > 2
     if (number_of_channels != 1 && number_of_channels != 2)
-        return Error::from_string_view("Unsupported number of channels"sv);
+        return Error::from_string_view("Unsupported number of channels"_sv);
 
     switch (format) {
     case AV_SAMPLE_FMT_FLTP:
@@ -160,7 +160,7 @@ static ErrorOr<FixedArray<Sample>> extract_samples_from_frame(AVFrame& frame)
         break;
     default:
         // FIXME: handle other formats
-        return Error::from_string_view("Unsupported sample format"sv);
+        return Error::from_string_view("Unsupported sample format"_sv);
     }
 
     auto get_plane_pointer = [&](size_t channel_index) -> uint8_t* {

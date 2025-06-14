@@ -11,7 +11,7 @@ TEST_CASE(test_utf8_encode)
 {
     TextCodec::UTF8Encoder encoder;
     // Unicode character U+1F600 GRINNING FACE
-    auto test_string = "\U0001F600"sv;
+    auto test_string = "\U0001F600"_sv;
 
     Vector<u8> processed_bytes;
     MUST(encoder.process(
@@ -31,7 +31,7 @@ TEST_CASE(test_euc_jp_encoder)
     // U+A5 Yen Sign
     // U+3088 Hiragana Letter Yo
     // U+30C4 Katakana Letter Tu
-    auto test_string = "\U000000A5\U00003088\U000030C4"sv;
+    auto test_string = "\U000000A5\U00003088\U000030C4"_sv;
 
     Vector<u8> processed_bytes;
     MUST(encoder.process(
@@ -52,7 +52,7 @@ TEST_CASE(test_iso_2022_jp_encoder)
     // U+A5 Yen Sign
     // U+3088 Hiragana Letter Yo
     // U+30C4 Katakana Letter Tu
-    auto test_string = "\U000000A5\U00003088\U000030C4"sv;
+    auto test_string = "\U000000A5\U00003088\U000030C4"_sv;
 
     Vector<u8> processed_bytes;
     MUST(encoder.process(
@@ -82,7 +82,7 @@ TEST_CASE(test_shift_jis_encoder)
     // U+A5 Yen Sign
     // U+3088 Hiragana Letter Yo
     // U+30C4 Katakana Letter Tu
-    auto test_string = "\U000000A5\U00003088\U000030C4"sv;
+    auto test_string = "\U000000A5\U00003088\U000030C4"_sv;
 
     Vector<u8> processed_bytes;
     MUST(encoder.process(
@@ -102,7 +102,7 @@ TEST_CASE(test_euc_kr_encoder)
     TextCodec::EUCKREncoder encoder;
     // U+B29F Hangul Syllable Neulh
     // U+7C97 CJK Unified Ideograph-7C97
-    auto test_string = "\U0000B29F\U00007C97"sv;
+    auto test_string = "\U0000B29F\U00007C97"_sv;
 
     Vector<u8> processed_bytes;
     MUST(encoder.process(
@@ -121,7 +121,7 @@ TEST_CASE(test_big5_encoder)
     TextCodec::Big5Encoder encoder;
     // U+A7 Section Sign
     // U+70D7 CJK Unified Ideograph-70D7
-    auto test_string = "\U000000A7\U000070D7"sv;
+    auto test_string = "\U000000A7\U000070D7"_sv;
 
     Vector<u8> processed_bytes;
     MUST(encoder.process(
@@ -140,7 +140,7 @@ TEST_CASE(test_gb18030_encoder)
     TextCodec::GB18030Encoder encoder;
     // U+20AC Euro Sign
     // U+E4C5 Private Use Area
-    auto test_string = "\U000020AC\U0000E4C5"sv;
+    auto test_string = "\U000020AC\U0000E4C5"_sv;
 
     Vector<u8> processed_bytes;
     MUST(encoder.process(
@@ -156,8 +156,8 @@ TEST_CASE(test_gb18030_encoder)
 
 TEST_CASE(test_windows1252_encoder)
 {
-    auto encoder = TextCodec::encoder_for_exact_name("windows-1252"sv);
-    auto test_string = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏfoo€"sv;
+    auto encoder = TextCodec::encoder_for_exact_name("windows-1252"_sv);
+    auto test_string = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏfoo€"_sv;
     Vector<u8> processed_bytes;
     MUST(encoder.value().process(
         Utf8View(test_string),

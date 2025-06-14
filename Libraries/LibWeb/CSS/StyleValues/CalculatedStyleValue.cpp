@@ -151,18 +151,18 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
         if (auto infinite_or_nan = numeric_node.infinite_or_nan_value(); infinite_or_nan.has_value()) {
             // 1. Let s be the string "calc(".
             StringBuilder builder;
-            builder.append("calc("sv);
+            builder.append("calc("_sv);
 
             // 2. Serialize the keyword infinity, -infinity, or NaN, as appropriate to represent the value, and append it to s.
             switch (infinite_or_nan.value()) {
             case NonFiniteValue::Infinity:
-                builder.append("infinity"sv);
+                builder.append("infinity"_sv);
                 break;
             case NonFiniteValue::NegativeInfinity:
-                builder.append("-infinity"sv);
+                builder.append("-infinity"_sv);
                 break;
             case NonFiniteValue::NaN:
-                builder.append("NaN"sv);
+                builder.append("NaN"_sv);
                 break;
             default:
                 VERIFY_NOT_REACHED();
@@ -173,14 +173,14 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
             //    Serialize this numeric value and append it to s.
             if (!numeric_node.value().has<Number>()) {
                 numeric_node.value().visit(
-                    [&builder](Angle const&) { builder.append(" * 1deg"sv); },
-                    [&builder](Flex const&) { builder.append(" * 1fr"sv); },
-                    [&builder](Frequency const&) { builder.append(" * 1hz"sv); },
-                    [&builder](Length const&) { builder.append(" * 1px"sv); },
+                    [&builder](Angle const&) { builder.append(" * 1deg"_sv); },
+                    [&builder](Flex const&) { builder.append(" * 1fr"_sv); },
+                    [&builder](Frequency const&) { builder.append(" * 1hz"_sv); },
+                    [&builder](Length const&) { builder.append(" * 1px"_sv); },
                     [](Number const&) { VERIFY_NOT_REACHED(); },
-                    [&builder](Percentage const&) { builder.append(" * 1%"sv); },
-                    [&builder](Resolution const&) { builder.append(" * 1dppx"sv); },
-                    [&builder](Time const&) { builder.append(" * 1s"sv); });
+                    [&builder](Percentage const&) { builder.append(" * 1%"_sv); },
+                    [&builder](Resolution const&) { builder.append(" * 1dppx"_sv); },
+                    [&builder](Time const&) { builder.append(" * 1s"_sv); });
             }
 
             // 4. Append ")" to s, then return it.
@@ -195,7 +195,7 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
     //    "max"), followed by a "(" (open parenthesis).
     StringBuilder builder;
     if (fn.type() == CalculationNode::Type::Numeric || fn.is_calc_operator_node()) {
-        builder.append("calc("sv);
+        builder.append("calc("_sv);
     } else {
         builder.appendff("{}(", fn.name());
     }
@@ -230,7 +230,7 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
         for (auto const& child : fn.children()) {
             serialized_children.append(serialized_tree_without_parentheses(child));
         }
-        builder.join(", "sv, serialized_children);
+        builder.join(", "_sv, serialized_children);
     }
 
     // 5. Append ")" (close parenthesis) to s.
@@ -331,7 +331,7 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
     // 4. If root is a Negate node, let s be a string initially containing "(-1 * ".
     if (root.type() == CalculationNode::Type::Negate) {
         StringBuilder builder;
-        builder.append("(-1 * "sv);
+        builder.append("(-1 * "_sv);
 
         // Serialize root’s child, and append it to s.
         builder.append(serialize_a_calculation_tree(root.children().first(), context, serialization_mode));
@@ -344,7 +344,7 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
     // 5. If root is an Invert node, let s be a string initially containing "(1 / ".
     if (root.type() == CalculationNode::Type::Invert) {
         StringBuilder builder;
-        builder.append("(1 / "sv);
+        builder.append("(1 / "_sv);
 
         // Serialize root’s child, and append it to s.
         builder.append(serialize_a_calculation_tree(root.children().first(), context, serialization_mode));
@@ -371,7 +371,7 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
             // 1. If child is a Negate node, append " - " to s, then serialize the Negate’s child and append the
             //    result to s.
             if (child.type() == CalculationNode::Type::Negate) {
-                builder.append(" - "sv);
+                builder.append(" - "_sv);
                 builder.append(serialize_a_calculation_tree(static_cast<NegateCalculationNode const&>(child).child(), context, serialization_mode));
             }
 
@@ -379,13 +379,13 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
             //    normal and append the result to s.
             else if (child.type() == CalculationNode::Type::Numeric && static_cast<NumericCalculationNode const&>(child).is_negative()) {
                 auto const& numeric_node = static_cast<NumericCalculationNode const&>(child);
-                builder.append(" - "sv);
+                builder.append(" - "_sv);
                 builder.append(serialize_a_calculation_tree(numeric_node.negated(context), context, serialization_mode));
             }
 
             // 3. Otherwise, append " + " to s, then serialize child and append the result to s.
             else {
-                builder.append(" + "sv);
+                builder.append(" + "_sv);
                 builder.append(serialize_a_calculation_tree(child, context, serialization_mode));
             }
         }
@@ -411,13 +411,13 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
 
             // 1. If child is an Invert node, append " / " to s, then serialize the Invert’s child and append the result to s.
             if (child.type() == CalculationNode::Type::Invert) {
-                builder.append(" / "sv);
+                builder.append(" / "_sv);
                 builder.append(serialize_a_calculation_tree(static_cast<InvertCalculationNode const&>(child).child(), context, serialization_mode));
             }
 
             // 2. Otherwise, append " * " to s, then serialize child and append the result to s.
             else {
-                builder.append(" * "sv);
+                builder.append(" * "_sv);
                 builder.append(serialize_a_calculation_tree(child, context, serialization_mode));
             }
         }
@@ -442,51 +442,51 @@ StringView CalculationNode::name() const
 {
     switch (m_type) {
     case Type::Min:
-        return "min"sv;
+        return "min"_sv;
     case Type::Max:
-        return "max"sv;
+        return "max"_sv;
     case Type::Clamp:
-        return "clamp"sv;
+        return "clamp"_sv;
     case Type::Abs:
-        return "abs"sv;
+        return "abs"_sv;
     case Type::Sign:
-        return "sign"sv;
+        return "sign"_sv;
     case Type::Sin:
-        return "sin"sv;
+        return "sin"_sv;
     case Type::Cos:
-        return "cos"sv;
+        return "cos"_sv;
     case Type::Tan:
-        return "tan"sv;
+        return "tan"_sv;
     case Type::Asin:
-        return "asin"sv;
+        return "asin"_sv;
     case Type::Acos:
-        return "acos"sv;
+        return "acos"_sv;
     case Type::Atan:
-        return "atan"sv;
+        return "atan"_sv;
     case Type::Atan2:
-        return "atan2"sv;
+        return "atan2"_sv;
     case Type::Pow:
-        return "pow"sv;
+        return "pow"_sv;
     case Type::Sqrt:
-        return "sqrt"sv;
+        return "sqrt"_sv;
     case Type::Hypot:
-        return "hypot"sv;
+        return "hypot"_sv;
     case Type::Log:
-        return "log"sv;
+        return "log"_sv;
     case Type::Exp:
-        return "exp"sv;
+        return "exp"_sv;
     case Type::Round:
-        return "round"sv;
+        return "round"_sv;
     case Type::Mod:
-        return "mod"sv;
+        return "mod"_sv;
     case Type::Rem:
-        return "rem"sv;
+        return "rem"_sv;
     case Type::Numeric:
     case Type::Sum:
     case Type::Product:
     case Type::Negate:
     case Type::Invert:
-        return "calc"sv;
+        return "calc"_sv;
     }
     VERIFY_NOT_REACHED();
 }

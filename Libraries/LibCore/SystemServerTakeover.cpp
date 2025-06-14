@@ -19,7 +19,7 @@ static void parse_sockets_from_system_server()
 {
     VERIFY(!s_overtaken_sockets_parsed);
 
-    constexpr auto socket_takeover = "SOCKET_TAKEOVER"sv;
+    constexpr auto socket_takeover = "SOCKET_TAKEOVER"_sv;
     auto sockets = Environment::get(socket_takeover);
     if (!sockets.has_value()) {
         s_overtaken_sockets_parsed = true;

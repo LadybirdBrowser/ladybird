@@ -112,6 +112,6 @@ template<>
 struct AK::Formatter<Test::Randomized::RandomRun> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Test::Randomized::RandomRun run)
     {
-        return Formatter<StringView>::format(builder, TRY(String::formatted("[{}]", TRY(String::join(',', run.data(), "{}"sv)))));
+        return Formatter<StringView>::format(builder, TRY(String::formatted("[{}]", TRY(String::join(',', run.data(), "{}"_sv)))));
     }
 };

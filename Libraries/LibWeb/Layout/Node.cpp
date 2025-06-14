@@ -1027,7 +1027,7 @@ String Node::debug_description() const
                 builder.appendff(".{}", class_name);
         }
     } else {
-        builder.append("(anonymous)"sv);
+        builder.append("(anonymous)"_sv);
     }
     return MUST(builder.to_string());
 }

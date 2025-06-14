@@ -113,7 +113,7 @@ template<>
 struct AK::Formatter<pthread_t> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, pthread_t const& tid)
     {
-        return Formatter<FormatString>::format(builder, "{}"sv, pthread_getw32threadid_np(tid));
+        return Formatter<FormatString>::format(builder, "{}"_sv, pthread_getw32threadid_np(tid));
     }
 };
 #endif
@@ -122,7 +122,7 @@ template<>
 struct AK::Formatter<Threading::Thread> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Threading::Thread const& thread)
     {
-        return Formatter<FormatString>::format(builder, "Thread \"{}\"({})"sv, thread.thread_name(), thread.tid());
+        return Formatter<FormatString>::format(builder, "Thread \"{}\"({})"_sv, thread.thread_name(), thread.tid());
     }
 };
 
@@ -153,6 +153,6 @@ struct AK::Formatter<Threading::ThreadState> : AK::Formatter<FormatString> {
         default:
             VERIFY_NOT_REACHED();
         }
-        return Formatter<FormatString>::format(builder, "{}"sv, name);
+        return Formatter<FormatString>::format(builder, "{}"_sv, name);
     }
 };

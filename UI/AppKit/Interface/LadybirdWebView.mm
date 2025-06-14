@@ -601,7 +601,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
         if (modifiers == Web::UIEvents::KeyModifier::Mod_Super) {
             [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::No];
-        } else if (target == "_blank"sv) {
+        } else if (target == "_blank"_sv) {
             [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::Yes];
         } else {
             [self.observer loadURL:url];
@@ -1068,11 +1068,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         NSPasteboardType pasteboard_type = nil;
 
         // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
-        if (entry.mime_type == "text/plain"sv)
+        if (entry.mime_type == "text/plain"_sv)
             pasteboard_type = NSPasteboardTypeString;
-        else if (entry.mime_type == "text/html"sv)
+        else if (entry.mime_type == "text/html"_sv)
             pasteboard_type = NSPasteboardTypeHTML;
-        else if (entry.mime_type == "image/png"sv)
+        else if (entry.mime_type == "image/png"_sv)
             pasteboard_type = NSPasteboardTypePNG;
 
         if (pasteboard_type)

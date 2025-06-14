@@ -114,7 +114,7 @@ String ColorMixStyleValue::to_string(SerializationMode mode) const
     builder.appendff("color-mix(in {}", m_properties.color_interpolation_method.color_space);
     if (m_properties.color_interpolation_method.hue_interpolation_method.value_or(HueInterpolationMethod::Shorter) != HueInterpolationMethod::Shorter)
         builder.appendff(" {} hue", CSS::to_string(*m_properties.color_interpolation_method.hue_interpolation_method));
-    builder.append(", "sv);
+    builder.append(", "_sv);
     builder.append(m_properties.first_component.color->to_string(mode));
     serialize_first_percentage(builder, m_properties.first_component.percentage, m_properties.second_component.percentage);
     builder.appendff(", {}", m_properties.second_component.color->to_string(mode));

@@ -28,9 +28,9 @@ void PreferenceActor::handle_message(Message const& message)
     //            devtools.debugger.prompt-connection
     //            dom.serviceWorkers.enabled
     //        We just blindly return `false` for these, but we will eventually want a real configuration manager.
-    if (message.type == "getBoolPref"sv) {
+    if (message.type == "getBoolPref"_sv) {
         JsonObject response;
-        response.set("value"sv, false);
+        response.set("value"_sv, false);
         send_response(message, move(response));
         return;
     }

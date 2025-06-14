@@ -44,7 +44,7 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         https_scheme_was_guessed = true;
     }
 
-    static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
+    static constexpr Array SUPPORTED_SCHEMES { "about"_sv, "data"_sv, "file"_sv, "http"_sv, "https"_sv, "resource"_sv };
     if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); }))
         return search_url_or_error();
     // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
@@ -57,7 +57,7 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
             return search_url_or_error();
 
         // https://datatracker.ietf.org/doc/html/rfc2606
-        static constexpr Array RESERVED_TLDS { ".test"sv, ".example"sv, ".invalid"sv, ".localhost"sv };
+        static constexpr Array RESERVED_TLDS { ".test"_sv, ".example"_sv, ".invalid"_sv, ".localhost"_sv };
         if (any_of(RESERVED_TLDS, [&](StringView const& tld) { return domain.byte_count() > tld.length() && domain.ends_with_bytes(tld); }))
             return url;
 
@@ -65,7 +65,7 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         if (!public_suffix.has_value() || *public_suffix == domain) {
             if (append_tld == AppendTLD::Yes)
                 url->set_host(MUST(String::formatted("{}.com", domain)));
-            else if (https_scheme_was_guessed && domain != "localhost"sv)
+            else if (https_scheme_was_guessed && domain != "localhost"_sv)
                 return search_url_or_error();
         }
     }
@@ -91,7 +91,7 @@ Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const
 
 static URLParts break_internal_url_into_parts(URL::URL const& url, StringView url_string)
 {
-    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + ":"sv.length());
+    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + ":"_sv.length());
     auto path = url_string.substring_view(scheme.length());
 
     return URLParts { scheme, path, {} };
@@ -99,7 +99,7 @@ static URLParts break_internal_url_into_parts(URL::URL const& url, StringView ur
 
 static URLParts break_file_url_into_parts(URL::URL const& url, StringView url_string)
 {
-    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + "://"sv.length());
+    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + "://"_sv.length());
     auto path = url_string.substring_view(scheme.length());
 
     return URLParts { scheme, path, {} };
@@ -107,13 +107,13 @@ static URLParts break_file_url_into_parts(URL::URL const& url, StringView url_st
 
 static URLParts break_web_url_into_parts(URL::URL const& url, StringView url_string)
 {
-    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + "://"sv.length());
+    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + "://"_sv.length());
     auto url_without_scheme = url_string.substring_view(scheme.length());
 
     StringView domain;
     StringView remainder;
 
-    if (auto index = url_without_scheme.find_any_of("/?#"sv); index.has_value()) {
+    if (auto index = url_without_scheme.find_any_of("/?#"_sv); index.has_value()) {
         domain = url_without_scheme.substring_view(0, *index);
         remainder = url_without_scheme.substring_view(*index);
     } else {
@@ -125,7 +125,7 @@ static URLParts break_web_url_into_parts(URL::URL const& url, StringView url_str
         return { scheme, domain, remainder };
 
     auto subdomain = domain.substring_view(0, domain.length() - public_suffix->bytes_as_string_view().length());
-    subdomain = subdomain.trim("."sv, TrimMode::Right);
+    subdomain = subdomain.trim("."_sv, TrimMode::Right);
 
     if (auto index = subdomain.find_last('.'); index.has_value()) {
         subdomain = subdomain.substring_view(0, *index + 1);
@@ -153,13 +153,13 @@ Optional<URLParts> break_url_into_parts(StringView url_string)
 
     auto schemeless_url = url_string.substring_view(scheme_length);
 
-    if (schemeless_url.starts_with("://"sv)) {
-        if (url.scheme() == "file"sv)
+    if (schemeless_url.starts_with("://"_sv)) {
+        if (url.scheme() == "file"_sv)
             return break_file_url_into_parts(url, url_string);
-        if (url.scheme().is_one_of("http"sv, "https"sv))
+        if (url.scheme().is_one_of("http"_sv, "https"_sv))
             return break_web_url_into_parts(url, url_string);
     } else if (schemeless_url.starts_with(':')) {
-        if (url.scheme().is_one_of("about"sv, "data"sv))
+        if (url.scheme().is_one_of("about"_sv, "data"_sv))
             return break_internal_url_into_parts(url, url_string);
     }
 
@@ -168,9 +168,9 @@ Optional<URLParts> break_url_into_parts(StringView url_string)
 
 URLType url_type(URL::URL const& url)
 {
-    if (url.scheme() == "mailto"sv)
+    if (url.scheme() == "mailto"_sv)
         return URLType::Email;
-    if (url.scheme() == "tel"sv)
+    if (url.scheme() == "tel"_sv)
         return URLType::Telephone;
     return URLType::Other;
 }
@@ -179,11 +179,11 @@ String url_text_to_copy(URL::URL const& url)
 {
     auto url_text = url.to_string();
 
-    if (url.scheme() == "mailto"sv)
-        return MUST(url_text.substring_from_byte_offset("mailto:"sv.length()));
+    if (url.scheme() == "mailto"_sv)
+        return MUST(url_text.substring_from_byte_offset("mailto:"_sv.length()));
 
-    if (url.scheme() == "tel"sv)
-        return MUST(url_text.substring_from_byte_offset("tel:"sv.length()));
+    if (url.scheme() == "tel"_sv)
+        return MUST(url_text.substring_from_byte_offset("tel:"_sv.length()));
 
     return url_text;
 }

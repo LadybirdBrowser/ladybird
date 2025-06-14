@@ -61,13 +61,13 @@ Optional<CSSNumericType> CSSNumericType::create_from_unit(StringView unit)
     // To create a type from a string unit, follow the appropriate branch of the following:
 
     // unit is "number"
-    if (unit == "number"sv) {
+    if (unit == "number"_sv) {
         // Return «[ ]» (empty map)
         return CSSNumericType {};
     }
 
     // unit is "percent"
-    if (unit == "percent"sv) {
+    if (unit == "percent"_sv) {
         // Return «[ "percent" → 1 ]»
         return CSSNumericType { BaseType::Percent, 1 };
     }
@@ -502,7 +502,7 @@ String CSSNumericType::dump() const
             builder.appendff(", \"{}\" → {}", base_type_name(base_type), type_exponent.value());
     }
 
-    builder.append(" }"sv);
+    builder.append(" }"_sv);
     return builder.to_string_without_validation();
 }
 

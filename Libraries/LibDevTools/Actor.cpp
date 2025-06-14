@@ -33,7 +33,7 @@ void Actor::send_response(Message const& message, JsonObject response)
     if (!connection)
         return;
 
-    response.set("from"sv, name());
+    response.set("from"_sv, name());
 
     for (auto const& [i, pending_response] : enumerate(m_pending_responses)) {
         if (pending_response.id != message.id)
@@ -64,7 +64,7 @@ void Actor::send_message(JsonObject message)
     if (!connection)
         return;
 
-    message.set("from"sv, name());
+    message.set("from"_sv, name());
 
     if (m_pending_responses.is_empty()) {
         connection->send_message(message);
@@ -78,8 +78,8 @@ void Actor::send_message(JsonObject message)
 void Actor::send_missing_parameter_error(Optional<Message const&> message, StringView parameter)
 {
     JsonObject error;
-    error.set("error"sv, "missingParameter"sv);
-    error.set("message"sv, MUST(String::formatted("Missing parameter: '{}'", parameter)));
+    error.set("error"_sv, "missingParameter"_sv);
+    error.set("message"_sv, MUST(String::formatted("Missing parameter: '{}'", parameter)));
 
     if (message.has_value())
         send_response(*message, move(error));
@@ -91,8 +91,8 @@ void Actor::send_missing_parameter_error(Optional<Message const&> message, Strin
 void Actor::send_unrecognized_packet_type_error(Message const& message)
 {
     JsonObject error;
-    error.set("error"sv, "unrecognizedPacketType"sv);
-    error.set("message"sv, MUST(String::formatted("Unrecognized packet type: '{}'", message.type)));
+    error.set("error"_sv, "unrecognizedPacketType"_sv);
+    error.set("message"_sv, MUST(String::formatted("Unrecognized packet type: '{}'", message.type)));
     send_response(message, move(error));
 }
 
@@ -101,8 +101,8 @@ void Actor::send_unrecognized_packet_type_error(Message const& message)
 void Actor::send_unknown_actor_error(Optional<Message const&> message, StringView actor)
 {
     JsonObject error;
-    error.set("error"sv, "unknownActor"sv);
-    error.set("message"sv, MUST(String::formatted("Unknown actor: '{}'", actor)));
+    error.set("error"_sv, "unknownActor"_sv);
+    error.set("message"_sv, MUST(String::formatted("Unknown actor: '{}'", actor)));
 
     if (message.has_value())
         send_response(*message, move(error));

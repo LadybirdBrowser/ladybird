@@ -697,7 +697,7 @@ struct Formatter<JS::Value> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, JS::Value value)
     {
         if (value.is_special_empty_value())
-            return Formatter<StringView>::format(builder, "<empty>"sv);
+            return Formatter<StringView>::format(builder, "<empty>"_sv);
         return Formatter<StringView>::format(builder, value.to_string_without_side_effects());
     }
 };

@@ -31,7 +31,6 @@ To implement this yourself:
   ```
 - In addition, you will need to also add some compile options that Serenity uses to ensure no warnings or errors:
   ```cmake
-  add_compile_options(-Wno-literal-suffix) # AK::StringView defines operator""sv, which GCC complains does not have an underscore.
   add_compile_options(-fno-gnu-keywords)   # JS::Value has a method named typeof, which also happens to be a GNU keyword.
   ```
 

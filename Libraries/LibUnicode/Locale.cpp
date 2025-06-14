@@ -61,7 +61,7 @@ static bool is_single_transformed_value(StringView value)
 
 static Optional<StringView> consume_next_segment(GenericLexer& lexer, bool with_separator = true)
 {
-    constexpr auto is_separator = is_any_of("-_"sv);
+    constexpr auto is_separator = is_any_of("-_"_sv);
 
     if (with_separator) {
         if (!lexer.next_is(is_separator))
@@ -105,7 +105,7 @@ static Optional<LanguageID> parse_unicode_language_id(GenericLexer& lexer)
     //                       (sep unicode_variant_subtag)*
     LanguageID language_id {};
 
-    if (lexer.consume_specific("root"sv)) {
+    if (lexer.consume_specific("root"_sv)) {
         language_id.is_root = true;
         return language_id;
     }
@@ -510,7 +510,7 @@ String canonicalize_unicode_extension_values(StringView key, StringView value)
 
 StringView default_locale()
 {
-    return "en"sv;
+    return "en"_sv;
 }
 
 static void define_locales_without_scripts(HashTable<String>& locales)
@@ -567,11 +567,11 @@ bool is_locale_available(StringView locale)
 
 Style style_from_string(StringView style)
 {
-    if (style == "narrow"sv)
+    if (style == "narrow"_sv)
         return Style::Narrow;
-    if (style == "short"sv)
+    if (style == "short"_sv)
         return Style::Short;
-    if (style == "long"sv)
+    if (style == "long"_sv)
         return Style::Long;
     VERIFY_NOT_REACHED();
 }
@@ -580,11 +580,11 @@ StringView style_to_string(Style style)
 {
     switch (style) {
     case Style::Narrow:
-        return "narrow"sv;
+        return "narrow"_sv;
     case Style::Short:
-        return "short"sv;
+        return "short"_sv;
     case Style::Long:
-        return "long"sv;
+        return "long"_sv;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -706,7 +706,7 @@ String LocaleID::to_string() const
     for (auto const& extension : extensions) {
         extension.visit(
             [&](LocaleExtension const& ext) {
-                builder.append("-u"sv);
+                builder.append("-u"_sv);
                 for (auto const& attribute : ext.attributes)
                     append_segment(attribute);
                 for (auto const& keyword : ext.keywords) {
@@ -715,7 +715,7 @@ String LocaleID::to_string() const
                 }
             },
             [&](TransformedExtension const& ext) {
-                builder.append("-t"sv);
+                builder.append("-t"_sv);
                 if (ext.language.has_value())
                     append_segment(ext.language->to_string());
                 for (auto const& field : ext.fields) {
@@ -730,7 +730,7 @@ String LocaleID::to_string() const
     }
 
     if (!private_use_extensions.is_empty()) {
-        builder.append("-x"sv);
+        builder.append("-x"_sv);
         for (auto const& extension : private_use_extensions)
             append_segment(extension);
     }

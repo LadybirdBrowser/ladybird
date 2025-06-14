@@ -180,7 +180,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
 
     // 1. If mark is negative, throw a TypeError.
     if (mark_time_stamp < 0.0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot have negative time values in PerformanceMark"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot have negative time values in PerformanceMark"_sv };
 
     // 2. Otherwise, let end time be mark.
     return mark_time_stamp;
@@ -202,15 +202,15 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
             || !start_or_measure_options_dictionary_object->detail.is_undefined())) {
         // 1. If endMark is given, throw a TypeError.
         if (end_mark.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide PerformanceMeasureOptions and endMark at the same time"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide PerformanceMeasureOptions and endMark at the same time"_sv };
 
         // 2. If startOrMeasureOptions's start and end members are both omitted, throw a TypeError.
         if (!start_or_measure_options_dictionary_object->start.has_value() && !start_or_measure_options_dictionary_object->end.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions must contain one or both of 'start' and 'end'"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions must contain one or both of 'start' and 'end'"_sv };
 
         // 3. If startOrMeasureOptions's start, duration, and end members are all present, throw a TypeError.
         if (start_or_measure_options_dictionary_object->start.has_value() && start_or_measure_options_dictionary_object->end.has_value() && start_or_measure_options_dictionary_object->duration.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions cannot contain 'start', 'duration' and 'end' properties all at once"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions cannot contain 'start', 'duration' and 'end' properties all at once"_sv };
     }
 
     // 2. Compute end time as follows:

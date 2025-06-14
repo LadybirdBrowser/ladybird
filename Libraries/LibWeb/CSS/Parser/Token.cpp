@@ -158,59 +158,59 @@ Token::Type Token::mirror_variant() const
 StringView Token::bracket_string() const
 {
     if (is(Token::Type::OpenCurly)) {
-        return "{"sv;
+        return "{"_sv;
     }
 
     if (is(Token::Type::CloseCurly)) {
-        return "}"sv;
+        return "}"_sv;
     }
 
     if (is(Token::Type::OpenSquare)) {
-        return "["sv;
+        return "["_sv;
     }
 
     if (is(Token::Type::CloseSquare)) {
-        return "]"sv;
+        return "]"_sv;
     }
 
     if (is(Token::Type::OpenParen)) {
-        return "("sv;
+        return "("_sv;
     }
 
     if (is(Token::Type::CloseParen)) {
-        return ")"sv;
+        return ")"_sv;
     }
 
-    return ""sv;
+    return ""_sv;
 }
 
 StringView Token::bracket_mirror_string() const
 {
     if (is(Token::Type::OpenCurly)) {
-        return "}"sv;
+        return "}"_sv;
     }
 
     if (is(Token::Type::CloseCurly)) {
-        return "{"sv;
+        return "{"_sv;
     }
 
     if (is(Token::Type::OpenSquare)) {
-        return "]"sv;
+        return "]"_sv;
     }
 
     if (is(Token::Type::CloseSquare)) {
-        return "["sv;
+        return "["_sv;
     }
 
     if (is(Token::Type::OpenParen)) {
-        return ")"sv;
+        return ")"_sv;
     }
 
     if (is(Token::Type::CloseParen)) {
-        return "("sv;
+        return "("_sv;
     }
 
-    return ""sv;
+    return ""_sv;
 }
 
 }

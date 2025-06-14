@@ -121,7 +121,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::form_data() const
         // 2. If mimeType is non-null, then switch on mimeType’s essence and run the corresponding steps:
         if (mime_type.has_value()) {
             // -> "multipart/form-data"
-            if (mime_type->essence() == "multipart/form-data"sv) {
+            if (mime_type->essence() == "multipart/form-data"_sv) {
                 // 1. Parse bytes, using the value of the `boundary` parameter from mimeType, per the rules set forth in Returning Values from Forms: multipart/form-data. [RFC7578]
                 auto error_or_entry_list = parse_multipart_form_data(realm, bytes, mime_type.value());
 
@@ -133,7 +133,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::form_data() const
                 return TRY(XHR::FormData::create(realm, error_or_entry_list.release_value()));
             }
             // -> "application/x-www-form-urlencoded"
-            if (mime_type->essence() == "application/x-www-form-urlencoded"sv) {
+            if (mime_type->essence() == "application/x-www-form-urlencoded"_sv) {
                 // 1. Let entries be the result of parsing bytes.
                 auto entries = DOMURL::url_decode(StringView { bytes });
 
@@ -143,7 +143,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::form_data() const
         }
 
         // 3. Throw a TypeError.
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mime type must be 'multipart/form-data' or 'application/x-www-form-urlencoded'"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mime type must be 'multipart/form-data' or 'application/x-www-form-urlencoded'"_sv };
     }));
 }
 
@@ -168,7 +168,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::text() const
 
     // The text() method steps are to return the result of running consume body with this and UTF-8 decode.
     return consume_body(realm, *this, GC::create_function(realm.heap(), [&vm](ByteBuffer bytes) -> WebIDL::ExceptionOr<JS::Value> {
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
+        auto decoder = TextCodec::decoder_for("UTF-8"_sv);
         VERIFY(decoder.has_value());
 
         auto utf8_text = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, bytes));
@@ -181,7 +181,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm& realm, Bod
 {
     // 1. If object is unusable, then return a promise rejected with a TypeError.
     if (object.is_unusable()) {
-        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Body is unusable"sv };
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Body is unusable"_sv };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
@@ -240,7 +240,7 @@ static MultipartParsingErrorOr<String> parse_multipart_form_data_name(GenericLex
     VERIFY(lexer.peek(-1) == '"');
 
     // 2. Let name be the result of collecting a sequence of bytes that are not 0x0A (LF), 0x0D (CR) or 0x22 ("), given position.
-    auto name = lexer.consume_until(is_any_of("\n\r\""sv));
+    auto name = lexer.consume_until(is_any_of("\n\r\""_sv));
 
     // 3. If the byte at position is not 0x22 ("), return failure. Otherwise, advance position by 1.
     if (!lexer.consume_specific('"'))
@@ -255,17 +255,17 @@ static MultipartParsingErrorOr<String> parse_multipart_form_data_name(GenericLex
         // Check for subsequences starting with '%'
         if (name[i] == '%' && i + 2 < name.length()) {
             auto subsequence = name.substring_view(i, 3);
-            if (subsequence == "%0A"sv) {
+            if (subsequence == "%0A"_sv) {
                 builder.append(0x0A); // Append LF
                 i += 2;               // Skip the next two characters
                 continue;
             }
-            if (subsequence == "%0D"sv) {
+            if (subsequence == "%0D"_sv) {
                 builder.append(0x0D); // Append CR
                 i += 2;               // Skip the next two characters
                 continue;
             }
-            if (subsequence == "%22"sv) {
+            if (subsequence == "%22"_sv) {
                 builder.append(0x22); // Append "
                 i += 2;               // Skip the next two characters
                 continue;
@@ -288,7 +288,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
     // 2. While true:
     while (true) {
         // 1. If position points to a sequence of bytes starting with 0x0D 0x0A (CR LF):
-        if (lexer.next_is("\r\n"sv)) {
+        if (lexer.next_is("\r\n"_sv)) {
             // 1. If name is null, return failure.
             if (!header.name.has_value())
                 return MultipartParsingError { "Missing name parameter in Content-Disposition header"_string };
@@ -298,7 +298,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
         }
 
         // 2. Let header name be the result of collecting a sequence of bytes that are not 0x0A (LF), 0x0D (CR) or 0x3A (:), given position.
-        auto header_name = lexer.consume_until(is_any_of("\n\r:"sv));
+        auto header_name = lexer.consume_until(is_any_of("\n\r:"_sv));
 
         // 3. Remove any HTTP tab or space bytes from the start or end of header name.
         header_name = header_name.trim(Infrastructure::HTTP_TAB_OR_SPACE, TrimMode::Both);
@@ -317,14 +317,14 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
 
         // 8. Byte-lowercase header name and switch on the result:
         // -> `content-disposition`
-        if (header_name.equals_ignoring_ascii_case("content-disposition"sv)) {
+        if (header_name.equals_ignoring_ascii_case("content-disposition"_sv)) {
             // 1. Set name and filename to null.
             header.name.clear();
             header.filename.clear();
 
             // 2. If position does not point to a sequence of bytes starting with `form-data; name="`, return failure.
             // 3. Advance position so it points at the byte after the next 0x22 (") byte (the one in the sequence of bytes matched above).
-            if (!lexer.consume_specific("form-data; name=\""sv))
+            if (!lexer.consume_specific("form-data; name=\""_sv))
                 return MultipartParsingError { MUST(String::formatted("Expected `form-data; name=\"` at position {}", lexer.tell())) };
 
             // 4. Set name to the result of parsing a multipart/form-data name given input and position, if the result is not failure. Otherwise, return failure.
@@ -335,7 +335,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
 
             // 5. If position points to a sequence of bytes starting with `; filename="`:
             //     1. Advance position so it points at the byte after the next 0x22 (") byte (the one in the sequence of bytes matched above).
-            if (lexer.consume_specific("; filename=\""sv)) {
+            if (lexer.consume_specific("; filename=\""_sv)) {
                 // 2. Set filename to the result of parsing a multipart/form-data name given input and position, if the result is not failure. Otherwise, return failure.
                 auto maybe_filename = parse_multipart_form_data_name(lexer);
                 if (maybe_filename.is_error())
@@ -344,7 +344,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
             }
         }
         // -> `content-type`
-        else if (header_name.equals_ignoring_ascii_case("content-type"sv)) {
+        else if (header_name.equals_ignoring_ascii_case("content-type"_sv)) {
             // 1. Let header value be the result of collecting a sequence of bytes that are not 0x0A (LF) or 0x0D (CR), given position.
             auto header_value = lexer.consume_until(Infrastructure::is_http_newline);
 
@@ -361,7 +361,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
         }
 
         // 9. If position does not point to a sequence of bytes starting with 0x0D 0x0A (CR LF), return failure. Otherwise, advance position by 2 (past the newline).
-        if (!lexer.consume_specific("\r\n"sv))
+        if (!lexer.consume_specific("\r\n"_sv))
             return MultipartParsingError { MUST(String::formatted("Expected CRLF at position {}", lexer.tell())) };
     }
     return header;
@@ -371,10 +371,10 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
 MultipartParsingErrorOr<Vector<XHR::FormDataEntry>> parse_multipart_form_data(JS::Realm& realm, StringView input, MimeSniff::MimeType const& mime_type)
 {
     // 1. Assert: mimeType’s essence is "multipart/form-data".
-    VERIFY(mime_type.essence() == "multipart/form-data"sv);
+    VERIFY(mime_type.essence() == "multipart/form-data"_sv);
 
     // 2. If mimeType’s parameters["boundary"] does not exist, return failure. Otherwise, let boundary be the result of UTF-8 decoding mimeType’s parameters["boundary"].
-    auto maybe_boundary = mime_type.parameters().get("boundary"sv);
+    auto maybe_boundary = mime_type.parameters().get("boundary"_sv);
     if (!maybe_boundary.has_value())
         return MultipartParsingError { "Missing boundary parameter in Content-Type header"_string };
     auto boundary = maybe_boundary.release_value();
@@ -394,12 +394,12 @@ MultipartParsingErrorOr<Vector<XHR::FormDataEntry>> parse_multipart_form_data(JS
             return MultipartParsingError { MUST(String::formatted("Expected `--` followed by boundary at position {}", lexer.tell())) };
 
         // 2. If position points to the sequence of bytes 0x2D 0x2D 0x0D 0x0A (`--` followed by CR LF) followed by the end of input, return entry list.
-        if (lexer.next_is("--\r\n"sv))
+        if (lexer.next_is("--\r\n"_sv))
             return entry_list;
 
         // 3. If position does not point to a sequence of bytes starting with 0x0D 0x0A (CR LF), return failure.
         // 4. Advance position by 2. (This skips past the newline.)
-        if (!lexer.consume_specific("\r\n"sv))
+        if (!lexer.consume_specific("\r\n"_sv))
             return MultipartParsingError { MUST(String::formatted("Expected CRLF at position {}", lexer.tell())) };
 
         // 5. Let name, filename and contentType be the result of parsing multipart/form-data headers on input and position, if the result is not failure. Otherwise, return failure.
@@ -425,7 +425,7 @@ MultipartParsingErrorOr<Vector<XHR::FormDataEntry>> parse_multipart_form_data(JS
         }
 
         // 9. If position does not point to a sequence of bytes starting with 0x0D 0x0A (CR LF), return failure. Otherwise, advance position by 2.
-        if (!lexer.consume_specific("\r\n"sv))
+        if (!lexer.consume_specific("\r\n"_sv))
             return MultipartParsingError { MUST(String::formatted("Expected CRLF at position {}", lexer.tell())) };
 
         // 10. If filename is not null:

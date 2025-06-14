@@ -33,17 +33,17 @@ void InspectorActor::handle_message(Message const& message)
 {
     JsonObject response;
 
-    if (message.type == "getPageStyle"sv) {
+    if (message.type == "getPageStyle"_sv) {
         if (!m_page_style)
             m_page_style = devtools().register_actor<PageStyleActor>(*this);
 
-        response.set("pageStyle"sv, m_page_style->serialize_style());
+        response.set("pageStyle"_sv, m_page_style->serialize_style());
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "getHighlighterByType"sv) {
-        auto type_name = get_required_parameter<String>(message, "typeName"sv);
+    if (message.type == "getHighlighterByType"_sv) {
+        auto type_name = get_required_parameter<String>(message, "typeName"_sv);
         if (!type_name.has_value())
             return;
 
@@ -51,12 +51,12 @@ void InspectorActor::handle_message(Message const& message)
             return devtools().register_actor<HighlighterActor>(*this);
         });
 
-        response.set("highlighter"sv, highlighter->serialize_highlighter());
+        response.set("highlighter"_sv, highlighter->serialize_highlighter());
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "getWalker"sv) {
+    if (message.type == "getWalker"_sv) {
         if (auto tab = m_tab.strong_ref()) {
             devtools().delegate().inspect_tab(tab->description(),
                 async_handler<InspectorActor>(message, [](auto& self, auto dom_tree, auto& response) {
@@ -72,8 +72,8 @@ void InspectorActor::handle_message(Message const& message)
         return;
     }
 
-    if (message.type == "supportsHighlighters"sv) {
-        response.set("value"sv, true);
+    if (message.type == "supportsHighlighters"_sv) {
+        response.set("value"_sv, true);
         send_response(message, move(response));
         return;
     }
@@ -87,10 +87,10 @@ void InspectorActor::received_dom_tree(JsonObject& response, JsonObject dom_tree
     m_walker = walker_actor;
 
     JsonObject walker;
-    walker.set("actor"sv, walker_actor.name());
-    walker.set("root"sv, walker_actor.serialize_root());
+    walker.set("actor"_sv, walker_actor.name());
+    walker.set("root"_sv, walker_actor.serialize_root());
 
-    response.set("walker"sv, move(walker));
+    response.set("walker"_sv, move(walker));
 }
 
 RefPtr<TabActor> InspectorActor::tab_for(WeakPtr<InspectorActor> const& weak_inspector)

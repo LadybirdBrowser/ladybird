@@ -124,7 +124,7 @@ JS_DEFINE_NATIVE_FUNCTION(FunctionPrototype::bind)
     auto arg_count = vm.argument_count() > 0 ? vm.argument_count() - 1 : 0;
 
     // 5. Perform ? CopyNameAndLength(F, Target, "bound", argCount).
-    TRY(copy_name_and_length(vm, *function, target, "bound"sv, arg_count));
+    TRY(copy_name_and_length(vm, *function, target, "bound"_sv, arg_count));
 
     // 6. Return F.
     return function;

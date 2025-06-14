@@ -42,8 +42,8 @@ NonnullRefPtr<Resource> ResourceImplementation::make_directory_resource(String f
 
 ErrorOr<NonnullRefPtr<Resource>> ResourceImplementation::load_from_uri(StringView uri)
 {
-    StringView const file_scheme = "file://"sv;
-    StringView const resource_scheme = "resource://"sv;
+    StringView const file_scheme = "file://"_sv;
+    StringView const resource_scheme = "resource://"_sv;
 
     if (uri.starts_with(resource_scheme))
         return load_from_resource_scheme_uri(uri);

@@ -41,7 +41,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 static String keyword_name(String const& dashy_name)
 {
-    if (dashy_name == "-infinity"sv)
+    if (dashy_name == "-infinity"_sv)
         return "NegativeInfinity"_string;
     return title_casify(dashy_name);
 }
@@ -82,11 +82,11 @@ StringView string_from_keyword(Keyword);
 // https://drafts.csswg.org/css-cascade-4/#valdef-all-revert
 inline bool is_css_wide_keyword(StringView name)
 {
-    return name.equals_ignoring_ascii_case("inherit"sv)
-        || name.equals_ignoring_ascii_case("initial"sv)
-        || name.equals_ignoring_ascii_case("revert"sv)
-        || name.equals_ignoring_ascii_case("revert-layer"sv)
-        || name.equals_ignoring_ascii_case("unset"sv);
+    return name.equals_ignoring_ascii_case("inherit"_sv)
+        || name.equals_ignoring_ascii_case("initial"_sv)
+        || name.equals_ignoring_ascii_case("revert"_sv)
+        || name.equals_ignoring_ascii_case("revert-layer"_sv)
+        || name.equals_ignoring_ascii_case("unset"_sv);
 }
 
 }
@@ -117,7 +117,7 @@ HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> g_stringv
         member_generator.set("name", name.as_string());
         member_generator.set("name:titlecase", keyword_name(name.as_string()));
         member_generator.append(R"~~~(
-    {"@name@"sv, Keyword::@name:titlecase@},
+    {"@name@"_sv, Keyword::@name:titlecase@},
 )~~~");
     });
 
@@ -139,13 +139,13 @@ StringView string_from_keyword(Keyword keyword) {
         member_generator.set("name:titlecase", keyword_name(name.as_string()));
         member_generator.append(R"~~~(
     case Keyword::@name:titlecase@:
-        return "@name@"sv;
+        return "@name@"_sv;
         )~~~");
     });
 
     generator.append(R"~~~(
     default:
-        return "(invalid CSS::Keyword)"sv;
+        return "(invalid CSS::Keyword)"_sv;
     }
 }
 

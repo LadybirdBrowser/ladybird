@@ -107,17 +107,17 @@ static constexpr auto s_public_suffixes = Array {)~~~");
     while (TRY(input.can_read_line())) {
         auto line = TRY(input.read_line(buffer));
 
-        if (line.starts_with("//"sv) || line.is_empty())
+        if (line.starts_with("//"_sv) || line.is_empty())
             continue;
 
-        auto view = line.split_view("."sv);
+        auto view = line.split_view("."_sv);
         view.reverse();
 
-        auto val = MUST(String::join("."sv, view));
+        auto val = MUST(String::join("."_sv, view));
 
         generator.set("line", val);
         generator.append(R"~~~(
-    "@line@"sv,)~~~");
+    "@line@"_sv,)~~~");
     }
 
     generator.append(R"~~~(
@@ -141,7 +141,7 @@ bool PublicSuffixData::is_public_suffix(StringView host)
 
 ErrorOr<Optional<String>> PublicSuffixData::get_public_suffix(StringView string)
 {
-    auto input = string.split_view("."sv);
+    auto input = string.split_view("."_sv);
     input.reverse();
 
     StringBuilder overall_search_string;
@@ -153,24 +153,24 @@ ErrorOr<Optional<String>> PublicSuffixData::get_public_suffix(StringView string)
 
         if (is_public_suffix(search_string.string_view())) {
             overall_search_string.append(TRY(String::from_utf8(part)));
-            overall_search_string.append("."sv);
+            overall_search_string.append("."_sv);
             continue;
         }
 
         search_string.clear();
         TRY(search_string.try_append(TRY(overall_search_string.to_string())));
-        TRY(search_string.try_append("*"sv));
+        TRY(search_string.try_append("*"_sv));
 
         if (is_public_suffix(search_string.string_view())) {
             overall_search_string.append(TRY(String::from_utf8(part)));
-            overall_search_string.append("."sv);
+            overall_search_string.append("."_sv);
             continue;
         }
 
         break;
     }
 
-    auto view = overall_search_string.string_view().split_view("."sv);
+    auto view = overall_search_string.string_view().split_view("."_sv);
     view.reverse();
 
     StringBuilder return_string_builder;

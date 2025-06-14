@@ -43,15 +43,15 @@ static JsonValue serialize_js_value(JS::Realm& realm, JS::Value value)
 
     auto serialize_type = [](StringView type) {
         JsonObject serialized;
-        serialized.set("type"sv, type);
+        serialized.set("type"_sv, type);
         return serialized;
     };
 
     if (value.is_undefined())
-        return serialize_type("undefined"sv);
+        return serialize_type("undefined"_sv);
 
     if (value.is_null())
-        return serialize_type("null"sv);
+        return serialize_type("null"_sv);
 
     if (value.is_boolean())
         return value.as_bool();
@@ -61,19 +61,19 @@ static JsonValue serialize_js_value(JS::Realm& realm, JS::Value value)
 
     if (value.is_number()) {
         if (value.is_nan())
-            return serialize_type("NaN"sv);
+            return serialize_type("NaN"_sv);
         if (value.is_positive_infinity())
-            return serialize_type("Infinity"sv);
+            return serialize_type("Infinity"_sv);
         if (value.is_negative_infinity())
-            return serialize_type("-Infinity"sv);
+            return serialize_type("-Infinity"_sv);
         if (value.is_negative_zero())
-            return serialize_type("-0"sv);
+            return serialize_type("-0"_sv);
         return value.as_double();
     }
 
     if (value.is_bigint()) {
-        auto serialized = serialize_type("BigInt"sv);
-        serialized.set("text"sv, MUST(value.as_bigint().big_integer().to_base(10)));
+        auto serialized = serialize_type("BigInt"_sv);
+        serialized.set("text"_sv, MUST(value.as_bigint().big_integer().to_base(10)));
         return serialized;
     }
 

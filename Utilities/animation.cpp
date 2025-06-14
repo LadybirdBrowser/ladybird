@@ -47,7 +47,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto output_stream = TRY(Core::OutputBufferedFile::create(move(output_file)));
 
     auto animation_writer = TRY([&]() -> ErrorOr<NonnullOwnPtr<Gfx::AnimationWriter>> {
-        if (options.out_path.ends_with(".webp"sv))
+        if (options.out_path.ends_with(".webp"_sv))
             return Gfx::WebPWriter::start_encoding_animation(*output_stream, decoder->size(), decoder->loop_count());
         return Error::from_string_literal("Unable to find a encoder for the requested extension.");
     }());

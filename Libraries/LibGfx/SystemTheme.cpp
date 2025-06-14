@@ -39,7 +39,7 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
     if (color_scheme.has_value()) {
         if (color_scheme.value().length() > 255)
             return Error::from_string_literal("Passed an excessively long color scheme pathname");
-        if (color_scheme.value() != "Custom"sv)
+        if (color_scheme.value() != "Custom"_sv)
             memcpy(data->path[(int)PathRole::ColorScheme], color_scheme.value().characters(), color_scheme.value().length());
         else
             memcpy(buffer.data<SystemTheme>(), theme_buffer.data<SystemTheme>(), sizeof(SystemTheme));
@@ -48,16 +48,16 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
     auto get_color = [&](auto& name) -> Optional<Color> {
         auto color_string = file.read_entry("Colors", name);
         auto color = Color::from_string(color_string);
-        if (color_scheme.has_value() && color_scheme.value() == "Custom"sv)
+        if (color_scheme.has_value() && color_scheme.value() == "Custom"_sv)
             return color;
         if (!color.has_value()) {
             auto maybe_color_config = Core::ConfigFile::open(data->path[(int)PathRole::ColorScheme]);
             if (maybe_color_config.is_error())
                 maybe_color_config = Core::ConfigFile::open("/res/color-schemes/Default.ini");
             auto color_config = maybe_color_config.release_value();
-            if (name == "ColorSchemeBackground"sv)
+            if (name == "ColorSchemeBackground"_sv)
                 color = Gfx::Color::from_string(color_config->read_entry("Primary", "Background"));
-            else if (name == "ColorSchemeForeground"sv)
+            else if (name == "ColorSchemeForeground"_sv)
                 color = Gfx::Color::from_string(color_config->read_entry("Primary", "Foreground"));
             else if (strncmp(name, "Bright", 6) == 0)
                 color = Gfx::Color::from_string(color_config->read_entry("Bright", name + 6));
@@ -167,7 +167,7 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
 #undef __ENUMERATE_FLAG_ROLE
 #define __ENUMERATE_FLAG_ROLE(role)                            \
     {                                                          \
-        if (#role != "BoldTextAsBright"sv)                     \
+        if (#role != "BoldTextAsBright"_sv)                    \
             data->flag[(int)FlagRole::role] = get_flag(#role); \
     }
     ENUMERATE_FLAG_ROLES(__ENUMERATE_FLAG_ROLE)
@@ -179,7 +179,7 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
     ENUMERATE_METRIC_ROLES(__ENUMERATE_METRIC_ROLE)
 #undef __ENUMERATE_METRIC_ROLE
 
-    if (!color_scheme.has_value() || color_scheme.value() != "Custom"sv) {
+    if (!color_scheme.has_value() || color_scheme.value() != "Custom"_sv) {
         auto maybe_color_config = Core::ConfigFile::open(data->path[(int)PathRole::ColorScheme]);
         if (!maybe_color_config.is_error()) {
             auto color_config = maybe_color_config.release_value();

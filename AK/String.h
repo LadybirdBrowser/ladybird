@@ -210,7 +210,7 @@ public:
     }
 
     template<class SeparatorType, class CollectionType>
-    static ErrorOr<String> join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"sv)
+    static ErrorOr<String> join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"_sv)
     {
         StringBuilder builder;
         TRY(builder.try_join(separator, collection, fmtstr));

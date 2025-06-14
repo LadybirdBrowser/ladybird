@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<GC::Root<WebIDL::ArrayBufferView>> Crypto::get_random_values
 
     // IMPLEMENTATION DEFINED: If the viewed array buffer is out-of-bounds, throw a InvalidStateError and terminate the algorithm.
     if (JS::is_typed_array_out_of_bounds(typed_array_record))
-        return WebIDL::InvalidStateError::create(realm(), MUST(String::formatted(JS::ErrorType::BufferOutOfBounds.message(), "TypedArray"sv)));
+        return WebIDL::InvalidStateError::create(realm(), MUST(String::formatted(JS::ErrorType::BufferOutOfBounds.message(), "TypedArray"_sv)));
 
     // 2. If the byteLength of array is greater than 65536, throw a QuotaExceededError and terminate the algorithm.
     if (JS::typed_array_byte_length(typed_array_record) > 65536)

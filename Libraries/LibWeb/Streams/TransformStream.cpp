@@ -38,11 +38,11 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
 
     // 3. If transformerDict["readableType"] exists, throw a RangeError exception.
     if (transformer_dict.readable_type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'readableType'"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'readableType'"_sv };
 
     // 4. If transformerDict["writableType"] exists, throw a RangeError exception.
     if (transformer_dict.writable_type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'writableType'"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'writableType'"_sv };
 
     // 5. Let readableHighWaterMark be ? ExtractHighWaterMark(readableStrategy, 0).
     auto readable_high_water_mark = TRY(extract_high_water_mark(readable_strategy, 0));

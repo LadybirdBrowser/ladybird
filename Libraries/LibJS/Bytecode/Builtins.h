@@ -43,7 +43,7 @@ static StringView builtin_name(Builtin value)
     switch (value) {
 #define DEFINE_BUILTIN_CASE(name, snake_case_name, base, property, ...) \
     case Builtin::name:                                                 \
-        return #base "." #property##sv;
+        return #base "." #property##_sv;
         JS_ENUMERATE_BUILTINS(DEFINE_BUILTIN_CASE)
 #undef DEFINE_BUILTIN_CASE
     case Builtin::__Count:

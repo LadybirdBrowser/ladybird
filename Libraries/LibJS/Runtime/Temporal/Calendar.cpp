@@ -126,7 +126,7 @@ ThrowCompletionOr<String> canonicalize_calendar(VM& vm, StringView id)
     for (auto const& calendar : calendars) {
         if (calendar.equals_ignoring_ascii_case(id)) {
             // 3. Return CanonicalizeUValue("ca", id).
-            return Unicode::canonicalize_unicode_extension_values("ca"sv, id);
+            return Unicode::canonicalize_unicode_extension_values("ca"_sv, id);
         }
     }
 
@@ -322,7 +322,7 @@ ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODat
 
     // 1. If calendar is "iso8601", then
     // FIXME: Return an ISODate for an ISO8601 calendar for now.
-    if (true || calendar == "iso8601"sv) {
+    if (true || calendar == "iso8601"_sv) {
         // a. Let intermediate be BalanceISOYearMonth(isoDate.[[Year]] + duration.[[Years]], isoDate.[[Month]] + duration.[[Months]]).
         auto intermediate = balance_iso_year_month(static_cast<double>(iso_date.year) + duration.years, static_cast<double>(iso_date.month) + duration.months);
 
@@ -352,7 +352,7 @@ ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODat
 DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODate two, Unit largest_unit)
 {
     // 1. If calendar is "iso8601", then
-    if (calendar == "iso8601"sv) {
+    if (calendar == "iso8601"_sv) {
         // a. Let sign be -CompareISODate(one, two).
         auto sign = compare_iso_date(one, two);
         sign *= -1;
@@ -439,7 +439,7 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
 
     // 2. Return an implementation-defined Date Duration Record as described above.
     // FIXME: Return a DateDuration for an ISO8601 calendar for now.
-    return calendar_date_until(vm, "iso8601"sv, one, two, largest_unit);
+    return calendar_date_until(vm, "iso8601"_sv, one, two, largest_unit);
 }
 
 // 12.2.8 ToTemporalCalendarIdentifier ( temporalCalendarLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
@@ -572,11 +572,11 @@ String format_calendar_annotation(StringView id, ShowCalendar show_calendar)
         return String {};
 
     // 2. If showCalendar is AUTO and id is "iso8601", return the empty String.
-    if (show_calendar == ShowCalendar::Auto && id == "iso8601"sv)
+    if (show_calendar == ShowCalendar::Auto && id == "iso8601"_sv)
         return String {};
 
     // 3. If showCalendar is CRITICAL, let flag be "!"; else, let flag be the empty String.
-    auto flag = show_calendar == ShowCalendar::Critical ? "!"sv : ""sv;
+    auto flag = show_calendar == ShowCalendar::Critical ? "!"_sv : ""_sv;
 
     // 4. Return the string-concatenation of "[", flag, "u-ca=", id, and "]".
     return MUST(String::formatted("[{}u-ca={}]", flag, id));
@@ -587,8 +587,8 @@ bool calendar_equals(StringView one, StringView two)
 {
     // 1. If CanonicalizeUValue("ca", one) is CanonicalizeUValue("ca", two), return true.
     // 2. Return false.
-    return Unicode::canonicalize_unicode_extension_values("ca"sv, one)
-        == Unicode::canonicalize_unicode_extension_values("ca"sv, two);
+    return Unicode::canonicalize_unicode_extension_values("ca"_sv, one)
+        == Unicode::canonicalize_unicode_extension_values("ca"_sv, two);
 }
 
 // 12.2.15 ISODaysInMonth ( year, month ), https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
@@ -721,7 +721,7 @@ u8 iso_day_of_week(ISODate iso_date)
 ThrowCompletionOr<ISODate> calendar_date_to_iso(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
 {
     // 1. If calendar is "iso8601", then
-    if (calendar == "iso8601"sv) {
+    if (calendar == "iso8601"_sv) {
         // a. Assert: fields.[[Year]], fields.[[Month]], and fields.[[Day]] are not UNSET.
         VERIFY(fields.year.has_value());
         VERIFY(fields.month.has_value());
@@ -733,14 +733,14 @@ ThrowCompletionOr<ISODate> calendar_date_to_iso(VM& vm, StringView calendar, Cal
 
     // 2. Return an implementation-defined ISO Date Record, or throw a RangeError exception, as described below.
     // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
-    return calendar_date_to_iso(vm, "iso8601"sv, fields, overflow);
+    return calendar_date_to_iso(vm, "iso8601"_sv, fields, overflow);
 }
 
 // 12.2.20 CalendarMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
 ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
 {
     // 1. If calendar is "iso8601", then
-    if (calendar == "iso8601"sv) {
+    if (calendar == "iso8601"_sv) {
         // a. Assert: fields.[[Month]] and fields.[[Day]] are not UNSET.
         VERIFY(fields.month.has_value());
         VERIFY(fields.day.has_value());
@@ -760,14 +760,14 @@ ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM& vm, Stri
 
     // 2. Return an implementation-defined ISO Date Record, or throw a RangeError exception, as described below.
     // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
-    return calendar_month_day_to_iso_reference_date(vm, "iso8601"sv, fields, overflow);
+    return calendar_month_day_to_iso_reference_date(vm, "iso8601"_sv, fields, overflow);
 }
 
 // 12.2.21 CalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-calendarisotodate
 CalendarDate calendar_iso_to_date(StringView calendar, ISODate iso_date)
 {
     // 1. If calendar is "iso8601", then
-    if (calendar == "iso8601"sv) {
+    if (calendar == "iso8601"_sv) {
         // a. Let monthNumberPart be ToZeroPaddedDecimalString(isoDate.[[Month]], 2).
         // b. Let monthCode be the string-concatenation of "M" and monthNumberPart.
         auto month_code = MUST(String::formatted("M{:02}", iso_date.month));
@@ -800,14 +800,14 @@ CalendarDate calendar_iso_to_date(StringView calendar, ISODate iso_date)
 
     // 2. Return an implementation-defined Calendar Date Record with fields as described in Table 18.
     // FIXME: Return an ISO8601 calendar date for now.
-    return calendar_iso_to_date("iso8601"sv, iso_date);
+    return calendar_iso_to_date("iso8601"_sv, iso_date);
 }
 
 // 12.2.22 CalendarExtraFields ( calendar, fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarextrafields
 Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldList)
 {
     // 1. If calendar is "iso8601", return an empty List.
-    if (calendar == "iso8601"sv)
+    if (calendar == "iso8601"_sv)
         return {};
 
     // FIXME: 2. Return an implementation-defined List as described above.
@@ -818,7 +818,7 @@ Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldLi
 Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField> keys)
 {
     // 1. If calendar is "iso8601", then
-    if (calendar == "iso8601"sv) {
+    if (calendar == "iso8601"_sv) {
         // a. Let ignoredKeys be an empty List.
         Vector<CalendarField> ignored_keys;
 
@@ -844,21 +844,21 @@ Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, Readonl
 
     // 2. Return an implementation-defined List as described below.
     // FIXME: Return keys for an ISO8601 calendar for now.
-    return calendar_field_keys_to_ignore("iso8601"sv, keys);
+    return calendar_field_keys_to_ignore("iso8601"_sv, keys);
 }
 
 // 12.2.24 CalendarResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
 ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, CalendarFields& fields, DateType type)
 {
     // 1. If calendar is "iso8601", then
-    if (calendar == "iso8601"sv) {
+    if (calendar == "iso8601"_sv) {
         // a. If type is DATE or YEAR-MONTH and fields.[[Year]] is UNSET, throw a TypeError exception.
         if ((type == DateType::Date || type == DateType::YearMonth) && !fields.year.has_value())
-            return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "year"sv);
+            return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "year"_sv);
 
         // b. If type is DATE or MONTH-DAY and fields.[[Day]] is UNSET, throw a TypeError exception.
         if ((type == DateType::Date || type == DateType::MonthDay) && !fields.day.has_value())
-            return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "day"sv);
+            return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "day"_sv);
 
         // c. Let month be fields.[[Month]].
         auto const& month = fields.month;
@@ -870,7 +870,7 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, Cal
         if (!month_code.has_value()) {
             // i. If month is UNSET, throw a TypeError exception.
             if (!month.has_value())
-                return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "month"sv);
+                return vm.throw_completion<TypeError>(ErrorType::MissingRequiredProperty, "month"_sv);
 
             // ii. Return UNUSED.
             return {};
@@ -882,25 +882,25 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, Cal
         // g. NOTE: The ISO 8601 calendar does not include leap months.
         // h. If the length of monthCode is not 3, throw a RangeError exception.
         if (month_code->byte_count() != 3)
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"_sv);
 
         // i. If the first code unit of monthCode is not 0x004D (LATIN CAPITAL LETTER M), throw a RangeError exception.
         if (month_code->bytes_as_string_view()[0] != 'M')
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"_sv);
 
         // j. Let monthCodeDigits be the substring of monthCode from 1.
         auto month_code_digits = month_code->bytes_as_string_view().substring_view(1);
 
         // k. If ParseText(StringToCodePoints(monthCodeDigits), DateMonth) is a List of errors, throw a RangeError exception.
         if (!parse_iso8601(Production::DateMonth, month_code_digits).has_value())
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"sv);
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "monthCode"_sv);
 
         // l. Let monthCodeInteger be ℝ(StringToNumber(monthCodeDigits)).
         auto month_code_integer = month_code_digits.to_number<u8>().value();
 
         // m. If month is not UNSET and month ≠ monthCodeInteger, throw a RangeError exception.
         if (month.has_value() && month != month_code_integer)
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "month"sv);
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "month"_sv);
 
         // n. Set fields.[[Month]] to monthCodeInteger.
         fields.month = month_code_integer;
@@ -909,7 +909,7 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, Cal
     else {
         // a. Perform implementation-defined processing to mutate fields, or throw a TypeError or RangeError exception, as described below.
         // FIXME: Resolve fields as an ISO8601 calendar for now. See also: CalendarMonthDayToISOReferenceDate.
-        TRY(calendar_resolve_fields(vm, "iso8601"sv, fields, type));
+        TRY(calendar_resolve_fields(vm, "iso8601"_sv, fields, type));
     }
 
     // 3. Return UNUSED.

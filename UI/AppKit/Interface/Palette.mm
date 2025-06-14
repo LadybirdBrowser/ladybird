@@ -31,7 +31,7 @@ Core::AnonymousBuffer create_system_palette()
 {
     auto is_dark = is_using_dark_system_theme();
 
-    auto theme_file = is_dark ? "Dark"sv : "Default"sv;
+    auto theme_file = is_dark ? "Dark"_sv : "Default"_sv;
     auto theme_ini = MUST(Core::Resource::load_from_uri(MUST(String::formatted("resource://themes/{}.ini", theme_file))));
     auto theme = Gfx::load_system_theme(theme_ini->filesystem_path().to_byte_string()).release_value_but_fixme_should_propagate_errors();
 

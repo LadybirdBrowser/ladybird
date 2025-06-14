@@ -280,7 +280,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_float)
     if (first_code_point == '-' || first_code_point == '+')
         trimmed_string_view = trimmed_string_view.substring_view(1);
 
-    if (trimmed_string_view.starts_with("Infinity"sv, AK::CaseSensitivity::CaseSensitive)) {
+    if (trimmed_string_view.starts_with("Infinity"_sv, AK::CaseSensitivity::CaseSensitive)) {
         // Only an immediate - means we should return negative infinity
         return first_code_point == '-' ? js_negative_infinity() : js_infinity();
     }
@@ -343,7 +343,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_int)
     // 10. If stripPrefix is true, then
     if (strip_prefix) {
         // a. If the length of S is at least 2 and the first two code units of S are either "0x" or "0X", then
-        if (trimmed_view.length() >= 2 && trimmed_view.substring_view(0, 2).equals_ignoring_ascii_case("0x"sv)) {
+        if (trimmed_view.length() >= 2 && trimmed_view.substring_view(0, 2).equals_ignoring_ascii_case("0x"_sv)) {
             // i. Remove the first two code units from S.
             trimmed_view = trimmed_view.substring_view(2);
 
@@ -511,7 +511,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::decode_uri)
 
     // 2. Let preserveEscapeSet be ";/?:@&=+$,#".
     // 3. Return ? Decode(uriString, preserveEscapeSet).
-    auto decoded = TRY(decode(vm, uri_string, ";/?:@&=+$,#"sv));
+    auto decoded = TRY(decode(vm, uri_string, ";/?:@&=+$,#"_sv));
     return PrimitiveString::create(vm, move(decoded));
 }
 
@@ -525,7 +525,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::decode_uri_component)
 
     // 2. Let preserveEscapeSet be the empty String.
     // 3. Return ? Decode(componentString, preserveEscapeSet).
-    auto decoded = TRY(decode(vm, uri_string, ""sv));
+    auto decoded = TRY(decode(vm, uri_string, ""_sv));
     return PrimitiveString::create(vm, move(decoded));
 }
 
@@ -539,7 +539,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::encode_uri)
 
     // 2. Let extraUnescaped be ";/?:@&=+$,#".
     // 3. Return ? Encode(uriString, extraUnescaped).
-    auto encoded = TRY(encode(vm, uri_string, ";/?:@&=+$,abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()#"sv));
+    auto encoded = TRY(encode(vm, uri_string, ";/?:@&=+$,abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()#"_sv));
     return PrimitiveString::create(vm, move(encoded));
 }
 
@@ -553,7 +553,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::encode_uri_component)
 
     // 2. Let extraUnescaped be the empty String.
     // 3. Return ? Encode(componentString, extraUnescaped).
-    auto encoded = TRY(encode(vm, uri_string, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()"sv));
+    auto encoded = TRY(encode(vm, uri_string, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()"_sv));
     return PrimitiveString::create(vm, move(encoded));
 }
 
@@ -567,7 +567,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
     StringBuilder escaped;
 
     // 4. Let unescapedSet be the string-concatenation of the ASCII word characters and "@*+-./".
-    auto unescaped_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./"sv;
+    auto unescaped_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./"_sv;
 
     // 2. Let length be the length of string.
     // 5. Let k be 0.

@@ -204,8 +204,8 @@ String JsonValue::serialized() const
 void JsonValue::serialize(StringBuilder& builder) const
 {
     m_value.visit(
-        [&](Empty const&) { builder.append("null"sv); },
-        [&](bool const& value) { builder.append(value ? "true"sv : "false"sv); },
+        [&](Empty const&) { builder.append("null"_sv); },
+        [&](bool const& value) { builder.append(value ? "true"_sv : "false"_sv); },
         [&](Arithmetic auto const& value) { builder.appendff("{}", value); },
         [&](String const& value) {
             builder.append('\"');

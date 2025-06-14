@@ -30,7 +30,7 @@ enum class TimerShouldFireWhenNotVisible {
 public:                                                                                    \
     virtual StringView class_name() const override                                         \
     {                                                                                      \
-        return #klass##sv;                                                                 \
+        return #klass##_sv;                                                                \
     }                                                                                      \
     template<typename Klass = klass, class... Args>                                        \
     static NonnullRefPtr<klass> construct(Args&&... args)                                  \
@@ -47,7 +47,7 @@ public:                                                                         
 public:                                            \
     virtual StringView class_name() const override \
     {                                              \
-        return #klass##sv;                         \
+        return #klass##_sv;                        \
     }
 
 class EventReceiver
@@ -183,7 +183,7 @@ template<>
 struct AK::Formatter<Core::EventReceiver> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Core::EventReceiver const& value)
     {
-        return AK::Formatter<FormatString>::format(builder, "{}({})"sv, value.class_name(), &value);
+        return AK::Formatter<FormatString>::format(builder, "{}({})"_sv, value.class_name(), &value);
     }
 };
 

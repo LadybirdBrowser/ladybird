@@ -10,81 +10,81 @@
 
 TEST_CASE(is_unicode_language_subtag)
 {
-    EXPECT(Unicode::is_unicode_language_subtag("aa"sv));
-    EXPECT(Unicode::is_unicode_language_subtag("aaa"sv));
-    EXPECT(Unicode::is_unicode_language_subtag("aaaaa"sv));
-    EXPECT(Unicode::is_unicode_language_subtag("aaaaaa"sv));
-    EXPECT(Unicode::is_unicode_language_subtag("aaaaaaa"sv));
-    EXPECT(Unicode::is_unicode_language_subtag("aaaaaaaa"sv));
+    EXPECT(Unicode::is_unicode_language_subtag("aa"_sv));
+    EXPECT(Unicode::is_unicode_language_subtag("aaa"_sv));
+    EXPECT(Unicode::is_unicode_language_subtag("aaaaa"_sv));
+    EXPECT(Unicode::is_unicode_language_subtag("aaaaaa"_sv));
+    EXPECT(Unicode::is_unicode_language_subtag("aaaaaaa"_sv));
+    EXPECT(Unicode::is_unicode_language_subtag("aaaaaaaa"_sv));
 
-    EXPECT(!Unicode::is_unicode_language_subtag(""sv));
-    EXPECT(!Unicode::is_unicode_language_subtag("a"sv));
-    EXPECT(!Unicode::is_unicode_language_subtag("aaaa"sv));
-    EXPECT(!Unicode::is_unicode_language_subtag("aaaaaaaaa"sv));
-    EXPECT(!Unicode::is_unicode_language_subtag("123"sv));
+    EXPECT(!Unicode::is_unicode_language_subtag(""_sv));
+    EXPECT(!Unicode::is_unicode_language_subtag("a"_sv));
+    EXPECT(!Unicode::is_unicode_language_subtag("aaaa"_sv));
+    EXPECT(!Unicode::is_unicode_language_subtag("aaaaaaaaa"_sv));
+    EXPECT(!Unicode::is_unicode_language_subtag("123"_sv));
 }
 
 TEST_CASE(is_unicode_script_subtag)
 {
-    EXPECT(Unicode::is_unicode_script_subtag("aaaa"sv));
+    EXPECT(Unicode::is_unicode_script_subtag("aaaa"_sv));
 
-    EXPECT(!Unicode::is_unicode_script_subtag(""sv));
-    EXPECT(!Unicode::is_unicode_script_subtag("a"sv));
-    EXPECT(!Unicode::is_unicode_script_subtag("aa"sv));
-    EXPECT(!Unicode::is_unicode_script_subtag("aaa"sv));
-    EXPECT(!Unicode::is_unicode_script_subtag("aaaaa"sv));
-    EXPECT(!Unicode::is_unicode_script_subtag("1234"sv));
+    EXPECT(!Unicode::is_unicode_script_subtag(""_sv));
+    EXPECT(!Unicode::is_unicode_script_subtag("a"_sv));
+    EXPECT(!Unicode::is_unicode_script_subtag("aa"_sv));
+    EXPECT(!Unicode::is_unicode_script_subtag("aaa"_sv));
+    EXPECT(!Unicode::is_unicode_script_subtag("aaaaa"_sv));
+    EXPECT(!Unicode::is_unicode_script_subtag("1234"_sv));
 }
 
 TEST_CASE(is_unicode_region_subtag)
 {
-    EXPECT(Unicode::is_unicode_region_subtag("aa"sv));
-    EXPECT(Unicode::is_unicode_region_subtag("123"sv));
+    EXPECT(Unicode::is_unicode_region_subtag("aa"_sv));
+    EXPECT(Unicode::is_unicode_region_subtag("123"_sv));
 
-    EXPECT(!Unicode::is_unicode_region_subtag(""sv));
-    EXPECT(!Unicode::is_unicode_region_subtag("a"sv));
-    EXPECT(!Unicode::is_unicode_region_subtag("aaa"sv));
-    EXPECT(!Unicode::is_unicode_region_subtag("12"sv));
-    EXPECT(!Unicode::is_unicode_region_subtag("12a"sv));
+    EXPECT(!Unicode::is_unicode_region_subtag(""_sv));
+    EXPECT(!Unicode::is_unicode_region_subtag("a"_sv));
+    EXPECT(!Unicode::is_unicode_region_subtag("aaa"_sv));
+    EXPECT(!Unicode::is_unicode_region_subtag("12"_sv));
+    EXPECT(!Unicode::is_unicode_region_subtag("12a"_sv));
 }
 
 TEST_CASE(is_unicode_variant_subtag)
 {
-    EXPECT(Unicode::is_unicode_variant_subtag("aaaaa"sv));
-    EXPECT(Unicode::is_unicode_variant_subtag("aaaaaa"sv));
-    EXPECT(Unicode::is_unicode_variant_subtag("aaaaaaa"sv));
-    EXPECT(Unicode::is_unicode_variant_subtag("aaaaaaaa"sv));
+    EXPECT(Unicode::is_unicode_variant_subtag("aaaaa"_sv));
+    EXPECT(Unicode::is_unicode_variant_subtag("aaaaaa"_sv));
+    EXPECT(Unicode::is_unicode_variant_subtag("aaaaaaa"_sv));
+    EXPECT(Unicode::is_unicode_variant_subtag("aaaaaaaa"_sv));
 
-    EXPECT(Unicode::is_unicode_variant_subtag("1aaa"sv));
-    EXPECT(Unicode::is_unicode_variant_subtag("12aa"sv));
-    EXPECT(Unicode::is_unicode_variant_subtag("123a"sv));
-    EXPECT(Unicode::is_unicode_variant_subtag("1234"sv));
+    EXPECT(Unicode::is_unicode_variant_subtag("1aaa"_sv));
+    EXPECT(Unicode::is_unicode_variant_subtag("12aa"_sv));
+    EXPECT(Unicode::is_unicode_variant_subtag("123a"_sv));
+    EXPECT(Unicode::is_unicode_variant_subtag("1234"_sv));
 
-    EXPECT(!Unicode::is_unicode_variant_subtag(""sv));
-    EXPECT(!Unicode::is_unicode_variant_subtag("a"sv));
-    EXPECT(!Unicode::is_unicode_variant_subtag("aa"sv));
-    EXPECT(!Unicode::is_unicode_variant_subtag("aaa"sv));
-    EXPECT(!Unicode::is_unicode_variant_subtag("aaaa"sv));
-    EXPECT(!Unicode::is_unicode_variant_subtag("aaaaaaaaa"sv));
-    EXPECT(!Unicode::is_unicode_variant_subtag("a234"sv));
+    EXPECT(!Unicode::is_unicode_variant_subtag(""_sv));
+    EXPECT(!Unicode::is_unicode_variant_subtag("a"_sv));
+    EXPECT(!Unicode::is_unicode_variant_subtag("aa"_sv));
+    EXPECT(!Unicode::is_unicode_variant_subtag("aaa"_sv));
+    EXPECT(!Unicode::is_unicode_variant_subtag("aaaa"_sv));
+    EXPECT(!Unicode::is_unicode_variant_subtag("aaaaaaaaa"_sv));
+    EXPECT(!Unicode::is_unicode_variant_subtag("a234"_sv));
 }
 
 TEST_CASE(is_type_identifier)
 {
-    EXPECT(Unicode::is_type_identifier("aaaa"sv));
-    EXPECT(Unicode::is_type_identifier("aaaa-bbbb"sv));
-    EXPECT(Unicode::is_type_identifier("aaaa-bbbb-cccc"sv));
+    EXPECT(Unicode::is_type_identifier("aaaa"_sv));
+    EXPECT(Unicode::is_type_identifier("aaaa-bbbb"_sv));
+    EXPECT(Unicode::is_type_identifier("aaaa-bbbb-cccc"_sv));
 
-    EXPECT(Unicode::is_type_identifier("1aaa"sv));
-    EXPECT(Unicode::is_type_identifier("12aa"sv));
-    EXPECT(Unicode::is_type_identifier("123a"sv));
-    EXPECT(Unicode::is_type_identifier("1234"sv));
+    EXPECT(Unicode::is_type_identifier("1aaa"_sv));
+    EXPECT(Unicode::is_type_identifier("12aa"_sv));
+    EXPECT(Unicode::is_type_identifier("123a"_sv));
+    EXPECT(Unicode::is_type_identifier("1234"_sv));
 
-    EXPECT(!Unicode::is_type_identifier(""sv));
-    EXPECT(!Unicode::is_type_identifier("a"sv));
-    EXPECT(!Unicode::is_type_identifier("aa"sv));
-    EXPECT(!Unicode::is_type_identifier("aaaaaaaaa"sv));
-    EXPECT(!Unicode::is_type_identifier("aaaa-"sv));
+    EXPECT(!Unicode::is_type_identifier(""_sv));
+    EXPECT(!Unicode::is_type_identifier("a"_sv));
+    EXPECT(!Unicode::is_type_identifier("aa"_sv));
+    EXPECT(!Unicode::is_type_identifier("aaaaaaaaa"_sv));
+    EXPECT(!Unicode::is_type_identifier("aaaa-"_sv));
 }
 
 template<typename LHS, typename RHS>
@@ -117,19 +117,19 @@ TEST_CASE(parse_unicode_locale_id)
         EXPECT(compare_vectors(locale_id->language_id.variants, expected_variants));
     };
 
-    fail("a"sv);
-    fail("1234"sv);
-    fail("aaa-"sv);
-    fail("aaa-cc-"sv);
-    fail("aaa-bbbb-cc-"sv);
-    fail("aaa-bbbb-cc-123"sv);
+    fail("a"_sv);
+    fail("1234"_sv);
+    fail("aaa-"_sv);
+    fail("aaa-cc-"_sv);
+    fail("aaa-bbbb-cc-"_sv);
+    fail("aaa-bbbb-cc-123"_sv);
 
-    pass("aaa"sv, "aaa"sv, {}, {}, {});
-    pass("aaa-bbbb"sv, "aaa"sv, "bbbb"sv, {}, {});
-    pass("aaa-cc"sv, "aaa"sv, {}, "cc"sv, {});
-    pass("aaa-bbbb-cc"sv, "aaa"sv, "bbbb"sv, "cc"sv, {});
-    pass("aaa-bbbb-cc-1234"sv, "aaa"sv, "bbbb"sv, "cc"sv, { "1234"sv });
-    pass("aaa-bbbb-cc-1234-5678"sv, "aaa"sv, "bbbb"sv, "cc"sv, { "1234"sv, "5678"sv });
+    pass("aaa"_sv, "aaa"_sv, {}, {}, {});
+    pass("aaa-bbbb"_sv, "aaa"_sv, "bbbb"_sv, {}, {});
+    pass("aaa-cc"_sv, "aaa"_sv, {}, "cc"_sv, {});
+    pass("aaa-bbbb-cc"_sv, "aaa"_sv, "bbbb"_sv, "cc"_sv, {});
+    pass("aaa-bbbb-cc-1234"_sv, "aaa"_sv, "bbbb"_sv, "cc"_sv, { "1234"_sv });
+    pass("aaa-bbbb-cc-1234-5678"_sv, "aaa"_sv, "bbbb"_sv, "cc"_sv, { "1234"_sv, "5678"_sv });
 }
 
 TEST_CASE(parse_unicode_locale_id_with_unicode_locale_extension)
@@ -166,26 +166,26 @@ TEST_CASE(parse_unicode_locale_id_with_unicode_locale_extension)
         }
     };
 
-    fail("en-u"sv);
-    fail("en-u-"sv);
-    fail("en-u-x"sv);
-    fail("en-u-xx-"sv);
-    fail("en-u--xx"sv);
-    fail("en-u-xx-xxxxx-"sv);
-    fail("en-u-xx--xxxxx"sv);
-    fail("en-u-xx-xxxxxxxxx"sv);
-    fail("en-u-xxxxx-"sv);
-    fail("en-u-xxxxxxxxx"sv);
+    fail("en-u"_sv);
+    fail("en-u-"_sv);
+    fail("en-u-x"_sv);
+    fail("en-u-xx-"_sv);
+    fail("en-u--xx"_sv);
+    fail("en-u-xx-xxxxx-"_sv);
+    fail("en-u-xx--xxxxx"_sv);
+    fail("en-u-xx-xxxxxxxxx"_sv);
+    fail("en-u-xxxxx-"_sv);
+    fail("en-u-xxxxxxxxx"_sv);
 
-    pass("en-u-xx"sv, { {}, { { "xx"sv, ""sv } } });
-    pass("en-u-xx-yyyy"sv, { {}, { { "xx"sv, { "yyyy"sv } } } });
-    pass("en-u-xx-yyyy-zzzz"sv, { {}, { { "xx"sv, "yyyy-zzzz"sv } } });
-    pass("en-u-xx-yyyy-zzzz-aa"sv, { {}, { { "xx"sv, "yyyy-zzzz"sv }, { "aa"sv, ""sv } } });
-    pass("en-u-xxx"sv, { { "xxx"sv }, {} });
-    pass("en-u-fff-gggg"sv, { { "fff"sv, "gggg"sv }, {} });
-    pass("en-u-fff-xx"sv, { { "fff"sv }, { { "xx"sv, ""sv } } });
-    pass("en-u-fff-xx-yyyy"sv, { { "fff"sv }, { { "xx"sv, "yyyy"sv } } });
-    pass("en-u-fff-gggg-xx-yyyy"sv, { { "fff"sv, "gggg"sv }, { { "xx"sv, "yyyy"sv } } });
+    pass("en-u-xx"_sv, { {}, { { "xx"_sv, ""_sv } } });
+    pass("en-u-xx-yyyy"_sv, { {}, { { "xx"_sv, { "yyyy"_sv } } } });
+    pass("en-u-xx-yyyy-zzzz"_sv, { {}, { { "xx"_sv, "yyyy-zzzz"_sv } } });
+    pass("en-u-xx-yyyy-zzzz-aa"_sv, { {}, { { "xx"_sv, "yyyy-zzzz"_sv }, { "aa"_sv, ""_sv } } });
+    pass("en-u-xxx"_sv, { { "xxx"_sv }, {} });
+    pass("en-u-fff-gggg"_sv, { { "fff"_sv, "gggg"_sv }, {} });
+    pass("en-u-fff-xx"_sv, { { "fff"_sv }, { { "xx"_sv, ""_sv } } });
+    pass("en-u-fff-xx-yyyy"_sv, { { "fff"_sv }, { { "xx"_sv, "yyyy"_sv } } });
+    pass("en-u-fff-gggg-xx-yyyy"_sv, { { "fff"_sv, "gggg"_sv }, { { "xx"_sv, "yyyy"_sv } } });
 }
 
 TEST_CASE(parse_unicode_locale_id_with_transformed_extension)
@@ -238,38 +238,38 @@ TEST_CASE(parse_unicode_locale_id_with_transformed_extension)
         }
     };
 
-    fail("en-t"sv);
-    fail("en-t-"sv);
-    fail("en-t-a"sv);
-    fail("en-t-en-"sv);
-    fail("en-t-root"sv);
-    fail("en-t-aaaaaaaaa"sv);
-    fail("en-t-en-aaa"sv);
-    fail("en-t-en-latn-latn"sv);
-    fail("en-t-en-a"sv);
-    fail("en-t-en-00"sv);
-    fail("en-t-en-latn-0"sv);
-    fail("en-t-en-latn-00"sv);
-    fail("en-t-en-latn-xyz"sv);
-    fail("en-t-en-aaaaaaaaa"sv);
-    fail("en-t-en-latn-gb-aaaa"sv);
-    fail("en-t-en-latn-gb-aaaaaaaaa"sv);
-    fail("en-t-k0"sv);
-    fail("en-t-k0-aa"sv);
-    fail("en-t-k0-aaaaaaaaa"sv);
+    fail("en-t"_sv);
+    fail("en-t-"_sv);
+    fail("en-t-a"_sv);
+    fail("en-t-en-"_sv);
+    fail("en-t-root"_sv);
+    fail("en-t-aaaaaaaaa"_sv);
+    fail("en-t-en-aaa"_sv);
+    fail("en-t-en-latn-latn"_sv);
+    fail("en-t-en-a"_sv);
+    fail("en-t-en-00"_sv);
+    fail("en-t-en-latn-0"_sv);
+    fail("en-t-en-latn-00"_sv);
+    fail("en-t-en-latn-xyz"_sv);
+    fail("en-t-en-aaaaaaaaa"_sv);
+    fail("en-t-en-latn-gb-aaaa"_sv);
+    fail("en-t-en-latn-gb-aaaaaaaaa"_sv);
+    fail("en-t-k0"_sv);
+    fail("en-t-k0-aa"_sv);
+    fail("en-t-k0-aaaaaaaaa"_sv);
 
-    pass("en-t-en"sv, { TransformedExtension::LanguageID { false, "en"sv }, {} });
-    pass("en-t-en-latn"sv, { TransformedExtension::LanguageID { false, "en"sv, "latn"sv }, {} });
-    pass("en-t-en-us"sv, { TransformedExtension::LanguageID { false, "en"sv, {}, "us"sv }, {} });
-    pass("en-t-en-latn-us"sv, { TransformedExtension::LanguageID { false, "en"sv, "latn"sv, "us"sv }, {} });
-    pass("en-t-en-posix"sv, { TransformedExtension::LanguageID { false, "en"sv, {}, {}, { "posix"sv } }, {} });
-    pass("en-t-en-latn-posix"sv, { TransformedExtension::LanguageID { false, "en"sv, "latn"sv, {}, { "posix"sv } }, {} });
-    pass("en-t-en-us-posix"sv, { TransformedExtension::LanguageID { false, "en"sv, {}, "us"sv, { "posix"sv } }, {} });
-    pass("en-t-en-latn-us-posix"sv, { TransformedExtension::LanguageID { false, "en"sv, "latn"sv, "us"sv, { "posix"sv } }, {} });
-    pass("en-t-k0-aaa"sv, { {}, { { "k0"sv, { "aaa"sv } } } });
-    pass("en-t-k0-aaa-bbbb"sv, { {}, { { "k0"sv, "aaa-bbbb"sv } } });
-    pass("en-t-k0-aaa-k1-bbbb"sv, { {}, { { "k0"sv, { "aaa"sv } }, { "k1"sv, "bbbb"sv } } });
-    pass("en-t-en-k0-aaa"sv, { TransformedExtension::LanguageID { false, "en"sv }, { { "k0"sv, "aaa"sv } } });
+    pass("en-t-en"_sv, { TransformedExtension::LanguageID { false, "en"_sv }, {} });
+    pass("en-t-en-latn"_sv, { TransformedExtension::LanguageID { false, "en"_sv, "latn"_sv }, {} });
+    pass("en-t-en-us"_sv, { TransformedExtension::LanguageID { false, "en"_sv, {}, "us"_sv }, {} });
+    pass("en-t-en-latn-us"_sv, { TransformedExtension::LanguageID { false, "en"_sv, "latn"_sv, "us"_sv }, {} });
+    pass("en-t-en-posix"_sv, { TransformedExtension::LanguageID { false, "en"_sv, {}, {}, { "posix"_sv } }, {} });
+    pass("en-t-en-latn-posix"_sv, { TransformedExtension::LanguageID { false, "en"_sv, "latn"_sv, {}, { "posix"_sv } }, {} });
+    pass("en-t-en-us-posix"_sv, { TransformedExtension::LanguageID { false, "en"_sv, {}, "us"_sv, { "posix"_sv } }, {} });
+    pass("en-t-en-latn-us-posix"_sv, { TransformedExtension::LanguageID { false, "en"_sv, "latn"_sv, "us"_sv, { "posix"_sv } }, {} });
+    pass("en-t-k0-aaa"_sv, { {}, { { "k0"_sv, { "aaa"_sv } } } });
+    pass("en-t-k0-aaa-bbbb"_sv, { {}, { { "k0"_sv, "aaa-bbbb"_sv } } });
+    pass("en-t-k0-aaa-k1-bbbb"_sv, { {}, { { "k0"_sv, { "aaa"_sv } }, { "k1"_sv, "bbbb"_sv } } });
+    pass("en-t-en-k0-aaa"_sv, { TransformedExtension::LanguageID { false, "en"_sv }, { { "k0"_sv, "aaa"_sv } } });
 }
 
 TEST_CASE(parse_unicode_locale_id_with_other_extension)
@@ -293,22 +293,22 @@ TEST_CASE(parse_unicode_locale_id_with_other_extension)
         EXPECT_EQ(actual_extension.value, expected_extension.value);
     };
 
-    fail("en-z"sv);
-    fail("en-0"sv);
-    fail("en-z-"sv);
-    fail("en-0-"sv);
-    fail("en-z-a"sv);
-    fail("en-0-a"sv);
-    fail("en-z-aaaaaaaaa"sv);
-    fail("en-0-aaaaaaaaa"sv);
-    fail("en-z-aaa-"sv);
-    fail("en-0-aaa-"sv);
-    fail("en-z-aaa-a"sv);
-    fail("en-0-aaa-a"sv);
+    fail("en-z"_sv);
+    fail("en-0"_sv);
+    fail("en-z-"_sv);
+    fail("en-0-"_sv);
+    fail("en-z-a"_sv);
+    fail("en-0-a"_sv);
+    fail("en-z-aaaaaaaaa"_sv);
+    fail("en-0-aaaaaaaaa"_sv);
+    fail("en-z-aaa-"_sv);
+    fail("en-0-aaa-"_sv);
+    fail("en-z-aaa-a"_sv);
+    fail("en-0-aaa-a"_sv);
 
-    pass("en-z-aa"sv, { 'z', "aa"sv });
-    pass("en-z-aa-bbb"sv, { 'z', "aa-bbb"sv });
-    pass("en-z-aa-bbb-cccccccc"sv, { 'z', "aa-bbb-cccccccc"sv });
+    pass("en-z-aa"_sv, { 'z', "aa"_sv });
+    pass("en-z-aa-bbb"_sv, { 'z', "aa-bbb"_sv });
+    pass("en-z-aa-bbb-cccccccc"_sv, { 'z', "aa-bbb-cccccccc"_sv });
 }
 
 TEST_CASE(parse_unicode_locale_id_with_private_use_extension)
@@ -323,16 +323,16 @@ TEST_CASE(parse_unicode_locale_id_with_private_use_extension)
         EXPECT(compare_vectors(locale_id->private_use_extensions, expected_extension));
     };
 
-    fail("en-x"sv);
-    fail("en-x-"sv);
-    fail("en-x-aaaaaaaaa"sv);
-    fail("en-x-aaa-"sv);
-    fail("en-x-aaa-aaaaaaaaa"sv);
+    fail("en-x"_sv);
+    fail("en-x-"_sv);
+    fail("en-x-aaaaaaaaa"_sv);
+    fail("en-x-aaa-"_sv);
+    fail("en-x-aaa-aaaaaaaaa"_sv);
 
-    pass("en-x-a"sv, { "a"sv });
-    pass("en-x-aaaaaaaa"sv, { "aaaaaaaa"sv });
-    pass("en-x-aaa-bbb"sv, { "aaa"sv, "bbb"sv });
-    pass("en-x-aaa-x-bbb"sv, { "aaa"sv, "x"sv, "bbb"sv });
+    pass("en-x-a"_sv, { "a"_sv });
+    pass("en-x-aaaaaaaa"_sv, { "aaaaaaaa"_sv });
+    pass("en-x-aaa-bbb"_sv, { "aaa"_sv, "bbb"_sv });
+    pass("en-x-aaa-x-bbb"_sv, { "aaa"_sv, "x"_sv, "bbb"_sv });
 }
 
 TEST_CASE(canonicalize_unicode_locale_id)
@@ -342,176 +342,176 @@ TEST_CASE(canonicalize_unicode_locale_id)
         EXPECT_EQ(canonical_locale, expected_canonical_locale);
     };
 
-    test("aaa"sv, "aaa"sv);
-    test("AaA"sv, "aaa"sv);
-    test("aaa-bbbb"sv, "aaa-Bbbb"sv);
-    test("aaa-cc"sv, "aaa-CC"sv);
-    test("aaa-bBBB-cC"sv, "aaa-Bbbb-CC"sv);
-    test("aaa-bbbb-cc-1234"sv, "aaa-Bbbb-CC-1234"sv);
-    test("aaa-bbbb-cc-ABCDE"sv, "aaa-Bbbb-CC-abcde"sv);
+    test("aaa"_sv, "aaa"_sv);
+    test("AaA"_sv, "aaa"_sv);
+    test("aaa-bbbb"_sv, "aaa-Bbbb"_sv);
+    test("aaa-cc"_sv, "aaa-CC"_sv);
+    test("aaa-bBBB-cC"_sv, "aaa-Bbbb-CC"_sv);
+    test("aaa-bbbb-cc-1234"_sv, "aaa-Bbbb-CC-1234"_sv);
+    test("aaa-bbbb-cc-ABCDE"_sv, "aaa-Bbbb-CC-abcde"_sv);
 
-    test("en-u-aa"sv, "en-u-aa"sv);
-    test("EN-U-AA"sv, "en-u-aa"sv);
-    test("en-u-aa-bbb"sv, "en-u-aa-bbb"sv);
-    test("EN-U-AA-BBB"sv, "en-u-aa-bbb"sv);
-    test("en-u-aa-ccc-bbb"sv, "en-u-aa-ccc-bbb"sv);
-    test("EN-U-AA-CCC-BBB"sv, "en-u-aa-ccc-bbb"sv);
-    test("en-u-ddd-bbb-ccc"sv, "en-u-bbb-ccc-ddd"sv);
-    test("EN-U-DDD-BBB-CCC"sv, "en-u-bbb-ccc-ddd"sv);
-    test("en-u-2k-aaa-1k-bbb"sv, "en-u-1k-bbb-2k-aaa"sv);
-    test("EN-U-2K-AAA-1K-BBB"sv, "en-u-1k-bbb-2k-aaa"sv);
-    test("en-u-ccc-bbb-2k-aaa-1k-bbb"sv, "en-u-bbb-ccc-1k-bbb-2k-aaa"sv);
-    test("EN-U-CCC-BBB-2K-AAA-1K-BBB"sv, "en-u-bbb-ccc-1k-bbb-2k-aaa"sv);
-    test("en-u-1k-true"sv, "en-u-1k"sv);
-    test("EN-U-1K-TRUE"sv, "en-u-1k"sv);
-    test("en-u-1k-true-abcd"sv, "en-u-1k-true-abcd"sv);
-    test("EN-U-1K-TRUE-ABCD"sv, "en-u-1k-true-abcd"sv);
-    test("en-u-kb-yes"sv, "en-u-kb"sv);
-    test("EN-U-KB-YES"sv, "en-u-kb"sv);
-    test("en-u-kb-yes-abcd"sv, "en-u-kb-yes-abcd"sv);
-    test("EN-U-KB-YES-ABCD"sv, "en-u-kb-yes-abcd"sv);
-    test("en-u-ka-yes"sv, "en-u-ka"sv);
-    test("EN-U-KA-YES"sv, "en-u-ka"sv);
-    test("en-u-1k-names"sv, "en-u-1k-names"sv);
-    test("EN-U-1K-NAMES"sv, "en-u-1k-names"sv);
-    test("en-u-ks-primary"sv, "en-u-ks-level1"sv);
-    test("EN-U-KS-PRIMARY"sv, "en-u-ks-level1"sv);
-    test("en-u-ka-primary"sv, "en-u-ka-primary"sv);
-    test("EN-U-KA-PRIMARY"sv, "en-u-ka-primary"sv);
-    test("en-u-ms-imperial"sv, "en-u-ms-uksystem"sv);
-    test("EN-U-MS-IMPERIAL"sv, "en-u-ms-uksystem"sv);
-    test("en-u-ma-imperial"sv, "en-u-ma-imperial"sv);
-    test("EN-U-MA-IMPERIAL"sv, "en-u-ma-imperial"sv);
-    test("en-u-tz-hongkong"sv, "en-u-tz-hkhkg"sv);
-    test("EN-U-TZ-HONGKONG"sv, "en-u-tz-hkhkg"sv);
-    test("en-u-ta-hongkong"sv, "en-u-ta-hongkong"sv);
-    test("EN-U-TA-HONGKONG"sv, "en-u-ta-hongkong"sv);
-    test("en-u-ca-ethiopic-amete-alem"sv, "en-u-ca-ethioaa"sv);
-    test("EN-U-CA-ETHIOPIC-AMETE-ALEM"sv, "en-u-ca-ethioaa"sv);
-    test("en-u-ca-alem-ethiopic-amete"sv, "en-u-ca-alem-ethiopic-amete"sv);
-    test("EN-U-CA-ALEM-ETHIOPIC-AMETE"sv, "en-u-ca-alem-ethiopic-amete"sv);
-    test("en-u-ca-ethiopic-amete-xxx-alem"sv, "en-u-ca-ethiopic-amete-xxx-alem"sv);
-    test("EN-U-CA-ETHIOPIC-AMETE-XXX-ALEM"sv, "en-u-ca-ethiopic-amete-xxx-alem"sv);
-    test("en-u-cb-ethiopic-amete-alem"sv, "en-u-cb-ethiopic-amete-alem"sv);
-    test("EN-U-CB-ETHIOPIC-AMETE-ALEM"sv, "en-u-cb-ethiopic-amete-alem"sv);
+    test("en-u-aa"_sv, "en-u-aa"_sv);
+    test("EN-U-AA"_sv, "en-u-aa"_sv);
+    test("en-u-aa-bbb"_sv, "en-u-aa-bbb"_sv);
+    test("EN-U-AA-BBB"_sv, "en-u-aa-bbb"_sv);
+    test("en-u-aa-ccc-bbb"_sv, "en-u-aa-ccc-bbb"_sv);
+    test("EN-U-AA-CCC-BBB"_sv, "en-u-aa-ccc-bbb"_sv);
+    test("en-u-ddd-bbb-ccc"_sv, "en-u-bbb-ccc-ddd"_sv);
+    test("EN-U-DDD-BBB-CCC"_sv, "en-u-bbb-ccc-ddd"_sv);
+    test("en-u-2k-aaa-1k-bbb"_sv, "en-u-1k-bbb-2k-aaa"_sv);
+    test("EN-U-2K-AAA-1K-BBB"_sv, "en-u-1k-bbb-2k-aaa"_sv);
+    test("en-u-ccc-bbb-2k-aaa-1k-bbb"_sv, "en-u-bbb-ccc-1k-bbb-2k-aaa"_sv);
+    test("EN-U-CCC-BBB-2K-AAA-1K-BBB"_sv, "en-u-bbb-ccc-1k-bbb-2k-aaa"_sv);
+    test("en-u-1k-true"_sv, "en-u-1k"_sv);
+    test("EN-U-1K-TRUE"_sv, "en-u-1k"_sv);
+    test("en-u-1k-true-abcd"_sv, "en-u-1k-true-abcd"_sv);
+    test("EN-U-1K-TRUE-ABCD"_sv, "en-u-1k-true-abcd"_sv);
+    test("en-u-kb-yes"_sv, "en-u-kb"_sv);
+    test("EN-U-KB-YES"_sv, "en-u-kb"_sv);
+    test("en-u-kb-yes-abcd"_sv, "en-u-kb-yes-abcd"_sv);
+    test("EN-U-KB-YES-ABCD"_sv, "en-u-kb-yes-abcd"_sv);
+    test("en-u-ka-yes"_sv, "en-u-ka"_sv);
+    test("EN-U-KA-YES"_sv, "en-u-ka"_sv);
+    test("en-u-1k-names"_sv, "en-u-1k-names"_sv);
+    test("EN-U-1K-NAMES"_sv, "en-u-1k-names"_sv);
+    test("en-u-ks-primary"_sv, "en-u-ks-level1"_sv);
+    test("EN-U-KS-PRIMARY"_sv, "en-u-ks-level1"_sv);
+    test("en-u-ka-primary"_sv, "en-u-ka-primary"_sv);
+    test("EN-U-KA-PRIMARY"_sv, "en-u-ka-primary"_sv);
+    test("en-u-ms-imperial"_sv, "en-u-ms-uksystem"_sv);
+    test("EN-U-MS-IMPERIAL"_sv, "en-u-ms-uksystem"_sv);
+    test("en-u-ma-imperial"_sv, "en-u-ma-imperial"_sv);
+    test("EN-U-MA-IMPERIAL"_sv, "en-u-ma-imperial"_sv);
+    test("en-u-tz-hongkong"_sv, "en-u-tz-hkhkg"_sv);
+    test("EN-U-TZ-HONGKONG"_sv, "en-u-tz-hkhkg"_sv);
+    test("en-u-ta-hongkong"_sv, "en-u-ta-hongkong"_sv);
+    test("EN-U-TA-HONGKONG"_sv, "en-u-ta-hongkong"_sv);
+    test("en-u-ca-ethiopic-amete-alem"_sv, "en-u-ca-ethioaa"_sv);
+    test("EN-U-CA-ETHIOPIC-AMETE-ALEM"_sv, "en-u-ca-ethioaa"_sv);
+    test("en-u-ca-alem-ethiopic-amete"_sv, "en-u-ca-alem-ethiopic-amete"_sv);
+    test("EN-U-CA-ALEM-ETHIOPIC-AMETE"_sv, "en-u-ca-alem-ethiopic-amete"_sv);
+    test("en-u-ca-ethiopic-amete-xxx-alem"_sv, "en-u-ca-ethiopic-amete-xxx-alem"_sv);
+    test("EN-U-CA-ETHIOPIC-AMETE-XXX-ALEM"_sv, "en-u-ca-ethiopic-amete-xxx-alem"_sv);
+    test("en-u-cb-ethiopic-amete-alem"_sv, "en-u-cb-ethiopic-amete-alem"_sv);
+    test("EN-U-CB-ETHIOPIC-AMETE-ALEM"_sv, "en-u-cb-ethiopic-amete-alem"_sv);
 
-    test("en-t-en"sv, "en-t-en"sv);
-    test("EN-T-EN"sv, "en-t-en"sv);
-    test("en-latn-t-en-latn"sv, "en-Latn-t-en-latn"sv);
-    test("EN-LATN-T-EN-LATN"sv, "en-Latn-t-en-latn"sv);
-    test("en-us-t-en-us"sv, "en-US-t-en-us"sv);
-    test("EN-US-T-EN-US"sv, "en-US-t-en-us"sv);
-    test("en-latn-us-t-en-latn-us"sv, "en-Latn-US-t-en-latn-us"sv);
-    test("EN-LATN-US-T-EN-LATN-US"sv, "en-Latn-US-t-en-latn-us"sv);
-    test("en-t-en-k2-bbb-k1-aaa"sv, "en-t-en-k1-aaa-k2-bbb"sv);
-    test("EN-T-EN-K2-BBB-K1-AAA"sv, "en-t-en-k1-aaa-k2-bbb"sv);
-    test("en-t-k1-true"sv, "en-t-k1-true"sv);
-    test("EN-T-K1-TRUE"sv, "en-t-k1-true"sv);
-    test("en-t-k1-yes"sv, "en-t-k1-yes"sv);
-    test("EN-T-K1-YES"sv, "en-t-k1-yes"sv);
-    test("en-t-m0-names"sv, "en-t-m0-prprname"sv);
-    test("EN-T-M0-NAMES"sv, "en-t-m0-prprname"sv);
-    test("en-t-k1-names"sv, "en-t-k1-names"sv);
-    test("EN-T-K1-NAMES"sv, "en-t-k1-names"sv);
-    test("en-t-k1-primary"sv, "en-t-k1-primary"sv);
-    test("EN-T-K1-PRIMARY"sv, "en-t-k1-primary"sv);
-    test("en-t-k1-imperial"sv, "en-t-k1-imperial"sv);
-    test("EN-T-K1-IMPERIAL"sv, "en-t-k1-imperial"sv);
-    test("en-t-k1-hongkong"sv, "en-t-k1-hongkong"sv);
-    test("EN-T-K1-HONGKONG"sv, "en-t-k1-hongkong"sv);
-    test("en-t-k1-ethiopic-amete-alem"sv, "en-t-k1-ethiopic-amete-alem"sv);
-    test("EN-T-K1-ETHIOPIC-AMETE-ALEM"sv, "en-t-k1-ethiopic-amete-alem"sv);
+    test("en-t-en"_sv, "en-t-en"_sv);
+    test("EN-T-EN"_sv, "en-t-en"_sv);
+    test("en-latn-t-en-latn"_sv, "en-Latn-t-en-latn"_sv);
+    test("EN-LATN-T-EN-LATN"_sv, "en-Latn-t-en-latn"_sv);
+    test("en-us-t-en-us"_sv, "en-US-t-en-us"_sv);
+    test("EN-US-T-EN-US"_sv, "en-US-t-en-us"_sv);
+    test("en-latn-us-t-en-latn-us"_sv, "en-Latn-US-t-en-latn-us"_sv);
+    test("EN-LATN-US-T-EN-LATN-US"_sv, "en-Latn-US-t-en-latn-us"_sv);
+    test("en-t-en-k2-bbb-k1-aaa"_sv, "en-t-en-k1-aaa-k2-bbb"_sv);
+    test("EN-T-EN-K2-BBB-K1-AAA"_sv, "en-t-en-k1-aaa-k2-bbb"_sv);
+    test("en-t-k1-true"_sv, "en-t-k1-true"_sv);
+    test("EN-T-K1-TRUE"_sv, "en-t-k1-true"_sv);
+    test("en-t-k1-yes"_sv, "en-t-k1-yes"_sv);
+    test("EN-T-K1-YES"_sv, "en-t-k1-yes"_sv);
+    test("en-t-m0-names"_sv, "en-t-m0-prprname"_sv);
+    test("EN-T-M0-NAMES"_sv, "en-t-m0-prprname"_sv);
+    test("en-t-k1-names"_sv, "en-t-k1-names"_sv);
+    test("EN-T-K1-NAMES"_sv, "en-t-k1-names"_sv);
+    test("en-t-k1-primary"_sv, "en-t-k1-primary"_sv);
+    test("EN-T-K1-PRIMARY"_sv, "en-t-k1-primary"_sv);
+    test("en-t-k1-imperial"_sv, "en-t-k1-imperial"_sv);
+    test("EN-T-K1-IMPERIAL"_sv, "en-t-k1-imperial"_sv);
+    test("en-t-k1-hongkong"_sv, "en-t-k1-hongkong"_sv);
+    test("EN-T-K1-HONGKONG"_sv, "en-t-k1-hongkong"_sv);
+    test("en-t-k1-ethiopic-amete-alem"_sv, "en-t-k1-ethiopic-amete-alem"_sv);
+    test("EN-T-K1-ETHIOPIC-AMETE-ALEM"_sv, "en-t-k1-ethiopic-amete-alem"_sv);
 
-    test("en-0-aaa"sv, "en-0-aaa"sv);
-    test("EN-0-AAA"sv, "en-0-aaa"sv);
-    test("en-0-bbb-aaa"sv, "en-0-bbb-aaa"sv);
-    test("EN-0-BBB-AAA"sv, "en-0-bbb-aaa"sv);
-    test("en-z-bbb-0-aaa"sv, "en-0-aaa-z-bbb"sv);
-    test("EN-Z-BBB-0-AAA"sv, "en-0-aaa-z-bbb"sv);
+    test("en-0-aaa"_sv, "en-0-aaa"_sv);
+    test("EN-0-AAA"_sv, "en-0-aaa"_sv);
+    test("en-0-bbb-aaa"_sv, "en-0-bbb-aaa"_sv);
+    test("EN-0-BBB-AAA"_sv, "en-0-bbb-aaa"_sv);
+    test("en-z-bbb-0-aaa"_sv, "en-0-aaa-z-bbb"_sv);
+    test("EN-Z-BBB-0-AAA"_sv, "en-0-aaa-z-bbb"_sv);
 
-    test("en-x-aa"sv, "en-x-aa"sv);
-    test("EN-X-AA"sv, "en-x-aa"sv);
-    test("en-x-bbb-aa"sv, "en-x-bbb-aa"sv);
-    test("EN-X-BBB-AA"sv, "en-x-bbb-aa"sv);
+    test("en-x-aa"_sv, "en-x-aa"_sv);
+    test("EN-X-AA"_sv, "en-x-aa"_sv);
+    test("en-x-bbb-aa"_sv, "en-x-bbb-aa"_sv);
+    test("EN-X-BBB-AA"_sv, "en-x-bbb-aa"_sv);
 
-    test("en-u-aa-t-en"sv, "en-t-en-u-aa"sv);
-    test("EN-U-AA-T-EN"sv, "en-t-en-u-aa"sv);
-    test("en-z-bbb-u-aa-t-en-0-aaa"sv, "en-0-aaa-t-en-u-aa-z-bbb"sv);
-    test("EN-Z-BBB-U-AA-T-EN-0-AAA"sv, "en-0-aaa-t-en-u-aa-z-bbb"sv);
-    test("en-z-bbb-u-aa-t-en-0-aaa-x-ccc"sv, "en-0-aaa-t-en-u-aa-z-bbb-x-ccc"sv);
-    test("EN-Z-BBB-U-AA-T-EN-0-AAA-X-CCC"sv, "en-0-aaa-t-en-u-aa-z-bbb-x-ccc"sv);
+    test("en-u-aa-t-en"_sv, "en-t-en-u-aa"_sv);
+    test("EN-U-AA-T-EN"_sv, "en-t-en-u-aa"_sv);
+    test("en-z-bbb-u-aa-t-en-0-aaa"_sv, "en-0-aaa-t-en-u-aa-z-bbb"_sv);
+    test("EN-Z-BBB-U-AA-T-EN-0-AAA"_sv, "en-0-aaa-t-en-u-aa-z-bbb"_sv);
+    test("en-z-bbb-u-aa-t-en-0-aaa-x-ccc"_sv, "en-0-aaa-t-en-u-aa-z-bbb-x-ccc"_sv);
+    test("EN-Z-BBB-U-AA-T-EN-0-AAA-X-CCC"_sv, "en-0-aaa-t-en-u-aa-z-bbb-x-ccc"_sv);
 
     // Language subtag aliases.
-    test("sh"sv, "sr-Latn"sv);
-    test("SH"sv, "sr-Latn"sv);
-    test("sh-cyrl"sv, "sr-Cyrl"sv);
-    test("SH-CYRL"sv, "sr-Cyrl"sv);
-    test("cnr"sv, "sr-ME"sv);
-    test("CNR"sv, "sr-ME"sv);
-    test("cnr-ba"sv, "sr-BA"sv);
-    test("CNR-BA"sv, "sr-BA"sv);
+    test("sh"_sv, "sr-Latn"_sv);
+    test("SH"_sv, "sr-Latn"_sv);
+    test("sh-cyrl"_sv, "sr-Cyrl"_sv);
+    test("SH-CYRL"_sv, "sr-Cyrl"_sv);
+    test("cnr"_sv, "sr-ME"_sv);
+    test("CNR"_sv, "sr-ME"_sv);
+    test("cnr-ba"_sv, "sr-BA"_sv);
+    test("CNR-BA"_sv, "sr-BA"_sv);
 
     // Territory subtag aliases.
-    test("ru-su"sv, "ru-RU"sv);
-    test("RU-SU"sv, "ru-RU"sv);
-    test("ru-810"sv, "ru-RU"sv);
-    test("RU-810"sv, "ru-RU"sv);
-    test("en-su"sv, "en-RU"sv);
-    test("EN-SU"sv, "en-RU"sv);
-    test("en-810"sv, "en-RU"sv);
-    test("EN-810"sv, "en-RU"sv);
-    test("hy-su"sv, "hy-AM"sv);
-    test("HY-SU"sv, "hy-AM"sv);
-    test("hy-810"sv, "hy-AM"sv);
-    test("HY-810"sv, "hy-AM"sv);
-    test("und-Armn-su"sv, "und-Armn-AM"sv);
-    test("UND-ARMN-SU"sv, "und-Armn-AM"sv);
-    test("und-Armn-810"sv, "und-Armn-AM"sv);
-    test("UND-ARMN-810"sv, "und-Armn-AM"sv);
+    test("ru-su"_sv, "ru-RU"_sv);
+    test("RU-SU"_sv, "ru-RU"_sv);
+    test("ru-810"_sv, "ru-RU"_sv);
+    test("RU-810"_sv, "ru-RU"_sv);
+    test("en-su"_sv, "en-RU"_sv);
+    test("EN-SU"_sv, "en-RU"_sv);
+    test("en-810"_sv, "en-RU"_sv);
+    test("EN-810"_sv, "en-RU"_sv);
+    test("hy-su"_sv, "hy-AM"_sv);
+    test("HY-SU"_sv, "hy-AM"_sv);
+    test("hy-810"_sv, "hy-AM"_sv);
+    test("HY-810"_sv, "hy-AM"_sv);
+    test("und-Armn-su"_sv, "und-Armn-AM"_sv);
+    test("UND-ARMN-SU"_sv, "und-Armn-AM"_sv);
+    test("und-Armn-810"_sv, "und-Armn-AM"_sv);
+    test("UND-ARMN-810"_sv, "und-Armn-AM"_sv);
 
     // Script subtag aliases.
-    test("en-qaai"sv, "en-Zinh"sv);
-    test("EN-QAAI"sv, "en-Zinh"sv);
+    test("en-qaai"_sv, "en-Zinh"_sv);
+    test("EN-QAAI"_sv, "en-Zinh"_sv);
 
     // Variant subtag aliases.
-    test("en-polytoni"sv, "en-polyton"sv);
-    test("EN-POLYTONI"sv, "en-polyton"sv);
+    test("en-polytoni"_sv, "en-polyton"_sv);
+    test("EN-POLYTONI"_sv, "en-polyton"_sv);
 
     // Subdivision subtag aliases.
-    test("en-u-sd-cn11"sv, "en-u-sd-cnbj"sv);
-    test("EN-U-SD-CN11"sv, "en-u-sd-cnbj"sv);
-    test("en-u-rg-cn12"sv, "en-u-rg-cntj"sv);
-    test("EN-U-RG-CN12"sv, "en-u-rg-cntj"sv);
-    test("en-u-aa-cn11"sv, "en-u-aa-cn11"sv);
-    test("EN-U-AA-CN11"sv, "en-u-aa-cn11"sv);
+    test("en-u-sd-cn11"_sv, "en-u-sd-cnbj"_sv);
+    test("EN-U-SD-CN11"_sv, "en-u-sd-cnbj"_sv);
+    test("en-u-rg-cn12"_sv, "en-u-rg-cntj"_sv);
+    test("EN-U-RG-CN12"_sv, "en-u-rg-cntj"_sv);
+    test("en-u-aa-cn11"_sv, "en-u-aa-cn11"_sv);
+    test("EN-U-AA-CN11"_sv, "en-u-aa-cn11"_sv);
 
     // Complex aliases.
-    test("en-lojban"sv, "en"sv);
-    test("EN-LOJBAN"sv, "en"sv);
-    test("art-lojban"sv, "jbo"sv);
-    test("ART-LOJBAN"sv, "jbo"sv);
-    test("cel-gaulish"sv, "xtg"sv);
-    test("CEL-GAULISH"sv, "xtg"sv);
-    test("zh-guoyu"sv, "zh"sv);
-    test("ZH-GUOYU"sv, "zh"sv);
-    test("zh-hakka"sv, "hak"sv);
-    test("ZH-HAKKA"sv, "hak"sv);
-    test("zh-xiang"sv, "hsn"sv);
-    test("ZH-XIANG"sv, "hsn"sv);
-    test("ja-latn-hepburn-heploc"sv, "ja-Latn-alalc97"sv);
-    test("JA-LATN-HEPBURN-HEPLOC"sv, "ja-Latn-alalc97"sv);
+    test("en-lojban"_sv, "en"_sv);
+    test("EN-LOJBAN"_sv, "en"_sv);
+    test("art-lojban"_sv, "jbo"_sv);
+    test("ART-LOJBAN"_sv, "jbo"_sv);
+    test("cel-gaulish"_sv, "xtg"_sv);
+    test("CEL-GAULISH"_sv, "xtg"_sv);
+    test("zh-guoyu"_sv, "zh"_sv);
+    test("ZH-GUOYU"_sv, "zh"_sv);
+    test("zh-hakka"_sv, "hak"_sv);
+    test("ZH-HAKKA"_sv, "hak"_sv);
+    test("zh-xiang"_sv, "hsn"_sv);
+    test("ZH-XIANG"_sv, "hsn"_sv);
+    test("ja-latn-hepburn-heploc"_sv, "ja-Latn-alalc97"_sv);
+    test("JA-LATN-HEPBURN-HEPLOC"_sv, "ja-Latn-alalc97"_sv);
 
     // Default content.
-    test("en-us"sv, "en-US"sv);
-    test("EN-US"sv, "en-US"sv);
-    test("zh-Hans-CN"sv, "zh-Hans-CN"sv);
-    test("ZH-HANS-CN"sv, "zh-Hans-CN"sv);
+    test("en-us"_sv, "en-US"_sv);
+    test("EN-US"_sv, "en-US"_sv);
+    test("zh-Hans-CN"_sv, "zh-Hans-CN"_sv);
+    test("ZH-HANS-CN"_sv, "zh-Hans-CN"_sv);
 }
 
 TEST_CASE(supports_locale_aliases)
 {
-    EXPECT(Unicode::is_locale_available("zh"sv));
-    EXPECT(Unicode::is_locale_available("zh-Hant"sv));
-    EXPECT(Unicode::is_locale_available("zh-TW"sv));
-    EXPECT(Unicode::is_locale_available("zh-Hant-TW"sv));
+    EXPECT(Unicode::is_locale_available("zh"_sv));
+    EXPECT(Unicode::is_locale_available("zh-Hant"_sv));
+    EXPECT(Unicode::is_locale_available("zh-TW"_sv));
+    EXPECT(Unicode::is_locale_available("zh-Hant-TW"_sv));
 }

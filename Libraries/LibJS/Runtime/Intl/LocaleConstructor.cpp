@@ -153,19 +153,19 @@ static LocaleAndKeys make_locale_record(StringView tag, LocaleAndKeys options, R
     //     b. Let keywords be a new empty List.
 
     auto field_from_key = [](LocaleAndKeys& value, StringView key) -> Optional<String>& {
-        if (key == "ca"sv)
+        if (key == "ca"_sv)
             return value.ca;
-        if (key == "co"sv)
+        if (key == "co"_sv)
             return value.co;
-        if (key == "fw"sv)
+        if (key == "fw"_sv)
             return value.fw;
-        if (key == "hc"sv)
+        if (key == "hc"_sv)
             return value.hc;
-        if (key == "kf"sv)
+        if (key == "kf"_sv)
             return value.kf;
-        if (key == "kn"sv)
+        if (key == "kn"_sv)
             return value.kn;
-        if (key == "nu"sv)
+        if (key == "nu"_sv)
             return value.nu;
         VERIFY_NOT_REACHED();
     };
@@ -280,7 +280,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
 
     // 7. If tag is not a String and tag is not an Object, throw a TypeError exception.
     if (!tag_value.is_string() && !tag_value.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOrString, "tag"sv);
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOrString, "tag"_sv);
 
     auto tag = TRY([&]() -> ThrowCompletionOr<String> {
         // 8. If tag is an Object and tag has an [[InitializedLocale]] internal slot, then
@@ -340,11 +340,11 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
 
     // 24. Let hc be ? GetOption(options, "hourCycle", STRING, « "h11", "h12", "h23", "h24" », undefined).
     // 25. Set opt.[[hc]] to hc.
-    opt.hc = TRY(get_string_option(vm, options, vm.names.hourCycle, nullptr, AK::Array { "h11"sv, "h12"sv, "h23"sv, "h24"sv }));
+    opt.hc = TRY(get_string_option(vm, options, vm.names.hourCycle, nullptr, AK::Array { "h11"_sv, "h12"_sv, "h23"_sv, "h24"_sv }));
 
     // 26. Let kf be ? GetOption(options, "caseFirst", STRING, « "upper", "lower", "false" », undefined).
     // 27. Set opt.[[kf]] to kf.
-    opt.kf = TRY(get_string_option(vm, options, vm.names.caseFirst, nullptr, AK::Array { "upper"sv, "lower"sv, "false"sv }));
+    opt.kf = TRY(get_string_option(vm, options, vm.names.caseFirst, nullptr, AK::Array { "upper"_sv, "lower"_sv, "false"_sv }));
 
     // 28. Let kn be ? GetOption(options, "numeric", BOOLEAN, EMPTY, undefined).
     auto kn = TRY(get_option(vm, options, vm.names.numeric, OptionType::Boolean, {}, Empty {}));
@@ -383,16 +383,16 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
         locale->set_hour_cycle(result.hc.release_value());
 
     // 40. If localeExtensionKeys contains "kf", then
-    if (locale_extension_keys.span().contains_slow("kf"sv)) {
+    if (locale_extension_keys.span().contains_slow("kf"_sv)) {
         // a. Set locale.[[CaseFirst]] to r.[[kf]].
         if (result.kf.has_value())
             locale->set_case_first(result.kf.release_value());
     }
 
     // 41. If localeExtensionKeys contains "kn", then
-    if (locale_extension_keys.span().contains_slow("kn"sv)) {
+    if (locale_extension_keys.span().contains_slow("kn"_sv)) {
         // a. If SameValue(r.[[kn]], "true") is true or r.[[kn]] is the empty String, then
-        if (result.kn.has_value() && (result.kn == "true"sv || result.kn->is_empty())) {
+        if (result.kn.has_value() && (result.kn == "true"_sv || result.kn->is_empty())) {
             // i. Set locale.[[Numeric]] to true.
             locale->set_numeric(true);
         }

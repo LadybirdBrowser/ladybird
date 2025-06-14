@@ -32,7 +32,7 @@ ByteString ParserError::source_location_hint(StringView source, char const space
         return {};
     // We need to modify the source to match what the lexer considers one line - normalizing
     // line terminators to \n is easier than splitting using all different LT characters.
-    ByteString source_string = source.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All).replace(LINE_SEPARATOR_STRING, "\n"sv, ReplaceMode::All).replace(PARAGRAPH_SEPARATOR_STRING, "\n"sv, ReplaceMode::All);
+    ByteString source_string = source.replace("\r\n"_sv, "\n"_sv, ReplaceMode::All).replace("\r"_sv, "\n"_sv, ReplaceMode::All).replace(LINE_SEPARATOR_STRING, "\n"_sv, ReplaceMode::All).replace(PARAGRAPH_SEPARATOR_STRING, "\n"_sv, ReplaceMode::All);
     StringBuilder builder;
     builder.append(source_string.split_view('\n', SplitBehavior::KeepEmpty)[position.value().line - 1]);
     builder.append('\n');

@@ -123,7 +123,7 @@ Optional<TransformFunction> transform_function_from_string(StringView name)
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify_transform_function(name));
         member_generator.append(R"~~~(
-    if (name.equals_ignoring_ascii_case("@name@"sv))
+    if (name.equals_ignoring_ascii_case("@name@"_sv))
         return TransformFunction::@name:titlecase@;
 )~~~");
     });
@@ -143,7 +143,7 @@ StringView to_string(TransformFunction transform_function)
         member_generator.set("name:titlecase", title_casify_transform_function(name));
         member_generator.append(R"~~~(
     case TransformFunction::@name:titlecase@:
-        return "@name@"sv;
+        return "@name@"_sv;
 )~~~");
     });
     generator.append(R"~~~(
@@ -168,34 +168,34 @@ TransformFunctionMetadata transform_function_metadata(TransformFunction transfor
         return TransformFunctionMetadata {
             .parameters = {)~~~");
 
-        JsonArray const& parameters = value.as_object().get_array("parameters"sv).value();
+        JsonArray const& parameters = value.as_object().get_array("parameters"_sv).value();
         bool first = true;
         parameters.for_each([&](JsonValue const& value) {
-            GenericLexer lexer { value.as_object().get_string("type"sv).value() };
+            GenericLexer lexer { value.as_object().get_string("type"_sv).value() };
             VERIFY(lexer.consume_specific('<'));
             auto parameter_type_name = lexer.consume_until('>');
             VERIFY(lexer.consume_specific('>'));
 
-            StringView parameter_type = ""sv;
-            if (parameter_type_name == "angle"sv)
-                parameter_type = "Angle"sv;
-            else if (parameter_type_name == "length"sv)
-                parameter_type = "Length"sv;
-            else if (parameter_type_name == "length-none"sv)
-                parameter_type = "LengthNone"sv;
-            else if (parameter_type_name == "length-percentage"sv)
-                parameter_type = "LengthPercentage"sv;
-            else if (parameter_type_name == "number"sv)
-                parameter_type = "Number"sv;
-            else if (parameter_type_name == "number-percentage"sv)
-                parameter_type = "NumberPercentage"sv;
+            StringView parameter_type = ""_sv;
+            if (parameter_type_name == "angle"_sv)
+                parameter_type = "Angle"_sv;
+            else if (parameter_type_name == "length"_sv)
+                parameter_type = "Length"_sv;
+            else if (parameter_type_name == "length-none"_sv)
+                parameter_type = "LengthNone"_sv;
+            else if (parameter_type_name == "length-percentage"_sv)
+                parameter_type = "LengthPercentage"_sv;
+            else if (parameter_type_name == "number"_sv)
+                parameter_type = "Number"_sv;
+            else if (parameter_type_name == "number-percentage"_sv)
+                parameter_type = "NumberPercentage"_sv;
             else
                 VERIFY_NOT_REACHED();
 
-            member_generator.append(first ? " "sv : ", "sv);
+            member_generator.append(first ? " "_sv : ", "_sv);
             first = false;
 
-            member_generator.append(MUST(String::formatted("{{ TransformFunctionParameterType::{}, {}}}", parameter_type, value.as_object().get("required"sv)->as_bool())));
+            member_generator.append(MUST(String::formatted("{{ TransformFunctionParameterType::{}, {}}}", parameter_type, value.as_object().get("required"_sv)->as_bool())));
         });
 
         member_generator.append(R"~~~( }

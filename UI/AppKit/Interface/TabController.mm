@@ -436,7 +436,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     ByteString const user_agent_name = [[sender title] UTF8String];
     ByteString user_agent = "";
-    if (user_agent_name == "Disabled"sv) {
+    if (user_agent_name == "Disabled"_sv) {
         user_agent = Web::default_user_agent;
     } else {
         user_agent = WebView::user_agents.get(user_agent_name).value();

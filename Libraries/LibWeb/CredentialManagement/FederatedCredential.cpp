@@ -19,7 +19,7 @@ GC::Ref<FederatedCredential> FederatedCredential::create(JS::Realm& realm)
 // https://www.w3.org/TR/credential-management-1/#dom-federatedcredential-federatedcredential
 WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> FederatedCredential::construct_impl(JS::Realm& realm, FederatedCredentialInit const&)
 {
-    return realm.vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "construct"sv);
+    return realm.vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "construct"_sv);
 }
 
 FederatedCredential::~FederatedCredential()

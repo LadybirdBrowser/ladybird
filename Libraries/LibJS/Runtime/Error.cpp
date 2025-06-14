@@ -111,7 +111,7 @@ String Error::stack_string(CompactTraceback compact) const
             else
                 stack_string_builder.appendff("    at {} ({}:{}:{})\n", function_name, source_range.filename(), source_range.start.line, source_range.start.column);
         } else {
-            stack_string_builder.appendff("    at {}\n", function_name.is_empty() ? "<unknown>"sv : function_name);
+            stack_string_builder.appendff("    at {}\n", function_name.is_empty() ? "<unknown>"_sv : function_name);
         }
     };
 

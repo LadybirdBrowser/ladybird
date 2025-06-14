@@ -68,22 +68,22 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
 
     // 3. If none of options["childList"], options["attributes"], and options["characterData"] is true, then throw a TypeError.
     if (!options.child_list && (!options.attributes.has_value() || !options.attributes.value()) && (!options.character_data.has_value() || !options.character_data.value()))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Options must have one of childList, attributes or characterData set to true."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Options must have one of childList, attributes or characterData set to true."_sv };
 
     // 4. If options["attributeOldValue"] is true and options["attributes"] is false, then throw a TypeError.
     // NOTE: If attributeOldValue is present, attributes will be present because of step 1.
     if (options.attribute_old_value.has_value() && options.attribute_old_value.value() && !options.attributes.value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "attributes must be true if attributeOldValue is true."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "attributes must be true if attributeOldValue is true."_sv };
 
     // 5. If options["attributeFilter"] is present and options["attributes"] is false, then throw a TypeError.
     // NOTE: If attributeFilter is present, attributes will be present because of step 1.
     if (options.attribute_filter.has_value() && !options.attributes.value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "attributes must be true if attributeFilter is present."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "attributes must be true if attributeFilter is present."_sv };
 
     // 6. If options["characterDataOldValue"] is true and options["characterData"] is false, then throw a TypeError.
     // NOTE: If characterDataOldValue is present, characterData will be present because of step 2.
     if (options.character_data_old_value.has_value() && options.character_data_old_value.value() && !options.character_data.value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "characterData must be true if characterDataOldValue is true."sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "characterData must be true if characterDataOldValue is true."_sv };
 
     // 7. For each registered of target’s registered observer list, if registered’s observer is this:
     bool updated_existing_observer = false;

@@ -61,7 +61,7 @@ template<>
 struct AK::Formatter<Diff::Line::Operation> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Diff::Line::Operation operation)
     {
-        return Formatter<FormatString>::format(builder, "{}"sv, static_cast<char>(operation));
+        return Formatter<FormatString>::format(builder, "{}"_sv, static_cast<char>(operation));
     }
 };
 
@@ -69,7 +69,7 @@ template<>
 struct AK::Formatter<Diff::Line> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Diff::Line const& line)
     {
-        return Formatter<FormatString>::format(builder, "{}{}"sv, line.operation, line.content);
+        return Formatter<FormatString>::format(builder, "{}{}"_sv, line.operation, line.content);
     }
 };
 

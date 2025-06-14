@@ -476,21 +476,21 @@ ErrorOr<void> pretty_print(Decoder& decoder, Stream& stream, int indent)
             }
             case Kind::Integer: {
                 auto value = TRY(decoder.read<ReadonlyBytes>());
-                builder.append(" 0x"sv);
+                builder.append(" 0x"_sv);
                 for (auto ch : value)
                     builder.appendff("{:0>2x}", ch);
                 break;
             }
             case Kind::BitString: {
                 auto value = TRY(decoder.read<BitmapView>());
-                builder.append(" 0b"sv);
+                builder.append(" 0b"_sv);
                 for (size_t i = 0; i < value.size(); ++i)
                     builder.append(value.get(i) ? '1' : '0');
                 break;
             }
             case Kind::OctetString: {
                 auto value = TRY(decoder.read<StringView>());
-                builder.append(" 0x"sv);
+                builder.append(" 0x"_sv);
                 for (auto ch : value)
                     builder.appendff("{:0>2x}", ch);
                 break;

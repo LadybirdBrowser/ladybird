@@ -34,7 +34,7 @@ public:
     void set_z(double z) { m_z = z; }
     void set_w(double w) { m_w = w; }
 
-    virtual StringView interface_name() const override { return "DOMPoint"sv; }
+    virtual StringView interface_name() const override { return "DOMPoint"_sv; }
 
 private:
     DOMPoint(JS::Realm&, double x, double y, double z, double w);

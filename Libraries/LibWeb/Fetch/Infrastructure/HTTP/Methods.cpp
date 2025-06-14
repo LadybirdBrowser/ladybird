@@ -25,14 +25,14 @@ bool is_method(ReadonlyBytes method)
 bool is_cors_safelisted_method(ReadonlyBytes method)
 {
     // A CORS-safelisted method is a method that is `GET`, `HEAD`, or `POST`.
-    return StringView { method }.is_one_of("GET"sv, "HEAD"sv, "POST"sv);
+    return StringView { method }.is_one_of("GET"_sv, "HEAD"_sv, "POST"_sv);
 }
 
 // https://fetch.spec.whatwg.org/#forbidden-method
 bool is_forbidden_method(ReadonlyBytes method)
 {
     // A forbidden method is a method that is a byte-case-insensitive match for `CONNECT`, `TRACE`, or `TRACK`.
-    return StringView { method }.is_one_of_ignoring_ascii_case("CONNECT"sv, "TRACE"sv, "TRACK"sv);
+    return StringView { method }.is_one_of_ignoring_ascii_case("CONNECT"_sv, "TRACE"_sv, "TRACK"_sv);
 }
 
 // https://fetch.spec.whatwg.org/#concept-method-normalize
@@ -40,7 +40,7 @@ ByteBuffer normalize_method(ReadonlyBytes method)
 {
     // To normalize a method, if it is a byte-case-insensitive match for `DELETE`, `GET`, `HEAD`, `OPTIONS`, `POST`, or `PUT`, byte-uppercase it.
     auto bytes = MUST(ByteBuffer::copy(method));
-    if (StringView { method }.is_one_of_ignoring_ascii_case("DELETE"sv, "GET"sv, "HEAD"sv, "OPTIONS"sv, "POST"sv, "PUT"sv))
+    if (StringView { method }.is_one_of_ignoring_ascii_case("DELETE"_sv, "GET"_sv, "HEAD"_sv, "OPTIONS"_sv, "POST"_sv, "PUT"_sv))
         Infra::byte_uppercase(bytes);
     return bytes;
 }

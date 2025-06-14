@@ -17,9 +17,9 @@
 TEST_CASE(mapped_file_open)
 {
     // Fill the file with a little content so we can write to it.
-    constexpr auto text = "Here's some text to be mmapped."sv;
+    constexpr auto text = "Here's some text to be mmapped."_sv;
     {
-        auto maybe_file = Core::File::open("/tmp/file-open-test.txt"sv, Core::File::OpenMode::Write);
+        auto maybe_file = Core::File::open("/tmp/file-open-test.txt"_sv, Core::File::OpenMode::Write);
         if (maybe_file.is_error()) {
             warnln("Failed to open the file: {}", strerror(maybe_file.error().code()));
             VERIFY_NOT_REACHED();
@@ -27,7 +27,7 @@ TEST_CASE(mapped_file_open)
         TRY_OR_FAIL(maybe_file.value()->write_until_depleted(text.bytes()));
     }
 
-    auto maybe_file = Core::MappedFile::map("/tmp/file-open-test.txt"sv, Core::MappedFile::Mode::ReadWrite);
+    auto maybe_file = Core::MappedFile::map("/tmp/file-open-test.txt"_sv, Core::MappedFile::Mode::ReadWrite);
     if (maybe_file.is_error()) {
         warnln("Failed to open the file: {}", strerror(maybe_file.error().code()));
         VERIFY_NOT_REACHED();
@@ -42,11 +42,11 @@ TEST_CASE(mapped_file_open)
     EXPECT_EQ(size, text.length());
 }
 
-constexpr auto expected_buffer_contents = "&lt;small&gt;(Please consider translating this message for the benefit of your fellow Wikimedians. Please also consider translating"sv;
+constexpr auto expected_buffer_contents = "&lt;small&gt;(Please consider translating this message for the benefit of your fellow Wikimedians. Please also consider translating"_sv;
 
 TEST_CASE(mapped_file_read_bytes)
 {
-    auto file = TRY_OR_FAIL(Core::MappedFile::map("./long_lines.txt"sv, Core::MappedFile::Mode::ReadOnly));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map("./long_lines.txt"_sv, Core::MappedFile::Mode::ReadOnly));
 
     auto buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(131));
 
@@ -57,13 +57,13 @@ TEST_CASE(mapped_file_read_bytes)
     EXPECT_EQ(buffer_contents, expected_buffer_contents);
 }
 
-constexpr auto expected_seek_contents1 = "|Lleer esti mens"sv;
-constexpr auto expected_seek_contents2 = "s of advanced ad"sv;
-constexpr auto expected_seek_contents3 = "levels of advanc"sv;
+constexpr auto expected_seek_contents1 = "|Lleer esti mens"_sv;
+constexpr auto expected_seek_contents2 = "s of advanced ad"_sv;
+constexpr auto expected_seek_contents3 = "levels of advanc"_sv;
 
 TEST_CASE(mapped_file_seeking_around)
 {
-    auto file = TRY_OR_FAIL(Core::MappedFile::map("./long_lines.txt"sv, Core::MappedFile::Mode::ReadOnly));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map("./long_lines.txt"_sv, Core::MappedFile::Mode::ReadOnly));
 
     EXPECT_EQ(file->size().release_value(), 8702ul);
 
@@ -89,7 +89,7 @@ TEST_CASE(mapped_file_seeking_around)
 
 BENCHMARK_CASE(file_tell)
 {
-    auto file = TRY_OR_FAIL(Core::MappedFile::map("./10kb.txt"sv, Core::MappedFile::Mode::ReadOnly));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map("./10kb.txt"_sv, Core::MappedFile::Mode::ReadOnly));
     auto expected_file_offset = 0u;
     auto ten_byte_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(1));
     for (auto i = 0u; i < 4000; ++i) {
@@ -111,7 +111,7 @@ TEST_CASE(mapped_file_adopt_fd)
     int rc = ::open("./long_lines.txt", O_RDONLY);
     EXPECT(rc >= 0);
 
-    auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_and_close(rc, "./long_lines.txt"sv));
+    auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_and_close(rc, "./long_lines.txt"_sv));
 
     EXPECT_EQ(file->size().release_value(), 8702ul);
 
@@ -129,14 +129,14 @@ TEST_CASE(mapped_file_adopt_fd)
 
 TEST_CASE(mapped_file_adopt_invalid_fd)
 {
-    auto maybe_file = Core::MappedFile::map_from_fd_and_close(-1, "./long_lines.txt"sv);
+    auto maybe_file = Core::MappedFile::map_from_fd_and_close(-1, "./long_lines.txt"_sv);
     EXPECT(maybe_file.is_error());
     EXPECT_EQ(maybe_file.error().code(), EBADF);
 }
 
 TEST_CASE(mapped_file_tell_and_seek)
 {
-    auto mapped_file = Core::MappedFile::map("./small.txt"sv).release_value();
+    auto mapped_file = Core::MappedFile::map("./small.txt"_sv).release_value();
 
     // Initial state.
     {

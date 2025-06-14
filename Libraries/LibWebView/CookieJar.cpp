@@ -42,9 +42,9 @@ ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database& database)
         to_underlying(Web::Cookie::SameSite::Lax)))));
     database.execute_statement(create_table, {});
 
-    statements.insert_cookie = TRY(database.prepare_statement("INSERT OR REPLACE INTO Cookies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
-    statements.expire_cookie = TRY(database.prepare_statement("DELETE FROM Cookies WHERE (expiry_time < ?);"sv));
-    statements.select_all_cookies = TRY(database.prepare_statement("SELECT * FROM Cookies;"sv));
+    statements.insert_cookie = TRY(database.prepare_statement("INSERT OR REPLACE INTO Cookies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"_sv));
+    statements.expire_cookie = TRY(database.prepare_statement("DELETE FROM Cookies WHERE (expiry_time < ?);"_sv));
+    statements.select_all_cookies = TRY(database.prepare_statement("SELECT * FROM Cookies;"_sv));
 
     return adopt_own(*new CookieJar { PersistedStorage { database, statements } });
 }
@@ -101,7 +101,7 @@ String CookieJar::get_cookie(const URL::URL& url, Web::Cookie::Source source)
 
     for (auto const& cookie : cookie_list) {
         if (!builder.is_empty())
-            builder.append("; "sv);
+            builder.append("; "_sv);
 
         // 1. If the cookies' name is not empty, output the cookie's name followed by the %x3D ("=") character.
         if (!cookie.name.is_empty())
@@ -152,9 +152,9 @@ void CookieJar::dump_cookies()
     StringBuilder builder;
 
     m_transient_storage.for_each_cookie([&](auto const& cookie) {
-        static constexpr auto key_color = "\033[34;1m"sv;
-        static constexpr auto attribute_color = "\033[33m"sv;
-        static constexpr auto no_color = "\033[0m"sv;
+        static constexpr auto key_color = "\033[34;1m"_sv;
+        static constexpr auto attribute_color = "\033[33m"_sv;
+        static constexpr auto no_color = "\033[0m"_sv;
 
         builder.appendff("{}{}{} - ", key_color, cookie.name, no_color);
         builder.appendff("{}{}{} - ", key_color, cookie.domain, no_color);
@@ -392,7 +392,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
 
     // 13. If the request-uri does not denote a "secure" connection (as defined by the user agent), and the cookie's
     //     secure-only-flag is true, then abort these steps and ignore the cookie entirely.
-    if (cookie.secure && url.scheme() != "https"sv)
+    if (cookie.secure && url.scheme() != "https"_sv)
         return;
 
     // 14. If the cookie-attribute-list contains an attribute with an attribute-name of "HttpOnly", set the cookie's
@@ -407,7 +407,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
     // 16. If the cookie's secure-only-flag is false, and the request-uri does not denote a "secure" connection, then
     //     abort these steps and ignore the cookie entirely if the cookie store contains one or more cookies that meet
     //     all of the following criteria:
-    if (!cookie.secure && url.scheme() != "https"sv) {
+    if (!cookie.secure && url.scheme() != "https"_sv) {
         auto ignore_cookie = false;
 
         m_transient_storage.for_each_cookie([&](Web::Cookie::Cookie const& old_cookie) {
@@ -472,12 +472,12 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
 
     // 20. If the cookie-name begins with a case-insensitive match for the string "__Secure-", abort these steps and
     //     ignore the cookie entirely unless the cookie's secure-only-flag is true.
-    if (has_case_insensitive_prefix(cookie.name, "__Secure-"sv) && !cookie.secure)
+    if (has_case_insensitive_prefix(cookie.name, "__Secure-"_sv) && !cookie.secure)
         return;
 
     // 21. If the cookie-name begins with a case-insensitive match for the string "__Host-", abort these steps and
     //     ignore the cookie entirely unless the cookie meets all the following criteria:
-    if (has_case_insensitive_prefix(cookie.name, "__Host-"sv)) {
+    if (has_case_insensitive_prefix(cookie.name, "__Host-"_sv)) {
         // 1. The cookie's secure-only-flag is true.
         if (!cookie.secure)
             return;
@@ -487,7 +487,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
             return;
 
         // 3. The cookie-attribute-list contains an attribute with an attribute-name of "Path", and the cookie's path is /.
-        if (parsed_cookie.path.has_value() && parsed_cookie.path != "/"sv)
+        if (parsed_cookie.path.has_value() && parsed_cookie.path != "/"_sv)
             return;
     }
 
@@ -495,11 +495,11 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
     //     the cookie entirely:
     if (cookie.name.is_empty()) {
         // * the cookie-value begins with a case-insensitive match for the string "__Secure-"
-        if (has_case_insensitive_prefix(cookie.value, "__Secure-"sv))
+        if (has_case_insensitive_prefix(cookie.value, "__Secure-"_sv))
             return;
 
         // * the cookie-value begins with a case-insensitive match for the string "__Host-"
-        if (has_case_insensitive_prefix(cookie.value, "__Host-"sv))
+        if (has_case_insensitive_prefix(cookie.value, "__Host-"_sv))
             return;
     }
 
@@ -557,7 +557,7 @@ Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(const URL::URL& url,
 
         // * If the cookie's secure-only-flag is true, then the retrieval's URI must denote a "secure" connection (as
         //   defined by the user agent).
-        if (cookie.secure && url.scheme() != "https"sv && url.scheme() != "wss"sv)
+        if (cookie.secure && url.scheme() != "https"_sv && url.scheme() != "wss"_sv)
             return;
 
         // * If the cookie's http-only-flag is true, then exclude the cookie if the retrieval's type is "non-HTTP".

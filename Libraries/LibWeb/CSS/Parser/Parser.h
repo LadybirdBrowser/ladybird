@@ -91,7 +91,7 @@ class Parser {
     AK_MAKE_NONMOVABLE(Parser);
 
 public:
-    static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"sv);
+    static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"_sv);
 
     GC::Ref<CSS::CSSStyleSheet> parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list = {});
 

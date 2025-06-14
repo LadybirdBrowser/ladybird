@@ -17,21 +17,21 @@ namespace {
 
 CSSColorValue::ColorType color_type_from_string_view(StringView color_space)
 {
-    if (color_space == "a98-rgb"sv)
+    if (color_space == "a98-rgb"_sv)
         return CSSColorValue::ColorType::A98RGB;
-    if (color_space == "display-p3"sv)
+    if (color_space == "display-p3"_sv)
         return CSSColorValue::ColorType::DisplayP3;
-    if (color_space == "srgb"sv)
+    if (color_space == "srgb"_sv)
         return CSSColorValue::ColorType::sRGB;
-    if (color_space == "srgb-linear"sv)
+    if (color_space == "srgb-linear"_sv)
         return CSSColorValue::ColorType::sRGBLinear;
-    if (color_space == "prophoto-rgb"sv)
+    if (color_space == "prophoto-rgb"_sv)
         return CSSColorValue::ColorType::ProPhotoRGB;
-    if (color_space == "rec2020"sv)
+    if (color_space == "rec2020"_sv)
         return CSSColorValue::ColorType::Rec2020;
-    if (color_space == "xyz-d50"sv)
+    if (color_space == "xyz-d50"_sv)
         return CSSColorValue::ColorType::XYZD50;
-    if (color_space == "xyz"sv || color_space == "xyz-d65")
+    if (color_space == "xyz"_sv || color_space == "xyz-d65")
         return CSSColorValue::ColorType::XYZD65;
     VERIFY_NOT_REACHED();
 }
@@ -39,21 +39,21 @@ CSSColorValue::ColorType color_type_from_string_view(StringView color_space)
 StringView string_view_from_color_type(CSSColorValue::ColorType color_type)
 {
     if (color_type == CSSColorValue::ColorType::A98RGB)
-        return "a98-rgb"sv;
+        return "a98-rgb"_sv;
     if (color_type == CSSColorValue::ColorType::DisplayP3)
-        return "display-p3"sv;
+        return "display-p3"_sv;
     if (color_type == CSSColorValue::ColorType::sRGB)
-        return "srgb"sv;
+        return "srgb"_sv;
     if (color_type == CSSColorValue::ColorType::sRGBLinear)
-        return "srgb-linear"sv;
+        return "srgb-linear"_sv;
     if (color_type == CSSColorValue::ColorType::ProPhotoRGB)
-        return "prophoto-rgb"sv;
+        return "prophoto-rgb"_sv;
     if (color_type == CSSColorValue::ColorType::Rec2020)
-        return "rec2020"sv;
+        return "rec2020"_sv;
     if (color_type == CSSColorValue::ColorType::XYZD50)
-        return "xyz-d50"sv;
+        return "xyz-d50"_sv;
     if (color_type == CSSColorValue::ColorType::XYZD65)
-        return "xyz-d65"sv;
+        return "xyz-d65"_sv;
     VERIFY_NOT_REACHED();
 }
 

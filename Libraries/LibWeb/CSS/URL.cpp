@@ -26,10 +26,10 @@ String URL::to_string() const
     StringBuilder builder;
     switch (m_type) {
     case Type::Url:
-        builder.append("url("sv);
+        builder.append("url("_sv);
         break;
     case Type::Src:
-        builder.append("src("sv);
+        builder.append("src("_sv);
         break;
     }
     serialize_a_string(builder, m_url);

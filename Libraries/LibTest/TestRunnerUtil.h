@@ -39,7 +39,7 @@ inline void iterate_directory_recursively(ByteString const& directory_path, Call
             continue;
         bool is_directory = S_ISDIR(st.st_mode);
 #endif
-        if (is_directory && name != "/Fixtures"sv) {
+        if (is_directory && name != "/Fixtures"_sv) {
             iterate_directory_recursively(full_path, callback);
         } else if (!is_directory) {
             callback(full_path);

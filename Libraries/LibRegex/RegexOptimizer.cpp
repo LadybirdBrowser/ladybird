@@ -259,18 +259,18 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
         auto& op = static_cast<T const&>(opcode);
         ssize_t jump_offset = op.size() + op.offset();
         if (jump_offset >= 0) {
-            block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump ahead"sv });
+            block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump ahead"_sv });
             end_of_last_block = state.instruction_position + opcode.size();
         } else {
             // This op jumps back, see if that's within this "block".
             if (jump_offset + state.instruction_position > end_of_last_block) {
                 // Split the block!
-                block_boundaries.append({ end_of_last_block, jump_offset + state.instruction_position, "Jump back 1"sv });
-                block_boundaries.append({ jump_offset + state.instruction_position, state.instruction_position, "Jump back 2"sv });
+                block_boundaries.append({ end_of_last_block, jump_offset + state.instruction_position, "Jump back 1"_sv });
+                block_boundaries.append({ jump_offset + state.instruction_position, state.instruction_position, "Jump back 2"_sv });
                 end_of_last_block = state.instruction_position + opcode.size();
             } else {
                 // Nope, it's just a jump to another block
-                block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump"sv });
+                block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump"_sv });
                 end_of_last_block = state.instruction_position + opcode.size();
             }
         }
@@ -292,7 +292,7 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
             check_jump.template operator()<OpCode_ForkStay>(opcode);
             break;
         case OpCodeId::FailForks:
-            block_boundaries.append({ end_of_last_block, state.instruction_position, "FailForks"sv });
+            block_boundaries.append({ end_of_last_block, state.instruction_position, "FailForks"_sv });
             end_of_last_block = state.instruction_position + opcode.size();
             break;
         case OpCodeId::Repeat: {
@@ -300,8 +300,8 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
             auto& repeat = static_cast<OpCode_Repeat const&>(opcode);
             auto repeat_start = state.instruction_position - repeat.offset();
             if (repeat_start > end_of_last_block)
-                block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"sv });
-            block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"sv });
+                block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"_sv });
+            block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"_sv });
             end_of_last_block = state.instruction_position + opcode.size();
             break;
         }
@@ -317,7 +317,7 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
     }
 
     if (end_of_last_block < bytecode_size)
-        block_boundaries.append({ end_of_last_block, bytecode_size, "End"sv });
+        block_boundaries.append({ end_of_last_block, bytecode_size, "End"_sv });
 
     quick_sort(block_boundaries, [](auto& a, auto& b) { return a.start < b.start; });
 
@@ -808,7 +808,7 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
         return false;
 
     if (basic_blocks.is_empty()) {
-        parser_result.optimization_data.pure_substring_search = ""sv;
+        parser_result.optimization_data.pure_substring_search = ""_sv;
         return true; // Empty regex, sure.
     }
 

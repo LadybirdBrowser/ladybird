@@ -202,7 +202,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
         return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Failed to set protocol. '{}' is an invalid protocol", value)));
 
     // 6. if copyURL's scheme is not an HTTP(S) scheme, then terminate these steps.
-    if (!(copy_url.scheme() == "http"sv || copy_url.scheme() == "https"sv))
+    if (!(copy_url.scheme() == "http"_sv || copy_url.scheme() == "https"_sv))
         return {};
 
     // 7. Location-object navigate this to copyURL.

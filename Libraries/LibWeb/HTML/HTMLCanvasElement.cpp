@@ -245,7 +245,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
 
     // 3. Run the steps in the cell of the following table whose column header matches this canvas element's canvas context mode and whose row header matches contextId:
     // NOTE: See the spec for the full table.
-    if (type == "2d"sv) {
+    if (type == "2d"_sv) {
         if (TRY(create_2d_context(options)) == HasOrCreatedContext::Yes)
             return GC::make_root(*m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>());
 
@@ -253,14 +253,14 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     }
 
     // NOTE: The WebGL spec says "experimental-webgl" is also acceptable and must be equivalent to "webgl". Other engines accept this, so we do too.
-    if (type.is_one_of("webgl"sv, "experimental-webgl"sv)) {
+    if (type.is_one_of("webgl"_sv, "experimental-webgl"_sv)) {
         if (TRY(create_webgl_context<WebGL::WebGLRenderingContext>(options)) == HasOrCreatedContext::Yes)
             return GC::make_root(*m_context.get<GC::Ref<WebGL::WebGLRenderingContext>>());
 
         return Empty {};
     }
 
-    if (type == "webgl2"sv) {
+    if (type == "webgl2"_sv) {
         if (TRY(create_webgl_context<WebGL::WebGL2RenderingContext>(options)) == HasOrCreatedContext::Yes)
             return GC::make_root(*m_context.get<GC::Ref<WebGL::WebGL2RenderingContext>>());
 
@@ -302,18 +302,18 @@ static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap
     // Otherwise, the user agent must use its default quality value, as if the quality argument had not been given.
     bool valid_quality = quality.is_number() && quality.as_double() >= 0.0 && quality.as_double() <= 1.0;
 
-    if (type.equals_ignoring_ascii_case("image/jpeg"sv)) {
+    if (type.equals_ignoring_ascii_case("image/jpeg"_sv)) {
         AllocatingMemoryStream file;
         Gfx::JPEGWriter::Options jpeg_options;
         if (valid_quality)
             jpeg_options.quality = static_cast<int>(quality.as_double() * 100);
         TRY(Gfx::JPEGWriter::encode(file, bitmap, jpeg_options));
-        return SerializeBitmapResult { TRY(file.read_until_eof()), "image/jpeg"sv };
+        return SerializeBitmapResult { TRY(file.read_until_eof()), "image/jpeg"_sv };
     }
 
     // User agents must support PNG ("image/png"). User agents may support other types.
     // If the user agent does not support the requested type, then it must create the file using the PNG format. [PNG]
-    return SerializeBitmapResult { TRY(Gfx::PNGWriter::encode(bitmap)), "image/png"sv };
+    return SerializeBitmapResult { TRY(Gfx::PNGWriter::encode(bitmap)), "image/png"_sv };
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl

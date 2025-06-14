@@ -157,15 +157,15 @@ ErrorOr<String> DateTime::to_string(StringView format, LocalTime local_time) con
         StringView offset_sign;
 
         if (offset_seconds >= 0) {
-            offset_sign = "+"sv;
+            offset_sign = "+"_sv;
         } else {
-            offset_sign = "-"sv;
+            offset_sign = "-"_sv;
             offset_seconds *= -1;
         }
 
         auto offset_hours = offset_seconds / 3600;
         auto offset_minutes = (offset_seconds % 3600) / 60;
-        auto separator = with_separator ? ":"sv : ""sv;
+        auto separator = with_separator ? ":"_sv : ""_sv;
 
         TRY(builder.try_appendff("{}{:02}{}{:02}", offset_sign, offset_hours, separator, offset_minutes));
         return {};
@@ -236,7 +236,7 @@ ErrorOr<String> DateTime::to_string(StringView format, LocalTime local_time) con
                 TRY(builder.try_append('\n'));
                 break;
             case 'p':
-                TRY(builder.try_append(tm.tm_hour < 12 ? "AM"sv : "PM"sv));
+                TRY(builder.try_append(tm.tm_hour < 12 ? "AM"_sv : "PM"_sv));
                 break;
             case 'r': {
                 int display_hour = tm.tm_hour % 12;
@@ -303,11 +303,11 @@ ErrorOr<String> DateTime::to_string(StringView format, LocalTime local_time) con
                 break;
             case ':':
                 if (++i == format_len) {
-                    TRY(builder.try_append("%:"sv));
+                    TRY(builder.try_append("%:"_sv));
                     break;
                 }
                 if (format[i] != 'z') {
-                    TRY(builder.try_append("%:"sv));
+                    TRY(builder.try_append("%:"_sv));
                     TRY(builder.try_append(format[i]));
                     break;
                 }

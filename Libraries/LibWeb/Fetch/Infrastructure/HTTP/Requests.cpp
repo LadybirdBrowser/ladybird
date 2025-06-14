@@ -275,7 +275,7 @@ void Request::add_range_header(u64 first, Optional<u64> const& last)
     VERIFY(!last.has_value() || first <= last.value());
 
     // 2. Let rangeValue be `bytes=`.
-    auto range_value = MUST(ByteBuffer::copy("bytes"sv.bytes()));
+    auto range_value = MUST(ByteBuffer::copy("bytes"_sv.bytes()));
 
     // 3. Serialize and isomorphic encode first, and append the result to rangeValue.
     range_value.append(String::number(first).bytes());
@@ -289,7 +289,7 @@ void Request::add_range_header(u64 first, Optional<u64> const& last)
 
     // 6. Append (`Range`, rangeValue) to request’s header list.
     auto header = Header {
-        .name = MUST(ByteBuffer::copy("Range"sv.bytes())),
+        .name = MUST(ByteBuffer::copy("Range"_sv.bytes())),
         .value = move(range_value),
     };
     m_header_list->append(move(header));
@@ -304,20 +304,20 @@ void Request::add_origin_header()
     // 2. If request’s response tainting is "cors" or request’s mode is "websocket", then append (`Origin`, serializedOrigin) to request’s header list.
     if (m_response_tainting == ResponseTainting::CORS || m_mode == Mode::WebSocket) {
         auto header = Header {
-            .name = MUST(ByteBuffer::copy("Origin"sv.bytes())),
+            .name = MUST(ByteBuffer::copy("Origin"_sv.bytes())),
             .value = move(serialized_origin),
         };
         m_header_list->append(move(header));
     }
     // 3. Otherwise, if request’s method is neither `GET` nor `HEAD`, then:
-    else if (!StringView { m_method }.is_one_of("GET"sv, "HEAD"sv)) {
+    else if (!StringView { m_method }.is_one_of("GET"_sv, "HEAD"_sv)) {
         // 1. If request’s mode is not "cors", then switch on request’s referrer policy:
         if (m_mode != Mode::CORS) {
             switch (m_referrer_policy) {
             // -> "no-referrer"
             case ReferrerPolicy::ReferrerPolicy::NoReferrer:
                 // Set serializedOrigin to `null`.
-                serialized_origin = MUST(ByteBuffer::copy("null"sv.bytes()));
+                serialized_origin = MUST(ByteBuffer::copy("null"_sv.bytes()));
                 break;
             // -> "no-referrer-when-downgrade"
             // -> "strict-origin"
@@ -327,15 +327,15 @@ void Request::add_origin_header()
             case ReferrerPolicy::ReferrerPolicy::StrictOriginWhenCrossOrigin:
                 // If request’s origin is a tuple origin, its scheme is "https", and request’s current URL’s scheme is
                 // not "https", then set serializedOrigin to `null`.
-                if (m_origin.has<URL::Origin>() && m_origin.get<URL::Origin>().scheme() == "https"sv && current_url().scheme() != "https"sv)
-                    serialized_origin = MUST(ByteBuffer::copy("null"sv.bytes()));
+                if (m_origin.has<URL::Origin>() && m_origin.get<URL::Origin>().scheme() == "https"_sv && current_url().scheme() != "https"_sv)
+                    serialized_origin = MUST(ByteBuffer::copy("null"_sv.bytes()));
                 break;
             // -> "same-origin"
             case ReferrerPolicy::ReferrerPolicy::SameOrigin:
                 // If request’s origin is not same origin with request’s current URL’s origin, then set serializedOrigin
                 // to `null`.
                 if (m_origin.has<URL::Origin>() && !m_origin.get<URL::Origin>().is_same_origin(current_url().origin()))
-                    serialized_origin = MUST(ByteBuffer::copy("null"sv.bytes()));
+                    serialized_origin = MUST(ByteBuffer::copy("null"_sv.bytes()));
                 break;
             // -> Otherwise
             default:
@@ -346,7 +346,7 @@ void Request::add_origin_header()
 
         // 2. Append (`Origin`, serializedOrigin) to request’s header list.
         auto header = Header {
-            .name = MUST(ByteBuffer::copy("Origin"sv.bytes())),
+            .name = MUST(ByteBuffer::copy("Origin"_sv.bytes())),
             .value = move(serialized_origin),
         };
         m_header_list->append(move(header));
@@ -381,49 +381,49 @@ StringView request_destination_to_string(Request::Destination destination)
 {
     switch (destination) {
     case Request::Destination::Audio:
-        return "audio"sv;
+        return "audio"_sv;
     case Request::Destination::AudioWorklet:
-        return "audioworklet"sv;
+        return "audioworklet"_sv;
     case Request::Destination::Document:
-        return "document"sv;
+        return "document"_sv;
     case Request::Destination::Embed:
-        return "embed"sv;
+        return "embed"_sv;
     case Request::Destination::Font:
-        return "font"sv;
+        return "font"_sv;
     case Request::Destination::Frame:
-        return "frame"sv;
+        return "frame"_sv;
     case Request::Destination::IFrame:
-        return "iframe"sv;
+        return "iframe"_sv;
     case Request::Destination::Image:
-        return "image"sv;
+        return "image"_sv;
     case Request::Destination::JSON:
-        return "json"sv;
+        return "json"_sv;
     case Request::Destination::Manifest:
-        return "manifest"sv;
+        return "manifest"_sv;
     case Request::Destination::Object:
-        return "object"sv;
+        return "object"_sv;
     case Request::Destination::PaintWorklet:
-        return "paintworklet"sv;
+        return "paintworklet"_sv;
     case Request::Destination::Report:
-        return "report"sv;
+        return "report"_sv;
     case Request::Destination::Script:
-        return "script"sv;
+        return "script"_sv;
     case Request::Destination::ServiceWorker:
-        return "serviceworker"sv;
+        return "serviceworker"_sv;
     case Request::Destination::SharedWorker:
-        return "sharedworker"sv;
+        return "sharedworker"_sv;
     case Request::Destination::Style:
-        return "style"sv;
+        return "style"_sv;
     case Request::Destination::Track:
-        return "track"sv;
+        return "track"_sv;
     case Request::Destination::Video:
-        return "video"sv;
+        return "video"_sv;
     case Request::Destination::WebIdentity:
-        return "webidentity"sv;
+        return "webidentity"_sv;
     case Request::Destination::Worker:
-        return "worker"sv;
+        return "worker"_sv;
     case Request::Destination::XSLT:
-        return "xslt"sv;
+        return "xslt"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -432,15 +432,15 @@ StringView request_mode_to_string(Request::Mode mode)
 {
     switch (mode) {
     case Request::Mode::SameOrigin:
-        return "same-origin"sv;
+        return "same-origin"_sv;
     case Request::Mode::CORS:
-        return "cors"sv;
+        return "cors"_sv;
     case Request::Mode::NoCORS:
-        return "no-cors"sv;
+        return "no-cors"_sv;
     case Request::Mode::Navigate:
-        return "navigate"sv;
+        return "navigate"_sv;
     case Request::Mode::WebSocket:
-        return "websocket"sv;
+        return "websocket"_sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -496,11 +496,11 @@ FlyString initiator_type_to_string(Request::InitiatorType initiator_type)
 
 Optional<Request::Priority> request_priority_from_string(StringView string)
 {
-    if (string.equals_ignoring_ascii_case("high"sv))
+    if (string.equals_ignoring_ascii_case("high"_sv))
         return Request::Priority::High;
-    if (string.equals_ignoring_ascii_case("low"sv))
+    if (string.equals_ignoring_ascii_case("low"_sv))
         return Request::Priority::Low;
-    if (string.equals_ignoring_ascii_case("auto"sv))
+    if (string.equals_ignoring_ascii_case("auto"_sv))
         return Request::Priority::Auto;
     return {};
 }

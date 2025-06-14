@@ -113,7 +113,7 @@ void serialize_a_url(StringBuilder& builder, StringView url)
 {
     // To serialize a URL means to create a string represented by "url(",
     // followed by the serialization of the URL as a string, followed by ")".
-    builder.append("url("sv);
+    builder.append("url("_sv);
     serialize_a_string(builder, url);
     builder.append(')');
 }
@@ -224,7 +224,7 @@ String serialize_a_css_declaration(StringView property, StringView value, Import
     builder.append(property);
 
     // 3. Append ": " (U+003A U+0020) to s.
-    builder.append(": "sv);
+    builder.append(": "_sv);
 
     // 4. If value contains any non-whitespace characters, append value to s.
     if (!value.is_whitespace())
@@ -233,7 +233,7 @@ String serialize_a_css_declaration(StringView property, StringView value, Import
     // 5. If the important flag is set, append " !important" (U+0020 U+0021 U+0069 U+006D U+0070 U+006F U+0072 U+0074
     //    U+0061 U+006E U+0074) to s.
     if (important == Important::Yes)
-        builder.append(" !important"sv);
+        builder.append(" !important"_sv);
 
     // 6. Append ";" (U+003B) to s.
     builder.append(';');
@@ -248,7 +248,7 @@ String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValu
     // FIXME: There are special rules here where we should insert a comment between certain tokens. Do that!
     if (insert_whitespace == InsertWhitespace::Yes)
         return MUST(String::join(' ', component_values));
-    return MUST(String::join(""sv, component_values));
+    return MUST(String::join(""_sv, component_values));
 }
 
 }

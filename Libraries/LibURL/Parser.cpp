@@ -30,7 +30,7 @@ static bool is_forbidden_host_code_point(u32 code_point)
     // A forbidden host code point is U+0000 NULL, U+0009 TAB, U+000A LF, U+000D CR, U+0020 SPACE,
     // U+0023 (#), U+002F (/), U+003A (:), U+003C (<), U+003E (>), U+003F (?), U+0040 (@), U+005B ([),
     // U+005C (\), U+005D (]), U+005E (^), or U+007C (|).
-    return "\0\t\n\r #/:<>?@[\\]^|"sv.contains(code_point);
+    return "\0\t\n\r #/:<>?@[\\]^|"_sv.contains(code_point);
 }
 
 // https://url.spec.whatwg.org/#forbidden-domain-code-point
@@ -49,7 +49,7 @@ static bool is_url_code_point(u32 code_point)
     // U+003B (;), U+003D (=), U+003F (?), U+0040 (@), U+005F (_), U+007E (~), and code
     // points in the range U+00A0 to U+10FFFD, inclusive, excluding surrogates and
     // noncharacters.
-    return is_ascii_alphanumeric(code_point) || "!$&'()*+,-./:;=?@_~"sv.contains(code_point)
+    return is_ascii_alphanumeric(code_point) || "!$&'()*+,-./:;=?@_~"_sv.contains(code_point)
         || (code_point >= 0x00A0 && code_point <= 0x10FFFD && !is_unicode_surrogate(code_point) && !is_unicode_noncharacter(code_point));
 }
 
@@ -97,7 +97,7 @@ static Optional<ParsedIPv4Number> parse_ipv4_number(StringView input)
     u8 radix = 10;
 
     // 4. If input contains at least two code points and the first two code points are either "0X" or "0x", then:
-    if (input.length() >= 2 && (input.starts_with("0X"sv) || input.starts_with("0x"sv))) {
+    if (input.length() >= 2 && (input.starts_with("0X"_sv) || input.starts_with("0x"_sv))) {
         // 1. Set validationError to true.
         validation_error = true;
 
@@ -160,7 +160,7 @@ static Optional<ParsedIPv4Number> parse_ipv4_number(StringView input)
 static Optional<IPv4Address> parse_ipv4_address(StringView input)
 {
     // 1. Let parts be the result of strictly splitting input on U+002E (.).
-    auto parts = input.split_view("."sv, SplitBehavior::KeepEmpty);
+    auto parts = input.split_view("."_sv, SplitBehavior::KeepEmpty);
 
     // 2. If the last item in parts is the empty string, then:
     if (parts.last().is_empty()) {
@@ -469,7 +469,7 @@ static Optional<IPv6Address> parse_ipv6_address(StringView input)
 static bool ends_in_a_number_checker(StringView input)
 {
     // 1. Let parts be the result of strictly splitting input on U+002E (.).
-    auto parts = input.split_view("."sv, SplitBehavior::KeepEmpty);
+    auto parts = input.split_view("."_sv, SplitBehavior::KeepEmpty);
 
     // 2. If the last item in parts is the empty string, then:
     if (parts.last().is_empty()) {
@@ -490,7 +490,7 @@ static bool ends_in_a_number_checker(StringView input)
 
     // 5. If parsing last as an IPv4 number does not return failure, then return true.
     // NOTE: This is equivalent to checking that last is "0X" or "0x", followed by zero or more ASCII hex digits.
-    if (last.starts_with("0x"sv, CaseSensitivity::CaseInsensitive) && all_of(last.substring_view(2), is_ascii_hex_digit))
+    if (last.starts_with("0x"_sv, CaseSensitivity::CaseInsensitive) && all_of(last.substring_view(2), is_ascii_hex_digit))
         return true;
 
     // 6. Return false.
@@ -521,7 +521,7 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
 
         bool slow_path = false;
         for (auto part : domain.split_view('.')) {
-            if (part.starts_with("xn--"sv, CaseSensitivity::CaseInsensitive)) {
+            if (part.starts_with("xn--"_sv, CaseSensitivity::CaseInsensitive)) {
                 slow_path = true;
                 break;
             }
@@ -617,7 +617,7 @@ constexpr bool starts_with_windows_drive_letter(StringView input)
         return false;
     if (input.length() == 2)
         return true;
-    return "/\\?#"sv.contains(input[2]);
+    return "/\\?#"_sv.contains(input[2]);
 }
 
 constexpr bool is_windows_drive_letter(StringView input)
@@ -632,12 +632,12 @@ constexpr bool is_normalized_windows_drive_letter(StringView input)
 
 constexpr bool is_single_dot_path_segment(StringView input)
 {
-    return input == "."sv || input.equals_ignoring_ascii_case("%2e"sv);
+    return input == "."_sv || input.equals_ignoring_ascii_case("%2e"_sv);
 }
 
 constexpr bool is_double_dot_path_segment(StringView input)
 {
-    return input == ".."sv || input.equals_ignoring_ascii_case(".%2e"sv) || input.equals_ignoring_ascii_case("%2e."sv) || input.equals_ignoring_ascii_case("%2e%2e"sv);
+    return input == ".."_sv || input.equals_ignoring_ascii_case(".%2e"_sv) || input.equals_ignoring_ascii_case("%2e."_sv) || input.equals_ignoring_ascii_case("%2e%2e"_sv);
 }
 
 // https://url.spec.whatwg.org/#shorten-a-urls-path
@@ -746,7 +746,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
     for (auto const ch : processed_input) {
         if (ch == '\t' || ch == '\n' || ch == '\r') {
             report_validation_error();
-            processed_input = processed_input.replace("\t"sv, ""sv, ReplaceMode::All).replace("\n"sv, ""sv, ReplaceMode::All).replace("\r"sv, ""sv, ReplaceMode::All);
+            processed_input = processed_input.replace("\t"_sv, ""_sv, ReplaceMode::All).replace("\n"_sv, ""_sv, ReplaceMode::All).replace("\r"_sv, ""_sv, ReplaceMode::All);
             break;
         }
     }
@@ -759,7 +759,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
     if (encoding.has_value())
         encoder = TextCodec::encoder_for(TextCodec::get_output_encoding(*encoding));
     if (!encoder.has_value())
-        encoder = TextCodec::encoder_for("utf-8"sv);
+        encoder = TextCodec::encoder_for("utf-8"_sv);
     VERIFY(encoder.has_value());
 
     // 6. Let buffer be the empty string.
@@ -838,11 +838,11 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                         return *url;
 
                     // 3. If url includes credentials or has a non-null port, and buffer is "file", then return.
-                    if ((url->includes_credentials() || url->port().has_value()) && buffer.string_view() == "file"sv)
+                    if ((url->includes_credentials() || url->port().has_value()) && buffer.string_view() == "file"_sv)
                         return *url;
 
                     // 4. If url’s scheme is "file" and its host is an empty host, then return.
-                    if (url->scheme() == "file"sv && url->host().has_value() && url->host()->is_empty_host())
+                    if (url->scheme() == "file"_sv && url->host().has_value() && url->host()->is_empty_host())
                         return *url;
                 }
 
@@ -865,7 +865,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 // 5. If url’s scheme is "file", then:
                 if (url->scheme() == "file") {
                     // 1. If remaining does not start with "//", special-scheme-missing-following-solidus validation error.
-                    if (!get_remaining().starts_with("//"sv)) {
+                    if (!get_remaining().starts_with("//"_sv)) {
                         report_validation_error();
                     }
                     // 2. Set state to file state.
@@ -884,7 +884,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     state = State::SpecialAuthoritySlashes;
                 }
                 // 8. Otherwise, if remaining starts with an U+002F (/), set state to path or authority state and increase pointer by 1.
-                else if (get_remaining().starts_with("/"sv)) {
+                else if (get_remaining().starts_with("/"_sv)) {
                     state = State::PathOrAuthority;
                     ++iterator;
                 }
@@ -938,7 +938,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
         // -> special relative or authority state, https://url.spec.whatwg.org/#special-relative-or-authority-state
         case State::SpecialRelativeOrAuthority:
             // 1. If c is U+002F (/) and remaining starts with U+002F (/), then set state to special authority ignore slashes state and increase pointer by 1.
-            if (code_point == '/' && get_remaining().starts_with("/"sv)) {
+            if (code_point == '/' && get_remaining().starts_with("/"_sv)) {
                 state = State::SpecialAuthorityIgnoreSlashes;
                 ++iterator;
             }
@@ -1040,7 +1040,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
         // -> special authority slashes state, https://url.spec.whatwg.org/#special-authority-slashes-state
         case State::SpecialAuthoritySlashes:
             // 1. If c is U+002F (/) and remaining starts with U+002F (/), then set state to special authority ignore slashes state and increase pointer by 1.
-            if (code_point == '/' && get_remaining().starts_with("/"sv)) {
+            if (code_point == '/' && get_remaining().starts_with("/"_sv)) {
                 state = State::SpecialAuthorityIgnoreSlashes;
                 ++iterator;
             }
@@ -1074,7 +1074,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 if (at_sign_seen) {
                     auto content = buffer.to_byte_string();
                     buffer.clear();
-                    buffer.append("%40"sv);
+                    buffer.append("%40"_sv);
                     buffer.append(content);
                 }
 
@@ -1411,7 +1411,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                         return {};
 
                     // 3. If host is "localhost", then set host to the empty string.
-                    if (host.value().has<String>() && host.value().get<String>() == "localhost"sv)
+                    if (host.value().has<String>() && host.value().get<String>() == "localhost"_sv)
                         host = String {};
 
                     // 4. Set url’s host to host.
@@ -1564,7 +1564,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             else if (code_point == ' ') {
                 // 1. If remaining starts with U+003F (?) or U+003F (#), then append "%20" to url’s path.
                 if (auto remaining = get_remaining(); remaining.starts_with('?') || remaining.starts_with('#')) {
-                    buffer.append("%20"sv);
+                    buffer.append("%20"_sv);
                 }
                 // 2. Otherwise, append U+0020 SPACE to url’s path.
                 else {
@@ -1595,7 +1595,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             //     * url’s scheme is "ws" or "wss"
             //  then set encoding to UTF-8.
             if (!url->is_special() || url->m_data->scheme == "ws" || url->m_data->scheme == "wss")
-                encoder = TextCodec::encoder_for("utf-8"sv);
+                encoder = TextCodec::encoder_for("utf-8"_sv);
 
             // 2. If one of the following is true:
             //    * state override is not given and c is U+0023 (#)
@@ -1650,7 +1650,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 // NOTE: The percent-encode is done on EOF on the entire buffer.
                 buffer.append_code_point(code_point);
             } else {
-                url->m_data->fragment = percent_encode_after_encoding(*TextCodec::encoder_for("utf-8"sv), buffer.string_view(), PercentEncodeSet::Fragment);
+                url->m_data->fragment = percent_encode_after_encoding(*TextCodec::encoder_for("utf-8"_sv), buffer.string_view(), PercentEncodeSet::Fragment);
                 buffer.clear();
             }
             break;

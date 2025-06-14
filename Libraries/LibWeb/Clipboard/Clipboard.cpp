@@ -52,7 +52,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
     String well_known_format {};
 
     // 2. If mimeType’s essence is "text/plain", then
-    if (auto const& essence = mime_type->essence(); essence == "text/plain"sv) {
+    if (auto const& essence = mime_type->essence(); essence == "text/plain"_sv) {
         // On Windows, follow the convention described below:
         //     Assign CF_UNICODETEXT to wellKnownFormat.
         // On MacOS, follow the convention described below:
@@ -62,7 +62,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
         well_known_format = essence;
     }
     // 3. Else, if mimeType’s essence is "text/html", then
-    else if (essence == "text/html"sv) {
+    else if (essence == "text/html"_sv) {
         // On Windows, follow the convention described below:
         //     Assign CF_HTML to wellKnownFormat.
         // On MacOS, follow the convention described below:
@@ -72,7 +72,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
         well_known_format = essence;
     }
     // 4. Else, if mimeType’s essence is "image/png", then
-    else if (essence == "image/png"sv) {
+    else if (essence == "image/png"_sv) {
         // On Windows, follow the convention described below:
         //     Assign "PNG" to wellKnownFormat.
         // On MacOS, follow the convention described below:
@@ -112,7 +112,7 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
         }
 
         // 3. Let payload be the result of UTF-8 decoding item’s underlying byte sequence.
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
+        auto decoder = TextCodec::decoder_for("UTF-8"_sv);
         auto payload = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, item->raw_bytes()));
 
         // 4. Insert payload and presentationStyle into the system clipboard using formatString as the native clipboard format.
@@ -223,7 +223,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read(ClipboardUnsanitizedFormats formats)
                     if (mime_type.is_empty())
                         continue;
 
-                    auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                    auto decoder = TextCodec::decoder_for("UTF-8"_sv);
                     auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, system_clipboard_representation.data));
 
                     // 3. Let representation be a new representation.
@@ -359,7 +359,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
                         //        https://github.com/w3c/clipboard-apis/issues/236
 
                         // 4. If representation’s MIME type essence is "text/plain", then:
-                        if (mime_type == "text/plain"sv) {
+                        if (mime_type == "text/plain"_sv) {
                             // 1. Set representation’s MIME type to mimeType.
                             // 2. Let representationDataPromise be the representation’s data.
 
@@ -376,7 +376,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
                             //         1. Reject p with "NotFoundError" DOMException in realm.
                             //         2. Return p.
 
-                            auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                            auto decoder = TextCodec::decoder_for("UTF-8"_sv);
                             auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, system_clipboard_representation.data));
 
                             WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), move(string)));
@@ -578,7 +578,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
             item_list.append(text_blob);
 
             // 4. Let option be set to "unspecified".
-            static constexpr auto option = "unspecified"sv;
+            static constexpr auto option = "unspecified"_sv;
 
             // 5. Write blobs and option to the clipboard with itemList and option.
             write_blobs_and_option_to_clipboard(realm, item_list, option);

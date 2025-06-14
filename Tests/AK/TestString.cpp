@@ -23,13 +23,13 @@ TEST_CASE(construct_empty)
     String empty;
     EXPECT(empty.is_empty());
     EXPECT_EQ(empty.bytes().size(), 0u);
-    EXPECT_EQ(empty, ""sv);
+    EXPECT_EQ(empty, ""_sv);
 
     auto empty2 = ""_string;
     EXPECT(empty2.is_empty());
     EXPECT_EQ(empty, empty2);
 
-    auto empty3 = MUST(String::from_utf8(""sv));
+    auto empty3 = MUST(String::from_utf8(""_sv));
     EXPECT(empty3.is_empty());
     EXPECT_EQ(empty, empty3);
 }
@@ -38,7 +38,7 @@ TEST_CASE(move_assignment)
 {
     String string1 = "hello"_string;
     string1 = "friends!"_string;
-    EXPECT_EQ(string1, "friends!"sv);
+    EXPECT_EQ(string1, "friends!"_sv);
 }
 
 TEST_CASE(copy_assignment)
@@ -67,10 +67,10 @@ TEST_CASE(short_strings)
      *        This is important for the odd pointer address checks (this is to
      *        test if the ShortString structs are endian agnostic). */
 #ifdef AK_ARCH_64_BIT
-    auto string1 = MUST(String::from_utf8("foo bar"sv));
+    auto string1 = MUST(String::from_utf8("foo bar"_sv));
     EXPECT_EQ(string1.is_short_string(), true);
     EXPECT_EQ(string1.bytes().size(), 7u);
-    EXPECT_EQ(string1.bytes_as_string_view(), "foo bar"sv);
+    EXPECT_EQ(string1.bytes_as_string_view(), "foo bar"_sv);
     // check for odd "pointer" value, i.e. short string flag
     EXPECT_EQ(*((uintptr_t*)&string1) % 2UL, 1U);
 
@@ -81,10 +81,10 @@ TEST_CASE(short_strings)
     // check for odd "pointer" value, i.e. short string flag
     EXPECT_EQ(*((uintptr_t*)&string2) % 2UL, 1U);
 #else
-    auto string1 = MUST(String::from_utf8("foo"sv));
+    auto string1 = MUST(String::from_utf8("foo"_sv));
     EXPECT_EQ(string1.is_short_string(), true);
     EXPECT_EQ(string1.bytes().size(), 3u);
-    EXPECT_EQ(string1.bytes_as_string_view(), "foo"sv);
+    EXPECT_EQ(string1.bytes_as_string_view(), "foo"_sv);
     // check for odd "pointer" value, i.e. short string flag
     EXPECT_EQ(*((uintptr_t*)&string1) % 2U, 1U);
 
@@ -99,17 +99,17 @@ TEST_CASE(short_strings)
 
 TEST_CASE(long_strings)
 {
-    auto string = MUST(String::from_utf8("abcdefgh"sv));
+    auto string = MUST(String::from_utf8("abcdefgh"_sv));
     EXPECT_EQ(string.is_short_string(), false);
     EXPECT_EQ(string.bytes().size(), 8u);
-    EXPECT_EQ(string.bytes_as_string_view(), "abcdefgh"sv);
+    EXPECT_EQ(string.bytes_as_string_view(), "abcdefgh"_sv);
 }
 
 TEST_CASE(long_streams)
 {
     {
         u8 bytes[64] = {};
-        constexpr auto test_view = "Well, hello friends"sv;
+        constexpr auto test_view = "Well, hello friends"_sv;
         FixedMemoryStream stream(Bytes { bytes, sizeof(bytes) });
         MUST(stream.write_until_depleted(test_view.bytes()));
         MUST(stream.seek(0));
@@ -123,24 +123,24 @@ TEST_CASE(long_streams)
 
     {
         AllocatingMemoryStream stream;
-        MUST(stream.write_until_depleted(("abc"sv).bytes()));
+        MUST(stream.write_until_depleted(("abc"_sv).bytes()));
 
         auto string = MUST(String::from_stream(stream, 3u));
 
         EXPECT_EQ(string.is_short_string(), true);
         EXPECT_EQ(string.bytes().size(), 3u);
-        EXPECT_EQ(string.bytes_as_string_view(), "abc"sv);
+        EXPECT_EQ(string.bytes_as_string_view(), "abc"_sv);
     }
 
     {
         AllocatingMemoryStream stream;
-        MUST(stream.write_until_depleted(("0123456789"sv).bytes()));
+        MUST(stream.write_until_depleted(("0123456789"_sv).bytes()));
 
         auto string = MUST(String::from_stream(stream, 9u));
 
         EXPECT_EQ(string.is_short_string(), false);
         EXPECT_EQ(string.bytes().size(), 9u);
-        EXPECT_EQ(string.bytes_as_string_view(), "012345678"sv);
+        EXPECT_EQ(string.bytes_as_string_view(), "012345678"_sv);
     }
 
     {
@@ -155,13 +155,13 @@ TEST_CASE(long_streams)
 
 TEST_CASE(invalid_utf8)
 {
-    auto string1 = String::from_utf8("long string \xf4\x8f\xbf\xc0"sv); // U+110000
+    auto string1 = String::from_utf8("long string \xf4\x8f\xbf\xc0"_sv); // U+110000
     EXPECT(string1.is_error());
-    EXPECT(string1.error().string_literal().contains("Input was not valid UTF-8"sv));
+    EXPECT(string1.error().string_literal().contains("Input was not valid UTF-8"_sv));
 
-    auto string2 = String::from_utf8("\xf4\xa1\xb0\xbd"sv); // U+121C3D
+    auto string2 = String::from_utf8("\xf4\xa1\xb0\xbd"_sv); // U+121C3D
     EXPECT(string2.is_error());
-    EXPECT(string2.error().string_literal().contains("Input was not valid UTF-8"sv));
+    EXPECT(string2.error().string_literal().contains("Input was not valid UTF-8"_sv));
 
     AllocatingMemoryStream stream;
     MUST(stream.write_value<u8>(0xf4));
@@ -170,26 +170,26 @@ TEST_CASE(invalid_utf8)
     MUST(stream.write_value<u8>(0xbd));
     auto string3 = String::from_stream(stream, stream.used_buffer_size());
     EXPECT_EQ(string3.is_error(), true);
-    EXPECT(string3.error().string_literal().contains("Input was not valid UTF-8"sv));
+    EXPECT(string3.error().string_literal().contains("Input was not valid UTF-8"_sv));
 }
 
 TEST_CASE(with_replacement_character)
 {
-    auto string1 = String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv, String::WithBOMHandling::No); // U+110000
+    auto string1 = String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"_sv, String::WithBOMHandling::No); // U+110000
     Array<u8, 24> string1_expected { 0x6c, 0x6f, 0x6e, 0x67, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd };
     EXPECT_EQ(string1.bytes(), string1_expected);
 
-    auto string3 = String::from_utf8_with_replacement_character("A valid string!"sv, String::WithBOMHandling::No);
-    EXPECT_EQ(string3, "A valid string!"sv);
+    auto string3 = String::from_utf8_with_replacement_character("A valid string!"_sv, String::WithBOMHandling::No);
+    EXPECT_EQ(string3, "A valid string!"_sv);
 
-    auto string4 = String::from_utf8_with_replacement_character(""sv, String::WithBOMHandling::No);
-    EXPECT_EQ(string4, ""sv);
+    auto string4 = String::from_utf8_with_replacement_character(""_sv, String::WithBOMHandling::No);
+    EXPECT_EQ(string4, ""_sv);
 
-    auto string5 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::Yes);
-    EXPECT_EQ(string5, "WHF!"sv);
+    auto string5 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"_sv, String::WithBOMHandling::Yes);
+    EXPECT_EQ(string5, "WHF!"_sv);
 
-    auto string6 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::No);
-    EXPECT_EQ(string6, "\xEF\xBB\xBFWHF!"sv);
+    auto string6 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"_sv, String::WithBOMHandling::No);
+    EXPECT_EQ(string6, "\xEF\xBB\xBFWHF!"_sv);
 }
 
 TEST_CASE(from_code_points)
@@ -204,7 +204,7 @@ TEST_CASE(from_code_points)
     }
 
     auto string = String::from_code_point(0x10ffff);
-    EXPECT_EQ(string, "\xF4\x8F\xBF\xBF"sv);
+    EXPECT_EQ(string, "\xF4\x8F\xBF\xBF"_sv);
 
     EXPECT_DEATH("Creating a string from an invalid code point", (void)String::from_code_point(0xffffffff));
 }
@@ -213,10 +213,10 @@ TEST_CASE(substring)
 {
     auto superstring = "Hello I am a long string"_string;
     auto short_substring = MUST(superstring.substring_from_byte_offset(0, 5));
-    EXPECT_EQ(short_substring, "Hello"sv);
+    EXPECT_EQ(short_substring, "Hello"_sv);
 
     auto long_substring = MUST(superstring.substring_from_byte_offset(0, 10));
-    EXPECT_EQ(long_substring, "Hello I am"sv);
+    EXPECT_EQ(long_substring, "Hello I am"_sv);
 }
 
 TEST_CASE(substring_with_shared_superstring)
@@ -224,10 +224,10 @@ TEST_CASE(substring_with_shared_superstring)
     auto superstring = "Hello I am a long string"_string;
 
     auto substring1 = MUST(superstring.substring_from_byte_offset_with_shared_superstring(0, 5));
-    EXPECT_EQ(substring1, "Hello"sv);
+    EXPECT_EQ(substring1, "Hello"_sv);
 
     auto substring2 = MUST(superstring.substring_from_byte_offset_with_shared_superstring(0, 10));
-    EXPECT_EQ(substring2, "Hello I am"sv);
+    EXPECT_EQ(substring2, "Hello I am"_sv);
 }
 
 TEST_CASE(code_points)
@@ -249,28 +249,28 @@ TEST_CASE(string_builder)
     builder.append_code_point(0x1fa92u);
 
     auto string = MUST(builder.to_string());
-    EXPECT_EQ(string, "🦬🪒"sv);
+    EXPECT_EQ(string, "🦬🪒"_sv);
     EXPECT_EQ(string.bytes().size(), 8u);
 }
 
 TEST_CASE(ak_format)
 {
     auto foo = MUST(String::formatted("Hello {}", "friends"_string));
-    EXPECT_EQ(foo, "Hello friends"sv);
+    EXPECT_EQ(foo, "Hello friends"_sv);
 }
 
 TEST_CASE(replace)
 {
     {
         auto haystack = "Hello enemies"_string;
-        auto result = MUST(haystack.replace("enemies"sv, "friends"sv, ReplaceMode::All));
-        EXPECT_EQ(result, "Hello friends"sv);
+        auto result = MUST(haystack.replace("enemies"_sv, "friends"_sv, ReplaceMode::All));
+        EXPECT_EQ(result, "Hello friends"_sv);
     }
 
     {
         auto base_title = "anon@courage:~"_string;
-        auto result = MUST(base_title.replace("[*]"sv, "(*)"sv, ReplaceMode::FirstOnly));
-        EXPECT_EQ(result, "anon@courage:~"sv);
+        auto result = MUST(base_title.replace("[*]"_sv, "(*)"_sv, ReplaceMode::FirstOnly));
+        EXPECT_EQ(result, "anon@courage:~"_sv);
     }
 }
 
@@ -283,12 +283,12 @@ TEST_CASE(reverse)
         EXPECT_EQ(result, expected);
     };
 
-    test_reverse(""sv, ""sv);
-    test_reverse("a"sv, "a"sv);
-    test_reverse("ab"sv, "ba"sv);
-    test_reverse("ab cd ef"sv, "fe dc ba"sv);
-    test_reverse("😀"sv, "😀"sv);
-    test_reverse("ab😀cd"sv, "dc😀ba"sv);
+    test_reverse(""_sv, ""_sv);
+    test_reverse("a"_sv, "a"_sv);
+    test_reverse("ab"_sv, "ba"_sv);
+    test_reverse("ab cd ef"_sv, "fe dc ba"_sv);
+    test_reverse("😀"_sv, "😀"_sv);
+    test_reverse("ab😀cd"_sv, "dc😀ba"_sv);
 }
 
 TEST_CASE(to_lowercase_unconditional_special_casing)
@@ -399,112 +399,112 @@ TEST_CASE(to_lowercase_special_casing_sigma)
 TEST_CASE(to_lowercase_special_casing_i)
 {
     // LATIN CAPITAL LETTER I
-    auto result = MUST("I"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "i"sv);
+    auto result = MUST("I"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
-    result = MUST("I"_string.to_lowercase("az"sv));
-    EXPECT_EQ(result, "\u0131"sv);
+    result = MUST("I"_string.to_lowercase("az"_sv));
+    EXPECT_EQ(result, "\u0131"_sv);
 
-    result = MUST("I"_string.to_lowercase("tr"sv));
-    EXPECT_EQ(result, "\u0131"sv);
+    result = MUST("I"_string.to_lowercase("tr"_sv));
+    EXPECT_EQ(result, "\u0131"_sv);
 
     // LATIN CAPITAL LETTER I WITH DOT ABOVE
-    result = MUST("\u0130"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "\u0069\u0307"sv);
+    result = MUST("\u0130"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "\u0069\u0307"_sv);
 
-    result = MUST("\u0130"_string.to_lowercase("az"sv));
-    EXPECT_EQ(result, "i"sv);
+    result = MUST("\u0130"_string.to_lowercase("az"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
-    result = MUST("\u0130"_string.to_lowercase("tr"sv));
-    EXPECT_EQ(result, "i"sv);
+    result = MUST("\u0130"_string.to_lowercase("tr"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
     // LATIN CAPITAL LETTER I followed by COMBINING DOT ABOVE
-    result = MUST("I\u0307"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "i\u0307"sv);
+    result = MUST("I\u0307"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "i\u0307"_sv);
 
-    result = MUST("I\u0307"_string.to_lowercase("az"sv));
-    EXPECT_EQ(result, "i"sv);
+    result = MUST("I\u0307"_string.to_lowercase("az"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
-    result = MUST("I\u0307"_string.to_lowercase("tr"sv));
-    EXPECT_EQ(result, "i"sv);
+    result = MUST("I\u0307"_string.to_lowercase("tr"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
     // LATIN CAPITAL LETTER I followed by combining class 0 and COMBINING DOT ABOVE
-    result = MUST("IA\u0307"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "ia\u0307"sv);
+    result = MUST("IA\u0307"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "ia\u0307"_sv);
 
-    result = MUST("IA\u0307"_string.to_lowercase("az"sv));
-    EXPECT_EQ(result, "\u0131a\u0307"sv);
+    result = MUST("IA\u0307"_string.to_lowercase("az"_sv));
+    EXPECT_EQ(result, "\u0131a\u0307"_sv);
 
-    result = MUST("IA\u0307"_string.to_lowercase("tr"sv));
-    EXPECT_EQ(result, "\u0131a\u0307"sv);
+    result = MUST("IA\u0307"_string.to_lowercase("tr"_sv));
+    EXPECT_EQ(result, "\u0131a\u0307"_sv);
 }
 
 TEST_CASE(to_lowercase_special_casing_more_above)
 {
     // LATIN CAPITAL LETTER I
-    auto result = MUST("I"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "i"sv);
+    auto result = MUST("I"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
-    result = MUST("I"_string.to_lowercase("lt"sv));
-    EXPECT_EQ(result, "i"sv);
+    result = MUST("I"_string.to_lowercase("lt"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
     // LATIN CAPITAL LETTER J
-    result = MUST("J"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "j"sv);
+    result = MUST("J"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "j"_sv);
 
-    result = MUST("J"_string.to_lowercase("lt"sv));
-    EXPECT_EQ(result, "j"sv);
+    result = MUST("J"_string.to_lowercase("lt"_sv));
+    EXPECT_EQ(result, "j"_sv);
 
     // LATIN CAPITAL LETTER I WITH OGONEK
-    result = MUST("\u012e"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "\u012f"sv);
+    result = MUST("\u012e"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "\u012f"_sv);
 
-    result = MUST("\u012e"_string.to_lowercase("lt"sv));
-    EXPECT_EQ(result, "\u012f"sv);
+    result = MUST("\u012e"_string.to_lowercase("lt"_sv));
+    EXPECT_EQ(result, "\u012f"_sv);
 
     // LATIN CAPITAL LETTER I followed by COMBINING GRAVE ACCENT
-    result = MUST("I\u0300"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "i\u0300"sv);
+    result = MUST("I\u0300"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "i\u0300"_sv);
 
-    result = MUST("I\u0300"_string.to_lowercase("lt"sv));
-    EXPECT_EQ(result, "i\u0307\u0300"sv);
+    result = MUST("I\u0300"_string.to_lowercase("lt"_sv));
+    EXPECT_EQ(result, "i\u0307\u0300"_sv);
 
     // LATIN CAPITAL LETTER J followed by COMBINING GRAVE ACCENT
-    result = MUST("J\u0300"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "j\u0300"sv);
+    result = MUST("J\u0300"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "j\u0300"_sv);
 
-    result = MUST("J\u0300"_string.to_lowercase("lt"sv));
-    EXPECT_EQ(result, "j\u0307\u0300"sv);
+    result = MUST("J\u0300"_string.to_lowercase("lt"_sv));
+    EXPECT_EQ(result, "j\u0307\u0300"_sv);
 
     // LATIN CAPITAL LETTER I WITH OGONEK followed by COMBINING GRAVE ACCENT
-    result = MUST("\u012e\u0300"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "\u012f\u0300"sv);
+    result = MUST("\u012e\u0300"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "\u012f\u0300"_sv);
 
-    result = MUST("\u012e\u0300"_string.to_lowercase("lt"sv));
-    EXPECT_EQ(result, "\u012f\u0307\u0300"sv);
+    result = MUST("\u012e\u0300"_string.to_lowercase("lt"_sv));
+    EXPECT_EQ(result, "\u012f\u0307\u0300"_sv);
 }
 
 TEST_CASE(to_lowercase_special_casing_not_before_dot)
 {
     // LATIN CAPITAL LETTER I
-    auto result = MUST("I"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "i"sv);
+    auto result = MUST("I"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
-    result = MUST("I"_string.to_lowercase("az"sv));
-    EXPECT_EQ(result, "\u0131"sv);
+    result = MUST("I"_string.to_lowercase("az"_sv));
+    EXPECT_EQ(result, "\u0131"_sv);
 
-    result = MUST("I"_string.to_lowercase("tr"sv));
-    EXPECT_EQ(result, "\u0131"sv);
+    result = MUST("I"_string.to_lowercase("tr"_sv));
+    EXPECT_EQ(result, "\u0131"_sv);
 
     // LATIN CAPITAL LETTER I followed by COMBINING DOT ABOVE
-    result = MUST("I\u0307"_string.to_lowercase("en"sv));
-    EXPECT_EQ(result, "i\u0307"sv);
+    result = MUST("I\u0307"_string.to_lowercase("en"_sv));
+    EXPECT_EQ(result, "i\u0307"_sv);
 
-    result = MUST("I\u0307"_string.to_lowercase("az"sv));
-    EXPECT_EQ(result, "i"sv);
+    result = MUST("I\u0307"_string.to_lowercase("az"_sv));
+    EXPECT_EQ(result, "i"_sv);
 
-    result = MUST("I\u0307"_string.to_lowercase("tr"sv));
-    EXPECT_EQ(result, "i"sv);
+    result = MUST("I\u0307"_string.to_lowercase("tr"_sv));
+    EXPECT_EQ(result, "i"_sv);
 }
 
 TEST_CASE(to_uppercase_unconditional_special_casing)
@@ -569,55 +569,55 @@ TEST_CASE(to_uppercase_unconditional_special_casing)
 TEST_CASE(to_uppercase_special_casing_soft_dotted)
 {
     // LATIN SMALL LETTER I
-    auto result = MUST("i"_string.to_uppercase("en"sv));
-    EXPECT_EQ(result, "I"sv);
+    auto result = MUST("i"_string.to_uppercase("en"_sv));
+    EXPECT_EQ(result, "I"_sv);
 
-    result = MUST("i"_string.to_uppercase("lt"sv));
-    EXPECT_EQ(result, "I"sv);
+    result = MUST("i"_string.to_uppercase("lt"_sv));
+    EXPECT_EQ(result, "I"_sv);
 
     // LATIN SMALL LETTER J
-    result = MUST("j"_string.to_uppercase("en"sv));
-    EXPECT_EQ(result, "J"sv);
+    result = MUST("j"_string.to_uppercase("en"_sv));
+    EXPECT_EQ(result, "J"_sv);
 
-    result = MUST("j"_string.to_uppercase("lt"sv));
-    EXPECT_EQ(result, "J"sv);
+    result = MUST("j"_string.to_uppercase("lt"_sv));
+    EXPECT_EQ(result, "J"_sv);
 
     // LATIN SMALL LETTER I followed by COMBINING DOT ABOVE
-    result = MUST("i\u0307"_string.to_uppercase("en"sv));
-    EXPECT_EQ(result, "I\u0307"sv);
+    result = MUST("i\u0307"_string.to_uppercase("en"_sv));
+    EXPECT_EQ(result, "I\u0307"_sv);
 
-    result = MUST("i\u0307"_string.to_uppercase("lt"sv));
-    EXPECT_EQ(result, "I"sv);
+    result = MUST("i\u0307"_string.to_uppercase("lt"_sv));
+    EXPECT_EQ(result, "I"_sv);
 
     // LATIN SMALL LETTER J followed by COMBINING DOT ABOVE
-    result = MUST("j\u0307"_string.to_uppercase("en"sv));
-    EXPECT_EQ(result, "J\u0307"sv);
+    result = MUST("j\u0307"_string.to_uppercase("en"_sv));
+    EXPECT_EQ(result, "J\u0307"_sv);
 
-    result = MUST("j\u0307"_string.to_uppercase("lt"sv));
-    EXPECT_EQ(result, "J"sv);
+    result = MUST("j\u0307"_string.to_uppercase("lt"_sv));
+    EXPECT_EQ(result, "J"_sv);
 }
 
 TEST_CASE(to_titlecase)
 {
-    EXPECT_EQ(MUST(""_string.to_titlecase()), ""sv);
-    EXPECT_EQ(MUST(" "_string.to_titlecase()), " "sv);
-    EXPECT_EQ(MUST(" - "_string.to_titlecase()), " - "sv);
+    EXPECT_EQ(MUST(""_string.to_titlecase()), ""_sv);
+    EXPECT_EQ(MUST(" "_string.to_titlecase()), " "_sv);
+    EXPECT_EQ(MUST(" - "_string.to_titlecase()), " - "_sv);
 
-    EXPECT_EQ(MUST("a"_string.to_titlecase()), "A"sv);
-    EXPECT_EQ(MUST("A"_string.to_titlecase()), "A"sv);
-    EXPECT_EQ(MUST(" a"_string.to_titlecase()), " A"sv);
-    EXPECT_EQ(MUST("a "_string.to_titlecase()), "A "sv);
+    EXPECT_EQ(MUST("a"_string.to_titlecase()), "A"_sv);
+    EXPECT_EQ(MUST("A"_string.to_titlecase()), "A"_sv);
+    EXPECT_EQ(MUST(" a"_string.to_titlecase()), " A"_sv);
+    EXPECT_EQ(MUST("a "_string.to_titlecase()), "A "_sv);
 
-    EXPECT_EQ(MUST("ab"_string.to_titlecase()), "Ab"sv);
-    EXPECT_EQ(MUST("Ab"_string.to_titlecase()), "Ab"sv);
-    EXPECT_EQ(MUST("aB"_string.to_titlecase()), "Ab"sv);
-    EXPECT_EQ(MUST("AB"_string.to_titlecase()), "Ab"sv);
-    EXPECT_EQ(MUST(" ab"_string.to_titlecase()), " Ab"sv);
-    EXPECT_EQ(MUST("ab "_string.to_titlecase()), "Ab "sv);
+    EXPECT_EQ(MUST("ab"_string.to_titlecase()), "Ab"_sv);
+    EXPECT_EQ(MUST("Ab"_string.to_titlecase()), "Ab"_sv);
+    EXPECT_EQ(MUST("aB"_string.to_titlecase()), "Ab"_sv);
+    EXPECT_EQ(MUST("AB"_string.to_titlecase()), "Ab"_sv);
+    EXPECT_EQ(MUST(" ab"_string.to_titlecase()), " Ab"_sv);
+    EXPECT_EQ(MUST("ab "_string.to_titlecase()), "Ab "_sv);
 
-    EXPECT_EQ(MUST("foo bar baz"_string.to_titlecase()), "Foo Bar Baz"sv);
-    EXPECT_EQ(MUST("foo \n \r bar \t baz"_string.to_titlecase()), "Foo \n \r Bar \t Baz"sv);
-    EXPECT_EQ(MUST("f\"oo\" b'ar'"_string.to_titlecase()), "F\"Oo\" B'ar'"sv);
+    EXPECT_EQ(MUST("foo bar baz"_string.to_titlecase()), "Foo Bar Baz"_sv);
+    EXPECT_EQ(MUST("foo \n \r bar \t baz"_string.to_titlecase()), "Foo \n \r Bar \t Baz"_sv);
+    EXPECT_EQ(MUST("f\"oo\" b'ar'"_string.to_titlecase()), "F\"Oo\" B'ar'"_sv);
 }
 
 TEST_CASE(to_casefold)
@@ -632,91 +632,91 @@ TEST_CASE(to_casefold)
 
     // LATIN SMALL LETTER SHARP S
     auto result = MUST("\u00DF"_string.to_casefold());
-    EXPECT_EQ(result, "\u0073\u0073"sv);
+    EXPECT_EQ(result, "\u0073\u0073"_sv);
 
     // GREEK SMALL LETTER ALPHA WITH YPOGEGRAMMENI
     result = MUST("\u1FB3"_string.to_casefold());
-    EXPECT_EQ(result, "\u03B1\u03B9"sv);
+    EXPECT_EQ(result, "\u03B1\u03B9"_sv);
 
     // GREEK SMALL LETTER ALPHA WITH PERISPOMENI
     result = MUST("\u1FB6"_string.to_casefold());
-    EXPECT_EQ(result, "\u03B1\u0342"sv);
+    EXPECT_EQ(result, "\u03B1\u0342"_sv);
 
     // GREEK SMALL LETTER ALPHA WITH PERISPOMENI AND YPOGEGRAMMENI
     result = MUST("\u1FB7"_string.to_casefold());
-    EXPECT_EQ(result, "\u03B1\u0342\u03B9"sv);
+    EXPECT_EQ(result, "\u03B1\u0342\u03B9"_sv);
 }
 
 TEST_CASE(to_titlecase_unconditional_special_casing)
 {
     // LATIN SMALL LETTER SHARP S
     auto result = MUST("\u00DF"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0053\u0073"sv);
+    EXPECT_EQ(result, "\u0053\u0073"_sv);
 
     // LATIN CAPITAL LETTER I WITH DOT ABOVE
     result = MUST("\u0130"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0130"sv);
+    EXPECT_EQ(result, "\u0130"_sv);
 
     // LATIN SMALL LIGATURE FF
     result = MUST("\uFB00"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0046\u0066"sv);
+    EXPECT_EQ(result, "\u0046\u0066"_sv);
 
     // LATIN SMALL LIGATURE FI
     result = MUST("\uFB01"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0046\u0069"sv);
+    EXPECT_EQ(result, "\u0046\u0069"_sv);
 
     // LATIN SMALL LIGATURE FL
     result = MUST("\uFB02"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0046\u006C"sv);
+    EXPECT_EQ(result, "\u0046\u006C"_sv);
 
     // LATIN SMALL LIGATURE FFI
     result = MUST("\uFB03"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0046\u0066\u0069"sv);
+    EXPECT_EQ(result, "\u0046\u0066\u0069"_sv);
 
     // LATIN SMALL LIGATURE FFL
     result = MUST("\uFB04"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0046\u0066\u006C"sv);
+    EXPECT_EQ(result, "\u0046\u0066\u006C"_sv);
 
     // LATIN SMALL LIGATURE LONG S T
     result = MUST("\uFB05"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0053\u0074"sv);
+    EXPECT_EQ(result, "\u0053\u0074"_sv);
 
     // LATIN SMALL LIGATURE ST
     result = MUST("\uFB06"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0053\u0074"sv);
+    EXPECT_EQ(result, "\u0053\u0074"_sv);
 
     // GREEK SMALL LETTER IOTA WITH DIALYTIKA AND TONOS
     result = MUST("\u0390"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0399\u0308\u0301"sv);
+    EXPECT_EQ(result, "\u0399\u0308\u0301"_sv);
 
     // GREEK SMALL LETTER UPSILON WITH DIALYTIKA AND TONOS
     result = MUST("\u03B0"_string.to_titlecase());
-    EXPECT_EQ(result, "\u03A5\u0308\u0301"sv);
+    EXPECT_EQ(result, "\u03A5\u0308\u0301"_sv);
 
     // GREEK SMALL LETTER ALPHA WITH PERISPOMENI AND YPOGEGRAMMENI
     result = MUST("\u1FB7"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0391\u0342\u0345"sv);
+    EXPECT_EQ(result, "\u0391\u0342\u0345"_sv);
 
     // GREEK SMALL LETTER ETA WITH PERISPOMENI AND YPOGEGRAMMENI
     result = MUST("\u1FC7"_string.to_titlecase());
-    EXPECT_EQ(result, "\u0397\u0342\u0345"sv);
+    EXPECT_EQ(result, "\u0397\u0342\u0345"_sv);
 
     // GREEK SMALL LETTER OMEGA WITH PERISPOMENI AND YPOGEGRAMMENI
     result = MUST("\u1FF7"_string.to_titlecase());
-    EXPECT_EQ(result, "\u03A9\u0342\u0345"sv);
+    EXPECT_EQ(result, "\u03A9\u0342\u0345"_sv);
 }
 
 TEST_CASE(to_titlecase_special_casing_i)
 {
     // LATIN SMALL LETTER I
-    auto result = MUST("i"_string.to_titlecase("en"sv));
-    EXPECT_EQ(result, "I"sv);
+    auto result = MUST("i"_string.to_titlecase("en"_sv));
+    EXPECT_EQ(result, "I"_sv);
 
-    result = MUST("i"_string.to_titlecase("az"sv));
-    EXPECT_EQ(result, "\u0130"sv);
+    result = MUST("i"_string.to_titlecase("az"_sv));
+    EXPECT_EQ(result, "\u0130"_sv);
 
-    result = MUST("i"_string.to_titlecase("tr"sv));
-    EXPECT_EQ(result, "\u0130"sv);
+    result = MUST("i"_string.to_titlecase("tr"_sv));
+    EXPECT_EQ(result, "\u0130"_sv);
 }
 
 BENCHMARK_CASE(casefold)
@@ -841,10 +841,10 @@ TEST_CASE(is_one_of)
     EXPECT(foo.is_one_of(bar, foo));
     EXPECT(!foo.is_one_of(bar));
 
-    EXPECT(!bar.is_one_of("foo"sv));
-    EXPECT(bar.is_one_of("foo"sv, "bar"sv));
-    EXPECT(bar.is_one_of("bar"sv, "foo"sv));
-    EXPECT(bar.is_one_of("bar"sv));
+    EXPECT(!bar.is_one_of("foo"_sv));
+    EXPECT(bar.is_one_of("foo"_sv, "bar"_sv));
+    EXPECT(bar.is_one_of("bar"_sv, "foo"_sv));
+    EXPECT(bar.is_one_of("bar"_sv));
 }
 
 TEST_CASE(split)
@@ -861,9 +861,9 @@ TEST_CASE(split)
         auto test = "ωΣ2ωΣω"_string;
         auto parts = MUST(test.split(0x03A3u));
         EXPECT_EQ(parts.size(), 3u);
-        EXPECT_EQ(parts[0], "ω"sv);
-        EXPECT_EQ(parts[1], "2ω"sv);
-        EXPECT_EQ(parts[2], "ω"sv);
+        EXPECT_EQ(parts[0], "ω"_sv);
+        EXPECT_EQ(parts[1], "2ω"_sv);
+        EXPECT_EQ(parts[2], "ω"_sv);
     }
 }
 
@@ -874,7 +874,7 @@ TEST_CASE(find_byte_offset)
         auto index1 = string.find_byte_offset(0);
         EXPECT(!index1.has_value());
 
-        auto index2 = string.find_byte_offset(""sv);
+        auto index2 = string.find_byte_offset(""_sv);
         EXPECT(!index2.has_value());
     }
     {
@@ -895,16 +895,16 @@ TEST_CASE(find_byte_offset)
     {
         auto string = "foo"_string;
 
-        auto index1 = string.find_byte_offset("fo"sv);
+        auto index1 = string.find_byte_offset("fo"_sv);
         EXPECT_EQ(index1, 0u);
 
-        auto index2 = string.find_byte_offset("oo"sv);
+        auto index2 = string.find_byte_offset("oo"_sv);
         EXPECT_EQ(index2, 1u);
 
-        auto index3 = string.find_byte_offset("o"sv, *index2 + 1);
+        auto index3 = string.find_byte_offset("o"_sv, *index2 + 1);
         EXPECT_EQ(index3, 2u);
 
-        auto index4 = string.find_byte_offset("fooo"sv);
+        auto index4 = string.find_byte_offset("fooo"_sv);
         EXPECT(!index4.has_value());
     }
     {
@@ -928,19 +928,19 @@ TEST_CASE(find_byte_offset)
     {
         auto string = "ωΣωΣω"_string;
 
-        auto index1 = string.find_byte_offset("ω"sv);
+        auto index1 = string.find_byte_offset("ω"_sv);
         EXPECT_EQ(index1, 0u);
 
-        auto index2 = string.find_byte_offset("Σ"sv);
+        auto index2 = string.find_byte_offset("Σ"_sv);
         EXPECT_EQ(index2, 2u);
 
-        auto index3 = string.find_byte_offset("ω"sv, 2);
+        auto index3 = string.find_byte_offset("ω"_sv, 2);
         EXPECT_EQ(index3, 4u);
 
-        auto index4 = string.find_byte_offset("Σ"sv, 4);
+        auto index4 = string.find_byte_offset("Σ"_sv, 4);
         EXPECT_EQ(index4, 6u);
 
-        auto index5 = string.find_byte_offset("ω"sv, 6);
+        auto index5 = string.find_byte_offset("ω"_sv, 6);
         EXPECT_EQ(index5, 8u);
     }
 }
@@ -950,125 +950,125 @@ TEST_CASE(find_byte_offset_ignoring_case)
     {
         auto string = ""_string;
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case(""sv).has_value(), false);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("1"sv).has_value(), false);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("2"sv).has_value(), false);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("23"sv).has_value(), false);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case(""_sv).has_value(), false);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("1"_sv).has_value(), false);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("2"_sv).has_value(), false);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("23"_sv).has_value(), false);
     }
     {
         auto string = "1234567"_string;
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case(""sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("1"sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("2"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("3"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("4"sv), 3u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("5"sv), 4u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("6"sv), 5u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("7"sv), 6u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("34"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("45"sv), 3u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("56"sv), 4u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("67"sv), 5u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case(""_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("1"_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("2"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("3"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("4"_sv), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("5"_sv), 4u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("6"_sv), 5u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("7"_sv), 6u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("34"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("45"_sv), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("56"_sv), 4u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("67"_sv), 5u);
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("a"sv).has_value(), false);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("8"sv).has_value(), false);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("78"sv).has_value(), false);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("46"sv).has_value(), false);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("a"_sv).has_value(), false);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("8"_sv).has_value(), false);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("78"_sv).has_value(), false);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("46"_sv).has_value(), false);
     }
     {
         auto string = "abCDef"_string;
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("A"sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("B"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("c"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("d"sv), 3u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("e"sv), 4u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("f"sv), 5u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("AbC"sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("BcdE"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("cd"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("cD"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("E"sv), 4u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("A"_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("B"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("c"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("d"_sv), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("e"_sv), 4u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("f"_sv), 5u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("AbC"_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("BcdE"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("cd"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("cD"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("E"_sv), 4u);
     }
     {
         auto string = "abßcd"_string;
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"_sv), 2u);
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSS"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSs"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bss"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bS"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bs"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bß"sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSS"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSs"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bss"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bS"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bs"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bß"_sv), 1u);
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSSc"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSsc"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bssc"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bßc"sv), 1u);
-        EXPECT(!string.find_byte_offset_ignoring_case("bSc"sv).has_value());
-        EXPECT(!string.find_byte_offset_ignoring_case("bsc"sv).has_value());
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSSc"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSsc"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bssc"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bßc"_sv), 1u);
+        EXPECT(!string.find_byte_offset_ignoring_case("bSc"_sv).has_value());
+        EXPECT(!string.find_byte_offset_ignoring_case("bsc"_sv).has_value());
     }
     {
         auto string = "abSScd"_string;
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"sv), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"_sv), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"_sv), 2u);
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSS"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSs"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bss"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bS"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bs"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bß"sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSS"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSs"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bss"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bS"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bs"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bß"_sv), 1u);
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSSc"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSsc"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bssc"sv), 1u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("bßc"sv), 1u);
-        EXPECT(!string.find_byte_offset_ignoring_case("bSc"sv).has_value());
-        EXPECT(!string.find_byte_offset_ignoring_case("bsc"sv).has_value());
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSSc"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bSsc"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bssc"_sv), 1u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("bßc"_sv), 1u);
+        EXPECT(!string.find_byte_offset_ignoring_case("bSc"_sv).has_value());
+        EXPECT(!string.find_byte_offset_ignoring_case("bsc"_sv).has_value());
     }
     {
         auto string = "ßSßs"_string;
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"sv), 0u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"_sv), 0u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"_sv), 0u);
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"sv, 2), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"sv, 2), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"sv, 2), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"sv, 2), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"sv, 2), 2u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"sv, 2), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"_sv, 2), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"_sv, 2), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"_sv, 2), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"_sv, 2), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"_sv, 2), 2u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"_sv, 2), 2u);
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"sv, 3), 3u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"sv, 3), 3u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"sv, 3), 3u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"sv, 3), 3u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"sv, 3), 3u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"sv, 3), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("SS"_sv, 3), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("Ss"_sv, 3), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ss"_sv, 3), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"_sv, 3), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"_sv, 3), 3u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("ß"_sv, 3), 3u);
 
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"sv, 5), 5u);
-        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"sv, 5), 5u);
-        EXPECT(!string.find_byte_offset_ignoring_case("SS"sv, 5).has_value());
-        EXPECT(!string.find_byte_offset_ignoring_case("Ss"sv, 5).has_value());
-        EXPECT(!string.find_byte_offset_ignoring_case("ss"sv, 5).has_value());
-        EXPECT(!string.find_byte_offset_ignoring_case("ß"sv, 5).has_value());
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("S"_sv, 5), 5u);
+        EXPECT_EQ(string.find_byte_offset_ignoring_case("s"_sv, 5), 5u);
+        EXPECT(!string.find_byte_offset_ignoring_case("SS"_sv, 5).has_value());
+        EXPECT(!string.find_byte_offset_ignoring_case("Ss"_sv, 5).has_value());
+        EXPECT(!string.find_byte_offset_ignoring_case("ss"_sv, 5).has_value());
+        EXPECT(!string.find_byte_offset_ignoring_case("ß"_sv, 5).has_value());
     }
 }
 
@@ -1091,12 +1091,12 @@ TEST_CASE(repeated)
         auto string1 = MUST(String::repeated('a', 1));
         EXPECT(string1.is_short_string());
         EXPECT_EQ(string1.bytes_as_string_view().length(), 1u);
-        EXPECT_EQ(string1, "a"sv);
+        EXPECT_EQ(string1, "a"_sv);
 
         auto string2 = MUST(String::repeated(0x03C9U, 1));
         EXPECT(string2.is_short_string());
         EXPECT_EQ(string2.bytes_as_string_view().length(), 2u);
-        EXPECT_EQ(string2, "ω"sv);
+        EXPECT_EQ(string2, "ω"_sv);
 
         auto string3 = MUST(String::repeated(0x10300, 1));
 #ifdef AK_ARCH_64_BIT
@@ -1105,13 +1105,13 @@ TEST_CASE(repeated)
         EXPECT(!string3.is_short_string());
 #endif
         EXPECT_EQ(string3.bytes_as_string_view().length(), 4u);
-        EXPECT_EQ(string3, "𐌀"sv);
+        EXPECT_EQ(string3, "𐌀"_sv);
     }
     {
         auto string1 = MUST(String::repeated('a', 3));
         EXPECT(string1.is_short_string());
         EXPECT_EQ(string1.bytes_as_string_view().length(), 3u);
-        EXPECT_EQ(string1, "aaa"sv);
+        EXPECT_EQ(string1, "aaa"_sv);
 
         auto string2 = MUST(String::repeated(0x03C9U, 3));
 #ifdef AK_ARCH_64_BIT
@@ -1120,28 +1120,28 @@ TEST_CASE(repeated)
         EXPECT(!string2.is_short_string());
 #endif
         EXPECT_EQ(string2.bytes_as_string_view().length(), 6u);
-        EXPECT_EQ(string2, "ωωω"sv);
+        EXPECT_EQ(string2, "ωωω"_sv);
 
         auto string3 = MUST(String::repeated(0x10300, 3));
         EXPECT(!string3.is_short_string());
         EXPECT_EQ(string3.bytes_as_string_view().length(), 12u);
-        EXPECT_EQ(string3, "𐌀𐌀𐌀"sv);
+        EXPECT_EQ(string3, "𐌀𐌀𐌀"_sv);
     }
     {
         auto string1 = MUST(String::repeated('a', 10));
         EXPECT(!string1.is_short_string());
         EXPECT_EQ(string1.bytes_as_string_view().length(), 10u);
-        EXPECT_EQ(string1, "aaaaaaaaaa"sv);
+        EXPECT_EQ(string1, "aaaaaaaaaa"_sv);
 
         auto string2 = MUST(String::repeated(0x03C9U, 10));
         EXPECT(!string2.is_short_string());
         EXPECT_EQ(string2.bytes_as_string_view().length(), 20u);
-        EXPECT_EQ(string2, "ωωωωωωωωωω"sv);
+        EXPECT_EQ(string2, "ωωωωωωωωωω"_sv);
 
         auto string3 = MUST(String::repeated(0x10300, 10));
         EXPECT(!string3.is_short_string());
         EXPECT_EQ(string3.bytes_as_string_view().length(), 40u);
-        EXPECT_EQ(string3, "𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀"sv);
+        EXPECT_EQ(string3, "𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀𐌀"_sv);
     }
 
     EXPECT_DEATH("Creating a string from an invalid code point", (void)String::repeated(0xffffffff, 1));
@@ -1153,22 +1153,22 @@ TEST_CASE(join)
     EXPECT(string1.is_empty());
 
     auto string2 = MUST(String::join(',', Array { 1 }));
-    EXPECT_EQ(string2, "1"sv);
+    EXPECT_EQ(string2, "1"_sv);
 
-    auto string3 = MUST(String::join(':', Array { 1 }, "[{}]"sv));
-    EXPECT_EQ(string3, "[1]"sv);
+    auto string3 = MUST(String::join(':', Array { 1 }, "[{}]"_sv));
+    EXPECT_EQ(string3, "[1]"_sv);
 
     auto string4 = MUST(String::join(',', Array { 1, 2, 3 }));
-    EXPECT_EQ(string4, "1,2,3"sv);
+    EXPECT_EQ(string4, "1,2,3"_sv);
 
-    auto string5 = MUST(String::join(',', Array { 1, 2, 3 }, "[{}]"sv));
-    EXPECT_EQ(string5, "[1],[2],[3]"sv);
+    auto string5 = MUST(String::join(',', Array { 1, 2, 3 }, "[{}]"_sv));
+    EXPECT_EQ(string5, "[1],[2],[3]"_sv);
 
-    auto string6 = MUST(String::join("!!!"_string, Array { "foo"sv, "bar"sv, "baz"sv }));
-    EXPECT_EQ(string6, "foo!!!bar!!!baz"sv);
+    auto string6 = MUST(String::join("!!!"_string, Array { "foo"_sv, "bar"_sv, "baz"_sv }));
+    EXPECT_EQ(string6, "foo!!!bar!!!baz"_sv);
 
-    auto string7 = MUST(String::join(" - "sv, Array { 1, 16, 256, 4096 }, "[{:#04x}]"sv));
-    EXPECT_EQ(string7, "[0x0001] - [0x0010] - [0x0100] - [0x1000]"sv);
+    auto string7 = MUST(String::join(" - "_sv, Array { 1, 16, 256, 4096 }, "[{:#04x}]"_sv));
+    EXPECT_EQ(string7, "[0x0001] - [0x0010] - [0x0100] - [0x1000]"_sv);
 }
 
 TEST_CASE(trim)
@@ -1176,109 +1176,109 @@ TEST_CASE(trim)
     {
         String string {};
 
-        auto result = MUST(string.trim(" "sv, TrimMode::Both));
+        auto result = MUST(string.trim(" "_sv, TrimMode::Both));
         EXPECT(result.is_empty());
 
-        result = MUST(string.trim(" "sv, TrimMode::Left));
+        result = MUST(string.trim(" "_sv, TrimMode::Left));
         EXPECT(result.is_empty());
 
-        result = MUST(string.trim(" "sv, TrimMode::Right));
+        result = MUST(string.trim(" "_sv, TrimMode::Right));
         EXPECT(result.is_empty());
     }
     {
         auto string = "word"_string;
 
-        auto result = MUST(string.trim(" "sv, TrimMode::Both));
-        EXPECT_EQ(result, "word"sv);
+        auto result = MUST(string.trim(" "_sv, TrimMode::Both));
+        EXPECT_EQ(result, "word"_sv);
 
-        result = MUST(string.trim(" "sv, TrimMode::Left));
-        EXPECT_EQ(result, "word"sv);
+        result = MUST(string.trim(" "_sv, TrimMode::Left));
+        EXPECT_EQ(result, "word"_sv);
 
-        result = MUST(string.trim(" "sv, TrimMode::Right));
-        EXPECT_EQ(result, "word"sv);
+        result = MUST(string.trim(" "_sv, TrimMode::Right));
+        EXPECT_EQ(result, "word"_sv);
     }
     {
         auto string = "    word"_string;
 
-        auto result = MUST(string.trim(" "sv, TrimMode::Both));
-        EXPECT_EQ(result, "word"sv);
+        auto result = MUST(string.trim(" "_sv, TrimMode::Both));
+        EXPECT_EQ(result, "word"_sv);
 
-        result = MUST(string.trim(" "sv, TrimMode::Left));
-        EXPECT_EQ(result, "word"sv);
+        result = MUST(string.trim(" "_sv, TrimMode::Left));
+        EXPECT_EQ(result, "word"_sv);
 
-        result = MUST(string.trim(" "sv, TrimMode::Right));
-        EXPECT_EQ(result, "    word"sv);
+        result = MUST(string.trim(" "_sv, TrimMode::Right));
+        EXPECT_EQ(result, "    word"_sv);
     }
     {
         auto string = "word    "_string;
 
-        auto result = MUST(string.trim(" "sv, TrimMode::Both));
-        EXPECT_EQ(result, "word"sv);
+        auto result = MUST(string.trim(" "_sv, TrimMode::Both));
+        EXPECT_EQ(result, "word"_sv);
 
-        result = MUST(string.trim(" "sv, TrimMode::Left));
-        EXPECT_EQ(result, "word    "sv);
+        result = MUST(string.trim(" "_sv, TrimMode::Left));
+        EXPECT_EQ(result, "word    "_sv);
 
-        result = MUST(string.trim(" "sv, TrimMode::Right));
-        EXPECT_EQ(result, "word"sv);
+        result = MUST(string.trim(" "_sv, TrimMode::Right));
+        EXPECT_EQ(result, "word"_sv);
     }
     {
         auto string = "    word    "_string;
 
-        auto result = MUST(string.trim(" "sv, TrimMode::Both));
-        EXPECT_EQ(result, "word"sv);
+        auto result = MUST(string.trim(" "_sv, TrimMode::Both));
+        EXPECT_EQ(result, "word"_sv);
 
-        result = MUST(string.trim(" "sv, TrimMode::Left));
-        EXPECT_EQ(result, "word    "sv);
+        result = MUST(string.trim(" "_sv, TrimMode::Left));
+        EXPECT_EQ(result, "word    "_sv);
 
-        result = MUST(string.trim(" "sv, TrimMode::Right));
-        EXPECT_EQ(result, "    word"sv);
+        result = MUST(string.trim(" "_sv, TrimMode::Right));
+        EXPECT_EQ(result, "    word"_sv);
     }
     {
         auto string = "    word    "_string;
 
-        auto result = MUST(string.trim("\t"sv, TrimMode::Both));
-        EXPECT_EQ(result, "    word    "sv);
+        auto result = MUST(string.trim("\t"_sv, TrimMode::Both));
+        EXPECT_EQ(result, "    word    "_sv);
 
-        result = MUST(string.trim("\t"sv, TrimMode::Left));
-        EXPECT_EQ(result, "    word    "sv);
+        result = MUST(string.trim("\t"_sv, TrimMode::Left));
+        EXPECT_EQ(result, "    word    "_sv);
 
-        result = MUST(string.trim("\t"sv, TrimMode::Right));
-        EXPECT_EQ(result, "    word    "sv);
+        result = MUST(string.trim("\t"_sv, TrimMode::Right));
+        EXPECT_EQ(result, "    word    "_sv);
     }
     {
         auto string = "ωΣωΣω"_string;
 
-        auto result = MUST(string.trim("ω"sv, TrimMode::Both));
-        EXPECT_EQ(result, "ΣωΣ"sv);
+        auto result = MUST(string.trim("ω"_sv, TrimMode::Both));
+        EXPECT_EQ(result, "ΣωΣ"_sv);
 
-        result = MUST(string.trim("ω"sv, TrimMode::Left));
-        EXPECT_EQ(result, "ΣωΣω"sv);
+        result = MUST(string.trim("ω"_sv, TrimMode::Left));
+        EXPECT_EQ(result, "ΣωΣω"_sv);
 
-        result = MUST(string.trim("ω"sv, TrimMode::Right));
-        EXPECT_EQ(result, "ωΣωΣ"sv);
+        result = MUST(string.trim("ω"_sv, TrimMode::Right));
+        EXPECT_EQ(result, "ωΣωΣ"_sv);
     }
     {
         auto string = "ωΣωΣω"_string;
 
-        auto result = MUST(string.trim("ωΣ"sv, TrimMode::Both));
+        auto result = MUST(string.trim("ωΣ"_sv, TrimMode::Both));
         EXPECT(result.is_empty());
 
-        result = MUST(string.trim("ωΣ"sv, TrimMode::Left));
+        result = MUST(string.trim("ωΣ"_sv, TrimMode::Left));
         EXPECT(result.is_empty());
 
-        result = MUST(string.trim("ωΣ"sv, TrimMode::Right));
+        result = MUST(string.trim("ωΣ"_sv, TrimMode::Right));
         EXPECT(result.is_empty());
     }
     {
         auto string = "ωΣωΣω"_string;
 
-        auto result = MUST(string.trim("Σω"sv, TrimMode::Both));
+        auto result = MUST(string.trim("Σω"_sv, TrimMode::Both));
         EXPECT(result.is_empty());
 
-        result = MUST(string.trim("Σω"sv, TrimMode::Left));
+        result = MUST(string.trim("Σω"_sv, TrimMode::Left));
         EXPECT(result.is_empty());
 
-        result = MUST(string.trim("Σω"sv, TrimMode::Right));
+        result = MUST(string.trim("Σω"_sv, TrimMode::Right));
         EXPECT(result.is_empty());
     }
 }
@@ -1362,26 +1362,26 @@ TEST_CASE(trim_whitespace)
 TEST_CASE(contains)
 {
     EXPECT(!String {}.contains({}));
-    EXPECT(!String {}.contains(" "sv));
+    EXPECT(!String {}.contains(" "_sv));
     EXPECT(!String {}.contains(0));
 
-    EXPECT("a"_string.contains("a"sv));
+    EXPECT("a"_string.contains("a"_sv));
     EXPECT(!"a"_string.contains({}));
-    EXPECT(!"a"_string.contains("b"sv));
-    EXPECT(!"a"_string.contains("ab"sv));
+    EXPECT(!"a"_string.contains("b"_sv));
+    EXPECT(!"a"_string.contains("ab"_sv));
 
     EXPECT("a"_string.contains(0x0061));
     EXPECT(!"a"_string.contains(0x0062));
 
-    EXPECT("abc"_string.contains("a"sv));
-    EXPECT("abc"_string.contains("b"sv));
-    EXPECT("abc"_string.contains("c"sv));
-    EXPECT("abc"_string.contains("ab"sv));
-    EXPECT("abc"_string.contains("bc"sv));
-    EXPECT("abc"_string.contains("abc"sv));
+    EXPECT("abc"_string.contains("a"_sv));
+    EXPECT("abc"_string.contains("b"_sv));
+    EXPECT("abc"_string.contains("c"_sv));
+    EXPECT("abc"_string.contains("ab"_sv));
+    EXPECT("abc"_string.contains("bc"_sv));
+    EXPECT("abc"_string.contains("abc"_sv));
     EXPECT(!"abc"_string.contains({}));
-    EXPECT(!"abc"_string.contains("ac"sv));
-    EXPECT(!"abc"_string.contains("abcd"sv));
+    EXPECT(!"abc"_string.contains("ac"_sv));
+    EXPECT(!"abc"_string.contains("abcd"_sv));
 
     EXPECT("abc"_string.contains(0x0061));
     EXPECT("abc"_string.contains(0x0062));
@@ -1389,17 +1389,17 @@ TEST_CASE(contains)
     EXPECT(!"abc"_string.contains(0x0064));
 
     auto emoji = "😀"_string;
-    EXPECT(emoji.contains("\xF0"sv));
-    EXPECT(emoji.contains("\x9F"sv));
-    EXPECT(emoji.contains("\x98"sv));
-    EXPECT(emoji.contains("\x80"sv));
-    EXPECT(emoji.contains("\xF0\x9F"sv));
-    EXPECT(emoji.contains("\xF0\x9F\x98"sv));
-    EXPECT(emoji.contains("\xF0\x9F\x98\x80"sv));
-    EXPECT(emoji.contains("\x9F\x98\x80"sv));
-    EXPECT(emoji.contains("\x98\x80"sv));
-    EXPECT(!emoji.contains("a"sv));
-    EXPECT(!emoji.contains("🙃"sv));
+    EXPECT(emoji.contains("\xF0"_sv));
+    EXPECT(emoji.contains("\x9F"_sv));
+    EXPECT(emoji.contains("\x98"_sv));
+    EXPECT(emoji.contains("\x80"_sv));
+    EXPECT(emoji.contains("\xF0\x9F"_sv));
+    EXPECT(emoji.contains("\xF0\x9F\x98"_sv));
+    EXPECT(emoji.contains("\xF0\x9F\x98\x80"_sv));
+    EXPECT(emoji.contains("\x9F\x98\x80"_sv));
+    EXPECT(emoji.contains("\x98\x80"_sv));
+    EXPECT(!emoji.contains("a"_sv));
+    EXPECT(!emoji.contains("🙃"_sv));
 
     EXPECT(emoji.contains(0x1F600));
     EXPECT(!emoji.contains(0x1F643));
@@ -1408,39 +1408,39 @@ TEST_CASE(contains)
 TEST_CASE(starts_with)
 {
     EXPECT(String {}.starts_with_bytes({}));
-    EXPECT(!String {}.starts_with_bytes(" "sv));
+    EXPECT(!String {}.starts_with_bytes(" "_sv));
     EXPECT(!String {}.starts_with(0));
 
     EXPECT("a"_string.starts_with_bytes({}));
-    EXPECT("a"_string.starts_with_bytes("a"sv));
-    EXPECT(!"a"_string.starts_with_bytes("b"sv));
-    EXPECT(!"a"_string.starts_with_bytes("ab"sv));
+    EXPECT("a"_string.starts_with_bytes("a"_sv));
+    EXPECT(!"a"_string.starts_with_bytes("b"_sv));
+    EXPECT(!"a"_string.starts_with_bytes("ab"_sv));
 
     EXPECT("a"_string.starts_with(0x0061));
     EXPECT(!"a"_string.starts_with(0x0062));
 
     EXPECT("abc"_string.starts_with_bytes({}));
-    EXPECT("abc"_string.starts_with_bytes("a"sv));
-    EXPECT("abc"_string.starts_with_bytes("ab"sv));
-    EXPECT("abc"_string.starts_with_bytes("abc"sv));
-    EXPECT(!"abc"_string.starts_with_bytes("b"sv));
-    EXPECT(!"abc"_string.starts_with_bytes("bc"sv));
+    EXPECT("abc"_string.starts_with_bytes("a"_sv));
+    EXPECT("abc"_string.starts_with_bytes("ab"_sv));
+    EXPECT("abc"_string.starts_with_bytes("abc"_sv));
+    EXPECT(!"abc"_string.starts_with_bytes("b"_sv));
+    EXPECT(!"abc"_string.starts_with_bytes("bc"_sv));
 
     EXPECT("abc"_string.starts_with(0x0061));
     EXPECT(!"abc"_string.starts_with(0x0062));
     EXPECT(!"abc"_string.starts_with(0x0063));
 
     auto emoji = "😀🙃"_string;
-    EXPECT(emoji.starts_with_bytes("\xF0"sv));
-    EXPECT(emoji.starts_with_bytes("\xF0\x9F"sv));
-    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98"sv));
-    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80"sv));
-    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80\xF0"sv));
-    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80\xF0\x9F"sv));
-    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80\xF0\x9F\x99"sv));
-    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80\xF0\x9F\x99\x83"sv));
-    EXPECT(!emoji.starts_with_bytes("a"sv));
-    EXPECT(!emoji.starts_with_bytes("🙃"sv));
+    EXPECT(emoji.starts_with_bytes("\xF0"_sv));
+    EXPECT(emoji.starts_with_bytes("\xF0\x9F"_sv));
+    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98"_sv));
+    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80"_sv));
+    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80\xF0"_sv));
+    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80\xF0\x9F"_sv));
+    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80\xF0\x9F\x99"_sv));
+    EXPECT(emoji.starts_with_bytes("\xF0\x9F\x98\x80\xF0\x9F\x99\x83"_sv));
+    EXPECT(!emoji.starts_with_bytes("a"_sv));
+    EXPECT(!emoji.starts_with_bytes("🙃"_sv));
 
     EXPECT(emoji.starts_with(0x1F600));
     EXPECT(!emoji.starts_with(0x1F643));
@@ -1449,39 +1449,39 @@ TEST_CASE(starts_with)
 TEST_CASE(ends_with)
 {
     EXPECT(String {}.ends_with_bytes({}));
-    EXPECT(!String {}.ends_with_bytes(" "sv));
+    EXPECT(!String {}.ends_with_bytes(" "_sv));
     EXPECT(!String {}.ends_with(0));
 
     EXPECT("a"_string.ends_with_bytes({}));
-    EXPECT("a"_string.ends_with_bytes("a"sv));
-    EXPECT(!"a"_string.ends_with_bytes("b"sv));
-    EXPECT(!"a"_string.ends_with_bytes("ba"sv));
+    EXPECT("a"_string.ends_with_bytes("a"_sv));
+    EXPECT(!"a"_string.ends_with_bytes("b"_sv));
+    EXPECT(!"a"_string.ends_with_bytes("ba"_sv));
 
     EXPECT("a"_string.ends_with(0x0061));
     EXPECT(!"a"_string.ends_with(0x0062));
 
     EXPECT("abc"_string.ends_with_bytes({}));
-    EXPECT("abc"_string.ends_with_bytes("c"sv));
-    EXPECT("abc"_string.ends_with_bytes("bc"sv));
-    EXPECT("abc"_string.ends_with_bytes("abc"sv));
-    EXPECT(!"abc"_string.ends_with_bytes("b"sv));
-    EXPECT(!"abc"_string.ends_with_bytes("ab"sv));
+    EXPECT("abc"_string.ends_with_bytes("c"_sv));
+    EXPECT("abc"_string.ends_with_bytes("bc"_sv));
+    EXPECT("abc"_string.ends_with_bytes("abc"_sv));
+    EXPECT(!"abc"_string.ends_with_bytes("b"_sv));
+    EXPECT(!"abc"_string.ends_with_bytes("ab"_sv));
 
     EXPECT("abc"_string.ends_with(0x0063));
     EXPECT(!"abc"_string.ends_with(0x0062));
     EXPECT(!"abc"_string.ends_with(0x0061));
 
     auto emoji = "😀🙃"_string;
-    EXPECT(emoji.ends_with_bytes("\x83"sv));
-    EXPECT(emoji.ends_with_bytes("\x99\x83"sv));
-    EXPECT(emoji.ends_with_bytes("\x9F\x99\x83"sv));
-    EXPECT(emoji.ends_with_bytes("\xF0\x9F\x99\x83"sv));
-    EXPECT(emoji.ends_with_bytes("\x80\xF0\x9F\x99\x83"sv));
-    EXPECT(emoji.ends_with_bytes("\x98\x80\xF0\x9F\x99\x83"sv));
-    EXPECT(emoji.ends_with_bytes("\x9F\x98\x80\xF0\x9F\x99\x83"sv));
-    EXPECT(emoji.ends_with_bytes("\xF0\x9F\x98\x80\xF0\x9F\x99\x83"sv));
-    EXPECT(!emoji.ends_with_bytes("a"sv));
-    EXPECT(!emoji.ends_with_bytes("😀"sv));
+    EXPECT(emoji.ends_with_bytes("\x83"_sv));
+    EXPECT(emoji.ends_with_bytes("\x99\x83"_sv));
+    EXPECT(emoji.ends_with_bytes("\x9F\x99\x83"_sv));
+    EXPECT(emoji.ends_with_bytes("\xF0\x9F\x99\x83"_sv));
+    EXPECT(emoji.ends_with_bytes("\x80\xF0\x9F\x99\x83"_sv));
+    EXPECT(emoji.ends_with_bytes("\x98\x80\xF0\x9F\x99\x83"_sv));
+    EXPECT(emoji.ends_with_bytes("\x9F\x98\x80\xF0\x9F\x99\x83"_sv));
+    EXPECT(emoji.ends_with_bytes("\xF0\x9F\x98\x80\xF0\x9F\x99\x83"_sv));
+    EXPECT(!emoji.ends_with_bytes("a"_sv));
+    EXPECT(!emoji.ends_with_bytes("😀"_sv));
 
     EXPECT(emoji.ends_with(0x1F643));
     EXPECT(!emoji.ends_with(0x1F600));
@@ -1525,35 +1525,35 @@ TEST_CASE(is_ascii)
 
 TEST_CASE(bijective_base)
 {
-    EXPECT_EQ(String::bijective_base_from(0, String::Case::Upper), "A"sv);
-    EXPECT_EQ(String::bijective_base_from(25, String::Case::Upper), "Z"sv);
-    EXPECT_EQ(String::bijective_base_from(26, String::Case::Upper), "AA"sv);
-    EXPECT_EQ(String::bijective_base_from(52, String::Case::Upper), "BA"sv);
-    EXPECT_EQ(String::bijective_base_from(701, String::Case::Upper), "ZZ"sv);
-    EXPECT_EQ(String::bijective_base_from(702, String::Case::Upper), "AAA"sv);
-    EXPECT_EQ(String::bijective_base_from(730, String::Case::Upper), "ABC"sv);
-    EXPECT_EQ(String::bijective_base_from(18277, String::Case::Upper), "ZZZ"sv);
+    EXPECT_EQ(String::bijective_base_from(0, String::Case::Upper), "A"_sv);
+    EXPECT_EQ(String::bijective_base_from(25, String::Case::Upper), "Z"_sv);
+    EXPECT_EQ(String::bijective_base_from(26, String::Case::Upper), "AA"_sv);
+    EXPECT_EQ(String::bijective_base_from(52, String::Case::Upper), "BA"_sv);
+    EXPECT_EQ(String::bijective_base_from(701, String::Case::Upper), "ZZ"_sv);
+    EXPECT_EQ(String::bijective_base_from(702, String::Case::Upper), "AAA"_sv);
+    EXPECT_EQ(String::bijective_base_from(730, String::Case::Upper), "ABC"_sv);
+    EXPECT_EQ(String::bijective_base_from(18277, String::Case::Upper), "ZZZ"_sv);
 }
 
 TEST_CASE(roman_numerals)
 {
     auto zero = String::roman_number_from(0, String::Case::Upper);
-    EXPECT_EQ(zero, ""sv);
+    EXPECT_EQ(zero, ""_sv);
 
     auto one = String::roman_number_from(1, String::Case::Upper);
-    EXPECT_EQ(one, "I"sv);
+    EXPECT_EQ(one, "I"_sv);
 
     auto nine = String::roman_number_from(9, String::Case::Upper);
-    EXPECT_EQ(nine, "IX"sv);
+    EXPECT_EQ(nine, "IX"_sv);
 
     auto fourty_eight = String::roman_number_from(48, String::Case::Upper);
-    EXPECT_EQ(fourty_eight, "XLVIII"sv);
+    EXPECT_EQ(fourty_eight, "XLVIII"_sv);
 
     auto one_thousand_nine_hundred_ninety_eight = String::roman_number_from(1998, String::Case::Upper);
-    EXPECT_EQ(one_thousand_nine_hundred_ninety_eight, "MCMXCVIII"sv);
+    EXPECT_EQ(one_thousand_nine_hundred_ninety_eight, "MCMXCVIII"_sv);
 
     auto four_thousand = String::roman_number_from(4000, String::Case::Upper);
-    EXPECT_EQ(four_thousand, "4000"sv);
+    EXPECT_EQ(four_thousand, "4000"_sv);
 }
 
 BENCHMARK_CASE(string_number_u16)

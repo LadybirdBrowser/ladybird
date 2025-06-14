@@ -59,63 +59,63 @@ TEST_CASE(should_convert_to_string)
         return MUST(IPv6Address(data).to_string());
     };
 
-    EXPECT_EQ("102:304:506:708:90a:b0c:d0e:f10"sv, to_string({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
-    EXPECT_EQ("::"sv, MUST(IPv6Address().to_string()));
-    EXPECT_EQ("::1"sv, to_string({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }));
-    EXPECT_EQ("1::"sv, to_string({ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }));
-    EXPECT_EQ("102:0:506:708:900::10"sv, to_string({ 1, 2, 0, 0, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 16 }));
-    EXPECT_EQ("102:0:506:708:900::"sv, to_string({ 1, 2, 0, 0, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0 }));
-    EXPECT_EQ("::304:506:708:90a:b0c:d0e:f10"sv, to_string({ 0, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
-    EXPECT_EQ("102:304::708:90a:b0c:d0e:f10"sv, to_string({ 1, 2, 3, 4, 0, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
+    EXPECT_EQ("102:304:506:708:90a:b0c:d0e:f10"_sv, to_string({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
+    EXPECT_EQ("::"_sv, MUST(IPv6Address().to_string()));
+    EXPECT_EQ("::1"_sv, to_string({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }));
+    EXPECT_EQ("1::"_sv, to_string({ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }));
+    EXPECT_EQ("102:0:506:708:900::10"_sv, to_string({ 1, 2, 0, 0, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 16 }));
+    EXPECT_EQ("102:0:506:708:900::"_sv, to_string({ 1, 2, 0, 0, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0 }));
+    EXPECT_EQ("::304:506:708:90a:b0c:d0e:f10"_sv, to_string({ 0, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
+    EXPECT_EQ("102:304::708:90a:b0c:d0e:f10"_sv, to_string({ 1, 2, 3, 4, 0, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
 }
 
 TEST_CASE(should_make_ipv6_address_from_string)
 {
-    EXPECT(!IPv6Address::from_string(":::"sv).has_value());
-    EXPECT(!IPv6Address::from_string(":::1"sv).has_value());
-    EXPECT(!IPv6Address::from_string("1:::"sv).has_value());
-    EXPECT_EQ(IPv6Address::from_string("102:304:506:708:90a:b0c:d0e:f10"sv).value(), IPv6Address({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
-    EXPECT_EQ(IPv6Address::from_string("::"sv).value(), IPv6Address());
-    EXPECT_EQ(IPv6Address::from_string("::1"sv).value(), IPv6Address({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }));
-    EXPECT_EQ(IPv6Address::from_string("1::"sv).value(), IPv6Address({ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }));
-    EXPECT_EQ(IPv6Address::from_string("102:0:506:708:900::10"sv).value(), IPv6Address({ 1, 2, 0, 0, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 16 }));
-    EXPECT_EQ(IPv6Address::from_string("102:0:506:708:900::"sv).value(), IPv6Address({ 1, 2, 0, 0, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0 }));
-    EXPECT_EQ(IPv6Address::from_string("::304:506:708:90a:b0c:d0e:f10"sv).value(), IPv6Address({ 0, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
-    EXPECT_EQ(IPv6Address::from_string("102:304::708:90a:b0c:d0e:f10"sv).value(), IPv6Address({ 1, 2, 3, 4, 0, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
-    EXPECT_EQ(IPv6Address::from_string("[102:304::708:90a:b0c:d0e:f10]"sv).value(), IPv6Address({ 1, 2, 3, 4, 0, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
-    EXPECT_EQ(IPv6Address::from_string("[::304:506:708:90a:b0c:d0e:f10]"sv).value(), IPv6Address({ 0, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
+    EXPECT(!IPv6Address::from_string(":::"_sv).has_value());
+    EXPECT(!IPv6Address::from_string(":::1"_sv).has_value());
+    EXPECT(!IPv6Address::from_string("1:::"_sv).has_value());
+    EXPECT_EQ(IPv6Address::from_string("102:304:506:708:90a:b0c:d0e:f10"_sv).value(), IPv6Address({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
+    EXPECT_EQ(IPv6Address::from_string("::"_sv).value(), IPv6Address());
+    EXPECT_EQ(IPv6Address::from_string("::1"_sv).value(), IPv6Address({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }));
+    EXPECT_EQ(IPv6Address::from_string("1::"_sv).value(), IPv6Address({ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }));
+    EXPECT_EQ(IPv6Address::from_string("102:0:506:708:900::10"_sv).value(), IPv6Address({ 1, 2, 0, 0, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 16 }));
+    EXPECT_EQ(IPv6Address::from_string("102:0:506:708:900::"_sv).value(), IPv6Address({ 1, 2, 0, 0, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0 }));
+    EXPECT_EQ(IPv6Address::from_string("::304:506:708:90a:b0c:d0e:f10"_sv).value(), IPv6Address({ 0, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
+    EXPECT_EQ(IPv6Address::from_string("102:304::708:90a:b0c:d0e:f10"_sv).value(), IPv6Address({ 1, 2, 3, 4, 0, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
+    EXPECT_EQ(IPv6Address::from_string("[102:304::708:90a:b0c:d0e:f10]"_sv).value(), IPv6Address({ 1, 2, 3, 4, 0, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
+    EXPECT_EQ(IPv6Address::from_string("[::304:506:708:90a:b0c:d0e:f10]"_sv).value(), IPv6Address({ 0, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }));
 }
 
 TEST_CASE(should_not_make_ipv6_address_from_string)
 {
-    EXPECT_EQ(IPv6Address::from_string("[102:0:506:708:900::10"sv), OptionalNone {});
-    EXPECT_EQ(IPv6Address::from_string("102:0:506:708:900::10]"sv), OptionalNone {});
-    EXPECT_EQ(IPv6Address::from_string("[::304:506:708:90a:b0c:d0e:f10]]"sv), OptionalNone {});
-    EXPECT_EQ(IPv6Address::from_string("[[::304:506:708:90a:b0c:d0e:f10]"sv), OptionalNone {});
-    EXPECT_EQ(IPv6Address::from_string("[[::304:506:708:90a:b0c:d0e:f10]]"sv), OptionalNone {});
+    EXPECT_EQ(IPv6Address::from_string("[102:0:506:708:900::10"_sv), OptionalNone {});
+    EXPECT_EQ(IPv6Address::from_string("102:0:506:708:900::10]"_sv), OptionalNone {});
+    EXPECT_EQ(IPv6Address::from_string("[::304:506:708:90a:b0c:d0e:f10]]"_sv), OptionalNone {});
+    EXPECT_EQ(IPv6Address::from_string("[[::304:506:708:90a:b0c:d0e:f10]"_sv), OptionalNone {});
+    EXPECT_EQ(IPv6Address::from_string("[[::304:506:708:90a:b0c:d0e:f10]]"_sv), OptionalNone {});
 }
 
 TEST_CASE(ipv4_mapped_ipv6)
 {
-    auto ipv4_address_to_map = IPv4Address::from_string("192.168.0.1"sv).release_value();
+    auto ipv4_address_to_map = IPv4Address::from_string("192.168.0.1"_sv).release_value();
     IPv6Address mapped_address(ipv4_address_to_map);
     EXPECT(mapped_address.is_ipv4_mapped());
     EXPECT_EQ(ipv4_address_to_map, mapped_address.ipv4_mapped_address().value());
-    EXPECT_EQ("::ffff:192.168.0.1"sv, MUST(mapped_address.to_string()));
-    EXPECT_EQ(IPv4Address(192, 168, 1, 9), IPv6Address::from_string("::FFFF:192.168.1.9"sv).value().ipv4_mapped_address().value());
-    EXPECT(!IPv6Address::from_string("::abcd:192.168.1.9"sv).has_value());
+    EXPECT_EQ("::ffff:192.168.0.1"_sv, MUST(mapped_address.to_string()));
+    EXPECT_EQ(IPv4Address(192, 168, 1, 9), IPv6Address::from_string("::FFFF:192.168.1.9"_sv).value().ipv4_mapped_address().value());
+    EXPECT(!IPv6Address::from_string("::abcd:192.168.1.9"_sv).has_value());
 }
 
 TEST_CASE(should_make_empty_optional_from_bad_string)
 {
-    auto const addr = IPv6Address::from_string("bad string"sv);
+    auto const addr = IPv6Address::from_string("bad string"_sv);
 
     EXPECT(!addr.has_value());
 }
 
 TEST_CASE(should_make_empty_optional_from_out_of_range_values)
 {
-    auto const addr = IPv6Address::from_string("::10000"sv);
+    auto const addr = IPv6Address::from_string("::10000"_sv);
 
     EXPECT(!addr.has_value());
 }

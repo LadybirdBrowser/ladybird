@@ -43,7 +43,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     VERIFY(options.file_actions.is_empty());
 
     StringBuilder builder;
-    if (!options.search_for_executable_in_path && !options.executable.find_any_of("\\/:"sv).has_value())
+    if (!options.search_for_executable_in_path && !options.executable.find_any_of("\\/:"_sv).has_value())
         builder.appendff("\"./{}\" ", options.executable);
     else
         builder.appendff("\"{}\" ", options.executable);

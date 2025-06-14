@@ -74,7 +74,7 @@ ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_frame(JS::
     // 1. If object has no own property web frame identifier, return error with error code invalid argument.
     auto property = object.get(WEB_FRAME_IDENTIFIER);
     if (property.is_error() || !property.value().is_string())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web frame"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web frame"_sv);
 
     // 2. Let reference be the result of getting the web frame identifier property from object.
     auto reference = property.value().as_string().utf8_string();
@@ -86,7 +86,7 @@ ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_frame(JS::
     // 4. If browsing context is null or a top-level browsing context, return error with error code no such frame.
     // NOTE: We filtered on the top-level browsing context condition in the previous step.
     if (!navigable)
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::NoSuchFrame, "Could not locate frame"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::NoSuchFrame, "Could not locate frame"_sv);
 
     // 5. Return success with data browsing context's associated window.
     return *navigable->active_window_proxy();
@@ -109,7 +109,7 @@ ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS:
     // 1. If object has no own property web window identifier, return error with error code invalid argument.
     auto property = object.get(WEB_WINDOW_IDENTIFIER);
     if (property.is_error() || !property.value().is_string())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web window"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web window"_sv);
 
     // 2. Let reference be the result of getting the web window identifier property from object.
     auto reference = property.value().as_string().utf8_string();
@@ -121,7 +121,7 @@ ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS:
     // 4. If browsing context is null or not a top-level browsing context, return error with error code no such window.
     // NOTE: We filtered on the top-level browsing context condition in the previous step.
     if (!navigable)
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::NoSuchWindow, "Could not locate window"sv);
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::NoSuchWindow, "Could not locate window"_sv);
 
     // 5. Return success with data browsing context's associated window.
     return *navigable->active_window_proxy();
@@ -132,7 +132,7 @@ ErrorOr<void, WebDriver::Error> ensure_browsing_context_is_open(GC::Ptr<HTML::Br
 {
     // A browsing context is said to be no longer open if its navigable has been destroyed.
     if (!browsing_context || browsing_context->has_navigable_been_destroyed())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"_sv);
     return {};
 }
 

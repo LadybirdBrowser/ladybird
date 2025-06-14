@@ -13,7 +13,7 @@ namespace DevTools {
 
 class TargetConfigurationActor final : public Actor {
 public:
-    static constexpr auto base_name = "target-configuration"sv;
+    static constexpr auto base_name = "target-configuration"_sv;
 
     static NonnullRefPtr<TargetConfigurationActor> create(DevToolsServer&, String name);
     virtual ~TargetConfigurationActor() override;

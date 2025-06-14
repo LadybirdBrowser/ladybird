@@ -111,7 +111,7 @@ Optional<PseudoClass> pseudo_class_from_string(StringView string)
         member_generator.set("name:titlecase", title_casify(name));
 
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
+    if (string.equals_ignoring_ascii_case("@name@"_sv))
         return PseudoClass::@name:titlecase@;
 )~~~");
     });
@@ -135,7 +135,7 @@ StringView pseudo_class_name(PseudoClass pseudo_class)
 
         member_generator.append(R"~~~(
     case PseudoClass::@name:titlecase@:
-        return "@name@"sv;
+        return "@name@"_sv;
 )~~~");
     });
 
@@ -154,7 +154,7 @@ PseudoClassMetadata pseudo_class_metadata(PseudoClass pseudo_class)
     pseudo_classes_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto member_generator = generator.fork();
         auto& pseudo_class = value.as_object();
-        auto argument_string = pseudo_class.get_string("argument"sv).value();
+        auto argument_string = pseudo_class.get_string("argument"_sv).value();
 
         bool is_valid_as_identifier = argument_string.is_empty();
         bool is_valid_as_function = !argument_string.is_empty();
@@ -166,23 +166,23 @@ PseudoClassMetadata pseudo_class_metadata(PseudoClass pseudo_class)
 
         String parameter_type = "None"_string;
         if (is_valid_as_function) {
-            if (argument_string == "<an+b>"sv) {
+            if (argument_string == "<an+b>"_sv) {
                 parameter_type = "ANPlusB"_string;
-            } else if (argument_string == "<an+b-of>"sv) {
+            } else if (argument_string == "<an+b-of>"_sv) {
                 parameter_type = "ANPlusBOf"_string;
-            } else if (argument_string == "<compound-selector>"sv) {
+            } else if (argument_string == "<compound-selector>"_sv) {
                 parameter_type = "CompoundSelector"_string;
-            } else if (argument_string == "<forgiving-selector-list>"sv) {
+            } else if (argument_string == "<forgiving-selector-list>"_sv) {
                 parameter_type = "ForgivingSelectorList"_string;
-            } else if (argument_string == "<forgiving-relative-selector-list>"sv) {
+            } else if (argument_string == "<forgiving-relative-selector-list>"_sv) {
                 parameter_type = "ForgivingRelativeSelectorList"_string;
-            } else if (argument_string == "<ident>"sv) {
+            } else if (argument_string == "<ident>"_sv) {
                 parameter_type = "Ident"_string;
-            } else if (argument_string == "<language-ranges>"sv) {
+            } else if (argument_string == "<language-ranges>"_sv) {
                 parameter_type = "LanguageRanges"_string;
-            } else if (argument_string == "<relative-selector-list>"sv) {
+            } else if (argument_string == "<relative-selector-list>"_sv) {
                 parameter_type = "RelativeSelectorList"_string;
-            } else if (argument_string == "<selector-list>"sv) {
+            } else if (argument_string == "<selector-list>"_sv) {
                 parameter_type = "SelectorList"_string;
             } else {
                 warnln("Unrecognized pseudo-class argument type: `{}`", argument_string);

@@ -54,7 +54,7 @@ struct Message {
     {
         StringBuilder builder;
         builder.append(pascal_case(name));
-        builder.append("Response"sv);
+        builder.append("Response"_sv);
         return builder.to_byte_string();
     }
 };
@@ -74,7 +74,7 @@ static bool is_primitive_type(ByteString const& type)
 static bool is_simple_type(ByteString const& type)
 {
     // Small types that it makes sense just to pass by value.
-    if (type.starts_with("ReadonlySpan<"sv) && type.ends_with(">"sv))
+    if (type.starts_with("ReadonlySpan<"_sv) && type.ends_with(">"_sv))
         return true;
     return type.is_one_of("AK::CaseSensitivity", "AK::Duration", "Gfx::Color", "ReadonlyBytes", "StringView", "Web::DevicePixels", "Gfx::IntPoint", "Gfx::FloatPoint", "Web::DevicePixelPoint", "Gfx::IntSize", "Gfx::FloatSize", "Web::DevicePixelSize", "Web::DevicePixelRect", "Core::File::OpenMode", "Web::Cookie::Source", "Web::EventResult", "Web::HTML::AllowMultipleFiles", "Web::HTML::AudioPlayState", "Web::HTML::HistoryHandlingBehavior", "Web::HTML::VisibilityState", "WebView::PageInfoType");
 }
@@ -87,12 +87,12 @@ static bool is_primitive_or_simple_type(ByteString const& type)
 static ByteString message_name(ByteString const& endpoint, ByteString const& message, bool is_response)
 {
     StringBuilder builder;
-    builder.append("Messages::"sv);
+    builder.append("Messages::"_sv);
     builder.append(endpoint);
-    builder.append("::"sv);
+    builder.append("::"_sv);
     builder.append(pascal_case(message));
     if (is_response)
-        builder.append("Response"sv);
+        builder.append("Response"_sv);
     return builder.to_byte_string();
 }
 
@@ -104,7 +104,7 @@ static ByteString make_argument_type(ByteString const& type)
 
     builder.append(type);
     if (const_ref)
-        builder.append(" const&"sv);
+        builder.append(" const&"_sv);
 
     return builder.to_byte_string();
 }
@@ -190,12 +190,12 @@ Vector<Endpoint> parse(ByteBuffer const& file_contents)
                 VERIFY_NOT_REACHED();
             }
 
-            if (parameter.type.starts_with("Vector<"sv) && parameter.type.ends_with(">"sv)) {
-                parameter.type_for_encoding = parameter.type.replace("Vector"sv, "ReadonlySpan"sv, ReplaceMode::FirstOnly);
-            } else if (parameter.type.is_one_of("String"sv, "ByteString"sv)) {
-                parameter.type_for_encoding = "StringView"sv;
-            } else if (parameter.type == "ByteBuffer"sv) {
-                parameter.type_for_encoding = "ReadonlyBytes"sv;
+            if (parameter.type.starts_with("Vector<"_sv) && parameter.type.ends_with(">"_sv)) {
+                parameter.type_for_encoding = parameter.type.replace("Vector"_sv, "ReadonlySpan"_sv, ReplaceMode::FirstOnly);
+            } else if (parameter.type.is_one_of("String"_sv, "ByteString"_sv)) {
+                parameter.type_for_encoding = "StringView"_sv;
+            } else if (parameter.type == "ByteBuffer"_sv) {
+                parameter.type_for_encoding = "ReadonlyBytes"_sv;
             } else {
                 parameter.type_for_encoding = parameter.type;
             }
@@ -290,7 +290,7 @@ Vector<Endpoint> parse(ByteBuffer const& file_contents)
         consume_whitespace();
         parse_includes();
         consume_whitespace();
-        lexer.consume_specific("endpoint"sv);
+        lexer.consume_specific("endpoint"_sv);
         consume_whitespace();
         endpoints.last().name = lexer.consume_while([](char ch) { return !isspace(ch); });
         endpoints.last().magic = Traits<ByteString>::hash(endpoints.last().name);
@@ -337,7 +337,7 @@ ByteString constructor_for_message(ByteString const& name, Vector<Parameter> con
     builder.append(name);
 
     if (parameters.is_empty()) {
-        builder.append("() {}"sv);
+        builder.append("() {}"_sv);
         return builder.to_byte_string();
     }
     builder.append('(');
@@ -345,16 +345,16 @@ ByteString constructor_for_message(ByteString const& name, Vector<Parameter> con
         auto const& parameter = parameters[i];
         builder.appendff("{} {}", parameter.type, parameter.name);
         if (i != parameters.size() - 1)
-            builder.append(", "sv);
+            builder.append(", "_sv);
     }
-    builder.append(") : "sv);
+    builder.append(") : "_sv);
     for (size_t i = 0; i < parameters.size(); ++i) {
         auto const& parameter = parameters[i];
         builder.appendff("m_{}(move({}))", parameter.name, parameter.name);
         if (i != parameters.size() - 1)
-            builder.append(", "sv);
+            builder.append(", "_sv);
     }
-    builder.append(" {}"sv);
+    builder.append(" {}"_sv);
     return builder.to_byte_string();
 }
 
@@ -382,8 +382,8 @@ public:)~~~");
 
     if (parameters.size() == 1) {
         auto const& parameter = parameters[0];
-        message_generator.set("parameter.type"sv, parameter.type);
-        message_generator.set("parameter.name"sv, parameter.name);
+        message_generator.set("parameter.type"_sv, parameter.type);
+        message_generator.set("parameter.name"_sv, parameter.name);
 
         message_generator.appendln(R"~~~(
     template <typename WrappedReturnType>
@@ -434,7 +434,7 @@ public:)~~~");
         auto const& parameter = parameters[i];
         builder.appendff("move({})", parameter.name);
         if (i != parameters.size() - 1)
-            builder.append(", "sv);
+            builder.append(", "_sv);
     }
 
     message_generator.set("message.constructor_call_parameters", builder.to_byte_string());
@@ -573,7 +573,7 @@ void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& e
         for (auto const& parameter : parameters) {
             auto const& type = is_synchronous || is_try ? parameter.type : parameter.type_for_encoding;
 
-            if (parameter.type == "String"sv && type == "StringView"sv) {
+            if (parameter.type == "String"_sv && type == "StringView"_sv) {
                 auto argument_generator = message_generator.fork();
                 argument_generator.set("argument.name", parameter.name);
                 argument_generator.append(R"~~~(
@@ -791,14 +791,14 @@ public:
             StringBuilder argument_generator;
             for (auto const& [i, parameter] : enumerate(parameters)) {
                 if (is_primitive_or_simple_type(parameter.type))
-                    argument_generator.append("request."sv);
+                    argument_generator.append("request."_sv);
                 else
-                    argument_generator.append("request.take_"sv);
+                    argument_generator.append("request.take_"_sv);
 
                 argument_generator.append(parameter.name);
-                argument_generator.append("()"sv);
+                argument_generator.append("()"_sv);
                 if (i != parameters.size() - 1)
-                    argument_generator.append(", "sv);
+                    argument_generator.append(", "_sv);
             }
 
             message_generator.set("message.pascal_name", pascal_case(name));
@@ -913,7 +913,7 @@ void build(StringBuilder& builder, Vector<Endpoint> const& endpoints)
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     StringView ipc_file;
-    StringView output_file = "-"sv;
+    StringView output_file = "-"_sv;
 
     Core::ArgsParser parser;
     parser.add_positional_argument(ipc_file, "IPC endpoint definition file", "input");

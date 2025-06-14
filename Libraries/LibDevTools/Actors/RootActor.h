@@ -13,7 +13,7 @@ namespace DevTools {
 
 class RootActor final : public Actor {
 public:
-    static constexpr auto base_name = "root"sv;
+    static constexpr auto base_name = "root"_sv;
 
     static NonnullRefPtr<RootActor> create(DevToolsServer&, String name);
     virtual ~RootActor() override;

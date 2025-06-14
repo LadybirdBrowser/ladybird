@@ -56,7 +56,7 @@ void Resource::for_each_client(Function<void(ResourceClient&)> callback)
 
 static Optional<ByteString> encoding_from_content_type(ByteString const& content_type)
 {
-    auto offset = content_type.find("charset="sv);
+    auto offset = content_type.find("charset="_sv);
     if (offset.has_value()) {
         auto encoding = content_type.substring(offset.value() + 8, content_type.length() - offset.value() - 8).to_lowercase();
         if (encoding.length() >= 2 && encoding.starts_with('"') && encoding.ends_with('"'))
@@ -99,7 +99,7 @@ void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderM
         m_mime_type = mime_type_from_content_type(content_type.value());
     } else {
         auto content_type_options = headers.get("X-Content-Type-Options");
-        if (content_type_options.value_or("").equals_ignoring_ascii_case("nosniff"sv)) {
+        if (content_type_options.value_or("").equals_ignoring_ascii_case("nosniff"_sv)) {
             m_mime_type = "text/plain";
         } else {
             m_mime_type = Core::guess_mime_type_based_on_filename(url()->file_path());

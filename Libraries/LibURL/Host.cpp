@@ -121,7 +121,7 @@ static void serialize_ipv6_address(IPv6Address const& address, StringBuilder& ou
         // 3. If compress is pieceIndex, then:
         if (compress == piece_index) {
             // 1. Let separator be "::" if pieceIndex is 0, and U+003A (:) otherwise.
-            auto separator = piece_index == 0 ? "::"sv : ":"sv;
+            auto separator = piece_index == 0 ? "::"_sv : ":"_sv;
 
             // 2. Append separator to output.
             output.append(separator);
@@ -188,7 +188,7 @@ Optional<String> Host::public_suffix() const
     auto const& host_string = m_value.get<String>();
 
     // 2. Let trailingDot be "." if host ends with "."; otherwise the empty string.
-    auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
+    auto trailing_dot = host_string.ends_with('.') ? "."_sv : ""_sv;
 
     // 3. Let publicSuffix be the public suffix determined by running the Public Suffix List algorithm with host as domain. [PSL]
     // NOTE: The spec algorithm for the public suffix returns "*" by default, but get_public_suffix() returns an empty Optional.
@@ -215,7 +215,7 @@ Optional<String> Host::registrable_domain() const
     auto const& host_string = m_value.get<String>();
 
     // 2. Let trailingDot be "." if host ends with "."; otherwise the empty string.
-    auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
+    auto trailing_dot = host_string.ends_with('.') ? "."_sv : ""_sv;
 
     // 3. Let registrableDomain be the registrable domain determined by running the Public Suffix List algorithm with host as domain. [PSL]
     // NOTE: The spec algorithm for the public suffix returns "*" by default, but get_public_suffix() returns an empty Optional.

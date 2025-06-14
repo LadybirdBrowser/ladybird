@@ -183,7 +183,7 @@ String EasingStyleValue::Linear::to_string() const
     // To serialize a linear() function:
     // 1. Let s be the string "linear(".
     StringBuilder builder;
-    builder.append("linear("sv);
+    builder.append("linear("_sv);
 
     // 2. Serialize each control point of the function,
     // concatenate the results using the separator ", ",
@@ -193,7 +193,7 @@ String EasingStyleValue::Linear::to_string() const
         if (first) {
             first = false;
         } else {
-            builder.append(", "sv);
+            builder.append(", "_sv);
         }
 
         // To serialize a linear() control point:
@@ -320,13 +320,13 @@ String EasingStyleValue::CubicBezier::to_string() const
 {
     StringBuilder builder;
     if (*this == CubicBezier::ease()) {
-        builder.append("ease"sv);
+        builder.append("ease"_sv);
     } else if (*this == CubicBezier::ease_in()) {
-        builder.append("ease-in"sv);
+        builder.append("ease-in"_sv);
     } else if (*this == CubicBezier::ease_out()) {
-        builder.append("ease-out"sv);
+        builder.append("ease-out"_sv);
     } else if (*this == CubicBezier::ease_in_out()) {
-        builder.append("ease-in-out"sv);
+        builder.append("ease-in-out"_sv);
     } else {
         builder.appendff("cubic-bezier({}, {}, {}, {})", x1, y1, x2, y2);
     }
@@ -385,20 +385,20 @@ String EasingStyleValue::Steps::to_string() const
     // Unlike the other easing function keywords, step-start and step-end do not serialize as themselves.
     // Instead, they serialize as "steps(1, start)" and "steps(1)", respectively.
     if (*this == Steps::step_start()) {
-        builder.append("steps(1, start)"sv);
+        builder.append("steps(1, start)"_sv);
     } else if (*this == Steps::step_end()) {
-        builder.append("steps(1)"sv);
+        builder.append("steps(1)"_sv);
     } else {
         auto position = [&] -> Optional<StringView> {
             switch (this->position) {
             case Steps::Position::JumpStart:
-                return "jump-start"sv;
+                return "jump-start"_sv;
             case Steps::Position::JumpNone:
-                return "jump-none"sv;
+                return "jump-none"_sv;
             case Steps::Position::JumpBoth:
-                return "jump-both"sv;
+                return "jump-both"_sv;
             case Steps::Position::Start:
-                return "start"sv;
+                return "start"_sv;
             default:
                 return {};
             }

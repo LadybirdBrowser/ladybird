@@ -945,7 +945,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         destination_key = destination->navigation_history_entry()->key();
 
     // 4. Assert: destinationKey is not the empty string.
-    VERIFY(destination_key != ""sv);
+    VERIFY(destination_key != ""_sv);
 
     // 5. Promote an upcoming API method tracker to ongoing given navigation and destinationKey.
     promote_an_upcoming_api_method_tracker_to_ongoing(destination_key);

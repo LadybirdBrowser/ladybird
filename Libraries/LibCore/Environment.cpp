@@ -40,7 +40,7 @@ Entry Entry::from_string(StringView input)
         return Entry {
             .full_entry = input,
             .name = input,
-            .value = ""sv,
+            .value = ""_sv,
         };
     }
 

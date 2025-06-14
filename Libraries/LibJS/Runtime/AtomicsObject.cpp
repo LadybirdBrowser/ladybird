@@ -41,7 +41,7 @@ static ThrowCompletionOr<TypedArrayWithBufferWitness> validate_integer_typed_arr
     if (waitable) {
         // a. If typedArray.[[TypedArrayName]] is neither "Int32Array" nor "BigInt64Array", throw a TypeError exception.
         if ((type_name != vm.names.Int32Array.as_string()) && (type_name != vm.names.BigInt64Array.as_string()))
-            return vm.throw_completion<TypeError>(ErrorType::TypedArrayTypeIsNot, type_name, "Int32 or BigInt64"sv);
+            return vm.throw_completion<TypeError>(ErrorType::TypedArrayTypeIsNot, type_name, "Int32 or BigInt64"_sv);
     }
     // 4. Else,
     else {
@@ -49,7 +49,7 @@ static ThrowCompletionOr<TypedArrayWithBufferWitness> validate_integer_typed_arr
 
         // b. If IsUnclampedIntegerElementType(type) is false and IsBigIntElementType(type) is false, throw a TypeError exception.
         if (!typed_array.is_unclamped_integer_element_type() && !typed_array.is_bigint_element_type())
-            return vm.throw_completion<TypeError>(ErrorType::TypedArrayTypeIsNot, type_name, "an unclamped integer or BigInt"sv);
+            return vm.throw_completion<TypeError>(ErrorType::TypedArrayTypeIsNot, type_name, "an unclamped integer or BigInt"_sv);
     }
 
     // 5. Return taRecord.
@@ -104,7 +104,7 @@ static ThrowCompletionOr<void> revalidate_atomic_access(VM& vm, TypedArrayBase c
     // 2. NOTE: Bounds checking is not a synchronizing operation when typedArray's backing buffer is a growable SharedArrayBuffer.
     // 3. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 4. Assert: byteIndexInBuffer ≥ typedArray.[[ByteOffset]].
     VERIFY(byte_index_in_buffer >= typed_array.byte_offset());
@@ -194,7 +194,7 @@ static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& t
     (void)value;
     (void)timeout;
 
-    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
+    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"_sv);
 }
 
 template<typename T, typename AtomicFunction>
@@ -587,7 +587,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
     (void)count;
     (void)block;
 
-    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
+    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"_sv);
 }
 
 // 25.4.16 Atomics.xor ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.xor

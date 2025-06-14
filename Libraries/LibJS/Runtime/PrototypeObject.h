@@ -19,7 +19,7 @@ namespace JS {
     JS_OBJECT(prototype_class, Prototype)                                 \
     static constexpr StringView display_name()                            \
     {                                                                     \
-        return #display_name_##sv;                                        \
+        return #display_name_##_sv;                                       \
     }
 
 template<typename PrototypeType, typename ObjectType>

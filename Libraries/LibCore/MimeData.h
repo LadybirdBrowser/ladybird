@@ -27,12 +27,12 @@ public:
     Vector<String> formats() const { return m_data.keys(); }
 
     // Convenience helpers for "text/plain"
-    bool has_text() const { return has_format("text/plain"sv); }
+    bool has_text() const { return has_format("text/plain"_sv); }
     ByteString text() const;
     void set_text(ByteString const&);
 
     // Convenience helpers for "text/uri-list"
-    bool has_urls() const { return has_format("text/uri-list"sv); }
+    bool has_urls() const { return has_format("text/uri-list"_sv); }
     Vector<URL::URL> urls() const;
     ErrorOr<void> set_urls(Vector<URL::URL> const&);
 

@@ -152,7 +152,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_typed_array(VM& vm, T
 
     // 8. If IsTypedArrayOutOfBounds(srcRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(source_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 9. Let elementLength be TypedArrayLength(srcRecord).
     auto element_length = typed_array_length(source_record);
@@ -331,7 +331,7 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& co
     if (first_argument.has_value()) {
         // a. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
         if (is_typed_array_out_of_bounds(typed_array_record))
-            return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+            return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
         // b. Let length be TypedArrayLength(taRecord).
         auto length = typed_array_length(typed_array_record);
@@ -377,7 +377,7 @@ ThrowCompletionOr<TypedArrayWithBufferWitness> validate_typed_array(VM& vm, Obje
 
     // 4. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"_sv);
 
     // 5. Return taRecord.
     return typed_array_record;
@@ -472,7 +472,7 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
               bit_cast<TypedArrayBase::IntrinsicConstructor>(&Intrinsics::snake_name##_constructor),                        \
               length, array_buffer, Kind::ClassName)                                                                        \
     {                                                                                                                       \
-        if constexpr (#ClassName##sv.is_one_of("BigInt64Array", "BigUint64Array"))                                          \
+        if constexpr (#ClassName##_sv.is_one_of("BigInt64Array", "BigUint64Array"))                                         \
             m_content_type = ContentType::BigInt;                                                                           \
         else                                                                                                                \
             m_content_type = ContentType::Number;                                                                           \

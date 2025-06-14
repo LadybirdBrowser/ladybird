@@ -78,7 +78,7 @@ static ThrowCompletionOr<Value> get_view_value(VM& vm, Value request_index, Valu
     // 7. NOTE: Bounds checking is not a synchronizing operation when view's backing buffer is a growable SharedArrayBuffer.
     // 8. If IsViewOutOfBounds(viewRecord) is true, throw a TypeError exception.
     if (is_view_out_of_bounds(view_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "DataView"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "DataView"_sv);
 
     // 9. Let viewSize be GetViewByteLength(viewRecord).
     auto view_size = get_view_byte_length(view_record);
@@ -136,7 +136,7 @@ static ThrowCompletionOr<Value> set_view_value(VM& vm, Value request_index, Valu
     // 9. NOTE: Bounds checking is not a synchronizing operation when view's backing buffer is a growable SharedArrayBuffer.
     // 10. If IsViewOutOfBounds(viewRecord) is true, throw a TypeError exception.
     if (is_view_out_of_bounds(view_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "DataView"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "DataView"_sv);
 
     // 11. Let viewSize be GetViewByteLength(viewRecord).
     auto view_size = get_view_byte_length(view_record);
@@ -191,7 +191,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::byte_length_getter)
 
     // 5. If IsViewOutOfBounds(viewRecord) is true, throw a TypeError exception.
     if (is_view_out_of_bounds(view_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "DataView"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "DataView"_sv);
 
     // 6. Let size be GetViewByteLength(viewRecord).
     auto size = get_view_byte_length(view_record);
@@ -213,7 +213,7 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::byte_offset_getter)
 
     // 5. If IsViewOutOfBounds(viewRecord) is true, throw a TypeError exception.
     if (is_view_out_of_bounds(view_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "DataView"sv);
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "DataView"_sv);
 
     // 6. Let offset be O.[[ByteOffset]].
     auto offset = data_view->byte_offset();

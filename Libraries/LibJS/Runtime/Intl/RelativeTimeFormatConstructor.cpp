@@ -72,13 +72,13 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
         relative_time_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 10. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow" », "long").
-    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
+    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"_sv, "short"_sv, "narrow"_sv }, "long"_sv));
 
     // 11. Set relativeTimeFormat.[[Style]] to style.
     relative_time_format->set_style(style.as_string().utf8_string_view());
 
     // 12. Let numeric be ? GetOption(options, "numeric", STRING, « "always", "auto" », "always").
-    auto numeric = TRY(get_option(vm, *options, vm.names.numeric, OptionType::String, { "always"sv, "auto"sv }, "always"sv));
+    auto numeric = TRY(get_option(vm, *options, vm.names.numeric, OptionType::String, { "always"_sv, "auto"_sv }, "always"_sv));
 
     // 13. Set relativeTimeFormat.[[Numeric]] to numeric.
     relative_time_format->set_numeric(numeric.as_string().utf8_string_view());

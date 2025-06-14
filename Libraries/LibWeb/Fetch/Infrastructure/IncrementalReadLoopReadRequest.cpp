@@ -21,7 +21,7 @@ void IncrementalReadLoopReadRequest::on_chunk(JS::Value chunk)
     // 2. If chunk is not a Uint8Array object, then set continueAlgorithm to this step: run processBodyError given a TypeError.
     if (!chunk.is_object() || !is<JS::Uint8Array>(chunk.as_object())) {
         continue_algorithm = GC::create_function(realm.heap(), [&realm, process_body_error = m_process_body_error] {
-            process_body_error->function()(JS::TypeError::create(realm, "Chunk data is not Uint8Array"sv));
+            process_body_error->function()(JS::TypeError::create(realm, "Chunk data is not Uint8Array"_sv));
         });
     }
     // 3. Otherwise:

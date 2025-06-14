@@ -57,7 +57,7 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
             // 2. Otherwise:
             else {
                 // 1. Append "(?:" to the end of result.
-                result.append("(?:"sv);
+                result.append("(?:"_sv);
 
                 // 2. Append the result of running escape a regexp string given part’s value to the end of result.
                 result.append(escape_a_regexp_string(part.value));
@@ -110,7 +110,7 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
             // 2. Otherwise:
             else {
                 // 1. Append "((?:" to the end of result.
-                result.append("((?:"sv);
+                result.append("((?:"_sv);
 
                 // 2. Append regexp value to the end of result.
                 result.append(regexp_value);
@@ -132,7 +132,7 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
         // 8. If part’s modifier is "none" or "optional":
         if (part.modifier == Part::Modifier::None || part.modifier == Part::Modifier::Optional) {
             // 1. Append "(?:" to the end of result.
-            result.append("(?:"sv);
+            result.append("(?:"_sv);
 
             // 2. Append the result of running escape a regexp string given part’s prefix to the end of result.
             result.append(escape_a_regexp_string(part.prefix));
@@ -166,19 +166,19 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
         VERIFY(!part.prefix.is_empty() || !part.suffix.is_empty());
 
         // 11. Append "(?:" to the end of result.
-        result.append("(?:"sv);
+        result.append("(?:"_sv);
 
         // 12. Append the result of running escape a regexp string given part’s prefix to the end of result.
         result.append(escape_a_regexp_string(part.prefix));
 
         // 13. Append "((?:" to the end of result.
-        result.append("((?:"sv);
+        result.append("((?:"_sv);
 
         // 14. Append regexp value to the end of result.
         result.append(regexp_value);
 
         // 15. Append ")(?:" to the end of result.
-        result.append(")(?:"sv);
+        result.append(")(?:"_sv);
 
         // 16. Append the result of running escape a regexp string given part’s suffix to the end of result.
         result.append(escape_a_regexp_string(part.suffix));
@@ -187,13 +187,13 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
         result.append(escape_a_regexp_string(part.prefix));
 
         // 18. Append "(?:" to the end of result.
-        result.append("(?:"sv);
+        result.append("(?:"_sv);
 
         // 19. Append regexp value to the end of result.
         result.append(regexp_value);
 
         // 20. Append "))*)" to the end of result.
-        result.append("))*)"sv);
+        result.append("))*)"_sv);
 
         // 21. Append the result of running escape a regexp string given part’s suffix to the end of result.
         result.append(escape_a_regexp_string(part.suffix));

@@ -14,7 +14,7 @@ namespace DevTools {
 
 class InspectorActor final : public Actor {
 public:
-    static constexpr auto base_name = "inspector"sv;
+    static constexpr auto base_name = "inspector"_sv;
 
     static NonnullRefPtr<InspectorActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~InspectorActor() override;

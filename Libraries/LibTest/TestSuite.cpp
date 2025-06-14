@@ -119,7 +119,7 @@ int TestSuite::main(ByteString const& suite_name, Span<StringView> arguments)
     bool do_tests_only = getenv("TESTS_ONLY") != nullptr;
     bool do_benchmarks_only = false;
     bool do_list_cases = false;
-    StringView search_string = "*"sv;
+    StringView search_string = "*"_sv;
 
     args_parser.add_option(do_tests_only, "Only run tests.", "tests");
     args_parser.add_option(do_benchmarks_only, "Only run benchmarks.", "bench");

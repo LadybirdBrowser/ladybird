@@ -169,7 +169,7 @@ bool Type::is_distinguishable_from(IDL::Interface const& interface, IDL::Type co
         // * Dictionary Types
         // * Record Types
         // FIXME: * Callback Interface Types
-        if (interface.dictionaries.contains(type.name()) || (type.is_parameterized() && type.name() == "record"sv))
+        if (interface.dictionaries.contains(type.name()) || (type.is_parameterized() && type.name() == "record"_sv))
             return DistinguishabilityCategory::DictionaryLike;
         // FIXME: Frozen array types are included in "sequence-like"
         if (type.is_sequence())
@@ -276,7 +276,7 @@ bool Type::is_json(Interface const& interface) const
 
     while (current_interface_for_to_json.has_value()) {
         auto to_json_iterator = current_interface_for_to_json->functions.find_if([](IDL::Function const& function) {
-            return function.name == "toJSON"sv;
+            return function.name == "toJSON"_sv;
         });
 
         if (to_json_iterator != current_interface_for_to_json->functions.end())

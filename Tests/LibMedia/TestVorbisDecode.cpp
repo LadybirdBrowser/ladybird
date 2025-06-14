@@ -25,5 +25,5 @@ static void run_test(StringView file_name, int const num_samples, int const chan
 
 TEST_CASE(44_1Khz_stereo)
 {
-    run_test("44_1Khz_stereo.ogg"sv, 352800, 2, 44100);
+    run_test("44_1Khz_stereo.ogg"_sv, 352800, 2, 44100);
 }

@@ -34,8 +34,8 @@ String CSSLayerStatementRule::serialized() const
 {
     // AD-HOC: No spec yet.
     StringBuilder builder;
-    builder.append("@layer "sv);
-    builder.join(", "sv, m_name_list);
+    builder.append("@layer "_sv);
+    builder.join(", "_sv, m_name_list);
     builder.append(';');
     return builder.to_string_without_validation();
 }

@@ -19,21 +19,21 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
     auto side_or_corner_to_string = [](SideOrCorner value) {
         switch (value) {
         case SideOrCorner::Top:
-            return "top"sv;
+            return "top"_sv;
         case SideOrCorner::Bottom:
-            return "bottom"sv;
+            return "bottom"_sv;
         case SideOrCorner::Left:
-            return "left"sv;
+            return "left"_sv;
         case SideOrCorner::Right:
-            return "right"sv;
+            return "right"_sv;
         case SideOrCorner::TopLeft:
-            return "left top"sv;
+            return "left top"_sv;
         case SideOrCorner::TopRight:
-            return "right top"sv;
+            return "right top"_sv;
         case SideOrCorner::BottomLeft:
-            return "left bottom"sv;
+            return "left bottom"_sv;
         case SideOrCorner::BottomRight:
-            return "right bottom"sv;
+            return "right bottom"_sv;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -44,14 +44,14 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
     bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
 
     if (m_properties.gradient_type == GradientType::WebKit)
-        builder.append("-webkit-"sv);
+        builder.append("-webkit-"_sv);
     if (is_repeating())
-        builder.append("repeating-"sv);
-    builder.append("linear-gradient("sv);
+        builder.append("repeating-"_sv);
+    builder.append("linear-gradient("_sv);
     if (has_direction) {
         m_properties.direction.visit(
             [&](SideOrCorner side_or_corner) {
-                builder.appendff("{}{}", m_properties.gradient_type == GradientType::Standard ? "to "sv : ""sv, side_or_corner_to_string(side_or_corner));
+                builder.appendff("{}{}", m_properties.gradient_type == GradientType::Standard ? "to "_sv : ""_sv, side_or_corner_to_string(side_or_corner));
             },
             [&](Angle const& angle) {
                 builder.append(angle.to_string());
@@ -65,10 +65,10 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
         builder.append(m_properties.interpolation_method.value().to_string());
 
     if (has_direction || has_color_space)
-        builder.append(", "sv);
+        builder.append(", "_sv);
 
     serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
-    builder.append(")"sv);
+    builder.append(")"_sv);
     return MUST(builder.to_string());
 }
 

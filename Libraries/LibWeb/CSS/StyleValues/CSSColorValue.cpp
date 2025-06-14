@@ -113,7 +113,7 @@ Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value)
 void CSSColorValue::serialize_color_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min, Optional<double> clamp_max) const
 {
     if (component.to_keyword() == Keyword::None) {
-        builder.append("none"sv);
+        builder.append("none"_sv);
         return;
     }
     if (component.is_calculated() && mode == SerializationMode::Normal) {
@@ -129,14 +129,14 @@ void CSSColorValue::serialize_color_component(StringBuilder& builder, Serializat
     // FIXME: Find a better way to format a decimal with trimmed trailing zeroes
     auto resolved_string = MUST(String::formatted("{:.2}", resolved_value));
     if (resolved_string.contains('.'))
-        resolved_string = MUST(resolved_string.trim("0"sv, TrimMode::Right));
+        resolved_string = MUST(resolved_string.trim("0"_sv, TrimMode::Right));
     builder.append(resolved_string);
 }
 
 void CSSColorValue::serialize_alpha_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const
 {
     if (component.to_keyword() == Keyword::None) {
-        builder.append("none"sv);
+        builder.append("none"_sv);
         return;
     }
     if (component.is_calculated() && mode == SerializationMode::Normal) {
@@ -150,7 +150,7 @@ void CSSColorValue::serialize_alpha_component(StringBuilder& builder, Serializat
 void CSSColorValue::serialize_hue_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const
 {
     if (component.to_keyword() == Keyword::None) {
-        builder.append("none"sv);
+        builder.append("none"_sv);
         return;
     }
     if (component.is_calculated() && mode == SerializationMode::Normal) {

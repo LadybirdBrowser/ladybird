@@ -389,7 +389,7 @@ bool ReadableStreamPipeTo::check_for_backward_close()
         // 1. Assert: no chunks have been read or written.
 
         // 2. Let destClosed be a new TypeError.
-        auto destination_closed = JS::TypeError::create(m_realm, "Destination stream was closed during piping operation"sv);
+        auto destination_closed = JS::TypeError::create(m_realm, "Destination stream was closed during piping operation"_sv);
 
         // 3. If preventCancel is false, shutdown with an action of ! ReadableStreamCancel(source, destClosed) and with destClosed.
         if (!m_prevent_cancel) {

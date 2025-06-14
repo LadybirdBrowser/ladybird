@@ -639,7 +639,7 @@ struct Formatter<T> : StandardFormatter {
         Formatter<U> formatter { *this };
         formatter.m_width = max(width - lower_length, (ssize_t)0);
         TRY(formatter.format(builder, value.high()));
-        TRY(builder.put_literal("'"sv));
+        TRY(builder.put_literal("'"_sv));
         formatter.m_zero_pad = true;
         formatter.m_alternative_form = false;
         formatter.m_width = lower_length;

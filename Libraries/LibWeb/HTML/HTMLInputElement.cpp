@@ -289,17 +289,17 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
     accept.bytes_as_string_view().for_each_split_view(',', SplitBehavior::Nothing, [&](StringView value) {
         // The string "audio/*"
         //     Indicates that sound files are accepted.
-        if (value.equals_ignoring_ascii_case("audio/*"sv))
+        if (value.equals_ignoring_ascii_case("audio/*"_sv))
             filter.add_filter(FileFilter::FileType::Audio);
 
         // The string "video/*"
         //     Indicates that video files are accepted.
-        if (value.equals_ignoring_ascii_case("video/*"sv))
+        if (value.equals_ignoring_ascii_case("video/*"_sv))
             filter.add_filter(FileFilter::FileType::Video);
 
         // The string "image/*"
         //     Indicates that image files are accepted.
-        if (value.equals_ignoring_ascii_case("image/*"sv))
+        if (value.equals_ignoring_ascii_case("image/*"_sv))
             filter.add_filter(FileFilter::FileType::Image);
 
         // A valid MIME type string with no parameters
@@ -758,7 +758,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
                 text-overflow: clip;
                 white-space: nowrap;
                 display: block;
-            )~~~"sv);
+            )~~~"_sv);
     }
     return *style;
 }
@@ -768,7 +768,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_hidden()
     static GC::Root<CSS::CSSStyleProperties> style;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
-        style->set_declarations_from_text("display: none;"sv);
+        style->set_declarations_from_text("display: none;"_sv);
     }
     return *style;
 }
@@ -1028,7 +1028,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 white-space: pre;
                 border: none;
                 padding: 1px 2px;
-            )~~~"sv);
+            )~~~"_sv);
         }
         element->set_inline_style(*style);
     }
@@ -1056,7 +1056,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 align-items: center;
                 text-overflow: clip;
                 white-space: nowrap;
-            )~~~"sv);
+            )~~~"_sv);
         }
         m_inner_text_element->set_inline_style(*style);
     }
@@ -1079,7 +1079,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             padding: 0;
             cursor: default;
         )~~~"_string));
-        MUST(up_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z\" /></svg>"sv));
+        MUST(up_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z\" /></svg>"_sv));
         MUST(element->append_child(up_button));
 
         auto mouseup_callback_function = JS::NativeFunction::create(
@@ -1111,7 +1111,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             padding: 0;
             cursor: default;
         )~~~"_string));
-        MUST(down_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z\" /></svg>"sv));
+        MUST(down_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z\" /></svg>"_sv));
         MUST(element->append_child(down_button));
 
         auto down_callback_function = JS::NativeFunction::create(
@@ -1200,7 +1200,7 @@ void HTMLInputElement::update_file_input_shadow_tree()
     if (!m_file_button || !m_file_label)
         return;
 
-    auto files_label = has_attribute(HTML::AttributeNames::multiple) ? "files"sv : "file"sv;
+    auto files_label = has_attribute(HTML::AttributeNames::multiple) ? "files"_sv : "file"_sv;
     m_file_button->set_text_content(MUST(String::formatted("Select {}...", files_label)));
 
     if (m_selected_files && m_selected_files->length() > 0) {
@@ -1564,7 +1564,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
 HTMLInputElement::TypeAttributeState HTMLInputElement::parse_type_attribute(StringView type)
 {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(keyword, state) \
-    if (type.equals_ignoring_ascii_case(keyword##sv))         \
+    if (type.equals_ignoring_ascii_case(keyword##_sv))        \
         return HTMLInputElement::TypeAttributeState::state;
     ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE
@@ -1581,7 +1581,7 @@ StringView HTMLInputElement::type() const
     switch (m_type) {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(keyword, state) \
     case TypeAttributeState::state:                           \
-        return keyword##sv;
+        return keyword##_sv;
         ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE
     }
@@ -1826,9 +1826,9 @@ void HTMLInputElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
 
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
-            if (value.equals_ignoring_ascii_case("center"sv))
+            if (value.equals_ignoring_ascii_case("center"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
-            else if (value.equals_ignoring_ascii_case("middle"sv))
+            else if (value.equals_ignoring_ascii_case("middle"_sv))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
@@ -2327,7 +2327,7 @@ static String convert_number_to_date_string(double input)
     // date string that represents the date that, in UTC, is current input milliseconds after midnight UTC
     // on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0Z").
     auto date = Core::DateTime::from_timestamp(input / 1000.);
-    return MUST(date.to_string("%Y-%m-%d"sv, Core::DateTime::LocalTime::No));
+    return MUST(date.to_string("%Y-%m-%d"_sv, Core::DateTime::LocalTime::No));
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-number-string
@@ -2406,7 +2406,7 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
         // If parsing a date from input results in an error, then return an error;
         auto maybe_date = parse_a_date_string(input);
         if (!maybe_date.has_value())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse date string"sv };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse date string"_sv };
         auto date = maybe_date.value();
 
         // otherwise, return a new Date object representing midnight UTC on the morning of the parsed date.
@@ -2567,7 +2567,7 @@ Optional<double> HTMLInputElement::allowed_value_step() const
     auto step_string = *maybe_step_string;
 
     // 3. Otherwise, if the attribute's value is an ASCII case-insensitive match for the string "any", then there is no allowed value step.
-    if (step_string.equals_ignoring_ascii_case("any"sv))
+    if (step_string.equals_ignoring_ascii_case("any"_sv))
         return {};
 
     // 4. Otherwise, if the rules for parsing floating-point number values, when they are applied to the attribute's value, return an error,
@@ -2630,7 +2630,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(Optional<GC::Root<
 
     // otherwise, if the new value is not null and not a Date object throw a TypeError exception;
     if (value.has_value() && !is<JS::Date>(**value))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsDate: input is not a Date"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsDate: input is not a Date"_sv };
 
     // otherwise if the new value is null or a Date object representing the NaN time value, then set the value of the element to the empty string;
     if (!value.has_value()) {
@@ -2665,7 +2665,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_number(double value)
 {
     // On setting, if the new value is infinite, then throw a TypeError exception.
     if (!isfinite(value))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsNumber: Value is infinite"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsNumber: Value is infinite"_sv };
 
     // Otherwise, if the valueAsNumber attribute does not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException.
     if (!value_as_number_applies())

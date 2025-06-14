@@ -21,7 +21,7 @@ namespace Web::ReferrerPolicy {
 ReferrerPolicy parse_a_referrer_policy_from_a_referrer_policy_header(Fetch::Infrastructure::Response const& response)
 {
     // 1. Let policy-tokens be the result of extracting header list values given `Referrer-Policy` and response’s header list.
-    auto policy_tokens_or_failure = Fetch::Infrastructure::extract_header_list_values("Referrer-Policy"sv.bytes(), response.header_list());
+    auto policy_tokens_or_failure = Fetch::Infrastructure::extract_header_list_values("Referrer-Policy"_sv.bytes(), response.header_list());
     auto policy_tokens = policy_tokens_or_failure.has<Vector<ByteBuffer>>() ? policy_tokens_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
 
     // 2. Let policy be the empty string.
@@ -210,10 +210,10 @@ Optional<URL::URL> strip_url_for_use_as_referrer(Optional<URL::URL> url, OriginO
         return {};
 
     // 3. Set url’s username to the empty string.
-    url->set_username(""sv);
+    url->set_username(""_sv);
 
     // 4. Set url’s password to the empty string.
-    url->set_password(""sv);
+    url->set_password(""_sv);
 
     // 5. Set url’s fragment to null.
     url->set_fragment({});
@@ -221,7 +221,7 @@ Optional<URL::URL> strip_url_for_use_as_referrer(Optional<URL::URL> url, OriginO
     // 6. If the origin-only flag is true, then:
     if (origin_only == OriginOnly::Yes) {
         // 1. Set url’s path to « the empty string ».
-        url->set_paths({ ""sv });
+        url->set_paths({ ""_sv });
 
         // 2. Set url’s query to null.
         url->set_query({});

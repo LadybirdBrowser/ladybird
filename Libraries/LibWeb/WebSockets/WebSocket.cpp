@@ -54,14 +54,14 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
         return WebIDL::SyntaxError::create(realm, "Invalid URL"_string);
 
     // 4. If urlRecord’s scheme is "http", then set urlRecord’s scheme to "ws".
-    if (url_record->scheme() == "http"sv)
+    if (url_record->scheme() == "http"_sv)
         url_record->set_scheme("ws"_string);
     // 5. Otherwise, if urlRecord’s scheme is "https", set urlRecord’s scheme to "wss".
-    else if (url_record->scheme() == "https"sv)
+    else if (url_record->scheme() == "https"_sv)
         url_record->set_scheme("wss"_string);
 
     // 6. If urlRecord’s scheme is not "ws" or "wss", then throw a "SyntaxError" DOMException.
-    if (!url_record->scheme().is_one_of("ws"sv, "wss"sv))
+    if (!url_record->scheme().is_one_of("ws"_sv, "wss"_sv))
         return WebIDL::SyntaxError::create(realm, "Invalid protocol"_string);
 
     // 7. If urlRecord’s fragment is non-null, then throw a "SyntaxError" DOMException.

@@ -77,63 +77,63 @@ public:
     {
         if (index.value() < m_context.types.size())
             return {};
-        return Errors::invalid("TypeIndex"sv);
+        return Errors::invalid("TypeIndex"_sv);
     }
 
     ErrorOr<void, ValidationError> validate(FunctionIndex index) const
     {
         if (index.value() < m_context.functions.size())
             return {};
-        return Errors::invalid("FunctionIndex"sv);
+        return Errors::invalid("FunctionIndex"_sv);
     }
 
     ErrorOr<void, ValidationError> validate(MemoryIndex index) const
     {
         if (index.value() < m_context.memories.size())
             return {};
-        return Errors::invalid("MemoryIndex"sv);
+        return Errors::invalid("MemoryIndex"_sv);
     }
 
     ErrorOr<void, ValidationError> validate(ElementIndex index) const
     {
         if (index.value() < m_context.elements.size())
             return {};
-        return Errors::invalid("ElementIndex"sv);
+        return Errors::invalid("ElementIndex"_sv);
     }
 
     ErrorOr<void, ValidationError> validate(DataIndex index) const
     {
         if (index.value() < m_context.datas.size())
             return {};
-        return Errors::invalid("DataIndex"sv);
+        return Errors::invalid("DataIndex"_sv);
     }
 
     ErrorOr<void, ValidationError> validate(GlobalIndex index) const
     {
         if (index.value() < m_context.globals.size())
             return {};
-        return Errors::invalid("GlobalIndex"sv);
+        return Errors::invalid("GlobalIndex"_sv);
     }
 
     ErrorOr<void, ValidationError> validate(LabelIndex index) const
     {
         if (index.value() < m_frames.size())
             return {};
-        return Errors::invalid("LabelIndex"sv);
+        return Errors::invalid("LabelIndex"_sv);
     }
 
     ErrorOr<void, ValidationError> validate(LocalIndex index) const
     {
         if (index.value() < m_context.locals.size())
             return {};
-        return Errors::invalid("LocalIndex"sv);
+        return Errors::invalid("LocalIndex"_sv);
     }
 
     ErrorOr<void, ValidationError> validate(TableIndex index) const
     {
         if (index.value() < m_context.tables.size())
             return {};
-        return Errors::invalid("TableIndex"sv);
+        return Errors::invalid("TableIndex"_sv);
     }
 
     enum class FrameKind {
@@ -222,7 +222,7 @@ public:
             if (size() == m_frames.last().initial_size && m_frames.last().unreachable)
                 return StackEntry();
             if (size() == m_frames.last().initial_size)
-                return Errors::invalid("stack state"sv, "<any>"sv, "<nothing>"sv);
+                return Errors::invalid("stack state"_sv, "<any>"_sv, "<nothing>"_sv);
             return Vector<StackEntry>::take_last();
         }
         void append(StackEntry entry)
@@ -234,7 +234,7 @@ public:
         {
             auto type_on_stack = TRY(take_last());
             if (type_on_stack != type)
-                return Errors::invalid("stack state"sv, type, type_on_stack, location);
+                return Errors::invalid("stack state"_sv, type, type_on_stack, location);
 
             return type_on_stack;
         }
@@ -302,7 +302,7 @@ private:
         }
 
         static ValidationError duplicate_export_name(StringView name) { return ByteString::formatted("Duplicate exported name '{}'", name); }
-        static ValidationError multiple_start_sections() { return ByteString("Found multiple start sections"sv); }
+        static ValidationError multiple_start_sections() { return ByteString("Found multiple start sections"_sv); }
         static ValidationError stack_height_mismatch(Stack const& stack, size_t expected_height) { return ByteString::formatted("Stack height mismatch, got {} but expected length {}", stack, expected_height); }
 
         template<typename T, typename U, typename V>
@@ -318,13 +318,13 @@ private:
             else
                 builder.appendff("Invalid stack state in <unknown>: ");
 
-            builder.append("Expected [ "sv);
+            builder.append("Expected [ "_sv);
 
             expected.apply_as_args([&]<typename... Ts>(Ts const&... args) {
                 (builder.appendff("{} ", args), ...);
             });
 
-            builder.append("], but found [ "sv);
+            builder.append("], but found [ "_sv);
 
             auto actual_size = stack.size();
             for (size_t i = 1; i <= min(count, actual_size); ++i) {
@@ -358,7 +358,7 @@ struct AK::Formatter<Wasm::Validator::StackEntry> : public AK::Formatter<StringV
         if (value.is_known)
             return Formatter<StringView>::format(builder, Wasm::ValueType::kind_name(value.concrete_type.kind()));
 
-        return Formatter<StringView>::format(builder, "<unknown>"sv);
+        return Formatter<StringView>::format(builder, "<unknown>"_sv);
     }
 };
 

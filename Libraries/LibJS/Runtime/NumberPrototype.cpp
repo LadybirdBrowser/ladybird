@@ -102,7 +102,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
     auto number = number_value.as_double();
 
     // 7. Let s be the empty String.
-    auto sign = ""sv;
+    auto sign = ""_sv;
 
     String number_string;
     int exponent = 0;
@@ -110,7 +110,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
     // 8. If x < 0, then
     if (number < 0) {
         // a. Set s to "-".
-        sign = "-"sv;
+        sign = "-"_sv;
 
         // b. Set x to -x.
         number = -number;
@@ -305,7 +305,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_precision)
     auto number = number_value.as_double();
 
     // 7. Let s be the empty String.
-    auto sign = ""sv;
+    auto sign = ""_sv;
 
     String number_string;
     int exponent = 0;
@@ -313,7 +313,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_precision)
     // 8. If x < 0, then
     if (number < 0) {
         // a. Set s to the code unit 0x002D (HYPHEN-MINUS).
-        sign = "-"sv;
+        sign = "-"_sv;
 
         // b. Set x to -x.
         number = -number;

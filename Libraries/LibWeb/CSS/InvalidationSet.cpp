@@ -54,16 +54,16 @@ ErrorOr<void> Formatter<Web::CSS::InvalidationSet::Property>::format(FormatBuild
 {
     switch (invalidation_set_property.type) {
     case Web::CSS::InvalidationSet::Property::Type::InvalidateSelf: {
-        TRY(builder.put_string("$"sv));
+        TRY(builder.put_string("$"_sv));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::Class: {
-        TRY(builder.put_string("."sv));
+        TRY(builder.put_string("."_sv));
         TRY(builder.put_string(invalidation_set_property.name()));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::Id: {
-        TRY(builder.put_string("#"sv));
+        TRY(builder.put_string("#"_sv));
         TRY(builder.put_string(invalidation_set_property.name()));
         return {};
     }
@@ -72,18 +72,18 @@ ErrorOr<void> Formatter<Web::CSS::InvalidationSet::Property>::format(FormatBuild
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::Attribute: {
-        TRY(builder.put_string("["sv));
+        TRY(builder.put_string("["_sv));
         TRY(builder.put_string(invalidation_set_property.name()));
-        TRY(builder.put_string("]"sv));
+        TRY(builder.put_string("]"_sv));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::PseudoClass: {
-        TRY(builder.put_string(":"sv));
+        TRY(builder.put_string(":"_sv));
         TRY(builder.put_string(pseudo_class_name(invalidation_set_property.value.get<Web::CSS::PseudoClass>())));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::InvalidateWholeSubtree: {
-        TRY(builder.put_string("*"sv));
+        TRY(builder.put_string("*"_sv));
         return {};
     }
     default:
@@ -96,7 +96,7 @@ ErrorOr<void> Formatter<Web::CSS::InvalidationSet>::format(FormatBuilder& builde
     bool first = true;
     invalidation_set.for_each_property([&](auto const& property) {
         if (!first)
-            builder.builder().append(", "sv);
+            builder.builder().append(", "_sv);
         builder.builder().appendff("{}", property);
         return IterationDecision::Continue;
     });

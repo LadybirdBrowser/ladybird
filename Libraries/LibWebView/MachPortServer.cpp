@@ -12,7 +12,7 @@
 namespace WebView {
 
 MachPortServer::MachPortServer()
-    : m_thread(Threading::Thread::construct([this]() -> intptr_t { thread_loop(); return 0; }, "MachPortServer"sv))
+    : m_thread(Threading::Thread::construct([this]() -> intptr_t { thread_loop(); return 0; }, "MachPortServer"_sv))
     , m_server_port_name(ByteString::formatted("org.ladybird.Ladybird.helper.{}", getpid()))
 {
     if (auto err = allocate_server_port(); err.is_error())

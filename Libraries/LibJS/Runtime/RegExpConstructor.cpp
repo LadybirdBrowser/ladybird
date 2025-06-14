@@ -183,7 +183,7 @@ static String encode_for_regexp_escape(u32 code_point)
 
     // 3. Let otherPunctuators be the string-concatenation of ",-=<>#&!%:;@~'`" and the code unit 0x0022 (QUOTATION MARK).
     // 4. Let toEscape be StringToCodePoints(otherPunctuators).
-    static constexpr Utf8View to_escape { ",-=<>#&!%:;@~'`\""sv };
+    static constexpr Utf8View to_escape { ",-=<>#&!%:;@~'`\""_sv };
 
     // 5. If toEscape contains c, c is matched by either WhiteSpace or LineTerminator, or c has the same numeric value
     //    as a leading surrogate or trailing surrogate, then

@@ -145,12 +145,12 @@ bool is_valid_local_date_and_time_string(StringView value)
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-normalised-local-date-and-time-string
 String normalize_local_date_and_time_string(String const& value)
 {
-    if (auto spaces = value.count(" "sv); spaces > 0) {
+    if (auto spaces = value.count(" "_sv); spaces > 0) {
         VERIFY(spaces == 1);
-        return MUST(value.replace(" "sv, "T"sv, ReplaceMode::FirstOnly));
+        return MUST(value.replace(" "_sv, "T"_sv, ReplaceMode::FirstOnly));
     }
 
-    VERIFY(value.count("T"sv) == 1);
+    VERIFY(value.count("T"_sv) == 1);
     return value;
 }
 
@@ -440,7 +440,7 @@ static Optional<HourMinuteSecond> parse_a_time_component(GenericLexer& input)
             return {};
         if (second_string.length() > 3 && second_string[2] != '.')
             return {};
-        if (second_string.find_all("."sv).size() > 1)
+        if (second_string.find_all("."_sv).size() > 1)
             return {};
         // Otherwise, interpret the resulting sequence as a base-ten number (possibly with a fractional part). Set second
         // to that number.
@@ -468,11 +468,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Strin
     // 3. Parse a time component to obtain hour, minute, and second. If this returns nothing, then fail.
     auto hour_minute_second = parse_a_time_component(input);
     if (!hour_minute_second.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"_sv };
 
     // 4. If position is not beyond the end of input, then fail.
     if (!input.is_eof())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"_sv };
 
     // 5. Let time be the time with hour hour, minute minute, and second second.
     // 6. Return time.
