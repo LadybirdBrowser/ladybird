@@ -119,6 +119,10 @@ find_package(harfbuzz REQUIRED)
 target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
             WebP::webpdemux WebP::libwebpmux skia harfbuzz)
 
+if (HAS_FONTCONFIG)
+    target_link_libraries(LibGfx PRIVATE Fontconfig::Fontconfig)
+endif()
+
 set(CMAKE_REQUIRED_LIBRARIES PNG::PNG)
 check_c_source_compiles([=[
     #include <png.h>
