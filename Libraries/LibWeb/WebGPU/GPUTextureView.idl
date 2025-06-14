@@ -1,0 +1,5 @@
+// https://www.w3.org/TR/webgpu/#gputextureview
+[Exposed=(Window, Worker), SecureContext]
+interface GPUTextureView {
+
+};
