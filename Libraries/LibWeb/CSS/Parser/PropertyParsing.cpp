@@ -1852,26 +1852,16 @@ RefPtr<CSSStyleValue const> Parser::parse_single_shadow_value(TokenStream<Compon
         return nullptr;
     }
 
-    // If color is absent, default to `currentColor`
-    if (!color)
-        color = CSSKeywordValue::create(Keyword::Currentcolor);
-
     // x/y offsets are required
     if (!offset_x || !offset_y)
         return nullptr;
-
-    // Other lengths default to 0
-    if (!blur_radius)
-        blur_radius = LengthStyleValue::create(Length::make_px(0));
-    if (!spread_distance)
-        spread_distance = LengthStyleValue::create(Length::make_px(0));
 
     // Placement is outer by default
     if (!placement.has_value())
         placement = ShadowPlacement::Outer;
 
     transaction.commit();
-    return ShadowStyleValue::create(color.release_nonnull(), offset_x.release_nonnull(), offset_y.release_nonnull(), blur_radius.release_nonnull(), spread_distance.release_nonnull(), placement.release_value());
+    return ShadowStyleValue::create(color, offset_x.release_nonnull(), offset_y.release_nonnull(), blur_radius, spread_distance, placement.release_value());
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>& tokens)
