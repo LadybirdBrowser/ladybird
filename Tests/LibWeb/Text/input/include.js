@@ -119,6 +119,9 @@ class HTTPTestServer {
         }
         return `${this.baseURL}${path}`;
     }
+    getWebsocketEchoURL() {
+        return `${this.baseURL.replace("http", "ws")}/ws`;
+    }
     getStaticURL(path) {
         return `${this.baseURL}/static/${path}`;
     }
