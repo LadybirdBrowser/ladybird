@@ -68,7 +68,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
 };
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-interface
-class Navigation : public DOM::EventTarget {
+class Navigation final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(Navigation, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Navigation);
 

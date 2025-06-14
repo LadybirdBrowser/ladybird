@@ -16,7 +16,7 @@
 namespace Web::FileAPI {
 
 // https://w3c.github.io/FileAPI/#dfn-filereader
-class FileReader : public DOM::EventTarget {
+class FileReader final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(FileReader, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(FileReader);
 

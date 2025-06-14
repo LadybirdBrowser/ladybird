@@ -18,7 +18,7 @@ struct DocumentTimelineOptions {
 };
 
 // https://www.w3.org/TR/web-animations-1/#the-documenttimeline-interface
-class DocumentTimeline : public AnimationTimeline {
+class DocumentTimeline final : public AnimationTimeline {
     WEB_PLATFORM_OBJECT(DocumentTimeline, AnimationTimeline);
     GC_DECLARE_ALLOCATOR(DocumentTimeline);
 

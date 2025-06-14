@@ -73,6 +73,8 @@ static constexpr StringView icu_list_format_field_to_string(i32 field)
     VERIFY_NOT_REACHED();
 }
 
+namespace {
+
 class ListFormatImpl : public ListFormat {
 public:
     ListFormatImpl(NonnullOwnPtr<icu::ListFormatter> formatter)
@@ -140,6 +142,8 @@ private:
 
     NonnullOwnPtr<icu::ListFormatter> m_formatter;
 };
+
+}
 
 NonnullOwnPtr<ListFormat> ListFormat::create(StringView locale, ListFormatType type, Style style)
 {

@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class CollatorCompareFunction : public NativeFunction {
+class CollatorCompareFunction final : public NativeFunction {
     JS_OBJECT(CollatorCompareFunction, NativeFunction);
     GC_DECLARE_ALLOCATOR(CollatorCompareFunction);
 
