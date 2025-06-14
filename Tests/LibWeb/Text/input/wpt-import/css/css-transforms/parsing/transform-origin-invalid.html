@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 1: parsing transform-origin with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-origin-property">
+<meta name="assert" content="transform-origin supports only the grammar from spec.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("transform-origin", "1px 2px 3%");
+test_invalid_value("transform-origin", "1px 2px left");
+test_invalid_value("transform-origin", "1px 2px 3px 4px");
+test_invalid_value("transform-origin", "1px left");
+test_invalid_value("transform-origin", "top 1px"); // Blink fails.
+test_invalid_value("transform-origin", "right left");
+test_invalid_value("transform-origin", "top bottom");
+
+test_invalid_value("transform-origin", "bottom 10% right 20%");
+test_invalid_value("transform-origin", "right 30% top -60px");
+test_invalid_value("transform-origin", "right 20px bottom 30px");
+</script>
+</body>
+</html>

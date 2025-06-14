@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 1: parsing transform-origin with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-origin-property">
+<meta name="assert" content="transform-origin supports the full grammar from spec.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("transform-origin", "left", ["left center 0px", "left 50% 0px", "left center"]);
+test_valid_value("transform-origin", "center", ["center center 0px", "center 50% 0px", "center center"]);
+test_valid_value("transform-origin", "right", ["right center 0px", "right 50% 0px", "right center"]);
+test_valid_value("transform-origin", "top", ["center top 0px", "50% top 0px", "center top"]);
+test_valid_value("transform-origin", "bottom", ["center bottom 0px", "50% bottom 0px", "center bottom"]);
+test_valid_value("transform-origin", "-1px", ["-1px center 0px", "-1px 50% 0px", "-1px center"]);
+test_valid_value("transform-origin", "calc(2em + 3ex)", ["calc(2em + 3ex) center 0px", "calc(2em + 3ex) 50% 0px", "calc(2em + 3ex) center"]);
+test_valid_value("transform-origin", "-4%", ["-4% center 0px", "-4% 50% 0px", "-4% center"]);
+
+test_valid_value("transform-origin", "left center", ["left center 0px", "left center"]);
+test_valid_value("transform-origin", "center top", ["center top 0px", "center top"]);
+test_valid_value("transform-origin", "right -4%", ["right -4% 0px", "right -4%"]);
+test_valid_value("transform-origin", "-1px bottom 5px");
+
+test_valid_value("transform-origin", "center left 6px", "left center 6px");
+test_valid_value("transform-origin", "top center", ["center top 0px", "center top"]);
+test_valid_value("transform-origin", "bottom right 7px", "right bottom 7px");
+test_valid_value("transform-origin", "-1px -2px -3px");
+</script>
+</body>
+</html>

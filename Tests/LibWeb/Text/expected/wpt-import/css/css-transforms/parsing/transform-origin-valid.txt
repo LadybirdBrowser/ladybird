@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	e.style['transform-origin'] = "left" should set the property value
+Pass	e.style['transform-origin'] = "center" should set the property value
+Pass	e.style['transform-origin'] = "right" should set the property value
+Pass	e.style['transform-origin'] = "top" should set the property value
+Pass	e.style['transform-origin'] = "bottom" should set the property value
+Pass	e.style['transform-origin'] = "-1px" should set the property value
+Pass	e.style['transform-origin'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['transform-origin'] = "-4%" should set the property value
+Pass	e.style['transform-origin'] = "left center" should set the property value
+Pass	e.style['transform-origin'] = "center top" should set the property value
+Pass	e.style['transform-origin'] = "right -4%" should set the property value
+Pass	e.style['transform-origin'] = "-1px bottom 5px" should set the property value
+Pass	e.style['transform-origin'] = "center left 6px" should set the property value
+Pass	e.style['transform-origin'] = "top center" should set the property value
+Pass	e.style['transform-origin'] = "bottom right 7px" should set the property value
+Pass	e.style['transform-origin'] = "-1px -2px -3px" should set the property value

@@ -354,6 +354,7 @@ struct WhiteSpaceTrimData {
 struct TransformOrigin {
     CSS::LengthPercentage x { Percentage(50) };
     CSS::LengthPercentage y { Percentage(50) };
+    CSS::LengthPercentage z { Percentage(0) };
 };
 
 struct ShadowData {
