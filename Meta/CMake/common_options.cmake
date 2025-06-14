@@ -1,16 +1,16 @@
 # Make relative paths in depfiles be relative to CMAKE_CURRENT_BINARY_DIR rather than to CMAKE_BINARY_DIR
-if (POLICY CMP0116)
+if(POLICY CMP0116)
     cmake_policy(SET CMP0116 NEW)
 endif()
 
 # Enable better flags for configuring swift compilation mode
-if (POLICY CMP0157)
-   cmake_policy(SET CMP0157 NEW)
-   set(CMAKE_Swift_COMPILATION_MODE "$<IF:$<CONFIG:Release>,wholemodule,incremental>")
+if(POLICY CMP0157)
+    cmake_policy(SET CMP0157 NEW)
+    set(CMAKE_Swift_COMPILATION_MODE "$<IF:$<CONFIG:Release>,wholemodule,incremental>")
 endif()
 
 # Check arguments to return()
-if (POLICY CMP0140)
+if(POLICY CMP0140)
     cmake_policy(SET CMP0140 NEW)
 endif()
 
@@ -41,31 +41,37 @@ serenity_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
 serenity_option(ENABLE_STD_STACKTRACE OFF CACHE BOOL "Force use of std::stacktrace instead of libbacktrace. If it is not supported the build will fail")
 serenity_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets supported on Windows for CI")
 
-if (ENABLE_FUZZERS_LIBFUZZER)
+if(ENABLE_FUZZERS_LIBFUZZER)
     # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING "Type of target to use for try_compile()" FORCE)
 endif()
 
-if (ENABLE_SWIFT)
+if(ENABLE_SWIFT)
     include(${CMAKE_CURRENT_LIST_DIR}/Swift/swift-settings.cmake)
 endif()
 
 include(CheckCXXSourceCompiles)
 set(BLOCKS_REQUIRED_LIBRARIES "")
-if (NOT APPLE)
+if(NOT APPLE)
     find_package(BlocksRuntime)
-    if (BlocksRuntime_FOUND)
+    if(BlocksRuntime_FOUND)
         set(BLOCKS_REQUIRED_LIBRARIES BlocksRuntime::BlocksRuntime)
         set(CMAKE_REQUIRED_LIBRARIES BlocksRuntime::BlocksRuntime)
     endif()
 endif()
-check_cxx_source_compiles([=[
+check_cxx_source_compiles(
+    [=[
     int main() { __block int x = 0; auto b = ^{++x;}; b(); }
-]=] CXX_COMPILER_SUPPORTS_BLOCKS)
+]=]
+    CXX_COMPILER_SUPPORTS_BLOCKS
+)
 
 set(CMAKE_REQUIRED_FLAGS "-fobjc-arc")
-check_cxx_source_compiles([=[
+check_cxx_source_compiles(
+    [=[
     int main() { auto b = ^{}; auto __weak w = b; w(); }
-]=] CXX_COMPILER_SUPPORTS_OBJC_ARC)
+]=]
+    CXX_COMPILER_SUPPORTS_OBJC_ARC
+)
 unset(CMAKE_REQUIRED_FLAGS)
 unset(CMAKE_REQUIRED_LIBRARIES)

@@ -1,7 +1,4 @@
-set(FONTS
-    NotoEmoji.ttf
-    SerenitySans-Regular.ttf
-)
+set(FONTS NotoEmoji.ttf SerenitySans-Regular.ttf)
 list(TRANSFORM FONTS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/fonts/")
 
 set(16x16_ICONS
@@ -37,41 +34,20 @@ set(16x16_ICONS
     zoom-out.png
     zoom-reset.png
 )
-set(32x32_ICONS
-    app-system-monitor.png
-    filetype-folder.png
-    filetype-unknown.png
-)
-set(48x48_ICONS
-    app-browser.png
-)
-set(128x128_ICONS
-    app-browser.png
-    app-browser-dark.png
-)
-set(BROWSER_ICONS
-    clear-cache.png
-    cookie.png
-    dom-tree.png
-    local-storage.png
-)
+set(32x32_ICONS app-system-monitor.png filetype-folder.png filetype-unknown.png)
+set(48x48_ICONS app-browser.png)
+set(128x128_ICONS app-browser.png app-browser-dark.png)
+set(BROWSER_ICONS clear-cache.png cookie.png dom-tree.png local-storage.png)
 list(TRANSFORM 16x16_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/16x16/")
 list(TRANSFORM 32x32_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/32x32/")
 list(TRANSFORM 48x48_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/48x48/")
 list(TRANSFORM 128x128_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/128x128/")
 list(TRANSFORM BROWSER_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/browser/")
 
-set(INTERNAL_RESOURCES
-    ladybird.css
-)
+set(INTERNAL_RESOURCES ladybird.css)
 list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/")
 
-set(ABOUT_PAGES
-    about.html
-    newtab.html
-    processes.html
-    settings.html
-)
+set(ABOUT_PAGES about.html newtab.html processes.html settings.html)
 list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
 
 set(ABOUT_SETTINGS_RESOURCES
@@ -84,40 +60,28 @@ set(ABOUT_SETTINGS_RESOURCES
 )
 list(TRANSFORM ABOUT_SETTINGS_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/settings/")
 
-set(WEB_TEMPLATES
-    directory.html
-    error.html
-    version.html
-)
+set(WEB_TEMPLATES directory.html error.html version.html)
 list(TRANSFORM WEB_TEMPLATES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/templates/")
 
-set(THEMES
-    Default.ini
-    Dark.ini
-)
+set(THEMES Default.ini Dark.ini)
 list(TRANSFORM THEMES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/themes/")
 
-set(CONFIG_RESOURCES
-    bookmarks.json
-    BrowserContentFilters.txt
-)
+set(CONFIG_RESOURCES bookmarks.json BrowserContentFilters.txt)
 list(TRANSFORM CONFIG_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/default-config/")
 
-set(DOWNLOADED_RESOURCES
-    cacert.pem
-)
+set(DOWNLOADED_RESOURCES cacert.pem)
 list(TRANSFORM DOWNLOADED_RESOURCES PREPEND "${Lagom_BINARY_DIR}/")
 
 function(copy_resource_set subdir)
     cmake_parse_arguments(PARSE_ARGV 1 "COPY" "" "TARGET;DESTINATION" "RESOURCES")
     set(inputs ${COPY_RESOURCES})
 
-    if (APPLE)
+    if(APPLE)
         target_sources(${COPY_TARGET} PRIVATE ${inputs})
         set_source_files_properties(${inputs} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/${subdir}")
     else()
         set(outputs "")
-        foreach (input IN LISTS inputs)
+        foreach(input IN LISTS inputs)
             get_filename_component(input_name "${input}" NAME)
             list(APPEND outputs "${COPY_DESTINATION}/${subdir}/${input_name}")
         endforeach()
@@ -132,7 +96,7 @@ function(copy_resource_set subdir)
         )
         string(REPLACE "/" "_" subdir_underscores "${subdir}")
         set(target_name "copy_${subdir_underscores}_resources_to_build")
-        while (TARGET ${target_name})
+        while(TARGET ${target_name})
             set(target_name "${target_name}_")
         endwhile()
         add_custom_target(${target_name} DEPENDS ${outputs})

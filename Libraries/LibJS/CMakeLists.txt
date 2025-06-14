@@ -268,7 +268,10 @@ set(SOURCES
 )
 
 serenity_lib(LibJS js)
-target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC)
+target_link_libraries(
+    LibJS
+    PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC
+)
 
 # Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
 target_link_libraries(LibJS PUBLIC LibUnicode)
@@ -278,7 +281,7 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "i.86.*")
     target_link_libraries(LibJS PRIVATE atomic)
 endif()
 
-if (WIN32)
+if(WIN32)
     # FIXME: Windows on ARM
     target_link_libraries(LibJS PRIVATE clang_rt.builtins-x86_64.lib)
     # FIXME: This is a hack to get around lld-link error undefined symbol GC::HeapBlockBase::block_size

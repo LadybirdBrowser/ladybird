@@ -93,19 +93,19 @@ function(third_party_from_pkgconfig gn_group)
     foreach(config IN ITEMS DEBUG RELEASE)
         separate_arguments(cflags UNIX_COMMAND "${PC_${module}_CFLAGS_${config}}")
         set(defines "${cflags}")
-        list(FILTER defines INCLUDE REGEX "^-D" )
+        list(FILTER defines INCLUDE REGEX "^-D")
         list(TRANSFORM defines REPLACE "^-D" "")
         list(APPEND defines ${arg_DEFINES})
         set(include_dirs "${cflags}")
-        list(FILTER include_dirs INCLUDE REGEX "^-I" )
+        list(FILTER include_dirs INCLUDE REGEX "^-I")
         list(TRANSFORM include_dirs REPLACE "^-I" "")
         separate_arguments(libs UNIX_COMMAND "${PC_${module}_LIBS_${config}}")
         set(lib_dirs "${libs}")
-        list(FILTER lib_dirs INCLUDE REGEX "^-L" )
+        list(FILTER lib_dirs INCLUDE REGEX "^-L")
         list(TRANSFORM lib_dirs REPLACE "^-L" "")
         # Passing link libraries via ldflags, cf. third-party.gn.in
         set(ldflags "${libs}")
-        list(FILTER ldflags INCLUDE REGEX "^-l" )
+        list(FILTER ldflags INCLUDE REGEX "^-l")
         if(VCPKG_TARGET_IS_WINDOWS AND NOT VCPKG_TARGET_IS_MINGW)
             list(TRANSFORM ldflags REPLACE "^-l" "")
             list(TRANSFORM ldflags APPEND ".lib")
@@ -318,7 +318,10 @@ endfunction()
 function(skia_gn_install_build_type)
     cmake_parse_arguments(PARSE_ARGV 0 "arg" "" "BUILD_TYPE;SOURCE_PATH;INSTALL_DIR;LABEL" "TARGETS")
     if(DEFINED arg_UNPARSED_ARGUMENTS)
-        message(FATAL_ERROR "Internal error: skia_gn_install_build_type was passed extra arguments: ${arg_UNPARSED_ARGUMENTS}")
+        message(
+            FATAL_ERROR
+            "Internal error: skia_gn_install_build_type was passed extra arguments: ${arg_UNPARSED_ARGUMENTS}"
+        )
     endif()
 
     set(build_dir "${CURRENT_BUILDTREES_DIR}/${arg_LABEL}")
@@ -416,14 +419,34 @@ function(skia_gn_install_build_type)
             endif()
         endforeach()
         file(APPEND "${logfile}" "Installing: ${arg_INSTALL_DIR}/share/unofficial-${PORT}/${basename}-targets.cmake\n")
-        configure_file("${CMAKE_CURRENT_LIST_DIR}/unofficial-${PORT}-targets.cmake" "${arg_INSTALL_DIR}/share/unofficial-${PORT}/${basename}-targets.cmake" @ONLY)
-        file(APPEND "${logfile}" "Installing: ${arg_INSTALL_DIR}/share/unofficial-${PORT}/${basename}-targets-${arg_BUILD_TYPE}.cmake\n")
-        configure_file("${CMAKE_CURRENT_LIST_DIR}/unofficial-${PORT}-targets-details.cmake" "${arg_INSTALL_DIR}/share/unofficial-${PORT}/${basename}-targets-${arg_BUILD_TYPE}.cmake" @ONLY)
+        configure_file(
+            "${CMAKE_CURRENT_LIST_DIR}/unofficial-${PORT}-targets.cmake"
+            "${arg_INSTALL_DIR}/share/unofficial-${PORT}/${basename}-targets.cmake"
+            @ONLY
+        )
+        file(
+            APPEND
+            "${logfile}"
+            "Installing: ${arg_INSTALL_DIR}/share/unofficial-${PORT}/${basename}-targets-${arg_BUILD_TYPE}.cmake\n"
+        )
+        configure_file(
+            "${CMAKE_CURRENT_LIST_DIR}/unofficial-${PORT}-targets-details.cmake"
+            "${arg_INSTALL_DIR}/share/unofficial-${PORT}/${basename}-targets-${arg_BUILD_TYPE}.cmake"
+            @ONLY
+        )
     endforeach()
 
     # Main CMake config file
-    file(APPEND "${logfile}" "Installing: ${arg_INSTALL_DIR}/share/unofficial-${PORT}/unofficial-${PORT}-config.cmake\n")
-    configure_file("${CMAKE_CURRENT_LIST_DIR}/unofficial-${PORT}-config.cmake" "${arg_INSTALL_DIR}/share/unofficial-${PORT}/unofficial-${PORT}-config.cmake" @ONLY)
+    file(
+        APPEND
+        "${logfile}"
+        "Installing: ${arg_INSTALL_DIR}/share/unofficial-${PORT}/unofficial-${PORT}-config.cmake\n"
+    )
+    configure_file(
+        "${CMAKE_CURRENT_LIST_DIR}/unofficial-${PORT}-config.cmake"
+        "${arg_INSTALL_DIR}/share/unofficial-${PORT}/unofficial-${PORT}-config.cmake"
+        @ONLY
+    )
 endfunction()
 
 # A revised variant of vcpkg_gn_install
