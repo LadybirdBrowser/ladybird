@@ -52,10 +52,9 @@ Result Configuration::execute(Interpreter& interpreter)
     if (interpreter.did_trap())
         return interpreter.trap();
 
-    Vector<Value> results;
-    results.ensure_capacity(frame().arity());
-    for (size_t i = 0; i < frame().arity(); ++i)
-        results.unchecked_append(value_stack().take_last());
+    Vector<Value> results { value_stack().span().slice_from_end(frame().arity()) };
+    value_stack().shrink(value_stack().size() - results.size(), true);
+    results.reverse();
 
     label_stack().take_last();
     return Result { move(results) };
