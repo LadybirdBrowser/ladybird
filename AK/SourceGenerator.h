@@ -66,6 +66,8 @@ public:
         return result.release_value();
     }
 
+    MappingType const& mapping() const { return m_mapping; }
+
     StringView as_string_view() const { return m_builder.string_view(); }
 
     void append(StringView pattern)

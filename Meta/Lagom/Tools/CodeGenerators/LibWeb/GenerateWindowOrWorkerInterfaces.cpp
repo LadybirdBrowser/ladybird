@@ -10,6 +10,7 @@
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
+#include <LibIDL/ExposedTo.h>
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
 #include <LibMain/Main.h>
@@ -433,105 +434,29 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     return 0;
 }
 
-enum ExposedTo {
-    Nobody = 0x0,
-    DedicatedWorker = 0x1,
-    SharedWorker = 0x2,
-    ServiceWorker = 0x4,
-    AudioWorklet = 0x8,
-    Window = 0x10,
-    ShadowRealm = 0x20,
-    Worklet = 0x40,
-    AllWorkers = DedicatedWorker | SharedWorker | ServiceWorker | AudioWorklet, // FIXME: Is "AudioWorklet" a Worker? We'll assume it is for now (here, and line below)
-    All = AllWorkers | Window | ShadowRealm | Worklet,
-};
-AK_ENUM_BITWISE_OPERATORS(ExposedTo);
-
-static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
+ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed, Vector<IDL::Interface&>& shadow_realm_exposed)
 {
-    // NOTE: This roughly follows the definitions of https://webidl.spec.whatwg.org/#Exposed
-    //       It does not remotely interpret all the abstract operations therein though.
+    // TODO: Add service worker exposed and audio worklet exposed
 
     auto maybe_exposed = interface.extended_attributes.get("Exposed");
     if (!maybe_exposed.has_value()) {
         s_error_string = ByteString::formatted("Interface {} is missing extended attribute Exposed", interface.name);
         return Error::from_string_view(s_error_string.view());
     }
-    auto exposed = maybe_exposed.value().trim_whitespace();
-    if (exposed == "*"sv)
-        return ExposedTo::All;
-    if (exposed == "Nobody"sv)
-        return ExposedTo::Nobody;
-    if (exposed == "Window"sv)
-        return ExposedTo::Window;
-    if (exposed == "Worker"sv)
-        return ExposedTo::AllWorkers;
-    if (exposed == "DedicatedWorker"sv)
-        return ExposedTo::DedicatedWorker;
-    if (exposed == "SharedWorker"sv)
-        return ExposedTo::SharedWorker;
-    if (exposed == "ServiceWorker"sv)
-        return ExposedTo::ServiceWorker;
-    if (exposed == "AudioWorklet"sv)
-        return ExposedTo::AudioWorklet;
-    if (exposed == "Worklet"sv)
-        return ExposedTo::Worklet;
-    if (exposed == "ShadowRealm"sv)
-        return ExposedTo::ShadowRealm;
-
-    if (exposed[0] == '(') {
-        ExposedTo whom = Nobody;
-        for (StringView candidate : exposed.substring_view(1, exposed.length() - 1).split_view(',')) {
-            candidate = candidate.trim_whitespace();
-            if (candidate == "Window"sv) {
-                whom |= ExposedTo::Window;
-            } else if (candidate == "Worker"sv) {
-                whom |= ExposedTo::AllWorkers;
-            } else if (candidate == "DedicatedWorker"sv) {
-                whom |= ExposedTo::DedicatedWorker;
-            } else if (candidate == "SharedWorker"sv) {
-                whom |= ExposedTo::SharedWorker;
-            } else if (candidate == "ServiceWorker"sv) {
-                whom |= ExposedTo::ServiceWorker;
-            } else if (candidate == "AudioWorklet"sv) {
-                whom |= ExposedTo::AudioWorklet;
-            } else if (candidate == "Worklet"sv) {
-                whom |= ExposedTo::Worklet;
-            } else if (candidate == "ShadowRealm"sv) {
-                whom |= ExposedTo::ShadowRealm;
-            } else {
-                s_error_string = ByteString::formatted("Unknown Exposed attribute candidate {} in {} in {}", candidate, exposed, interface.name);
-                return Error::from_string_view(s_error_string.view());
-            }
-        }
-        if (whom == ExposedTo::Nobody) {
-            s_error_string = ByteString::formatted("Unknown Exposed attribute {} in {}", exposed, interface.name);
-            return Error::from_string_view(s_error_string.view());
-        }
-        return whom;
-    }
-
-    s_error_string = ByteString::formatted("Unknown Exposed attribute {} in {}", exposed, interface.name);
-    return Error::from_string_view(s_error_string.view());
-}
-
-ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed, Vector<IDL::Interface&>& shadow_realm_exposed)
-{
-    // TODO: Add service worker exposed and audio worklet exposed
-    auto whom = TRY(parse_exposure_set(interface));
+    auto whom = TRY(IDL::parse_exposure_set(interface.name, *maybe_exposed));
 
     intrinsics.append(interface);
 
-    if (whom & ExposedTo::Window)
+    if (whom & IDL::ExposedTo::Window)
         window_exposed.append(interface);
 
-    if (whom & ExposedTo::DedicatedWorker)
+    if (whom & IDL::ExposedTo::DedicatedWorker)
         dedicated_worker_exposed.append(interface);
 
-    if (whom & ExposedTo::SharedWorker)
+    if (whom & IDL::ExposedTo::SharedWorker)
         shared_worker_exposed.append(interface);
 
-    if (whom & ExposedTo::ShadowRealm)
+    if (whom & IDL::ExposedTo::ShadowRealm)
         shadow_realm_exposed.append(interface);
 
     return {};
