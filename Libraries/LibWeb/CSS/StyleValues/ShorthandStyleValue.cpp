@@ -8,6 +8,7 @@
 #include "ShorthandStyleValue.h"
 #include <LibGfx/Font/FontWeight.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
@@ -43,23 +44,29 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     // If all the longhands are the same CSS-wide keyword, just return that once.
     Optional<Keyword> built_in_keyword;
     bool all_same_keyword = true;
-    for (auto& value : m_properties.values) {
-        if (!value->is_css_wide_keyword()) {
+    StyleComputer::for_each_property_expanding_shorthands(m_properties.shorthand_property, *this, [&](PropertyID name, CSSStyleValue const& value) {
+        (void)name;
+        if (!value.is_css_wide_keyword()) {
             all_same_keyword = false;
-            break;
+            return;
         }
-        auto keyword = value->to_keyword();
+        auto keyword = value.to_keyword();
         if (!built_in_keyword.has_value()) {
             built_in_keyword = keyword;
-            continue;
+            return;
         }
         if (built_in_keyword != keyword) {
             all_same_keyword = false;
-            break;
+            return;
         }
+    });
+
+    if (built_in_keyword.has_value()) {
+        if (all_same_keyword)
+            return MUST(String::from_utf8(string_from_keyword(built_in_keyword.value())));
+
+        return ""_string;
     }
-    if (all_same_keyword && built_in_keyword.has_value())
-        return m_properties.values.first()->to_string(mode);
 
     auto default_to_string = [&]() {
         auto all_properties_same_value = true;
@@ -375,6 +382,9 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto& areas = longhand(PropertyID::GridTemplateAreas)->as_grid_template_area();
         auto& rows = longhand(PropertyID::GridTemplateRows)->as_grid_track_size_list();
         auto& columns = longhand(PropertyID::GridTemplateColumns)->as_grid_track_size_list();
+
+        if (areas.grid_template_area().size() == 0 && rows.grid_track_size_list().track_list().size() == 0 && columns.grid_track_size_list().track_list().size() == 0)
+            return "none"_string;
 
         auto construct_rows_string = [&]() {
             StringBuilder builder;

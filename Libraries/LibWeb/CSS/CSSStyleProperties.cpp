@@ -479,6 +479,9 @@ static Optional<StyleProperty> style_property_for_sided_shorthand(PropertyID pro
     bool const top_and_bottom_same = top_value == bottom_value;
     bool const left_and_right_same = left_value == right_value;
 
+    if ((top_value->is_css_wide_keyword() || right_value->is_css_wide_keyword() || bottom_value->is_css_wide_keyword() || left_value->is_css_wide_keyword()) && (!top_and_bottom_same || !left_and_right_same || top_value != left_value))
+        return {};
+
     RefPtr<CSSStyleValue const> value;
 
     if (top_and_bottom_same && left_and_right_same && top_value == left_value) {
@@ -1187,6 +1190,21 @@ String CSSStyleProperties::serialized() const
     // 2. Let already serialized be an empty array.
     HashTable<PropertyID> already_serialized;
 
+    Function<void(PropertyID)> append_property_to_already_serialized = [&](auto property) {
+        already_serialized.set(property);
+
+        // AD-HOC: The spec assumes that we only store values against expanded longhands, there are however limited
+        //         circumstances where we store against shorthands directly in addition to the expanded longhands. For
+        //         example if the value of the shorthand is unresolved we store an UnresolvedStyleValue against the
+        //         shorthand directly and a PendingSubstitutionStyleValue against each of the longhands. In the case we
+        //         serialize a shorthand directly we should also mark it's longhands as serialized to avoid serializing
+        //         them separately.
+        if (property_is_shorthand(property)) {
+            for (auto longhand : longhands_for_shorthand(property))
+                append_property_to_already_serialized(longhand);
+        }
+    };
+
     // NB: The spec treats custom properties the same as any other property, and expects the above loop to handle them.
     //       However, our implementation separates them from regular properties, so we need to handle them separately here.
     // FIXME: Is the relative order of custom properties and regular properties supposed to be preserved?
@@ -1239,9 +1257,7 @@ String CSSStyleProperties::serialized() const
                 Vector<StyleProperty> longhands;
 
                 for (auto const& longhand_declaration : m_properties) {
-                    // FIXME: Some of the ad-hoc ShorthandStyleValue::to_string cases don't account for the possibility
-                    //        of subproperty values pending substitution, to avoid crashing we don't include those here
-                    if (!already_serialized.contains(longhand_declaration.property_id) && shorthands_for_longhand(longhand_declaration.property_id).contains_slow(shorthand) && !longhand_declaration.value->is_pending_substitution())
+                    if (!already_serialized.contains(longhand_declaration.property_id) && shorthands_for_longhand(longhand_declaration.property_id).contains_slow(shorthand))
                         longhands.append(longhand_declaration);
                 }
 
@@ -1294,7 +1310,7 @@ String CSSStyleProperties::serialized() const
 
                 // 11. Append the property names of all items of current longhands to already serialized.
                 for (auto const& longhand : current_longhands)
-                    already_serialized.set(longhand.property_id);
+                    append_property_to_already_serialized(longhand.property_id);
 
                 // 12. Continue with the steps labeled declaration loop.
             }
@@ -1313,7 +1329,7 @@ String CSSStyleProperties::serialized() const
             list.append(move(serialized_declaration));
 
             // 8. Append property to already serialized.
-            already_serialized.set(property);
+            append_property_to_already_serialized(declaration.property_id);
         }
     }
 
