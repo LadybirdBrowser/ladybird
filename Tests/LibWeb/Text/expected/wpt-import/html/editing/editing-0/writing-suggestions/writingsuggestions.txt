@@ -1,0 +1,85 @@
+Harness status: OK
+
+Found 80 tests
+
+80 Pass
+Pass	Test that the writingsuggestions attribute is available on HTMLInputElement.
+Pass	Test that the writingsuggestions attribute is available on HTMLTextAreaElement.
+Pass	Test that the writingsuggestions attribute is available on HTMLDivElement.
+Pass	Test that the writingsuggestions attribute is available on HTMLSpanElement.
+Pass	Test that the writingsuggestions attribute is available on custom elements.
+Pass	Test that the writingsuggestions attribute is available on an input type which the attribute doesn't apply. The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test that the writingsuggestions attribute is available on a disabled element. The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test setting the `writingsuggestions` IDL attribute to `true` directly on the target element.
+Pass	Test setting the `writingsuggestions` content attribute to `true` directly on the target element.
+Pass	Test setting the `writingsuggestions` IDL attribute to boolean `true` directly on the target element.
+Pass	Test setting the `writingsuggestions` content attribute to boolean `true` directly on the target element.
+Pass	Test setting the `writingsuggestions` IDL attribute to `TrUe` directly on the target element.
+Pass	Test setting the `writingsuggestions` content attribute to `TrUe` directly on the target element.
+Pass	Test setting the `writingsuggestions` IDL attribute to `false` directly on the target element.
+Pass	Test setting the `writingsuggestions` content attribute to `false` directly on the target element.
+Pass	Test setting the `writingsuggestions` IDL attribute to boolean `false` directly on the target element.
+Pass	Test setting the `writingsuggestions` content attribute to boolean `false` directly on the target element.
+Pass	Test setting the `writingsuggestions` IDL attribute to `FaLsE` directly on the target element.
+Pass	Test setting the `writingsuggestions` content attribute to `FaLsE` directly on the target element.
+Pass	Test setting the `writingsuggestions` IDL attribute to the empty string directly on the target element.
+Pass	Test setting the `writingsuggestions` content attribute to the empty string directly on the target element.
+Pass	Test setting the `writingsuggestions` IDL attribute to an invalid value directly on the target element.
+Pass	Test setting the `writingsuggestions` content attribute to an invalid value directly on the target element.
+Pass	Test the writing suggestions state when the `writingsuggestions` attribute is missing.
+Pass	Test setting the `writingsuggestions` content attribute to `false` after the IDL attribute was set to `true`.
+Pass	Test setting the `writingsuggestions` content attribute to the empty string after the IDL attribute was set to `true`.
+Pass	Test setting the `writingsuggestions` content attribute to an invalid value after the IDL attribute was set to `true`.
+Pass	Test setting the `writingsuggestions` content attribute to `TrUe` after the IDL attribute was set to `true`.
+Pass	Test setting the `writingsuggestions` content attribute to `FaLsE` after the IDL attribute was set to `true`.
+Pass	Test setting the `writingsuggestions` content attribute to boolean `true` after the IDL attribute was set to `true`.
+Pass	Test setting the `writingsuggestions` content attribute to boolean `false` after the IDL attribute was set to `true`.
+Pass	Test setting the `writingsuggestions` content attribute to `true` after the IDL attribute was set to `false`.
+Pass	Test setting the `writingsuggestions` content attribute to the empty string after the IDL attribute was set to `false`.
+Pass	Test setting the `writingsuggestions` content attribute to an invalid value after the IDL attribute was set to `false`.
+Pass	Test setting the `writingsuggestions` content attribute to `TrUe` after the IDL attribute was set to `false`.
+Pass	Test setting the `writingsuggestions` content attribute to `FaLsE` after the IDL attribute was set to `false`.
+Pass	Test setting the `writingsuggestions` content attribute to boolean `true` after the IDL attribute was set to `false`.
+Pass	Test setting the `writingsuggestions` content attribute to boolean `false` after the IDL attribute was set to `false`.
+Pass	Test setting the `writingsuggestions` attribute with a missing value directly on the target element.
+Pass	Test setting the `writingsuggestions` attribute to "true" on a parent element.
+Pass	Test setting the `writingsuggestions` attribute to an empty string on a parent element.
+Pass	Test setting the `writingsuggestions` attribute to "false" on a parent element.
+Pass	Test setting the `writingsuggestions` attribute to an invalid value on a parent element.
+Pass	Test overriding the parent element's `writingsuggestions` attribute from "true" to "false".
+Pass	Test overriding the parent element's `writingsuggestions` attribute from the empty string to "false".
+Pass	Test overriding the parent element's `writingsuggestions` attribute from "false" to "true".
+Pass	Test overriding the parent element's `writingsuggestions` attribute from "false" to an invalid value.
+Pass	Test overriding the parent element's `writingsuggestions` attribute from "false" to the empty string.
+Pass	Test turning off writing suggestions for an entire document.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input element from "false" to "true".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a textarea element from "false" to "true".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a div element from "false" to "true".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a span element from "false" to "true".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input type which the attribute doesn't apply from "false" to "true". The User Agent is responsible that writing suggestions are not applied to the element
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a disabled textarea element from "false" to "true". The User Agent is responsible that writing suggestions are not applied to the element
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input element from "false" to the empty string.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a textarea element from "false" to the empty string.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a div element from "false" to the empty string.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a span element from "false" to the empty string.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input type which the attribute doesn't apply from "false" to the empty string. The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a disabled textarea element from "false" to the empty string. The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input element from "false" to an invalid value.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a textarea element from "false" to an invalid value.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a div element from "false" to an invalid value.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a span element from "false" to an invalid value.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input type which the attribute doesn't apply from "false" to an invalid value. The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a disabled textarea element from "false" to an invalid value. The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input element from "true" to "false".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a textarea element from "true" to "false".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a div element from "true" to "false".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a span element from "true" to "false".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input type which the attribute doesn't apply from "true" to "false". The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a disabled textarea element from "true" to "false". The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input element from the empty string to "false".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a textarea element from the empty string to "false".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a div element from the empty string to "false".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a span element from the empty string to "false".
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on an input type which the attribute doesn't apply from the empty string to "false". The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test overriding a non-parent ancestor element's `writingsuggestions` attribute on a disabled textarea element from the empty string to "false". The User Agent is responsible that writing suggestions are not applied to the element.
+Pass	Test that for continuous text on the screen, writing suggestions may be allowed in one part but not another.
