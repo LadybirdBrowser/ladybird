@@ -19,28 +19,28 @@ if(CMAKE_CXX_LINK_PIE_SUPPORTED)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
-if (LINUX)
+if(LINUX)
     add_cxx_compile_definitions(_FILE_OFFSET_BITS=64)
 endif()
 
-if (APPLE)
+if(APPLE)
     list(APPEND CMAKE_PREFIX_PATH /opt/homebrew)
 endif()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    if (NOT MSVC)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if(NOT MSVC)
         add_cxx_compile_options(-ggdb3)
     endif()
     add_cxx_compile_options(-Og)
-elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     add_cxx_compile_options(-O2)
-    if (NOT MSVC)
+    if(NOT MSVC)
         add_cxx_compile_options(-g1)
     endif()
 else()
     add_cxx_compile_options(-O3)
 
-    if (ENABLE_LTO_FOR_RELEASE)
+    if(ENABLE_LTO_FOR_RELEASE)
         include(CheckIPOSupported)
         check_ipo_supported(RESULT IPO_AVAILABLE OUTPUT output)
         if(IPO_AVAILABLE)
@@ -55,23 +55,31 @@ function(add_cxx_linker_flag_if_supported flag)
     include(CheckLinkerFlag)
 
     check_linker_flag(CXX ${flag} LAGOM_LINKER_SUPPORTS_${flag})
-    if (${LAGOM_LINKER_SUPPORTS_${flag}})
+    if(${LAGOM_LINKER_SUPPORTS_${flag}})
         add_cxx_link_options(${flag})
     endif()
 endfunction()
 
-if (NOT WIN32)
+if(NOT WIN32)
     add_cxx_linker_flag_if_supported(LINKER:--gdb-index)
 
-    if (NOT ENABLE_FUZZERS)
+    if(NOT ENABLE_FUZZERS)
         add_cxx_linker_flag_if_supported(LINKER:-Bsymbolic-non-weak-functions)
     endif()
 endif()
 
-if (NOT WIN32 AND NOT APPLE AND NOT ENABLE_FUZZERS)
+if(NOT WIN32 AND NOT APPLE AND NOT ENABLE_FUZZERS)
     # NOTE: Assume ELF
     # NOTE: --no-undefined is not compatible with clang sanitizer runtimes
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND (ENABLE_ADDRESS_SANITIZER OR ENABLE_MEMORY_SANITIZER OR ENABLE_UNDEFINED_SANITIZER OR ENABLE_LAGOM_COVERAGE_COLLECTION))
+    if(
+        CMAKE_CXX_COMPILER_ID MATCHES "Clang$"
+        AND (
+            ENABLE_ADDRESS_SANITIZER
+            OR ENABLE_MEMORY_SANITIZER
+            OR ENABLE_UNDEFINED_SANITIZER
+            OR ENABLE_LAGOM_COVERAGE_COLLECTION
+        )
+    )
         add_link_options(LINKER:--allow-shlib-undefined)
         add_link_options(LINKER:-z,undefs)
     else()
@@ -81,12 +89,11 @@ if (NOT WIN32 AND NOT APPLE AND NOT ENABLE_FUZZERS)
     endif()
 endif()
 
-if (ENABLE_LAGOM_COVERAGE_COLLECTION)
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND NOT ENABLE_FUZZERS)
+if(ENABLE_LAGOM_COVERAGE_COLLECTION)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND NOT ENABLE_FUZZERS)
         add_cxx_compile_options(-fprofile-instr-generate -fcoverage-mapping)
         add_cxx_link_options(-fprofile-instr-generate)
     else()
-        message(FATAL_ERROR
-            "Collecting code coverage is unsupported in this configuration.")
+        message(FATAL_ERROR "Collecting code coverage is unsupported in this configuration.")
     endif()
 endif()

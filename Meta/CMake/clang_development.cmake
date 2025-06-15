@@ -2,7 +2,7 @@
 # Finds clang and llvm development packages that match the current clang version
 #
 
-if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
     return()
 endif()
 

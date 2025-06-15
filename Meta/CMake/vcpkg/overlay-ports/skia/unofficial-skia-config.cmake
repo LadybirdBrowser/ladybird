@@ -18,7 +18,13 @@ if(NOT COMMAND z_vcpkg_@PORT@_get_link_libraries)
                 if(${lib_var})
                     list(APPEND libs "${${lib_var}}")
                 else()
-                    find_library("${lib_var}" NAMES "${lib}" NAMES_PER_DIR PATHS ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES} NO_DEFAULT_PATH)
+                    find_library(
+                        "${lib_var}"
+                        NAMES "${lib}"
+                        NAMES_PER_DIR
+                        PATHS ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES}
+                        NO_DEFAULT_PATH
+                    )
                     if(${lib_var})
                         list(APPEND libs "${lib}")
                     else()
