@@ -4573,7 +4573,7 @@ Vector<GC::Root<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& contex
     // AD-HOC: The origin is not otherwise set for the document, but it may be accessed during parsing
     //         script. For now, let's just use an opaque origin, but it is likely that the spec is
     //         missing setting this origin.
-    temp_document->set_origin(URL::Origin {});
+    temp_document->set_origin(URL::Origin::create_opaque());
 
     // 2. If context's node document is in quirks mode, then set document's mode to "quirks".
     if (context_element.document().in_quirks_mode())

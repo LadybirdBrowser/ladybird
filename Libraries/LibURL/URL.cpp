@@ -345,14 +345,14 @@ Origin URL::origin() const
 
         // 3. If pathURL is failure, then return a new opaque origin.
         if (!path_url.has_value())
-            return Origin {};
+            return Origin::create_opaque();
 
         // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
         if (path_url->scheme().is_one_of("http"sv, "https"sv, "file"sv))
             return path_url->origin();
 
         // 5. Return a new opaque origin.
-        return Origin {};
+        return Origin::create_opaque();
     }
 
     // -> "ftp"
@@ -375,7 +375,7 @@ Origin URL::origin() const
 
     // -> Otherwise
     // Return a new opaque origin.
-    return Origin {};
+    return Origin::create_opaque();
 }
 
 bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const

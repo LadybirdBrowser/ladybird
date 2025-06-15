@@ -56,12 +56,12 @@ URL::Origin determine_the_origin(Optional<URL::URL const&> url, SandboxingFlagSe
 {
     // 1. If sandboxFlags has its sandboxed origin browsing context flag set, then return a new opaque origin.
     if (has_flag(sandbox_flags, SandboxingFlagSet::SandboxedOrigin)) {
-        return URL::Origin {};
+        return URL::Origin::create_opaque();
     }
 
     // 2. If url is null, then return a new opaque origin.
     if (!url.has_value()) {
-        return URL::Origin {};
+        return URL::Origin::create_opaque();
     }
 
     // 3. If url is about:srcdoc, then:

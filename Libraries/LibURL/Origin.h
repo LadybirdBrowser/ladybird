@@ -15,10 +15,6 @@ namespace URL {
 
 class Origin {
 public:
-    // FIXME: This should be generating a unique origin identifer that can be used for equality checks.
-    //        Probably we should remove the default constructor, and instead expose this as a factory method.
-    Origin() = default;
-
     Origin(Optional<String> const& scheme, Host const& host, Optional<u16> port)
         : m_state(State {
               .scheme = scheme,
@@ -27,6 +23,8 @@ public:
           })
     {
     }
+
+    static Origin create_opaque();
 
     // https://html.spec.whatwg.org/multipage/origin.html#concept-origin-opaque
     bool is_opaque() const { return !m_state.has_value(); }
@@ -102,6 +100,8 @@ public:
     bool operator==(Origin const& other) const { return is_same_origin(other); }
 
 private:
+    Origin() = default;
+
     struct State {
         Optional<String> scheme;
         Host host;
