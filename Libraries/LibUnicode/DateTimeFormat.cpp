@@ -847,7 +847,7 @@ private:
     }
 
     // ICU 72 introduced the use of NBSP to separate time fields and day periods. All major browsers have found that
-    // this significantly breaks web compatibilty, and they all replace these spaces with normal ASCII spaces. See:
+    // this significantly breaks web compatibility, and they all replace these spaces with normal ASCII spaces. See:
     //
     // https://bugzilla.mozilla.org/show_bug.cgi?id=1806042
     // https://bugs.webkit.org/show_bug.cgi?id=252147
