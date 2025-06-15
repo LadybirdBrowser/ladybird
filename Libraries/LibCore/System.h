@@ -141,6 +141,7 @@ struct WaitPidResult {
 ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
 ErrorOr<void> fchown(int fd, uid_t, gid_t);
 ErrorOr<struct utsname> uname();
+#endif
 
 class AddressInfoVector {
     AK_MAKE_NONCOPYABLE(AddressInfoVector);
@@ -173,7 +174,6 @@ private:
 };
 
 ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servname, struct addrinfo const& hints);
-#endif
 
 unsigned hardware_concurrency();
 u64 physical_memory_bytes();
