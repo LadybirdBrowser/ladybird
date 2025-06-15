@@ -33,6 +33,8 @@ public:
         PostedMessage,
         Microtask,
         TimerTask,
+        // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#bitmap-task-source
+        BitmapTask,
         JavaScriptEngine,
 
         // https://html.spec.whatwg.org/multipage/webappapis.html#navigation-and-traversal-task-source
