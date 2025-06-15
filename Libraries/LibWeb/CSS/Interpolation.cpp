@@ -116,7 +116,7 @@ static RefPtr<CSSStyleValue const> interpolate_scale(DOM::Element& element, Calc
 
     return TransformationStyleValue::create(
         PropertyID::Scale,
-        TransformFunction::Scale,
+        new_values.size() == 3 ? TransformFunction::Scale3d : TransformFunction::Scale,
         move(new_values));
 }
 

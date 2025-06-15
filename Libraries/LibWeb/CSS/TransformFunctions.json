@@ -164,10 +164,6 @@
       {
         "type": "<number-percentage>",
         "required": false
-      },
-      {
-        "type": "<number-percentage>",
-        "required": false
       }
     ]
   },
