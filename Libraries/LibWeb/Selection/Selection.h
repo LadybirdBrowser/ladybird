@@ -46,6 +46,7 @@ public:
     WebIDL::ExceptionOr<void> extend(GC::Ref<DOM::Node>, unsigned offset);
     WebIDL::ExceptionOr<void> set_base_and_extent(GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset);
     WebIDL::ExceptionOr<void> select_all_children(GC::Ref<DOM::Node>);
+    WebIDL::ExceptionOr<void> modify(Optional<String> alter, Optional<String> direction, Optional<String> granularity);
     WebIDL::ExceptionOr<void>
     delete_from_document();
     bool contains_node(GC::Ref<DOM::Node>, bool allow_partial_containment) const;
