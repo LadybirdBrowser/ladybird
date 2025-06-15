@@ -12,17 +12,6 @@
 
 namespace IPC {
 
-AutoCloseFileDescriptor::AutoCloseFileDescriptor(int fd)
-    : m_fd(fd)
-{
-}
-
-AutoCloseFileDescriptor::~AutoCloseFileDescriptor()
-{
-    if (m_fd != -1)
-        (void)Core::System::close(m_fd);
-}
-
 void SendQueue::enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds)
 {
     Threading::MutexLocker locker(m_mutex);
