@@ -76,7 +76,40 @@ struct NavigationParams : GC::Cell {
     // a user navigation involvement used when obtaining a browsing context for the new Document
     UserNavigationInvolvement user_involvement;
 
+protected:
     void visit_edges(Visitor& visitor) override;
+
+    NavigationParams(
+        Optional<String> id,
+        GC::Ptr<Navigable> navigable,
+        GC::Ptr<Fetch::Infrastructure::Request> request,
+        GC::Ptr<Fetch::Infrastructure::Response> response,
+        GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller,
+        Function<void(DOM::Document&)> commit_early_hints,
+        OpenerPolicyEnforcementResult coop_enforcement_result,
+        Fetch::Infrastructure::Request::ReservedClientType reserved_environment,
+        URL::Origin origin,
+        GC::Ptr<PolicyContainer> policy_container,
+        SandboxingFlagSet final_sandboxing_flag_set,
+        OpenerPolicy opener_policy,
+        Optional<URL::URL> about_base_url,
+        UserNavigationInvolvement user_involvement)
+        : id(move(id))
+        , navigable(navigable)
+        , request(request)
+        , response(response)
+        , fetch_controller(fetch_controller)
+        , commit_early_hints(move(commit_early_hints))
+        , coop_enforcement_result(move(coop_enforcement_result))
+        , reserved_environment(reserved_environment)
+        , origin(move(origin))
+        , policy_container(policy_container)
+        , final_sandboxing_flag_set(final_sandboxing_flag_set)
+        , opener_policy(opener_policy)
+        , about_base_url(move(about_base_url))
+        , user_involvement(user_involvement)
+    {
+    }
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#non-fetch-scheme-navigation-params
