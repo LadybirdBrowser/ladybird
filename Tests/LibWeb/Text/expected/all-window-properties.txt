@@ -331,6 +331,7 @@ SVGDefsElement
 SVGDescElement
 SVGElement
 SVGEllipseElement
+SVGFeFloodElement
 SVGFilterElement
 SVGForeignObjectElement
 SVGGElement
