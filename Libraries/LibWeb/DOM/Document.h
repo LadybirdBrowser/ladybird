@@ -1103,7 +1103,7 @@ private:
     String m_referrer;
 
     // https://dom.spec.whatwg.org/#concept-document-origin
-    URL::Origin m_origin;
+    Optional<URL::Origin> m_origin;
 
     GC::Ptr<HTMLCollection> m_applets;
     GC::Ptr<HTMLCollection> m_anchors;
