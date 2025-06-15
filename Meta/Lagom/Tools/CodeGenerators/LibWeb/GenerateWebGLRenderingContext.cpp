@@ -492,22 +492,25 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/VideoBox.h>
+#include <LibWeb/WebGL/@class_name@.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLActiveInfo.h>
 #include <LibWeb/WebGL/WebGLBuffer.h>
 #include <LibWeb/WebGL/WebGLFramebuffer.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
-#include <LibWeb/WebGL/@class_name@.h>
 #include <LibWeb/WebGL/WebGLSampler.h>
 #include <LibWeb/WebGL/WebGLShader.h>
-#include <LibWeb/WebGL/WebGLSync.h>
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
+#include <LibWeb/WebGL/WebGLSync.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
@@ -765,8 +768,19 @@ static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(Va
     if (!bitmap)
         return OptionalNone {};
 
-    int width = destination_width.value_or(bitmap->width());
-    int height = destination_height.value_or(bitmap->height());
+    auto const image_orientation = source.visit(
+        [](auto const& source) -> Gfx::ImageOrientation { 
+            auto const &computed_properties = source->computed_properties();
+            return computed_properties
+                ? computed_properties->image_orientation()
+                : Gfx::ImageOrientation::FromDecoded;
+        },
+        [](GC::Root<ImageBitmap> const&) -> Gfx::ImageOrientation { return Gfx::ImageOrientation::FromDecoded; },
+        [](GC::Root<ImageData> const&) -> Gfx::ImageOrientation { return Gfx::ImageOrientation::FromDecoded; }
+    );
+
+    int width = destination_width.value_or(bitmap->width(image_orientation));
+    int height = destination_height.value_or(bitmap->height(image_orientation));
 
     Checked<size_t> buffer_pitch = width;
 
