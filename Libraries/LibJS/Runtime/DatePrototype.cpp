@@ -11,7 +11,6 @@
 #include <AK/DateConstants.h>
 #include <AK/Function.h>
 #include <AK/TypeCasts.h>
-#include <LibCore/DateTime.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/BigInt.h>

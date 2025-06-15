@@ -70,6 +70,7 @@ set(AK_TEST_SOURCES
     TestStringFloatingPointConversions.cpp
     TestStringUtils.cpp
     TestStringView.cpp
+    TestTime.cpp
     TestTrie.cpp
     TestTuple.cpp
     TestTypeTraits.cpp

@@ -6,7 +6,7 @@
 
 #include <AK/Error.h>
 #include <AK/String.h>
-#include <LibCore/DateTime.h>
+#include <AK/Time.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
@@ -678,7 +678,7 @@ static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
     if (!bitmap)
         return Error::from_string_literal("Failed to take a screenshot");
 
-    auto file = Core::DateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
+    auto file = AK::UnixDateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
     auto path = TRY(Application::the().path_for_downloaded_file(file));
 
     auto encoded = TRY(Gfx::PNGWriter::encode(*bitmap));
@@ -778,7 +778,7 @@ ErrorOr<LexicalPath> ViewImplementation::dump_gc_graph()
     auto gc_graph_json = TRY(promise->await());
 
     LexicalPath path { Core::StandardPaths::tempfile_directory() };
-    path = path.append(TRY(Core::DateTime::now().to_string("gc-graph-%Y-%m-%d-%H-%M-%S.json"sv)));
+    path = path.append(TRY(AK::UnixDateTime::now().to_string("gc-graph-%Y-%m-%d-%H-%M-%S.json"sv)));
 
     auto dump_file = TRY(Core::File::open(path.string(), Core::File::OpenMode::Write));
     TRY(dump_file->write_until_depleted(gc_graph_json.bytes()));
