@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	audio.error initial value
+Fail	audio.error after successful load
+Pass	audio.error after setting src to the empty string
+Pass	video.error initial value
+Fail	video.error after successful load
+Pass	video.error after setting src to the empty string
