@@ -687,45 +687,8 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         }
     };
 
-    struct StartAndEndPropertyIDs {
-        PropertyID start;
-        PropertyID end;
-    };
-    auto map_logical_property_to_real_properties = [](PropertyID property_id) -> Optional<StartAndEndPropertyIDs> {
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        switch (property_id) {
-        case PropertyID::MarginBlock:
-            return StartAndEndPropertyIDs { PropertyID::MarginTop, PropertyID::MarginBottom };
-        case PropertyID::MarginInline:
-            return StartAndEndPropertyIDs { PropertyID::MarginLeft, PropertyID::MarginRight };
-        case PropertyID::PaddingBlock:
-            return StartAndEndPropertyIDs { PropertyID::PaddingTop, PropertyID::PaddingBottom };
-        case PropertyID::PaddingInline:
-            return StartAndEndPropertyIDs { PropertyID::PaddingLeft, PropertyID::PaddingRight };
-        case PropertyID::InsetBlock:
-            return StartAndEndPropertyIDs { PropertyID::Top, PropertyID::Bottom };
-        case PropertyID::InsetInline:
-            return StartAndEndPropertyIDs { PropertyID::Left, PropertyID::Right };
-        default:
-            return {};
-        }
-    };
-
     if (auto real_property_id = map_logical_property_to_real_property(property_id); real_property_id.has_value()) {
         for_each_property_expanding_shorthands(real_property_id.value(), value, set_longhand_property);
-        return;
-    }
-
-    if (auto real_property_ids = map_logical_property_to_real_properties(property_id); real_property_ids.has_value()) {
-        if (value.is_value_list() && value.as_value_list().size() == 2) {
-            auto const& start = value.as_value_list().values()[0];
-            auto const& end = value.as_value_list().values()[1];
-            for_each_property_expanding_shorthands(real_property_ids->start, start, set_longhand_property);
-            for_each_property_expanding_shorthands(real_property_ids->end, end, set_longhand_property);
-            return;
-        }
-        for_each_property_expanding_shorthands(real_property_ids->start, value, set_longhand_property);
-        for_each_property_expanding_shorthands(real_property_ids->end, value, set_longhand_property);
         return;
     }
 
@@ -759,6 +722,16 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             set_longhand_property(right_property, values[0]);
             set_longhand_property(bottom_property, values[0]);
             set_longhand_property(left_property, values[0]);
+        }
+    };
+
+    auto assign_start_and_end_values = [&](PropertyID start_property, PropertyID end_property, auto const& values) {
+        if (values.is_value_list()) {
+            set_longhand_property(start_property, value.as_value_list().values()[0]);
+            set_longhand_property(end_property, value.as_value_list().values()[1]);
+        } else {
+            set_longhand_property(start_property, value);
+            set_longhand_property(end_property, value);
         }
     };
 
@@ -859,6 +832,16 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
+    if (property_id == CSS::PropertyID::InsetBlock) {
+        assign_start_and_end_values(PropertyID::InsetBlockStart, PropertyID::InsetBlockEnd, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::InsetInline) {
+        assign_start_and_end_values(PropertyID::InsetInlineStart, PropertyID::InsetInlineEnd, value);
+        return;
+    }
+
     if (property_id == CSS::PropertyID::Margin) {
         if (value.is_value_list()) {
             auto const& values_list = value.as_value_list();
@@ -873,6 +856,16 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
+    if (property_id == CSS::PropertyID::MarginBlock) {
+        assign_start_and_end_values(PropertyID::MarginBlockStart, PropertyID::MarginBlockEnd, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::MarginInline) {
+        assign_start_and_end_values(PropertyID::MarginInlineStart, PropertyID::MarginInlineEnd, value);
+        return;
+    }
+
     if (property_id == CSS::PropertyID::Padding) {
         if (value.is_value_list()) {
             auto const& values_list = value.as_value_list();
@@ -884,6 +877,16 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         set_longhand_property(CSS::PropertyID::PaddingRight, value);
         set_longhand_property(CSS::PropertyID::PaddingBottom, value);
         set_longhand_property(CSS::PropertyID::PaddingLeft, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::PaddingBlock) {
+        assign_start_and_end_values(PropertyID::PaddingBlockStart, PropertyID::PaddingBlockEnd, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::PaddingInline) {
+        assign_start_and_end_values(PropertyID::PaddingInlineStart, PropertyID::PaddingInlineEnd, value);
         return;
     }
 
