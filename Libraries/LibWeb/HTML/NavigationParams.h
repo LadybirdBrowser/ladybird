@@ -140,6 +140,25 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     // a user navigation involvement used when obtaining a browsing context for the new Document (if one is created)
     UserNavigationInvolvement user_involvement;
 
+protected:
+    NonFetchSchemeNavigationParams(
+        Optional<String> id,
+        GC::Ptr<Navigable> navigable,
+        URL::URL url,
+        SandboxingFlagSet target_snapshot_sandboxing_flags,
+        bool source_snapshot_has_transient_activation,
+        URL::Origin initiator_origin,
+        UserNavigationInvolvement user_involvement)
+        : id(move(id))
+        , navigable(navigable)
+        , url(move(url))
+        , target_snapshot_sandboxing_flags(target_snapshot_sandboxing_flags)
+        , source_snapshot_has_transient_activation(source_snapshot_has_transient_activation)
+        , initiator_origin(move(initiator_origin))
+        , user_involvement(user_involvement)
+    {
+    }
+
     void visit_edges(Visitor& visitor) override;
 };
 
