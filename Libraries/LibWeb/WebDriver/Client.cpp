@@ -16,7 +16,7 @@
 #include <AK/Span.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
-#include <LibCore/DateTime.h>
+#include <AK/Time.h>
 #include <LibHTTP/HttpResponse.h>
 #include <LibWeb/WebDriver/Client.h>
 
@@ -354,7 +354,7 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
 
 void Client::log_response(HTTP::HttpRequest const& request, unsigned code)
 {
-    outln("{} :: {:03d} :: {} {}", Core::DateTime::now().to_byte_string(), code, request.method_name(), request.resource());
+    outln("{} :: {:03d} :: {} {}", AK::UnixDateTime::now().to_byte_string(), code, request.method_name(), request.resource());
 }
 
 }
