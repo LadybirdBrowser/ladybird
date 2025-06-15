@@ -37,15 +37,16 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     GC::Ref<HTML::Navigable> navigable = page->top_level_traversable();
     auto response = Fetch::Infrastructure::Response::create(navigable->vm());
     response->url_list().append(url);
+    auto origin = URL::Origin::create_opaque();
     auto navigation_params = navigable->heap().allocate<HTML::NavigationParams>(OptionalNone {},
         navigable,
         nullptr,
         response,
         nullptr,
         nullptr,
-        HTML::OpenerPolicyEnforcementResult {},
+        HTML::OpenerPolicyEnforcementResult { .url = url, .origin = origin, .opener_policy = HTML::OpenerPolicy {} },
         nullptr,
-        URL::Origin {},
+        origin,
         navigable->heap().allocate<HTML::PolicyContainer>(realm.heap()),
         HTML::SandboxingFlagSet {},
         HTML::OpenerPolicy {},

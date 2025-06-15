@@ -18,8 +18,9 @@ class WorkerEnvironmentSettingsObject final
     GC_DECLARE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 
 public:
-    WorkerEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkerGlobalScope> global_scope, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
+    WorkerEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkerGlobalScope> global_scope, URL::Origin origin, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
         : EnvironmentSettingsObject(move(execution_context))
+        , m_origin(move(origin))
         , m_global_scope(global_scope)
         , m_unsafe_worker_creation_time(unsafe_worker_creation_time)
     {

@@ -24,7 +24,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     VERIFY(navigable->active_document());
 
     // 1. Let origin be a new opaque origin.
-    URL::Origin origin {};
+    auto origin = URL::Origin::create_opaque();
 
     // 2. Let coop be a new opener policy.
     auto coop = HTML::OpenerPolicy {};
