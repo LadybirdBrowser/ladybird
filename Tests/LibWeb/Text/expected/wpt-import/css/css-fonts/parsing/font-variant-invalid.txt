@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 21 tests
 
-15 Pass
-6 Fail
-Fail	e.style['font-variant'] = "normal none" should not set the property value
-Fail	e.style['font-variant'] = "none normal" should not set the property value
-Fail	e.style['font-variant'] = "small-caps normal" should not set the property value
-Fail	e.style['font-variant'] = "normal small-caps" should not set the property value
-Fail	e.style['font-variant'] = "small-caps none" should not set the property value
-Fail	e.style['font-variant'] = "none small-caps" should not set the property value
+21 Pass
+Pass	e.style['font-variant'] = "normal none" should not set the property value
+Pass	e.style['font-variant'] = "none normal" should not set the property value
+Pass	e.style['font-variant'] = "small-caps normal" should not set the property value
+Pass	e.style['font-variant'] = "normal small-caps" should not set the property value
+Pass	e.style['font-variant'] = "small-caps none" should not set the property value
+Pass	e.style['font-variant'] = "none small-caps" should not set the property value
 Pass	e.style['font-variant'] = "common-ligatures no-common-ligatures" should not set the property value
 Pass	e.style['font-variant'] = "discretionary-ligatures no-discretionary-ligatures" should not set the property value
 Pass	e.style['font-variant'] = "historical-ligatures no-historical-ligatures" should not set the property value
