@@ -751,19 +751,21 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     //    FIXME: navigation timing type: navTimingType
     //    about base URL: entry's document state's about base URL
     //    user involvement: userInvolvement
-    auto navigation_params = vm.heap().allocate<NavigationParams>();
-    navigation_params->id = move(navigation_id);
-    navigation_params->navigable = navigable;
-    navigation_params->response = response;
-    navigation_params->coop_enforcement_result = move(coop_enforcement_result);
-    navigation_params->origin = move(response_origin);
-    navigation_params->policy_container = *policy_container;
-    navigation_params->final_sandboxing_flag_set = target_snapshot_params.sandboxing_flags;
-    navigation_params->opener_policy = move(coop);
-    navigation_params->about_base_url = entry->document_state()->about_base_url();
-    navigation_params->user_involvement = user_involvement;
-
-    return navigation_params;
+    return vm.heap().allocate<NavigationParams>(
+        move(navigation_id),
+        navigable,
+        nullptr,
+        response,
+        nullptr,
+        nullptr,
+        move(coop_enforcement_result),
+        nullptr,
+        move(response_origin),
+        *policy_container,
+        target_snapshot_params.sandboxing_flags,
+        move(coop),
+        entry->document_state()->about_base_url(),
+        user_involvement);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
@@ -1165,22 +1167,21 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     //     FIXME: navigation timing type: navTimingType
     //     about base URL: entry's document state's about base URL
     //     user involvement: userInvolvement
-    auto navigation_params = vm.heap().allocate<NavigationParams>();
-    navigation_params->id = navigation_id;
-    navigation_params->navigable = navigable;
-    navigation_params->request = request;
-    navigation_params->response = *response_holder->response();
-    navigation_params->fetch_controller = fetch_controller;
-    navigation_params->commit_early_hints = move(commit_early_hints);
-    navigation_params->coop_enforcement_result = coop_enforcement_result;
-    navigation_params->reserved_environment = request->reserved_client();
-    navigation_params->origin = *response_origin;
-    navigation_params->policy_container = result_policy_container;
-    navigation_params->final_sandboxing_flag_set = final_sandbox_flags;
-    navigation_params->opener_policy = response_coop;
-    navigation_params->about_base_url = entry->document_state()->about_base_url();
-    navigation_params->user_involvement = user_involvement;
-    return navigation_params;
+    return vm.heap().allocate<NavigationParams>(
+        navigation_id,
+        navigable,
+        request,
+        *response_holder->response(),
+        fetch_controller,
+        move(commit_early_hints),
+        coop_enforcement_result,
+        request->reserved_client(),
+        *response_origin,
+        result_policy_container,
+        final_sandbox_flags,
+        response_coop,
+        entry->document_state()->about_base_url(),
+        user_involvement);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
@@ -1891,21 +1892,21 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
     //     FIXME: navigation timing type: "navigate"
     //     about base URL: targetNavigable's active document's about base URL
     //     user involvement: userInvolvement
-    auto navigation_params = vm.heap().allocate<NavigationParams>();
-    navigation_params->id = navigation_id;
-    navigation_params->navigable = this;
-    navigation_params->request = {};
-    navigation_params->response = response;
-    navigation_params->fetch_controller = nullptr;
-    navigation_params->commit_early_hints = nullptr;
-    navigation_params->coop_enforcement_result = move(coop_enforcement_result);
-    navigation_params->reserved_environment = {};
-    navigation_params->origin = new_document_origin;
-    navigation_params->policy_container = policy_container;
-    navigation_params->final_sandboxing_flag_set = final_sandbox_flags;
-    navigation_params->opener_policy = coop;
-    navigation_params->about_base_url = active_document()->about_base_url();
-    navigation_params->user_involvement = user_involvement;
+    auto navigation_params = vm.heap().allocate<NavigationParams>(
+        navigation_id,
+        this,
+        nullptr,
+        response,
+        nullptr,
+        nullptr,
+        move(coop_enforcement_result),
+        nullptr,
+        new_document_origin,
+        policy_container,
+        final_sandbox_flags,
+        coop,
+        active_document()->about_base_url(),
+        user_involvement);
 
     // 17. Return the result of loading an HTML document given navigationParams.
     return load_document(navigation_params);
