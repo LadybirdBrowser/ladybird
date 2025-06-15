@@ -109,7 +109,9 @@ ErrorOr<void> ConnectionBase::drain_messages_from_peer()
         deferred_invoke([this] {
             handle_messages();
         });
-    } else if (schedule_shutdown == TransportSocket::ShouldShutdown::Yes) {
+    }
+
+    if (schedule_shutdown == TransportSocket::ShouldShutdown::Yes) {
         deferred_invoke([this] {
             shutdown();
         });
