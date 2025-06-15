@@ -2976,7 +2976,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_variant(TokenStream<ComponentValu
                 position_value = value.ptr();
                 break;
             default:
-                break;
+                return nullptr;
             }
         }
     }
