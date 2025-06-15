@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-class SyntaxHighlighter : public Syntax::Highlighter {
+class SyntaxHighlighter final : public Syntax::Highlighter {
 public:
     SyntaxHighlighter() = default;
     virtual ~SyntaxHighlighter() override = default;

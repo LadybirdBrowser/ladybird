@@ -18,7 +18,7 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-class FFmpegDemuxer : public Demuxer {
+class FFmpegDemuxer final : public Demuxer {
 public:
     static ErrorOr<NonnullOwnPtr<FFmpegDemuxer>> create(NonnullOwnPtr<SeekableStream> stream);
 
