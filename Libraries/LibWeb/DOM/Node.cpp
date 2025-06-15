@@ -805,7 +805,36 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 
+    // Ad-hoc: update reversed counters if necessary
+    if (child) // If inserting a node before a child, look at the child's reversed counters.
+        child->maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element();
+    else // If appending a node, look at the parent's reversed counters.
+        maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element();
+
     document().bump_dom_tree_version();
+}
+
+void Node::maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element()
+{
+    if (!is_element())
+        return;
+
+    auto* element = static_cast<DOM::Element*>(this);
+    if (!element->has_non_empty_counters_set())
+        return;
+
+    for (auto& counter : element->counters_set()->counters()) {
+        if (!counter.reversed)
+            continue;
+
+        auto* originating_node = Node::from_unique_id(counter.originating_element_id);
+        if (!originating_node->is_element())
+            continue;
+        auto* originating_element = static_cast<DOM::Element*>(originating_node);
+
+        // Will propagate to the parent of originating_element and cover all of the occurrences of the counter.
+        originating_element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ReversedCounterRecalculation);
+    }
 }
 
 // https://dom.spec.whatwg.org/#concept-node-pre-insert
@@ -1016,6 +1045,7 @@ void Node::remove(bool suppress_observers)
     // 17. Run the children changed steps for parent.
     parent->children_changed(nullptr);
 
+    maybe_set_needs_layout_tree_update_for_reversed_counter_originating_element(); // Ad-hoc: update reversed counters if necessary
     document().bump_dom_tree_version();
 }
 

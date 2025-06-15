@@ -1,12 +1,14 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Manuel Zahariev manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/RefPtr.h>
+#include <AK/Assertions.h>
+#include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/Selector.h>
@@ -65,6 +67,31 @@ private:
     Vector<GC::Ref<Layout::NodeWithStyle>> m_ancestor_stack;
 
     u32 m_quote_nesting_level { 0 };
+
+    // Everything we need to recalculate `content` that contains `reversed` counters for a pseudo-element.
+    struct ElementWithReversedCounterContent {
+        GC::Ptr<DOM::Element> element;
+        CSS::PseudoElement pseudo_element;
+        GC::Ptr<DOM::Text> text;
+        u32 intial_quote_nesting_level;
+    };
+
+    AK::OwnPtr<AK::Vector<ElementWithReversedCounterContent>> m_content_with_reversed_counters_fixup_queue;
+
+    ALWAYS_INLINE AK::OwnPtr<AK::Vector<ElementWithReversedCounterContent>>& ensure_content_with_reverse_counter_fixup_queue()
+    {
+        if (!m_content_with_reversed_counters_fixup_queue) {
+            auto queue = AK::try_make<AK::Vector<ElementWithReversedCounterContent>>();
+            VERIFY(!queue.is_error());
+
+            m_content_with_reversed_counters_fixup_queue = queue.release_value();
+        }
+
+        VERIFY(m_content_with_reversed_counters_fixup_queue);
+        return m_content_with_reversed_counters_fixup_queue;
+    }
+
+    void fixup_reversed_counters_content();
 };
 
 }
