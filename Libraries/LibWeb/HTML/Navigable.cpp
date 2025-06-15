@@ -1111,15 +1111,14 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         // - initiator origin: responseOrigin
         // FIXME: - navigation timing type: navTimingType
         // - user involvement: userInvolvement
-        auto navigation_params = vm.heap().allocate<NonFetchSchemeNavigationParams>();
-        navigation_params->id = navigation_id;
-        navigation_params->navigable = navigable;
-        navigation_params->url = location_url.release_value().value();
-        navigation_params->target_snapshot_sandboxing_flags = target_snapshot_params.sandboxing_flags;
-        navigation_params->source_snapshot_has_transient_activation = source_snapshot_params.has_transient_activation;
-        navigation_params->initiator_origin = move(*response_origin);
-        navigation_params->user_involvement = user_involvement;
-        return navigation_params;
+        return vm.heap().allocate<NonFetchSchemeNavigationParams>(
+            navigation_id,
+            navigable,
+            location_url.release_value().value(),
+            target_snapshot_params.sandboxing_flags,
+            source_snapshot_params.has_transient_activation,
+            move(*response_origin),
+            user_involvement);
     }
 
     // 21. If any of the following are true:
@@ -1234,15 +1233,14 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
             // - initiator origin: entry's document state's initiator origin
             // FIXME: - navigation timing type: navTimingType
             // - user involvement: userInvolvement
-            auto non_fetching_scheme_navigation_params = vm().heap().allocate<NonFetchSchemeNavigationParams>();
-            non_fetching_scheme_navigation_params->id = navigation_id;
-            non_fetching_scheme_navigation_params->navigable = this;
-            non_fetching_scheme_navigation_params->url = entry->url();
-            non_fetching_scheme_navigation_params->target_snapshot_sandboxing_flags = target_snapshot_params.sandboxing_flags;
-            non_fetching_scheme_navigation_params->source_snapshot_has_transient_activation = source_snapshot_params.has_transient_activation;
-            non_fetching_scheme_navigation_params->initiator_origin = *entry->document_state()->initiator_origin();
-            non_fetching_scheme_navigation_params->user_involvement = user_involvement;
-            navigation_params = non_fetching_scheme_navigation_params;
+            navigation_params = vm().heap().allocate<NonFetchSchemeNavigationParams>(
+                navigation_id,
+                this,
+                entry->url(),
+                target_snapshot_params.sandboxing_flags,
+                source_snapshot_params.has_transient_activation,
+                *entry->document_state()->initiator_origin(),
+                user_involvement);
         }
     }
 
