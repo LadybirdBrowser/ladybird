@@ -121,6 +121,21 @@
       }
     },
     {
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits": [
+        "Windows_Experimental"
+      ],
+      "displayName": "Windows Sanitizer Config",
+      "binaryDir": "${fileDir}/Build/sanitizers",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "OFF",
+        "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
+      }
+    },
+    {
       "hidden": true,
       "name": "vcpkg_ci",
       "description": "FIXME: Use the GitHub Actions vcpkg cache"
@@ -135,7 +150,10 @@
     },
     {
       "name": "Windows_CI",
-      "inherits": "windows_base",
+      "inherits":  [
+        "vcpkg_ci",
+        "windows_base"
+      ],
       "displayName": "Windows CI Config",
       "cacheVariables": {
         "ENABLE_WINDOWS_CI": "ON"
@@ -157,6 +175,21 @@
         "Sanitizer"
       ],
       "displayName": "Sanitizer CI Config"
+    },
+    {
+      "name": "Windows_Sanitizer_CI",
+      "inherits": [
+        "Windows_CI"
+      ],
+      "displayName": "Windows Sanitizer CI Config",
+      "binaryDir": "${fileDir}/Build/sanitizers",
+      "cacheVariables": {
+        "ENABLE_WINDOWS_CI": "ON",
+        "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
+      }
     },
     {
       "name": "Fuzzers",
@@ -265,11 +298,25 @@
       "description": "Build the project with Sanitizers"
     },
     {
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Sanitizer_Experimental",
+      "displayName": "Build with Sanitizers",
+      "description": "Build the project with Sanitizers"
+    },
+    {
       "name": "Windows_CI",
       "inherits": "windows_base",
       "configurePreset": "Windows_CI",
-      "displayName": "Build",
-      "description": "Build the project"
+      "displayName": "Windows_CI Build",
+      "description": "Build the project for Windows CI"
+    },
+    {
+      "name": "Windows_Sanitizer_CI",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Sanitizer_CI",
+      "displayName": "Windows_Sanitizer_CI Build",
+      "description": "Build the project with sanitizers for Windows CI"
     },
     {
       "name": "Swift_Release",
@@ -317,6 +364,14 @@
       }
     },
     {
+      "hidden": true,
+      "name": "sanitizer_base",
+      "environment": {
+        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
+        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
+      }
+    },
+    {
       "name": "Release",
       "inherits": "unix_base",
       "configurePreset": "Release"
@@ -338,17 +393,32 @@
     },
     {
       "name": "Sanitizer",
-      "inherits": "unix_base",
-      "configurePreset": "Sanitizer",
-      "environment": {
-        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
-        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
-      }
+      "inherits": [
+        "unix_base",
+        "sanitizer_base"
+      ],
+      "configurePreset": "Sanitizer"
+    },
+    {
+      "name": "Windows_Sanitizer_Experimental",
+      "inherits":  [
+        "windows_base",
+        "sanitizer_base"
+      ],
+      "configurePreset": "Windows_Sanitizer_Experimental"
     },
     {
       "name": "Windows_CI",
       "inherits": "windows_base",
       "configurePreset": "Windows_CI"
+    },
+    {
+      "name": "Windows_Sanitizer_CI",
+      "inherits":  [
+        "windows_base",
+        "sanitizer_base"
+      ],
+      "configurePreset": "Windows_Sanitizer_CI"
     },
     {
       "name": "Swift_Release",
