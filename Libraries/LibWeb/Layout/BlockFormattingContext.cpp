@@ -1164,9 +1164,10 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     };
 
     // Next, float to the left and/or right
-    if (box.computed_values().float_() == CSS::Float::Left) {
+    // FIXME: Honor writing-mode, direction and text-orientation.
+    if (box.computed_values().float_() == CSS::Float::Left || box.computed_values().float_() == CSS::Float::InlineStart) {
         float_box(FloatSide::Left, m_left_floats);
-    } else if (box.computed_values().float_() == CSS::Float::Right) {
+    } else if (box.computed_values().float_() == CSS::Float::Right || box.computed_values().float_() == CSS::Float::InlineEnd) {
         float_box(FloatSide::Right, m_right_floats);
     }
 
