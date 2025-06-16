@@ -66,9 +66,11 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
         auto image_rect = absolute_rect();
         auto image_rect_device_pixels = context.rounded_device_rect(image_rect);
         if (m_renders_as_alt_text) {
-            auto enclosing_rect = context.enclosing_device_rect(image_rect).to_type<int>();
-            context.display_list_recorder().draw_rect(enclosing_rect, Gfx::Color::Black);
-            context.display_list_recorder().draw_text(enclosing_rect, m_alt_text, *Platform::FontPlugin::the().default_font(12), Gfx::TextAlignment::Center, computed_values().color());
+            if (!m_alt_text.is_empty()) {
+                auto enclosing_rect = context.enclosing_device_rect(image_rect).to_type<int>();
+                context.display_list_recorder().draw_rect(enclosing_rect, Gfx::Color::Black);
+                context.display_list_recorder().draw_text(enclosing_rect, m_alt_text, *Platform::FontPlugin::the().default_font(12), Gfx::TextAlignment::Center, computed_values().color());
+            }
         } else if (auto bitmap = m_image_provider.current_image_bitmap(image_rect_device_pixels.size().to_type<int>())) {
             ScopedCornerRadiusClip corner_clip { context, image_rect_device_pixels, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
             auto image_int_rect_device_pixels = image_rect_device_pixels.to_type<int>();
