@@ -263,26 +263,27 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
     auto& document = this->document();
 
     // 2. Let options be a new link processing options with
-    LinkProcessingOptions options;
-    // FIXME: destination                      the result of translating the state of el's as attribute
-    // crossorigin                      the state of el's crossorigin content attribute
-    options.crossorigin = cors_setting_attribute_from_keyword(get_attribute(AttributeNames::crossorigin));
-    // referrer policy                  the state of el's referrerpolicy content attribute
-    options.referrer_policy = ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or(""_string)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
-    // FIXME: source set                       el's source set
-    // base URL                         document's document base URL
-    options.base_url = document.base_url();
-    // origin                           document's origin
-    options.origin = document.origin();
-    // environment                      document's relevant settings object
-    options.environment = &document.relevant_settings_object();
-    // policy container                 document's policy container
-    options.policy_container = document.policy_container();
-    // document                         document
-    options.document = &document;
-    // FIXME: cryptographic nonce metadata     the current value of el's [[CryptographicNonce]] internal slot
-    // fetch priority                   the state of el's fetchpriority content attribute
-    options.fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto);
+    LinkProcessingOptions options {
+        // FIXME: destination                      the result of translating the state of el's as attribute
+        // crossorigin                      the state of el's crossorigin content attribute
+        .crossorigin = cors_setting_attribute_from_keyword(get_attribute(AttributeNames::crossorigin)),
+        // referrer policy                  the state of el's referrerpolicy content attribute
+        .referrer_policy = ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or(""_string)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
+        // FIXME: source set                       el's source set
+        // base URL                         document's document base URL
+        .base_url = document.base_url(),
+        // origin                           document's origin
+        .origin = document.origin(),
+        // environment                      document's relevant settings object
+        .environment = &document.relevant_settings_object(),
+        // policy container                 document's policy container
+        .policy_container = document.policy_container(),
+        // document                         document
+        .document = &document,
+        // FIXME: cryptographic nonce metadata     the current value of el's [[CryptographicNonce]] internal slot
+        // fetch priority                   the state of el's fetchpriority content attribute
+        .fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto),
+    };
 
     // 3. If el has an href attribute, then set options's href to the value of el's href attribute.
     if (auto maybe_href = get_attribute(AttributeNames::href); maybe_href.has_value())

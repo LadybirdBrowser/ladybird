@@ -10,6 +10,12 @@
 
 namespace URL {
 
+// FIXME: This should be generating a unique origin identifer that can be used for equality checks.
+Origin Origin::create_opaque()
+{
+    return Origin {};
+}
+
 // https://html.spec.whatwg.org/multipage/browsers.html#same-site
 bool Origin::is_same_site(Origin const& other) const
 {

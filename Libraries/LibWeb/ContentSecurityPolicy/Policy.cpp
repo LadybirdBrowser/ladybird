@@ -201,7 +201,7 @@ SerializedPolicy Policy::serialize() const
         .directives = move(serialized_directives),
         .disposition = m_disposition,
         .source = m_source,
-        .self_origin = m_self_origin,
+        .self_origin = m_self_origin.value(),
         .pre_parsed_policy_string = m_pre_parsed_policy_string,
     };
 }

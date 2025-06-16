@@ -25,15 +25,13 @@ ErrorOr<void> encode(Encoder& encoder, Web::ContentSecurityPolicy::SerializedPol
 template<>
 ErrorOr<Web::ContentSecurityPolicy::SerializedPolicy> decode(Decoder& decoder)
 {
-    Web::ContentSecurityPolicy::SerializedPolicy serialized_policy {};
-
-    serialized_policy.directives = TRY(decoder.decode<Vector<Web::ContentSecurityPolicy::Directives::SerializedDirective>>());
-    serialized_policy.disposition = TRY(decoder.decode<Web::ContentSecurityPolicy::Policy::Disposition>());
-    serialized_policy.source = TRY(decoder.decode<Web::ContentSecurityPolicy::Policy::Source>());
-    serialized_policy.self_origin = TRY(decoder.decode<URL::Origin>());
-    serialized_policy.pre_parsed_policy_string = TRY(decoder.decode<String>());
-
-    return serialized_policy;
+    return Web::ContentSecurityPolicy::SerializedPolicy {
+        .directives = TRY(decoder.decode<Vector<Web::ContentSecurityPolicy::Directives::SerializedDirective>>()),
+        .disposition = TRY(decoder.decode<Web::ContentSecurityPolicy::Policy::Disposition>()),
+        .source = TRY(decoder.decode<Web::ContentSecurityPolicy::Policy::Source>()),
+        .self_origin = TRY(decoder.decode<URL::Origin>()),
+        .pre_parsed_policy_string = TRY(decoder.decode<String>()),
+    };
 }
 
 }

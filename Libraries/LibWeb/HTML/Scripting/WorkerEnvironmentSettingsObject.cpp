@@ -30,9 +30,8 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
 
     // 4. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
-    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker, unsafe_worker_creation_time);
+    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker, move(inherited_origin), unsafe_worker_creation_time);
     settings_object->target_browsing_context = nullptr;
-    settings_object->m_origin = move(inherited_origin);
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.
     // 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to outside settings's top-level origin.
@@ -64,7 +63,7 @@ URL::Origin WorkerEnvironmentSettingsObject::origin() const
 {
     // Return a unique opaque origin if worker global scope's url's scheme is "data", and inherited origin otherwise.
     if (m_global_scope->url().scheme() == "data")
-        return URL::Origin {};
+        return URL::Origin::create_opaque();
     return m_origin;
 }
 
