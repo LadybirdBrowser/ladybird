@@ -467,7 +467,7 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
     const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementOffsetParent);
 
     // 1. If any of the following holds true return null and terminate this algorithm:
-    //    - The element does not have an associated CSS layout box.
+    //    - The element does not have an associated box.
     //    - The element is the root element.
     //    - The element is the HTML body element.
     //    - The element’s computed value of the position property is fixed.
@@ -475,31 +475,47 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
         return nullptr;
     if (is_document_element())
         return nullptr;
-    if (is<HTML::HTMLBodyElement>(*this))
+    if (is_html_body_element())
         return nullptr;
     if (layout_node()->is_fixed_position())
         return nullptr;
 
-    // 2. Return the nearest ancestor element of the element for which at least one of the following is true
-    //    and terminate this algorithm if such an ancestor is found:
-    //    - The computed value of the position property is not static.
-    //    - It is the HTML body element.
-    //    - The computed value of the position property of the element is static
-    //      and the ancestor is one of the following HTML elements: td, th, or table.
+    // 2. Let ancestor be the parent of the element in the flat tree and repeat these substeps:
+    auto ancestor = shadow_including_first_ancestor_of_type<DOM::Element>();
+    while (true) {
+        bool ancestor_is_closed_shadow_hidden = ancestor->is_closed_shadow_hidden_from(*this);
+        // 1. If ancestor is closed-shadow-hidden from the element and its computed value of the position property is
+        //   fixed, terminate this algorithm and return null.
+        if (ancestor_is_closed_shadow_hidden && ancestor->computed_properties()->position() == CSS::Positioning::Fixed)
+            return nullptr;
 
-    for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-        if (!ancestor->layout_node())
-            continue;
-        if (ancestor->layout_node()->is_positioned())
-            return const_cast<Element*>(ancestor.ptr());
-        if (is<HTML::HTMLBodyElement>(*ancestor))
-            return const_cast<Element*>(ancestor.ptr());
-        if (!ancestor->layout_node()->is_positioned() && ancestor->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::table))
-            return const_cast<Element*>(ancestor.ptr());
+        // 2. If ancestor is not closed-shadow-hidden from the element and satisfies at least one of the following,
+        //    terminate this algorithm and return ancestor.
+        if (!ancestor_is_closed_shadow_hidden) {
+            // - ancestor is a containing block of absolutely-positioned descendants (regardless of whether there are
+            //    any absolutely-positioned descendants).
+            if (ancestor->layout_node()->is_positioned())
+                return const_cast<Element*>(ancestor);
+
+            // - FIXME: The element has a different effective zoom than ancestor.
+
+            // - It is the body element.
+            if (ancestor->is_html_body_element())
+                return const_cast<Element*>(ancestor);
+
+            // - The computed value of the position property of the element is static and the ancestor is one of the following HTML elements: td, th, or table.
+            if (computed_properties()->position() == CSS::Positioning::Static && ancestor->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::table))
+                return const_cast<Element*>(ancestor);
+        }
+
+        // 3. If there is no more parent of ancestor in the flat tree, terminate this algorithm and return null.
+        auto parent_of_ancestor = ancestor->shadow_including_first_ancestor_of_type<DOM::Element>();
+        if (!parent_of_ancestor)
+            return nullptr;
+
+        // 4. Let ancestor be the parent of ancestor in the flat tree.
+        ancestor = parent_of_ancestor;
     }
-
-    // 3. Return null.
-    return nullptr;
 }
 
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsettop
