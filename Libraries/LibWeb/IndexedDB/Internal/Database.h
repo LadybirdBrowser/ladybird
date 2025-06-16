@@ -53,6 +53,8 @@ public:
     [[nodiscard]] static ErrorOr<GC::Root<Database>> create_for_key_and_name(JS::Realm&, StorageAPI::StorageKey&, String&);
     [[nodiscard]] static ErrorOr<void> delete_for_key_and_name(StorageAPI::StorageKey&, String&);
 
+    static void for_each_database(AK::Function<void(GC::Root<Database> const&)> const& visitor);
+
     [[nodiscard]] static GC::Ref<Database> create(JS::Realm&, String const&);
     virtual ~Database();
 

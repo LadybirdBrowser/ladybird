@@ -2051,4 +2051,32 @@ void queue_a_database_task(GC::Ref<GC::Function<void()>> steps)
     HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, steps);
 }
 
+// https://w3c.github.io/IndexedDB/#cleanup-indexed-database-transactions
+bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
+{
+    bool has_matching_event_loop = false;
+
+    Database::for_each_database([&has_matching_event_loop, event_loop](GC::Root<Database> const& database) {
+        for (auto const& connection : database->associated_connections()) {
+            for (auto const& transaction : connection->transactions()) {
+
+                // 2. For each transaction transaction with cleanup event loop matching the current event loop:
+                if (transaction->cleanup_event_loop() == event_loop) {
+                    has_matching_event_loop = true;
+
+                    // 1. Set transaction’s state to inactive.
+                    transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+                    // 2. Clear transaction’s cleanup event loop.
+                    transaction->set_cleanup_event_loop(nullptr);
+                }
+            }
+        }
+    });
+
+    // 1. If there are no transactions with cleanup event loop matching the current event loop, return false.
+    // 3. Return true.
+    return has_matching_event_loop;
+}
+
 }
