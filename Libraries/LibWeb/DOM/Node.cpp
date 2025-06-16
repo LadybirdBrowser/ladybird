@@ -588,6 +588,29 @@ Node& Node::shadow_including_root()
     return node_root;
 }
 
+// https://dom.spec.whatwg.org/#concept-closed-shadow-hidden
+bool Node::is_closed_shadow_hidden_from(Node const& b) const
+{
+    // A node A is closed-shadow-hidden from a node B if all of the following conditions are true:
+    auto const& a_root = root();
+
+    // - A’s root is a shadow root.
+    if (!a_root.is_shadow_root())
+        return false;
+
+    // - A’s root is not a shadow-including inclusive ancestor of B.
+    if (a_root.is_shadow_including_inclusive_ancestor_of(b))
+        return false;
+
+    // - A’s root is a shadow root whose mode is "closed" or A’s root’s host is closed-shadow-hidden from B.
+    if (a_root.is_shadow_root() && static_cast<ShadowRoot const&>(a_root).mode() == Bindings::ShadowRootMode::Closed)
+        return true;
+    if (a_root.is_document_fragment() && static_cast<DocumentFragment const&>(a_root).host()->is_closed_shadow_hidden_from(b))
+        return true;
+
+    return false;
+}
+
 // https://dom.spec.whatwg.org/#connected
 bool Node::is_connected() const
 {
