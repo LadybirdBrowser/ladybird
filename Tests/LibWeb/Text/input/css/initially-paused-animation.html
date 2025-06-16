@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 100px;
+        height: 100px;
+        background-color: #3498db;
+        position: relative;
+        animation: moveRight 0.1s linear;
+        animation-play-state: paused;
+    }
+
+    @keyframes moveRight {
+        0% {
+            left: 0;
+        }
+
+        100% {
+            left: 100px;
+        }
+    }
+</style>
+<body>
+<script src="../include.js"></script>
+<div></div>
+<script>
+    test(() => {
+        let animation = document.querySelector("div").getAnimations()[0];
+        println(animation.playState);
+        animation.play();
+        println(animation.playState);
+    });
+</script>
