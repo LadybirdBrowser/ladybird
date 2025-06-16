@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS basic box model: getComputedStyle().float</title>
+<link rel="help" href="https://drafts.csswg.org/css-box-3/#propdef-float">
+<link rel="help" href="https://drafts.csswg.org/css-logical/#float-clear">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("float", "none");
+test_computed_value("float", "left");
+test_computed_value("float", "right");
+
+test_computed_value("float", "inline-start");
+test_computed_value("float", "inline-end");
+</script>
+</body>
+</html>

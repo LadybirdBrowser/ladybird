@@ -975,19 +975,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
-    if (property_id == CSS::PropertyID::Float) {
-        auto keyword = value.to_keyword();
-
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        if (keyword == Keyword::InlineStart) {
-            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(Keyword::Left));
-            return;
-        } else if (keyword == Keyword::InlineEnd) {
-            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(Keyword::Right));
-            return;
-        }
-    }
-
     if (property_is_shorthand(property_id)) {
         // ShorthandStyleValue was handled already, as were unresolved shorthands.
         // That means the only values we should see are the CSS-wide keywords, or the guaranteed-invalid value.
