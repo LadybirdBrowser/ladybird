@@ -83,9 +83,6 @@ static ErrorOr<void> decode_avif_header(AVIFLoadingContext& context)
     if (result != AVIF_RESULT_OK)
         return Error::from_string_literal("Failed to decode AVIF");
 
-    if (context.decoder->image->depth != 8)
-        return Error::from_string_literal("Unsupported bitdepth");
-
     // Image header now decoded, save some results for fast access in other parts of the plugin.
     context.size = IntSize { context.decoder->image->width, context.decoder->image->height };
     context.has_alpha = context.decoder->alphaPresent == 1;
@@ -114,6 +111,7 @@ static ErrorOr<void> decode_avif_image(AVIFLoadingContext& context)
         rgb.pixels = bitmap->scanline_u8(0);
         rgb.rowBytes = bitmap->pitch();
         rgb.format = avifRGBFormat::AVIF_RGB_FORMAT_BGRA;
+        rgb.depth = 8;
 
         avifResult result = avifImageYUVToRGB(context.decoder->image, &rgb);
         if (result != AVIF_RESULT_OK)
