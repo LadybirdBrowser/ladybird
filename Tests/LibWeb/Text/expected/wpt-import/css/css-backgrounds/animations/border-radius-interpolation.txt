@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 196 tests
 
-48 Pass
-148 Fail
+50 Pass
+146 Fail
 Fail	CSS Transitions: property <border-radius> from [20px 40px 60px 80px / 120px 140px 160px 180px] to [30px 50px 70px 90px / 130px 150px 170px 190px] at (-0.3) should be [17px 37px 57px 77px / 117px 137px 157px 177px]
 Fail	CSS Transitions: property <border-radius> from [20px 40px 60px 80px / 120px 140px 160px 180px] to [30px 50px 70px 90px / 130px 150px 170px 190px] at (0) should be [20px 40px 60px 80px / 120px 140px 160px 180px]
 Fail	CSS Transitions: property <border-radius> from [20px 40px 60px 80px / 120px 140px 160px 180px] to [30px 50px 70px 90px / 130px 150px 170px 190px] at (0.3) should be [23px 43px 63px 83px / 123px 143px 163px 183px]
@@ -41,13 +41,13 @@ Fail	CSS Transitions with transition: all: property <border-top-left-radius> fro
 Pass	CSS Transitions with transition: all: property <border-top-left-radius> from neutral to [20px] at (1) should be [20px]
 Fail	CSS Transitions with transition: all: property <border-top-left-radius> from neutral to [20px] at (1.5) should be [25px]
 Fail	CSS Animations: property <border-top-left-radius> from neutral to [20px] at (-0.3) should be [7px]
-Fail	CSS Animations: property <border-top-left-radius> from neutral to [20px] at (0) should be [10px]
+Pass	CSS Animations: property <border-top-left-radius> from neutral to [20px] at (0) should be [10px]
 Fail	CSS Animations: property <border-top-left-radius> from neutral to [20px] at (0.3) should be [13px]
 Fail	CSS Animations: property <border-top-left-radius> from neutral to [20px] at (0.6) should be [16px]
 Pass	CSS Animations: property <border-top-left-radius> from neutral to [20px] at (1) should be [20px]
 Fail	CSS Animations: property <border-top-left-radius> from neutral to [20px] at (1.5) should be [25px]
 Fail	Web Animations: property <border-top-left-radius> from neutral to [20px] at (-0.3) should be [7px]
-Fail	Web Animations: property <border-top-left-radius> from neutral to [20px] at (0) should be [10px]
+Pass	Web Animations: property <border-top-left-radius> from neutral to [20px] at (0) should be [10px]
 Fail	Web Animations: property <border-top-left-radius> from neutral to [20px] at (0.3) should be [13px]
 Fail	Web Animations: property <border-top-left-radius> from neutral to [20px] at (0.6) should be [16px]
 Pass	Web Animations: property <border-top-left-radius> from neutral to [20px] at (1) should be [20px]
