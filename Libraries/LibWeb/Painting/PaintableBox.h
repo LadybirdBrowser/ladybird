@@ -115,15 +115,11 @@ public:
 
     [[nodiscard]] bool has_css_transform() const
     {
-        if (!computed_values().transformations().is_empty())
-            return true;
-        if (computed_values().rotate().has_value())
-            return true;
-        if (computed_values().translate().has_value())
-            return true;
-        if (computed_values().scale().has_value())
-            return true;
-        return false;
+        auto const& computed_values = this->computed_values();
+        return !computed_values.transformations().is_empty()
+            || computed_values.rotate().has_value()
+            || computed_values.translate().has_value()
+            || computed_values.scale().has_value();
     }
 
     [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const
