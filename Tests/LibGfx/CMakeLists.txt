@@ -9,6 +9,6 @@ set(TEST_SOURCES
     TestWOFF2.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
+foreach (source IN LISTS TEST_SOURCES)
     serenity_test("${source}" LibGfx LIBS LibGfx)
-endforeach()
+endforeach ()

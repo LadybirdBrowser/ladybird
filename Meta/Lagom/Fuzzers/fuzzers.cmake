@@ -38,7 +38,7 @@ set(FUZZER_TARGETS
 
 if (TARGET LibWeb)
     list(APPEND FUZZER_TARGETS CSSParser)
-endif()
+endif ()
 
 set(FUZZER_DEPENDENCIES_ASN1 LibCrypto LibTLS)
 set(FUZZER_DEPENDENCIES_BLAKE2b LibCrypto)

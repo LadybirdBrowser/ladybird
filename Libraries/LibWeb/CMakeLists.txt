@@ -4,7 +4,7 @@ include(skia)
 
 if (APPLE)
     find_package(unofficial-angle REQUIRED CONFIG)
-endif()
+endif ()
 
 set(SOURCES
     Animations/Animatable.cpp
@@ -951,7 +951,9 @@ invoke_generator(
     "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
     "ARIA/AriaRoles.h"
     "ARIA/AriaRoles.cpp"
-    arguments -j "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
+    arguments
+    -j
+    "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
 )
 
 generate_css_implementation()
@@ -964,10 +966,20 @@ invoke_generator(
     "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContextBase.idl"
     "WebGL/WebGLRenderingContextImpl.h"
     "WebGL/WebGLRenderingContextImpl.cpp"
-    arguments -b "${CMAKE_CURRENT_SOURCE_DIR}" -b "${CMAKE_CURRENT_BINARY_DIR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContext.idl"
-    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by WebGLRenderingContextBase.idl
-    #       and we need to make sure it's generated before we generate the WebGLRenderingContext implementation.
-    dependencies WebGL/WebGLRenderingContextBase.idl WebGL/WebGLRenderingContextOverloads.idl CSS/GeneratedCSSStyleProperties.idl
+    arguments
+    -b
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    -b
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    -i
+    "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContext.idl"
+    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by
+    # WebGLRenderingContextBase.idl and we need to make sure it's generated before we generate the WebGLRenderingContext
+    # implementation.
+    dependencies
+    WebGL/WebGLRenderingContextBase.idl
+    WebGL/WebGLRenderingContextOverloads.idl
+    CSS/GeneratedCSSStyleProperties.idl
 )
 
 invoke_generator(
@@ -976,10 +988,22 @@ invoke_generator(
     "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGL2RenderingContextBase.idl"
     "WebGL/WebGL2RenderingContextImpl.h"
     "WebGL/WebGL2RenderingContextImpl.cpp"
-    arguments -b "${CMAKE_CURRENT_SOURCE_DIR}" -b "${CMAKE_CURRENT_BINARY_DIR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGL2RenderingContext.idl"
-    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by WebGLRenderingContextBase.idl
-    #       and we need to make sure it's generated before we generate the WebGLRenderingContext implementation.
-    dependencies WebGL/WebGL2RenderingContextBase.idl WebGL/WebGL2RenderingContextOverloads.idl WebGL/WebGLRenderingContextBase.idl WebGL/WebGLRenderingContextOverloads.idl CSS/GeneratedCSSStyleProperties.idl
+    arguments
+    -b
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    -b
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    -i
+    "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGL2RenderingContext.idl"
+    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by
+    # WebGLRenderingContextBase.idl and we need to make sure it's generated before we generate the WebGLRenderingContext
+    # implementation.
+    dependencies
+    WebGL/WebGL2RenderingContextBase.idl
+    WebGL/WebGL2RenderingContextOverloads.idl
+    WebGL/WebGLRenderingContextBase.idl
+    WebGL/WebGLRenderingContextOverloads.idl
+    CSS/GeneratedCSSStyleProperties.idl
 )
 
 set(GENERATED_SOURCES
@@ -1008,11 +1032,34 @@ set(GENERATED_SOURCES
 
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia)
+target_link_libraries(
+    LibWeb
+    PRIVATE LibCore
+            LibCompress
+            LibCrypto
+            LibJS
+            LibHTTP
+            LibGfx
+            LibIPC
+            LibRegex
+            LibSyntax
+            LibTextCodec
+            LibUnicode
+            LibMedia
+            LibWasm
+            LibXML
+            LibIDL
+            LibURL
+            LibTLS
+            LibRequests
+            LibGC
+            LibThreading
+            skia
+)
 
 if (APPLE)
     target_link_libraries(LibWeb PRIVATE unofficial::angle::libEGL unofficial::angle::libGLESv2)
-endif()
+endif ()
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
@@ -1029,12 +1076,10 @@ if (ENABLE_SWIFT)
 
     generate_clang_module_map(LibWeb GENERATED_FILES ${LIBWEB_ALL_GENERATED_HEADERS})
 
-    target_sources(LibWeb PRIVATE
-        HTML/Parser/HTMLToken.swift
-        HTML/Parser/HTMLTokenizer.swift
-        HTML/Parser/HTMLTokenizerHelpers.cpp
-        HTML/Parser/SpeculativeHTMLParser.swift
+    target_sources(
+        LibWeb PRIVATE HTML/Parser/HTMLToken.swift HTML/Parser/HTMLTokenizer.swift HTML/Parser/HTMLTokenizerHelpers.cpp
+                       HTML/Parser/SpeculativeHTMLParser.swift
     )
     target_link_libraries(LibWeb PRIVATE AK Collections)
     add_swift_target_properties(LibWeb LAGOM_LIBRARIES AK LibGfx LibGC)
-endif()
+endif ()

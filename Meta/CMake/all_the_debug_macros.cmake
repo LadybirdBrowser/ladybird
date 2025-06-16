@@ -81,12 +81,6 @@ set(WEBP_DEBUG ON)
 set(WORKER_THREAD_DEBUG ON)
 set(XML_PARSER_DEBUG ON)
 
-# False positive: ANDROID_LOG_DEBUG is a log level, not a debug flag
-# set(ANDROID_LOG_DEBUG ON)
-# Clogs up build: The BindingsGenerator stuff is run at compile time.
-# set(BINDINGS_GENERATOR_DEBUG ON)
-# Third-party: skia vcpkg port overlay
-# set(gn_defines_DEBUG ON)
-# set(gn_include_dirs_DEBUG ON)
-# set(gn_ldflags_DEBUG ON)
-# set(gn_lib_dirs_DEBUG ON)
+# False positive: ANDROID_LOG_DEBUG is a log level, not a debug flag set(ANDROID_LOG_DEBUG ON) Clogs up build: The
+# BindingsGenerator stuff is run at compile time. set(BINDINGS_GENERATOR_DEBUG ON) Third-party: skia vcpkg port overlay
+# set(gn_defines_DEBUG ON) set(gn_include_dirs_DEBUG ON) set(gn_ldflags_DEBUG ON) set(gn_lib_dirs_DEBUG ON)

@@ -83,29 +83,29 @@ set(AK_TEST_SOURCES
 )
 
 # FIXME: LexicalPathWindows has some parenting and path parts sizing inconsistencies with LexicalPath, so it deserves
-#  it's own platform-specific tests to avoid if-def soup in the Unix-based tests.
-if(NOT WIN32)
+# it's own platform-specific tests to avoid if-def soup in the Unix-based tests.
+if (NOT WIN32)
     list(APPEND AK_TEST_SOURCES TestLexicalPath.cpp)
-endif()
+endif ()
 
-foreach(source IN LISTS AK_TEST_SOURCES)
+foreach (source IN LISTS AK_TEST_SOURCES)
     serenity_test("${source}" AK)
-endforeach()
+endforeach ()
 
 if (WIN32)
     # FIXME: Windows on ARM
     target_link_libraries(TestUFixedBigInt PRIVATE clang_rt.builtins-x86_64.lib)
-endif()
+endif ()
 
 if (CXX_COMPILER_SUPPORTS_BLOCKS)
     serenity_test(TestFunction.mm AK NAME TestFunction)
     target_link_libraries(TestFunction PRIVATE ${BLOCKS_REQUIRED_LIBRARIES})
-endif()
+endif ()
 if (CXX_COMPILER_SUPPORTS_OBJC_ARC)
     serenity_test(TestFunction.mm AK NAME TestFunctionArc)
     target_compile_options(TestFunctionArc PRIVATE -fobjc-arc)
     target_link_libraries(TestFunction PRIVATE ${BLOCKS_REQUIRED_LIBRARIES})
-endif()
+endif ()
 
 target_link_libraries(TestString PRIVATE LibUnicode)
 
@@ -116,4 +116,4 @@ if (ENABLE_SWIFT)
     target_link_libraries(TestAKBindings PRIVATE AK)
     target_compile_options(TestAKBindings PRIVATE -parse-as-library)
     add_test(NAME TestAKBindings COMMAND TestAKBindings)
-endif()
+endif ()

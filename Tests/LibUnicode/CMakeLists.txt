@@ -8,6 +8,6 @@ set(TEST_SOURCES
     TestUnicodeNormalization.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
+foreach (source IN LISTS TEST_SOURCES)
     serenity_test("${source}" LibUnicode LIBS LibUnicode)
-endforeach()
+endforeach ()

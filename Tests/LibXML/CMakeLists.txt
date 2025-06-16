@@ -1,7 +1,5 @@
-set(TEST_SOURCES
-    TestParser.cpp
-)
+set(TEST_SOURCES TestParser.cpp)
 
-foreach(source IN LISTS TEST_SOURCES)
+foreach (source IN LISTS TEST_SOURCES)
     serenity_test("${source}" LibXML LIBS LibXML)
-endforeach()
+endforeach ()

@@ -1,14 +1,8 @@
-set(SOURCES
-    RegexByteCode.cpp
-    RegexLexer.cpp
-    RegexMatcher.cpp
-    RegexOptimizer.cpp
-    RegexParser.cpp
-)
+set(SOURCES RegexByteCode.cpp RegexLexer.cpp RegexMatcher.cpp RegexOptimizer.cpp RegexParser.cpp)
 
-if(SERENITYOS)
+if (SERENITYOS)
     list(APPEND SOURCES C/Regex.cpp)
-endif()
+endif ()
 
 serenity_lib(LibRegex regex EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibRegex PRIVATE LibUnicode)

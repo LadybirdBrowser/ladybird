@@ -274,20 +274,20 @@ target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex Lib
 target_link_libraries(LibJS PUBLIC LibUnicode)
 
 # TODO: This is probably also needed on RISC-V.
-if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "i.86.*")
+if ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "i.86.*")
     target_link_libraries(LibJS PRIVATE atomic)
-endif()
+endif ()
 
 if (WIN32)
     # FIXME: Windows on ARM
     target_link_libraries(LibJS PRIVATE clang_rt.builtins-x86_64.lib)
-    # FIXME: This is a hack to get around lld-link error undefined symbol GC::HeapBlockBase::block_size
-    #        LibGC HeapBlock.obj is given directly to LibJS linker
+    # FIXME: This is a hack to get around lld-link error undefined symbol GC::HeapBlockBase::block_size LibGC
+    # HeapBlock.obj is given directly to LibJS linker
     target_link_libraries(LibJS PRIVATE $<FILTER:$<TARGET_OBJECTS:LibGC>,INCLUDE,HeapBlock>)
-else()
+else ()
     # This flag has no effect on Windows
     target_compile_options(LibJS PRIVATE -fno-omit-frame-pointer)
-endif()
+endif ()
 
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
 

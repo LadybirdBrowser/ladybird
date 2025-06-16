@@ -60,40 +60,50 @@ set(SOURCES
     SkiaBackendContext.cpp
 )
 
-set(SWIFT_EXCLUDE_HEADERS
-    FilterImpl.h
-    GlobalFontConfig.h
-    MetalContext.h
-    VulkanContext.h
-    SkiaUtils.h
-)
+set(SWIFT_EXCLUDE_HEADERS FilterImpl.h GlobalFontConfig.h MetalContext.h VulkanContext.h SkiaUtils.h)
 
 if (APPLE)
     list(APPEND SOURCES MetalContext.mm)
-endif()
+endif ()
 
 if (HAS_VULKAN)
     list(APPEND SOURCES VulkanContext.cpp)
-endif()
+endif ()
 
 if (HAS_FONTCONFIG)
     list(APPEND SOURCES Font/GlobalFontConfig.cpp)
-endif()
+endif ()
 
 serenity_lib(LibGfx gfx)
 
-target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL)
+target_link_libraries(
+    LibGfx
+    PRIVATE LibCompress
+            LibCore
+            LibCrypto
+            LibFileSystem
+            LibRIFF
+            LibTextCodec
+            LibIPC
+            LibUnicode
+            LibURL
+)
 
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "ImageFormats/")
 
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(
+    Python3
+    COMPONENTS Interpreter
+    REQUIRED
+)
 
 add_custom_command(
-        OUTPUT  ${generated_sources}
-        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/TIFFGenerator.py" -o "${CMAKE_CURRENT_BINARY_DIR}/ImageFormats"
-        DEPENDS "TIFFGenerator.py"
-        VERBATIM
+    OUTPUT ${generated_sources}
+    COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/TIFFGenerator.py" -o
+            "${CMAKE_CURRENT_BINARY_DIR}/ImageFormats"
+    DEPENDS "TIFFGenerator.py"
+    VERBATIM
 )
 target_sources(LibGfx PRIVATE ${generated_sources})
 add_custom_target(generate_tiff_files_handler DEPENDS ${generated_sources})
@@ -107,7 +117,7 @@ list(TRANSFORM generated_headers PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
 if (ENABLE_INSTALL_HEADERS)
     list(TRANSFORM generated_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
     install(FILES ${generated_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibGfx/ImageFormats")
-endif()
+endif ()
 
 # Third-party
 find_package(PkgConfig)
@@ -119,45 +129,57 @@ find_package(LIBAVIF REQUIRED)
 find_package(WebP REQUIRED)
 find_package(harfbuzz REQUIRED)
 
-target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
-            WebP::webpdemux WebP::libwebpmux skia harfbuzz)
+target_link_libraries(
+    LibGfx
+    PRIVATE PkgConfig::WOFF2
+            JPEG::JPEG
+            PNG::PNG
+            avif
+            WebP::webp
+            WebP::webpdecoder
+            WebP::webpdemux
+            WebP::libwebpmux
+            skia
+            harfbuzz
+)
 
 set(CMAKE_REQUIRED_LIBRARIES PNG::PNG)
-check_c_source_compiles([=[
+check_c_source_compiles(
+    [=[
     #include <png.h>
     #if !defined(PNG_APNG_SUPPORTED) || !defined(PNG_READ_APNG_SUPPORTED) || !defined(PNG_READ_APNG_SUPPORTED)
     #error "APNG support is required"
     #endif
     int main() {}
-]=] LIBPNG_HAS_APNG)
+]=]
+    LIBPNG_HAS_APNG
+)
 unset(CMAKE_REQUIRED_LIBRARIES)
 
 if (NOT LIBPNG_HAS_APNG)
     message(FATAL_ERROR "libpng does not support APNG, which is required by LibGfx.")
-endif()
+endif ()
 
 if (NOT ANDROID)
     pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
     target_link_libraries(LibGfx PRIVATE PkgConfig::Jxl)
-else()
+else ()
     find_package(libjxl REQUIRED)
     find_package(hwy REQUIRED)
     target_link_libraries(LibGfx PRIVATE libjxl::libjxl hwy::hwy)
-endif()
+endif ()
 
 if (ENABLE_SWIFT)
     generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers} EXCLUDE_FILES ${SWIFT_EXCLUDE_HEADERS})
-    target_sources(LibGfx PRIVATE
-        Color.swift
-    )
+    target_sources(LibGfx PRIVATE Color.swift)
     target_link_libraries(LibGfx PRIVATE AK)
     add_swift_target_properties(LibGfx LAGOM_LIBRARIES AK)
-endif()
+endif ()
 
 if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework Metal")
-endif()
+endif ()
 
 if (HAS_VULKAN)
     target_link_libraries(LibCore PUBLIC Vulkan::Vulkan Vulkan::Headers)
-endif()
+endif ()

@@ -15,6 +15,6 @@ set(TEST_SOURCES
     TestRSA.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
+foreach (source IN LISTS TEST_SOURCES)
     serenity_test("${source}" LibCrypto LIBS LibCrypto)
-endforeach()
+endforeach ()
