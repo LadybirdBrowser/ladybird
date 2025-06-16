@@ -101,7 +101,9 @@
     "none",
     "left",
     "right",
-    "both"
+    "both",
+    "inline-start",
+    "inline-end"
   ],
   "column-span": [
     "none",
