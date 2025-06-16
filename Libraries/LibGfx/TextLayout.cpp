@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, sin-ack <sin-ack@protonmail.com>
  * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -68,7 +69,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     if (!features.is_empty()) {
         hb_features.ensure_capacity(features.size());
         for (auto const& feature : features) {
-            hb_features.append({
+            hb_features.unchecked_append({
                 .tag = HB_TAG(feature.tag[0], feature.tag[1], feature.tag[2], feature.tag[3]),
                 .value = feature.value,
                 .start = 0,
@@ -90,7 +91,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
         auto position = point
             - FloatPoint { 0, font.pixel_metrics().ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
-        glyph_run.append({ position, glyph_info[i].codepoint });
+        glyph_run.unchecked_append({ position, glyph_info[i].codepoint });
         point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
 
         // don't apply spacing to last glyph

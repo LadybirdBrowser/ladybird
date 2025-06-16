@@ -452,7 +452,7 @@ Gfx::ShapeFeatures InlineLevelIterator::create_and_merge_font_features() const
     shape_features.ensure_capacity(merged_features.size());
 
     for (auto& it : merged_features) {
-        shape_features.append({ { it.key[0], it.key[1], it.key[2], it.key[3] }, static_cast<u32>(it.value) });
+        shape_features.unchecked_append({ { it.key[0], it.key[1], it.key[2], it.key[3] }, static_cast<u32>(it.value) });
     }
 
     return shape_features;
