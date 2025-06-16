@@ -939,9 +939,10 @@ BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floa
             float_side.clear();
     };
 
-    if (computed_values.clear() == CSS::Clear::Left || computed_values.clear() == CSS::Clear::Both)
+    // FIXME: Honor writing-mode, direction and text-orientation.
+    if (first_is_one_of(computed_values.clear(), CSS::Clear::Left, CSS::Clear::Both, CSS::Clear::InlineStart))
         clear_floating_boxes(m_left_floats);
-    if (computed_values.clear() == CSS::Clear::Right || computed_values.clear() == CSS::Clear::Both)
+    if (first_is_one_of(computed_values.clear(), CSS::Clear::Right, CSS::Clear::Both, CSS::Clear::InlineEnd))
         clear_floating_boxes(m_right_floats);
 
     return result;

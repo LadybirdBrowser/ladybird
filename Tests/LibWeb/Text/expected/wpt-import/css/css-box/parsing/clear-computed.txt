@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Property clear value 'none'
+Pass	Property clear value 'left'
+Pass	Property clear value 'right'
+Pass	Property clear value 'both'
+Pass	Property clear value 'inline-start'
+Pass	Property clear value 'inline-end'
