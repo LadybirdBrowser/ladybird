@@ -1,0 +1,8 @@
+with section("format"):
+    line_width = 120
+    tab_size = 4
+    dangle_parens = True
+    separate_ctrl_name_with_space = True
+
+with section("markup"):
+    first_comment_is_literal = True
