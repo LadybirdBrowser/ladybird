@@ -1,5 +1,3 @@
-set(SOURCES
-    main.cpp
-)
+set(SOURCES main.cpp)
 
 lagom_tool(IPCCompiler LIBS LibMain)

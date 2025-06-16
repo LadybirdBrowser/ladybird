@@ -1,8 +1,6 @@
-set(SOURCES
-    Client.cpp
-)
+set(SOURCES Client.cpp)
 
-if (NOT SERENITYOS)
+if(NOT SERENITYOS)
     compile_ipc(../../Services/ImageDecoder/ImageDecoderClient.ipc ../../Services/ImageDecoder/ImageDecoderClientEndpoint.h)
     compile_ipc(../../Services/ImageDecoder/ImageDecoderServer.ipc ../../Services/ImageDecoder/ImageDecoderServerEndpoint.h)
 endif()

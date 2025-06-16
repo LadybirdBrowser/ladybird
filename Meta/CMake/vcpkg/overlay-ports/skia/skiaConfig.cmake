@@ -10,9 +10,11 @@ if(NOT TARGET skia)
         set(z_vcpkg_skia_root "")
     endif()
     add_library(skia INTERFACE IMPORTED)
-    set_target_properties(skia PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${z_vcpkg_skia_root}/include"
-        INTERFACE_LINK_LIBRARIES unofficial::skia::skia
+    set_target_properties(
+        skia
+        PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${z_vcpkg_skia_root}/include"
+            INTERFACE_LINK_LIBRARIES unofficial::skia::skia
     )
     add_library(skia::skia ALIAS skia)
     unset(z_vcpkg_skia_root)

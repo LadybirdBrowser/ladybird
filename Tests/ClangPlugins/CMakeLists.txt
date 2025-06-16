@@ -5,7 +5,9 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 get_property(CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS GLOBAL PROPERTY CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS)
 
-list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
+list(
+    APPEND
+    CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
     -std=c++23
     -Wno-user-defined-literals
     -Wno-literal-range
@@ -37,11 +39,10 @@ add_custom_command(
     COMMAND ${Python3_EXECUTABLE} -m venv venv
     COMMAND ./venv/bin/pip install -r requirements.txt --upgrade
 )
-add_custom_target(TestClangPluginsDependencies ALL
+add_custom_target(
+    TestClangPluginsDependencies
+    ALL
     DEPENDS venv JSClangPlugin GenericClangPlugin
     SOURCES requirements.txt
 )
-add_test(
-    NAME TestClangPlugins
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/venv/bin/lit -v .
-)
+add_test(NAME TestClangPlugins COMMAND ${CMAKE_CURRENT_BINARY_DIR}/venv/bin/lit -v .)

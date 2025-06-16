@@ -9,7 +9,7 @@ add_subdirectory(LibThreading)
 add_subdirectory(LibURL)
 
 # FIXME: Increase support for building targets on Windows
-if (WIN32 AND ENABLE_WINDOWS_CI)
+if(WIN32 AND ENABLE_WINDOWS_CI)
     return()
 endif()
 
@@ -22,13 +22,13 @@ add_subdirectory(LibUnicode)
 add_subdirectory(LibWasm)
 add_subdirectory(LibXML)
 
-if (ENABLE_GUI_TARGETS)
+if(ENABLE_GUI_TARGETS)
     add_subdirectory(LibGfx)
     add_subdirectory(LibMedia)
     add_subdirectory(LibWeb)
     add_subdirectory(LibWebView)
 endif()
 
-if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
+if(ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
     add_subdirectory(ClangPlugins)
 endif()
