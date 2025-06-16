@@ -2,19 +2,16 @@ set(CMAKE_AUTOMOC OFF)
 set(CMAKE_AUTORCC OFF)
 set(CMAKE_AUTOUIC OFF)
 
-set(SOURCES
-    ConnectionFromClient.cpp
-)
+set(SOURCES ConnectionFromClient.cpp)
 
 if (ANDROID)
-    add_library(imagedecoderservice SHARED
-        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/ImageDecoderService.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-        ${SOURCES}
+    add_library(
+        imagedecoderservice SHARED ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/ImageDecoderService.cpp
+                                   ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp ${SOURCES}
     )
-else()
+else ()
     add_library(imagedecoderservice STATIC ${SOURCES})
-endif()
+endif ()
 
 add_executable(ImageDecoder main.cpp)
 

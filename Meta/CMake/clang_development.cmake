@@ -4,7 +4,7 @@
 
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
     return()
-endif()
+endif ()
 
 set(DESIRED_CLANG_VERSION "${CMAKE_CXX_COMPILER_VERSION}")
 

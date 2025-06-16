@@ -1,6 +1,6 @@
 include(clang_development)
 
-function(clang_plugin target_name)
+function (clang_plugin target_name)
     cmake_parse_arguments(CLANG_PLUGIN "" "" "SOURCES" ${ARGN})
     add_library(${target_name} ${CLANG_PLUGIN_SOURCES})
     target_include_directories(${target_name} SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
@@ -13,25 +13,28 @@ function(clang_plugin target_name)
 
     add_custom_target(${target_name}Target DEPENDS ${target_name})
 
-    set_property(GLOBAL APPEND PROPERTY CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS -fplugin=${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lib${target_name}.so)
+    set_property(
+        GLOBAL APPEND PROPERTY CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
+                               -fplugin=${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lib${target_name}.so
+    )
 
     add_lagom_library_install_rules(${target_name})
 
     if (NOT WIN32 AND NOT APPLE)
         target_link_options(${target_name} PRIVATE LINKER:-z,undefs)
         target_link_options(${target_name} PRIVATE LINKER:--allow-shlib-undefined)
-    endif()
-endfunction()
+    endif ()
+endfunction ()
 
-function(depend_on_clang_plugin target_name plugin_name)
+function (depend_on_clang_plugin target_name plugin_name)
     if (TARGET ${plugin_name}Target)
         add_dependencies(${target_name} ${plugin_name}Target)
-    endif()
+    endif ()
     target_compile_options(${target_name} INTERFACE -fplugin=$<TARGET_FILE:Lagom::${plugin_name}>)
     if (${ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS})
         target_compile_options(${target_name} INTERFACE -fplugin-arg-libjs_gc_scanner-detect-invalid-function-members)
-    endif()
-endfunction()
+    endif ()
+endfunction ()
 
 clang_plugin(LambdaCaptureClangPlugin SOURCES LambdaCapturePluginAction.cpp)
 clang_plugin(LibJSGCClangPlugin SOURCES LibJSGCPluginAction.cpp)

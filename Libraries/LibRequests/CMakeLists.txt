@@ -1,13 +1,7 @@
-set(SOURCES
-    NetworkError.h
-    Request.cpp
-    RequestClient.cpp
-    WebSocket.cpp
-)
+set(SOURCES NetworkError.h Request.cpp RequestClient.cpp WebSocket.cpp)
 
-set(GENERATED_SOURCES
-    ../../Services/RequestServer/RequestClientEndpoint.h
-    ../../Services/RequestServer/RequestServerEndpoint.h
+set(GENERATED_SOURCES ../../Services/RequestServer/RequestClientEndpoint.h
+                      ../../Services/RequestServer/RequestServerEndpoint.h
 )
 
 serenity_lib(LibRequests requests)

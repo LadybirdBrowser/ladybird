@@ -1,7 +1,5 @@
-set(TEST_SOURCES
-    TestDNSResolver.cpp
-)
+set(TEST_SOURCES TestDNSResolver.cpp)
 
-foreach(source IN LISTS TEST_SOURCES)
+foreach (source IN LISTS TEST_SOURCES)
     serenity_test("${source}" LibDNS LIBS LibDNS LibTLS)
-endforeach()
+endforeach ()

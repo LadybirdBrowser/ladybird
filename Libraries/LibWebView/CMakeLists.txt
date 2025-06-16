@@ -34,38 +34,32 @@ set(SOURCES
 
 if (APPLE)
     list(APPEND SOURCES MachPortServer.cpp)
-endif()
+endif ()
 
 if (ENABLE_QT)
-    list(APPEND SOURCES
-        EventLoop/EventLoopImplementationQt.cpp
-        EventLoop/EventLoopImplementationQtEventTarget.cpp
-    )
+    list(APPEND SOURCES EventLoop/EventLoopImplementationQt.cpp EventLoop/EventLoopImplementationQtEventTarget.cpp)
 
     set(CMAKE_AUTOMOC ON)
     find_package(Qt6 REQUIRED COMPONENTS Core)
 elseif (APPLE)
-    list(APPEND SOURCES
-        EventLoop/EventLoopImplementationMacOS.mm
-    )
-endif()
+    list(APPEND SOURCES EventLoop/EventLoopImplementationMacOS.mm)
+endif ()
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
 embed_as_string(
-    "NativeStyleSheetSource.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Native.css"
-    "NativeStyleSheetSource.cpp"
-    "native_stylesheet_source"
-    NAMESPACE "WebView"
+    "NativeStyleSheetSource.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Native.css" "NativeStyleSheetSource.cpp"
+    "native_stylesheet_source" NAMESPACE "WebView"
 )
 
 compile_ipc(UIProcessServer.ipc UIProcessServerEndpoint.h)
 compile_ipc(UIProcessClient.ipc UIProcessClientEndpoint.h)
 
 if (NOT APPLE AND NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
-    set_source_files_properties(Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
-endif()
+    set_source_files_properties(
+        Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}"
+    )
+endif ()
 
 set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
@@ -83,11 +77,26 @@ set(GENERATED_SOURCES
 )
 
 serenity_lib(LibWebView webview)
-target_link_libraries(LibWebView PRIVATE LibCore LibDevTools LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax LibTextCodec)
+target_link_libraries(
+    LibWebView
+    PRIVATE LibCore
+            LibDevTools
+            LibFileSystem
+            LibGfx
+            LibImageDecoderClient
+            LibIPC
+            LibRequests
+            LibJS
+            LibWeb
+            LibUnicode
+            LibURL
+            LibSyntax
+            LibTextCodec
+)
 
 if (APPLE)
     target_link_libraries(LibWebView PRIVATE LibThreading)
-endif()
+endif ()
 
 # Third-party
 find_package(SQLite3 REQUIRED)
@@ -97,22 +106,22 @@ if (ENABLE_QT)
     target_link_libraries(LibWebView PRIVATE Qt::Core)
 elseif (APPLE)
     target_link_libraries(LibWebView PRIVATE "-framework Cocoa")
-endif()
+endif ()
 
 if (HAS_FONTCONFIG)
     target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)
-endif()
+endif ()
 
 if (ENABLE_INSTALL_HEADERS)
-    foreach(header ${GENERATED_SOURCES})
+    foreach (header ${GENERATED_SOURCES})
         get_filename_component(extension ${header} EXT)
         if (NOT "${extension}" STREQUAL ".h")
             continue()
-        endif()
+        endif ()
 
         get_filename_component(subdirectory ${header} DIRECTORY)
         string(REGEX REPLACE "^\\.\\./\\.\\./" "" subdirectory "${subdirectory}")
 
         install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${header}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${subdirectory}")
-    endforeach()
-endif()
+    endforeach ()
+endif ()
