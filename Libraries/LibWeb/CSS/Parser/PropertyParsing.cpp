@@ -8,6 +8,7 @@
  * Copyright (c) 2024, Tommy van der Vorst <tommy@pixelspark.nl>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -4324,60 +4325,91 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_placement_shorthand_value(P
 // 7.4. Explicit Grid Shorthand: the grid-template property
 RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list_shorthand_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
-    // The grid-template property is a shorthand for setting grid-template-columns, grid-template-rows,
-    // and grid-template-areas in a single declaration. It has several distinct syntax forms:
+    auto empty_grid_areas = GridTemplateAreaStyleValue::create({});
+    auto empty_grid_track_size_list = GridTrackSizeListStyleValue::create({});
+
     // none
-    //    - Sets all three properties to their initial values (none).
-    // <'grid-template-rows'> / <'grid-template-columns'>
-    //    - Sets grid-template-rows and grid-template-columns to the specified values, respectively, and sets grid-template-areas to none.
-    // [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?
-    //    - Sets grid-template-areas to the strings listed.
-    //    - Sets grid-template-rows to the <track-size>s following each string (filling in auto for any missing sizes),
-    //      and splicing in the named lines defined before/after each size.
-    //    - Sets grid-template-columns to the track listing specified after the slash (or none, if not specified).
-    auto transaction = tokens.begin_transaction();
-
-    // FIXME: Read the parts in place if possible, instead of constructing separate vectors and streams.
-    Vector<ComponentValue> template_rows_tokens;
-    Vector<ComponentValue> template_columns_tokens;
-    Vector<ComponentValue> template_area_tokens;
-
-    bool found_forward_slash = false;
-
-    while (tokens.has_next_token()) {
-        auto& token = tokens.consume_a_token();
-        if (token.is_delim('/')) {
-            if (found_forward_slash)
-                return nullptr;
-            found_forward_slash = true;
-            continue;
+    {
+        if (parse_all_as_single_keyword_value(tokens, Keyword::None)) {
+            return ShorthandStyleValue::create(property_id,
+                { PropertyID::GridTemplateAreas, PropertyID::GridTemplateRows, PropertyID::GridTemplateColumns },
+                { empty_grid_areas, empty_grid_track_size_list, empty_grid_track_size_list });
         }
-        if (found_forward_slash) {
-            template_columns_tokens.append(token);
-            continue;
-        }
-        if (token.is(Token::Type::String))
-            template_area_tokens.append(token);
-        else
-            template_rows_tokens.append(token);
     }
 
-    TokenStream template_area_token_stream { template_area_tokens };
-    TokenStream template_rows_token_stream { template_rows_tokens };
-    TokenStream template_columns_token_stream { template_columns_tokens };
-    auto parsed_template_areas_values = parse_grid_template_areas_value(template_area_token_stream);
-    auto parsed_template_rows_values = parse_grid_track_size_list(template_rows_token_stream, true);
-    auto parsed_template_columns_values = parse_grid_track_size_list(template_columns_token_stream);
+    // [ <'grid-template-rows'> / <'grid-template-columns'> ]
+    {
+        auto transaction = tokens.begin_transaction();
+        if (auto parsed_template_rows_values = parse_grid_track_size_list(tokens)) {
+            tokens.discard_whitespace();
+            if (tokens.has_next_token() && tokens.next_token().is_delim('/')) {
+                tokens.discard_a_token();
+                tokens.discard_whitespace();
+                if (auto parsed_template_columns_values = parse_grid_track_size_list(tokens)) {
+                    transaction.commit();
+                    return ShorthandStyleValue::create(property_id,
+                        { PropertyID::GridTemplateAreas, PropertyID::GridTemplateRows, PropertyID::GridTemplateColumns },
+                        { empty_grid_areas, parsed_template_rows_values.release_nonnull(), parsed_template_columns_values.release_nonnull() });
+                }
+            }
+        }
+    }
 
-    if (template_area_token_stream.has_next_token()
-        || template_rows_token_stream.has_next_token()
-        || template_columns_token_stream.has_next_token())
-        return nullptr;
+    // [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?
+    {
+        auto transaction = tokens.begin_transaction();
 
-    transaction.commit();
-    return ShorthandStyleValue::create(property_id,
-        { PropertyID::GridTemplateAreas, PropertyID::GridTemplateRows, PropertyID::GridTemplateColumns },
-        { parsed_template_areas_values.release_nonnull(), parsed_template_rows_values.release_nonnull(), parsed_template_columns_values.release_nonnull() });
+        GridTrackSizeList track_list;
+        Vector<ComponentValue> area_tokens;
+
+        GridTrackParser parse_grid_track = [&](TokenStream<ComponentValue>& tokens) -> Optional<ExplicitGridTrack> {
+            if (!tokens.has_next_token())
+                return {};
+            tokens.discard_whitespace();
+            auto const& token = tokens.consume_a_token();
+            if (!token.is(Token::Type::String))
+                return {};
+            area_tokens.append(token);
+            tokens.discard_whitespace();
+            if (auto track_size = parse_grid_track_size(tokens); track_size.has_value())
+                return track_size.release_value();
+            tokens.discard_whitespace();
+            return ExplicitGridTrack(GridSize::make_auto());
+        };
+
+        auto parsed_track_count = parse_track_list_impl(tokens, track_list, parse_grid_track, AllowTrailingLineNamesForEachTrack::Yes);
+        if (parsed_track_count > 0) {
+            TokenStream area_tokens_stream { area_tokens };
+            auto grid_areas = parse_grid_template_areas_value(area_tokens_stream);
+            if (!grid_areas)
+                return nullptr;
+
+            auto rows_track_list = GridTrackSizeListStyleValue::create(move(track_list));
+
+            tokens.discard_whitespace();
+
+            RefPtr<CSSStyleValue const> columns_track_list = empty_grid_track_size_list;
+            if (tokens.has_next_token() && tokens.next_token().is_delim('/')) {
+                tokens.discard_a_token();
+                tokens.discard_whitespace();
+                if (auto parsed_columns = parse_explicit_track_list(tokens); !parsed_columns.is_empty()) {
+                    transaction.commit();
+                    columns_track_list = GridTrackSizeListStyleValue::create(move(parsed_columns));
+                } else {
+                    return nullptr;
+                }
+            } else if (tokens.has_next_token()) {
+                return nullptr;
+            }
+
+            transaction.commit();
+            return ShorthandStyleValue::create(property_id,
+                { PropertyID::GridTemplateAreas, PropertyID::GridTemplateRows, PropertyID::GridTemplateColumns },
+                { grid_areas.release_nonnull(), rows_track_list, columns_track_list.release_nonnull() });
+        }
+    }
+
+    return nullptr;
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<ComponentValue>& tokens)
@@ -4471,10 +4503,103 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<
 
 RefPtr<CSSStyleValue const> Parser::parse_grid_shorthand_value(TokenStream<ComponentValue>& tokens)
 {
-    // <'grid-template'> |
-    // FIXME: <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>? |
-    // FIXME: [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
-    return parse_grid_track_size_list_shorthand_value(PropertyID::Grid, tokens);
+    // <'grid-template'>
+    if (auto grid_template = parse_grid_track_size_list_shorthand_value(PropertyID::Grid, tokens)) {
+        return grid_template;
+    }
+
+    auto parse_auto_flow_and_dense = [&](GridAutoFlowStyleValue::Axis axis) -> RefPtr<GridAutoFlowStyleValue const> {
+        bool found_auto_flow = false;
+        auto dense = GridAutoFlowStyleValue::Dense::No;
+        for (int i = 0; i < 2 && tokens.has_next_token(); ++i) {
+            auto const& token = tokens.next_token();
+            if (token.is_ident("auto-flow"sv) && !found_auto_flow) {
+                tokens.discard_a_token();
+                tokens.discard_whitespace();
+                found_auto_flow = true;
+            } else if (token.is_ident("dense"sv) && dense == GridAutoFlowStyleValue::Dense::No) {
+                tokens.discard_a_token();
+                tokens.discard_whitespace();
+                dense = GridAutoFlowStyleValue::Dense::Yes;
+            } else {
+                break;
+            }
+        }
+
+        if (found_auto_flow)
+            return GridAutoFlowStyleValue::create(axis, dense);
+        return {};
+    };
+
+    // [ auto-flow && dense? ] <'grid-auto-rows'>? / <'grid-template-columns'>
+    auto parse_shorthand_branch_1 = [&] -> RefPtr<CSSStyleValue const> {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+
+        auto grid_auto_flow = parse_auto_flow_and_dense(GridAutoFlowStyleValue::Axis::Row);
+        if (!grid_auto_flow)
+            return nullptr;
+
+        auto grid_auto_rows = parse_grid_auto_track_sizes(tokens);
+        if (!grid_auto_rows) {
+            grid_auto_rows = GridTrackSizeListStyleValue::create({});
+        }
+
+        tokens.discard_whitespace();
+        if (!tokens.has_next_token() || !tokens.next_token().is_delim('/'))
+            return nullptr;
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+
+        auto grid_template_columns = parse_grid_track_size_list(tokens);
+        if (!grid_template_columns)
+            return nullptr;
+
+        transaction.commit();
+        return ShorthandStyleValue::create(PropertyID::Grid,
+            { PropertyID::GridAutoFlow, PropertyID::GridAutoRows, PropertyID::GridTemplateColumns },
+            { grid_auto_flow.release_nonnull(), grid_auto_rows.release_nonnull(), grid_template_columns.release_nonnull() });
+    };
+
+    // <'grid-template-rows'> / [ auto-flow && dense? ] <'grid-auto-columns'>?
+    auto parse_shorthand_branch_2 = [&] -> RefPtr<CSSStyleValue const> {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+
+        auto grid_template_rows = parse_grid_track_size_list(tokens);
+        if (!grid_template_rows)
+            return nullptr;
+
+        tokens.discard_whitespace();
+        if (!tokens.has_next_token() || !tokens.next_token().is_delim('/'))
+            return nullptr;
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+
+        auto grid_auto_flow = parse_auto_flow_and_dense(GridAutoFlowStyleValue::Axis::Column);
+        if (!grid_auto_flow)
+            return nullptr;
+
+        auto grid_auto_columns = parse_grid_auto_track_sizes(tokens);
+        if (!grid_auto_columns) {
+            grid_auto_columns = GridTrackSizeListStyleValue::create({});
+        }
+
+        transaction.commit();
+        return ShorthandStyleValue::create(PropertyID::Grid,
+            { PropertyID::GridTemplateRows, PropertyID::GridAutoFlow, PropertyID::GridAutoColumns },
+            { grid_template_rows.release_nonnull(), grid_auto_flow.release_nonnull(), grid_auto_columns.release_nonnull() });
+    };
+
+    if (auto grid = parse_shorthand_branch_1()) {
+        return grid;
+    }
+
+    if (auto grid = parse_shorthand_branch_2()) {
+        return grid;
+    }
+
+    return nullptr;
 }
 
 // https://www.w3.org/TR/css-grid-1/#grid-template-areas-property
@@ -4543,21 +4668,18 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_auto_track_sizes(TokenStream<Comp
 {
     // https://www.w3.org/TR/css-grid-2/#auto-tracks
     // <track-size>+
-    Vector<Variant<ExplicitGridTrack, GridLineNames>> track_list;
     auto transaction = tokens.begin_transaction();
+    GridTrackSizeList track_list;
     while (tokens.has_next_token()) {
-        auto const& token = tokens.consume_a_token();
-        auto track_sizing_function = parse_track_sizing_function(token);
-        if (!track_sizing_function.has_value()) {
-            transaction.commit();
-            return GridTrackSizeListStyleValue::make_auto();
-        }
-        // FIXME: Handle multiple repeat values (should combine them here, or remove
-        //        any other ones if the first one is auto-fill, etc.)
-        track_list.append(track_sizing_function.value());
+        tokens.discard_whitespace();
+        auto track_size = parse_grid_track_size(tokens);
+        if (!track_size.has_value())
+            break;
+        track_list.append(track_size.release_value());
     }
-    transaction.commit();
-    return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(track_list)));
+    if (!track_list.is_empty())
+        transaction.commit();
+    return GridTrackSizeListStyleValue::create(move(track_list));
 }
 
 // https://www.w3.org/TR/css-grid-1/#grid-auto-flow-property
@@ -4613,51 +4735,34 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
     return GridAutoFlowStyleValue::create(axis.value_or(GridAutoFlowStyleValue::Axis::Row), dense.value_or(GridAutoFlowStyleValue::Dense::No));
 }
 
-RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list(TokenStream<ComponentValue>& tokens, bool allow_separate_line_name_blocks)
+// https://www.w3.org/TR/css-grid-2/#track-sizing
+RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list(TokenStream<ComponentValue>& tokens)
 {
-    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-        return GridTrackSizeListStyleValue::make_none();
+    // none | <track-list> | <auto-track-list> | FIXME subgrid <line-name-list>?
 
-    auto transaction = tokens.begin_transaction();
-
-    Vector<Variant<ExplicitGridTrack, GridLineNames>> track_list;
-    auto last_object_was_line_names = false;
-    while (tokens.has_next_token()) {
-        auto const& token = tokens.consume_a_token();
-        if (token.is_block()) {
-            if (last_object_was_line_names && !allow_separate_line_name_blocks) {
-                transaction.commit();
-                return GridTrackSizeListStyleValue::make_auto();
-            }
-            last_object_was_line_names = true;
-            Vector<String> line_names;
-            if (!token.block().is_square()) {
-                transaction.commit();
-                return GridTrackSizeListStyleValue::make_auto();
-            }
-            TokenStream block_tokens { token.block().value };
-            block_tokens.discard_whitespace();
-            while (block_tokens.has_next_token()) {
-                auto const& current_block_token = block_tokens.consume_a_token();
-                line_names.append(current_block_token.token().ident().to_string());
-                block_tokens.discard_whitespace();
-            }
-            track_list.append(GridLineNames { move(line_names) });
-        } else {
-            last_object_was_line_names = false;
-            auto track_sizing_function = parse_track_sizing_function(token);
-            if (!track_sizing_function.has_value()) {
-                transaction.commit();
-                return GridTrackSizeListStyleValue::make_auto();
-            }
-            // FIXME: Handle multiple repeat values (should combine them here, or remove
-            // any other ones if the first one is auto-fill, etc.)
-            track_list.append(track_sizing_function.value());
+    // none
+    {
+        auto transaction = tokens.begin_transaction();
+        if (tokens.has_next_token() && tokens.next_token().is_ident("none"sv)) {
+            tokens.discard_a_token();
+            transaction.commit();
+            return GridTrackSizeListStyleValue::make_none();
         }
     }
 
-    transaction.commit();
-    return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(track_list)));
+    // <auto-track-list>
+    auto auto_track_list = parse_grid_auto_track_list(tokens);
+    if (!auto_track_list.is_empty()) {
+        return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(auto_track_list)));
+    }
+
+    // <track-list>
+    auto track_list = parse_grid_track_list(tokens);
+    if (!track_list.is_empty()) {
+        return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(track_list)));
+    }
+
+    return nullptr;
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<ComponentValue>& tokens)

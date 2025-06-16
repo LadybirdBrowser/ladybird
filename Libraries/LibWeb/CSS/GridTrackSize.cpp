@@ -120,16 +120,10 @@ String GridMinMax::to_string() const
     return MUST(builder.to_string());
 }
 
-GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, int repeat_count)
-    : m_type(Type::Default)
-    , m_grid_track_size_list(grid_track_size_list)
-    , m_repeat_count(repeat_count)
-{
-}
-
-GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, Type type)
-    : m_type(type)
-    , m_grid_track_size_list(grid_track_size_list)
+GridRepeat::GridRepeat(GridTrackSizeList&& grid_track_size_list, GridRepeatParams const& params)
+    : m_type(params.type)
+    , m_grid_track_size_list(move(grid_track_size_list))
+    , m_repeat_count(params.count)
 {
 }
 
@@ -138,13 +132,13 @@ String GridRepeat::to_string() const
     StringBuilder builder;
     builder.append("repeat("sv);
     switch (m_type) {
-    case Type::AutoFit:
+    case GridRepeatType::AutoFit:
         builder.append("auto-fit"sv);
         break;
-    case Type::AutoFill:
+    case GridRepeatType::AutoFill:
         builder.append("auto-fill"sv);
         break;
-    case Type::Default:
+    case GridRepeatType::Fixed:
         builder.appendff("{}", m_repeat_count);
         break;
     default:
@@ -175,15 +169,6 @@ String GridLineNames::to_string() const
     builder.join(' ', names);
     builder.append("]"sv);
     return MUST(builder.to_string());
-}
-
-GridTrackSizeList::GridTrackSizeList(Vector<Variant<ExplicitGridTrack, GridLineNames>>&& list)
-    : m_list(move(list))
-{
-}
-
-GridTrackSizeList::GridTrackSizeList()
-{
 }
 
 GridTrackSizeList GridTrackSizeList::make_none()
@@ -221,5 +206,15 @@ Vector<ExplicitGridTrack> GridTrackSizeList::track_list() const
 }
 
 bool GridTrackSizeList::operator==(GridTrackSizeList const& other) const = default;
+
+void GridTrackSizeList::append(GridLineNames&& line_names)
+{
+    m_list.append(move(line_names));
+}
+
+void GridTrackSizeList::append(ExplicitGridTrack&& explicit_track)
+{
+    m_list.append(move(explicit_track));
+}
 
 }

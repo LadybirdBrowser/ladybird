@@ -2292,7 +2292,7 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
     auto const& lines_definition = dimension == GridDimension::Column ? grid_computed_values.grid_template_columns() : grid_computed_values.grid_template_rows();
     auto& lines = dimension == GridDimension::Column ? m_column_lines : m_row_lines;
 
-    Vector<String> line_names;
+    Vector<FlyString> line_names;
     Function<void(CSS::GridTrackSizeList const&)> expand_lines_definition = [&](CSS::GridTrackSizeList const& lines_definition) {
         for (auto const& item : lines_definition.list()) {
             if (item.has<CSS::GridLineNames>()) {
