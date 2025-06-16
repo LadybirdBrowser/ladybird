@@ -888,8 +888,8 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     for (auto const& fragment : m_fragments) {
         auto fragment_absolute_rect = fragment.absolute_rect();
-        auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
         if (context.should_show_line_box_borders()) {
+            auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
             context.display_list_recorder().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Green);
             context.display_list_recorder().draw_line(
                 context.rounded_device_point(fragment_absolute_rect.top_left().translated(0, fragment.baseline())).to_type<int>(),
