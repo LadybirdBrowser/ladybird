@@ -14,6 +14,15 @@ namespace Web::IndexedDB {
 using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, GC::Root<Database>>>;
 static IDBDatabaseMapping m_databases;
 
+void Database::for_each_database(AK::Function<void(GC::Root<Database> const&)> const& visitor)
+{
+    for (auto const& [key, mapping] : m_databases) {
+        for (auto const& database_mapping : mapping) {
+            visitor(database_mapping.value);
+        }
+    }
+}
+
 GC_DEFINE_ALLOCATOR(Database);
 
 Database::~Database() = default;
