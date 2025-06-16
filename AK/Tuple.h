@@ -59,7 +59,7 @@ private:
 };
 
 template<typename T, typename... TRest>
-struct Tuple<T, TRest...> : Tuple<TRest...> {
+struct AK_COMPACT_EMPTY_BASES Tuple<T, TRest...> : Tuple<TRest...> {
 
     template<typename FirstT, typename... RestT>
     Tuple(FirstT&& first, RestT&&... rest)
@@ -113,7 +113,7 @@ private:
 namespace AK {
 
 template<typename... Ts>
-struct Tuple : Detail::Tuple<Ts...> {
+struct AK_COMPACT_EMPTY_BASES Tuple : Detail::Tuple<Ts...> {
     using Types = TypeList<Ts...>;
     using Detail::Tuple<Ts...>::Tuple;
     using Indices = MakeIndexSequence<sizeof...(Ts)>;
