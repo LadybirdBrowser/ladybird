@@ -24,6 +24,7 @@ Paintable::Paintable(Layout::Node const& layout_node)
         m_positioned = computed_values.position() != CSS::Positioning::Static;
     }
 
+    m_visible = computed_values.visibility() == CSS::Visibility::Visible && computed_values.opacity() != 0;
     m_fixed_position = computed_values.position() == CSS::Positioning::Fixed;
     m_sticky_position = computed_values.position() == CSS::Positioning::Sticky;
     m_absolutely_positioned = computed_values.position() == CSS::Positioning::Absolute;
@@ -43,12 +44,6 @@ void Paintable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_layout_node);
     if (m_containing_block.has_value())
         visitor.visit(m_containing_block.value());
-}
-
-bool Paintable::is_visible() const
-{
-    auto const& computed_values = this->computed_values();
-    return computed_values.visibility() == CSS::Visibility::Visible && computed_values.opacity() != 0;
 }
 
 DOM::Document const& Paintable::document() const
