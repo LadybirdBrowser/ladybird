@@ -233,7 +233,7 @@ private:
     };
 
     struct GridLine {
-        Vector<String> names;
+        Vector<FlyString> names;
     };
     Vector<GridLine> m_row_lines;
     Vector<GridLine> m_column_lines;

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/Layout/AvailableSpace.h>
@@ -78,7 +79,7 @@ private:
 };
 
 struct GridLineNames {
-    Vector<String> names;
+    Vector<FlyString> names;
 
     String to_string() const;
     bool operator==(GridLineNames const& other) const = default;
@@ -86,9 +87,6 @@ struct GridLineNames {
 
 class GridTrackSizeList {
 public:
-    GridTrackSizeList(Vector<Variant<ExplicitGridTrack, GridLineNames>>&& list);
-    GridTrackSizeList();
-
     static GridTrackSizeList make_none();
 
     Vector<CSS::ExplicitGridTrack> track_list() const;
@@ -97,38 +95,48 @@ public:
     String to_string() const;
     bool operator==(GridTrackSizeList const& other) const;
 
+    bool is_empty() const { return m_list.is_empty(); }
+
+    void append(GridLineNames&&);
+    void append(ExplicitGridTrack&&);
+
 private:
     Vector<Variant<ExplicitGridTrack, GridLineNames>> m_list;
 };
 
+enum class GridRepeatType {
+    AutoFit,
+    AutoFill,
+    Fixed,
+};
+
+struct GridRepeatParams {
+    GridRepeatType type;
+    size_t count { 0 };
+};
+
 class GridRepeat {
 public:
-    enum class Type {
-        AutoFit,
-        AutoFill,
-        Default,
-    };
-    GridRepeat(GridTrackSizeList, int repeat_count);
-    GridRepeat(GridTrackSizeList, Type);
+    GridRepeat(GridTrackSizeList&&, GridRepeatParams const&);
 
-    bool is_auto_fill() const { return m_type == Type::AutoFill; }
-    bool is_auto_fit() const { return m_type == Type::AutoFit; }
-    bool is_default() const { return m_type == Type::Default; }
-    int repeat_count() const
+    bool is_auto_fill() const { return m_type == GridRepeatType::AutoFill; }
+    bool is_auto_fit() const { return m_type == GridRepeatType::AutoFit; }
+    bool is_fixed() const { return m_type == GridRepeatType::Fixed; }
+    size_t repeat_count() const
     {
-        VERIFY(is_default());
+        VERIFY(is_fixed());
         return m_repeat_count;
     }
     GridTrackSizeList const& grid_track_size_list() const& { return m_grid_track_size_list; }
-    Type type() const& { return m_type; }
+    GridRepeatType type() const& { return m_type; }
 
     String to_string() const;
     bool operator==(GridRepeat const& other) const = default;
 
 private:
-    Type m_type;
+    GridRepeatType m_type;
     GridTrackSizeList m_grid_track_size_list;
-    int m_repeat_count { 0 };
+    size_t m_repeat_count { 0 };
 };
 
 class ExplicitGridTrack {
