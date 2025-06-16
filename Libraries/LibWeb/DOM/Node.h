@@ -294,6 +294,8 @@ public:
         return const_cast<Node*>(this)->shadow_including_root();
     }
 
+    bool is_closed_shadow_hidden_from(Node const&) const;
+
     bool is_connected() const;
 
     [[nodiscard]] bool is_browsing_context_connected() const;
