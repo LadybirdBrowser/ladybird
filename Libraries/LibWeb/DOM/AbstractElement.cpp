@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/DOM/AbstractElement.h>
+#include <LibWeb/DOM/Element.h>
 
 namespace Web::DOM {
 

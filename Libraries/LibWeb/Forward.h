@@ -185,6 +185,7 @@ class ConicGradientStyleValue;
 class ContentStyleValue;
 class CounterDefinitionsStyleValue;
 class CounterStyleValue;
+class CountersSet;
 class CSSAnimation;
 class CSSColorValue;
 class CSSConditionRule;
