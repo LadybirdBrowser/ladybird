@@ -1146,13 +1146,43 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
     // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
     auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element](auto const& keyframe_values) {
         HashMap<PropertyID, RefPtr<CSSStyleValue const>> result;
+        HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
+        auto property_is_set_by_use_initial = MUST(Bitmap::create(to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1, false));
+
+        // https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes
+        auto is_property_preferred = [&](PropertyID a, PropertyID b) {
+            // If conflicts arise when expanding shorthand properties or replacing logical properties with physical properties, apply the following rules in order until the conflict is resolved:
+            // 1. Longhand properties override shorthand properties (e.g. border-top-color overrides border-top).
+            if (property_is_shorthand(a) != property_is_shorthand(b))
+                return !property_is_shorthand(a);
+
+            // 2. Shorthand properties with fewer longhand components override those with more longhand components (e.g. border-top overrides border-color).
+            if (property_is_shorthand(a)) {
+                auto number_of_expanded_shorthands_a = expanded_longhands_for_shorthand(a).size();
+                auto number_of_expanded_shorthands_b = expanded_longhands_for_shorthand(b).size();
+
+                if (number_of_expanded_shorthands_a != number_of_expanded_shorthands_b)
+                    return number_of_expanded_shorthands_a < number_of_expanded_shorthands_b;
+            }
+
+            // FIXME: 3. Physical properties override logical properties.
+
+            // 4. For shorthand properties with an equal number of longhand components, properties whose IDL name (see
+            //    the CSS property to IDL attribute algorithm [CSSOM]) appears earlier when sorted in ascending order
+            //    by the Unicode codepoints that make up each IDL name, override those who appear later.
+            return camel_case_string_from_property_id(a) < camel_case_string_from_property_id(b);
+        };
+
         for (auto const& [property_id, value] : keyframe_values.properties) {
+            bool is_use_initial = false;
+
             auto style_value = value.visit(
                 [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSSStyleValue const> {
                     if (refresh == AnimationRefresh::Yes)
                         return {};
                     if (property_is_shorthand(property_id))
                         return {};
+                    is_use_initial = true;
                     return computed_properties.property(property_id);
                 },
                 [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
@@ -1174,8 +1204,20 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             if (style_value->is_unresolved())
                 style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, property_id, style_value->as_unresolved());
 
-            for_each_property_expanding_shorthands(property_id, *style_value, [&result](PropertyID id, CSSStyleValue const& longhand_value) {
-                result.set(id, { longhand_value });
+            for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+                auto longhand_id_bitmap_index = to_underlying(longhand_id) - to_underlying(first_longhand_property_id);
+
+                // Don't overwrite values if this is the result of a UseInitial
+                if (result.contains(longhand_id) && result.get(longhand_id) != nullptr && is_use_initial)
+                    return;
+
+                // Don't overwrite unless the value was originally set by a UseInitial or this property is preferred over the one that set it originally
+                if (result.contains(longhand_id) && result.get(longhand_id) != nullptr && !property_is_set_by_use_initial.get(longhand_id_bitmap_index) && !is_property_preferred(property_id, longhands_set_by_property_id.get(longhand_id).value()))
+                    return;
+
+                longhands_set_by_property_id.set(longhand_id, property_id);
+                property_is_set_by_use_initial.set(longhand_id_bitmap_index, is_use_initial);
+                result.set(longhand_id, { longhand_value });
             });
         }
         return result;

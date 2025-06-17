@@ -591,11 +591,26 @@ void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyfr
         initial_keyframe = keyframe_set->keyframes_by_key.find(0);
     }
 
+    auto expanded_properties = [&](HashMap<CSS::PropertyID, Variant<KeyFrameSet::UseInitial, NonnullRefPtr<CSS::CSSStyleValue const>>>& properties) {
+        HashTable<CSS::PropertyID> result;
+
+        for (auto property : properties) {
+            if (property_is_shorthand(property.key)) {
+                for (auto longhand : expanded_longhands_for_shorthand(property.key))
+                    result.set(longhand);
+            } else {
+                result.set(property.key);
+            }
+        }
+
+        return result;
+    };
+
     // 2. For any property in animated properties that is not otherwise present in a keyframe with an offset of
     //    0% or one that would be positioned earlier in the used keyframe order, add the computed value of that
     //    property on element to initial keyframe’s keyframe values.
     for (auto property : animated_properties) {
-        if (!initial_keyframe->properties.contains(property))
+        if (!expanded_properties(initial_keyframe->properties).contains(property))
             initial_keyframe->properties.set(property, KeyFrameSet::UseInitial {});
     }
 
@@ -612,7 +627,7 @@ void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyfr
     }
 
     for (auto property : animated_properties) {
-        if (!final_keyframe->properties.contains(property))
+        if (!expanded_properties(final_keyframe->properties).contains(property))
             final_keyframe->properties.set(property, KeyFrameSet::UseInitial {});
     }
 }
@@ -864,9 +879,9 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<GC::Root<JS::Ob
             if (property_value->is_unresolved() && target)
                 property_value = CSS::Parser::Parser::resolve_unresolved_style_value(CSS::Parser::ParsingParams { target->document() }, *target, pseudo_element_type(), property_id, property_value->as_unresolved());
 
-            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, [&](CSS::PropertyID longhand_id, CSS::CSSStyleValue const& longhand_value) {
+            resolved_keyframe.properties.set(property_id, property_value);
+            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, [&](CSS::PropertyID longhand_id, CSS::CSSStyleValue const&) {
                 m_target_properties.set(longhand_id);
-                resolved_keyframe.properties.set(longhand_id, NonnullRefPtr<CSS::CSSStyleValue const> { longhand_value });
             });
         }
 
