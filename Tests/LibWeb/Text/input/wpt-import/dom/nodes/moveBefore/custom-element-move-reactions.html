@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <title>Node.moveBefore custom element reactions</title>
-<script src="../../../../resources/testharness.js"></script>
-<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
 <script>
 ;
 </script>
@@ -9,10 +9,14 @@
 <body>
   <section id="section"></section>
   <script>
+    let index = 0;
+    function unique_element_name() {
+        return `ce-${++index}`;
+    }
     promise_test(async t => {
         const ce = document.getElementById("ce");
         let reactions = [];
-        const element_name = `ce-${performance.now()}`;
+        const element_name = unique_element_name();
         customElements.define(element_name,
             class MockCustomElement extends HTMLElement {
                 connectedCallback() { reactions.push("connected"); }
@@ -31,7 +35,7 @@
     promise_test(async t => {
         const ce = document.getElementById("ce");
         let reactions = [];
-        const element_name = `ce-${performance.now()}`;
+        const element_name = unique_element_name();
         customElements.define(element_name,
             class MockCustomElement extends HTMLElement {
                 connectedCallback() { reactions.push(this.isConnected); }
@@ -50,7 +54,7 @@
     promise_test(async t => {
         const ce = document.getElementById("ce");
         let reactions = [];
-        const element_name = `ce-${performance.now()}`;
+        const element_name = unique_element_name();
         customElements.define(element_name,
             class MockCustomElement extends HTMLElement {
               connectedMoveCallback() { reactions.push("connectedMove"); }
@@ -70,8 +74,8 @@
     promise_test(async t => {
         const ce = document.getElementById("ce");
         let reactions = [];
-        const outer_element_name = `ce-${performance.now()}-outer`;
-        const inner_element_name = `ce-${performance.now()}-inner`;
+        const outer_element_name = unique_element_name();
+        const inner_element_name = unique_element_name();
         customElements.define(outer_element_name,
             class MockCustomElement extends HTMLElement {
               connectedCallback() { reactions.push("outer connected"); }
@@ -97,7 +101,7 @@
     promise_test(async t => {
         const ce = document.getElementById("ce");
         let reactions = [];
-        const element_name = `ce-${performance.now()}`;
+        const element_name = unique_element_name();
         customElements.define(element_name,
             class MockCustomElement extends HTMLElement {
                 disconnectedCallback() { reactions.push("disconnected"); }
@@ -115,7 +119,7 @@
     promise_test(async t => {
         const ce = document.getElementById("ce");
         let reactions = [];
-        const element_name = `ce-${performance.now()}`;
+        const element_name = unique_element_name();
         customElements.define(element_name,
             class MockCustomElement extends HTMLElement {
                 connectedCallback() { reactions.push("connected"); }
