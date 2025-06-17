@@ -603,6 +603,16 @@ struct Formatter<nullptr_t> : Formatter<FlatPtr> {
     }
 };
 
+template<typename T>
+struct Formatter<Checked<T>> : Formatter<T> {
+    ErrorOr<void> format(FormatBuilder& builder, Checked<T> value)
+    {
+        if (value.has_overflow())
+            return builder.put_string("{ OVERFLOW }"sv);
+        return Formatter<T>::format(builder, value.value());
+    }
+};
+
 ErrorOr<void> vformat(StringBuilder&, StringView fmtstr, TypeErasedFormatParams&);
 
 void vout(FILE*, StringView fmtstr, TypeErasedFormatParams&, bool newline = false);
