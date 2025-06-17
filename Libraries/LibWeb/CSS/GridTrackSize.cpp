@@ -147,10 +147,10 @@ String GridRepeat::to_string() const
     builder.append("repeat("sv);
     switch (m_type) {
     case Type::AutoFit:
-        builder.append("auto-fill"sv);
+        builder.append("auto-fit"sv);
         break;
     case Type::AutoFill:
-        builder.append("auto-fit"sv);
+        builder.append("auto-fill"sv);
         break;
     case Type::Default:
         builder.appendff("{}", m_repeat_count);
