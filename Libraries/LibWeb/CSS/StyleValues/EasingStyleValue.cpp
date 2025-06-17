@@ -230,6 +230,11 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     };
 
     // https://www.w3.org/TR/css-easing-1/#cubic-bezier-algo
+    auto resolved_x1 = clamp(x1.resolved({}).value_or(0.0), 0.0, 1.0);
+    auto resolved_y1 = y1.resolved({}).value_or(0.0);
+    auto resolved_x2 = clamp(x2.resolved({}).value_or(0.0), 0.0, 1.0);
+    auto resolved_y2 = y2.resolved({}).value_or(0.0);
+
     // For input progress values outside the range [0, 1], the curve is extended infinitely using tangent of the curve
     // at the closest endpoint as follows:
 
@@ -237,13 +242,13 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     if (input_progress < 0.0) {
         // 1. If the x value of P1 is greater than zero, use a straight line that passes through P1 and P0 as the
         //    tangent.
-        if (x1 > 0.0)
-            return y1 / x1 * input_progress;
+        if (resolved_x1 > 0.0)
+            return resolved_y1 / resolved_x1 * input_progress;
 
         // 2. Otherwise, if the x value of P2 is greater than zero, use a straight line that passes through P2 and P0 as
         //    the tangent.
-        if (x2 > 0.0)
-            return y2 / x2 * input_progress;
+        if (resolved_x2 > 0.0)
+            return resolved_y2 / resolved_x2 * input_progress;
 
         // 3. Otherwise, let the output progress value be zero for all input progress values in the range [-∞, 0).
         return 0.0;
@@ -252,13 +257,13 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     // - For input progress values greater than one,
     if (input_progress > 1.0) {
         // 1. If the x value of P2 is less than one, use a straight line that passes through P2 and P3 as the tangent.
-        if (x2 < 1.0)
-            return (1.0 - y2) / (1.0 - x2) * (input_progress - 1.0) + 1.0;
+        if (resolved_x2 < 1.0)
+            return (1.0 - resolved_y2) / (1.0 - resolved_x2) * (input_progress - 1.0) + 1.0;
 
         // 2. Otherwise, if the x value of P1 is less than one, use a straight line that passes through P1 and P3 as the
         //    tangent.
-        if (x1 < 1.0)
-            return (1.0 - y1) / (1.0 - x1) * (input_progress - 1.0) + 1.0;
+        if (resolved_x1 < 1.0)
+            return (1.0 - resolved_y1) / (1.0 - resolved_x1) * (input_progress - 1.0) + 1.0;
 
         // 3. Otherwise, let the output progress value be one for all input progress values in the range (1, ∞].
         return 1.0;
@@ -270,8 +275,8 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     auto x = input_progress;
 
     auto solve = [&](auto t) {
-        auto x = cubic_bezier_at(x1, x2, t);
-        auto y = cubic_bezier_at(y1, y2, t);
+        auto x = cubic_bezier_at(resolved_x1, resolved_x2, t);
+        auto y = cubic_bezier_at(resolved_y1, resolved_y2, t);
         return CubicBezier::CachedSample { x, y, t };
     };
 
@@ -317,7 +322,7 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
 }
 
 // https://drafts.csswg.org/css-easing/#bezier-serialization
-String EasingStyleValue::CubicBezier::to_string(SerializationMode) const
+String EasingStyleValue::CubicBezier::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     if (*this == CubicBezier::ease()) {
@@ -329,7 +334,18 @@ String EasingStyleValue::CubicBezier::to_string(SerializationMode) const
     } else if (*this == CubicBezier::ease_in_out()) {
         builder.append("ease-in-out"sv);
     } else {
-        builder.appendff("cubic-bezier({}, {}, {}, {})", x1, y1, x2, y2);
+        auto x1_value = x1;
+        auto y1_value = y1;
+        auto x2_value = x2;
+        auto y2_value = y2;
+        if (mode == SerializationMode::ResolvedValue) {
+            x1_value = clamp(x1_value.resolved({}).value_or(0.0), 0.0, 1.0);
+            x2_value = clamp(x2_value.resolved({}).value_or(0.0), 0.0, 1.0);
+            y1_value = y1_value.resolved({}).value_or(0.0);
+            y2_value = y2_value.resolved({}).value_or(0.0);
+        }
+        builder.appendff("cubic-bezier({}, {}, {}, {})",
+            x1_value.to_string(), y1_value.to_string(), x2_value.to_string(), y2_value.to_string());
     }
     return MUST(builder.to_string());
 }
