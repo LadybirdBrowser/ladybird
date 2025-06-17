@@ -87,12 +87,11 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     auto inserted_data_result = MUST(AK::utf8_to_utf16(data));
     auto after_data = utf16_view.substring_view(offset + count);
 
-    Utf16Data full_data;
-    full_data.ensure_capacity(before_data.length_in_code_units() + inserted_data_result.data.size() + after_data.length_in_code_units());
-    full_data.append(before_data.utf16_span().data(), before_data.length_in_code_units());
-    full_data.extend(inserted_data_result.data);
-    full_data.append(after_data.utf16_span().data(), after_data.length_in_code_units());
-    Utf16View full_view { full_data };
+    StringBuilder full_data(StringBuilder::Mode::UTF16, before_data.length_in_code_units() + inserted_data_result.data.size() + after_data.length_in_code_units());
+    full_data.append(before_data);
+    full_data.append(inserted_data_result.data);
+    full_data.append(after_data);
+    auto full_view = full_data.utf16_string_view();
 
     bool characters_are_the_same = utf16_view == full_view;
     auto old_data = m_data;
