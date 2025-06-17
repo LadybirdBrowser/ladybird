@@ -114,6 +114,7 @@ ErrorOr<void> encode(Encoder& encoder, URL::Origin const& origin)
 {
     if (origin.is_opaque()) {
         TRY(encoder.encode(true));
+        TRY(encoder.encode(origin.nonce()));
     } else {
         TRY(encoder.encode(false));
         TRY(encoder.encode(origin.scheme()));
