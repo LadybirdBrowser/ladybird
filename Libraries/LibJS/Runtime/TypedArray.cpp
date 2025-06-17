@@ -351,7 +351,7 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM& vm, TypedArr
     auto& realm = *vm.current_realm();
 
     // 1. Let constructor be the intrinsic object associated with the constructor name exemplar.[[TypedArrayName]] in Table 68.
-    auto constructor = (realm.intrinsics().*exemplar.intrinsic_constructor())();
+    auto constructor = exemplar.intrinsic_constructor(realm);
 
     // 2. Let result be ? TypedArrayCreate(constructor, argumentList).
     auto* result = TRY(typed_array_create(vm, constructor, move(arguments)));
@@ -468,9 +468,7 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
     }                                                                                                                       \
                                                                                                                             \
     ClassName::ClassName(Object& prototype, u32 length, ArrayBuffer& array_buffer)                                          \
-        : TypedArray(prototype,                                                                                             \
-              bit_cast<TypedArrayBase::IntrinsicConstructor>(&Intrinsics::snake_name##_constructor),                        \
-              length, array_buffer, Kind::ClassName)                                                                        \
+        : TypedArray(prototype, length, array_buffer, Kind::ClassName)                                                      \
     {                                                                                                                       \
         if constexpr (#ClassName##sv.is_one_of("BigInt64Array", "BigUint64Array"))                                          \
             m_content_type = ContentType::BigInt;                                                                           \
@@ -485,6 +483,11 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
     FlyString const& ClassName::element_name() const                                                                        \
     {                                                                                                                       \
         return vm().names.ClassName.as_string();                                                                            \
+    }                                                                                                                       \
+                                                                                                                            \
+    GC::Ref<NativeFunction> ClassName::intrinsic_constructor(Realm& realm) const                                            \
+    {                                                                                                                       \
+        return realm.intrinsics().snake_name##_constructor();                                                               \
     }                                                                                                                       \
                                                                                                                             \
     PrototypeName::PrototypeName(Object& prototype)                                                                         \

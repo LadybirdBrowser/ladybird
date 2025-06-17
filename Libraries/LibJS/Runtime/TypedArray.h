@@ -35,14 +35,11 @@ public:
 #undef __JS_ENUMERATE
     };
 
-    using IntrinsicConstructor = GC::Ref<TypedArrayConstructor> (Intrinsics::*)();
-
     ByteLength const& array_length() const { return m_array_length; }
     ByteLength const& byte_length() const { return m_byte_length; }
     u32 byte_offset() const { return m_byte_offset; }
     ContentType content_type() const { return m_content_type; }
     ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
-    IntrinsicConstructor intrinsic_constructor() const { return m_intrinsic_constructor; }
 
     void set_array_length(ByteLength length) { m_array_length = move(length); }
     void set_byte_length(ByteLength length) { m_byte_length = move(length); }
@@ -65,12 +62,13 @@ public:
     // 25.1.3.19 GetModifySetValueInBuffer ( arrayBuffer, byteIndex, type, value, op ), https://tc39.es/ecma262/#sec-getmodifysetvalueinbuffer
     virtual Value get_modify_set_value_in_buffer(size_t byte_index, Value value, ReadWriteModifyFunction operation, bool is_little_endian = true) = 0;
 
+    virtual GC::Ref<NativeFunction> intrinsic_constructor(Realm&) const = 0;
+
 protected:
-    TypedArrayBase(Object& prototype, IntrinsicConstructor intrinsic_constructor, Kind kind, u32 element_size)
+    TypedArrayBase(Object& prototype, Kind kind, u32 element_size)
         : Object(ConstructWithPrototypeTag::Tag, prototype, MayInterfereWithIndexedPropertyAccess::Yes)
         , m_element_size(element_size)
         , m_kind(kind)
-        , m_intrinsic_constructor(intrinsic_constructor)
     {
         set_is_typed_array();
     }
@@ -82,7 +80,6 @@ protected:
     ContentType m_content_type { ContentType::Number };
     Kind m_kind {};
     GC::Ptr<ArrayBuffer> m_viewed_array_buffer;
-    IntrinsicConstructor m_intrinsic_constructor { nullptr };
 
 private:
     virtual void visit_edges(Visitor&) override;
@@ -498,8 +495,8 @@ public:
     Value get_modify_set_value_in_buffer(size_t byte_index, Value value, ReadWriteModifyFunction operation, bool is_little_endian = true) override { return viewed_array_buffer()->template get_modify_set_value<T>(byte_index, value, move(operation), is_little_endian); }
 
 protected:
-    TypedArray(Object& prototype, IntrinsicConstructor intrinsic_constructor, u32 array_length, ArrayBuffer& array_buffer, Kind kind)
-        : TypedArrayBase(prototype, intrinsic_constructor, kind, sizeof(UnderlyingBufferDataType))
+    TypedArray(Object& prototype, u32 array_length, ArrayBuffer& array_buffer, Kind kind)
+        : TypedArrayBase(prototype, kind, sizeof(UnderlyingBufferDataType))
     {
         VERIFY(!Checked<u32>::multiplication_would_overflow(array_length, sizeof(UnderlyingBufferDataType)));
         m_viewed_array_buffer = &array_buffer;
@@ -527,6 +524,7 @@ ThrowCompletionOr<double> compare_typed_array_elements(VM&, Value x, Value y, Fu
         static ThrowCompletionOr<GC::Ref<ClassName>> create(Realm&, u32 length);                             \
         static GC::Ref<ClassName> create(Realm&, u32 length, ArrayBuffer& buffer);                           \
         virtual FlyString const& element_name() const override;                                              \
+        virtual GC::Ref<NativeFunction> intrinsic_constructor(Realm&) const override;                        \
                                                                                                              \
     protected:                                                                                               \
         ClassName(Object& prototype, u32 length, ArrayBuffer& array_buffer);                                 \
