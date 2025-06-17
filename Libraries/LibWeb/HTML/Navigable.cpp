@@ -2284,10 +2284,10 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
 
 void Navigable::set_viewport_size(CSSPixelSize size)
 {
-    if (m_size == size)
+    if (m_viewport_size == size)
         return;
 
-    m_size = size;
+    m_viewport_size = size;
     if (auto document = active_document()) {
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);

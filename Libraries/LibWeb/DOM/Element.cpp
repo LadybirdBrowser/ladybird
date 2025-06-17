@@ -1803,7 +1803,7 @@ int Element::scroll_width() const
     // 3. Let viewport width be the width of the viewport excluding the width of the scroll bar, if any,
     //    or zero if there is no viewport.
     auto viewport_width = document.viewport_rect().width().to_int();
-    auto viewport_scroll_width = document.navigable()->size().width().to_int();
+    auto viewport_scroll_width = document.navigable()->viewport_size().width().to_int();
 
     // 4. If the element is the root element and document is not in quirks mode
     //    return max(viewport scrolling area width, viewport width).
@@ -1842,7 +1842,7 @@ int Element::scroll_height() const
     // 3. Let viewport height be the height of the viewport excluding the height of the scroll bar, if any,
     //    or zero if there is no viewport.
     auto viewport_height = document.viewport_rect().height().to_int();
-    auto viewport_scroll_height = document.navigable()->size().height().to_int();
+    auto viewport_scroll_height = document.navigable()->viewport_size().height().to_int();
 
     // 4. If the element is the root element and document is not in quirks mode
     //    return max(viewport scrolling area height, viewport height).
