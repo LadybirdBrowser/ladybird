@@ -1,0 +1,44 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#syntax"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-5.xml"/>
+  <meta name="flags" content="invalid"/>
+  <title>CSS Namespaces Test Suite: @namespace error handling</title>
+  <style>
+   t, t2, t3, t4, t5 { background:red }
+  </style>
+  <style>
+   @namespace "test" {}
+   t { background:lime }
+  </style>
+  <style id="a">@namespace x "test</style>
+  <script>
+   document.getElementById("a").sheet.insertRule("x|t2 {background:lime }", 1)
+  </script>
+  <style>
+   @namespace "fail;
+   ; t3 { background:lime }
+  </style>
+  <style>
+   @namespace url('fail);
+     t4 { background:red !important; }
+   );
+   t4 { background:lime }
+  </style>
+  <style>
+   @namespace url(test);
+   @namespace url('test' x);
+   t5 { background:lime }
+  </style>
+ </head>
+ <body>
+  <p><t>This sentence should have a green background.</t></p>
+  <p><t2 xmlns="test">This sentence should have a green background.</t2></p>
+  <p><t3>This sentence should have a green background.</t3></p>
+  <p><t4>This sentence should have a green background.</t4></p>
+  <p><t5 xmlns="test">This sentence should have a green background.</t5></p>
+ </body>
+</html>

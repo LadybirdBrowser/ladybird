@@ -196,7 +196,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         return {};
     }
 
-    if (!rule.child_rules_and_lists_of_declarations.is_empty()) {
+    if (rule.is_block_rule) {
         dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Block is not allowed.");
         return {};
     }
@@ -470,7 +470,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
         return {};
     }
 
-    if (!rule.child_rules_and_lists_of_declarations.is_empty()) {
+    if (rule.is_block_rule) {
         dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Block is not allowed.");
         return {};
     }
