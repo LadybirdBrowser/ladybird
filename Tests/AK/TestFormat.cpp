@@ -417,3 +417,59 @@ TEST_CASE(format_utf32)
     EXPECT_EQ(ByteString::formatted("{:6d}", U'a'), "    97");
     EXPECT_EQ(ByteString::formatted("{:#x}", U'\U0001F41E'), "0x1f41e");
 }
+
+TEST_CASE(format_checked)
+{
+    EXPECT_EQ(ByteString::formatted("{}", Checked<i32> { 100 }), "100");
+    EXPECT_EQ(ByteString::formatted("{}", Checked<u32> { 100 }), "100");
+    EXPECT_EQ(ByteString::formatted("{}", Checked<i32> { -1234 }), "-1234");
+
+    {
+        Checked<i8> c = 127;
+        EXPECT_EQ(ByteString::formatted("{}", c), "127");
+        c.add(100);
+        EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
+    }
+    {
+        Checked<i16> c = 32767;
+        EXPECT_EQ(ByteString::formatted("{}", c), "32767");
+        c.add(100);
+        EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
+    }
+    {
+        Checked<i32> c = 2147483647;
+        EXPECT_EQ(ByteString::formatted("{}", c), "2147483647");
+        c.add(100);
+        EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
+    }
+    {
+        Checked<i64> c = 9223372036854775807;
+        EXPECT_EQ(ByteString::formatted("{}", c), "9223372036854775807");
+        c.add(100);
+        EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
+    }
+    {
+        Checked<u8> c = 255u;
+        EXPECT_EQ(ByteString::formatted("{}", c), "255");
+        c.add(100);
+        EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
+    }
+    {
+        Checked<u16> c = 65535u;
+        EXPECT_EQ(ByteString::formatted("{}", c), "65535");
+        c.add(100);
+        EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
+    }
+    {
+        Checked<u32> c = 4294967295u;
+        EXPECT_EQ(ByteString::formatted("{}", c), "4294967295");
+        c.add(100);
+        EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
+    }
+    {
+        Checked<u64> c = 18446744073709551615u;
+        EXPECT_EQ(ByteString::formatted("{}", c), "18446744073709551615");
+        c.add(100);
+        EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
+    }
+}
