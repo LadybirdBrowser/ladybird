@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <title>Node.moveBefore</title>
-<script src="../../../../resources/testharness.js"></script>
-<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
 <div id="log"></div>
 <!-- First test shared pre-insertion checks that work similarly for replaceChild
      and moveBefore -->
 <script>
   var insertFunc = Node.prototype.moveBefore;
 </script>
-<script src="../../pre-insertion-validation-hierarchy.js"></script>
+<script src="../pre-insertion-validation-hierarchy.js"></script>
 <script>
 preInsertionValidateHierarchy("moveBefore");
 
