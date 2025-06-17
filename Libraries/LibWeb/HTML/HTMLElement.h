@@ -105,6 +105,7 @@ public:
     int offset_width() const;
     int offset_height() const;
     GC::Ptr<Element> offset_parent() const;
+    GC::Ptr<Element> scroll_parent() const;
 
     bool cannot_navigate() const;
 

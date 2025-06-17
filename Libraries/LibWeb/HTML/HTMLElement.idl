@@ -40,6 +40,7 @@ interface HTMLElement : Element {
     [CEReactions] attribute DOMString? popover;
 
     // https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlelement-interface
+    readonly attribute Element? scrollParent;
     readonly attribute Element? offsetParent;
     readonly attribute long offsetTop;
     readonly attribute long offsetLeft;
