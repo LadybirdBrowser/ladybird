@@ -75,7 +75,7 @@ EffectTiming AnimationEffect::get_timing() const
         .iterations = m_iteration_count,
         .duration = m_iteration_duration,
         .direction = m_playback_direction,
-        .easing = m_timing_function.to_string(),
+        .easing = m_timing_function.to_string(CSS::SerializationMode::Normal),
     };
 }
 
@@ -110,7 +110,7 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
             .iterations = m_iteration_count,
             .duration = duration,
             .direction = m_playback_direction,
-            .easing = m_timing_function.to_string(),
+            .easing = m_timing_function.to_string(CSS::SerializationMode::Normal),
         },
 
         end_time(),
