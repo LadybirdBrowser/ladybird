@@ -81,7 +81,7 @@ EasingStyleValue::Linear::Linear(Vector<EasingStyleValue::Linear::Stop> stops)
     // the input progress value of any preceding control point,
     // set its input progress value to the largest input progress value of any preceding control point.
     double largest_input = 0;
-    for (auto stop : stops) {
+    for (auto& stop : stops) {
         if (stop.input.has_value()) {
             if (stop.input.value() < largest_input) {
                 stop.input = largest_input;
@@ -97,7 +97,7 @@ EasingStyleValue::Linear::Linear(Vector<EasingStyleValue::Linear::Stop> stops)
     // between the preceding and following control points with input progress values.
     Optional<size_t> run_start_idx;
     for (size_t idx = 0; idx < stops.size(); idx++) {
-        auto stop = stops[idx];
+        auto& stop = stops[idx];
         if (stop.input.has_value() && run_start_idx.has_value()) {
             // Note: this stop is immediately after a run
             //       set inputs of [start, idx-1] stops to be evenly spaced between start-1 and idx
