@@ -6,5 +6,5 @@ CSSFontFaceRule type = 5
 CSSKeyframesRule type = 7
 CSSSupportsRule type = 12
 CSSLayerStatementRule type = 0
-CSSLayerStatementRule type = 0
+CSSLayerBlockRule type = 0
 CSSPropertyRule type = 0

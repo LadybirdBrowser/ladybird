@@ -288,7 +288,7 @@ Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens
 GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-cascade-5/#at-layer
-    if (!rule.child_rules_and_lists_of_declarations.is_empty()) {
+    if (rule.is_block_rule) {
         // CSSLayerBlockRule
         // @layer <layer-name>? {
         //   <rule-list>
