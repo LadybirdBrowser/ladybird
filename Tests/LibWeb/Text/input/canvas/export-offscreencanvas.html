@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let testCounter = 1;
+        async function testPart(part) {
+            const currentTest = testCounter++;
+            try {
+                const result = await part();
+                println(`${currentTest}.Success: ${JSON.stringify(result)}`);
+            } catch (err) {
+                println(`${currentTest}.Error: ${err}`);
+            }
+        }
+
+        // 1. Export a OffscreenCanvas to a PNG blob
+        await testPart(async () => {
+            const offscreenCanvas = new OffscreenCanvas(100, 100);
+            const result = await offscreenCanvas.convertToBlob({ type: "image/png" });
+            return { size: result.size, type: result.type };
+        });
+
+        // 2. Export a OffscreenCanvas to a JPEG blob
+        await testPart(async () => {
+            const offscreenCanvas = new OffscreenCanvas(100, 100);
+            const result = await offscreenCanvas.convertToBlob({ type: "image/jpeg" });
+            return { size: result.size, type: result.type };
+        });
+
+        done();
+    });
+</script>
