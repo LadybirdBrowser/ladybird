@@ -4839,47 +4839,56 @@ RefPtr<CSSStyleValue const> Parser::parse_contain_value(TokenStream<ComponentVal
     if (!tokens.has_next_token())
         return {};
 
-    bool has_size = false;
-    bool has_layout = false;
-    bool has_style = false;
-    bool has_paint = false;
+    RefPtr<CSSStyleValue const> size_value;
+    RefPtr<CSSStyleValue const> layout_value;
+    RefPtr<CSSStyleValue const> style_value;
+    RefPtr<CSSStyleValue const> paint_value;
 
-    StyleValueVector containments;
     while (tokens.has_next_token()) {
         tokens.discard_whitespace();
-        auto keyword = parse_keyword_value(tokens);
-        if (!keyword)
+        auto keyword_value = parse_keyword_value(tokens);
+        if (!keyword_value)
             return {};
-        switch (keyword->to_keyword()) {
+        switch (keyword_value->to_keyword()) {
         case Keyword::Size:
         case Keyword::InlineSize:
-            if (has_size)
+            if (size_value)
                 return {};
-            has_size = true;
+            size_value = move(keyword_value);
             break;
         case Keyword::Layout:
-            if (has_layout)
+            if (layout_value)
                 return {};
-            has_layout = true;
+            layout_value = move(keyword_value);
             break;
         case Keyword::Style:
-            if (has_style)
+            if (style_value)
                 return {};
-            has_style = true;
+            style_value = move(keyword_value);
             break;
         case Keyword::Paint:
-            if (has_paint)
+            if (paint_value)
                 return {};
-            has_paint = true;
+            paint_value = move(keyword_value);
             break;
         default:
             return {};
         }
-        containments.append(*keyword);
     }
+
+    StyleValueVector containment_values;
+    if (size_value)
+        containment_values.append(size_value.release_nonnull());
+    if (layout_value)
+        containment_values.append(layout_value.release_nonnull());
+    if (style_value)
+        containment_values.append(style_value.release_nonnull());
+    if (paint_value)
+        containment_values.append(paint_value.release_nonnull());
+
     transaction.commit();
 
-    return StyleValueList::create(move(containments), StyleValueList::Separator::Space);
+    return StyleValueList::create(move(containment_values), StyleValueList::Separator::Space);
 }
 
 // https://www.w3.org/TR/css-text-4/#white-space-trim
