@@ -1788,7 +1788,8 @@ RefPtr<CSSStyleValue const> Parser::parse_color_mix_function(TokenStream<Compone
         };
     };
 
-    // color-mix() = color-mix( <color-interpolation-method> , [ <color> && <percentage [0,100]>? ]#{2})
+    // color-mix() = color-mix( <color-interpolation-method> , [ <color> && <percentage [0,100]>? ]#)
+    // FIXME: Update color-mix to accept 1+ colors instead of exactly 2.
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
