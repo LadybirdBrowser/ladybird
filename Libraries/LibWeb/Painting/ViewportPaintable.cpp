@@ -81,8 +81,8 @@ void ViewportPaintable::assign_scroll_frames()
             }
             sticky_scroll_frame = m_scroll_state.create_sticky_frame_for(paintable_box, parent_scroll_frame);
 
-            const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(sticky_scroll_frame);
-            const_cast<PaintableBox&>(paintable_box).set_own_scroll_frame(sticky_scroll_frame);
+            paintable_box.set_enclosing_scroll_frame(sticky_scroll_frame);
+            paintable_box.set_own_scroll_frame(sticky_scroll_frame);
         }
 
         if (paintable_box.has_scrollable_overflow() || is<ViewportPaintable>(paintable_box)) {
@@ -99,19 +99,15 @@ void ViewportPaintable::assign_scroll_frames()
         return TraversalDecision::Continue;
     });
 
-    for_each_in_subtree([&](auto const& paintable) {
-        if (paintable.is_fixed_position()) {
+    for_each_in_subtree([&](auto& paintable) {
+        if (paintable.is_fixed_position() || paintable.is_sticky_position())
             return TraversalDecision::Continue;
-        }
-        if (paintable.is_sticky_position()) {
-            return TraversalDecision::Continue;
-        }
+
         for (auto block = paintable.containing_block(); block; block = block->containing_block()) {
             if (auto scroll_frame = block->own_scroll_frame(); scroll_frame) {
-                if (paintable.is_paintable_box()) {
-                    auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
-                    const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(*scroll_frame);
-                }
+                if (auto* paintable_box = as_if<PaintableBox>(paintable))
+                    paintable_box->set_enclosing_scroll_frame(*scroll_frame);
+
                 return TraversalDecision::Continue;
             }
             if (block->is_fixed_position()) {
