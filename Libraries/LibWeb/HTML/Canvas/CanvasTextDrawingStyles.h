@@ -116,10 +116,7 @@ public:
         if (!font_list)
             return;
 
-        if (font_list->is_empty())
-            return;
-
-        my_drawing_state().current_font_cascade_list = font_list->first();
+        my_drawing_state().current_font_cascade_list = font_list;
     }
 
     Bindings::CanvasTextAlign text_align() const { return my_drawing_state().text_align; }
