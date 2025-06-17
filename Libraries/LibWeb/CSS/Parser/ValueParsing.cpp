@@ -2621,19 +2621,30 @@ RefPtr<CSSStyleValue const> Parser::parse_easing_value(TokenStream<ComponentValu
         for (auto const& argument : comma_separated_arguments) {
             if (argument.size() != 1)
                 return nullptr;
-            if (!argument[0].is(Token::Type::Number))
-                return nullptr;
         }
 
-        EasingStyleValue::CubicBezier bezier {
-            comma_separated_arguments[0][0].token().number_value(),
-            comma_separated_arguments[1][0].token().number_value(),
-            comma_separated_arguments[2][0].token().number_value(),
-            comma_separated_arguments[3][0].token().number_value(),
+        auto parse_argument = [this, &comma_separated_arguments](auto index) {
+            TokenStream<ComponentValue> argument_tokens { comma_separated_arguments[index] };
+            return parse_number(argument_tokens);
         };
 
-        if (bezier.x1 < 0.0 || bezier.x1 > 1.0 || bezier.x2 < 0.0 || bezier.x2 > 1.0)
+        auto x1 = parse_argument(0);
+        auto y1 = parse_argument(1);
+        auto x2 = parse_argument(2);
+        auto y2 = parse_argument(3);
+        if (!x1.has_value() || !y1.has_value() || !x2.has_value() || !y2.has_value())
             return nullptr;
+        if (!x1->is_calculated() && (x1->value() < 0.0 || x1->value() > 1.0))
+            return nullptr;
+        if (!x2->is_calculated() && (x2->value() < 0.0 || x2->value() > 1.0))
+            return nullptr;
+
+        EasingStyleValue::CubicBezier bezier {
+            x1.release_value(),
+            y1.release_value(),
+            x2.release_value(),
+            y2.release_value(),
+        };
 
         transaction.commit();
         return EasingStyleValue::create(bezier);
