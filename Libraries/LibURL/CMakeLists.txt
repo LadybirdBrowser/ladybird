@@ -20,5 +20,5 @@ set(SOURCES
 )
 
 serenity_lib(LibURL url)
-target_link_libraries(LibURL PRIVATE LibUnicode LibTextCodec LibRegex)
+target_link_libraries(LibURL PRIVATE LibUnicode LibTextCodec LibRegex LibCrypto)
 target_compile_definitions(LibURL PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
