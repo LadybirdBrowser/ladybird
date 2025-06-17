@@ -21,6 +21,8 @@ void PseudoElement::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_cascaded_properties);
     visitor.visit(m_computed_properties);
     visitor.visit(m_layout_node);
+    if (m_counters_set)
+        m_counters_set->visit_edges(visitor);
 }
 
 Optional<CSS::CountersSet const&> PseudoElement::counters_set() const
