@@ -23,4 +23,23 @@ void PseudoElement::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_layout_node);
 }
 
+Optional<CSS::CountersSet const&> PseudoElement::counters_set() const
+{
+    if (!m_counters_set)
+        return {};
+    return *m_counters_set;
+}
+
+CSS::CountersSet& PseudoElement::ensure_counters_set()
+{
+    if (!m_counters_set)
+        m_counters_set = make<CSS::CountersSet>();
+    return *m_counters_set;
+}
+
+void PseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
+{
+    m_counters_set = move(counters_set);
+}
+
 }
