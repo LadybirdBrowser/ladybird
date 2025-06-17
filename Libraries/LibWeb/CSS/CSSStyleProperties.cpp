@@ -1060,6 +1060,17 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         auto border_top_width = layout_node.computed_values().border_top().width;
         return LengthStyleValue::create(Length::make_px(border_top_width));
     }
+    case PropertyID::Contain: {
+        auto const& contain = layout_node.computed_values().contain();
+        if (contain.layout_containment && contain.style_containment && contain.paint_containment) {
+            if (contain.size_containment)
+                return CSSKeywordValue::create(Keyword::Strict);
+            if (!contain.inline_size_containment)
+                return CSSKeywordValue::create(Keyword::Content);
+        }
+
+        return get_computed_value(property_id);
+    }
     case PropertyID::OutlineWidth: {
         auto outline_width = layout_node.computed_values().outline_width();
         return LengthStyleValue::create(outline_width);
