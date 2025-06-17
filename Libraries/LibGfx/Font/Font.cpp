@@ -83,11 +83,6 @@ NonnullRefPtr<Font> Font::with_size(float point_size) const
     return scaled_with_size(point_size);
 }
 
-Gfx::FontPixelMetrics Font::pixel_metrics() const
-{
-    return m_pixel_metrics;
-}
-
 float Font::pixel_size() const
 {
     return m_pixel_size;
