@@ -21,15 +21,33 @@ public:
     Element const& element() const { return m_element; }
     Optional<CSS::PseudoElement> pseudo_element() const { return m_pseudo_element; }
 
+    GC::Ptr<Layout::NodeWithStyle> layout_node();
+    GC::Ptr<Layout::NodeWithStyle const> layout_node() const { return const_cast<AbstractElement*>(this)->layout_node(); }
+
     GC::Ptr<Element const> parent_element() const;
+    Optional<AbstractElement> previous_in_tree_order() { return walk_layout_tree(WalkMethod::Previous); }
+    Optional<AbstractElement> previous_sibling_in_tree_order() { return walk_layout_tree(WalkMethod::PreviousSibling); }
+    bool is_before(AbstractElement const&) const;
+
     GC::Ptr<CSS::ComputedProperties const> computed_properties() const;
 
+    bool has_non_empty_counters_set() const;
+    Optional<CSS::CountersSet const&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
     void visit(GC::Cell::Visitor& visitor) const;
 
+    String debug_description() const;
+    bool operator==(AbstractElement const&) const = default;
+
 private:
+    enum class WalkMethod : u8 {
+        Previous,
+        PreviousSibling,
+    };
+    Optional<AbstractElement> walk_layout_tree(WalkMethod);
+
     GC::Ref<Element> m_element;
     Optional<CSS::PseudoElement> m_pseudo_element;
 };

@@ -12,27 +12,30 @@
 
 namespace Web::CSS {
 
+void CountersSet::visit_edges(GC::Cell::Visitor& visitor)
+{
+    for (auto const& counter : m_counters)
+        counter.originating_element.visit(visitor);
+}
+
 // https://drafts.csswg.org/css-lists-3/#instantiate-counter
-Counter& CountersSet::instantiate_a_counter(FlyString name, UniqueNodeID originating_element_id, bool reversed, Optional<CounterValue> value)
+Counter& CountersSet::instantiate_a_counter(FlyString name, DOM::AbstractElement const& element, bool reversed, Optional<CounterValue> value)
 {
     // 1. Let counters be element’s CSS counters set.
-    auto* element = DOM::Node::from_unique_id(originating_element_id);
 
     // 2. Let innermost counter be the last counter in counters with the name name.
     //    If innermost counter’s originating element is element or a previous sibling of element,
     //    remove innermost counter from counters.
     auto innermost_counter = last_counter_with_name(name);
     if (innermost_counter.has_value()) {
-        auto* originating_node = DOM::Node::from_unique_id(innermost_counter->originating_element_id);
-        VERIFY(originating_node);
-        auto& innermost_element = as<DOM::Element>(*originating_node);
+        auto& innermost_element = innermost_counter->originating_element;
 
-        if (&innermost_element == element
-            || (innermost_element.parent() == element->parent() && innermost_element.is_before(*element))) {
+        if (innermost_element == element
+            || (innermost_element.parent_element() == element.parent_element() && innermost_element.is_before(element))) {
 
             m_counters.remove_first_matching([&innermost_counter](auto& it) {
                 return it.name == innermost_counter->name
-                    && it.originating_element_id == innermost_counter->originating_element_id;
+                    && it.originating_element == innermost_counter->originating_element;
             });
         }
     }
@@ -41,7 +44,7 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, UniqueNodeID origina
     //    reversed being reversed, and initial value value (if given)
     m_counters.append({
         .name = move(name),
-        .originating_element_id = originating_element_id,
+        .originating_element = element,
         .reversed = reversed,
         .value = value,
     });
@@ -50,7 +53,7 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, UniqueNodeID origina
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-set
-void CountersSet::set_a_counter(FlyString name, UniqueNodeID originating_element_id, CounterValue value)
+void CountersSet::set_a_counter(FlyString name, DOM::AbstractElement const& element, CounterValue value)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         existing_counter->value = value;
@@ -60,12 +63,12 @@ void CountersSet::set_a_counter(FlyString name, UniqueNodeID originating_element
     // If there is not currently a counter of the given name on the element, the element instantiates
     // a new counter of the given name with a starting value of 0 before setting or incrementing its value.
     // https://drafts.csswg.org/css-lists-3/#valdef-counter-set-counter-name-integer
-    auto& counter = instantiate_a_counter(name, originating_element_id, false, 0);
+    auto& counter = instantiate_a_counter(name, element, false, 0);
     counter.value = value;
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
-void CountersSet::increment_a_counter(FlyString name, UniqueNodeID originating_element_id, CounterValue amount)
+void CountersSet::increment_a_counter(FlyString name, DOM::AbstractElement const& element, CounterValue amount)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         // FIXME: How should we handle existing counters with no value? Can that happen?
@@ -77,7 +80,7 @@ void CountersSet::increment_a_counter(FlyString name, UniqueNodeID originating_e
     // If there is not currently a counter of the given name on the element, the element instantiates
     // a new counter of the given name with a starting value of 0 before setting or incrementing its value.
     // https://drafts.csswg.org/css-lists-3/#valdef-counter-set-counter-name-integer
-    auto& counter = instantiate_a_counter(name, originating_element_id, false, 0);
+    auto& counter = instantiate_a_counter(name, element, false, 0);
     counter.value->saturating_add(amount.value());
 }
 
@@ -90,10 +93,10 @@ Optional<Counter&> CountersSet::last_counter_with_name(FlyString const& name)
     return {};
 }
 
-Optional<Counter&> CountersSet::counter_with_same_name_and_creator(FlyString const& name, UniqueNodeID originating_element_id)
+Optional<Counter&> CountersSet::counter_with_same_name_and_creator(FlyString const& name, DOM::AbstractElement const& element)
 {
     return m_counters.first_matching([&](auto& it) {
-        return it.name == name && it.originating_element_id == originating_element_id;
+        return it.name == name && it.originating_element == element;
     });
 }
 
@@ -118,13 +121,10 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     if (style.display().is_none())
         return;
 
-    // FIXME: Include the pseudo-element in the element ID
-    auto element_id = element_reference.element().unique_id();
-
     // 2. New counters are instantiated (counter-reset).
     auto counter_reset = style.counter_data(PropertyID::CounterReset);
     for (auto const& counter : counter_reset)
-        element_reference.ensure_counters_set().instantiate_a_counter(counter.name, element_id, counter.is_reversed, counter.value);
+        element_reference.ensure_counters_set().instantiate_a_counter(counter.name, element_reference, counter.is_reversed, counter.value);
 
     // FIXME: Take style containment into account
     // https://drafts.csswg.org/css-contain-2/#containment-style
@@ -135,12 +135,12 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     // 3. Counter values are incremented (counter-increment).
     auto counter_increment = style.counter_data(PropertyID::CounterIncrement);
     for (auto const& counter : counter_increment)
-        element_reference.ensure_counters_set().increment_a_counter(counter.name, element_id, *counter.value);
+        element_reference.ensure_counters_set().increment_a_counter(counter.name, element_reference, *counter.value);
 
     // 4. Counter values are explicitly set (counter-set).
     auto counter_set = style.counter_data(PropertyID::CounterSet);
     for (auto const& counter : counter_set)
-        element_reference.ensure_counters_set().set_a_counter(counter.name, element_id, *counter.value);
+        element_reference.ensure_counters_set().set_a_counter(counter.name, element_reference, *counter.value);
 
     // 5. Counter values are used (counter()/counters()).
     // NOTE: This happens when we process the `content` property.
@@ -176,7 +176,7 @@ void inherit_counters(DOM::AbstractElement& element_reference)
     //    or an empty CSS counters set otherwise.
     //    For each counter of sibling counters, if element counters does not already contain a counter with
     //    the same name, append a copy of counter to element counters.
-    if (auto* const sibling = element_reference.element().previous_sibling_of_type<DOM::Element>(); sibling && sibling->has_non_empty_counters_set()) {
+    if (auto sibling = element_reference.previous_sibling_in_tree_order(); sibling.has_value() && sibling->has_non_empty_counters_set()) {
         auto& sibling_counters = sibling->counters_set().release_value();
         ensure_element_counters();
         for (auto const& counter : sibling_counters.counters()) {
@@ -188,12 +188,12 @@ void inherit_counters(DOM::AbstractElement& element_reference)
     // 4. Let value source be the CSS counters set of the element immediately preceding element in tree order.
     //    For each source counter of value source, if element counters contains a counter with the same name
     //    and creator, then set the value of that counter to source counter’s value.
-    if (auto* const previous = element_reference.element().previous_element_in_pre_order(); previous && previous->has_non_empty_counters_set()) {
+    if (auto const previous = element_reference.previous_in_tree_order(); previous.has_value() && previous->has_non_empty_counters_set()) {
         // NOTE: If element_counters is empty (AKA null) then we can skip this since nothing will match.
         if (element_counters) {
             auto& value_source = previous->counters_set().release_value();
             for (auto const& source_counter : value_source.counters()) {
-                auto maybe_existing_counter = element_counters->counter_with_same_name_and_creator(source_counter.name, source_counter.originating_element_id);
+                auto maybe_existing_counter = element_counters->counter_with_same_name_and_creator(source_counter.name, source_counter.originating_element);
                 if (maybe_existing_counter.has_value())
                     maybe_existing_counter->value = source_counter.value;
             }
@@ -202,6 +202,17 @@ void inherit_counters(DOM::AbstractElement& element_reference)
 
     VERIFY(!element_counters || !element_counters->is_empty());
     element_reference.set_counters_set(move(element_counters));
+}
+
+String CountersSet::dump() const
+{
+    StringBuilder builder;
+    builder.append("{\n"sv);
+    for (auto const& counter : m_counters) {
+        builder.appendff("    {} ({}) = {}\n", counter.name, counter.originating_element.debug_description(), counter.value);
+    }
+    builder.append('}');
+    return builder.to_string_without_validation();
 }
 
 }

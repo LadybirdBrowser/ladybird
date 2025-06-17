@@ -937,7 +937,7 @@ ColumnSpan ComputedProperties::column_span() const
     return keyword_to_column_span(value.to_keyword()).release_value();
 }
 
-ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(DOM::Element& element, u32 initial_quote_nesting_level) const
+ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
 {
     auto const& value = property(PropertyID::Content);
     auto quotes_data = quotes();
@@ -1001,7 +1001,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                     break;
                 }
             } else if (item->is_counter()) {
-                builder.append(item->as_counter().resolve(element));
+                builder.append(item->as_counter().resolve(element_reference));
             } else {
                 // TODO: Implement images, and other things.
                 dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));
@@ -1016,7 +1016,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                 if (item->is_string()) {
                     alt_text_builder.append(item->as_string().string_value());
                 } else if (item->is_counter()) {
-                    alt_text_builder.append(item->as_counter().resolve(element));
+                    alt_text_builder.append(item->as_counter().resolve(element_reference));
                 } else {
                     dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string(SerializationMode::Normal));
                 }

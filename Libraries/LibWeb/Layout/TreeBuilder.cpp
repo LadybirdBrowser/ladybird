@@ -189,7 +189,8 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
         return;
 
     auto initial_quote_nesting_level = m_quote_nesting_level;
-    auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_style->content(element, initial_quote_nesting_level);
+    DOM::AbstractElement element_reference { element, pseudo_element };
+    auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
     m_quote_nesting_level = final_quote_nesting_level;
     auto pseudo_element_display = pseudo_element_style->display();
     // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
@@ -217,27 +218,37 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
         static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
         element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         pseudo_element_node->prepend_child(*list_item_marker);
+
+        // FIXME: Support counters on element::pseudo::marker
     }
 
     pseudo_element_node->set_generated_for(pseudo_element, element);
     pseudo_element_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
 
-    // FIXME: Handle images, and multiple values
-    if (pseudo_element_content.type == CSS::ContentData::Type::String) {
-        auto text = document.realm().create<DOM::Text>(document, pseudo_element_content.data);
-        auto text_node = document.heap().allocate<Layout::TextNode>(document, *text);
-        text_node->set_generated_for(pseudo_element, element);
-
-        push_parent(*pseudo_element_node);
-        insert_node_into_inline_or_block_ancestor(*text_node, text_node->display(), AppendOrPrepend::Append);
-        pop_parent();
-    } else {
-        TODO();
-    }
-
     element.set_pseudo_element_node({}, pseudo_element, pseudo_element_node);
     insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, mode);
     pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content);
+
+    DOM::AbstractElement pseudo_element_reference { element, pseudo_element };
+    CSS::resolve_counters(pseudo_element_reference);
+    // Now that we have counters, we can compute the content for real. Which is silly.
+    if (pseudo_element_content.type == CSS::ContentData::Type::String) {
+        auto [new_content, _] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
+        pseudo_element_node->mutable_computed_values().set_content(new_content);
+
+        // FIXME: Handle images, and multiple values
+        if (new_content.type == CSS::ContentData::Type::String) {
+            auto text = document.realm().create<DOM::Text>(document, new_content.data);
+            auto text_node = document.heap().allocate<TextNode>(document, *text);
+            text_node->set_generated_for(pseudo_element, element);
+
+            push_parent(*pseudo_element_node);
+            insert_node_into_inline_or_block_ancestor(*text_node, text_node->display(), AppendOrPrepend::Append);
+            pop_parent();
+        } else {
+            TODO();
+        }
+    }
 }
 
 // Block nodes inside inline nodes are allowed, but to maintain the invariant that either all layout children are
@@ -479,8 +490,6 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             element.clear_pseudo_element_nodes({});
             VERIFY(!element.needs_style_update());
             style = element.computed_properties();
-            DOM::AbstractElement element_reference { element };
-            CSS::resolve_counters(element_reference);
             display = style->display();
             if (display.is_none())
                 return;
@@ -539,8 +548,15 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     auto prior_quote_nesting_level = m_quote_nesting_level;
 
-    if (should_create_layout_node)
+    if (should_create_layout_node) {
+        // Resolve counters now that we exist in the layout tree.
+        if (auto* element = as_if<DOM::Element>(dom_node)) {
+            DOM::AbstractElement element_reference { *element };
+            CSS::resolve_counters(element_reference);
+        }
+
         update_layout_tree_before_children(dom_node, *layout_node, context, element_has_content_visibility_hidden);
+    }
 
     if (should_create_layout_node || dom_node.child_needs_layout_tree_update()) {
         if ((dom_node.has_children() || shadow_root) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
@@ -584,6 +600,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                             top_layer_element->set_pseudo_element_node({}, CSS::PseudoElement::Backdrop, pseudo_element_node);
                             pseudo_element_node->set_generated_for(CSS::PseudoElement::Backdrop, top_layer_element);
                             insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, AppendOrPrepend::Append);
+
+                            DOM::AbstractElement backdrop_reference { top_layer_element, CSS::PseudoElement::Backdrop };
+                            CSS::resolve_counters(backdrop_reference);
                         }();
                         update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                     }
@@ -726,6 +745,8 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         element.set_pseudo_element_computed_properties(CSS::PseudoElement::Marker, marker_style);
         element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         layout_node->prepend_child(*list_item_marker);
+        DOM::AbstractElement marker_reference { element, CSS::PseudoElement::Marker };
+        CSS::resolve_counters(marker_reference);
     }
 
     if (is<SVG::SVGGraphicsElement>(dom_node)) {
