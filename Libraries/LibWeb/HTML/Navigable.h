@@ -167,10 +167,9 @@ public:
     CSSPixelPoint to_top_level_position(CSSPixelPoint);
     CSSPixelRect to_top_level_rect(CSSPixelRect const&);
 
-    CSSPixelSize size() const { return m_size; }
-
     CSSPixelPoint viewport_scroll_offset() const { return m_viewport_scroll_offset; }
-    CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_size }; }
+    CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_viewport_size }; }
+    CSSPixelSize viewport_size() const { return m_viewport_size; }
     virtual void set_viewport_size(CSSPixelSize);
     void perform_scroll_of_viewport(CSSPixelPoint position);
 
@@ -246,7 +245,7 @@ private:
 
     bool m_has_been_destroyed { false };
 
-    CSSPixelSize m_size;
+    CSSPixelSize m_viewport_size;
     CSSPixelPoint m_viewport_scroll_offset;
 
     Web::EventHandler m_event_handler;
