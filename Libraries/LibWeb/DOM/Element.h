@@ -298,8 +298,8 @@ public:
     void set_scroll_top(double y);
     void set_scroll_left(double x);
 
-    int scroll_width() const;
-    int scroll_height() const;
+    int scroll_width();
+    int scroll_height();
 
     bool is_actually_disabled() const;
 
