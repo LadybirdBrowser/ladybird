@@ -61,8 +61,6 @@ public:
     [[nodiscard]] bool is_empty() const { return m_glyphs.is_empty(); }
     [[nodiscard]] float width() const { return m_width; }
 
-    void append(DrawGlyph glyph) { m_glyphs.append(glyph); }
-
 private:
     Vector<DrawGlyph> m_glyphs;
     NonnullRefPtr<Font const> m_font;
