@@ -1791,7 +1791,7 @@ void Element::set_scroll_top(double y)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollwidth
-int Element::scroll_width() const
+int Element::scroll_width()
 {
     // 1. Let document be the element’s node document.
     auto& document = this->document();
@@ -1800,23 +1800,24 @@ int Element::scroll_width() const
     if (!document.is_active())
         return 0;
 
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    document.update_layout(UpdateLayoutReason::ElementScrollWidth);
+    VERIFY(document.paintable_box() && document.paintable()->scrollable_overflow_rect().has_value());
+
     // 3. Let viewport width be the width of the viewport excluding the width of the scroll bar, if any,
     //    or zero if there is no viewport.
     auto viewport_width = document.viewport_rect().width().to_int();
-    auto viewport_scroll_width = document.navigable()->viewport_size().width().to_int();
+    auto viewport_scrolling_area_width = document.paintable()->scrollable_overflow_rect()->width().to_int();
 
     // 4. If the element is the root element and document is not in quirks mode
     //    return max(viewport scrolling area width, viewport width).
     if (document.document_element() == this && !document.in_quirks_mode())
-        return max(viewport_scroll_width, viewport_width);
-
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollWidth);
+        return max(viewport_scrolling_area_width, viewport_width);
 
     // 5. If the element is the body element, document is in quirks mode and the element is not potentially scrollable,
     //    return max(viewport scrolling area width, viewport width).
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
-        return max(viewport_scroll_width, viewport_width);
+        return max(viewport_scrolling_area_width, viewport_width);
 
     // 6. If the element does not have any associated box return zero and terminate these steps.
     if (!paintable_box())
@@ -1830,7 +1831,7 @@ int Element::scroll_width() const
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollheight
-int Element::scroll_height() const
+int Element::scroll_height()
 {
     // 1. Let document be the element’s node document.
     auto& document = this->document();
@@ -1839,23 +1840,24 @@ int Element::scroll_height() const
     if (!document.is_active())
         return 0;
 
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    document.update_layout(UpdateLayoutReason::ElementScrollHeight);
+    VERIFY(document.paintable_box() && document.paintable()->scrollable_overflow_rect().has_value());
+
     // 3. Let viewport height be the height of the viewport excluding the height of the scroll bar, if any,
     //    or zero if there is no viewport.
     auto viewport_height = document.viewport_rect().height().to_int();
-    auto viewport_scroll_height = document.navigable()->viewport_size().height().to_int();
+    auto viewport_scrolling_area_height = document.paintable()->scrollable_overflow_rect()->height().to_int();
 
     // 4. If the element is the root element and document is not in quirks mode
     //    return max(viewport scrolling area height, viewport height).
     if (document.document_element() == this && !document.in_quirks_mode())
-        return max(viewport_scroll_height, viewport_height);
-
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollHeight);
+        return max(viewport_scrolling_area_height, viewport_height);
 
     // 5. If the element is the body element, document is in quirks mode and the element is not potentially scrollable,
     //    return max(viewport scrolling area height, viewport height).
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
-        return max(viewport_scroll_height, viewport_height);
+        return max(viewport_scrolling_area_height, viewport_height);
 
     // 6. If the element does not have any associated box return zero and terminate these steps.
     if (!paintable_box())
