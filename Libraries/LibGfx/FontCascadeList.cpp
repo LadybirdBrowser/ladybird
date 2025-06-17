@@ -20,9 +20,7 @@ void FontCascadeList::add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> u
 
 void FontCascadeList::extend(FontCascadeList const& other)
 {
-    for (auto const& font : other.m_fonts) {
-        m_fonts.append({ font.font, font.unicode_ranges });
-    }
+    m_fonts.extend(other.m_fonts);
 }
 
 Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point) const
