@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Easing: getComputedStyle().animationTimingFunction</title>
+<link rel="help" href="https://drafts.csswg.org/css-easing/#timing-functions">
+<meta name="assert" content="animation-timing-function computed value is a computed <easing-function> list.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("animation-timing-function", "linear");
+
+test_computed_value("animation-timing-function", "ease");
+test_computed_value("animation-timing-function", "ease-in");
+test_computed_value("animation-timing-function", "ease-out");
+test_computed_value("animation-timing-function", "ease-in-out");
+test_computed_value("animation-timing-function", "cubic-bezier(0.1, 0.2, 0.8, 0.9)");
+test_computed_value("animation-timing-function", "cubic-bezier(0, -2, 1, 3)");
+test_computed_value("animation-timing-function", "cubic-bezier(0, 0.7, 1, 1.3)");
+test_computed_value("animation-timing-function", "cubic-bezier(calc(-2), calc(0.7 / 2), calc(1.5), calc(0))", "cubic-bezier(0, 0.35, 1, 0)",);
+
+test_computed_value("animation-timing-function", "steps(4, start)");
+test_computed_value("animation-timing-function", "steps(2, end)", "steps(2)");
+test_computed_value("animation-timing-function", "steps( 2, end )", "steps(2)");
+test_computed_value("animation-timing-function", "steps(2, jump-start)");
+test_computed_value("animation-timing-function", "steps(2, jump-end)", "steps(2)");
+test_computed_value("animation-timing-function", "steps(2, jump-both)");
+test_computed_value("animation-timing-function", "steps(2, jump-none)");
+test_computed_value("animation-timing-function", "steps(calc(-10), start)", "steps(1, start)");
+test_computed_value("animation-timing-function", "steps(calc(5 / 2), start)", "steps(3, start)");
+test_computed_value("animation-timing-function", "steps(calc(1), jump-none)", "steps(2, jump-none)");
+
+test_computed_value("animation-timing-function", "linear, ease, linear");
+
+test_computed_value("animation-timing-function", "steps(calc(2 + sign(100em - 1px)), end)", "steps(3)");
+</script>
+</body>
+</html>

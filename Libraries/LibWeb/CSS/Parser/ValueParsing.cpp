@@ -2651,11 +2651,10 @@ RefPtr<CSSStyleValue const> Parser::parse_easing_value(TokenStream<ComponentValu
         EasingStyleValue::Steps steps;
 
         auto const& intervals_argument = comma_separated_arguments[0][0];
-        if (!intervals_argument.is(Token::Type::Number))
+        auto intervals_token = TokenStream<ComponentValue>::of_single_token(intervals_argument);
+        auto intervals = parse_integer(intervals_token);
+        if (!intervals.has_value())
             return nullptr;
-        if (!intervals_argument.token().number().is_integer())
-            return nullptr;
-        auto intervals = intervals_argument.token().to_integer();
 
         if (comma_separated_arguments.size() == 2) {
             TokenStream identifier_stream { comma_separated_arguments[1] };
@@ -2690,14 +2689,16 @@ RefPtr<CSSStyleValue const> Parser::parse_easing_value(TokenStream<ComponentValu
         // https://drafts.csswg.org/css-easing/#step-easing-functions
         // If the <step-position> is jump-none, the <integer> must be at least 2, or the function is invalid.
         // Otherwise, the <integer> must be at least 1, or the function is invalid.
-        if (steps.position == EasingStyleValue::Steps::Position::JumpNone) {
-            if (intervals <= 1)
+        if (!intervals->is_calculated()) {
+            if (steps.position == EasingStyleValue::Steps::Position::JumpNone) {
+                if (intervals->value() <= 1)
+                    return nullptr;
+            } else if (intervals->value() <= 0) {
                 return nullptr;
-        } else if (intervals <= 0) {
-            return nullptr;
+            }
         }
 
-        steps.number_of_intervals = intervals;
+        steps.number_of_intervals = *intervals;
         transaction.commit();
         return EasingStyleValue::create(steps);
     }

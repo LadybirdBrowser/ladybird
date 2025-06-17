@@ -11,6 +11,7 @@
 #include "EasingStyleValue.h"
 #include <AK/BinarySearch.h>
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 
 namespace Web::CSS {
 
@@ -174,7 +175,7 @@ double EasingStyleValue::Linear::evaluate_at(double input_progress, bool before_
 }
 
 // https://drafts.csswg.org/css-easing/#linear-easing-function-serializing
-String EasingStyleValue::Linear::to_string() const
+String EasingStyleValue::Linear::to_string(SerializationMode) const
 {
     // The linear keyword is serialized as itself.
     if (*this == identity())
@@ -316,7 +317,7 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
 }
 
 // https://drafts.csswg.org/css-easing/#bezier-serialization
-String EasingStyleValue::CubicBezier::to_string() const
+String EasingStyleValue::CubicBezier::to_string(SerializationMode) const
 {
     StringBuilder builder;
     if (*this == CubicBezier::ease()) {
@@ -337,7 +338,10 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
 {
     // https://www.w3.org/TR/css-easing-1/#step-easing-algo
     // 1. Calculate the current step as floor(input progress value × steps).
-    auto current_step = floor(input_progress * number_of_intervals);
+    auto resolved_number_of_intervals = number_of_intervals.resolved({}).value_or(1);
+    resolved_number_of_intervals = max(resolved_number_of_intervals, position == Steps::Position::JumpNone ? 2 : 1);
+
+    auto current_step = floor(input_progress * resolved_number_of_intervals);
 
     // 2. If the step position property is one of:
     //    - jump-start,
@@ -350,7 +354,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     //    - the before flag is set, and
     //    - input progress value × steps mod 1 equals zero (that is, if input progress value × steps is integral), then
     //    decrement current step by one.
-    auto step_progress = input_progress * number_of_intervals;
+    auto step_progress = input_progress * resolved_number_of_intervals;
     if (before_flag && trunc(step_progress) == step_progress)
         current_step -= 1;
 
@@ -363,7 +367,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     //    jump-start or jump-end -> steps
     //    jump-none -> steps - 1
     //    jump-both -> steps + 1
-    auto jumps = number_of_intervals;
+    auto jumps = resolved_number_of_intervals;
     if (position == Steps::Position::JumpNone) {
         jumps--;
     } else if (position == Steps::Position::JumpBoth) {
@@ -379,7 +383,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
 }
 
 // https://drafts.csswg.org/css-easing/#steps-serialization
-String EasingStyleValue::Steps::to_string() const
+String EasingStyleValue::Steps::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     // Unlike the other easing function keywords, step-start and step-end do not serialize as themselves.
@@ -403,10 +407,15 @@ String EasingStyleValue::Steps::to_string() const
                 return {};
             }
         }();
+        auto intervals = number_of_intervals;
+        if (mode == SerializationMode::ResolvedValue) {
+            auto resolved_value = number_of_intervals.resolved({}).value_or(1);
+            intervals = max(resolved_value, this->position == Steps::Position::JumpNone ? 2 : 1);
+        }
         if (position.has_value()) {
-            builder.appendff("steps({}, {})", number_of_intervals, position.value());
+            builder.appendff("steps({}, {})", intervals.to_string(), position.value());
         } else {
-            builder.appendff("steps({})", number_of_intervals);
+            builder.appendff("steps({})", intervals.to_string());
         }
     }
     return MUST(builder.to_string());
@@ -420,11 +429,11 @@ double EasingStyleValue::Function::evaluate_at(double input_progress, bool befor
         });
 }
 
-String EasingStyleValue::Function::to_string() const
+String EasingStyleValue::Function::to_string(SerializationMode mode) const
 {
     return visit(
         [&](auto const& curve) {
-            return curve.to_string();
+            return curve.to_string(mode);
         });
 }
 
