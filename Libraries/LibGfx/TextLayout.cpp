@@ -59,10 +59,6 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     hb_buffer_add_utf8(buffer, reinterpret_cast<char const*>(string.bytes()), string.byte_length(), 0, -1);
     hb_buffer_guess_segment_properties(buffer);
 
-    u32 glyph_count;
-    auto* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-    Vector<hb_glyph_info_t> const input_glyph_info({ glyph_info, glyph_count });
-
     auto* hb_font = font.harfbuzz_font();
     hb_feature_t const* hb_features_data = nullptr;
     Vector<hb_feature_t> hb_features;
@@ -81,8 +77,9 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
 
     hb_shape(hb_font, buffer, hb_features_data, features.size());
 
-    glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-    auto* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+    u32 glyph_count;
+    auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+    auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
     Vector<Gfx::DrawGlyph> glyph_run;
     glyph_run.ensure_capacity(glyph_count);
