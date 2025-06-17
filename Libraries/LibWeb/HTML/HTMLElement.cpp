@@ -461,6 +461,47 @@ String HTMLElement::outer_text()
     return get_the_text_steps();
 }
 
+// https://drafts.csswg.org/cssom-view/#dom-htmlelement-scrollparent
+GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
+{
+    // 1. If any of the following holds true, return null and terminate this algorithm:
+    //    - The element does not have an associated box.
+    //    - The element is the root element.
+    //    - The element is the body element.
+    //    - FIXME: The element’s computed value of the position property is fixed and no ancestor establishes a fixed position containing block.
+    if (!layout_node())
+        return nullptr;
+    if (is_document_element())
+        return nullptr;
+    if (is_html_body_element())
+        return nullptr;
+
+    // 2. Let ancestor be the containing block of the element in the flat tree and repeat these substeps:
+    auto ancestor = layout_node()->containing_block();
+    while (true) {
+        // 1. If ancestor is the initial containing block, return the scrollingElement for the element’s document if it
+        //    is not closed-shadow-hidden from the element, otherwise return null.
+        if (ancestor->is_viewport()) {
+            auto const scrolling_element = document().scrolling_element();
+            if (scrolling_element && !scrolling_element->is_closed_shadow_hidden_from(*this))
+                return const_cast<Element*>(scrolling_element.ptr());
+            return nullptr;
+        }
+
+        // 2. If ancestor is not closed-shadow-hidden from the element, and is a scroll container, terminate this
+        //    algorithm and return ancestor.
+        if (!ancestor->dom_node()->is_closed_shadow_hidden_from(*this) && ancestor->is_scroll_container()) {
+            return const_cast<Element*>(static_cast<DOM::Element const*>(ancestor->dom_node()));
+        }
+
+        // FIXME: 3. If the computed value of the position property of ancestor is fixed, and no ancestor establishes a fixed
+        //    position containing block, terminate this algorithm and return null.
+
+        // 4. Let ancestor be the containing block of ancestor in the flat tree.
+        ancestor = layout_node()->containing_block();
+    }
+}
+
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsetparent
 GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
 {
