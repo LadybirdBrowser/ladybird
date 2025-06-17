@@ -8,7 +8,7 @@
 
 #include <LibGC/Cell.h>
 #include <LibWeb/CSS/Selector.h>
-#include <LibWeb/DOM/Element.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::DOM {
 

@@ -9,6 +9,7 @@
 
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
+#include <LibWeb/DOM/Node.h>
 
 namespace Web::CSS {
 
