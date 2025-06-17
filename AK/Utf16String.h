@@ -81,11 +81,50 @@ public:
     requires(IsOneOf<RemoveCVReference<T>, Utf16String>)
     static Utf16String from_utf16_without_validation(T&&) = delete;
 
+    template<typename... Parameters>
+    ALWAYS_INLINE static Utf16String formatted(CheckedFormatString<Parameters...>&& format, Parameters const&... parameters)
+    {
+        StringBuilder builder(StringBuilder::Mode::UTF16);
+
+        VariadicFormatParams<AllowDebugOnlyFormatters::No, Parameters...> variadic_format_parameters { parameters... };
+        MUST(vformat(builder, format.view(), variadic_format_parameters));
+
+        return builder.to_utf16_string();
+    }
+
+    template<Arithmetic T>
+    ALWAYS_INLINE static Utf16String number(T value)
+    {
+        return formatted("{}", value);
+    }
+
+    template<class SeparatorType, class CollectionType>
+    ALWAYS_INLINE static Utf16String join(SeparatorType const& separator, CollectionType const& collection, StringView format = "{}"sv)
+    {
+        StringBuilder builder(StringBuilder::Mode::UTF16);
+        builder.join(separator, collection, format);
+
+        return builder.to_utf16_string();
+    }
+
+    ALWAYS_INLINE static Utf16String from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
+    {
+        VERIFY(builder.utf16_string_view().validate());
+        return from_string_builder_without_validation(builder);
+    }
+
+    ALWAYS_INLINE static Utf16String from_string_builder_without_validation(Badge<StringBuilder>, StringBuilder& builder)
+    {
+        return from_string_builder_without_validation(builder);
+    }
+
 private:
     ALWAYS_INLINE explicit Utf16String(NonnullRefPtr<Detail::Utf16StringData const> value)
         : Utf16StringBase(move(value))
     {
     }
+
+    static Utf16String from_string_builder_without_validation(StringBuilder&);
 };
 
 template<>

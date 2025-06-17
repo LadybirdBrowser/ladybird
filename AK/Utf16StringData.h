@@ -31,8 +31,14 @@ public:
     static NonnullRefPtr<Utf16StringData> from_utf8(StringView, AllowASCIIStorage);
     static NonnullRefPtr<Utf16StringData> from_utf16(Utf16View const&);
     static NonnullRefPtr<Utf16StringData> from_utf32(Utf32View const&);
+    static NonnullRefPtr<Utf16StringData> from_string_builder(StringBuilder&);
 
     ~Utf16StringData() = default;
+
+    [[nodiscard]] static constexpr size_t offset_of_string_storage()
+    {
+        return offsetof(Utf16StringData, m_ascii_data);
+    }
 
     void operator delete(void* ptr)
     {

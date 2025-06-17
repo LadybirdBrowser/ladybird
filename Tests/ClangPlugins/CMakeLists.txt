@@ -7,10 +7,11 @@ get_property(CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS GLOBAL PROPERTY CLANG_PLUGI
 
 list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
     -std=c++23
-    -Wno-user-defined-literals
+    -Wno-invalid-offsetof
     -Wno-literal-range
     -Wno-unknown-warning-option
     -Wno-unqualified-std-cast-call
+    -Wno-user-defined-literals
 )
 
 # Ensure we always check for invalid function field types regardless of the value of ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS
