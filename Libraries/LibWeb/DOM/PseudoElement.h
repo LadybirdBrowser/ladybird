@@ -30,6 +30,11 @@ class PseudoElement : public JS::Cell {
     HashMap<FlyString, CSS::StyleProperty> const& custom_properties() const { return m_custom_properties; }
     void set_custom_properties(HashMap<FlyString, CSS::StyleProperty> value) { m_custom_properties = move(value); }
 
+    bool has_non_empty_counters_set() const { return m_counters_set; }
+    Optional<CSS::CountersSet const&> counters_set() const;
+    CSS::CountersSet& ensure_counters_set();
+    void set_counters_set(OwnPtr<CSS::CountersSet>&&);
+
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
@@ -37,6 +42,7 @@ private:
     GC::Ptr<CSS::CascadedProperties> m_cascaded_properties;
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
+    OwnPtr<CSS::CountersSet> m_counters_set;
 };
 
 // https://drafts.csswg.org/css-view-transitions/#pseudo-element-tree
