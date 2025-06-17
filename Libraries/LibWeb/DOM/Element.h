@@ -219,6 +219,8 @@ public:
     void set_pseudo_element_computed_properties(CSS::PseudoElement, GC::Ptr<CSS::ComputedProperties>);
     GC::Ptr<CSS::ComputedProperties> pseudo_element_computed_properties(CSS::PseudoElement);
 
+    Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;
+
     GC::Ptr<CSS::CSSStyleProperties> inline_style() { return m_inline_style; }
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const { return m_inline_style; }
     void set_inline_style(GC::Ptr<CSS::CSSStyleProperties>);
@@ -566,7 +568,6 @@ private:
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
-    Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;
     PseudoElement& ensure_pseudo_element(CSS::PseudoElement) const;
 
     Optional<CSS::PseudoElement> m_use_pseudo_element;
