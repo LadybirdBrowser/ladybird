@@ -132,6 +132,32 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf32(Utf32View const& utf3
     return string.release_nonnull();
 }
 
+NonnullRefPtr<Utf16StringData> Utf16StringData::from_string_builder(StringBuilder& builder)
+{
+    auto code_unit_length = builder.utf16_string_view().length_in_code_units();
+
+    // Due to internal optimizations, we have an explicit maximum string length of 2**63 - 1.
+    VERIFY(code_unit_length >> Detail::UTF16_FLAG == 0);
+
+    auto buffer = builder.leak_buffer_for_string_construction(Badge<Utf16StringData> {});
+    VERIFY(buffer.has_value()); // We should only arrive here if the buffer is outlined.
+
+    auto data = buffer->buffer.slice(offset_of_string_storage(), code_unit_length * 2);
+
+    Utf16View view { reinterpret_cast<char16_t const*>(data.data()), data.size() / sizeof(char16_t) };
+    auto storage_type = view.is_ascii() ? StorageType::ASCII : StorageType::UTF16;
+
+    // FIXME: To reduce memory consumption, it would be better for StringBuilder to handle ASCII vs. UTF-16 storage. For
+    //        example, it might store its buffer as ASCII until it comes across a non-ASCII code point, then switch to
+    //        UTF-16. For now, we switch to ASCII here since third-party APIs will often want ASCII text.
+    if (storage_type == StorageType::ASCII) {
+        for (size_t i = 0; i < code_unit_length; ++i)
+            data[i] = static_cast<u8>(view.code_unit_at(i));
+    }
+
+    return adopt_ref(*new (buffer->buffer.data()) Utf16StringData { storage_type, code_unit_length });
+}
+
 size_t Utf16StringData::calculate_code_point_length() const
 {
     ASSERT(!has_ascii_storage());

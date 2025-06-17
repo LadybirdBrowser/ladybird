@@ -16,6 +16,12 @@ namespace AK {
 
 class StringBuilder {
 public:
+    enum class Mode {
+        UTF8,
+        UTF16,
+    };
+
+    static constexpr auto DEFAULT_MODE = Mode::UTF8;
     static constexpr size_t inline_capacity = 256;
 
     using Buffer = Detail::ByteBuffer<inline_capacity>;
@@ -24,36 +30,42 @@ public:
 
     StringBuilder();
     explicit StringBuilder(size_t initial_capacity);
+
+    explicit StringBuilder(Mode);
+    StringBuilder(Mode, size_t initial_capacity_in_code_units);
+
     ~StringBuilder() = default;
 
     ErrorOr<void> try_append(StringView);
     ErrorOr<void> try_append(Utf16View const&);
     ErrorOr<void> try_append(Utf32View const&);
-    ErrorOr<void> try_append_code_point(u32);
     ErrorOr<void> try_append(char);
+    ErrorOr<void> try_append_code_unit(char16_t);
+    ErrorOr<void> try_append_code_point(u32);
+    ErrorOr<void> try_append(char const*, size_t);
+    ErrorOr<void> try_append_repeated(char, size_t);
+    ErrorOr<void> try_append_repeated(StringView, size_t);
+    ErrorOr<void> try_append_escaped_for_json(StringView);
+
     template<typename... Parameters>
     ErrorOr<void> try_appendff(CheckedFormatString<Parameters...>&& fmtstr, Parameters const&... parameters)
     {
         VariadicFormatParams<AllowDebugOnlyFormatters::No, Parameters...> variadic_format_params { parameters... };
         return vformat(*this, fmtstr.view(), variadic_format_params);
     }
-    ErrorOr<void> try_append(char const*, size_t);
-    ErrorOr<void> try_append_repeated(char, size_t);
-    ErrorOr<void> try_append_repeated(StringView, size_t);
-    ErrorOr<void> try_append_escaped_for_json(StringView);
 
     void append(StringView);
     void append(Utf16View const&);
     void append(Utf32View const&);
     void append(char);
+    void append_code_unit(char16_t);
     void append_code_point(u32);
     void append(char const*, size_t);
     void appendvf(char const*, va_list);
     void append_repeated(char, size_t);
     void append_repeated(StringView, size_t);
-
-    void append_as_lowercase(char);
     void append_escaped_for_json(StringView);
+    void append_as_lowercase(char);
 
     template<typename... Parameters>
     void appendff(CheckedFormatString<Parameters...>&& fmtstr, Parameters const&... parameters)
@@ -70,9 +82,13 @@ public:
     [[nodiscard]] FlyString to_fly_string_without_validation() const;
     ErrorOr<FlyString> to_fly_string() const;
 
+    Utf16String to_utf16_string();
+    Utf16String to_utf16_string_without_validation();
+
     [[nodiscard]] ErrorOr<ByteBuffer> to_byte_buffer() const;
 
     [[nodiscard]] StringView string_view() const;
+    [[nodiscard]] Utf16View utf16_string_view() const;
     void clear();
 
     [[nodiscard]] size_t length() const;
@@ -98,16 +114,20 @@ public:
         return {};
     }
 
-    Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction(Badge<Detail::StringData>);
+    Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction(Badge<Detail::StringData>) { return leak_buffer_for_string_construction(); }
+    Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction(Badge<Detail::Utf16StringData>) { return leak_buffer_for_string_construction(); }
 
 private:
-    explicit StringBuilder(Buffer);
+    StringBuilder(Buffer, Mode);
+
+    Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction();
 
     ErrorOr<void> will_append(size_t);
     u8* data();
     u8 const* data() const;
 
     Buffer m_buffer;
+    Mode m_mode { DEFAULT_MODE };
 };
 
 }

@@ -40,7 +40,7 @@ public:
         auto byte_count = builder.length();
         VERIFY(byte_count > MAX_SHORT_STRING_BYTE_COUNT);
 
-        auto buffer = builder.leak_buffer_for_string_construction({});
+        auto buffer = builder.leak_buffer_for_string_construction(Badge<StringData> {});
         VERIFY(buffer.has_value()); // We should only arrive here if the buffer is outlined.
 
         return adopt_ref(*new (buffer->buffer.data()) StringData(byte_count));

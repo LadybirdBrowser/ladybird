@@ -63,6 +63,11 @@ Utf16String Utf16String::from_utf32(Utf32View const& utf32_string)
     return Utf16String { Detail::Utf16StringData::from_utf32(utf32_string) };
 }
 
+Utf16String Utf16String::from_string_builder_without_validation(StringBuilder& builder)
+{
+    return Utf16String { Detail::Utf16StringData::from_string_builder(builder) };
+}
+
 ErrorOr<void> Formatter<Utf16String>::format(FormatBuilder& builder, Utf16String const& utf16_string)
 {
     if (utf16_string.has_long_utf16_storage())
