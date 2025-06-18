@@ -581,30 +581,10 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 for (auto const& top_layer_element : document.top_layer_elements()) {
                     if (top_layer_element->rendered_in_top_layer()) {
                         // Each element rendered in the top layer has a ::backdrop pseudo-element, for which it is the originating element.
-                        [&]() {
-                            if (!should_create_layout_node && !top_layer_element->needs_layout_tree_update())
-                                return;
-
-                            if (top_layer_element->has_inclusive_ancestor_with_display_none())
-                                return;
-
-                            auto pseudo_element_style = top_layer_element->pseudo_element_computed_properties(CSS::PseudoElement::Backdrop);
-                            if (!pseudo_element_style)
-                                return;
-
-                            auto pseudo_element_display = pseudo_element_style->display();
-
-                            auto pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, *pseudo_element_style, nullptr);
-                            if (!pseudo_element_node)
-                                return;
-
-                            top_layer_element->set_pseudo_element_node({}, CSS::PseudoElement::Backdrop, pseudo_element_node);
-                            pseudo_element_node->set_generated_for(CSS::PseudoElement::Backdrop, top_layer_element);
-                            insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, AppendOrPrepend::Append);
-
-                            DOM::AbstractElement backdrop_reference { top_layer_element, CSS::PseudoElement::Backdrop };
-                            CSS::resolve_counters(backdrop_reference);
-                        }();
+                        if ((should_create_layout_node || top_layer_element->needs_layout_tree_update())
+                            && !top_layer_element->has_inclusive_ancestor_with_display_none()) {
+                            create_pseudo_element_if_needed(top_layer_element, CSS::PseudoElement::Backdrop, AppendOrPrepend::Append);
+                        }
                         update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                     }
                 }
