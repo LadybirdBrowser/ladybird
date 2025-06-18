@@ -1071,6 +1071,22 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
 
         return get_computed_value(property_id);
     }
+    case PropertyID::Opacity: {
+        auto opacity = layout_node.computed_values().opacity();
+        return NumberStyleValue::create(opacity);
+    }
+    case PropertyID::FillOpacity: {
+        auto opacity = layout_node.computed_values().fill_opacity();
+        return NumberStyleValue::create(opacity);
+    }
+    case PropertyID::StopOpacity: {
+        auto opacity = layout_node.computed_values().stop_opacity();
+        return NumberStyleValue::create(opacity);
+    }
+    case PropertyID::StrokeOpacity: {
+        auto opacity = layout_node.computed_values().stroke_opacity();
+        return NumberStyleValue::create(opacity);
+    }
     case PropertyID::OutlineWidth: {
         auto outline_width = layout_node.computed_values().outline_width();
         return LengthStyleValue::create(outline_width);
