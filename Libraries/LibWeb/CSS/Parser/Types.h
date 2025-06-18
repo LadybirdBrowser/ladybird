@@ -88,4 +88,11 @@ struct Function {
     bool contains_arbitrary_substitution_function() const;
 };
 
+// https://drafts.csswg.org/css-variables/#guaranteed-invalid-value
+struct GuaranteedInvalidValue {
+    GuaranteedInvalidValue() = default;
+    String to_string() const { return {}; }
+    String original_source_text() const { return {}; }
+};
+
 }
