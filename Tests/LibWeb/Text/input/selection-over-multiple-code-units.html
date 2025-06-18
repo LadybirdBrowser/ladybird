@@ -3,6 +3,8 @@
 😭foobar😭
 <script>
 test(() => {
+    document.body.offsetWidth;  // force layout
+
     internals.mouseDown(55, 20);
     internals.movePointerTo(110, 20);
 
