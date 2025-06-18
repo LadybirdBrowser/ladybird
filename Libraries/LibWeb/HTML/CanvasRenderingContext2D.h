@@ -134,8 +134,6 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    static JS::ThrowCompletionOr<CanvasRenderingContext2DSettings> context_attributes_from_options(JS::VM&, JS::Value);
-
     virtual Gfx::Painter* painter_for_canvas_state() override { return painter(); }
     virtual Gfx::Path& path_for_canvas_state() override { return path(); }
 
