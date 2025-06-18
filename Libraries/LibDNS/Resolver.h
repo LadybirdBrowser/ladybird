@@ -301,6 +301,37 @@ public:
         });
     }
 
+    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Vector<Vector<Messages::ResourceType>> desired_types, LookupOptions options = LookupOptions::default_())
+    {
+        using ResultPromise = Core::Promise<NonnullRefPtr<LookupResult const>>;
+        Vector<NonnullRefPtr<ResultPromise>> promises;
+        promises.ensure_capacity(desired_types.size());
+
+        for (auto& types : desired_types)
+            promises.unchecked_append(lookup(name, class_, types, options));
+
+        auto result_promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
+        result_promise->add_child(Core::Promise<Empty>::after(promises)
+                ->when_resolved([promises, result_promise = result_promise->make_weak_ptr<ResultPromise>()](auto&&) {
+                    if (!result_promise.ptr())
+                        return;
+                    VERIFY(promises.first()->is_resolved());
+                    result_promise->resolve(MUST(promises.first()->await()));
+                })
+                .when_rejected([promises, result_promise = result_promise->make_weak_ptr<ResultPromise>()](auto&& error) {
+                    if (!result_promise.ptr())
+                        return;
+                    for (auto& promise : promises) {
+                        if (promise->is_resolved()) {
+                            result_promise->resolve(MUST(promise->await()));
+                            return;
+                        }
+                    }
+                    result_promise->reject(move(error));
+                }));
+        return result_promise;
+    }
+
     NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_ = Messages::Class::IN, LookupOptions options = LookupOptions::default_())
     {
         return lookup(move(name), class_, { Messages::ResourceType::A, Messages::ResourceType::AAAA }, options);
@@ -449,7 +480,9 @@ public:
         }
 
         Messages::Message query;
-        if (options.repeating_lookup) {
+        if (cached_result_id.has_value()) {
+            query.header.id = cached_result_id.value();
+        } else if (options.repeating_lookup) {
             query.header.id = options.repeating_lookup->id;
             options.repeating_lookup->times_repeated++;
         } else {

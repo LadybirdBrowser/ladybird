@@ -14,7 +14,7 @@
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     struct Request {
-        Vector<DNS::Messages::ResourceType> types;
+        Vector<Vector<DNS::Messages::ResourceType>> types;
         ByteString name;
     };
     Vector<Request> requests;
@@ -40,7 +40,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 return Error::from_string_literal("Invalid record/name format");
 
             if (parts.size() == 1) {
-                current_request.types.append(DNS::Messages::ResourceType::ANY);
+                current_request.types.append({ DNS::Messages::ResourceType::ANY });
                 current_request.name = parts[0];
             } else {
                 auto rr_parts = parts[0].split_view(',');
@@ -49,7 +49,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                     auto type = DNS::Messages::resource_type_from_string(rr_name.to_uppercase());
                     if (!type.has_value())
                         return Error::from_string_literal("Invalid resource type");
-                    current_request.types.append(type.value());
+                    current_request.types.append({ type.value() });
                 }
                 current_request.name = parts[1];
             }
@@ -105,33 +105,34 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     TRY(resolver.when_socket_ready()->await());
 
     size_t pending_requests = requests.size();
+    Vector<NonnullRefPtr<Core::Promise<NonnullRefPtr<DNS::LookupResult const>>>> promises;
     for (auto& request : requests) {
-        resolver.lookup(request.name, DNS::Messages::Class::IN, request.types, { .validate_dnssec_locally = dnssec })
-            ->when_resolved([&](auto& result) {
-                outln("Resolved {}:", request.name);
-                HashTable<DNS::Messages::ResourceType> types;
-                auto recs = result->records();
-                for (auto& record : recs)
-                    types.set(record.type);
+        promises.append(resolver.lookup(request.name, DNS::Messages::Class::IN, request.types, { .validate_dnssec_locally = dnssec })
+                ->when_resolved([&](auto& result) {
+                    outln("Resolved {}:", request.name);
+                    HashTable<DNS::Messages::ResourceType> types;
+                    auto recs = result->records();
+                    for (auto& record : recs)
+                        types.set(record.type);
 
-                for (auto& type : types) {
-                    outln("  - {} IN {}:", request.name, DNS::Messages::to_string(type));
-                    for (auto& record : recs) {
-                        if (type != record.type)
-                            continue;
+                    for (auto& type : types) {
+                        outln("  - {} IN {}:", request.name, DNS::Messages::to_string(type));
+                        for (auto& record : recs) {
+                            if (type != record.type)
+                                continue;
 
-                        outln("    - {}", record.to_string());
+                            outln("    - {}", record.to_string());
+                        }
                     }
-                }
 
-                if (--pending_requests == 0)
-                    loop.quit(0);
-            })
-            .when_rejected([&](auto& error) {
-                outln("Failed to resolve {} IN {}: {}", request.name, DNS::Messages::to_string(request.types.first()), error);
-                if (--pending_requests == 0)
-                    loop.quit(1);
-            });
+                    if (--pending_requests == 0)
+                        loop.quit(0);
+                })
+                .when_rejected([&](auto& error) {
+                    outln("Failed to resolve {} IN {}: {}", request.name, DNS::Messages::to_string(request.types.first().first()), error);
+                    if (--pending_requests == 0)
+                        loop.quit(1);
+                }));
     }
 
     return loop.exec();
