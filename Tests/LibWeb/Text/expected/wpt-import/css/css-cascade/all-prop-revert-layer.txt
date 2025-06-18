@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 206 tests
+Found 236 tests
 
-202 Pass
-4 Fail
+218 Pass
+18 Fail
 Pass	accent-color
 Pass	border-collapse
 Pass	border-spacing
@@ -90,11 +90,24 @@ Pass	background-position-x
 Pass	background-position-y
 Pass	background-repeat
 Pass	background-size
+Fail	block-size
+Pass	border-block-end-color
+Fail	border-block-end-style
+Fail	border-block-end-width
+Pass	border-block-start-color
+Fail	border-block-start-style
+Fail	border-block-start-width
 Pass	border-bottom-color
 Pass	border-bottom-left-radius
 Pass	border-bottom-right-radius
 Pass	border-bottom-style
 Pass	border-bottom-width
+Pass	border-inline-end-color
+Fail	border-inline-end-style
+Fail	border-inline-end-width
+Pass	border-inline-start-color
+Fail	border-inline-start-style
+Fail	border-inline-start-width
 Pass	border-left-color
 Pass	border-left-style
 Pass	border-left-width
@@ -142,20 +155,33 @@ Pass	grid-template-areas
 Pass	grid-template-columns
 Pass	grid-template-rows
 Fail	height
+Fail	inline-size
+Pass	inset-block-end
+Pass	inset-block-start
+Pass	inset-inline-end
+Pass	inset-inline-start
 Pass	isolation
 Pass	justify-content
 Pass	justify-items
 Pass	justify-self
 Pass	left
+Pass	margin-block-end
+Pass	margin-block-start
 Pass	margin-bottom
+Pass	margin-inline-end
+Pass	margin-inline-start
 Pass	margin-left
 Pass	margin-right
 Pass	margin-top
 Pass	mask-image
 Pass	mask-type
+Fail	max-block-size
 Pass	max-height
+Fail	max-inline-size
 Pass	max-width
+Fail	min-block-size
 Pass	min-height
+Fail	min-inline-size
 Pass	min-width
 Pass	mix-blend-mode
 Pass	object-fit
@@ -168,7 +194,11 @@ Pass	outline-style
 Pass	outline-width
 Pass	overflow-x
 Pass	overflow-y
+Pass	padding-block-end
+Pass	padding-block-start
 Pass	padding-bottom
+Pass	padding-inline-end
+Pass	padding-inline-start
 Pass	padding-left
 Pass	padding-right
 Pass	padding-top
