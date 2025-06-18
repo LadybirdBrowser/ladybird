@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property opacity value '1'
+Pass	Property opacity value '0.5'
+Pass	Property opacity value '0'
+Pass	Property opacity value '-2'
+Pass	Property opacity value '3'
+Pass	Property opacity value '-100%'
+Pass	Property opacity value '50%'
+Pass	Property opacity value '300%'
