@@ -1577,6 +1577,12 @@ BorderCollapse ComputedProperties::border_collapse() const
     return keyword_to_border_collapse(value.to_keyword()).release_value();
 }
 
+EmptyCells ComputedProperties::empty_cells() const
+{
+    auto const& value = property(PropertyID::EmptyCells);
+    return keyword_to_empty_cells(value.to_keyword()).release_value();
+}
+
 Vector<Vector<String>> ComputedProperties::grid_template_areas() const
 {
     auto const& value = property(PropertyID::GridTemplateAreas);

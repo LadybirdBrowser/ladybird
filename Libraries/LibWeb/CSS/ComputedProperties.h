@@ -159,6 +159,7 @@ public:
     GridTrackPlacement grid_row_end() const;
     GridTrackPlacement grid_row_start() const;
     BorderCollapse border_collapse() const;
+    CSS::EmptyCells empty_cells() const;
     Vector<Vector<String>> grid_template_areas() const;
     ObjectFit object_fit() const;
     ObjectPosition object_position() const;

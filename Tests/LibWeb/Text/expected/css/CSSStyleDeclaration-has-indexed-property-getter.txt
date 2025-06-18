@@ -11,6 +11,7 @@ All properties associated with getComputedStyle(document.body):
     "color-scheme",
     "cursor",
     "direction",
+    "empty-cells",
     "fill",
     "fill-opacity",
     "fill-rule",

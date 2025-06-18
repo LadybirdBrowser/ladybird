@@ -327,6 +327,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'cy': '0px'
 'direction': 'ltr'
 'display': 'block'
+'emptyCells': 'show'
+'empty-cells': 'show'
 'fill': 'rgb(0, 0, 0)'
 'fillOpacity': '1'
 'fill-opacity': '1'

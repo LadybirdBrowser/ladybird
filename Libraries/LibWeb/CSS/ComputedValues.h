@@ -182,6 +182,7 @@ public:
     static CSS::Size column_width() { return CSS::Size::make_auto(); }
     static Variant<LengthPercentage, NormalGap> row_gap() { return NormalGap {}; }
     static CSS::BorderCollapse border_collapse() { return CSS::BorderCollapse::Separate; }
+    static CSS::EmptyCells empty_cells() { return CSS::EmptyCells::Show; }
     static Vector<Vector<String>> grid_template_areas() { return {}; }
     static CSS::Time transition_delay() { return CSS::Time::make_seconds(0); }
     static CSS::ObjectFit object_fit() { return CSS::ObjectFit::Fill; }
@@ -490,6 +491,7 @@ public:
     CSS::Size const& column_width() const { return m_noninherited.column_width; }
     Variant<LengthPercentage, NormalGap> const& row_gap() const { return m_noninherited.row_gap; }
     CSS::BorderCollapse border_collapse() const { return m_inherited.border_collapse; }
+    CSS::EmptyCells empty_cells() const { return m_inherited.empty_cells; }
     Vector<Vector<String>> const& grid_template_areas() const { return m_noninherited.grid_template_areas; }
     CSS::ObjectFit object_fit() const { return m_noninherited.object_fit; }
     CSS::ObjectPosition object_position() const { return m_noninherited.object_position; }
@@ -622,6 +624,7 @@ protected:
         Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings;
         CSSPixels line_height { InitialValues::line_height() };
         CSS::BorderCollapse border_collapse { InitialValues::border_collapse() };
+        CSS::EmptyCells empty_cells { InitialValues::empty_cells() };
         CSS::Length border_spacing_horizontal { InitialValues::border_spacing() };
         CSS::Length border_spacing_vertical { InitialValues::border_spacing() };
         CSS::CaptionSide caption_side { InitialValues::caption_side() };
@@ -930,6 +933,7 @@ public:
     void set_column_width(CSS::Size const& column_width) { m_noninherited.column_width = column_width; }
     void set_row_gap(Variant<LengthPercentage, NormalGap> const& row_gap) { m_noninherited.row_gap = row_gap; }
     void set_border_collapse(CSS::BorderCollapse const border_collapse) { m_inherited.border_collapse = border_collapse; }
+    void set_empty_cells(CSS::EmptyCells const empty_cells) { m_inherited.empty_cells = empty_cells; }
     void set_grid_template_areas(Vector<Vector<String>> const& grid_template_areas) { m_noninherited.grid_template_areas = grid_template_areas; }
     void set_grid_auto_flow(CSS::GridAutoFlow grid_auto_flow) { m_noninherited.grid_auto_flow = grid_auto_flow; }
     void set_transition_delay(CSS::Time const& transition_delay) { m_noninherited.transition_delay = transition_delay; }

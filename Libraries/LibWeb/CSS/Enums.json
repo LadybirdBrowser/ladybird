@@ -224,6 +224,10 @@
     "inline",
     "run-in"
   ],
+  "empty-cells": [
+    "show",
+    "hide"
+  ],
   "fill-rule": [
     "nonzero",
     "evenodd"

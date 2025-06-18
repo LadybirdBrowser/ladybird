@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 687 tests
 
-654 Pass
-33 Fail
+657 Pass
+30 Fail
 Pass	background-attachment: scroll
 Pass	background-attachment: fixed
 Pass	background-attachment: inherit
@@ -374,9 +374,9 @@ Pass	display: table-cell
 Pass	display: table-caption
 Pass	display: none
 Pass	display: inherit
-Fail	empty-cells: show
-Fail	empty-cells: hide
-Fail	empty-cells: inherit
+Pass	empty-cells: show
+Pass	empty-cells: hide
+Pass	empty-cells: inherit
 Pass	float: left
 Pass	float: right
 Pass	float: none
