@@ -195,9 +195,10 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
     auto pseudo_element_display = pseudo_element_style->display();
     // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
     // We also don't create them if they are `display: none`.
-    if (pseudo_element_display.is_none()
-        || pseudo_element_content.type == CSS::ContentData::Type::Normal
-        || pseudo_element_content.type == CSS::ContentData::Type::None)
+    if (first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
+        && (pseudo_element_display.is_none()
+            || pseudo_element_content.type == CSS::ContentData::Type::Normal
+            || pseudo_element_content.type == CSS::ContentData::Type::None))
         return;
 
     auto pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, *pseudo_element_style, nullptr);
