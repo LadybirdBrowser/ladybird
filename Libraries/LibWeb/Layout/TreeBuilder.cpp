@@ -480,7 +480,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             element.clear_pseudo_element_nodes({});
             VERIFY(!element.needs_style_update());
             style = element.computed_properties();
-            element.resolve_counters(*style);
+            DOM::AbstractElement element_reference { element };
+            CSS::resolve_counters(element_reference);
             display = style->display();
             if (display.is_none())
                 return;

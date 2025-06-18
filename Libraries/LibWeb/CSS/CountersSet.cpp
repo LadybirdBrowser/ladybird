@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CountersSet.h"
+#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/CountersSet.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 
@@ -98,6 +100,108 @@ Optional<Counter&> CountersSet::counter_with_same_name_and_creator(FlyString con
 void CountersSet::append_copy(Counter const& counter)
 {
     m_counters.append(counter);
+}
+
+// https://drafts.csswg.org/css-lists-3/#auto-numbering
+void resolve_counters(DOM::AbstractElement& element_reference)
+{
+    // Resolving counter values on a given element is a multi-step process:
+    auto const& style = *element_reference.computed_properties();
+
+    // 1. Existing counters are inherited from previous elements.
+    inherit_counters(element_reference);
+
+    // https://drafts.csswg.org/css-lists-3/#counters-without-boxes
+    // An element that does not generate a box (for example, an element with display set to none,
+    // or a pseudo-element with content set to none) cannot set, reset, or increment a counter.
+    // The counter properties are still valid on such an element, but they must have no effect.
+    if (style.display().is_none())
+        return;
+
+    // FIXME: Include the pseudo-element in the element ID
+    auto element_id = element_reference.element().unique_id();
+
+    // 2. New counters are instantiated (counter-reset).
+    auto counter_reset = style.counter_data(PropertyID::CounterReset);
+    for (auto const& counter : counter_reset)
+        element_reference.ensure_counters_set().instantiate_a_counter(counter.name, element_id, counter.is_reversed, counter.value);
+
+    // FIXME: Take style containment into account
+    // https://drafts.csswg.org/css-contain-2/#containment-style
+    // Giving an element style containment has the following effects:
+    // 1. The 'counter-increment' and 'counter-set' properties must be scoped to the element’s sub-tree and create a
+    //    new counter.
+
+    // 3. Counter values are incremented (counter-increment).
+    auto counter_increment = style.counter_data(PropertyID::CounterIncrement);
+    for (auto const& counter : counter_increment)
+        element_reference.ensure_counters_set().increment_a_counter(counter.name, element_id, *counter.value);
+
+    // 4. Counter values are explicitly set (counter-set).
+    auto counter_set = style.counter_data(PropertyID::CounterSet);
+    for (auto const& counter : counter_set)
+        element_reference.ensure_counters_set().set_a_counter(counter.name, element_id, *counter.value);
+
+    // 5. Counter values are used (counter()/counters()).
+    // NOTE: This happens when we process the `content` property.
+}
+
+// https://drafts.csswg.org/css-lists-3/#inherit-counters
+void inherit_counters(DOM::AbstractElement& element_reference)
+{
+    // 1. If element is the root of its document tree, the element has an initially-empty CSS counters set.
+    //    Return.
+    auto parent = element_reference.parent_element();
+    if (parent == nullptr) {
+        // NOTE: We represent an empty counters set with `m_counters_set = nullptr`.
+        element_reference.set_counters_set(nullptr);
+        return;
+    }
+
+    // 2. Let element counters, representing element’s own CSS counters set, be a copy of the CSS counters
+    //    set of element’s parent element.
+    OwnPtr<CountersSet> element_counters;
+    // OPTIMIZATION: If parent has a set, we create a copy. Otherwise, we avoid allocating one until we need
+    // to add something to it.
+    auto ensure_element_counters = [&]() {
+        if (!element_counters)
+            element_counters = make<CountersSet>();
+    };
+    if (parent->has_non_empty_counters_set()) {
+        element_counters = make<CountersSet>();
+        *element_counters = *parent->counters_set();
+    }
+
+    // 3. Let sibling counters be the CSS counters set of element’s preceding sibling (if it has one),
+    //    or an empty CSS counters set otherwise.
+    //    For each counter of sibling counters, if element counters does not already contain a counter with
+    //    the same name, append a copy of counter to element counters.
+    if (auto* const sibling = element_reference.element().previous_sibling_of_type<DOM::Element>(); sibling && sibling->has_non_empty_counters_set()) {
+        auto& sibling_counters = sibling->counters_set().release_value();
+        ensure_element_counters();
+        for (auto const& counter : sibling_counters.counters()) {
+            if (!element_counters->last_counter_with_name(counter.name).has_value())
+                element_counters->append_copy(counter);
+        }
+    }
+
+    // 4. Let value source be the CSS counters set of the element immediately preceding element in tree order.
+    //    For each source counter of value source, if element counters contains a counter with the same name
+    //    and creator, then set the value of that counter to source counter’s value.
+    if (auto* const previous = element_reference.element().previous_element_in_pre_order(); previous && previous->has_non_empty_counters_set()) {
+        // NOTE: If element_counters is empty (AKA null) then we can skip this since nothing will match.
+        if (element_counters) {
+            auto& value_source = previous->counters_set().release_value();
+            for (auto const& source_counter : value_source.counters()) {
+                auto maybe_existing_counter = element_counters->counter_with_same_name_and_creator(source_counter.name, source_counter.originating_element_id);
+                if (maybe_existing_counter.has_value())
+                    maybe_existing_counter->value = source_counter.value;
+            }
+        }
+    }
+
+    VERIFY(!element_counters || !element_counters->is_empty());
+    element_reference.set_counters_set(move(element_counters));
 }
 
 }

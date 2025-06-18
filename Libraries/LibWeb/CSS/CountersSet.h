@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -47,5 +47,8 @@ public:
 private:
     Vector<Counter> m_counters;
 };
+
+void resolve_counters(DOM::AbstractElement&);
+void inherit_counters(DOM::AbstractElement&);
 
 }
