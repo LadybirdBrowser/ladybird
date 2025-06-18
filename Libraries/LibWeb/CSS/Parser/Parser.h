@@ -412,6 +412,7 @@ private:
     RefPtr<CSSStyleValue const> parse_font_variant_numeric_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_list_style_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_math_depth_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue const> parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_overflow_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_place_content_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue const> parse_place_items_value(TokenStream<ComponentValue>&);

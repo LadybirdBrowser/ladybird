@@ -695,6 +695,13 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_math_depth_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::Opacity:
+    case PropertyID::FillOpacity:
+    case PropertyID::StopOpacity:
+    case PropertyID::StrokeOpacity:
+        if (auto parsed_value = parse_opacity_value(property_id, tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Overflow:
         if (auto parsed_value = parse_overflow_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -3393,6 +3400,28 @@ RefPtr<CSSStyleValue const> Parser::parse_math_depth_value(TokenStream<Component
     }
 
     return nullptr;
+}
+
+RefPtr<CSSStyleValue const> Parser::parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+{
+    auto value = parse_css_value_for_property(property_id, tokens);
+    if (!value)
+        return nullptr;
+
+    // Percentages map to the range [0,1] for opacity values
+    if (value->is_percentage())
+        value = NumberStyleValue::create(value->as_percentage().percentage().as_fraction());
+    if (value->is_calculated() && value->as_calculated().resolves_to_percentage()) {
+        auto maybe_percentage = value->as_calculated().resolve_percentage({});
+        if (maybe_percentage.has_value()) {
+            auto resolved_percentage = maybe_percentage->as_fraction();
+            CalculationContext context {};
+            auto calc_node = NumericCalculationNode::create(Number { Number::Type::Number, resolved_percentage }, context);
+            value = CalculatedStyleValue::create(move(calc_node), CSSNumericType { CSSNumericType::BaseType::Length, 1 }, context);
+        }
+    }
+
+    return value;
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_overflow_value(TokenStream<ComponentValue>& tokens)
