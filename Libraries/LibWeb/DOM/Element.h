@@ -373,13 +373,8 @@ public:
     void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
     IntersectionObserver::IntersectionObserverRegistration& get_intersection_observer_registration(Badge<DOM::Document>, IntersectionObserver::IntersectionObserver const&);
 
-    enum class ScrollOffsetFor {
-        Self,
-        PseudoBefore,
-        PseudoAfter
-    };
-    CSSPixelPoint scroll_offset(ScrollOffsetFor type) const { return m_scroll_offset[to_underlying(type)]; }
-    void set_scroll_offset(ScrollOffsetFor type, CSSPixelPoint offset) { m_scroll_offset[to_underlying(type)] = offset; }
+    CSSPixelPoint scroll_offset(Optional<CSS::PseudoElement> type) const;
+    void set_scroll_offset(Optional<CSS::PseudoElement> type, CSSPixelPoint offset);
 
     enum class TranslationMode {
         TranslateEnabled,
@@ -595,7 +590,7 @@ private:
     // Element objects have an internal [[RegisteredIntersectionObservers]] slot, which is initialized to an empty list.
     OwnPtr<Vector<IntersectionObserver::IntersectionObserverRegistration>> m_registered_intersection_observers;
 
-    Array<CSSPixelPoint, 3> m_scroll_offset;
+    CSSPixelPoint m_scroll_offset;
 
     bool m_in_top_layer : 1 { false };
     bool m_rendered_in_top_layer : 1 { false };
