@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 3: parsing opacity with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-color-3/#opacity">
+<meta name="assert" content="opacity supports the full grammar '<alphavalue>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("opacity", "1");
+test_valid_value("opacity", "0.5");
+test_valid_value("opacity", "0");
+test_valid_value("opacity", "-2");
+test_valid_value("opacity", "3");
+test_valid_value("opacity", "-100%", "-1");
+test_valid_value("opacity", "50%", "0.5");
+test_valid_value("opacity", "300%", "3");
+test_valid_value("opacity", "clamp(50%, 0%, 70%)", "calc(0.5)");
+test_valid_value("opacity", "clamp(50%, 80%, 70%)", "calc(0.7)");
+test_valid_value("opacity", "clamp(50%, 60%, 70%)", "calc(0.6)");
+test_valid_value("opacity", "min(50%, 0%)", "calc(0)");
+test_valid_value("opacity", "min(0%, 50%)", "calc(0)");
+test_valid_value("opacity", "max(50%, 0%)", "calc(0.5)");
+test_valid_value("opacity", "max(0%, 50%)", "calc(0.5)");
+test_valid_value("opacity", "min(-40%, 50%)", "calc(-0.4)");
+
+</script>
+</body>
+</html>

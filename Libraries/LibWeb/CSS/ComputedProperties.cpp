@@ -377,8 +377,6 @@ float ComputedProperties::resolve_opacity_value(CSSStyleValue const& value)
             else
                 dbgln("Unable to resolve calc() as opacity (number): {}", value.to_string(SerializationMode::Normal));
         }
-    } else if (value.is_percentage()) {
-        unclamped_opacity = value.as_percentage().percentage().as_fraction();
     }
 
     return clamp(unclamped_opacity, 0.0f, 1.0f);

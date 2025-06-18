@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	e.style['opacity'] = "1" should set the property value
+Pass	e.style['opacity'] = "0.5" should set the property value
+Pass	e.style['opacity'] = "0" should set the property value
+Pass	e.style['opacity'] = "-2" should set the property value
+Pass	e.style['opacity'] = "3" should set the property value
+Pass	e.style['opacity'] = "-100%" should set the property value
+Pass	e.style['opacity'] = "50%" should set the property value
+Pass	e.style['opacity'] = "300%" should set the property value
+Pass	e.style['opacity'] = "clamp(50%, 0%, 70%)" should set the property value
+Pass	e.style['opacity'] = "clamp(50%, 80%, 70%)" should set the property value
+Pass	e.style['opacity'] = "clamp(50%, 60%, 70%)" should set the property value
+Pass	e.style['opacity'] = "min(50%, 0%)" should set the property value
+Pass	e.style['opacity'] = "min(0%, 50%)" should set the property value
+Pass	e.style['opacity'] = "max(50%, 0%)" should set the property value
+Pass	e.style['opacity'] = "max(0%, 50%)" should set the property value
+Pass	e.style['opacity'] = "min(-40%, 50%)" should set the property value
