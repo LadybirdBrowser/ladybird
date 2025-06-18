@@ -3031,7 +3031,7 @@ void Element::scroll(double x, double y)
     //               as the element is not eligible to be the Document.scrollingElement.
     if (x == 0
         && y == 0
-        && scroll_offset(ScrollOffsetFor::Self).is_zero()
+        && scroll_offset({}).is_zero()
         && this != document.body()
         && this != document.document_element()) {
         return;
@@ -3395,6 +3395,25 @@ IntersectionObserver::IntersectionObserverRegistration& Element::get_intersectio
     });
     VERIFY(!registration_iterator.is_end());
     return *registration_iterator;
+}
+
+CSSPixelPoint Element::scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type) const
+{
+    if (pseudo_element_type.has_value()) {
+        if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
+            return pseudo_element->scroll_offset();
+        return {};
+    }
+    return m_scroll_offset;
+}
+
+void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset)
+{
+    if (pseudo_element_type.has_value()) {
+        if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
+            pseudo_element->set_scroll_offset(offset);
+    }
+    m_scroll_offset = offset;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#translation-mode

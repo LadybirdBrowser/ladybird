@@ -96,15 +96,13 @@ CSSPixelPoint PaintableBox::scroll_offset() const
     }
 
     auto const& node = layout_node();
-    if (node.is_generated_for_before_pseudo_element())
-        return node.pseudo_element_generator()->scroll_offset(DOM::Element::ScrollOffsetFor::PseudoBefore);
-    if (node.is_generated_for_after_pseudo_element())
-        return node.pseudo_element_generator()->scroll_offset(DOM::Element::ScrollOffsetFor::PseudoAfter);
+    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value())
+        return node.pseudo_element_generator()->scroll_offset(*pseudo_element);
 
     if (!(dom_node() && is<DOM::Element>(*dom_node())))
         return {};
 
-    return static_cast<DOM::Element const*>(dom_node())->scroll_offset(DOM::Element::ScrollOffsetFor::Self);
+    return static_cast<DOM::Element const*>(dom_node())->scroll_offset({});
 }
 
 void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
@@ -127,12 +125,10 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
         return;
 
     auto& node = layout_node();
-    if (node.is_generated_for_before_pseudo_element()) {
-        node.pseudo_element_generator()->set_scroll_offset(DOM::Element::ScrollOffsetFor::PseudoBefore, offset);
-    } else if (node.is_generated_for_after_pseudo_element()) {
-        node.pseudo_element_generator()->set_scroll_offset(DOM::Element::ScrollOffsetFor::PseudoAfter, offset);
+    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
+        node.pseudo_element_generator()->set_scroll_offset(*pseudo_element, offset);
     } else if (is<DOM::Element>(*dom_node())) {
-        static_cast<DOM::Element*>(dom_node())->set_scroll_offset(DOM::Element::ScrollOffsetFor::Self, offset);
+        static_cast<DOM::Element*>(dom_node())->set_scroll_offset({}, offset);
     } else {
         return;
     }

@@ -35,6 +35,9 @@ class PseudoElement : public JS::Cell {
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
+    CSSPixelPoint scroll_offset() const { return m_scroll_offset; }
+    void set_scroll_offset(CSSPixelPoint value) { m_scroll_offset = value; }
+
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
@@ -43,6 +46,7 @@ private:
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
     OwnPtr<CSS::CountersSet> m_counters_set;
+    CSSPixelPoint m_scroll_offset {};
 };
 
 // https://drafts.csswg.org/css-view-transitions/#pseudo-element-tree
