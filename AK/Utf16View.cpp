@@ -307,16 +307,31 @@ bool Utf16View::is_code_unit_less_than(Utf16View const& other) const
     return a.size() < b.size();
 }
 
-bool Utf16View::validate() const
+bool Utf16View::validate(AllowInvalidCodeUnits allow_invalid_code_units) const
 {
-    return simdutf::validate_utf16(char_data(), length_in_code_units());
+    size_t valid_code_units = 0;
+    return validate(valid_code_units, allow_invalid_code_units);
 }
 
-bool Utf16View::validate(size_t& valid_code_units) const
+bool Utf16View::validate(size_t& valid_code_units, AllowInvalidCodeUnits allow_invalid_code_units) const
 {
-    auto result = simdutf::validate_utf16_with_errors(char_data(), length_in_code_units());
-    valid_code_units = result.count;
-    return result.error == simdutf::SUCCESS;
+    auto view = *this;
+    valid_code_units = 0;
+
+    while (!view.is_empty()) {
+        auto result = simdutf::validate_utf16_with_errors(view.char_data(), view.length_in_code_units());
+        valid_code_units += result.count;
+
+        if (result.error == simdutf::SUCCESS)
+            return true;
+        if (allow_invalid_code_units == AllowInvalidCodeUnits::No || result.error != simdutf::SURROGATE)
+            return false;
+
+        view = view.substring_view(result.count + 1);
+        ++valid_code_units;
+    }
+
+    return true;
 }
 
 size_t Utf16View::calculate_length_in_code_points() const

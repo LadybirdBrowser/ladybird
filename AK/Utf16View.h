@@ -148,8 +148,8 @@ public:
     bool starts_with(Utf16View const&) const;
     bool is_code_unit_less_than(Utf16View const& other) const;
 
-    bool validate() const;
-    bool validate(size_t& valid_code_units) const;
+    bool validate(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+    bool validate(size_t& valid_code_units, AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
 
     bool equals_ignoring_case(Utf16View const&) const;
 
