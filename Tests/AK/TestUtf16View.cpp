@@ -187,55 +187,86 @@ TEST_CASE(iterate_utf16)
 TEST_CASE(validate_invalid_utf16)
 {
     size_t valid_code_units = 0;
+    Utf16View invalid;
     {
         // Lonely high surrogate.
-        auto invalid = Array { (u16)0xd800 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 0);
+        invalid = u"\xd800";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 0uz);
 
-        invalid = Array { (u16)0xdbff };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 0);
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 1uz);
+
+        invalid = u"\xdbff";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 0uz);
+
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 1uz);
     }
     {
         // Lonely low surrogate.
-        auto invalid = Array { (u16)0xdc00 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 0);
+        invalid = u"\xdc00";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 0uz);
 
-        invalid = Array { (u16)0xdfff };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 0);
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 1uz);
+
+        invalid = u"\xdfff";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 0uz);
+
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 1uz);
     }
     {
         // High surrogate followed by non-surrogate.
-        auto invalid = Array { (u16)0xd800, 0 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 0);
+        invalid = u"\xd800\x0000";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 0uz);
 
-        invalid = Array { (u16)0xd800, 0xe000 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 0);
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 2uz);
+
+        invalid = u"\xd800\xe000";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 0uz);
+
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 2uz);
     }
     {
         // High surrogate followed by high surrogate.
-        auto invalid = Array { (u16)0xd800, 0xd800 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 0);
+        invalid = u"\xd800\xd800";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 0uz);
 
-        invalid = Array { (u16)0xd800, 0xdbff };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 0);
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 2uz);
+
+        invalid = u"\xd800\xdbff";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 0uz);
+
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 2uz);
     }
     {
         // Valid UTF-16 followed by invalid code units.
-        auto invalid = Array { (u16)0x41, 0x41, 0xd800 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 2);
+        invalid = u"\x0041\x0041\xd800";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 2uz);
 
-        invalid = Array { (u16)0x41, 0x41, 0xd800 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
-        EXPECT(valid_code_units == 2);
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 3uz);
+
+        invalid = u"\x0041\x0041\xd800";
+        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT_EQ(valid_code_units, 2uz);
+
+        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT_EQ(valid_code_units, 3uz);
     }
 }
 
