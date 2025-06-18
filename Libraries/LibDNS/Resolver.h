@@ -721,20 +721,18 @@ private:
         //        other RRs that have the zone name as owner should appear only in the
         //        subzone and thus are signed only there.
 
-        // Figure out if this is a delegation point (this should really be optimised to avoid sequential lookups of SOA -> DS -> NS for "just" the same zone).
+        // Figure out if this is a delegation point.
+        // The records needed are SOA, DS and NS - look them up concurrently.
+        auto result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Vector { Messages::ResourceType::SOA }, { Messages::ResourceType::DS }, { Messages::ResourceType::NS } }, { .validate_dnssec_locally = !top_level })->await()));
         // - Lookup the SOA record for the domain.
-        auto soa_result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::SOA }, { .validate_dnssec_locally = !top_level })->await()));
         // - If we have no SOA record-
-        if (!soa_result->has_record_of_type(Messages::ResourceType::SOA)) {
+        if (!result->has_record_of_type(Messages::ResourceType::SOA)) {
             dbgln_if(DNS_DEBUG, "DNS: No SOA record found for {}", name.to_string());
-            // - First, check for a DS record-
-            auto ds_result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DS }, { .validate_dnssec_locally = !top_level })->await()));
             // - If there's no DS record, check for an NS record-
-            if (!ds_result->has_record_of_type(Messages::ResourceType::DS)) {
+            if (!result->has_record_of_type(Messages::ResourceType::DS)) {
                 dbgln_if(DNS_DEBUG, "DNS: No DS record found for {}", name.to_string());
                 // - If there's no DS record, check for an NS record-
-                auto ns_result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::NS }, { .validate_dnssec_locally = !top_level })->await()));
-                if (ns_result->has_record_of_type(Messages::ResourceType::NS)) {
+                if (result->has_record_of_type(Messages::ResourceType::NS)) {
                     // - but if there _is_ an NS record, this is a broken delegation, so reject.
                     dbgln_if(DNS_DEBUG, "DNS: Found NS record for {}", name.to_string());
                     promise->resolve(false);
@@ -752,7 +750,7 @@ private:
         }
 
         // So we have an SOA record, there's much rejoicing and we can continue.
-        auto& soa = soa_result->record<Messages::Records::SOA>();
+        auto& soa = result->record<Messages::Records::SOA>();
         dbgln_if(DNS_DEBUG, "DNS: Found SOA record for {}: {}", name.to_string(), soa.mname.to_string());
         if (soa.mname == name.parent()) {
             // Just go up one level, all is well.
