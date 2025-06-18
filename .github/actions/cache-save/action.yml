@@ -36,16 +36,8 @@ runs:
       run: |
         CCACHE_DIR=${{ inputs.ccache_path }} ccache --evict-older-than=1d
 
-    - name: 'Compiler Cache (blacksmith)'
-      uses: useblacksmith/cache/save@v5
-      if: ${{ inputs.ccache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
-      with:
-        path: ${{ inputs.ccache_path }}
-        key: ${{ inputs.ccache_primary_key }}
-
-    - name: 'Compiler Cache (GitHub runner)'
+    - name: 'Compiler Cache'
       uses: actions/cache/save@v4
-      if: ${{ inputs.ccache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
       with:
         path: ${{ inputs.ccache_path }}
         key: ${{ inputs.ccache_primary_key }}
@@ -56,16 +48,8 @@ runs:
       run: |
         CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
 
-    - name: 'vcpkg binary cache (blacksmith)'
-      uses: useblacksmith/cache/save@v5
-      if: ${{ inputs.vcpkg_cache_path != '' && contains(inputs.runner_labels, 'blacksmith') }}
-      with:
-        path: ${{ inputs.vcpkg_cache_path }}
-        key: ${{ inputs.vcpkg_cache_primary_key }}
-
-    - name: 'vcpkg binary cache (GitHub runner)'
+    - name: 'vcpkg binary cache'
       uses: actions/cache/save@v4
-      if: ${{ inputs.vcpkg_cache_path != '' && !contains(inputs.runner_labels, 'blacksmith') }}
       with:
         path: ${{ inputs.vcpkg_cache_path }}
         key: ${{ inputs.vcpkg_cache_primary_key }}
