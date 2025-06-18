@@ -44,7 +44,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create(JS::Realm& realm, Vector<
     return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), OptionalNone {});
 }
 
-GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(JS::Realm& realm, Optional<DOM::ElementReference> element_reference)
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(JS::Realm& realm, Optional<DOM::AbstractElement> element_reference)
 {
     // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
     // 6.  Return a live CSSStyleProperties object with the following properties:
@@ -57,7 +57,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(JS::Realm&
     return realm.create<CSSStyleProperties>(realm, Computed::Yes, Readonly::Yes, Vector<StyleProperty> {}, HashMap<FlyString, StyleProperty> {}, move(element_reference));
 }
 
-GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM::ElementReference element_reference, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM::AbstractElement element_reference, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
     // https://drafts.csswg.org/cssom/#dom-elementcssinlinestyle-style
     // The style attribute must return a CSS declaration block object whose readonly flag is unset, whose parent CSS
@@ -66,7 +66,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM:
     return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), move(element_reference));
 }
 
-CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Readonly readonly, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::ElementReference> owner_node)
+CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Readonly readonly, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement> owner_node)
     : CSSStyleDeclaration(realm, computed, readonly)
     , m_properties(move(properties))
     , m_custom_properties(move(custom_properties))

@@ -211,6 +211,7 @@ set(SOURCES
     CSS/VisualViewport.cpp
     DOM/AbortController.cpp
     DOM/AbortSignal.cpp
+    DOM/AbstractElement.cpp
     DOM/AbstractRange.cpp
     DOM/AccessibilityTreeNode.cpp
     DOM/AdoptedStyleSheets.cpp

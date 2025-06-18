@@ -339,6 +339,7 @@ namespace Web::DOM {
 
 class AbortController;
 class AbortSignal;
+class AbstractElement;
 class AbstractRange;
 class AccessibilityTreeNode;
 class Attr;
