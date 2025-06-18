@@ -132,7 +132,7 @@ void populate_all_property_longhands(JsonObject& properties)
     VERIFY(all_entry.has_value());
 
     properties.for_each_member([&](auto name, auto value) {
-        if (value.as_object().has_array("longhands"sv) || value.as_object().has_array("logical-alias-for"sv) || value.as_object().has_string("legacy-alias-for"sv) || name == "direction" || name == "unicode-bidi")
+        if (value.as_object().has_array("longhands"sv) || value.as_object().has_string("legacy-alias-for"sv) || name == "direction" || name == "unicode-bidi")
             return;
 
         MUST(all_entry->get_array("longhands"sv)->append(JsonValue { name }));
@@ -309,6 +309,8 @@ enum class Quirk {
     UnitlessLength,
 };
 bool property_has_quirk(PropertyID, Quirk);
+
+bool property_is_logical_alias(PropertyID);
 
 } // namespace Web::CSS
 
@@ -1273,6 +1275,33 @@ Vector<PropertyID> shorthands_for_longhand(PropertyID property_id)
     generator.append(R"~~~(
     default:
         return { };
+    }
+}
+)~~~");
+
+    generator.append(R"~~~(
+bool property_is_logical_alias(PropertyID property_id)
+{
+    switch(property_id) {
+)~~~");
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        if (is_legacy_alias(value.as_object()))
+            return;
+
+        if (value.as_object().has("logical-alias-for"sv)) {
+            auto property_generator = generator.fork();
+            property_generator.set("name:titlecase", title_casify(name));
+            property_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@:
+)~~~");
+        }
+    });
+
+    generator.append(R"~~~(
+        return true;
+    default:
+        return false;
     }
 }
 )~~~");
