@@ -178,7 +178,7 @@ public:
 
     [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = URL::about_blank());
     [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ref<Document>> construct_impl(JS::Realm&);
+    static GC::Ref<Document> construct_impl(JS::Realm&);
     virtual ~Document() override;
 
     // AD-HOC: This number increments whenever a node is added or removed from the document, or an element attribute changes.

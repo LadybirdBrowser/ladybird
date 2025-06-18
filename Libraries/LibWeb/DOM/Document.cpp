@@ -424,9 +424,13 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     return document;
 }
 
-WebIDL::ExceptionOr<GC::Ref<Document>> Document::construct_impl(JS::Realm& realm)
+// https://dom.spec.whatwg.org/#dom-document-document
+GC::Ref<Document> Document::construct_impl(JS::Realm& realm)
 {
-    return Document::create(realm);
+    // The new Document() constructor steps are to set this’s origin to the origin of current global object’s associated Document. [HTML]
+    auto document = Document::create(realm);
+    document->set_origin(as<HTML::Window>(HTML::current_principal_global_object()).associated_document().origin());
+    return document;
 }
 
 GC::Ref<Document> Document::create(JS::Realm& realm, URL::URL const& url)
