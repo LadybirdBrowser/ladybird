@@ -832,7 +832,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
 GC::Ref<CSS::ComputedProperties> Element::resolved_css_values(Optional<CSS::PseudoElement> type)
 {
-    auto element_computed_style = CSS::CSSStyleProperties::create_resolved_style(realm(), ElementReference { *this, type });
+    auto element_computed_style = CSS::CSSStyleProperties::create_resolved_style(realm(), AbstractElement { *this, type });
     auto properties = heap().allocate<CSS::ComputedProperties>();
 
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {

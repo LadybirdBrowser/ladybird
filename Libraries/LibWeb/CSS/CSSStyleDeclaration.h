@@ -11,7 +11,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/StyleProperty.h>
-#include <LibWeb/DOM/ElementReference.h>
+#include <LibWeb/DOM/AbstractElement.h>
 
 namespace Web::CSS {
 
@@ -50,8 +50,8 @@ public:
     void set_parent_rule(GC::Ptr<CSSRule> parent) { m_parent_rule = parent; }
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-owner-node
-    Optional<DOM::ElementReference> owner_node() const { return m_owner_node; }
-    void set_owner_node(Optional<DOM::ElementReference> owner_node) { m_owner_node = move(owner_node); }
+    Optional<DOM::AbstractElement> owner_node() const { return m_owner_node; }
+    void set_owner_node(Optional<DOM::AbstractElement> owner_node) { m_owner_node = move(owner_node); }
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-updating-flag
     [[nodiscard]] bool is_updating() const { return m_updating; }
@@ -80,7 +80,7 @@ private:
     GC::Ptr<CSSRule> m_parent_rule { nullptr };
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-owner-node
-    Optional<DOM::ElementReference> m_owner_node {};
+    Optional<DOM::AbstractElement> m_owner_node {};
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-computed-flag
     bool m_computed { false };

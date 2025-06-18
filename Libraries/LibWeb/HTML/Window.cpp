@@ -1278,7 +1278,7 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
     // 1. Let doc be elt’s node document.
 
     // 2. Let obj be elt.
-    Optional<DOM::ElementReference> object { element };
+    Optional<DOM::AbstractElement> object { element };
 
     // 3. If pseudoElt is provided, is not the empty string, and starts with a colon, then:
     if (pseudo_element.has_value() && pseudo_element.value().starts_with(':')) {
