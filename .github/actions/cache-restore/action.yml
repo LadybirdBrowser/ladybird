@@ -59,6 +59,7 @@ runs:
     - name: 'Compiler Cache'
       uses: actions/cache/restore@v4
       id: 'ccache'
+      if: ${{ inputs.ccache_path != '' }}
       with:
         path: ${{ inputs.ccache_path }}
         key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
@@ -79,6 +80,7 @@ runs:
 
     - name: 'Restore vcpkg cache'
       uses: actions/cache/restore@v4
+      if: ${{ inputs.vcpkg_cache_path != '' }}
       id: 'vcpkg'
       with:
         path: ${{ inputs.vcpkg_cache_path }}
