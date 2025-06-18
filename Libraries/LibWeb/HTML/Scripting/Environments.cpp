@@ -44,9 +44,10 @@ EnvironmentSettingsObject::EnvironmentSettingsObject(NonnullOwnPtr<JS::Execution
     responsible_event_loop().register_environment_settings_object({}, *this);
 }
 
-EnvironmentSettingsObject::~EnvironmentSettingsObject()
+void EnvironmentSettingsObject::finalize()
 {
     responsible_event_loop().unregister_environment_settings_object({}, *this);
+    Base::finalize();
 }
 
 void EnvironmentSettingsObject::initialize(JS::Realm& realm)
