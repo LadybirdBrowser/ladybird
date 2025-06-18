@@ -76,7 +76,7 @@ struct EnvironmentSettingsObject : public Environment {
     GC_CELL(EnvironmentSettingsObject, Environment);
 
 public:
-    virtual ~EnvironmentSettingsObject() override;
+    virtual void finalize() override;
     virtual void initialize(JS::Realm&) override;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
