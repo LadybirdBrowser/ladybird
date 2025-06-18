@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Martin Falisse <mfalisse@outlook.com>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -89,8 +90,9 @@ String GridSize::to_string() const
 {
     switch (m_type) {
     case Type::LengthPercentage:
-    case Type::FitContent:
         return m_value.get<LengthPercentage>().to_string();
+    case Type::FitContent:
+        return MUST(String::formatted("fit-content({})", m_value.get<LengthPercentage>().to_string()));
     case Type::FlexibleLength:
         return m_value.get<Flex>().to_string();
     case Type::MaxContent:
@@ -116,16 +118,6 @@ String GridMinMax::to_string() const
     builder.appendff("{}", m_max_grid_size.to_string());
     builder.append(")"sv);
     return MUST(builder.to_string());
-}
-
-GridFitContent::GridFitContent(GridSize max_grid_size)
-    : m_max_grid_size(max_grid_size)
-{
-}
-
-String GridFitContent::to_string() const
-{
-    return MUST(String::formatted("fit-content({})", m_max_grid_size.to_string()));
 }
 
 GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, int repeat_count)
@@ -164,7 +156,7 @@ String GridRepeat::to_string() const
     return MUST(builder.to_string());
 }
 
-ExplicitGridTrack::ExplicitGridTrack(Variant<GridFitContent, GridRepeat, GridMinMax, GridSize>&& value)
+ExplicitGridTrack::ExplicitGridTrack(Variant<GridRepeat, GridMinMax, GridSize>&& value)
     : m_value(move(value))
 {
 }

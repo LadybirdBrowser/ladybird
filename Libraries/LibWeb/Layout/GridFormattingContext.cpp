@@ -153,13 +153,6 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
     // NOTE: repeat() is expected to be expanded beforehand.
     VERIFY(!definition.is_repeat());
 
-    if (definition.is_fit_content()) {
-        return GridTrack {
-            .min_track_sizing_function = CSS::GridSize::make_auto(),
-            .max_track_sizing_function = definition.fit_content().max_grid_size(),
-        };
-    }
-
     if (definition.is_minmax()) {
         return GridTrack {
             .min_track_sizing_function = definition.minmax().min_grid_size(),
@@ -577,7 +570,7 @@ void GridFormattingContext::initialize_grid_tracks_from_definition(GridDimension
                 repeat_count = track_definition.repeat().repeat_count();
         }
         for (auto _ = 0; _ < repeat_count; _++) {
-            if (track_definition.is_default() || track_definition.is_fit_content() || track_definition.is_minmax()) {
+            if (track_definition.is_default() || track_definition.is_minmax()) {
                 tracks.append(GridTrack::create_from_definition(track_definition));
             } else if (track_definition.is_repeat()) {
                 for (auto& explicit_grid_track : track_definition.repeat().grid_track_size_list().track_list()) {
@@ -2306,7 +2299,7 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
                 line_names.extend(item.get<CSS::GridLineNames>().names);
             } else if (item.has<CSS::ExplicitGridTrack>()) {
                 auto const& explicit_track = item.get<CSS::ExplicitGridTrack>();
-                if (explicit_track.is_default() || explicit_track.is_minmax() || explicit_track.is_fit_content()) {
+                if (explicit_track.is_default() || explicit_track.is_minmax()) {
                     lines.append({ .names = line_names });
                     line_names.clear();
                 } else if (explicit_track.is_repeat()) {
