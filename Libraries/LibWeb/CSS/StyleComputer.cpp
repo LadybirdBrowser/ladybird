@@ -888,70 +888,303 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     set_longhand_property(property_id, value);
 }
 
-PropertyID StyleComputer::map_logical_alias_to_physical_property_id(PropertyID property_id, LogicalAliasMappingContext)
+// https://drafts.csswg.org/css-writing-modes-4/#logical-to-physical
+PropertyID StyleComputer::map_logical_alias_to_physical_property_id(PropertyID property_id, LogicalAliasMappingContext mapping_context)
 {
-    // FIXME: Honor writing-mode, direction and text-orientation.
+    // FIXME: Note: The used direction depends on the computed writing-mode and text-orientation: in vertical writing
+    //              modes, a text-orientation value of upright forces the used direction to ltr.
+    auto used_direction = mapping_context.direction;
     switch (property_id) {
     case PropertyID::BlockSize:
-        return PropertyID::Height;
-    case PropertyID::BorderBlockEndColor:
-        return PropertyID::BorderBottomColor;
-    case PropertyID::BorderBlockEndStyle:
-        return PropertyID::BorderBottomStyle;
-    case PropertyID::BorderBlockEndWidth:
-        return PropertyID::BorderBottomWidth;
-    case PropertyID::BorderBlockStartColor:
-        return PropertyID::BorderTopColor;
-    case PropertyID::BorderBlockStartStyle:
-        return PropertyID::BorderTopStyle;
-    case PropertyID::BorderBlockStartWidth:
-        return PropertyID::BorderTopWidth;
-    case PropertyID::BorderInlineStartColor:
-        return PropertyID::BorderLeftColor;
-    case PropertyID::BorderInlineStartStyle:
-        return PropertyID::BorderLeftStyle;
-    case PropertyID::BorderInlineStartWidth:
-        return PropertyID::BorderLeftWidth;
-    case PropertyID::BorderInlineEndColor:
-        return PropertyID::BorderRightColor;
-    case PropertyID::BorderInlineEndStyle:
-        return PropertyID::BorderRightStyle;
-    case PropertyID::BorderInlineEndWidth:
-        return PropertyID::BorderRightWidth;
-    case PropertyID::MarginBlockStart:
-        return PropertyID::MarginTop;
-    case PropertyID::MarginBlockEnd:
-        return PropertyID::MarginBottom;
-    case PropertyID::MarginInlineStart:
-        return PropertyID::MarginLeft;
-    case PropertyID::MarginInlineEnd:
-        return PropertyID::MarginRight;
-    case PropertyID::MaxBlockSize:
-        return PropertyID::MaxHeight;
-    case PropertyID::MaxInlineSize:
-        return PropertyID::MaxWidth;
-    case PropertyID::MinBlockSize:
-        return PropertyID::MinHeight;
-    case PropertyID::MinInlineSize:
-        return PropertyID::MinWidth;
-    case PropertyID::PaddingBlockStart:
-        return PropertyID::PaddingTop;
-    case PropertyID::PaddingBlockEnd:
-        return PropertyID::PaddingBottom;
-    case PropertyID::PaddingInlineStart:
-        return PropertyID::PaddingLeft;
-    case PropertyID::PaddingInlineEnd:
-        return PropertyID::PaddingRight;
-    case PropertyID::InlineSize:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::Height;
         return PropertyID::Width;
+    case PropertyID::BorderBlockEndColor:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::BorderBottomColor;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::BorderLeftColor;
+        return PropertyID::BorderRightColor;
+    case PropertyID::BorderBlockEndStyle:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::BorderBottomStyle;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::BorderLeftStyle;
+        return PropertyID::BorderRightStyle;
+    case PropertyID::BorderBlockEndWidth:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::BorderBottomWidth;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::BorderLeftWidth;
+        return PropertyID::BorderRightWidth;
+    case PropertyID::BorderBlockStartColor:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::BorderTopColor;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::BorderRightColor;
+        return PropertyID::BorderLeftColor;
+    case PropertyID::BorderBlockStartStyle:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::BorderTopStyle;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::BorderRightStyle;
+        return PropertyID::BorderLeftStyle;
+    case PropertyID::BorderBlockStartWidth:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::BorderTopWidth;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::BorderRightWidth;
+        return PropertyID::BorderLeftWidth;
+    case PropertyID::BorderInlineStartColor:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderLeftColor;
+            return PropertyID::BorderRightColor;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopColor;
+            return PropertyID::BorderBottomColor;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderBottomColor;
+        return PropertyID::BorderTopColor;
+    case PropertyID::BorderInlineStartStyle:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderLeftStyle;
+            return PropertyID::BorderRightStyle;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopStyle;
+            return PropertyID::BorderBottomStyle;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderBottomStyle;
+        return PropertyID::BorderTopStyle;
+
+    case PropertyID::BorderInlineStartWidth:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderLeftWidth;
+            return PropertyID::BorderRightWidth;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopWidth;
+            return PropertyID::BorderBottomWidth;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderBottomWidth;
+        return PropertyID::BorderTopWidth;
+    case PropertyID::BorderInlineEndColor:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderRightColor;
+            return PropertyID::BorderLeftColor;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomColor;
+            return PropertyID::BorderTopColor;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderTopColor;
+        return PropertyID::BorderBottomColor;
+    case PropertyID::BorderInlineEndStyle:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderRightStyle;
+            return PropertyID::BorderLeftStyle;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomStyle;
+            return PropertyID::BorderTopStyle;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderTopStyle;
+        return PropertyID::BorderBottomStyle;
+    case PropertyID::BorderInlineEndWidth:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderRightWidth;
+            return PropertyID::BorderLeftWidth;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomWidth;
+            return PropertyID::BorderTopWidth;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderTopWidth;
+        return PropertyID::BorderBottomWidth;
+
+    case PropertyID::MarginBlockStart:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::MarginTop;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::MarginRight;
+        return PropertyID::MarginLeft;
+    case PropertyID::MarginBlockEnd:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::MarginBottom;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::MarginLeft;
+        return PropertyID::MarginRight;
+    case PropertyID::MarginInlineStart:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::MarginLeft;
+            return PropertyID::MarginRight;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::MarginTop;
+            return PropertyID::MarginBottom;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::MarginBottom;
+        return PropertyID::MarginTop;
+    case PropertyID::MarginInlineEnd:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::MarginRight;
+            return PropertyID::MarginLeft;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::MarginBottom;
+            return PropertyID::MarginTop;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::MarginTop;
+        return PropertyID::MarginBottom;
+    case PropertyID::MaxBlockSize:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::MaxHeight;
+        return PropertyID::MaxWidth;
+    case PropertyID::MaxInlineSize:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::MaxWidth;
+        return PropertyID::MaxHeight;
+    case PropertyID::MinBlockSize:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::MinHeight;
+        return PropertyID::MinWidth;
+    case PropertyID::MinInlineSize:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::MinWidth;
+        return PropertyID::MinHeight;
+    case PropertyID::PaddingBlockStart:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::PaddingTop;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::PaddingRight;
+        return PropertyID::PaddingLeft;
+    case PropertyID::PaddingBlockEnd:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::PaddingBottom;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::PaddingLeft;
+        return PropertyID::PaddingRight;
+    case PropertyID::PaddingInlineStart:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::PaddingLeft;
+            return PropertyID::PaddingRight;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::PaddingTop;
+            return PropertyID::PaddingBottom;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::PaddingBottom;
+        return PropertyID::PaddingTop;
+    case PropertyID::PaddingInlineEnd:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::PaddingRight;
+            return PropertyID::PaddingLeft;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::PaddingBottom;
+            return PropertyID::PaddingTop;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::PaddingTop;
+        return PropertyID::PaddingBottom;
+    case PropertyID::InlineSize:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::Width;
+        return PropertyID::Height;
     case PropertyID::InsetBlockStart:
-        return PropertyID::Top;
-    case PropertyID::InsetBlockEnd:
-        return PropertyID::Bottom;
-    case PropertyID::InsetInlineStart:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::Top;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::Right;
         return PropertyID::Left;
-    case PropertyID::InsetInlineEnd:
+    case PropertyID::InsetBlockEnd:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::Bottom;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::Left;
         return PropertyID::Right;
+    case PropertyID::InsetInlineStart:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::Left;
+            return PropertyID::Right;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::Top;
+            return PropertyID::Bottom;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::Bottom;
+        return PropertyID::Top;
+    case PropertyID::InsetInlineEnd:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::Right;
+            return PropertyID::Left;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::Bottom;
+            return PropertyID::Top;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::Top;
+        return PropertyID::Bottom;
     default:
         VERIFY(!property_is_logical_alias(property_id));
         return property_id;
