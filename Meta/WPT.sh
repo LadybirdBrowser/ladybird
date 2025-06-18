@@ -301,8 +301,11 @@ cleanup_run_dirs() {
         rm -fr "${BUILD_DIR}/wpt"
     }
 cleanup_merge_dirs_and_infra() {
-    cleanup_run_dirs
-    cleanup_run_infra
+    # Cleanup is only needed on Linux
+    if [[ $OSTYPE == 'linux'* ]]; then
+        cleanup_run_dirs
+        cleanup_run_infra
+    fi
 }
 trap cleanup_merge_dirs_and_infra EXIT INT TERM
 
