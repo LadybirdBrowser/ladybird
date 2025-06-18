@@ -1804,9 +1804,7 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
             // 3. Assert: candidateAncestor's popover attribute is not in the manual or none state.
             VERIFY(!candidate_ancestor->popover().has_value() || candidate_ancestor->popover().value() != "manual"sv);
 
-            // AD-HOC: This also checks if isPopover is false.
-            // Spec issue: https://github.com/whatwg/html/issues/11008.
-            // 4. Set okNesting to true if newPopoverOrTopLayerElement's popover attribute is in the hint state or candidateAncestor's popover attribute is in the auto state.
+            // 4. Set okNesting to true if isPopover is false, newPopoverOrTopLayerElement's popover attribute is in the hint state, or candidateAncestor's popover attribute is in the auto state.
             if (is_popover == IsPopover::No || new_popover->popover() == "hint"sv || candidate_ancestor->popover() == "auto"sv)
                 ok_nesting = true;
 
@@ -1843,9 +1841,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_open_popover()
 
     // 2. While currentNode is not null:
     while (current_node) {
-        // AD-HOC: This also allows hint popovers.
-        // Spec issue: https://github.com/whatwg/html/issues/11008.
-        // 1. If currentNode's popover attribute is in the auto state and currentNode's popover visibility state is showing, then return currentNode.
+        // 1. If currentNode's popover attribute is in the Auto state or the Hint state, and currentNode's popover visibility state is showing, then return currentNode.
         if (current_node->popover().has_value() && current_node->popover().value().is_one_of("auto", "hint") && current_node->popover_visibility_state() == PopoverVisibilityState::Showing)
             return current_node;
 
@@ -1870,9 +1866,7 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover_for_invoker()
         // 1. Let targetPopover be currentNode's popover target element.
         auto target_popover = PopoverInvokerElement::get_the_popover_target_element(*current_node);
 
-        // AD-HOC: This also allows hint popovers.
-        // See nearest_inclusive_open_popover above.
-        // 2. If targetPopover is not null and targetPopover's popover attribute is in the auto state and targetPopover's popover visibility state is showing, then return targetPopover.
+        // 2. If targetPopover is not null and targetPopover's popover attribute is in the Auto state or the Hint state, and targetPopover's popover visibility state is showing, then return targetPopover.
         if (target_popover) {
             if (target_popover->popover().has_value() && target_popover->popover().value().is_one_of("auto", "hint") && target_popover->popover_visibility_state() == PopoverVisibilityState::Showing)
                 return target_popover;
