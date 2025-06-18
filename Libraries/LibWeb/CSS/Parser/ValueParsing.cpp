@@ -3243,7 +3243,7 @@ Optional<CSS::GridSize> Parser::parse_grid_size(ComponentValue const& component_
     return {};
 }
 
-Optional<CSS::GridFitContent> Parser::parse_grid_fit_content(Vector<ComponentValue> const& component_values)
+Optional<GridSize> Parser::parse_grid_fit_content(Vector<ComponentValue> const& component_values)
 {
     // https://www.w3.org/TR/css-grid-2/#valdef-grid-template-columns-fit-content
     // 'fit-content( <length-percentage> )'
@@ -3254,7 +3254,7 @@ Optional<CSS::GridFitContent> Parser::parse_grid_fit_content(Vector<ComponentVal
     function_tokens.discard_whitespace();
     auto maybe_length_percentage = parse_length_percentage(function_tokens);
     if (maybe_length_percentage.has_value())
-        return CSS::GridFitContent(CSS::GridSize(CSS::GridSize::Type::FitContent, maybe_length_percentage.value()));
+        return GridSize(GridSize::Type::FitContent, maybe_length_percentage.value());
     return {};
 }
 

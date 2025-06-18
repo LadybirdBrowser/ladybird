@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Martin Falisse <mfalisse@outlook.com>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -59,19 +60,6 @@ public:
 private:
     Type m_type;
     Variant<Empty, LengthPercentage, Flex> m_value;
-};
-
-class GridFitContent {
-public:
-    GridFitContent(GridSize);
-
-    GridSize const& max_grid_size() const& { return m_max_grid_size; }
-
-    String to_string() const;
-    bool operator==(GridFitContent const& other) const = default;
-
-private:
-    GridSize m_max_grid_size;
 };
 
 class GridMinMax {
@@ -145,10 +133,7 @@ private:
 
 class ExplicitGridTrack {
 public:
-    ExplicitGridTrack(Variant<GridFitContent, GridRepeat, GridMinMax, GridSize>&& value);
-
-    bool is_fit_content() const { return m_value.has<GridFitContent>(); }
-    GridFitContent const& fit_content() const { return m_value.get<GridFitContent>(); }
+    ExplicitGridTrack(Variant<GridRepeat, GridMinMax, GridSize>&& value);
 
     bool is_repeat() const { return m_value.has<GridRepeat>(); }
     GridRepeat const& repeat() const { return m_value.get<GridRepeat>(); }
@@ -163,7 +148,7 @@ public:
     bool operator==(ExplicitGridTrack const& other) const = default;
 
 private:
-    Variant<GridFitContent, GridRepeat, GridMinMax, GridSize> m_value;
+    Variant<GridRepeat, GridMinMax, GridSize> m_value;
 };
 
 }
