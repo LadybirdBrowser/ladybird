@@ -1,0 +1,99 @@
+Harness status: OK
+
+Found 93 tests
+
+21 Pass
+72 Fail
+Pass	Test that logical sizing properties are supported.
+Pass	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Fail	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that logical sizing properties share computed values with their physical associates, with 'writing-mode: sideways-lr; direction: rtl; '.
+Fail	Test that sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: rtl; '.
+Fail	Test that sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: rtl; '.
+Pass	Test that logical max sizing properties are supported.
+Pass	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Fail	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that logical max sizing properties share computed values with their physical associates, with 'writing-mode: sideways-lr; direction: rtl; '.
+Fail	Test that max sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: rtl; '.
+Fail	Test that max sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: rtl; '.
+Pass	Test that logical min sizing properties are supported.
+Pass	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: ltr; '.
+Pass	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Pass	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: horizontal-tb; direction: rtl; '.
+Fail	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: rtl; '.
+Fail	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: rtl; '.
+Fail	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-rl; direction: ltr; '.
+Fail	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-rl; direction: ltr; '.
+Fail	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: rtl; '.
+Fail	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: ltr; '.
+Fail	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: vertical-lr; direction: ltr; '.
+Fail	Test that logical min sizing properties share computed values with their physical associates, with 'writing-mode: sideways-lr; direction: rtl; '.
+Fail	Test that min sizing properties honor order of appearance when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: rtl; '.
+Fail	Test that min sizing properties honor selector specificty when both logical and physical associates are declared, with 'writing-mode: sideways-lr; direction: rtl; '.

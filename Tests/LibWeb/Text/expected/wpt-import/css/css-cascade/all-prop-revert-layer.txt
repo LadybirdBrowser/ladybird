@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 236 tests
 
-218 Pass
-18 Fail
+230 Pass
+6 Fail
 Pass	accent-color
 Pass	border-collapse
 Pass	border-spacing
@@ -92,22 +92,22 @@ Pass	background-repeat
 Pass	background-size
 Fail	block-size
 Pass	border-block-end-color
-Fail	border-block-end-style
-Fail	border-block-end-width
+Pass	border-block-end-style
+Pass	border-block-end-width
 Pass	border-block-start-color
-Fail	border-block-start-style
-Fail	border-block-start-width
+Pass	border-block-start-style
+Pass	border-block-start-width
 Pass	border-bottom-color
 Pass	border-bottom-left-radius
 Pass	border-bottom-right-radius
 Pass	border-bottom-style
 Pass	border-bottom-width
 Pass	border-inline-end-color
-Fail	border-inline-end-style
-Fail	border-inline-end-width
+Pass	border-inline-end-style
+Pass	border-inline-end-width
 Pass	border-inline-start-color
-Fail	border-inline-start-style
-Fail	border-inline-start-width
+Pass	border-inline-start-style
+Pass	border-inline-start-width
 Pass	border-left-color
 Pass	border-left-style
 Pass	border-left-width
@@ -175,13 +175,13 @@ Pass	margin-right
 Pass	margin-top
 Pass	mask-image
 Pass	mask-type
-Fail	max-block-size
+Pass	max-block-size
 Pass	max-height
-Fail	max-inline-size
+Pass	max-inline-size
 Pass	max-width
-Fail	min-block-size
+Pass	min-block-size
 Pass	min-height
-Fail	min-inline-size
+Pass	min-inline-size
 Pass	min-width
 Pass	mix-blend-mode
 Pass	object-fit
