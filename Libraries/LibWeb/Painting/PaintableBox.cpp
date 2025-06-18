@@ -437,7 +437,11 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
     if (!is_visible())
         return;
 
-    if (phase == PaintPhase::Background) {
+    auto empty_cells_property_applies = [this]() {
+        return display().is_internal_table() && computed_values().empty_cells() == CSS::EmptyCells::Hide && !has_children();
+    };
+
+    if (phase == PaintPhase::Background && !empty_cells_property_applies()) {
         paint_backdrop_filter(context);
         paint_background(context);
         paint_box_shadow(context);

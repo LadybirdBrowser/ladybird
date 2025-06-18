@@ -924,6 +924,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_border_collapse(computed_style.border_collapse());
 
+    computed_values.set_empty_cells(computed_style.empty_cells());
+
     computed_values.set_table_layout(computed_style.table_layout());
 
     auto const& aspect_ratio = computed_style.property(CSS::PropertyID::AspectRatio);

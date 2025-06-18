@@ -1265,6 +1265,14 @@
       "display-legacy"
     ]
   },
+  "empty-cells": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "show",
+    "valid-types": [
+      "empty-cells"
+    ]
+  },
   "fill": {
     "affects-layout": false,
     "animation-type": "none",
