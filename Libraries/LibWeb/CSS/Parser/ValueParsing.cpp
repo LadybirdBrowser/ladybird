@@ -19,8 +19,8 @@
 #include <AK/StringConversions.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -4273,342 +4273,56 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     return FontSourceStyleValue::create(url.release_value(), move(format), move(tech));
 }
 
-NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
 {
     // Unresolved always contains a var() or attr(), unless it is a custom property's value, in which case we shouldn't be trying
     // to produce a different CSSStyleValue from it.
     VERIFY(unresolved.contains_arbitrary_substitution_function());
 
+    DOM::AbstractElement abstract_element { element, pseudo_element };
     auto parser = Parser::create(context, ""sv);
-    return parser.resolve_unresolved_style_value(element, pseudo_element, property, unresolved);
+    if (existing_guarded_contexts.has_value())
+        return parser.resolve_unresolved_style_value(abstract_element, existing_guarded_contexts.value(), property, unresolved);
+    GuardedSubstitutionContexts guarded_contexts;
+    return parser.resolve_unresolved_style_value(abstract_element, guarded_contexts, property, unresolved);
 }
 
-class PropertyDependencyNode : public RefCounted<PropertyDependencyNode> {
-public:
-    static NonnullRefPtr<PropertyDependencyNode> create(FlyString name)
-    {
-        return adopt_ref(*new PropertyDependencyNode(move(name)));
-    }
-
-    void add_child(NonnullRefPtr<PropertyDependencyNode> new_child)
-    {
-        for (auto const& child : m_children) {
-            if (child->m_name == new_child->m_name)
-                return;
-        }
-
-        // We detect self-reference already.
-        VERIFY(new_child->m_name != m_name);
-        m_children.append(move(new_child));
-    }
-
-    bool has_cycles()
-    {
-        if (m_marked)
-            return true;
-
-        TemporaryChange change { m_marked, true };
-        for (auto& child : m_children) {
-            if (child->has_cycles())
-                return true;
-        }
-        return false;
-    }
-
-private:
-    explicit PropertyDependencyNode(FlyString name)
-        : m_name(move(name))
-    {
-    }
-
-    FlyString m_name;
-    Vector<NonnullRefPtr<PropertyDependencyNode>> m_children;
-    bool m_marked { false };
-};
-
-NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved)
+// https://drafts.csswg.org/css-values-5/#property-replacement
+NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved)
 {
-    TokenStream unresolved_values_without_variables_expanded { unresolved.values() };
-    Vector<ComponentValue> values_with_variables_expanded;
+    // AD-HOC: Report that we might rely on custom properties.
+    // FIXME: This over-invalidates. Find a way of invalidating only when we need to - specifically, when var() is used.
+    element.element().set_style_uses_css_custom_properties(true);
 
+    // To replace substitution functions in a property prop:
     auto const& property_name = property.visit(
         [](PropertyID const& property_id) { return string_from_property_id(property_id); },
         [](FlyString const& name) { return name; });
+    auto const& property_id = property.visit(
+        [](PropertyID const& property_id) { return property_id; },
+        [](FlyString const&) { return PropertyID::Custom; });
 
-    HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>> dependencies;
-    ScopeGuard mark_element_if_uses_custom_properties = [&] {
-        for (auto const& name : dependencies.keys()) {
-            if (is_a_custom_property_name_string(name)) {
-                element.set_style_uses_css_custom_properties(true);
-                return;
-            }
-        }
-    };
-    if (!expand_variables(element, pseudo_element, property_name, dependencies, unresolved_values_without_variables_expanded, values_with_variables_expanded))
+    // 1. Substitute arbitrary substitution functions in prop’s value, given «"property", prop’s name» as the
+    //    substitution context. Let result be the returned component value sequence.
+    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, unresolved.values(), SubstitutionContext { SubstitutionContext::DependencyType::Property, property_name.to_string() });
+
+    // 2. If result contains the guaranteed-invalid value, prop is invalid at computed-value time; return.
+    if (contains_guaranteed_invalid_value(result))
         return GuaranteedInvalidStyleValue::create();
 
-    TokenStream unresolved_values_with_variables_expanded { values_with_variables_expanded };
-    Vector<ComponentValue> expanded_values;
-    if (!expand_unresolved_values(element, property_name, unresolved_values_with_variables_expanded, expanded_values))
+    // 3. Parse result according to prop’s grammar. If this returns failure, prop is invalid at computed-value time; return.
+    // NB: Custom properties have no grammar as such, so we skip this step for them.
+    // FIXME: Parse according to @property syntax once we support that.
+    if (property_id == PropertyID::Custom)
+        return UnresolvedStyleValue::create(move(result), false, {});
+
+    auto expanded_value_tokens = TokenStream { result };
+    auto parsed_value = parse_css_value(property_id, expanded_value_tokens);
+    if (parsed_value.is_error())
         return GuaranteedInvalidStyleValue::create();
 
-    return property.visit(
-        [&](PropertyID const& property_id) -> NonnullRefPtr<CSSStyleValue const> {
-            auto expanded_value_tokens = TokenStream { expanded_values };
-            if (auto parsed_value = parse_css_value(property_id, expanded_value_tokens); !parsed_value.is_error())
-                return parsed_value.release_value();
-
-            return GuaranteedInvalidStyleValue::create();
-        },
-        [&](FlyString const&) -> NonnullRefPtr<CSSStyleValue const> {
-            return UnresolvedStyleValue::create(move(expanded_values), false, {});
-        });
-}
-
-static RefPtr<CSSStyleValue const> get_custom_property(DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element, FlyString const& custom_property_name)
-{
-    if (pseudo_element.has_value()) {
-        if (auto it = element.custom_properties(pseudo_element).find(custom_property_name); it != element.custom_properties(pseudo_element).end())
-            return it->value.value;
-    }
-
-    for (auto const* current_element = &element; current_element; current_element = current_element->parent_or_shadow_host_element()) {
-        if (auto it = current_element->custom_properties({}).find(custom_property_name); it != current_element->custom_properties({}).end())
-            return it->value.value;
-    }
-    return nullptr;
-}
-
-bool Parser::expand_variables(DOM::Element& element, Optional<PseudoElement> pseudo_element, FlyString const& property_name, HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>>& dependencies, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest)
-{
-    // Arbitrary large value chosen to avoid the billion-laughs attack.
-    // https://www.w3.org/TR/css-variables-1/#long-variables
-    size_t const MAX_VALUE_COUNT = 16384;
-    if (source.remaining_token_count() + dest.size() > MAX_VALUE_COUNT) {
-        dbgln("Stopped expanding CSS variables: maximum length reached.");
-        return false;
-    }
-
-    auto get_dependency_node = [&](FlyString const& name) -> NonnullRefPtr<PropertyDependencyNode> {
-        if (auto existing = dependencies.get(name); existing.has_value())
-            return *existing.value();
-        auto new_node = PropertyDependencyNode::create(name);
-        dependencies.set(name, new_node);
-        return new_node;
-    };
-
-    while (source.has_next_token()) {
-        auto const& value = source.consume_a_token();
-        if (value.is_block()) {
-            auto const& source_block = value.block();
-            Vector<ComponentValue> block_values;
-            TokenStream source_block_contents { source_block.value };
-            if (!expand_variables(element, pseudo_element, property_name, dependencies, source_block_contents, block_values))
-                return false;
-            dest.empend(SimpleBlock { source_block.token, move(block_values) });
-            continue;
-        }
-        if (!value.is_function()) {
-            dest.empend(value.token());
-            continue;
-        }
-        if (!value.function().name.equals_ignoring_ascii_case("var"sv)) {
-            auto const& source_function = value.function();
-            Vector<ComponentValue> function_values;
-            TokenStream source_function_contents { source_function.value };
-            if (!expand_variables(element, pseudo_element, property_name, dependencies, source_function_contents, function_values))
-                return false;
-            dest.empend(Function { source_function.name, move(function_values) });
-            continue;
-        }
-
-        TokenStream var_contents { value.function().value };
-        var_contents.discard_whitespace();
-        if (!var_contents.has_next_token())
-            return false;
-
-        auto const& custom_property_name_token = var_contents.consume_a_token();
-        if (!custom_property_name_token.is(Token::Type::Ident))
-            return false;
-        auto custom_property_name = custom_property_name_token.token().ident();
-        if (!custom_property_name.bytes_as_string_view().starts_with("--"sv))
-            return false;
-
-        // Detect dependency cycles. https://www.w3.org/TR/css-variables-1/#cycles
-        // We do not do this by the spec, since we are not keeping a graph of var dependencies around,
-        // but rebuilding it every time.
-        if (custom_property_name == property_name)
-            return false;
-        auto parent = get_dependency_node(property_name);
-        auto child = get_dependency_node(custom_property_name);
-        parent->add_child(child);
-        if (parent->has_cycles())
-            return false;
-
-        if (auto custom_property_value = get_custom_property(element, pseudo_element, custom_property_name);
-            custom_property_value && custom_property_value->is_unresolved()) {
-            // FIXME: We should properly cascade here instead of doing a basic fallback for CSS-wide keywords.
-            TokenStream custom_property_tokens { custom_property_value->as_unresolved().values() };
-
-            auto dest_size_before = dest.size();
-            if (!expand_variables(element, pseudo_element, custom_property_name, dependencies, custom_property_tokens, dest))
-                return false;
-
-            // If the size of dest has increased, then the custom property is not the initial guaranteed-invalid value.
-            // If it hasn't increased, then it is the initial guaranteed-invalid value, and thus we should move on to the fallback value.
-            if (dest_size_before < dest.size())
-                continue;
-
-            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Expanding custom property '{}' did not return any tokens, treating it as invalid and moving on to the fallback value.", custom_property_name);
-        }
-
-        // Use the provided fallback value, if any.
-        var_contents.discard_whitespace();
-        if (var_contents.has_next_token()) {
-            auto const& comma_token = var_contents.consume_a_token();
-            if (!comma_token.is(Token::Type::Comma))
-                return false;
-            var_contents.discard_whitespace();
-            if (!expand_variables(element, pseudo_element, property_name, dependencies, var_contents, dest))
-                return false;
-        }
-    }
-    return true;
-}
-
-bool Parser::expand_unresolved_values(DOM::Element& element, FlyString const& property_name, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest)
-{
-    while (source.has_next_token()) {
-        auto const& value = source.consume_a_token();
-        if (value.is_function()) {
-            if (value.function().name.equals_ignoring_ascii_case("attr"sv)) {
-                if (!substitute_attr_function(element, property_name, value.function(), dest))
-                    return false;
-                continue;
-            }
-
-            auto const& source_function = value.function();
-            Vector<ComponentValue> function_values;
-            TokenStream source_function_contents { source_function.value };
-            if (!expand_unresolved_values(element, property_name, source_function_contents, function_values))
-                return false;
-            dest.empend(Function { source_function.name, move(function_values) });
-            continue;
-        }
-        if (value.is_block()) {
-            auto const& source_block = value.block();
-            TokenStream source_block_values { source_block.value };
-            Vector<ComponentValue> block_values;
-            if (!expand_unresolved_values(element, property_name, source_block_values, block_values))
-                return false;
-            dest.empend(SimpleBlock { source_block.token, move(block_values) });
-            continue;
-        }
-        dest.empend(value.token());
-    }
-
-    return true;
-}
-
-// https://drafts.csswg.org/css-values-5/#attr-substitution
-bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& property_name, Function const& attr_function, Vector<ComponentValue>& dest)
-{
-    // attr() = attr( <attr-name> <attr-type>? , <declaration-value>?)
-    // <attr-name> = [ <ident-token>? '|' ]? <ident-token>
-    // <attr-type> = type( <syntax> ) | raw-string | <attr-unit>
-    // The <attr-unit> production matches any identifier that is an ASCII case-insensitive match for the name of a CSS dimension unit, such as px, or the <delim-token> %.
-    TokenStream attr_contents { attr_function.value };
-    attr_contents.discard_whitespace();
-    if (!attr_contents.has_next_token())
-        return false;
-
-    // - Attribute name
-    // FIXME: Support optional attribute namespace
-    if (!attr_contents.next_token().is(Token::Type::Ident))
-        return false;
-    auto attribute_name = attr_contents.consume_a_token().token().ident();
-    attr_contents.discard_whitespace();
-
-    // - Attribute type (optional)
-    auto attribute_type = "raw-string"_fly_string;
-    if (attr_contents.next_token().is(Token::Type::Ident)) {
-        attribute_type = attr_contents.consume_a_token().token().ident();
-        attr_contents.discard_whitespace();
-    }
-
-    // - Comma, then fallback values (optional)
-    bool has_fallback_values = false;
-    if (attr_contents.has_next_token()) {
-        if (!attr_contents.next_token().is(Token::Type::Comma))
-            return false;
-        (void)attr_contents.consume_a_token(); // Comma
-        has_fallback_values = true;
-    }
-
-    // Then, run the substitution algorithm:
-
-    // 1. If the attr() function has a substitution value, replace the attr() function by the substitution value.
-    // https://drafts.csswg.org/css-values-5/#attr-types
-    if (element.has_attribute(attribute_name)) {
-        auto parse_string_as_component_value = [this](String const& string) {
-            auto tokens = Tokenizer::tokenize(string, "utf-8"sv);
-            TokenStream stream { tokens };
-            return parse_a_component_value(stream);
-        };
-
-        auto attribute_value = element.get_attribute_value(attribute_name);
-        if (attribute_type.equals_ignoring_ascii_case("raw-string"_fly_string)) {
-            // The substitution value is a CSS string, whose value is the literal value of the attribute.
-            // (No CSS parsing or "cleanup" of the value is performed.)
-            // No value triggers fallback.
-            dest.empend(Token::create_string(attribute_value));
-            return true;
-        } else {
-            // Dimension units
-            // Parse a component value from the attribute’s value.
-            // If the result is a <number-token>, the substitution value is a dimension with the result’s value, and the given unit.
-            // Otherwise, there is no substitution value.
-            auto component_value = parse_string_as_component_value(attribute_value);
-            if (component_value.has_value() && component_value->is(Token::Type::Number)) {
-                if (attribute_value == "%"sv) {
-                    dest.empend(Token::create_dimension(component_value->token().number_value(), attribute_type));
-                    return true;
-                } else if (auto angle_unit = Angle::unit_from_name(attribute_type); angle_unit.has_value()) {
-                    dest.empend(Token::create_dimension(component_value->token().number_value(), attribute_type));
-                    return true;
-                } else if (auto flex_unit = Flex::unit_from_name(attribute_type); flex_unit.has_value()) {
-                    dest.empend(Token::create_dimension(component_value->token().number_value(), attribute_type));
-                    return true;
-                } else if (auto frequency_unit = Frequency::unit_from_name(attribute_type); frequency_unit.has_value()) {
-                    dest.empend(Token::create_dimension(component_value->token().number_value(), attribute_type));
-                    return true;
-                } else if (auto length_unit = Length::unit_from_name(attribute_type); length_unit.has_value()) {
-                    dest.empend(Token::create_dimension(component_value->token().number_value(), attribute_type));
-                    return true;
-                } else if (auto time_unit = Time::unit_from_name(attribute_type); time_unit.has_value()) {
-                    dest.empend(Token::create_dimension(component_value->token().number_value(), attribute_type));
-                    return true;
-                } else {
-                    // Not a dimension unit.
-                    return false;
-                }
-            }
-        }
-    }
-
-    // 2. Otherwise, if the attr() function has a fallback value as its last argument, replace the attr() function by the fallback value.
-    //    If there are any var() or attr() references in the fallback, substitute them as well.
-    if (has_fallback_values)
-        return expand_unresolved_values(element, property_name, attr_contents, dest);
-
-    if (attribute_type.equals_ignoring_ascii_case("raw-string"_fly_string)) {
-        // If the <attr-type> argument is string, defaults to the empty string if omitted
-        dest.empend(Token::create_string({}));
-        return true;
-    }
-
-    // 3. Otherwise, the property containing the attr() function is invalid at computed-value time.
-    return false;
+    // 4. Otherwise, replace prop’s value with the parsed result.
+    return parsed_value.release_value();
 }
 
 }

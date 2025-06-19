@@ -335,6 +335,7 @@ struct StyleSheetIdentifier;
 namespace Web::CSS::Parser {
 
 class ComponentValue;
+class GuardedSubstitutionContexts;
 class Parser;
 class Token;
 class Tokenizer;

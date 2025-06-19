@@ -132,6 +132,7 @@ set(SOURCES
     CSS/Number.cpp
     CSS/PageSelector.cpp
     CSS/ParsedFontFace.cpp
+    CSS/Parser/ArbitrarySubstitutionFunctions.cpp
     CSS/Parser/ComponentValue.cpp
     CSS/Parser/DescriptorParsing.cpp
     CSS/Parser/GradientParsing.cpp
