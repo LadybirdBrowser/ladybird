@@ -2106,8 +2106,8 @@ HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 // https://dom.spec.whatwg.org/#dom-document-createelement
 WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& local_name, Variant<String, ElementCreationOptions> const& options)
 {
-    // 1. If localName does not match the Name production, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_name(local_name))
+    // 1. If localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
+    if (!is_valid_element_local_name(local_name))
         return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in tag name."_string);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
@@ -4495,8 +4495,8 @@ String Document::dump_accessibility_tree_as_json()
 // https://dom.spec.whatwg.org/#dom-document-createattribute
 WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& local_name)
 {
-    // 1. If localName does not match the Name production in XML, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_name(local_name))
+    // 1. If localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
+    if (!is_valid_attribute_local_name(local_name))
         return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in attribute name."_string);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
