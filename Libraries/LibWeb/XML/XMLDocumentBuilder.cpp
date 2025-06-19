@@ -120,7 +120,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
 
     auto namespace_ = namespace_for_name(name);
 
-    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, FlyString(MUST(String::from_byte_string(name))));
+    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, FlyString(MUST(String::from_byte_string(name))), DOM::ValidationContext::Element);
 
     if (qualified_name_or_error.is_error()) {
         m_has_error = true;

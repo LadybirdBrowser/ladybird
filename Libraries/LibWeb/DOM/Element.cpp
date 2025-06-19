@@ -236,8 +236,56 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
     return {};
 }
 
+// https://dom.spec.whatwg.org/#valid-namespace-prefix
+bool is_valid_namespace_prefix(FlyString const& prefix)
+{
+    // A string is a valid namespace prefix if its length is at least 1 and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), or U+003E (>).
+    constexpr Array<u32, 8> INVALID_NAMESPACE_PREFIX_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '>' };
+    return !prefix.is_empty() && !prefix.code_points().contains_any_of(INVALID_NAMESPACE_PREFIX_CHARACTERS);
+}
+
+bool is_valid_attribute_local_name(FlyString const& local_name)
+{
+    // A string is a valid attribute local name if its length is at least 1 and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), U+003D (=), or U+003E (>).
+    constexpr Array<u32, 9> INVALID_ATTRIBUTE_LOCAL_NAME_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '=', '>' };
+    return !local_name.is_empty() && !local_name.code_points().contains_any_of(INVALID_ATTRIBUTE_LOCAL_NAME_CHARACTERS);
+}
+
+// https://dom.spec.whatwg.org/#valid-element-local-name
+bool is_valid_element_local_name(FlyString const& name)
+{
+    // 1. If name’s length is 0, then return false.
+    if (name.is_empty())
+        return false;
+
+    // 2. If name’s 0th code point is an ASCII alpha, then:
+    auto first_code_point = *name.code_points().begin().peek();
+    if (is_ascii_alpha(first_code_point)) {
+        // 1. If name contains ASCII whitespace, U+0000 NULL, U+002F (/), or U+003E (>), then return false.
+        constexpr Array<u32, 8> INVALID_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '>' };
+        if (name.code_points().contains_any_of(INVALID_CHARACTERS))
+            return false;
+
+        // 2. Return true.
+        return true;
+    }
+
+    // 3. If name’s 0th code point is not U+003A (:), U+005F (_), or in the range U+0080 to U+10FFFF, inclusive, then return false.
+    if (!first_is_one_of(first_code_point, 0x003Au, 0x005Fu) && (first_code_point < 0x0080 || first_code_point > 0x10FFFF))
+        return false;
+
+    // 4. If name’s subsequent code points, if any, are not ASCII alphas, ASCII digits, U+002D (-), U+002E (.), U+003A (:), U+005F (_), or in the range U+0080 to U+10FFFF, inclusive, then return false.
+    for (auto code_point : name.code_points().unicode_substring_view(1)) {
+        if (!is_ascii_alpha(code_point) && !is_ascii_digit(code_point) && !first_is_one_of(code_point, 0X002Du, 0X002Eu, 0X003Au, 0X005Fu) && (code_point < 0x0080 || code_point > 0x10FFFF))
+            return false;
+    }
+
+    // 5. Return true.
+    return true;
+}
+
 // https://dom.spec.whatwg.org/#validate-and-extract
-WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Optional<FlyString> namespace_, FlyString const& qualified_name)
+WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context)
 {
     // To validate and extract a namespace and qualifiedName, run these steps:
 
@@ -245,53 +293,70 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
     if (namespace_.has_value() && namespace_.value().is_empty())
         namespace_ = {};
 
-    // 2. Validate qualifiedName.
-    TRY(Document::validate_qualified_name(realm, qualified_name));
-
-    // 3. Let prefix be null.
+    // 2. Let prefix be null.
     Optional<FlyString> prefix = {};
 
-    // 4. Let localName be qualifiedName.
+    // 3. Let localName be qualifiedName.
     auto local_name = qualified_name;
 
-    // 5. If qualifiedName contains a U+003A (:):
-    if (qualified_name.bytes_as_string_view().contains(':')) {
+    // 4. If qualifiedName contains a U+003A (:):
+    if (qualified_name.code_points().contains(':')) {
         // 1. Let splitResult be the result of running strictly split given qualifiedName and U+003A (:).
         // FIXME: Use the "strictly split" algorithm
-        auto split_result = qualified_name.bytes_as_string_view().split_view(':');
+
+        size_t index = 0;
+        for (auto code_point : qualified_name.code_points()) {
+            if (code_point == ':')
+                break;
+            index++;
+        }
 
         // 2. Set prefix to splitResult[0].
-        prefix = MUST(FlyString::from_utf8(split_result[0]));
+        auto prefix_view = qualified_name.code_points().unicode_substring_view(0, index);
+        prefix = MUST(FlyString::from_utf8(prefix_view.as_string()));
 
         // 3. Set localName to splitResult[1].
-        local_name = MUST(FlyString::from_utf8(split_result[1]));
+        auto local_name_view = qualified_name.code_points().unicode_substring_view(index + 1);
+        local_name = MUST(FlyString::from_utf8(local_name_view.as_string()));
     }
 
-    // 6. If prefix is non-null and namespace is null, then throw a "NamespaceError" DOMException.
+    // 5. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
+    if (prefix.has_value() && !is_valid_namespace_prefix(*prefix))
+        return WebIDL::InvalidCharacterError::create(realm, "Prefix not a valid namespace prefix."_string);
+
+    // 6. If context is "attribute" and localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
+    if (context == ValidationContext::Attribute && !is_valid_attribute_local_name(local_name))
+        return WebIDL::InvalidCharacterError::create(realm, "Local name not a valid attribute local name."_string);
+
+    // 7. If context is "element" and localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
+    if (context == ValidationContext::Element && !is_valid_element_local_name(local_name))
+        return WebIDL::InvalidCharacterError::create(realm, "Local name not a valid element local name."_string);
+
+    // 8. If prefix is non-null and namespace is null, then throw a "NamespaceError" DOMException.
     if (prefix.has_value() && !namespace_.has_value())
         return WebIDL::NamespaceError::create(realm, "Prefix is non-null and namespace is null."_string);
 
-    // 7. If prefix is "xml" and namespace is not the XML namespace, then throw a "NamespaceError" DOMException.
+    // 9. If prefix is "xml" and namespace is not the XML namespace, then throw a "NamespaceError" DOMException.
     if (prefix == "xml"sv && namespace_ != Namespace::XML)
         return WebIDL::NamespaceError::create(realm, "Prefix is 'xml' and namespace is not the XML namespace."_string);
 
-    // 8. If either qualifiedName or prefix is "xmlns" and namespace is not the XMLNS namespace, then throw a "NamespaceError" DOMException.
+    // 10. If either qualifiedName or prefix is "xmlns" and namespace is not the XMLNS namespace, then throw a "NamespaceError" DOMException.
     if ((qualified_name == "xmlns"sv || prefix == "xmlns"sv) && namespace_ != Namespace::XMLNS)
         return WebIDL::NamespaceError::create(realm, "Either qualifiedName or prefix is 'xmlns' and namespace is not the XMLNS namespace."_string);
 
-    // 9. If namespace is the XMLNS namespace and neither qualifiedName nor prefix is "xmlns", then throw a "NamespaceError" DOMException.
+    // 11. If namespace is the XMLNS namespace and neither qualifiedName nor prefix is "xmlns", then throw a "NamespaceError" DOMException.
     if (namespace_ == Namespace::XMLNS && !(qualified_name == "xmlns"sv || prefix == "xmlns"sv))
         return WebIDL::NamespaceError::create(realm, "Namespace is the XMLNS namespace and neither qualifiedName nor prefix is 'xmlns'."_string);
 
-    // 10. Return namespace, prefix, and localName.
+    // 12. Return (namespace, prefix, localName).
     return QualifiedName { local_name, prefix, namespace_ };
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributens
 WebIDL::ExceptionOr<void> Element::set_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& qualified_name, String const& value)
 {
-    // 1. Let namespace, prefix, and localName be the result of passing namespace and qualifiedName to validate and extract.
-    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name));
+    // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "element".
+    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Element));
 
     // 2. Set an attribute value for this using localName, value, and also prefix and namespace.
     set_attribute_value(extracted_qualified_name.local_name(), value, extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());

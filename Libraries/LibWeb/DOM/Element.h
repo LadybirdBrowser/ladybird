@@ -676,6 +676,14 @@ inline bool Element::has_pseudo_element(CSS::PseudoElement type) const
     return pseudo_element.value()->layout_node;
 }
 
-WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<FlyString> namespace_, FlyString const& qualified_name);
+bool is_valid_namespace_prefix(FlyString const&);
+bool is_valid_attribute_local_name(FlyString const&);
+bool is_valid_element_local_name(FlyString const&);
+
+enum class ValidationContext {
+    Attribute,
+    Element,
+};
+WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context);
 
 }
