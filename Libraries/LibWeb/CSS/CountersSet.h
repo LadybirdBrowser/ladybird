@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,6 +26,8 @@ struct Counter {
     UniqueNodeID originating_element_id; // "creator"
     bool reversed { false };
     Optional<CounterValue> value;
+
+    bool is_explicitly_set_reversed_counter { false }; // Ad-hoc: after counter-set, the reversed counter behaves as if it was not reversed.
 };
 
 // https://drafts.csswg.org/css-lists-3/#css-counters-set
@@ -33,9 +36,10 @@ public:
     CountersSet() = default;
     ~CountersSet() = default;
 
-    Counter& instantiate_a_counter(FlyString name, UniqueNodeID originating_element_id, bool reversed, Optional<CounterValue>);
-    void set_a_counter(FlyString name, UniqueNodeID originating_element_id, CounterValue value);
-    void increment_a_counter(FlyString name, UniqueNodeID originating_element_id, CounterValue amount);
+    Counter& instantiate_a_counter(FlyString const& name, UniqueNodeID originating_element_id, bool reversed, Optional<CounterValue>);
+    void set_a_counter(FlyString const& name, UniqueNodeID originating_element_id, CounterValue value);
+    void increment_a_counter(FlyString const& name, UniqueNodeID originating_element_id, CounterValue amount);
+
     void append_copy(Counter const&);
 
     Optional<Counter&> last_counter_with_name(FlyString const& name);

@@ -95,6 +95,7 @@ public:
     struct ContentDataAndQuoteNestingLevel {
         ContentData content_data;
         u32 final_quote_nesting_level { 0 };
+        bool has_reversed_counters { false };
     };
     ContentDataAndQuoteNestingLevel content(DOM::Element&, u32 initial_quote_nesting_level) const;
     ContentVisibility content_visibility() const;
