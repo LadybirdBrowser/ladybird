@@ -15,7 +15,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
-#include <LibCore/DateTime.h>
 #include <LibCore/Forward.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
@@ -1207,7 +1206,7 @@ private:
 
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
 
-    Optional<Core::DateTime> m_last_modified;
+    Optional<AK::UnixDateTime> m_last_modified;
 
     u64 m_dom_tree_version { 0 };
     u64 m_character_data_version { 0 };

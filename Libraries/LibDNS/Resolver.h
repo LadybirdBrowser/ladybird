@@ -15,7 +15,7 @@
 #include <AK/Random.h>
 #include <AK/StringView.h>
 #include <AK/TemporaryChange.h>
-#include <LibCore/DateTime.h>
+#include <AK/Time.h>
 #include <LibCore/Promise.h>
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
@@ -83,7 +83,7 @@ public:
         if (!m_valid)
             return;
 
-        auto now = Core::DateTime::now();
+        auto now = AK::UnixDateTime::now();
         for (size_t i = 0; i < m_cached_records.size();) {
             auto& record = m_cached_records[i];
             if (record.expiration.has_value() && record.expiration.value() < now) {
@@ -103,7 +103,7 @@ public:
     void add_record(Messages::ResourceRecord record)
     {
         m_valid = true;
-        auto expiration = record.ttl > 0 ? Optional<Core::DateTime>(Core::DateTime::from_timestamp(Core::DateTime::now().timestamp() + record.ttl)) : OptionalNone();
+        auto expiration = record.ttl > 0 ? Optional<AK::UnixDateTime>(AK::UnixDateTime::now() + AK::Duration::from_seconds(record.ttl)) : OptionalNone();
         m_cached_records.append({ move(record), move(expiration) });
     }
 
@@ -186,7 +186,7 @@ private:
 
     struct RecordWithExpiration {
         Messages::ResourceRecord record;
-        Optional<Core::DateTime> expiration;
+        Optional<AK::UnixDateTime> expiration;
     };
 
     Vector<RecordWithExpiration> m_cached_records;

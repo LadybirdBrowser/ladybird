@@ -6,7 +6,6 @@
  */
 
 #include "Cookie.h"
-#include <LibCore/DateTime.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 
@@ -14,9 +13,7 @@ namespace Web::Cookie {
 
 static String time_to_string(UnixDateTime const& time)
 {
-    // FIXME: This roundabout formatting should not be necessary; it also loses precision.
-    auto local_time = Core::DateTime::from_timestamp(time.seconds_since_epoch());
-    return MUST(local_time.to_string("%Y-%m-%d %H:%M:%S %Z"sv));
+    return MUST(time.to_string("%Y-%m-%d %H:%M:%S %Z"sv));
 }
 
 String Cookie::creation_time_to_string() const

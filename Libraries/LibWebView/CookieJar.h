@@ -12,7 +12,6 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Traits.h>
-#include <LibCore/DateTime.h>
 #include <LibCore/Timer.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Cookie/Cookie.h>
