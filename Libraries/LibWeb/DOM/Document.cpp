@@ -15,7 +15,9 @@
 #include <AK/InsertionSort.h>
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
+#include <AK/Time.h>
 #include <AK/Utf8View.h>
+#include <LibCore/DateTime.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Array.h>
@@ -373,8 +375,12 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_window = window;
 
     // NOTE: Non-standard: Pull out the Last-Modified header for use in the lastModified property.
-    if (auto maybe_last_modified = navigation_params.response->header_list()->get("Last-Modified"sv.bytes()); maybe_last_modified.has_value())
-        document->m_last_modified = Core::DateTime::parse("%a, %d %b %Y %H:%M:%S %Z"sv, maybe_last_modified.value());
+    if (auto maybe_last_modified = navigation_params.response->header_list()->get("Last-Modified"sv.bytes()); maybe_last_modified.has_value()) {
+        auto last_modified_datetime = Core::DateTime::parse("%a, %d %b %Y %H:%M:%S %Z"sv, maybe_last_modified.value());
+        document->m_last_modified = last_modified_datetime.has_value()
+            ? AK::UnixDateTime::from_seconds_since_epoch(last_modified_datetime.value().timestamp())
+            : Optional<AK::UnixDateTime>();
+    }
 
     // NOTE: Non-standard: Pull out the Content-Language header to determine the document's language.
     if (auto maybe_http_content_language = navigation_params.response->header_list()->get("Content-Language"sv.bytes()); maybe_http_content_language.has_value()) {
@@ -3070,7 +3076,7 @@ String Document::last_modified() const
     if (m_last_modified.has_value())
         return MUST(m_last_modified.value().to_string(format_string));
 
-    return MUST(Core::DateTime::now().to_string(format_string));
+    return MUST(AK::UnixDateTime::now().to_string(format_string));
 }
 
 Page& Document::page()
