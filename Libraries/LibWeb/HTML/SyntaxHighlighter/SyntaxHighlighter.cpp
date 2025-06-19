@@ -68,11 +68,13 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
             if (token->tag_name() == "script"sv) {
                 tokenizer.switch_to(HTMLTokenizer::State::ScriptData);
                 state = State::Javascript;
-                substring_start_position = { token->end_position().line, token->end_position().column };
+                // The end position points to the '>' character, but we need the position after it
+                substring_start_position = { token->end_position().line, token->end_position().column + 1 };
             } else if (token->tag_name() == "style"sv) {
                 tokenizer.switch_to(HTMLTokenizer::State::RAWTEXT);
                 state = State::CSS;
-                substring_start_position = { token->end_position().line, token->end_position().column };
+                // The end position points to the '>' character, but we need the position after it
+                substring_start_position = { token->end_position().line, token->end_position().column + 1 };
             }
         } else if (token->is_end_tag()) {
             if (token->tag_name().is_one_of("script"sv, "style"sv)) {
