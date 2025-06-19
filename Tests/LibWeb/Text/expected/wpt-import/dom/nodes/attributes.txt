@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 67 tests
 
-66 Pass
-1 Fail
+67 Pass
 Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown. (toggleAttribute)
 Pass	toggleAttribute should lowercase its name argument (upper case attribute)
 Pass	toggleAttribute should lowercase its name argument (mixed case attribute)
@@ -17,7 +16,7 @@ Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER
 Pass	setAttribute should lowercase its name argument (upper case attribute)
 Pass	setAttribute should lowercase its name argument (mixed case attribute)
 Pass	setAttribute should not throw even when qualifiedName starts with 'xmlns'
-Fail	Basic functionality should be intact.
+Pass	Basic functionality should be intact.
 Pass	setAttribute should not change the order of previously set attributes.
 Pass	setAttribute should set the first attribute with the given name
 Pass	setAttribute should set the attribute with the given qualified name

@@ -211,8 +211,8 @@ GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<FlyString> const& namespac
 // https://dom.spec.whatwg.org/#dom-element-setattribute
 WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String const& value)
 {
-    // 1. If qualifiedName does not match the Name production in XML, then throw an "InvalidCharacterError" DOMException.
-    if (!Document::is_valid_name(name.to_string()))
+    // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
+    if (!is_valid_attribute_local_name(name))
         return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_string);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
