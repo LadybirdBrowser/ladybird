@@ -620,7 +620,6 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
     auto& box_state = m_layout_state.get(box);
     m_inline_formatting_context.dimension_box_on_line(box, m_layout_mode);
 
-    skip_to_next();
     auto item = Item {
         .type = Item::Type::Element,
         .node = &box,
@@ -635,6 +634,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         .margin_end = box_state.margin_right,
     };
     add_extra_box_model_metrics_to_item(item, true, true);
+    skip_to_next();
     return item;
 }
 
