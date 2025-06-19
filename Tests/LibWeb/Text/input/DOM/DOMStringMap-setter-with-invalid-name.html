@@ -4,7 +4,7 @@
     test(() => {
         let threw = false;
         try {
-            document.body.dataset["'\uDBF8"] = "foo";
+            document.body.dataset["=foo"] = "foo";
         } catch {
             threw = true;
         }
