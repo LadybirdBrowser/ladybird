@@ -57,10 +57,10 @@ public:
 
     void disconnect();
     WebIDL::ExceptionOr<void> disconnect(WebIDL::UnsignedLong output);
-    void disconnect(GC::Ref<AudioNode> destination_node);
+    WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioNode> destination_node);
     WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output);
     WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input);
-    void disconnect(GC::Ref<AudioParam> destination_param);
+    WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioParam> destination_param);
     WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output);
 
     // https://webaudio.github.io/web-audio-api/#dom-audionode-context
