@@ -11,11 +11,6 @@
 <div id="log"></div>
 <span id="test1"></span>
 <span class="&amp;&lt;&gt;foo"></span>
-<span id="test2">
-  <span ~=""></span>
-  <span ~></span>
-  <span></span>
-</span>
 <script>
 var XML = "http://www.w3.org/XML/1998/namespace"
 var XMLNS = "http://www.w3.org/2000/xmlns/"
@@ -25,36 +20,25 @@ var XMLNS = "http://www.w3.org/2000/xmlns/"
 test(function() {
   var el = document.createElement("foo")
   for (var i = 0; i < invalid_names.length; i++) {
-    assert_throws_dom("INVALID_CHARACTER_ERR", function() { el.toggleAttribute(invalid_names[i], true) })
+    assert_throws_dom(
+      "INVALID_CHARACTER_ERR",
+      function() { el.toggleAttribute(invalid_names[i], true) },
+      `toggleAttribute("${invalid_names[i]}", true)`);
   }
   for (var i = 0; i < invalid_names.length; i++) {
-    assert_throws_dom("INVALID_CHARACTER_ERR", function() { el.toggleAttribute(invalid_names[i]) })
+    assert_throws_dom(
+      "INVALID_CHARACTER_ERR",
+      function() { el.toggleAttribute(invalid_names[i]) },
+      `toggleAttribute("${invalid_names[i]}")`);
   }
   for (var i = 0; i < invalid_names.length; i++) {
-    assert_throws_dom("INVALID_CHARACTER_ERR", function() { el.toggleAttribute(invalid_names[i], false) })
+    assert_throws_dom(
+      "INVALID_CHARACTER_ERR",
+      function() { el.toggleAttribute(invalid_names[i], false) },
+      `toggleAttribute("${invalid_names[i]}", false)`);
   }
 }, "When qualifiedName does not match the Name production, an " +
    "INVALID_CHARACTER_ERR exception is to be thrown. (toggleAttribute)")
-test(function() {
-  var el = document.getElementById("test2")
-  for (var i = 0; i < el.children.length; i++) {
-    assert_throws_dom("INVALID_CHARACTER_ERR", function() {
-      el.children[i].toggleAttribute("~", false)
-    })
-  }
-  for (var i = 0; i < el.children.length; i++) {
-    assert_throws_dom("INVALID_CHARACTER_ERR", function() {
-      el.children[i].toggleAttribute("~")
-    })
-  }
-  for (var i = 0; i < el.children.length; i++) {
-    assert_throws_dom("INVALID_CHARACTER_ERR", function() {
-      el.children[i].toggleAttribute("~", true)
-    })
-  }
-}, "When qualifiedName does not match the Name production, an " +
-   "INVALID_CHARACTER_ERR exception is to be thrown, even if the attribute " +
-   "is already present. (toggleAttribute)")
 
 // Step 2
 test(function() {
@@ -151,16 +135,6 @@ test(function() {
   }
 }, "When qualifiedName does not match the Name production, an " +
    "INVALID_CHARACTER_ERR exception is to be thrown. (setAttribute)")
-test(function() {
-  var el = document.getElementById("test2")
-  for (var i = 0; i < el.children.length; i++) {
-    assert_throws_dom("INVALID_CHARACTER_ERR", function() {
-      el.children[i].setAttribute("~", "test")
-    })
-  }
-}, "When qualifiedName does not match the Name production, an " +
-   "INVALID_CHARACTER_ERR exception is to be thrown, even if the attribute " +
-   "is already present. (setAttribute)")
 
 // Step 2
 test(function() {
@@ -236,17 +210,6 @@ test(function() {
   }
 }, "When qualifiedName does not match the Name production, an " +
    "INVALID_CHARACTER_ERR exception is to be thrown. (setAttributeNS)")
-
-test(function() {
-  var el = document.getElementById("test2")
-  for (var i = 0; i < el.children.length; i++) {
-    assert_throws_dom("INVALID_CHARACTER_ERR", function() {
-      el.children[i].setAttributeNS(null, "~", "test")
-    })
-  }
-}, "When qualifiedName does not match the Name production, an " +
-   "INVALID_CHARACTER_ERR exception is to be thrown, even if the attribute " +
-   "is already present. (setAttributeNS)")
 
 // Step 2
 test(function() {
