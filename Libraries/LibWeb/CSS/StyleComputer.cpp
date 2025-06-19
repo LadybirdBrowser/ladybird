@@ -40,6 +40,7 @@
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/InvalidationSet.h>
+#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -3095,7 +3096,7 @@ void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     }
 }
 
-NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name)
+NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
 {
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
@@ -3129,7 +3130,7 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_value_of_custom_proper
         return value.release_nonnull();
 
     auto& unresolved = value->as_unresolved();
-    return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams {}, abstract_element.element(), abstract_element.pseudo_element(), name, unresolved);
+    return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams {}, abstract_element.element(), abstract_element.pseudo_element(), name, unresolved, guarded_contexts);
 }
 
 void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::AbstractElement abstract_element) const
