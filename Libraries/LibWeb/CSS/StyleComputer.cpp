@@ -1334,8 +1334,10 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             return keyframes.begin();
         }
         auto potential_match = keyframes.find_largest_not_above_iterator(key);
-        if (output_progress.value() >= 0) {
-            return --potential_match;
+        auto next = potential_match;
+        ++next;
+        if (next.is_end()) {
+            --potential_match;
         }
         return potential_match;
     }();
