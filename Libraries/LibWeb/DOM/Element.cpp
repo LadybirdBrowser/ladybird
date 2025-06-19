@@ -461,8 +461,8 @@ bool Element::has_attribute_ns(Optional<FlyString> const& namespace_, FlyString 
 // https://dom.spec.whatwg.org/#dom-element-toggleattribute
 WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optional<bool> force)
 {
-    // 1. If qualifiedName does not match the Name production in XML, then throw an "InvalidCharacterError" DOMException.
-    if (!Document::is_valid_name(name.to_string()))
+    // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
+    if (!is_valid_attribute_local_name(name))
         return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_string);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.

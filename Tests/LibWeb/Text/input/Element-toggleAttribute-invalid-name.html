@@ -15,10 +15,10 @@
         }
 
         try {
-            element.toggleAttribute("0");
-            println("FAIL ('0')");
+            element.toggleAttribute("=");
+            println("FAIL ('=')");
         } catch (err) {
-            println("PASS ('0'): " + err.name);
+            println("PASS ('='): " + err.name);
         }
     });
 </script>
