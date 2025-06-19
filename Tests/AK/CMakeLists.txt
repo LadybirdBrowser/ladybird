@@ -21,7 +21,6 @@ set(AK_TEST_SOURCES
     TestDisjointChunks.cpp
     TestDistinctNumeric.cpp
     TestDoublyLinkedList.cpp
-    TestDuration.cpp
     TestEndian.cpp
     TestEnumBits.cpp
     TestEnumerate.cpp
@@ -71,6 +70,7 @@ set(AK_TEST_SOURCES
     TestStringFloatingPointConversions.cpp
     TestStringUtils.cpp
     TestStringView.cpp
+    TestTime.cpp
     TestTrie.cpp
     TestTuple.cpp
     TestTypeTraits.cpp
