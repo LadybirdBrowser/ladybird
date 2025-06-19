@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/Endian.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
@@ -28,9 +27,9 @@ struct Utf16ConversionResult {
     Utf16Data data;
     size_t code_point_count;
 };
-ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView, Endianness = Endianness::Host);
-ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const&, Endianness = Endianness::Host);
-ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const&, Endianness = Endianness::Host);
+ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView);
+ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const&);
+ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const&);
 
 [[nodiscard]] bool validate_utf16_le(ReadonlyBytes);
 [[nodiscard]] bool validate_utf16_be(ReadonlyBytes);

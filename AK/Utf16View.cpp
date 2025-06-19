@@ -16,21 +16,8 @@
 
 namespace AK {
 
-static constexpr u16 host_code_unit(u16 code_unit, Endianness endianness)
-{
-    switch (endianness) {
-    case Endianness::Host:
-        return code_unit;
-    case Endianness::Big:
-        return convert_between_host_and_big_endian(code_unit);
-    case Endianness::Little:
-        return convert_between_host_and_little_endian(code_unit);
-    }
-    VERIFY_NOT_REACHED();
-}
-
 template<OneOf<Utf8View, Utf32View> UtfViewType>
-static ErrorOr<Utf16ConversionResult> to_utf16_slow(UtfViewType const& view, Endianness endianness)
+static ErrorOr<Utf16ConversionResult> to_utf16_slow(UtfViewType const& view)
 {
     Utf16Data utf16_data;
     TRY(utf16_data.try_ensure_capacity(view.length()));
@@ -38,7 +25,7 @@ static ErrorOr<Utf16ConversionResult> to_utf16_slow(UtfViewType const& view, End
     size_t code_point_count = 0;
     for (auto code_point : view) {
         TRY(UnicodeUtils::try_code_point_to_utf16(code_point, [&](auto code_unit) -> ErrorOr<void> {
-            TRY(utf16_data.try_append(host_code_unit(code_unit, endianness)));
+            TRY(utf16_data.try_append(code_unit));
             return {};
         }));
 
@@ -48,19 +35,19 @@ static ErrorOr<Utf16ConversionResult> to_utf16_slow(UtfViewType const& view, End
     return Utf16ConversionResult { move(utf16_data), code_point_count };
 }
 
-ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView utf8_view, Endianness endianness)
+ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView utf8_view)
 {
-    return utf8_to_utf16(Utf8View { utf8_view }, endianness);
+    return utf8_to_utf16(Utf8View { utf8_view });
 }
 
-ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const& utf8_view, Endianness endianness)
+ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const& utf8_view)
 {
     if (utf8_view.is_empty())
         return Utf16ConversionResult { Utf16Data {}, 0 };
 
     // All callers want to allow lonely surrogates, which simdutf does not permit.
     if (!utf8_view.validate(Utf8View::AllowSurrogates::No)) [[unlikely]]
-        return to_utf16_slow(utf8_view, endianness);
+        return to_utf16_slow(utf8_view);
 
     auto const* data = reinterpret_cast<char const*>(utf8_view.bytes());
     auto length = utf8_view.byte_length();
@@ -70,23 +57,13 @@ ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const& utf8_view, Endianne
     // FIXME: simdutf _could_ be telling us about this, but it doesn't -- so we have to compute it again.
     auto code_point_length = simdutf::count_utf8(data, length);
 
-    [[maybe_unused]] auto result = [&]() {
-        switch (endianness) {
-        case Endianness::Host:
-            return simdutf::convert_utf8_to_utf16(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
-        case Endianness::Big:
-            return simdutf::convert_utf8_to_utf16be(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
-        case Endianness::Little:
-            return simdutf::convert_utf8_to_utf16le(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
-        }
-        VERIFY_NOT_REACHED();
-    }();
+    [[maybe_unused]] auto result = simdutf::convert_utf8_to_utf16(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
     ASSERT(result == utf16_data.size());
 
     return Utf16ConversionResult { utf16_data, code_point_length };
 }
 
-ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const& utf32_view, Endianness endianness)
+ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const& utf32_view)
 {
     if (utf32_view.is_empty())
         return Utf16ConversionResult { Utf16Data {}, 0 };
@@ -97,17 +74,7 @@ ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const& utf32_view, Endia
     Utf16Data utf16_data;
     TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf32(data, length)));
 
-    [[maybe_unused]] auto result = [&]() {
-        switch (endianness) {
-        case Endianness::Host:
-            return simdutf::convert_utf32_to_utf16(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
-        case Endianness::Big:
-            return simdutf::convert_utf32_to_utf16be(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
-        case Endianness::Little:
-            return simdutf::convert_utf32_to_utf16le(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
-        }
-        VERIFY_NOT_REACHED();
-    }();
+    [[maybe_unused]] auto result = simdutf::convert_utf32_to_utf16(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
     ASSERT(result == utf16_data.size());
 
     return Utf16ConversionResult { utf16_data, length };
@@ -148,7 +115,7 @@ size_t Utf16View::length_in_code_points() const
 u16 Utf16View::code_unit_at(size_t index) const
 {
     VERIFY(index < length_in_code_units());
-    return host_code_unit(m_code_units[index], Endianness::Host);
+    return m_code_units[index];
 }
 
 u32 Utf16View::code_point_at(size_t index) const
@@ -396,11 +363,11 @@ u32 Utf16CodePointIterator::operator*() const
     //    W2 as its 10 low-order bits.
     // 5) Add 0x10000 to U' to obtain the character value U. Terminate.
 
-    auto code_unit = host_code_unit(*m_ptr, Endianness::Host);
+    auto code_unit = *m_ptr;
 
     if (UnicodeUtils::is_utf16_high_surrogate(code_unit)) {
         if (m_remaining_code_units > 1) {
-            auto next_code_unit = host_code_unit(*(m_ptr + 1), Endianness::Host);
+            auto next_code_unit = *(m_ptr + 1);
 
             if (UnicodeUtils::is_utf16_low_surrogate(next_code_unit))
                 return UnicodeUtils::decode_utf16_surrogate_pair(code_unit, next_code_unit);
