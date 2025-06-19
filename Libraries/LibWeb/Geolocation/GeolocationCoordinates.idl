@@ -1,0 +1,12 @@
+// https://w3c.github.io/geolocation/#coordinates_interface
+[Exposed=Window, SecureContext]
+interface GeolocationCoordinates {
+    readonly attribute double accuracy;
+    readonly attribute double latitude;
+    readonly attribute double longitude;
+    readonly attribute double? altitude;
+    readonly attribute double? altitudeAccuracy;
+    readonly attribute double? heading;
+    readonly attribute double? speed;
+    [Default] object toJSON();
+};

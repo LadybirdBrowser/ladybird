@@ -460,6 +460,15 @@ class FileList;
 
 }
 
+namespace Web::Geolocation {
+
+class Geolocation;
+class GeolocationCoordinates;
+class GeolocationPosition;
+class GeolocationPositionError;
+
+}
+
 namespace Web::Geometry {
 
 class DOMMatrix;
