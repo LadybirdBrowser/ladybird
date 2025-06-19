@@ -14,6 +14,8 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/String.h>
+#include <AK/StringHash.h>
+#include <AK/Traits.h>
 #include <AK/Types.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Vector.h>
@@ -121,6 +123,13 @@ public:
         return m_length_in_code_points;
     }
 
+    u32 hash() const
+    {
+        if (is_empty())
+            return 0;
+        return string_hash(reinterpret_cast<char const*>(m_code_units.data()), m_code_units.size() * sizeof(u16));
+    }
+
     Utf16CodePointIterator begin() const { return { begin_ptr(), m_code_units.size() }; }
     Utf16CodePointIterator end() const { return { end_ptr(), 0 }; }
 
@@ -163,15 +172,22 @@ private:
     mutable size_t m_length_in_code_points { NumericLimits<size_t>::max() };
 };
 
-}
-
 template<>
-struct AK::Formatter<AK::Utf16View> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, AK::Utf16View const& value)
+struct Formatter<Utf16View> : Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Utf16View const& value)
     {
         return builder.builder().try_append(value);
     }
 };
+
+template<>
+struct Traits<Utf16View> : public DefaultTraits<Utf16View> {
+    using PeekType = Utf16View;
+    using ConstPeekType = Utf16View;
+    static unsigned hash(Utf16View const& s) { return s.hash(); }
+};
+
+}
 
 #if USING_AK_GLOBALLY
 using AK::Utf16Data;
