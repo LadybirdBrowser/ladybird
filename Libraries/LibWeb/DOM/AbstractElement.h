@@ -31,6 +31,10 @@ public:
 
     GC::Ptr<CSS::ComputedProperties const> computed_properties() const;
 
+    void set_custom_properties(HashMap<FlyString, CSS::StyleProperty>&& custom_properties);
+    [[nodiscard]] HashMap<FlyString, CSS::StyleProperty> const& custom_properties() const;
+    RefPtr<CSS::CSSStyleValue const> get_custom_property(FlyString const& name) const;
+
     bool has_non_empty_counters_set() const;
     Optional<CSS::CountersSet const&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();
