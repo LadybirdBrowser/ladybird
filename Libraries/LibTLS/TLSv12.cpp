@@ -10,6 +10,13 @@
 #include <LibCrypto/OpenSSL.h>
 #include <LibTLS/TLSv12.h>
 
+#ifdef AK_OS_WINDOWS
+#    include <AK/Windows.h>
+#    define FD_SET_(fd, set) FD_SET(static_cast<SOCKET>(fd), set)
+#else
+#    define FD_SET_ FD_SET
+#endif
+
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -32,7 +39,7 @@ static void wait_for_activity(int sock, bool read)
 {
     fd_set fds;
     FD_ZERO(&fds);
-    FD_SET(sock, &fds);
+    FD_SET_(sock, &fds);
 
     if (read)
         select(sock + 1, &fds, nullptr, nullptr, nullptr);
