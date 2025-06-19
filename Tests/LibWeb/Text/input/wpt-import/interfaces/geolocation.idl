@@ -1,0 +1,67 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Geolocation (https://w3c.github.io/geolocation/)
+
+partial interface Navigator {
+  [SameObject] readonly attribute Geolocation geolocation;
+};
+
+[Exposed=Window]
+interface Geolocation {
+  undefined getCurrentPosition (
+    PositionCallback successCallback,
+    optional PositionErrorCallback? errorCallback = null,
+    optional PositionOptions options = {}
+  );
+
+  long watchPosition (
+    PositionCallback successCallback,
+    optional PositionErrorCallback? errorCallback = null,
+    optional PositionOptions options = {}
+  );
+
+  undefined clearWatch (long watchId);
+};
+
+callback PositionCallback = undefined (
+  GeolocationPosition position
+);
+
+callback PositionErrorCallback = undefined (
+  GeolocationPositionError positionError
+);
+
+dictionary PositionOptions {
+  boolean enableHighAccuracy = false;
+  [Clamp] unsigned long timeout = 0xFFFFFFFF;
+  [Clamp] unsigned long maximumAge = 0;
+};
+
+[Exposed=Window, SecureContext]
+interface GeolocationPosition {
+  readonly attribute GeolocationCoordinates coords;
+  readonly attribute EpochTimeStamp timestamp;
+  [Default] object toJSON();
+};
+
+[Exposed=Window, SecureContext]
+interface GeolocationCoordinates {
+  readonly attribute double accuracy;
+  readonly attribute double latitude;
+  readonly attribute double longitude;
+  readonly attribute double? altitude;
+  readonly attribute double? altitudeAccuracy;
+  readonly attribute double? heading;
+  readonly attribute double? speed;
+  [Default] object toJSON();
+};
+
+[Exposed=Window]
+interface GeolocationPositionError {
+  const unsigned short PERMISSION_DENIED = 1;
+  const unsigned short POSITION_UNAVAILABLE = 2;
+  const unsigned short TIMEOUT = 3;
+  readonly attribute unsigned short code;
+  readonly attribute DOMString message;
+};
