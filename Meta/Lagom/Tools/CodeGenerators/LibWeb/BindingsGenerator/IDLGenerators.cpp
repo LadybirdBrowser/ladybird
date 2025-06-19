@@ -3161,7 +3161,10 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
 )~~~");
             }
 
-            generate_wrap_statement(attribute_generator, return_value_name, attribute.type, interface_in_chain, ByteString::formatted("auto {}_wrapped =", return_value_name));
+            attribute_generator.append(R"~~~(
+    JS::Value @attribute.return_value_name@_wrapped;
+)~~~");
+            generate_wrap_statement(attribute_generator, return_value_name, attribute.type, interface_in_chain, ByteString::formatted("{}_wrapped =", return_value_name));
 
             attribute_generator.append(R"~~~(
     MUST(result->create_data_property("@attribute.name@"_fly_string, @attribute.return_value_name@_wrapped));
