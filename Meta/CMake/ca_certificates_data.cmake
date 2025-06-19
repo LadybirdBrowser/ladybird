@@ -1,7 +1,7 @@
 include(${CMAKE_CURRENT_LIST_DIR}/utils.cmake)
 
-set(CACERT_VERSION "2023-12-12")
-set(CACERT_SHA256 "ccbdfc2fe1a0d7bbbb9cc15710271acf1bb1afe4c8f1725fe95c4c7733fcbe5a")
+set(CACERT_VERSION "2025-05-20")
+set(CACERT_SHA256 "ab3ee3651977a4178a702b0b828a4ee7b2bbb9127235b0ab740e2e15974bf5db")
 
 set(CACERT_PATH "${SERENITY_CACHE_DIR}/CACERT" CACHE PATH "Download location for cacert.pem")
 set(CACERT_VERSION_FILE "${CACERT_PATH}/version.txt")
