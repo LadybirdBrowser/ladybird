@@ -10,6 +10,13 @@
 #include <LibCrypto/OpenSSL.h>
 #include <LibTLS/TLSv12.h>
 
+#ifdef AK_OS_WINDOWS
+#    include <AK/Windows.h>
+#    define FD_SET_(fd, set) FD_SET(static_cast<SOCKET>(fd), set)
+#else
+#    define FD_SET_ FD_SET
+#endif
+
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -32,7 +39,7 @@ static void wait_for_activity(int sock, bool read)
 {
     fd_set fds;
     FD_ZERO(&fds);
-    FD_SET(sock, &fds);
+    FD_SET_(sock, &fds);
 
     if (read)
         select(sock + 1, &fds, nullptr, nullptr, nullptr);
@@ -57,7 +64,8 @@ ErrorOr<Bytes> TLSv12::read_some(Bytes bytes)
 
     auto ret = SSL_read(m_ssl, bytes.data(), bytes.size());
     if (ret <= 0) {
-        switch (SSL_get_error(m_ssl, ret)) {
+        auto error = SSL_get_error(m_ssl, ret);
+        switch (error) {
         case SSL_ERROR_ZERO_RETURN:
             if (auto const pending = TRY(pending_bytes()); pending > 0)
                 return Error::from_errno(EAGAIN);
@@ -65,6 +73,13 @@ ErrorOr<Bytes> TLSv12::read_some(Bytes bytes)
             return Bytes { bytes.data(), 0 };
         case SSL_ERROR_WANT_READ:
         case SSL_ERROR_WANT_WRITE:
+#ifdef AK_OS_WINDOWS
+            if (m_blocking) {
+                wait_for_activity(m_socket->fd(), error == SSL_ERROR_WANT_READ);
+                return read_some(bytes);
+            }
+#endif
+            // FIXME: This may return EAGAIN in blocking mode on Linux.
             return Error::from_errno(EAGAIN);
         case SSL_ERROR_SSL:
             handle_fatal_error();
@@ -88,9 +103,17 @@ ErrorOr<size_t> TLSv12::write_some(ReadonlyBytes bytes)
 
     auto ret = SSL_write(m_ssl, bytes.data(), bytes.size());
     if (ret <= 0) {
-        switch (SSL_get_error(m_ssl, ret)) {
+        auto error = SSL_get_error(m_ssl, ret);
+        switch (error) {
         case SSL_ERROR_WANT_READ:
         case SSL_ERROR_WANT_WRITE:
+#ifdef AK_OS_WINDOWS
+            if (m_blocking) {
+                wait_for_activity(m_socket->fd(), error == SSL_ERROR_WANT_READ);
+                return write_some(bytes);
+            }
+#endif
+            // FIXME: This may return EAGAIN in blocking mode on Linux.
             return Error::from_errno(EAGAIN);
         case SSL_ERROR_SSL:
             handle_fatal_error();
@@ -166,10 +189,17 @@ ErrorOr<void> TLSv12::set_close_on_exec(bool enabled)
     return m_socket->set_close_on_exec(enabled);
 }
 
+#ifdef AK_OS_WINDOWS
+TLSv12::TLSv12(NonnullOwnPtr<Core::TCPSocket> socket, SSL_CTX* ssl_ctx, SSL* ssl, bool blocking)
+#else
 TLSv12::TLSv12(NonnullOwnPtr<Core::TCPSocket> socket, SSL_CTX* ssl_ctx, SSL* ssl)
+#endif
     : m_ssl_ctx(ssl_ctx)
     , m_ssl(ssl)
     , m_socket(move(socket))
+#ifdef AK_OS_WINDOWS
+    , m_blocking(blocking)
+#endif
 {
     m_socket->on_ready_to_read = [this] {
         // There is something to read on the underlying TCP connection. This doesn't mean there is actual data to read from the SSL connection.
@@ -202,7 +232,9 @@ TLSv12::~TLSv12()
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPSocket> socket, ByteString const& host, Options options)
 {
+#ifndef AK_OS_WINDOWS
     TRY(socket->set_blocking(options.blocking));
+#endif
 
     auto* ssl_ctx = OPENSSL_TRY_PTR(SSL_CTX_new(TLS_client_method()));
     ArmedScopeGuard free_ssl_ctx = [&] { SSL_CTX_free(ssl_ctx); };
@@ -262,7 +294,11 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPS
     free_ssl.disarm();
     free_ssl_ctx.disarm();
 
+#ifdef AK_OS_WINDOWS
+    return adopt_own(*new TLSv12(move(socket), ssl_ctx, ssl, options.blocking));
+#else
     return adopt_own(*new TLSv12(move(socket), ssl_ctx, ssl));
+#endif
 }
 
 }

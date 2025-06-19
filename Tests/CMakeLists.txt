@@ -8,6 +8,7 @@ add_subdirectory(LibRegex)
 add_subdirectory(LibTest)
 add_subdirectory(LibTextCodec)
 add_subdirectory(LibThreading)
+add_subdirectory(LibTLS)
 add_subdirectory(LibUnicode)
 add_subdirectory(LibURL)
 
@@ -18,7 +19,6 @@ endif()
 
 add_subdirectory(LibCore)
 add_subdirectory(LibDNS)
-add_subdirectory(LibTLS)
 add_subdirectory(LibWasm)
 add_subdirectory(LibXML)
 
