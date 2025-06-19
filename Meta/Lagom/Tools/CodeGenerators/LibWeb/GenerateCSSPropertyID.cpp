@@ -121,6 +121,9 @@ void replace_logical_aliases(JsonObject& properties)
             alias_object.set(key, value);
         });
 
+        // Quirks don't carry across to logical aliases
+        alias_object.remove("quirks"sv);
+
         properties.set(name, alias_object);
     }
 }
