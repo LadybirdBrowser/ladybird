@@ -2138,8 +2138,8 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& loc
 // https://dom.spec.whatwg.org/#internal-createelementns-steps
 WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, ElementCreationOptions> const& options)
 {
-    // 1. Let namespace, prefix, and localName be the result of passing namespace and qualifiedName to validate and extract.
-    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name));
+    // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "element".
+    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Element));
 
     // 2. Let is be null.
     Optional<String> is_value;
@@ -4507,11 +4507,10 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& loca
 // https://dom.spec.whatwg.org/#dom-document-createattributens
 WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<FlyString> const& namespace_, String const& qualified_name)
 {
-    // 1. Let namespace, prefix, and localName be the result of passing namespace and qualifiedName to validate and extract.
-    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name));
+    // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "attribute".
+    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Attribute));
 
     // 2. Return a new attribute whose namespace is namespace, namespace prefix is prefix, local name is localName, and node document is this.
-
     return Attr::create(*this, extracted_qualified_name);
 }
 
