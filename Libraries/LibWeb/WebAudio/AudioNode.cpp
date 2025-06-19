@@ -119,7 +119,16 @@ WebIDL::ExceptionOr<void> AudioNode::connect(GC::Ref<AudioParam> destination_par
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect
 void AudioNode::disconnect()
 {
-    dbgln("FIXME: Implement AudioNode::disconnect()");
+    while (!m_output_connections.is_empty()) {
+        auto connection = m_output_connections.take_last();
+        auto destination = connection.destination_node;
+
+        destination->m_input_connections.remove_all_matching([&](AudioNodeConnection& input_connection) {
+            return input_connection.destination_node.ptr() == this;
+        });
+    }
+
+    m_param_connections.clear();
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-output
@@ -132,35 +141,81 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(WebIDL::UnsignedLong output)
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Output index {} exceeds number of outputs", output)));
     }
 
-    dbgln("FIXME: Implement AudioNode::disconnect(output)");
+    m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
+        if (connection.output != output)
+            return false;
+
+        connection.destination_node->m_input_connections.remove_all_matching([&](AudioNodeConnection& reverse_connection) {
+            return reverse_connection.destination_node.ptr() == this && reverse_connection.output == output;
+        });
+
+        return true;
+    });
+
+    m_param_connections.remove_all_matching([&](AudioParamConnection& connection) {
+        return connection.output == output;
+    });
+
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode
-void AudioNode::disconnect(GC::Ref<AudioNode> destination_node)
+WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_node)
 {
-    (void)destination_node;
-    dbgln("FIXME: Implement AudioNode::disconnect(destination_node)");
+    // The destinationNode parameter is the AudioNode to disconnect.
+    // It disconnects all outgoing connections to the given destinationNode.
+    auto before = m_output_connections.size();
+    m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
+        if (connection.destination_node != destination_node)
+            return false;
+
+        connection.destination_node->m_input_connections.remove_all_matching([&](AudioNodeConnection& reverse_connection) {
+            return reverse_connection.destination_node.ptr() == this;
+        });
+
+        return true;
+    });
+    // If there is no connection to the destinationNode, an InvalidAccessError exception MUST be thrown.
+    if (m_output_connections.size() == before) {
+        return WebIDL::InvalidAccessError::create(realm(), MUST(String::formatted("No connection to given AudioNode")));
+    }
+
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode-output
 WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output)
 {
-    (void)destination_node;
     // The output parameter is an index describing which output of the AudioNode from which to disconnect.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Output index {} exceeds number of outputs", output)));
     }
 
-    dbgln("FIXME: Implement AudioNode::disconnect(destination_node, output)");
+    // The destinationNode parameter is the AudioNode to disconnect.
+    auto before = m_output_connections.size();
+    m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
+        if (connection.destination_node != destination_node || connection.output != output)
+            return false;
+
+        connection.destination_node->m_input_connections.remove_all_matching([&](AudioNodeConnection& reverse_connection) {
+            return reverse_connection.destination_node.ptr() == this && reverse_connection.output == output;
+        });
+
+        return true;
+    });
+
+    //  If there is no connection to the destinationNode from the given output, an InvalidAccessError exception MUST be thrown.
+    if (m_output_connections.size() == before) {
+        return WebIDL::InvalidAccessError::create(realm(), MUST(String::formatted("No connection from output {} to given AudioNode", output)));
+    }
+
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode-output-input
 WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
 {
-    (void)destination_node;
     // The output parameter is an index describing which output of the AudioNode from which to disconnect.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
@@ -173,28 +228,63 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Input index '{}' exceeds number of inputs", input)));
     }
 
-    dbgln("FIXME: Implement AudioNode::disconnect(destination_node, output, input)");
+    // The destinationNode parameter is the AudioNode to disconnect.
+    auto before = m_output_connections.size();
+    m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
+        if (connection.destination_node != destination_node || connection.output != output || connection.input != input)
+            return false;
+
+        connection.destination_node->m_input_connections.remove_all_matching([&](AudioNodeConnection& reverse_connection) {
+            return reverse_connection.destination_node.ptr() == this && reverse_connection.output == output && reverse_connection.input == input;
+        });
+
+        return true;
+    });
+
+    // If there is no connection to the destinationNode from the given output to the given input, an InvalidAccessError exception MUST be thrown.
+    if (m_output_connections.size() == before) {
+        return WebIDL::InvalidAccessError::create(realm(), MUST(String::formatted("No connection from output {} to input {} of given AudioNode", output, input)));
+    }
+
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationparam
-void AudioNode::disconnect(GC::Ref<AudioParam> destination_param)
+WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_param)
 {
-    (void)destination_param;
-    dbgln("FIXME: Implement AudioNode::disconnect(destination_param)");
+    // The destinationParam parameter is the AudioParam to disconnect.
+    auto before = m_param_connections.size();
+    m_param_connections.remove_all_matching([&](AudioParamConnection& connection) {
+        return connection.destination_param == destination_param;
+    });
+
+    // If there is no connection to the destinationParam, an InvalidAccessError exception MUST be thrown.
+    if (m_param_connections.size() == before) {
+        return WebIDL::InvalidAccessError::create(realm(), MUST(String::formatted("No connection to given AudioParam")));
+    }
+
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationparam-output
 WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output)
 {
-    (void)destination_param;
     // The output parameter is an index describing which output of the AudioNode from which to disconnect.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Output index {} exceeds number of outputs", output)));
     }
+    // The destinationParam parameter is the AudioParam to disconnect.
+    auto before = m_param_connections.size();
+    m_param_connections.remove_all_matching([&](AudioParamConnection& connection) {
+        return connection.destination_param == destination_param && connection.output == output;
+    });
 
-    dbgln("FIXME: Implement AudioNode::disconnect(destination_param, output)");
+    // If there is no connection to the destinationParam, an InvalidAccessError exception MUST be thrown.
+    if (m_param_connections.size() == before) {
+        return WebIDL::InvalidAccessError::create(realm(), MUST(String::formatted("No connection from output {} to given AudioParam", output)));
+    }
+
     return {};
 }
 
