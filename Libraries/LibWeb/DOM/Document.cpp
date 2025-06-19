@@ -3604,55 +3604,6 @@ bool Document::is_valid_name(String const& name)
     return true;
 }
 
-// https://dom.spec.whatwg.org/#validate
-WebIDL::ExceptionOr<Document::PrefixAndTagName> Document::validate_qualified_name(JS::Realm& realm, FlyString const& qualified_name)
-{
-    if (qualified_name.is_empty())
-        return WebIDL::InvalidCharacterError::create(realm, "Empty string is not a valid qualified name."_string);
-
-    auto utf8view = qualified_name.code_points();
-
-    Optional<size_t> colon_offset;
-
-    bool at_start_of_name = true;
-
-    for (auto it = utf8view.begin(); it != utf8view.end(); ++it) {
-        auto code_point = *it;
-        if (code_point == ':') {
-            if (colon_offset.has_value())
-                return WebIDL::InvalidCharacterError::create(realm, "More than one colon (:) in qualified name."_string);
-            colon_offset = utf8view.byte_offset_of(it);
-            at_start_of_name = true;
-            continue;
-        }
-        if (at_start_of_name) {
-            if (!is_valid_name_start_character(code_point))
-                return WebIDL::InvalidCharacterError::create(realm, "Invalid start of qualified name."_string);
-            at_start_of_name = false;
-            continue;
-        }
-        if (!is_valid_name_character(code_point))
-            return WebIDL::InvalidCharacterError::create(realm, "Invalid character in qualified name."_string);
-    }
-
-    if (!colon_offset.has_value())
-        return Document::PrefixAndTagName {
-            .prefix = {},
-            .tag_name = qualified_name,
-        };
-
-    if (*colon_offset == 0)
-        return WebIDL::InvalidCharacterError::create(realm, "Qualified name can't start with colon (:)."_string);
-
-    if (*colon_offset >= (qualified_name.bytes_as_string_view().length() - 1))
-        return WebIDL::InvalidCharacterError::create(realm, "Qualified name can't end with colon (:)."_string);
-
-    return Document::PrefixAndTagName {
-        .prefix = MUST(FlyString::from_utf8(qualified_name.bytes_as_string_view().substring_view(0, *colon_offset))),
-        .tag_name = MUST(FlyString::from_utf8(qualified_name.bytes_as_string_view().substring_view(*colon_offset + 1))),
-    };
-}
-
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
 GC::Ref<NodeIterator> Document::create_node_iterator(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {

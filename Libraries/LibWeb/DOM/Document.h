@@ -567,12 +567,6 @@ public:
 
     static bool is_valid_name(String const&);
 
-    struct PrefixAndTagName {
-        FlyString prefix;
-        FlyString tag_name;
-    };
-    static WebIDL::ExceptionOr<PrefixAndTagName> validate_qualified_name(JS::Realm&, FlyString const& qualified_name);
-
     GC::Ref<NodeIterator> create_node_iterator(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
     GC::Ref<TreeWalker> create_tree_walker(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
