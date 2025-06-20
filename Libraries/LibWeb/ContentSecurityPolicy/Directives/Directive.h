@@ -52,20 +52,20 @@ public:
     // 1. A pre-request check, which takes a request and a policy as an argument, and is executed during
     //    § 4.1.2 Should request be blocked by Content Security Policy?. This algorithm returns "Allowed"
     //    unless otherwise specified.
-    [[nodiscard]] virtual Result pre_request_check(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Policy const>) const { return Result::Allowed; }
+    [[nodiscard]] virtual Result pre_request_check(GC::Heap&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Policy const>) const { return Result::Allowed; }
 
     // https://w3c.github.io/webappsec-csp/#directive-post-request-check
     // 2. A post-request check, which takes a request, a response, and a policy as arguments, and is executed during
     //    § 4.1.3 Should response to request be blocked by Content Security Policy?. This algorithm returns "Allowed"
     //    unless otherwise specified.
-    [[nodiscard]] virtual Result post_request_check(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<Policy const>) const { return Result::Allowed; }
+    [[nodiscard]] virtual Result post_request_check(GC::Heap&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<Policy const>) const { return Result::Allowed; }
 
     // https://w3c.github.io/webappsec-csp/#directive-inline-check
     // 3. An inline check, which takes an Element, a type string, a policy, and a source string as arguments, and is
     //    executed during § 4.2.3 Should element’s inline type behavior be blocked by Content Security Policy? and
     //    during § 4.2.4 Should navigation request of type be blocked by Content Security Policy? for javascript:
     //    requests. This algorithm returns "Allowed" unless otherwise specified.
-    [[nodiscard]] virtual Result inline_check(JS::Realm&, GC::Ptr<DOM::Element const>, InlineType, GC::Ref<Policy const>, String const&) const { return Result::Allowed; }
+    [[nodiscard]] virtual Result inline_check(GC::Heap&, GC::Ptr<DOM::Element const>, InlineType, GC::Ref<Policy const>, String const&) const { return Result::Allowed; }
 
     // https://w3c.github.io/webappsec-csp/#directive-initialization
     // 4. An initialization, which takes a Document or global object and a policy as arguments. This algorithm is

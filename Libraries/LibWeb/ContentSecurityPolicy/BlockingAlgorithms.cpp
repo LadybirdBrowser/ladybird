@@ -15,7 +15,7 @@
 namespace Web::ContentSecurityPolicy {
 
 // https://w3c.github.io/webappsec-csp/#does-resource-hint-violate-policy
-[[nodiscard]] static GC::Ptr<Directives::Directive> does_resource_hint_request_violate_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Policy const> policy)
+[[nodiscard]] static GC::Ptr<Directives::Directive> does_resource_hint_request_violate_policy(GC::Heap& heap, GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Policy const> policy)
 {
     // 1. Let defaultDirective be policy’s first directive whose name is "default-src".
     auto default_directive_iterator = policy->directives().find_if([](auto const& directive) {
@@ -29,7 +29,7 @@ namespace Web::ContentSecurityPolicy {
     // 3. For each directive of policy:
     for (auto directive : policy->directives()) {
         // 1. Let result be the result of executing directive’s pre-request check on request and policy.
-        auto result = directive->pre_request_check(realm, request, policy);
+        auto result = directive->pre_request_check(heap, request, policy);
 
         // 2. If result is "Allowed", then return "Does Not Violate".
         if (result == Directives::Directive::Result::Allowed) {
@@ -42,12 +42,12 @@ namespace Web::ContentSecurityPolicy {
 }
 
 // https://w3c.github.io/webappsec-csp/#does-request-violate-policy
-[[nodiscard]] static GC::Ptr<Directives::Directive> does_request_violate_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Policy const> policy)
+[[nodiscard]] static GC::Ptr<Directives::Directive> does_request_violate_policy(GC::Heap& heap, GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Policy const> policy)
 {
     // 1. If request’s initiator is "prefetch", then return the result of executing § 6.7.2.2 Does resource hint
     //    request violate policy? on request and policy.
     if (request->initiator() == Fetch::Infrastructure::Request::Initiator::Prefetch)
-        return does_resource_hint_request_violate_policy(realm, request, policy);
+        return does_resource_hint_request_violate_policy(heap, request, policy);
 
     // 2. Let violates be "Does Not Violate".
     GC::Ptr<Directives::Directive> violates;
@@ -55,7 +55,7 @@ namespace Web::ContentSecurityPolicy {
     // 3. For each directive of policy:
     for (auto directive : policy->directives()) {
         // 1. Let result be the result of executing directive’s pre-request check on request and policy.
-        auto result = directive->pre_request_check(realm, request, policy);
+        auto result = directive->pre_request_check(heap, request, policy);
 
         // 2. If result is "Blocked", then let violates be directive.
         if (result == Directives::Directive::Result::Blocked) {
@@ -80,7 +80,7 @@ void report_content_security_policy_violations_for_request(JS::Realm& realm, GC:
             continue;
 
         // 2. Let violates be the result of executing § 6.7.2.1 Does request violate policy? on request and policy.
-        auto violates = does_request_violate_policy(realm, request, policy);
+        auto violates = does_request_violate_policy(realm.heap(), request, policy);
 
         // 3. If violates is not "Does Not Violate", then execute § 5.5 Report a violation on the result of executing
         //    § 2.4.2 Create a violation object for request, and policy. on request, and policy.
@@ -107,7 +107,7 @@ Directives::Directive::Result should_request_be_blocked_by_content_security_poli
             continue;
 
         // 2. Let violates be the result of executing § 6.7.2.1 Does request violate policy? on request and policy.
-        auto violates = does_request_violate_policy(realm, request, policy);
+        auto violates = does_request_violate_policy(realm.heap(), request, policy);
 
         // 3. If violates is not "Does Not Violate", then:
         if (violates) {
@@ -141,7 +141,7 @@ Directives::Directive::Result should_response_to_request_be_blocked_by_content_s
         // 1. For each directive of policy:
         for (auto directive : policy->directives()) {
             // 1. If the result of executing directive’s post-request check is "Blocked", then:
-            if (directive->post_request_check(realm, request, response, policy) == Directives::Directive::Result::Blocked) {
+            if (directive->post_request_check(realm.heap(), request, response, policy) == Directives::Directive::Result::Blocked) {
                 // 1. Execute § 5.5 Report a violation on the result of executing § 2.4.2 Create a violation object for
                 //    request, and policy. on request, and policy.
                 auto violation = Violation::create_a_violation_object_for_request_and_policy(realm, request, policy);
@@ -218,7 +218,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
                 //        spec operation to serialize the URL.
                 auto& realm = navigation_request->client()->realm();
                 auto serialized_url = navigation_request->current_url().to_string();
-                if (directive->inline_check(realm, nullptr, Directives::Directive::InlineType::Navigation, policy, serialized_url) == Directives::Directive::Result::Allowed)
+                if (directive->inline_check(realm.heap(), nullptr, Directives::Directive::InlineType::Navigation, policy, serialized_url) == Directives::Directive::Result::Allowed)
                     continue;
 
                 // 3. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global,
