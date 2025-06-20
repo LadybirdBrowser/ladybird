@@ -16,6 +16,8 @@
 
 namespace AK::Detail {
 
+void did_destroy_utf16_fly_string_data(Badge<Detail::Utf16StringData>, Detail::Utf16StringData const&);
+
 class Utf16StringData final : public RefCounted<Utf16StringData> {
 public:
     enum class StorageType : u8 {
@@ -33,7 +35,11 @@ public:
     static NonnullRefPtr<Utf16StringData> from_utf32(Utf32View const&);
     static NonnullRefPtr<Utf16StringData> from_string_builder(StringBuilder&);
 
-    ~Utf16StringData() = default;
+    ~Utf16StringData()
+    {
+        if (is_fly_string())
+            did_destroy_utf16_fly_string_data({}, *this);
+    }
 
     [[nodiscard]] static constexpr size_t offset_of_string_storage()
     {
@@ -47,6 +53,8 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE bool operator==(Utf16StringData const& other) const
     {
+        if (is_fly_string() && other.is_fly_string())
+            return this == &other;
         return utf16_view() == other.utf16_view();
     }
 
@@ -99,6 +107,9 @@ public:
         return view;
     }
 
+    ALWAYS_INLINE void mark_as_fly_string(Badge<Utf16FlyString>) const { m_is_fly_string = true; }
+    [[nodiscard]] ALWAYS_INLINE bool is_fly_string() const { return m_is_fly_string; }
+
 private:
     ALWAYS_INLINE Utf16StringData(StorageType storage_type, size_t code_unit_length)
         : m_length_in_code_units(code_unit_length)
@@ -129,6 +140,8 @@ private:
 
     mutable u32 m_hash { 0 };
     mutable bool m_has_hash { false };
+
+    mutable bool m_is_fly_string { false };
 
     union {
         char m_ascii_data[0];
