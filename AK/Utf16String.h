@@ -70,15 +70,15 @@ public:
     static Utf16String from_utf32(Utf32View const&);
 
     template<typename T>
-    requires(IsOneOf<RemoveCVReference<T>, Utf16String>)
+    requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
     static Utf16String from_utf16(T&&) = delete;
 
     template<typename T>
-    requires(IsOneOf<RemoveCVReference<T>, Utf16String>)
+    requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
     static ErrorOr<Utf16String> try_from_utf16(T&&) = delete;
 
     template<typename T>
-    requires(IsOneOf<RemoveCVReference<T>, Utf16String>)
+    requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
     static Utf16String from_utf16_without_validation(T&&) = delete;
 
     template<typename... Parameters>

@@ -248,6 +248,21 @@ public:
         return !has_short_ascii_storage();
     }
 
+    [[nodiscard]] ALWAYS_INLINE Utf16StringData const* data(Badge<Utf16FlyString>) const
+    {
+        VERIFY(has_long_storage());
+        return data_without_union_member_assertion();
+    }
+
+    ALWAYS_INLINE void set_data(Badge<Utf16FlyString>, Utf16StringData const* data)
+    {
+        auto const** this_data = __builtin_launder(&m_value.data);
+        (*this_data) = data;
+        (*this_data)->ref();
+    }
+
+    [[nodiscard]] constexpr FlatPtr raw(Badge<Utf16FlyString>) const { return bit_cast<FlatPtr>(m_value); }
+
 protected:
     ALWAYS_INLINE void destroy_string() const
     {
