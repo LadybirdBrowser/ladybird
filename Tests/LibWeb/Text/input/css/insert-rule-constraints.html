@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        div {
+        }
+    </style>
+    <style>
+        div {
+        }
+    </style>
+    <style>
+        @import url("foo.css");
+    </style>
+    <style>
+        @namespace abc url("https://www.w3.org/1999/xhtml");
+    </style>
+    <style>
+        @media (all) {
+            * {
+            }
+        }
+    </style>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            try {
+                document.styleSheets[0].insertRule('@import url("foo.css");', 1);
+                println(
+                    "Fail! insertRule should not allow inserting import rules after style rules."
+                );
+            } catch (e) {
+                println(`Inserting import rules after style rule throws: ${e.name}`);
+            }
+
+            try {
+                document.styleSheets[1].insertRule(
+                    '@namespace abc url("https://www.w3.org/1999/xhtml");',
+                    1
+                );
+                println(
+                    "Fail! insertRule should not allow inserting namespace rules after style rules."
+                );
+            } catch (e) {
+                println(`Inserting namespace rules after style rule throws: ${e.name}`);
+            }
+
+            try {
+                document.styleSheets[2].insertRule(
+                    '@namespace abc url("https://www.w3.org/1999/xhtml");',
+                    0
+                );
+                println(
+                    "Fail! insertRule should not allow inserting namespace rules before import rule."
+                );
+            } catch (e) {
+                println(`Inserting namespace rules before import rule throws: ${e.name}`);
+            }
+
+            try {
+                document.styleSheets[2].insertRule("div { color: red; }", 0);
+                println(
+                    "Fail! insertRule should not allow inserting style rules before import rule."
+                );
+            } catch (e) {
+                println(`Inserting style rules before import rule throws: ${e.name}`);
+            }
+
+            try {
+                document.styleSheets[3].insertRule("div { color: red }", 0);
+                println(
+                    "Fail! insertRule should not allow inserting style rules before namespace rule."
+                );
+            } catch (e) {
+                println(`Inserting style rules before namespace rule throws: ${e.name}`);
+            }
+        });
+    </script>
+</html>
