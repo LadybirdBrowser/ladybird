@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+    <p>All divs below should be 100px wide</p>
+    <div id="target1"></div>
+    <div id="target2"></div>
+    <div id="target3"></div>
+    <div id="target4"></div>
+    <style>
+        div {
+            height: 100px;
+            width: 100px;
+            background-color: green;
+        }
+
+        #target1 {
+            width: 200px;
+        }
+
+        #target2,
+        #target3,
+        #target4 {
+            background-color: 100px;
+        }
+    </style>
+    <style>
+        /* Imports are allowed after invalid (malformed) namespace rules */
+        @namespace abc;
+        @import "./import-after-namespace-1.css";
+    </style>
+    <style>
+        /* Imports are not allowed after valid namespace rules */
+        @namespace def url("https://www.w3.org/1999/xhtml");
+        @import "./import-after-namespace-2.css";
+    </style>
+    <style>
+        /* Imports are not allowed after invalid supports rules */
+        @supports (display: block;) {
+        }
+        @import "./import-after-namespace-3.css";
+    </style>
+    <style>
+        /* Imports are not allowed after valid namespaces */
+        @supports (display: block) {
+        }
+        @import "./import-after-namespace-4.css";
+    </style>
+    <pre id="out"></pre>
+</html>
