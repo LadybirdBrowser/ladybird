@@ -125,6 +125,9 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
     // To parse a CSS stylesheet, first parse a stylesheet.
     auto const& style_sheet = parse_a_stylesheet(m_token_stream, location);
 
+    bool import_rules_valid = true;
+    bool namespace_rules_valid = true;
+
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     GC::RootVector<GC::Ref<CSSRule>> rules(realm().heap());
     for (auto const& raw_rule : style_sheet.rules) {
@@ -135,6 +138,36 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
             log_parse_error();
             continue;
         }
+
+        // "Any @import rules must precede all other valid at-rules and style rules in a style sheet
+        // (ignoring @charset and @layer statement rules) and must not have any other valid at-rules
+        // or style rules between it and previous @import rules, or else the @import rule is invalid."
+        // https://drafts.csswg.org/css-cascade-5/#at-import
+        //
+        // "Any @namespace rules must follow all @charset and @import rules and precede all other
+        // non-ignored at-rules and style rules in a style sheet.
+        // ...
+        // A syntactically invalid @namespace rule (whether malformed or misplaced) must be ignored."
+        // https://drafts.csswg.org/css-namespaces/#syntax
+        switch (rule->type()) {
+        case CSSRule::Type::LayerStatement:
+            break;
+        case CSSRule::Type::Import:
+            if (!import_rules_valid)
+                continue;
+            break;
+        case CSSRule::Type::Namespace:
+            import_rules_valid = false;
+
+            if (!namespace_rules_valid)
+                continue;
+            break;
+        default:
+            import_rules_valid = false;
+            namespace_rules_valid = false;
+            break;
+        }
+
         rules.append(*rule);
     }
 
