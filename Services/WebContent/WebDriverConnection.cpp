@@ -1143,7 +1143,7 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
     // 4. If selector is undefined, return error with error code invalid argument.
     auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the ssession's current browsing context is no longer open, return error with error code no such window.
+    // 5. If the session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
