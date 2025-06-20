@@ -634,6 +634,9 @@ void GridFormattingContext::initialize_grid_tracks_for_columns_and_rows()
         }
         implicit_row_index++;
     }
+
+    m_column_lines.resize(m_grid_columns.size() + 1);
+    m_row_lines.resize(m_grid_rows.size() + 1);
 }
 
 void GridFormattingContext::initialize_gap_tracks(AvailableSpace const& available_space)
@@ -2064,17 +2067,24 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
             independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
 
-    Vector<Variant<CSS::ExplicitGridTrack, CSS::GridLineNames>> grid_track_columns;
-    grid_track_columns.ensure_capacity(m_grid_columns.size());
-    for (auto const& column : m_grid_columns) {
-        grid_track_columns.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(column.base_size)) } });
-    }
+    auto serialize = [](auto const& tracks, auto const& lines) {
+        CSS::GridTrackSizeList result;
+        for (size_t i = 0; i < lines.size(); ++i) {
+            auto const& line = lines[i];
+            if (!line.names.is_empty()) {
+                result.append(CSS::GridLineNames { line.names });
+            }
 
-    Vector<Variant<CSS::ExplicitGridTrack, CSS::GridLineNames>> grid_track_rows;
-    grid_track_rows.ensure_capacity(m_grid_rows.size());
-    for (auto const& row : m_grid_rows) {
-        grid_track_rows.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(row.base_size)) } });
-    }
+            if (i < tracks.size()) {
+                auto const& track = tracks[i];
+                result.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(track.base_size)) } });
+            }
+        }
+        return result;
+    };
+
+    auto grid_track_columns = serialize(m_grid_columns, m_column_lines);
+    auto grid_track_rows = serialize(m_grid_rows, m_row_lines);
 
     // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
     // so they need to be saved in the state, and then assigned to paintables in LayoutState::commit()
