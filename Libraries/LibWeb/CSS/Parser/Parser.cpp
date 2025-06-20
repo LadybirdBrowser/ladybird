@@ -291,7 +291,7 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     if (first_token.is_block() && first_token.block().is_paren()) {
         TokenStream block_tokens { first_token.block().value };
         // FIXME: Parsing and then converting back to a string is weird.
-        if (auto declaration = consume_a_declaration(block_tokens); declaration.has_value()) {
+        if (auto declaration = consume_a_declaration(block_tokens); declaration.has_value() && !block_tokens.has_next_token()) {
             transaction.commit();
             auto supports_declaration = Supports::Declaration::create(
                 declaration->to_string(),
