@@ -62,6 +62,7 @@ jobs:
       # === PREPARE FOR BUILDING ===
 
       - name: Assign Build Parameters
+        if: ${{ inputs.os_name != 'Windows' }}
         id: 'build-parameters'
         run: |
           CMAKE_OPTIONS="-DENABLE_QT=ON"
@@ -107,12 +108,13 @@ jobs:
           os: ${{ inputs.os_name }}
           arch: ${{ inputs.arch }}
           toolchain: ${{ inputs.toolchain }}
-          cache_key_extra: ${{ steps.build-parameters.outputs.ccache_key }}
-          ccache_path: ${{ env.CCACHE_DIR }}
+          cache_key_extra: ${{ inputs.os_name == 'Windows' && inputs.build_preset || steps.build-parameters.outputs.ccache_key }}
+          ccache_path: ${{ inputs.os_name != 'Windows' && env.CCACHE_DIR }}
           download_cache_path: ${{ github.workspace }}/Build/caches
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: Set dynamic environment variables
+        if: ${{ inputs.os_name != 'Windows' }}
         run: |
           # Note: Required for vcpkg to use this compiler for its own builds.
           echo "CC=${{ steps.build-parameters.outputs.host_cc }}" >> "$GITHUB_ENV"
@@ -124,7 +126,7 @@ jobs:
         run: sqlite3 $HOME/Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR IGNORE INTO access VALUES ('kTCCServiceMicrophone','/usr/local/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159,NULL,NULL,'UNUSED',1687786159);"
 
       - name: Create Build Environment
-        if: ${{ inputs.build_preset != 'Fuzzers_CI' }}
+        if: ${{ inputs.os_name != 'Windows' && inputs.build_preset != 'Fuzzers_CI' }}
         working-directory: ${{ github.workspace }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build \
@@ -133,7 +135,13 @@ jobs:
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
-      - name: Create Build Environment
+      - name: Create Build Environment (Windows)
+        if: ${{ inputs.os_name == 'Windows' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          cmake --preset ${{ inputs.build_preset }}
+
+      - name: Create Build Environment (Fuzzers)
         if: ${{ inputs.build_preset == 'Fuzzers_CI' }}
         working-directory: ${{ github.workspace }}
         run: |
@@ -157,11 +165,18 @@ jobs:
       # === BUILD ===
 
       - name: Build
+        if: ${{ inputs.os_name != 'Windows' }}
         working-directory: ${{ github.workspace }}/Build
         run: |
           set -e
           cmake --build .
           cmake --install . --strip --prefix ${{ github.workspace }}/Install
+
+      - name: Build (Windows)
+        if: ${{ inputs.os_name == 'Windows' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          cmake --build --preset ${{ inputs.build_preset }}
 
       - name: Enable the Ladybird AppKit chrome
         if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
@@ -178,7 +193,7 @@ jobs:
         with:
           runner_labels: ${{ inputs.runner_labels }}
           arch: ${{ inputs.arch }}
-          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_path: ${{ inputs.os_name != 'Windows' && env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
@@ -186,7 +201,7 @@ jobs:
       # === TEST ===
 
       - name: Test
-        if: ${{ inputs.build_preset == 'Sanitizer_CI' }}
+        if: ${{ inputs.os_name != 'Windows' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}
         run: ctest --preset Sanitizer --output-on-failure --test-dir Build --timeout 1800
         env:
@@ -196,17 +211,26 @@ jobs:
           UBSAN_OPTIONS: 'log_path=${{ github.workspace }}/ubsan.log'
 
       - name: Test
-        if: ${{ inputs.build_preset != 'Fuzzers_CI' && inputs.build_preset != 'Sanitizer_CI' }}
+        if: ${{ inputs.build_preset != 'Fuzzers_CI' && !contains(inputs.build_preset, 'Sanitizer_CI') }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
 
+      - name: Test (Windows)
+        if: ${{ inputs.os_name == 'Windows' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --preset ${{ inputs.build_preset }} --timeout 1800
+        env:
+          TESTS_ONLY: 1
+          ASAN_OPTIONS: 'log_path="${{ github.workspace }}\asan.log"'
+          UBSAN_OPTIONS: 'log_path="${{ github.workspace }}\ubsan.log"'
+
       - name: Upload LibWeb Test Artifacts
         if: ${{ always() && inputs.build_preset != 'Fuzzers_CI' }}
         uses: actions/upload-artifact@v4
         with:
-          name: libweb-test-artifacts-${{ inputs.os_name }}-${{inputs.build_preset}}-${{inputs.toolchain}}-${{inputs.clang-plugins}}
+          name: libweb-test-artifacts-${{ inputs.os_name }}-${{ inputs.build_preset }}-${{ inputs.toolchain }}-${{ inputs.clang-plugins }}
           path: ${{ github.workspace }}/Build/UI/Headless/test-dumps
           retention-days: 0
           if-no-files-found: ignore
