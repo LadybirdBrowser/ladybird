@@ -29,6 +29,7 @@ set(SOURCES
     StringUtils.cpp
     StringView.cpp
     Time.cpp
+    Utf16FlyString.cpp
     Utf16String.cpp
     Utf16StringData.cpp
     Utf16View.cpp
