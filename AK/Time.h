@@ -478,6 +478,9 @@ public:
     ErrorOr<String> to_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
     Utf16String to_utf16_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
     ByteString to_byte_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
+    // Parses a string in the given format. Does not support time zone-related format specifiers.
+    // If 'from_gmt' is true, the string is parsed as a GMT time, otherwise it is parsed as a local time.
+    static Optional<UnixDateTime> parse(StringView format, StringView string, bool from_gmt = false);
 
     // Offsetting a UNIX time by a duration yields another UNIX time.
     constexpr UnixDateTime operator+(Duration const& other) const { return UnixDateTime { m_offset + other }; }
