@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 26 tests
+Found 27 tests
 
 1 Pass
-25 Fail
+26 Fail
 Fail	CSS Fonts Module Level 4: parsing @font-palette-values
 Fail	CSS Fonts Module Level 4: parsing @font-palette-values 1
 Fail	CSS Fonts Module Level 4: parsing @font-palette-values 2
@@ -30,3 +30,4 @@ Fail	CSS Fonts Module Level 4: parsing @font-palette-values 22
 Fail	CSS Fonts Module Level 4: parsing @font-palette-values 23
 Fail	CSS Fonts Module Level 4: parsing @font-palette-values 24
 Fail	CSS Fonts Module Level 4: parsing @font-palette-values 25
+Fail	sibling-index() is invalid in base-palette descriptor

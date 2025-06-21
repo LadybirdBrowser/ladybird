@@ -8,16 +8,38 @@
 <meta name="assert" content="flex supports the full grammar 'none | [ <‘flex-grow’> <‘flex-shrink’>? || <‘flex-basis’> ]'.">
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
-<script src="../../support/parsing-testcommon.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<style>
+  #container {
+    container-type: inline-size;
+    width: 10px;
+  }
+  #target {
+    font-size: 40px;
+  }
+</style>
 </head>
 <body>
+<div id="container">
+    <div id="target"></div>
+</div>
 <script>
 test_valid_value("flex", "none", "0 0 auto");
 test_valid_value("flex", "1", "1 1 0%");
 test_valid_value("flex", "2 3", "2 3 0%");
 test_valid_value("flex", "4 5 6px");
+test_valid_value("flex", "6px 4 5", "4 5 6px");
+test_valid_value("flex", "6px 4", "4 1 6px");
+test_valid_value("flex", "6px", "1 1 6px");
 test_valid_value("flex", "7% 8", "8 1 7%");
 test_valid_value("flex", "8 auto", "8 1 auto");
+test_valid_value("flex", "1 1 10em", "1 1 10em");
+test_valid_value("flex", "1 1 calc(10em)", "1 1 calc(10em)");
+test_valid_value("flex", "1 1 calc(-10em)", "1 1 calc(-10em)");
+test_valid_value("flex", "calc(10 + (sign(20cqw - 10px) * 5)) calc(10 + (sign(20cqw - 10px) * 5)) 1px", "calc(10 + (5 * sign(20cqw - 10px))) calc(10 + (5 * sign(20cqw - 10px))) 1px");
+test_valid_value("flex", "1 1 calc(10px + (sign(20cqw - 10px) * 5px))", "1 1 calc(10px + (5px * sign(20cqw - 10px)))");
+test_valid_value("flex", "calc(1) calc(2 + 1) calc(3px)", "calc(1) calc(3) calc(3px)");
+test_valid_value("flex", "calc(-1) calc(-1) 0", "calc(-1) calc(-1) 0px");
 
 // The following is not yet supported by browsers:
 // test_valid_value("flex", "content");

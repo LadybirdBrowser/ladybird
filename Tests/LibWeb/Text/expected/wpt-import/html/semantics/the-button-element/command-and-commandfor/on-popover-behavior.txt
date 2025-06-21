@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 27 tests
+Found 28 tests
 
 27 Pass
+1 Fail
 Pass	changing command attribute inside invokeevent doesn't impact the invocation
 Pass	invoking (as toggle-popover) closed popover opens
 Pass	invoking (as toggle-popover) closed popover with preventDefault does not open
@@ -30,3 +31,4 @@ Pass	invoking (as hIdE-pOpOvEr) from within open popover closes
 Pass	invoking (as hIdE-pOpOvEr) from within open popover with preventDefault does not close
 Pass	invoking (as show-popover) open popover is noop
 Pass	invoking (as hide-popover) closed popover is noop
+Fail	invoking (as show-popover) should create an implicit anchor reference for anchor positioning.

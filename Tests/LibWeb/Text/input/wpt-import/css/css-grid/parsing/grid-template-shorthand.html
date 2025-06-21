@@ -58,6 +58,15 @@ test_shorthand_value('grid-template',
   'grid-template-columns': 'auto 1fr auto',
   'grid-template-areas': '"a a a" "b b b"'
 });
+
+test_shorthand_value('grid-template',
+                     ' [] "a a a"     []' +
+                     ' [] "b b b" 1fr []' +
+                     ' "c c c" / [] auto 1fr [] auto []', {
+  'grid-template-rows': 'auto 1fr auto',
+  'grid-template-columns': 'auto 1fr auto',
+  'grid-template-areas': '"a a a" "b b b" "c c c"'
+});
 </script>
 </body>
 </html>

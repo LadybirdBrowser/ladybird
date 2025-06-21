@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 687 tests
 
-657 Pass
-30 Fail
+658 Pass
+29 Fail
 Pass	background-attachment: scroll
 Pass	background-attachment: fixed
 Pass	background-attachment: inherit
@@ -334,7 +334,7 @@ Fail	content: attr( |bar )
 Pass	content: attr(foo-bar, "fallback")
 Pass	content: attr(foo_bar, "fallback")
 Fail	content: attr(|bar, "fallback")
-Fail	content: attr(foo, "")
+Pass	content: attr(foo, "")
 Fail	content: attr( |foo ,  "" )
 Pass	content: inherit
 Pass	cursor: auto

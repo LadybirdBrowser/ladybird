@@ -16,6 +16,8 @@ test_invalid_value("flex", "none 1");
 test_invalid_value("flex", "2 3 4");
 test_invalid_value("flex", "5px 7%");
 test_invalid_value("flex", "9 none");
+test_invalid_value("flex", "1 2 calc(0)");
+test_invalid_value("flex", "1 2 calc(3 - 3)");
 </script>
 </body>
 </html>

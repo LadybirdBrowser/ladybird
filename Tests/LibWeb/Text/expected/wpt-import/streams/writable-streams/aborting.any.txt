@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 62 tests
+Found 65 tests
 
-62 Pass
+65 Pass
 Pass	Aborting a WritableStream before it starts should cause the writer's unsettled ready promise to reject
 Pass	Aborting a WritableStream should cause the writer's fulfilled ready promise to reset to a rejected one
 Pass	abort() on a released writer rejects
@@ -64,4 +64,7 @@ Pass	the abort signal is signalled synchronously - close
 Pass	the abort signal is not signalled on error
 Pass	the abort signal is not signalled on write failure
 Pass	the abort signal is not signalled on close failure
-Pass	recursive abort() call
+Pass	recursive abort() call from abort() aborting signal (not started)
+Pass	recursive abort() call from abort() aborting signal
+Pass	recursive close() call from abort() aborting signal (not started)
+Pass	recursive close() call from abort() aborting signal

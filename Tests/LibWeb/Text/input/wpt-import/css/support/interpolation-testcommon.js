@@ -314,6 +314,7 @@
     var property = interpolationTest.options.property;
     var from = interpolationTest.options.from;
     var to = interpolationTest.options.to;
+    let underlying = interpolationTest.options.underlying;
     var comparisonFunction = interpolationTest.options.comparisonFunction;
     var behavior = interpolationTest.options.behavior;
 
@@ -354,9 +355,7 @@
       }
       var target = actualTargetContainer.target;
       if (applyUnderlying) {
-        let underlying = interpolationTest.options.underlying;
         assert_true(typeof underlying !== 'undefined', '\'underlying\' value must be provided');
-        assert_true(CSS.supports(property, underlying), '\'underlying\' value must be supported');
         target.style.setProperty(property, underlying);
       }
       interpolationMethod.setup(property, from, target);

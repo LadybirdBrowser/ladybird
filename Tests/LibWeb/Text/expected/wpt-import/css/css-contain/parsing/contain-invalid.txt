@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 14 tests
+Found 15 tests
 
-14 Pass
+15 Pass
 Pass	e.style['contain'] = "auto" should not set the property value
 Pass	e.style['contain'] = "layout layout" should not set the property value
 Pass	e.style['contain'] = "strict layout" should not set the property value
@@ -17,3 +17,4 @@ Pass	e.style['contain'] = "size layout size" should not set the property value
 Pass	e.style['contain'] = "paint content" should not set the property value
 Pass	e.style['contain'] = "size inline-size" should not set the property value
 Pass	e.style['contain'] = "inline-size inline-size" should not set the property value
+Pass	e.style['contain'] = "view-transition view-transition" should not set the property value

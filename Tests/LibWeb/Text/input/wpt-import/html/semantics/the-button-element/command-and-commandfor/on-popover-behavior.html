@@ -12,6 +12,13 @@
 </div>
 <button id="invokerbutton" commandfor="invokee" command="toggle-popover"></button>
 
+<style>
+#invokee {
+  margin: 0;
+  position-area: block-end span-all;
+}
+</style>
+
 <script>
   function resetState() {
     invokerbutton.setAttribute("commandfor", "invokee");
@@ -149,4 +156,16 @@
     invokerbutton.click();
     assert_false(invokee.matches(":popover-open"));
   }, "invoking (as hide-popover) closed popover is noop");
+
+
+  test(function (t) {
+    t.add_cleanup(resetState);
+    invokerbutton.setAttribute("command", "show-popover");
+    invokerbutton.click();
+    assert_true(invokee.matches(":popover-open"),
+      ":popover-open should match after calling invokerbutton.click()");
+    const rect = invokee.getBoundingClientRect();
+    assert_not_equals(rect.y, 0,
+      "popover should not be at the top of the window because it is anchor positioned.");
+  }, "invoking (as show-popover) should create an implicit anchor reference for anchor positioning.");
 </script>

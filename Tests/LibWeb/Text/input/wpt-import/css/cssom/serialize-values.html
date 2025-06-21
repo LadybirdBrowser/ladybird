@@ -106,7 +106,7 @@
     function attr_fallback() {
       var values = ['attr(foo-bar, "fallback")', 'attr(foo_bar, "fallback")',
                     {actual: 'attr(|bar, "fallback")', serialized: 'attr(bar, "fallback")'},
-                    {actual: 'attr(foo, "")', serialized: 'attr(foo)'},
+                    {actual: 'attr(foo, "")', serialized: 'attr(foo, "")'},
                     {actual: 'attr( |foo ,  "" )', serialized: 'attr(foo)'}];
       return iterable(values);
     }

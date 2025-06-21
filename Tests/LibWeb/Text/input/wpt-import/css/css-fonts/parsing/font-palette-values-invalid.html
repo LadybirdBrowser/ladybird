@@ -140,13 +140,18 @@
 @font-palette-values --A {
     override-colors: 0 color-mix(in lch, red, color-mix(in lch, currentcolor, black));
 }
+
+/* 24 */
+@font-palette-values --A {
+    base-palette: sibling-index();
+}
 </style>
 </head>
 <body>
 <script>
 let rules = document.getElementById("style").sheet.cssRules;
 test(function() {
-    assert_equals(rules.length, 24);
+    assert_equals(rules.length, 25);
 });
 
 test(function() {
@@ -343,6 +348,13 @@ test(function() {
     assert_equals(text.indexOf("override-colors"), -1);
     assert_equals(rule.overrideColors, "");
 });
+
+test(function() {
+    let text = rules[24].cssText;
+    let rule = rules[24];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(rule.basePalette, "");
+}, "sibling-index() is invalid in base-palette descriptor");
 </script>
 </body>
 </html>

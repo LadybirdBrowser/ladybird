@@ -20,6 +20,11 @@ async_test(t => {
     const canvas = frames[0].document.querySelector("canvas");
     canvas.toBlob(new frames[1].Function(`throw new parent.frames[2].Error("PASS");`));
 
+    // Wait until at least one `onerror` fires.
+    t.step_wait_func(() => onerrorCalls.length != 0);
+
+    // Wait for 25ms more in case one other `onerror` fires.  This is inherently
+    // flaky...
     t.step_timeout(() => {
       assert_array_equals(onerrorCalls, ["frame1"]);
       t.done();

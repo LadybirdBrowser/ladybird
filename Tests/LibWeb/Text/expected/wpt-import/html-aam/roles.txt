@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 58 tests
+Found 59 tests
 
-58 Pass
+59 Pass
 Pass	el-address
 Pass	el-article
 Pass	el-blockquote
@@ -33,6 +33,7 @@ Pass	el-input-radio
 Pass	el-input-range
 Pass	el-input-reset
 Pass	el-input-search
+Pass	el-input-search-with-role
 Pass	el-input-submit
 Pass	el-input-tel
 Pass	el-input-text

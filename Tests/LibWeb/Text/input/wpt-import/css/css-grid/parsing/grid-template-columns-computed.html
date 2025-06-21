@@ -40,4 +40,5 @@ test_computed_value("grid-template-columns", "100% [a] repeat(auto-fit, [b] 200%
 test_computed_value("grid-template-columns", "[a] 1em repeat(1, 2em [b] 3em) 4em [d]", "[a] 1px 2px [b] 3px 4px [d]");
 test_computed_value("grid-template-columns", "[a] 1em repeat(auto-fill, 2em [b] 3em) 4em [d]", "[a] 1px 2px [b] 3px 4px [d]");
 test_computed_value("grid-template-columns", "[a] 1em repeat(auto-fit, 2em [b] 3em) 4em [d]", "[a] 1px 0px [b] 0px 4px [d]");
+test_computed_value("grid-template-columns", "repeat(calc(1 + 3 * sign(100em - 1px)), 150px)", "150px 150px 150px 150px");
 </script>

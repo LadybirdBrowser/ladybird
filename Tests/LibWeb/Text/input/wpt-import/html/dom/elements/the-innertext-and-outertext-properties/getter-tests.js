@@ -100,6 +100,7 @@ testText("<div style='width:1px; word-break:break-word'><x>Hello </x> <br> <x> K
 
 /**** first-line/first-letter ****/
 
+testText("<div class='first-line-uppercase'>abc", "ABC", "::first-line styles applied");
 testText("<div class='first-line-uppercase' style='width:0'>abc def", "ABC def", "::first-line styles applied");
 testText("<div class='first-letter-uppercase' style='width:0'>abc def", "Abc def", "::first-letter styles applied");
 testText("<div class='first-letter-float' style='width:0'>abc def", "abc def", "::first-letter float ignored");

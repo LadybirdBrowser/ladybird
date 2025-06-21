@@ -1,11 +1,22 @@
 Harness status: OK
 
-Found 6 tests
+Found 16 tests
 
-6 Pass
+14 Pass
+2 Fail
 Pass	e.style['flex'] = "none" should set the property value
 Pass	e.style['flex'] = "1" should set the property value
 Pass	e.style['flex'] = "2 3" should set the property value
 Pass	e.style['flex'] = "4 5 6px" should set the property value
+Pass	e.style['flex'] = "6px 4 5" should set the property value
+Pass	e.style['flex'] = "6px 4" should set the property value
+Pass	e.style['flex'] = "6px" should set the property value
 Pass	e.style['flex'] = "7% 8" should set the property value
 Pass	e.style['flex'] = "8 auto" should set the property value
+Pass	e.style['flex'] = "1 1 10em" should set the property value
+Pass	e.style['flex'] = "1 1 calc(10em)" should set the property value
+Pass	e.style['flex'] = "1 1 calc(-10em)" should set the property value
+Fail	e.style['flex'] = "calc(10 + (sign(20cqw - 10px) * 5)) calc(10 + (sign(20cqw - 10px) * 5)) 1px" should set the property value
+Fail	e.style['flex'] = "1 1 calc(10px + (sign(20cqw - 10px) * 5px))" should set the property value
+Pass	e.style['flex'] = "calc(1) calc(2 + 1) calc(3px)" should set the property value
+Pass	e.style['flex'] = "calc(-1) calc(-1) 0" should set the property value

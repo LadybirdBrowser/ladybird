@@ -7,9 +7,17 @@
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
 <script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #container {
+    container-type: inline-size;
+    width: 100px;
+  }
+</style>
 </head>
 <body>
-<div id="target"></div>
+<div id="container">
+  <div id="target"></div>
+</div>
 <script>
 // auto
 test_computed_value("grid-area", "auto / auto / auto / auto",
@@ -34,6 +42,9 @@ test_computed_value("grid-row-start", "9 -Z_");
 test_computed_value("grid-column-start", "-44 Z");
 test_computed_value("grid-row-end", "1 -πA");
 test_computed_value("grid-column-end", "5 π_");
+test_computed_value("grid-row-start", "calc(1.1) -a-", "1 -a-");
+test_computed_value("grid-row-start", "calc(10) -a-", "10 -a-");
+test_computed_value("grid-row-start", "calc(10 + (sign(2cqw - 10px) * 5)) -a-", "5 -a-");
 
 // span && [ <integer> || <custom-ident> ]
 test_computed_value("grid-area", "span 2 i / auto / auto / auto",
