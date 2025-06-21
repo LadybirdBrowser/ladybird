@@ -1,5 +1,6 @@
 const Behavior = Object.freeze({
   ReflectsHost: 'ReflectsHost',
+  ReflectsHostReadOnly: 'ReflectsHostReadOnly',
   ReflectsHostInArray: 'ReflectsHostInArray',
   IsNull: 'IsNull',
   ReflectsHostID: 'ReflectsHostID',
@@ -30,7 +31,7 @@ function test_property_reflection(element_creation_method, test_name_suffix, ref
     referencing_element.setAttribute(attribute, "host-id");
     const host_container = document.querySelector("#host-container");
     const host = element_creation_method(host_container, referenced_element_type);
-    if (expected_behavior === Behavior.ReflectsHost) {
+    if (expected_behavior === Behavior.ReflectsHost || expected_behavior === Behavior.ReflectsHostReadOnly) {
       assert_equals(referencing_element[reflected_property], host);
     } else if (expected_behavior === Behavior.ReflectsHostInArray) {
       assert_array_equals(referencing_element[reflected_property], [host]);
@@ -45,6 +46,82 @@ function test_property_reflection(element_creation_method, test_name_suffix, ref
     referencing_element.remove();
     host_container.setHTMLUnsafe("");
   }, `${referencing_element_type}.${reflected_property} has reflection behavior ${expected_behavior} when pointing to ${referenced_element_type} with reference target${test_name_suffix}`);
+}
+
+function test_idl_setter(element_creation_method, test_name_suffix, referencing_element_type, referenced_element_type, attribute, reflected_property, expected_behavior) {
+  // There's nothing to test if the referencing element type doesn't have the reflecting
+  // property.
+  if (!(reflected_property in document.createElement(referencing_element_type))) {
+    return;
+  }
+
+  test(function () {
+     const referencing_element = document.createElement(referencing_element_type);
+     document.body.appendChild(referencing_element);
+    const host_container = document.querySelector("#host-container");
+    const host = element_creation_method(host_container, referenced_element_type);
+
+    if (reflected_property === "ariaOwnsElements") {
+      // It's undetermined whether reference target should work with aria-owns or not; see
+      // https://github.com/WICG/webcomponents/issues/1091 and
+      // https://github.com/w3c/aria/issues/2266
+      return;
+    }
+
+    if (expected_behavior === Behavior.ReflectsHost) {
+      referencing_element[reflected_property] = host;
+      // For element reflecting properties, the IDL getter should return null when the explicitly
+      // set element has an invalid reference target.
+      assert_equals(referencing_element[reflected_property], null);
+    } else if (expected_behavior === Behavior.ReflectsHostReadOnly) {
+      referencing_element[reflected_property] = host;
+      // Setting a read-only property has no effect.
+      assert_equals(referencing_element[reflected_property], null);
+    } else if (expected_behavior === Behavior.ReflectsHostInArray) {
+      referencing_element[reflected_property] = [ host ];
+      // For element reflecting properties, the IDL getter should not return explicitly set elements
+      // if they have an invalid reference target.
+      assert_array_equals(referencing_element[reflected_property], []);
+    } else if (expected_behavior === Behavior.IsNull) {
+      referencing_element[reflected_property] = host;
+      assert_equals(referencing_element[reflected_property], null);
+    } else if (expected_behavior === Behavior.ReflectsHostID) {
+      referencing_element[reflected_property] = "host-id";
+      // Properties reflecting the host ID return the ID even if it points to an element with
+      // an invalid reference target.
+      assert_equals(referencing_element[reflected_property], "host-id");
+    } else if (expected_behavior === Behavior.ReflectsHostIDInDOMTokenList) {
+      // Properties reflecting a DOMTokenList of IDs returns the IDs even if they point to an
+      // element with an invalid reference target.
+      referencing_element[reflected_property] = [ "host-id" ];
+      assert_true(referencing_element[reflected_property] instanceof DOMTokenList);
+      assert_array_equals(Array.from(referencing_element[reflected_property]), [ "host-id" ]);
+    }
+
+    // Set the reference target to a valid value.
+    host.shadowRoot.referenceTarget = host.shadowRoot.querySelector(referenced_element_type).id;
+
+    if (expected_behavior === Behavior.ReflectsHost) {
+      // For element reflecting properties, if the reference target becomes valid for the explicitly
+      // set element, we should start returning that element.
+      assert_equals(referencing_element[reflected_property], host);
+    } else if (expected_behavior === Behavior.ReflectsHostReadOnly) {
+      assert_equals(referencing_element[reflected_property], null);
+    } else if (expected_behavior === Behavior.ReflectsHostInArray) {
+      // For element reflecting properties, if the reference target becomes valid for any of the
+      // explicitly set elements, we should start returning that element.
+      assert_array_equals(referencing_element[reflected_property], [host]);
+    } else if (expected_behavior === Behavior.IsNull) {
+      assert_equals(referencing_element[reflected_property], null);
+    } else if (expected_behavior === Behavior.ReflectsHostID) {
+      assert_equals(referencing_element[reflected_property], "host-id");
+    } else if (expected_behavior === Behavior.ReflectsHostIDInDOMTokenList) {
+      assert_array_equals(Array.from(referencing_element[reflected_property]), [ "host-id" ]);
+    }
+
+     referencing_element.remove();
+     host_container.setHTMLUnsafe("");
+  }, `${referencing_element_type}.${reflected_property} has IDL setter behavior ${expected_behavior} when pointing to ${referenced_element_type} with reference target${test_name_suffix}`);
 }
 
 function run_test_for_all_reflecting_properties(setup_function, test_function, test_name_suffix) {
@@ -73,13 +150,13 @@ function run_test_for_all_reflecting_properties(setup_function, test_function, t
       const expected_form_property_behavior = (referenced_element_type == 'form' &&
                                               referencing_element_type != "label" &&
                                               referencing_element_type != "legend" &&
-                                              referencing_element_type != "option") ? Behavior.ReflectsHost : Behavior.IsNull;
-                                              test_function(setup_function, test_name_suffix, referencing_element_type, referenced_element_type, "form", "form", expected_form_property_behavior);
+                                              referencing_element_type != "option") ? Behavior.ReflectsHostReadOnly : Behavior.IsNull;
+      test_function(setup_function, test_name_suffix, referencing_element_type, referenced_element_type, "form", "form", expected_form_property_behavior);
 
-      const expected_list_property_behavior = (referenced_element_type == 'datalist') ? Behavior.ReflectsHost : Behavior.IsNull;
+      const expected_list_property_behavior = (referenced_element_type == 'datalist') ? Behavior.ReflectsHostReadOnly : Behavior.IsNull;
       test_function(setup_function, test_name_suffix, referencing_element_type, referenced_element_type, "list", "list", expected_list_property_behavior);
 
-      const expected_control_property_behavior = HTML5_LABELABLE_ELEMENTS.includes(referenced_element_type) ? Behavior.ReflectsHost : Behavior.IsNull;
+      const expected_control_property_behavior = HTML5_LABELABLE_ELEMENTS.includes(referenced_element_type) ? Behavior.ReflectsHostReadOnly : Behavior.IsNull;
       test_function(setup_function, test_name_suffix, referencing_element_type, referenced_element_type, "for", "control", expected_control_property_behavior);
     }
   }

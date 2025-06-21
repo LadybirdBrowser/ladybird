@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Pass
-Pass	Serialization of <generic-family>
+2 Pass
+2 Fail
+Fail	Serialization of <generic-family>
 Pass	Serialization of quoted "<generic-family>"
-Pass	Serialization of prefixed -webkit-<generic-family>
-Pass	Serialization of NonGenericFontFamilyName,-webkit-body,-webkit-standard,-webkit-pictograph,BlinkMacSystemFont
+Fail	Serialization of prefixed -webkit-<generic-family>
+Pass	Serialization of NonGenericFontFamilyName,-webkit-body,-webkit-standard,-webkit-pictograph,emoji,fangsong,BlinkMacSystemFont

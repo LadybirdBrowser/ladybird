@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>CSS Grid Layout Test: only serialize 'grid' when the value can roundtrip</title>
+<title>CSS Grid Layout Test: only serialize 'grid' shorthands when the value can roundtrip</title>
 <link rel="author" title="Daniel Libby" href="mailto:dlibby@microsoft.com">
 <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
 <link rel="help" href="https://drafts.csswg.org/css-grid/#propdef-grid">
@@ -236,6 +236,41 @@
     'grid-template-columns': 'none',
     'grid-template-rows': 'repeat(auto-fit, 3px)'
   });
+
+  test_shorthand_roundtrip('grid-template: none;',
+                            {
+    'grid': '',
+    'grid-template-areas': 'none',
+    'grid-template-rows': 'none',
+    'grid-template-columns': 'none',
+    'grid-template': 'none'
+  });
+  test_shorthand_roundtrip('grid-template: auto / auto;',
+                            {
+    'grid': '',
+    'grid-template-areas': 'none',
+    'grid-template-rows': 'auto',
+    'grid-template-columns': 'auto',
+    'grid-template': 'auto / auto'
+  });
+  test_shorthand_roundtrip('grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] / auto 1fr auto',
+                            {
+    'grid': '',
+    'grid-template-areas': '"a a a" "b b b"',
+    'grid-template-rows': '[header-top] auto [header-bottom main-top] 1fr [main-bottom]',
+    'grid-template-columns': 'auto 1fr auto',
+    'grid-template': '[header-top] "a a a" [header-bottom main-top] "b b b" 1fr [main-bottom] / auto 1fr auto'
+  });
+
+  test_shorthand_roundtrip('grid-template:  [header-top] "a   a   a" [header-bottom] [main-top] "b   b   b" 1fr [main-bottom] "c  c  c" "d  d  d" / auto',
+                            {
+    'grid': '',
+    'grid-template-areas': '"a a a" "b b b" "c c c" "d d d"',
+    'grid-template-rows': '[header-top] auto [header-bottom main-top] 1fr [main-bottom] auto auto',
+    'grid-template-columns': 'auto',
+    'grid-template': '[header-top] "a a a" [header-bottom main-top] "b b b" 1fr [main-bottom] "c c c" "d d d" / auto'
+  });
+
   test_shorthand_roundtrip('grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four"',
                             {
     'grid': '',

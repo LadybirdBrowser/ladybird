@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 608 tests
+Found 620 tests
 
-608 Pass
+620 Pass
 Pass	Bad usages: importKey(spki, {name: ECDH, namedCurve: P-256}, true, [encrypt])
 Pass	Bad usages: importKey(spki, {name: ECDH, namedCurve: P-256}, false, [encrypt])
 Pass	Bad usages: importKey(spki, {name: ECDH, namedCurve: P-256}, true, [decrypt])
@@ -611,3 +611,15 @@ Pass	Missing algorithm name: importKey(jwk(private), {}, true, deriveKey)
 Pass	Missing algorithm name: importKey(jwk(private), {}, false, deriveKey)
 Pass	Missing algorithm name: importKey(jwk(private), {}, true, deriveBits)
 Pass	Missing algorithm name: importKey(jwk(private), {}, false, deriveBits)
+Pass	Invalid 'kty' field: importKey(jwk(private), {name: ECDH, namedCurve: P-256}, true, [deriveKey, deriveBits])
+Pass	Invalid 'kty' field: importKey(jwk(private), {name: ECDH, namedCurve: P-384}, true, [deriveKey, deriveBits])
+Pass	Invalid 'kty' field: importKey(jwk(private), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits])
+Pass	Import from a non-extractable: importKey(jwk(private), {name: ECDH, namedCurve: P-256}, true, [deriveKey, deriveBits])
+Pass	Import from a non-extractable: importKey(jwk(private), {name: ECDH, namedCurve: P-384}, true, [deriveKey, deriveBits])
+Pass	Import from a non-extractable: importKey(jwk(private), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits])
+Pass	Invalid 'use' field: importKey(jwk(private), {name: ECDH, namedCurve: P-256}, true, [deriveKey, deriveBits])
+Pass	Invalid 'use' field: importKey(jwk(private), {name: ECDH, namedCurve: P-384}, true, [deriveKey, deriveBits])
+Pass	Invalid 'use' field: importKey(jwk(private), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits])
+Pass	Invalid 'crv' field: importKey(jwk(private), {name: ECDH, namedCurve: P-256}, true, [deriveKey, deriveBits])
+Pass	Invalid 'crv' field: importKey(jwk(private), {name: ECDH, namedCurve: P-384}, true, [deriveKey, deriveBits])
+Pass	Invalid 'crv' field: importKey(jwk(private), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits])

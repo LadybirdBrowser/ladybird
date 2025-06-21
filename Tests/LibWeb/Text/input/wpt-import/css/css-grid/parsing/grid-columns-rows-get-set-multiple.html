@@ -268,7 +268,6 @@ setup({ explicit_done: true });
 document.fonts.ready.then(() => {
     testGridDefinitionsValues("gridWithFixedElement", "7px 11px", "17px 2px");
     testGridDefinitionsValues("gridWithPercentElement", "400px 800px", "150px 450px");
-    // This test failing in Firefox is caused by https://bugzilla.mozilla.org/show_bug.cgi?id=1481876
     testGridDefinitionsValues("gridWithPercentWithoutSize", "3.5px 7px", "4px 12px");
     testGridDefinitionsValues("gridWithAutoElement", "0px 17px", "0px 3px");
     testGridDefinitionsValues("gridWithEMElement", "100px 120px", "150px 170px");

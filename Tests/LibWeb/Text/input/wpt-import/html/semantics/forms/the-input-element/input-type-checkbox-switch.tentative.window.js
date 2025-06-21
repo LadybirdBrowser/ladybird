@@ -17,3 +17,20 @@ test(t => {
   assert_equals(input.type, "checkbox");
   assert_true(input.switch);
 }, "switch IDL attribute, getter");
+
+test(t => {
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.switch = true;
+
+  const clone = input.cloneNode();
+  assert_equals(clone.getAttribute("switch"), "");
+  assert_equals(clone.type, "checkbox");
+  assert_true(clone.switch);
+
+  t.add_cleanup(() => clone.remove());
+  document.body.appendChild(clone);
+  assert_equals(clone.getAttribute("switch"), "");
+  assert_equals(clone.type, "checkbox");
+  assert_true(clone.switch);
+}, "Cloning a switch control");

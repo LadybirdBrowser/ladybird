@@ -1,7 +1,8 @@
 Harness status: OK
 
-Found 2 tests
+Found 3 tests
 
-2 Fail
+3 Fail
 Fail	e.style['font-synthesis-style'] = "auto" should set the property value
 Fail	e.style['font-synthesis-style'] = "none" should set the property value
+Fail	e.style['font-synthesis-style'] = "oblique-only" should set the property value

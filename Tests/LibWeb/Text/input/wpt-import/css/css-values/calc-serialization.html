@@ -22,7 +22,6 @@ test(function() {
   var content = document.getElementById("content");
 
   for (var prop in values) {
-    content.style.width = '';
     content.style.width = prop;
     assert_equals(content.style.width, values[prop], "Serialization of " + prop);
   }

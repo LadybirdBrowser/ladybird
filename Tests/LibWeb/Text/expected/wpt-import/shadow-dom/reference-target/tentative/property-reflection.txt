@@ -168,7 +168,7 @@ Pass	button.ariaLabelledByElements has reflection behavior ReflectsHostInArray w
 Pass	button.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	button.commandForElement has reflection behavior ReflectsHost when pointing to form with reference target
 Pass	button.popoverTargetElement has reflection behavior ReflectsHost when pointing to form with reference target
-Fail	button.form has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	button.form has reflection behavior ReflectsHostReadOnly when pointing to form with reference target
 Pass	input.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
 Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
 Pass	input.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
@@ -322,7 +322,7 @@ Pass	input.ariaLabelledByElements has reflection behavior ReflectsHostInArray wh
 Pass	input.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to datalist with reference target
 Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to datalist with reference target
 Pass	input.form has reflection behavior IsNull when pointing to datalist with reference target
-Fail	input.list has reflection behavior ReflectsHost when pointing to datalist with reference target
+Fail	input.list has reflection behavior ReflectsHostReadOnly when pointing to datalist with reference target
 Pass	input.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	input.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to form with reference target
 Pass	input.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
@@ -332,7 +332,7 @@ Pass	input.ariaFlowToElements has reflection behavior ReflectsHostInArray when p
 Pass	input.ariaLabelledByElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	input.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	input.popoverTargetElement has reflection behavior ReflectsHost when pointing to form with reference target
-Fail	input.form has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	input.form has reflection behavior ReflectsHostReadOnly when pointing to form with reference target
 Pass	input.list has reflection behavior IsNull when pointing to form with reference target
 Pass	meter.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
 Pass	meter.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
@@ -603,7 +603,7 @@ Pass	output.ariaFlowToElements has reflection behavior ReflectsHostInArray when 
 Pass	output.ariaLabelledByElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	output.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	output.htmlFor has reflection behavior ReflectsHostIDInDOMTokenList when pointing to form with reference target
-Fail	output.form has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	output.form has reflection behavior ReflectsHostReadOnly when pointing to form with reference target
 Pass	progress.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
 Pass	progress.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
 Pass	progress.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
@@ -858,7 +858,7 @@ Pass	select.ariaErrorMessageElements has reflection behavior ReflectsHostInArray
 Pass	select.ariaFlowToElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	select.ariaLabelledByElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	select.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
-Fail	select.form has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	select.form has reflection behavior ReflectsHostReadOnly when pointing to form with reference target
 Pass	textarea.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
 Pass	textarea.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
 Pass	textarea.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
@@ -993,7 +993,7 @@ Pass	textarea.ariaErrorMessageElements has reflection behavior ReflectsHostInArr
 Pass	textarea.ariaFlowToElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	textarea.ariaLabelledByElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	textarea.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
-Fail	textarea.form has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	textarea.form has reflection behavior ReflectsHostReadOnly when pointing to form with reference target
 Pass	div.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
 Pass	div.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
 Pass	div.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
@@ -1248,7 +1248,7 @@ Pass	object.ariaErrorMessageElements has reflection behavior ReflectsHostInArray
 Pass	object.ariaFlowToElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	object.ariaLabelledByElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	object.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
-Fail	object.form has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	object.form has reflection behavior ReflectsHostReadOnly when pointing to form with reference target
 Pass	label.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
 Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
 Pass	label.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
@@ -1259,7 +1259,7 @@ Pass	label.ariaLabelledByElements has reflection behavior ReflectsHostInArray wh
 Pass	label.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
 Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to button with reference target
 Pass	label.form has reflection behavior IsNull when pointing to button with reference target
-Fail	label.control has reflection behavior ReflectsHost when pointing to button with reference target
+Fail	label.control has reflection behavior ReflectsHostReadOnly when pointing to button with reference target
 Pass	label.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to input with reference target
 Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to input with reference target
 Pass	label.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to input with reference target
@@ -1270,7 +1270,7 @@ Pass	label.ariaLabelledByElements has reflection behavior ReflectsHostInArray wh
 Pass	label.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to input with reference target
 Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to input with reference target
 Pass	label.form has reflection behavior IsNull when pointing to input with reference target
-Fail	label.control has reflection behavior ReflectsHost when pointing to input with reference target
+Fail	label.control has reflection behavior ReflectsHostReadOnly when pointing to input with reference target
 Pass	label.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to meter with reference target
 Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to meter with reference target
 Pass	label.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to meter with reference target
@@ -1281,7 +1281,7 @@ Pass	label.ariaLabelledByElements has reflection behavior ReflectsHostInArray wh
 Pass	label.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to meter with reference target
 Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to meter with reference target
 Pass	label.form has reflection behavior IsNull when pointing to meter with reference target
-Fail	label.control has reflection behavior ReflectsHost when pointing to meter with reference target
+Fail	label.control has reflection behavior ReflectsHostReadOnly when pointing to meter with reference target
 Pass	label.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to output with reference target
 Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to output with reference target
 Pass	label.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to output with reference target
@@ -1292,7 +1292,7 @@ Pass	label.ariaLabelledByElements has reflection behavior ReflectsHostInArray wh
 Pass	label.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to output with reference target
 Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to output with reference target
 Pass	label.form has reflection behavior IsNull when pointing to output with reference target
-Fail	label.control has reflection behavior ReflectsHost when pointing to output with reference target
+Fail	label.control has reflection behavior ReflectsHostReadOnly when pointing to output with reference target
 Pass	label.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to progress with reference target
 Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to progress with reference target
 Pass	label.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to progress with reference target
@@ -1303,7 +1303,7 @@ Pass	label.ariaLabelledByElements has reflection behavior ReflectsHostInArray wh
 Pass	label.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to progress with reference target
 Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to progress with reference target
 Pass	label.form has reflection behavior IsNull when pointing to progress with reference target
-Fail	label.control has reflection behavior ReflectsHost when pointing to progress with reference target
+Fail	label.control has reflection behavior ReflectsHostReadOnly when pointing to progress with reference target
 Pass	label.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to select with reference target
 Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to select with reference target
 Pass	label.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to select with reference target
@@ -1314,7 +1314,7 @@ Pass	label.ariaLabelledByElements has reflection behavior ReflectsHostInArray wh
 Pass	label.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to select with reference target
 Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to select with reference target
 Pass	label.form has reflection behavior IsNull when pointing to select with reference target
-Fail	label.control has reflection behavior ReflectsHost when pointing to select with reference target
+Fail	label.control has reflection behavior ReflectsHostReadOnly when pointing to select with reference target
 Pass	label.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to textarea with reference target
 Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to textarea with reference target
 Pass	label.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to textarea with reference target
@@ -1325,7 +1325,7 @@ Pass	label.ariaLabelledByElements has reflection behavior ReflectsHostInArray wh
 Pass	label.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to textarea with reference target
 Pass	label.htmlFor has reflection behavior ReflectsHostID when pointing to textarea with reference target
 Pass	label.form has reflection behavior IsNull when pointing to textarea with reference target
-Fail	label.control has reflection behavior ReflectsHost when pointing to textarea with reference target
+Fail	label.control has reflection behavior ReflectsHostReadOnly when pointing to textarea with reference target
 Pass	label.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to div with reference target
 Pass	label.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to div with reference target
 Pass	label.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to div with reference target
@@ -1548,7 +1548,7 @@ Pass	fieldset.ariaErrorMessageElements has reflection behavior ReflectsHostInArr
 Pass	fieldset.ariaFlowToElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	fieldset.ariaLabelledByElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
 Pass	fieldset.ariaOwnsElements has reflection behavior ReflectsHostInArray when pointing to form with reference target
-Fail	fieldset.form has reflection behavior ReflectsHost when pointing to form with reference target
+Fail	fieldset.form has reflection behavior ReflectsHostReadOnly when pointing to form with reference target
 Pass	legend.ariaControlsElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
 Pass	legend.ariaActiveDescendantElement has reflection behavior ReflectsHost when pointing to button with reference target
 Pass	legend.ariaDescribedByElements has reflection behavior ReflectsHostInArray when pointing to button with reference target
