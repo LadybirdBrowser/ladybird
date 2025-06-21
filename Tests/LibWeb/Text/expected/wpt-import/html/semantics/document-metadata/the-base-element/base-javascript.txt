@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	First <base> has a javascript: URL so fallback is used
+Pass	First <base> is removed so second is used
+Pass	Dynamically inserted first <base> has a javascript: URL so fallback is used
