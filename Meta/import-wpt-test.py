@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import re
-import sys
 
 from collections import namedtuple
 from dataclasses import dataclass
@@ -14,6 +14,19 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 
 wpt_base_url = "https://wpt.live/"
+download_exclude_list = {
+    # This relies on a dynamic path that cannot be rewitten by the importer.
+    "/resources/idlharness.js",
+    # This file has been modified to improve the performance of our test runner.
+    "/resources/testharness.js",
+    # We have modified this file to output text files compatible with our test runner.
+    "/resources/testharnessreport.js",
+    # We have modified this file to use our internals object instead of relying on WebDriver.
+    "/resources/testdriver-vendor.js",
+    # Modified to use a relative path, which the importer can't rewrite.
+    "/fonts/ahem.css",
+}
+visited_paths = set()
 
 
 class TestType(Enum):
@@ -179,16 +192,32 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
             f.write(str(page_source))
 
 
-def download_files(filepaths):
+def normalized_url_path(url):
+    parsed = urlparse(url)
+    return "/" + "/".join(segment for segment in parsed.path.split("/") if segment)
+
+
+def download_files(filepaths, skip_existing):
     downloaded_files = []
 
     for file in filepaths:
+        normalized_path = normalized_url_path(file.source)
+        if normalized_path in visited_paths:
+            continue
+        if normalized_path in download_exclude_list:
+            print(f"Skipping {file.source} as it is in the exclude list")
+            visited_paths.add(normalized_path)
+            continue
+
         source = urljoin(file.source, "/".join(file.source.split("/")[3:]))
         destination = Path(os.path.normpath(file.destination))
 
-        if destination.exists():
+        if skip_existing and destination.exists():
             print(f"Skipping {destination} as it already exists")
+            visited_paths.add(normalized_path)
             continue
+
+        visited_paths.add(normalized_path)
 
         print(f"Downloading {source} to {destination}")
 
@@ -207,7 +236,7 @@ def download_files(filepaths):
     return downloaded_files
 
 
-def create_expectation_files(files):
+def create_expectation_files(files, skip_existing):
     # Ref tests don't have an expectation text file
     if test_type in [TestType.REF, TestType.CRASH]:
         return
@@ -217,7 +246,7 @@ def create_expectation_files(files):
         new_path = new_path.rsplit(".", 1)[0] + ".txt"
 
         expected_file = Path(new_path)
-        if expected_file.exists():
+        if skip_existing and expected_file.exists():
             print(f"Skipping {expected_file} as it already exists")
             continue
 
@@ -226,11 +255,13 @@ def create_expectation_files(files):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: import-wpt-test.py <url>")
-        return
+    parser = argparse.ArgumentParser(description="Import a WPT test into LibWeb")
+    parser.add_argument("--force", action="store_true", help="Force download of files even if they already exist")
+    parser.add_argument("url", type=str, help="The URL of the WPT test to import")
+    args = parser.parse_args()
 
-    url_to_import = sys.argv[1]
+    skip_existing = not args.force
+    url_to_import = args.url
     resource_path = "/".join(Path(url_to_import).parts[2::])
 
     with urlopen(url_to_import) as response:
@@ -269,8 +300,8 @@ def main():
                 )
             )
 
-    files_to_modify = download_files(main_paths)
-    create_expectation_files(main_paths)
+    files_to_modify = download_files(main_paths, skip_existing)
+    create_expectation_files(main_paths, skip_existing)
 
     input_parser = LinkedResourceFinder()
     input_parser.feed(page)
@@ -287,7 +318,7 @@ def main():
 
     modify_sources(files_to_modify, additional_resources)
     script_paths = map_to_path(additional_resources, True, resource_path)
-    download_files(script_paths)
+    download_files(script_paths, skip_existing)
 
 
 if __name__ == "__main__":
