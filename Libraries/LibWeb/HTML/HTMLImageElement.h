@@ -114,6 +114,8 @@ public:
 private:
     HTMLImageElement(DOM::Document&, DOM::QualifiedName);
 
+    void update_the_image_data_impl(bool restart_the_animations = false, bool maybe_omit_events = false);
+
     virtual bool is_html_image_element() const override { return true; }
 
     virtual void initialize(JS::Realm&) override;
@@ -143,6 +145,8 @@ private:
     size_t m_loops_completed { 0 };
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
+
+    GC::Ptr<DOM::DocumentObserver> m_document_observer;
 
     CORSSettingAttribute m_cors_setting { CORSSettingAttribute::NoCORS };
 
