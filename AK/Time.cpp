@@ -14,9 +14,9 @@
 
 #ifdef AK_OS_WINDOWS
 #    include <AK/Windows.h>
+#    define tzname _tzname
 #    define localtime_r(time, tm) localtime_s(tm, time)
 #    define gmtime_r(time, tm) gmtime_s(tm, time)
-#    define tzname _tzname
 #endif
 
 namespace AK {
@@ -590,7 +590,7 @@ Optional<UnixDateTime> UnixDateTime::parse(StringView format, StringView string)
             int year = parse_number();
             tm.tm_mon = mon - 1;
             tm.tm_mday = day;
-            tm.tm_year = (year + 1900) % 100;
+            tm.tm_year = year > 1900 ? year - 1900 : (year <= 99 && year > 69 ? year : 100 + year);
             break;
         }
         case 'e':
@@ -654,7 +654,7 @@ Optional<UnixDateTime> UnixDateTime::parse(StringView format, StringView string)
             break;
         case 'y': {
             int year = parse_number();
-            tm.tm_year = year <= 99 && year > 69 ? 1900 + year : 2000 + year;
+            tm.tm_year = year <= 99 && year > 69 ? year : 100 + year;
             break;
         }
         case 'Y': {

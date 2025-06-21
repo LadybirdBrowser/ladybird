@@ -21,6 +21,11 @@ using AK::Duration;
         EXPECT_EQ(ts.tv_nsec, (ns)); \
     } while (0)
 
+#ifdef AK_OS_WINDOWS
+#    include <time.h>
+#    define gmtime_r(time, tm) gmtime_s(tm, time)
+#endif
+
 TEST_CASE(is_sane)
 {
     auto t0 = Duration::from_seconds(0);
@@ -690,12 +695,19 @@ TEST_CASE(time_to_string)
 TEST_CASE(parse_time)
 {
     auto test = [](auto format, auto time, int year, int month, int day, int hour, int minute, int second = 0) {
+        printf("Testing format: %s with time: %s\n", format.to_byte_string().characters(), time.to_byte_string().characters());
         auto result = AK::UnixDateTime::parse(format, time);
         VERIFY(result.has_value());
 
-        auto result_time = result.value().to_timeval();
+        auto result_time = result.value().to_timespec();
         struct tm tm;
+#ifdef AK_OS_WINDOWS
+        auto z = gmtime_r(&result_time.tv_sec, &tm);
+        printf("gmtime_r returned: %d\n", z);
+        VERIFY(gmtime_r(&result_time.tv_sec, &tm) == 0);
+#else
         VERIFY(gmtime_r(&result_time.tv_sec, &tm) != nullptr);
+#endif
 
         EXPECT_EQ(year, tm.tm_year + 1900);
         EXPECT_EQ(month, tm.tm_mon + 1);
@@ -706,6 +718,7 @@ TEST_CASE(parse_time)
     };
 
     test("%d-%m-%Y %H:%M"sv, "05-01-2023 00:00"sv, 2023, 1, 5, 0, 0);
+    test("%d-%m-%Y %H:%M GMT"sv, "05-01-2023 00:00 GMT"sv, 2023, 1, 5, 0, 0);
     test("%Y/%m/%d %R"sv, "2023/01/23 10:50"sv, 2023, 1, 23, 10, 50);
     test("%Y-%m-%d %H:%M"sv, "1999-12-31 23:59"sv, 1999, 12, 31, 23, 59);
     test("%Y/%m/%d %R"sv, "1970/01/01 00:00"sv, 1970, 1, 1, 0, 0);
@@ -719,7 +732,7 @@ TEST_CASE(parse_time)
     test("%Y-%m-%d %I:%M %p"sv, "2023-01-23 03:21 PM"sv, 2023, 1, 23, 15, 21, 0);
     test("%Y-%m-%d %I:%M %p"sv, "2023-01-23 12:01 AM"sv, 2023, 1, 23, 0, 1, 0);
     // %D: shortcut for %m/%d/%y
-    test("%D %H:%M:%S"sv, "01/23/23 10:50:59"sv, 1923, 1, 23, 10, 50, 59);
+    test("%D %H:%M:%S"sv, "01/23/23 10:50:59"sv, 2023, 1, 23, 10, 50, 59);
     // %y: two-digit year, %C: century
     test("%y %C %m %d %H:%M:%S"sv, "23 20 01 23 10:50:11"sv, 2023, 1, 23, 10, 50, 11);
     // %a/%A: short/long weekday name (parsing ignores names, but test for correct date)
@@ -750,9 +763,13 @@ TEST_CASE(parse_wildcard_characters)
         auto result = AK::UnixDateTime::parse(format, time);
         VERIFY(result.has_value());
 
-        auto result_time = result.value().to_timeval();
+        auto result_time = result.value().to_timespec();
         struct tm tm;
+#ifdef AK_OS_WINDOWS
+        VERIFY(gmtime_r(&result_time.tv_sec, &tm) == 0);
+#else
         VERIFY(gmtime_r(&result_time.tv_sec, &tm) != nullptr);
+#endif
 
         EXPECT_EQ(year, tm.tm_year + 1900);
         EXPECT_EQ(month, tm.tm_mon + 1);
@@ -763,4 +780,29 @@ TEST_CASE(parse_wildcard_characters)
     test("%Y %m %d %+"sv, "2023 01 23 whf"sv, 2023, 01, 23);
     test("%Y [%+] %m %d"sv, "2023 [well hello friends!] 01 23"sv, 2023, 01, 23);
     test("%Y %m %d [%+]"sv, "2023 01 23 [well hello friends!]"sv, 2023, 01, 23);
+}
+
+TEST_CASE(formatter_unix_date_time)
+{
+    auto test = [](auto expected, i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second) {
+        auto data = AK::UnixDateTime::from_unix_time_parts(year, month, day, hour, minute, second, 0);
+        StringBuilder builder;
+        builder.appendff("{}", data);
+
+        auto result = builder.to_string();
+        VERIFY(!result.is_error());
+
+        EXPECT_EQ(expected, builder.to_string().value());
+    };
+
+    test("2023-01-05 00:00:00"sv, 2023, 1, 5, 0, 0, 0);
+    test("1970-01-01 00:00:00"sv, 1970, 1, 1, 0, 0, 0);      // Edge case for Unix epoch
+    test("1970-01-01 23:59:59"sv, 1970, 1, 1, 23, 59, 59);   // Edge case for Unix epoch
+    test("2000-02-29 12:34:56"sv, 2000, 2, 29, 12, 34, 56);  // Leap year (valid)
+    test("1999-12-31 23:59:59"sv, 1999, 12, 31, 23, 59, 59); // Y2K edge
+    test("2024-02-29 23:59:59"sv, 2024, 2, 29, 23, 59, 59);  // Next leap year
+    test("1980-01-01 00:00:00"sv, 1980, 1, 1, 0, 0, 0);      // Another leap year start
+    test("2038-01-19 03:14:07"sv, 2038, 1, 19, 3, 14, 7);    // 32-bit Unix time max
+    test("2022-12-31 23:59:59"sv, 2022, 12, 31, 23, 59, 59); // End of year
+    test("2023-04-01 00:00:00"sv, 2023, 4, 1, 0, 0, 0);      // Start of month
 }
