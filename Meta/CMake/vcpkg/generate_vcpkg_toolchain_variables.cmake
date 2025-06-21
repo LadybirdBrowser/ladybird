@@ -1,11 +1,14 @@
 # The generated file here is read by vcpkg/base-triplets/base.cmake to ensure consistency between the project
 # build and the vcpkg build.
 set(EXTRA_VCPKG_VARIABLES "")
-if (NOT "${CMAKE_C_COMPILER}" STREQUAL "")
-    string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CC} ${CMAKE_C_COMPILER})\n")
-endif()
-if (NOT "${CMAKE_CXX_COMPILER}" STREQUAL "")
-    string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CXX} ${CMAKE_CXX_COMPILER})\n")
+if (NOT WIN32)
+    # Supporting Clang-CL for all our vcpkg ports is an adventure in itself, so let's not
+    if (NOT "${CMAKE_C_COMPILER}" STREQUAL "")
+        string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CC} ${CMAKE_C_COMPILER})\n")
+    endif()
+    if (NOT "${CMAKE_CXX_COMPILER}" STREQUAL "")
+        string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CXX} ${CMAKE_CXX_COMPILER})\n")
+    endif()
 endif()
 
 # Workaround for bad patchelf interaction with binutils 2.43.50
