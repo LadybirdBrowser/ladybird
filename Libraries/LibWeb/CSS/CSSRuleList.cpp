@@ -63,18 +63,17 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     // NOTE: The insert-a-css-rule spec expects `rule` to be a string, but the CSSStyleSheet.insertRule()
     //       spec calls this algorithm with an already-parsed CSSRule. So, we use a Variant and skip step 3
     //       if that variant holds a CSSRule already.
-    Parser::ParsingParams parsing_params { realm() };
-    parsing_params.rule_context = rule_context();
-
     CSSRule* new_rule = nullptr;
     if (rule.has<StringView>()) {
-        new_rule = parse_css_rule(parsing_params, rule.get<StringView>());
+        new_rule = parse_css_rule(Parser::ParsingParams { realm() }, rule.get<StringView>());
     } else {
         new_rule = rule.get<CSSRule*>();
     }
 
     // 4. If new rule is a syntax error, and nested is set, perform the following substeps:
     if (!new_rule && nested == Nested::Yes) {
+        Parser::ParsingParams parsing_params { realm() };
+        parsing_params.rule_context = rule_context();
         // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
         auto declarations = parse_css_property_declaration_block(parsing_params, rule.get<StringView>());
 
@@ -90,7 +89,50 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     if (!new_rule)
         return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS rule."_string);
 
-    // FIXME: 6. If new rule cannot be inserted into list at the zero-index position index due to constraints specified by CSS, then throw a HierarchyRequestError exception. [CSS21]
+    auto has_rule_of_type_other_than_specified_before_index = [&](Vector<CSSRule::Type> types, size_t index) {
+        for (size_t i = 0; i < index; i++) {
+            if (!any_of(types, [&](auto type) { return m_rules[i]->type() == type; }))
+                return true;
+        }
+        return false;
+    };
+
+    auto has_rule_of_type_at_or_after_index = [&](CSSRule::Type type, size_t index) {
+        for (size_t i = index; i < m_rules.size(); i++) {
+            if (m_rules[i]->type() == type)
+                return true;
+        }
+        return false;
+    };
+
+    // 6. If new rule cannot be inserted into list at the zero-indexed position index due to constraints specified by CSS, then throw a HierarchyRequestError exception. [CSS21]
+    // "Any @import rules must precede all other valid at-rules and style rules in a style sheet
+    // (ignoring @charset and @layer statement rules) and must not have any other valid at-rules
+    // or style rules between it and previous @import rules, or else the @import rule is invalid."
+    // https://drafts.csswg.org/css-cascade-5/#at-import
+    //
+    // "Any @namespace rules must follow all @charset and @import rules and precede all other
+    // non-ignored at-rules and style rules in a style sheet.
+
+    auto rule_is_disallowed = false;
+    // FIXME: Account for @charset once it is implemented.
+    switch (new_rule->type()) {
+    case CSSRule::Type::LayerStatement:
+        break;
+    case CSSRule::Type::Import:
+        rule_is_disallowed = has_rule_of_type_other_than_specified_before_index({ CSSRule::Type::Import, CSSRule::Type::LayerStatement }, index);
+        break;
+    case CSSRule::Type::Namespace:
+        rule_is_disallowed = has_rule_of_type_at_or_after_index(CSSRule::Type::Import, index) || has_rule_of_type_other_than_specified_before_index({ CSSRule::Type::Import, CSSRule::Type::Namespace, CSSRule::Type::LayerStatement }, index);
+        break;
+    default:
+        rule_is_disallowed = has_rule_of_type_at_or_after_index(CSSRule::Type::Import, index) || has_rule_of_type_at_or_after_index(CSSRule::Type::Namespace, index);
+        break;
+    }
+
+    // FIXME: There are more constraints that we should check here - Parser::is_valid_in_the_current_context is probably a good reference for that.
+    if (rule_is_disallowed || (nested == Nested::Yes && first_is_one_of(new_rule->type(), CSSRule::Type::Import, CSSRule::Type::Namespace)))
+        return WebIDL::HierarchyRequestError::create(realm(), "Cannot insert rule at specified index."_string);
 
     // 7. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
     if (new_rule->type() == CSSRule::Type::Namespace && any_of(m_rules, [](auto existing_rule) { return existing_rule->type() != CSSRule::Type::Import && existing_rule->type() != CSSRule::Type::Namespace; }))

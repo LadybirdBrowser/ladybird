@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSSOM - CSSGroupingRule - insertRule</title>
+    <link rel="help" href="https://drafts.csswg.org/cssom/#the-cssgroupingrule-interface">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script>
+    function create(t) {
+        var style = document.createElement('style');
+        style.appendChild(document.createTextNode('@media all { * {} }'));
+        document.head.appendChild(style);
+        t.add_cleanup(function() {
+            document.head.removeChild(style);
+        });
+
+        assert_true(!!style.sheet, 'setup - sheet defined');
+        assert_equals(
+            style.sheet.cssRules.length, 1, 'setup - grouping rule created'
+        );
+        assert_equals(
+            style.sheet.cssRules[0].cssRules.length, 1, 'setup - rule created'
+        );
+        return style.sheet.cssRules[0];
+    }
+
+    test(function (t) {
+        var groupingRule = create(t);
+        var first = groupingRule.cssRules[0].cssText;
+        var result;
+
+        result = groupingRule.insertRule('.foo {}', 0);
+
+        assert_equals(groupingRule.cssRules.length, 2);
+        assert_not_equals(groupingRule.cssRules[0].cssText, first);
+        assert_equals(groupingRule.cssRules[1].cssText, first);
+        assert_equals(result, 0, 'result');
+    }, 'index before first');
+
+    test(function (t) {
+        var groupingRule = create(t);
+        var first = groupingRule.cssRules[0].cssText;
+        var result;
+
+        result = groupingRule.insertRule('.foo {}', 1);
+
+        assert_equals(groupingRule.cssRules.length, 2);
+        assert_equals(groupingRule.cssRules[0].cssText, first);
+        assert_not_equals(groupingRule.cssRules[1].cssText, first);
+        assert_equals(result, 1);
+    }, 'index after final');
+
+    test(function (t) {
+        var groupingRule = create(t);
+        var first = groupingRule.cssRules[0].cssText;
+        var result;
+
+        result = groupingRule.insertRule('.foo {}');
+
+        assert_equals(groupingRule.cssRules.length, 2);
+        assert_not_equals(groupingRule.cssRules[0].cssText, first);
+        assert_equals(groupingRule.cssRules[1].cssText, first);
+        assert_equals(result, 0);
+    }, 'index not specified');
+
+    test(function (t) {
+        var groupingRule = create(t);
+        var first = groupingRule.cssRules[0].cssText;
+
+        assert_throws_dom('IndexSizeError', function() {
+            // The syntax error is intentional; it verifies that the insertion
+            // index is validated prior to the CSS text.
+            groupingRule.insertRule('???', 2);
+        });
+
+        assert_equals(groupingRule.cssRules.length, 1);
+        assert_equals(groupingRule.cssRules[0].cssText, first);
+    }, 'index exceeds length');
+
+    test(function (t) {
+        var groupingRule = create(t);
+        var first = groupingRule.cssRules[0].cssText;
+
+        assert_throws_dom('SyntaxError', function() {
+            groupingRule.insertRule('???', 0);
+        });
+
+        assert_equals(groupingRule.cssRules.length, 1);
+        assert_equals(groupingRule.cssRules[0].cssText, first);
+    }, 'CSS parsing error');
+
+    test(function (t) {
+        var groupingRule = create(t);
+        var first = groupingRule.cssRules[0].cssText;
+
+        assert_throws_dom('HierarchyRequestError', function() {
+            groupingRule.insertRule('@import url("foo.css");', 0);
+        });
+
+        assert_equals(groupingRule.cssRules.length, 1);
+        assert_equals(groupingRule.cssRules[0].cssText, first);
+    }, 'constraint violation');
+
+    test(function (t) {
+        var groupingRule = create(t);
+        var first = groupingRule.cssRules[0].cssText;
+
+        assert_throws_dom('HierarchyRequestError', function() {
+            groupingRule.insertRule('@namespace url(http://www.w3.org/1999/xhtml);', 0);
+        });
+
+        assert_equals(groupingRule.cssRules.length, 1);
+        assert_equals(groupingRule.cssRules[0].cssText, first);
+    }, 'disallowed namespace rule');
+    </script>
+</head>
+</html>
