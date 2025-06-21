@@ -133,7 +133,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
     }
 
     if (name.is_one_of(HTML::AttributeNames::src, HTML::AttributeNames::srcset)) {
-        update_the_image_data(true).release_value_but_fixme_should_propagate_errors();
+        update_the_image_data(true);
     }
 
     if (name == HTML::AttributeNames::alt) {
@@ -480,7 +480,7 @@ static BatchingDispatcher& batching_dispatcher()
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#update-the-image-data
-ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe_omit_events)
+void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe_omit_events)
 {
     // 1. If the element's node document is not fully active, then:
     if (!document().is_fully_active()) {
@@ -572,7 +572,7 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
             });
 
             // 8. Abort the update the image data algorithm.
-            return {};
+            return;
         }
     }
 after_step_7:
@@ -730,7 +730,6 @@ after_step_7:
 
         image_request->fetch_image(realm(), request);
     }));
-    return {};
 }
 
 void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, URL::URL const& url_string, String const& previous_url)
