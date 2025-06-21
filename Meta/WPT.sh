@@ -87,6 +87,7 @@ WPT_ARGS=(
     "--no-pause-after-test"
     "${EXTRA_WPT_ARGS[@]}"
 )
+IMPORT_ARGS=()
 WPT_LOG_ARGS=()
 
 ARG0=$0
@@ -149,6 +150,8 @@ print_help() {
           Run the Web Platform Tests in the 'css/CSS2' directory, comparing the results to the expectations in expectations.log; output the results to results.log.
       $NAME import html/dom/aria-attribute-reflection.html
           Import the test from https://wpt.live/html/dom/aria-attribute-reflection.html into the Ladybird test suite.
+      $NAME import --force html/dom/aria-attribute-reflection.html
+          Import the test from https://wpt.live/html/dom/aria-attribute-reflection.html into the Ladybird test suite, redownloading any files that already exist.
       $NAME list-tests css/CSS2 dom
           Show a list of all tests in the 'css/CSS2' and 'dom' directories.
 EOF
@@ -603,7 +606,7 @@ import_wpt()
         set +e
         for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
-            if ! ./Meta/import-wpt-test.py https://wpt.live/"${path}"; then
+            if ! ./Meta/import-wpt-test.py "${IMPORT_ARGS[@]}" https://wpt.live/"${path}"; then
                 continue
             fi
             "${TEST_WEB_BINARY}" --rebaseline -f "$path"
@@ -640,6 +643,10 @@ if [[ "$CMD" =~ ^(update|clean|run|serve|compare|import|list-tests)$ ]]; then
             serve_wpt
             ;;
         import)
+            if [ "$1" = "--force" ]; then
+                shift
+                IMPORT_ARGS+=( "--force" )
+            fi
             if [ $# -eq 0 ]; then
                 usage
             fi
