@@ -103,34 +103,14 @@ Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<T>& input)
     return consume_a_stylesheets_contents(input);
 }
 
-GC::RootVector<GC::Ref<CSSRule>> Parser::parse_as_stylesheet_contents()
+GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_rules)
 {
-    auto raw_rules = parse_a_stylesheets_contents(m_token_stream);
-    GC::RootVector<GC::Ref<CSSRule>> rules(realm().heap());
-    for (auto const& raw_rule : raw_rules) {
-        auto rule = convert_to_rule(raw_rule, Nested::No);
-        if (!rule) {
-            log_parse_error();
-            continue;
-        }
-        rules.append(*rule);
-    }
-
-    return rules;
-}
-
-// https://drafts.csswg.org/css-syntax/#parse-a-css-stylesheet
-GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
-{
-    // To parse a CSS stylesheet, first parse a stylesheet.
-    auto const& style_sheet = parse_a_stylesheet(m_token_stream, location);
-
     bool import_rules_valid = true;
     bool namespace_rules_valid = true;
 
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     GC::RootVector<GC::Ref<CSSRule>> rules(realm().heap());
-    for (auto const& raw_rule : style_sheet.rules) {
+    for (auto const& raw_rule : raw_rules) {
         auto rule = convert_to_rule(raw_rule, Nested::No);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
         // Discard that rule.
@@ -171,7 +151,21 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
         rules.append(*rule);
     }
 
-    auto rule_list = CSSRuleList::create(realm(), rules);
+    return rules;
+}
+
+GC::RootVector<GC::Ref<CSSRule>> Parser::parse_as_stylesheet_contents()
+{
+    return convert_rules(parse_a_stylesheets_contents(m_token_stream));
+}
+
+// https://drafts.csswg.org/css-syntax/#parse-a-css-stylesheet
+GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL> location, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
+{
+    // To parse a CSS stylesheet, first parse a stylesheet.
+    auto const& style_sheet = parse_a_stylesheet(m_token_stream, location);
+
+    auto rule_list = CSSRuleList::create(realm(), convert_rules(style_sheet.rules));
     auto media_list = MediaList::create(realm(), move(media_query_list));
     return CSSStyleSheet::create(realm(), rule_list, media_list, move(location));
 }
