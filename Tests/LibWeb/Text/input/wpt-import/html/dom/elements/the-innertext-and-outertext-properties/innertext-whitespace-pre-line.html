@@ -31,11 +31,9 @@ test(() => {
 
 test(() => {
   function collapseWhitespace(s) {
-    return s.replace(/  +/g, ' ')     // collapse runs of spaces
-            .replace(/ $/mg, '')      // strip trailing spaces
-            .replace(/^ /mg, '')      // strip leading spaces
-            .replace(/\n\n+/g, '\n')  // collapse runs of newlines
-            .replace(/^\n/, '');      // remove any initial newline
+    return s.replace(/  +/g, ' ')  // collapse runs of spaces
+            .replace(/ $/mg, '')   // strip trailing spaces
+            .replace(/^ /mg, '');  // strip leading spaces
   }
   assert_equals(c.innerText, collapseWhitespace(d.innerText));
 }, "innerText has collapsed whitespace but preserved newlines with pre-line");

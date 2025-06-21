@@ -77,7 +77,7 @@ test(function() {
   var t9 = div.appendChild(doc.createTextNode("e"))
   var expected = [t1, t2, t3, t4, t5, t6, t7, t8, t9]
   assert_array_equals(div.childNodes, expected)
-  div.normalize();
+  div.normalize()
   assert_array_equals(div.childNodes, expected)
 }, "Non-text nodes with empty textContent values.")
 </script>

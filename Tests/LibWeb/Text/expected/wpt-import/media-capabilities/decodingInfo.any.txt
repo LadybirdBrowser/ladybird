@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 40 tests
+Found 33 tests
 
-22 Pass
+15 Pass
 18 Fail
 Pass	Test that decodingInfo rejects if it doesn't get a configuration
 Pass	Test that decodingInfo rejects if the MediaConfiguration isn't valid
@@ -21,13 +21,6 @@ Fail	Test that decodingInfo rejects if the video configuration contentType has o
 Fail	Test that decodingInfo rejects if the video configuration contentType does not imply a single media codec but has no codecs parameter
 Fail	Test that decodingInfo rejects if the video configuration contentType has a codecs parameter that indicates multiple video codecs
 Fail	Test that decodingInfo rejects if the video configuration contentType has a codecs parameter that indicates both an audio and a video codec
-Pass	Test that decodingInfo rejects framerate in the form of x/y
-Pass	Test that decodingInfo rejects framerate in the form of x/0
-Pass	Test that decodingInfo rejects framerate in the form of 0/y
-Pass	Test that decodingInfo rejects framerate in the form of -x/y
-Pass	Test that decodingInfo rejects framerate in the form of x/-y
-Pass	Test that decodingInfo rejects framerate in the form of x/
-Pass	Test that decodingInfo rejects framerate with trailing unallowed characters
 Pass	Test that decodingInfo rejects if the audio configuration contentType doesn't parse
 Fail	Test that decodingInfo rejects if the audio configuration contentType is not a valid MIME type string
 Pass	Test that decodingInfo rejects if the audio configuration contentType isn't of type audio

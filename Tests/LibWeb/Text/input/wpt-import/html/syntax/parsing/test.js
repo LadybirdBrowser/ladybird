@@ -131,10 +131,6 @@ function parse_query() {
 
 function get_type() {
   var run_type = "uri";
-  if (location.href.includes("-write.html"))
-    run_type = "write";
-  if (location.href.includes("-write_single.html"))
-    run_type = "write_single";
   var fields = parse_query();
   fields.forEach(function(x) {
                    if(x[0] == "run_type") {

@@ -1,22 +1,8 @@
-<script src="../../include.js"></script>
-<script>
-    // FIXME: This should be an import of WPT from webstorage/storage_session_setitem_quotaexceedederr.window.html
-    test(() => {
-        sessionStorage.clear();
+<!doctype html>
+<meta charset=utf-8>
 
-        var index = 0;
-        var key = "name";
-        var val = "x".repeat(1024);
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
 
-        try {
-            while (true) {
-                index++;
-                sessionStorage.setItem("" + key + index, "" + val + index);
-            }
-        } catch (e) {
-            println(e);
-        }
-
-        sessionStorage.clear();
-    });
-</script>
+<div id=log></div>
+<script src="../webstorage/storage_session_setitem_quotaexceedederr.window.js"></script>

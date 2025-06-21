@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>CSS Fonts Module: getComputedStyle().fontSynthesis</title>
 <link rel="help" href="https://drafts.csswg.org/css-fonts/#font-synthesis">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9390#issuecomment-2625297188">
 <meta name="assert" content="font-synthesis computed value is as specified.">
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
@@ -15,17 +16,24 @@
 test_computed_value('font-synthesis', 'none');
 test_computed_value('font-synthesis', 'weight');
 test_computed_value('font-synthesis', 'style');
+test_computed_value('font-synthesis', 'oblique-only');
 test_computed_value('font-synthesis', 'small-caps');
 test_computed_value('font-synthesis', 'position');
 test_computed_value('font-synthesis', 'small-caps position');
 test_computed_value('font-synthesis', 'style small-caps');
 test_computed_value('font-synthesis', 'style position');
 test_computed_value('font-synthesis', 'style small-caps position');
+test_computed_value('font-synthesis', 'oblique-only small-caps');
+test_computed_value('font-synthesis', 'oblique-only position');
+test_computed_value('font-synthesis', 'oblique-only small-caps position');
 test_computed_value('font-synthesis', 'weight small-caps');
 test_computed_value('font-synthesis', 'weight style');
+test_computed_value('font-synthesis', 'weight oblique-only');
 test_computed_value('font-synthesis', 'weight position');
 test_computed_value('font-synthesis', 'weight style small-caps');
 test_computed_value('font-synthesis', 'weight style small-caps position');
+test_computed_value('font-synthesis', 'weight oblique-only small-caps');
+test_computed_value('font-synthesis', 'weight oblique-only small-caps position');
 </script>
 </body>
 </html>

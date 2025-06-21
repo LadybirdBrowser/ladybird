@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 271 tests
+Found 272 tests
 
 210 Pass
-61 Fail
+62 Fail
 Pass	Simplest possible test ("<div>abc")
 Fail	Leading whitespace removed ("<div> abc")
 Fail	Trailing whitespace removed ("<div>abc ")
@@ -78,6 +78,7 @@ Pass	Soft breaks ignored, text-transform applied ("<div style='width:1px; word-b
 Fail	<br> returned as newline, following space collapsed ("<div style='width:1px; word-break:break-word'>Hello<br> Kitty</div>")
 Fail	<br> returned as newline, preceding space collapsed ("<div style='width:1px; word-break:break-word'>Hello <br>Kitty</div>")
 Fail	<br> returned as newline, adjacent spaces collapsed across element boundaries ("<div style='width:1px; word-break:break-word'><x>Hello </x> <br> <x> Kitty</x></div>")
+Fail	::first-line styles applied ("<div class='first-line-uppercase'>abc")
 Fail	::first-line styles applied ("<div class='first-line-uppercase' style='width:0'>abc def")
 Fail	::first-letter styles applied ("<div class='first-letter-uppercase' style='width:0'>abc def")
 Pass	::first-letter float ignored ("<div class='first-letter-float' style='width:0'>abc def")

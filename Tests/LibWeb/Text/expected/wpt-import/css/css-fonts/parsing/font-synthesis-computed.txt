@@ -1,19 +1,26 @@
 Harness status: OK
 
-Found 14 tests
+Found 21 tests
 
-14 Fail
+21 Fail
 Fail	Property font-synthesis value 'none'
 Fail	Property font-synthesis value 'weight'
 Fail	Property font-synthesis value 'style'
+Fail	Property font-synthesis value 'oblique-only'
 Fail	Property font-synthesis value 'small-caps'
 Fail	Property font-synthesis value 'position'
 Fail	Property font-synthesis value 'small-caps position'
 Fail	Property font-synthesis value 'style small-caps'
 Fail	Property font-synthesis value 'style position'
 Fail	Property font-synthesis value 'style small-caps position'
+Fail	Property font-synthesis value 'oblique-only small-caps'
+Fail	Property font-synthesis value 'oblique-only position'
+Fail	Property font-synthesis value 'oblique-only small-caps position'
 Fail	Property font-synthesis value 'weight small-caps'
 Fail	Property font-synthesis value 'weight style'
+Fail	Property font-synthesis value 'weight oblique-only'
 Fail	Property font-synthesis value 'weight position'
 Fail	Property font-synthesis value 'weight style small-caps'
 Fail	Property font-synthesis value 'weight style small-caps position'
+Fail	Property font-synthesis value 'weight oblique-only small-caps'
+Fail	Property font-synthesis value 'weight oblique-only small-caps position'

@@ -28,6 +28,7 @@ function testValidGridTemplate(valueGridTemplate, valueGridAreas, serializedGrid
 
 testValidGridTemplate("none / 1px",  "\"a\"", "");
 testValidGridTemplate("none / none", "\"a\"", "");
+testValidGridTemplate("none / none", "\"a\" \"b\" \"c\" \"d\" \"e\"", "");
 testValidGridTemplate("auto / 1px", "\"a a a\"", "\"a a a\" / 1px");
 testValidGridTemplate("auto / auto", "\"a a a\"", "\"a a a\" / auto");
 testValidGridTemplate("10px 20px 30px / 40px 50px 60px 70px",

@@ -185,4 +185,41 @@
     assert_equals(getComputedStyle(inner1).zIndex, '1');
     assert_equals(getComputedStyle(inner2).zIndex, '1');
   }, 'Mutating the selectorText of outer rule invalidates inner rules');
+
+  // CSSNestedDeclarations
+  test((t) => {
+    const main = document.createElement('main');
+    main.innerHTML = `
+      <style id="main_ss">
+        div {
+          z-index: 1;
+          &.test { foo:bar; }
+        }
+      </style>
+      <div id="outer" class="test">
+      </div>
+    `;
+    document.documentElement.append(main);
+    t.add_cleanup(() => main.remove());
+    assert_equals(getComputedStyle(outer).zIndex, '1');
+    const main_ss = document.getElementById("main_ss").sheet;
+    const rule = main_ss.cssRules[0];
+    assert_equals(rule.cssRules.length, 1);
+    rule.insertRule('z-index: 3;');
+    assert_equals(rule.cssRules.length, 2);
+    assert_equals(getComputedStyle(outer).zIndex, '3');
+
+    // Throw only when no valid declaration  https://github.com/w3c/csswg-drafts/issues/10520
+    assert_throws_dom('SyntaxError', () => { rule.insertRule('nothing-to-insert-because-invalid-property-should-throw: 2;'); });
+    assert_equals(rule.cssRules.length, 2);
+
+    // Test the insertion of nested declarations inside grouping rule
+    rule.insertRule('@media screen { a { color: blue; }}',2);
+    assert_equals(rule.cssRules.length, 3);
+    const mediaRule = rule.cssRules[2];
+    mediaRule.insertRule('z-index: 3;');
+    assert_equals(mediaRule.cssRules.length, 2);
+    assert_throws_dom('SyntaxError', () => { mediaRule.insertRule('nothing-to-insert-because-invalid-property-should-throw: 2;'); });
+  }, 'Manipulation of nested declarations through CSSOM');
+
 </script>
