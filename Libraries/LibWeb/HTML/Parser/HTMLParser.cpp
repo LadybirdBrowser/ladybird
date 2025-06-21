@@ -318,6 +318,12 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
     // 3. Update the current document readiness to "interactive".
     document->update_readiness(HTML::DocumentReadyState::Interactive);
 
+    if (!document->browsing_context()) {
+        // Parsed via DOMParser, no need to wait for load events.
+        document->update_readiness(HTML::DocumentReadyState::Complete);
+        return;
+    }
+
     // 4. Pop all the nodes off the stack of open elements.
     if (parser) {
         while (!parser->m_stack_of_open_elements.is_empty())
