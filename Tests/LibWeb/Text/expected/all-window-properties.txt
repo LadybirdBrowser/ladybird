@@ -281,6 +281,8 @@ NodeList
 Number
 Object
 OfflineAudioContext
+OffscreenCanvas
+OffscreenCanvasRenderingContext2D
 Option
 OscillatorNode
 PageTransitionEvent

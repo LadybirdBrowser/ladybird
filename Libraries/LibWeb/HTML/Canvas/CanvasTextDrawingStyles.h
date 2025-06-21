@@ -11,11 +11,14 @@
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastextdrawingstyles
-template<typename IncludingClass>
+template<typename IncludingClass, typename CanvasType>
 class CanvasTextDrawingStyles {
 public:
     ~CanvasTextDrawingStyles() = default;
@@ -40,6 +43,34 @@ public:
             font_family->to_string(CSS::SerializationMode::Normal));
     }
 
+    // https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object
+    Variant<DOM::Document*, HTML::WorkerGlobalScope*> get_font_source_for_font_style_source_object(CanvasType& font_style_source_object)
+    {
+        // Font resolution for the font style source object requires a font source. This is determined for a given object implementing CanvasTextDrawingStyles by the following steps: [CSSFONTLOAD]
+
+        if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
+            // 1. If object's font style source object is a canvas element, return the element's node document.
+            return &font_style_source_object.document();
+        } else {
+            // 2. Otherwise, object's font style source object is an OffscreenCanvas object:
+
+            // 1. Let global be object's relevant global object.
+            auto& global_object = HTML::relevant_global_object(font_style_source_object);
+
+            // 2. If global is a Window object, then return global's associated Document.
+            if (is<HTML::Window>(global_object)) {
+                auto& window = as<HTML::Window>(global_object);
+                return &(window.associated_document());
+            }
+
+            // 3. Assert: global implements WorkerGlobalScope.
+            VERIFY(is<HTML::WorkerGlobalScope>(global_object));
+
+            // 4. Return global.
+            return &(as<HTML::WorkerGlobalScope>(global_object));
+        };
+    }
+
     void set_font(StringView font)
     {
         // The font IDL attribute, on setting, must be parsed as a CSS <'font'> value (but without supporting property-independent style sheet syntax like 'inherit'),
@@ -59,12 +90,32 @@ public:
         // Load font with font style value properties
         auto const& font_style_value = my_drawing_state().font_style_value->as_shorthand();
         auto& canvas_element = reinterpret_cast<IncludingClass&>(*this).canvas_element();
+
         auto& font_style = *font_style_value.longhand(CSS::PropertyID::FontStyle);
         auto& font_weight = *font_style_value.longhand(CSS::PropertyID::FontWeight);
         auto& font_width = *font_style_value.longhand(CSS::PropertyID::FontWidth);
         auto& font_size = *font_style_value.longhand(CSS::PropertyID::FontSize);
         auto& font_family = *font_style_value.longhand(CSS::PropertyID::FontFamily);
-        auto font_list = canvas_element.document().style_computer().compute_font_for_style_values(&canvas_element, {}, font_family, font_size, font_style, font_weight, font_width);
+
+        // https://drafts.csswg.org/css-font-loading/#font-source
+        auto font_source = get_font_source_for_font_style_source_object(canvas_element);
+
+        auto font_list = font_source.visit(
+            [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
+                if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
+                    return document->style_computer().compute_font_for_style_values(&canvas_element, {}, font_family, font_size, font_style, font_weight, font_width);
+                } else {
+                    return document->style_computer().compute_font_for_style_values(nullptr, {}, font_family, font_size, font_style, font_weight, font_width);
+                }
+            },
+            [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {
+                // FIXME: implement computing the font for HTML::WorkerGlobalScope
+                return {};
+            });
+
+        if (!font_list)
+            return;
+
         my_drawing_state().current_font_cascade_list = font_list;
     }
 
