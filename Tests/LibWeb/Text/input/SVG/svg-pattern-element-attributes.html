@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none">
+    <pattern id="pattern-element" x="10" y="20" width="30" height="40"></pattern>
+</svg>
+<script>
+    test(() => {
+        const patternElement = document.getElementById("pattern-element");
+
+        println("Element found: " + (patternElement !== null));
+        println("id: " + patternElement.getAttribute("id"));
+        println("x.baseVal.value: " + patternElement.x.baseVal.value);
+        println("y.baseVal.value: " + patternElement.y.baseVal.value);
+        println("width.baseVal.value: " + patternElement.width.baseVal.value);
+        println("height.baseVal.value: " + patternElement.height.baseVal.value);
+        println("x attribute: " + patternElement.getAttribute("x"));
+        println("y attribute: " + patternElement.getAttribute("y"));
+        println("width attribute: " + patternElement.getAttribute("width"));
+        println("height attribute: " + patternElement.getAttribute("height"));
+    });
+</script>
