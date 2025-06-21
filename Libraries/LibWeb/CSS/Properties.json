@@ -1860,10 +1860,20 @@
     "percentages-resolve-to": "length"
   },
   "inset-block": {
-    "logical-alias-for": [
-      "inset"
+    "initial": "auto",
+    "longhands": [
+      "inset-block-start",
+      "inset-block-end"
     ],
-    "max-values": 2
+    "max-values": 2,
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "inset-block-end": {
     "logical-alias-for": [
@@ -1884,10 +1894,20 @@
     "max-values": 1
   },
   "inset-inline": {
-    "logical-alias-for": [
-      "inset"
+    "initial": "auto",
+    "longhands": [
+      "inset-inline-start",
+      "inset-inline-end"
     ],
-    "max-values": 2
+    "max-values": 2,
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "inset-inline-end": {
     "logical-alias-for": [
@@ -2045,10 +2065,20 @@
     ]
   },
   "margin-block": {
-    "logical-alias-for": [
-      "margin"
+    "initial": "0",
+    "longhands": [
+      "margin-block-start",
+      "margin-block-end"
     ],
-    "max-values": 2
+    "max-values": 2,
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "margin-block-end": {
     "logical-alias-for": [
@@ -2083,10 +2113,20 @@
     ]
   },
   "margin-inline": {
-    "logical-alias-for": [
-      "margin"
+    "initial": "0",
+    "longhands": [
+      "margin-inline-start",
+      "margin-inline-end"
     ],
-    "max-values": 2
+    "max-values": 2,
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "margin-inline-end": {
     "logical-alias-for": [
@@ -2461,10 +2501,17 @@
     ]
   },
   "padding-block": {
-    "logical-alias-for": [
-      "padding"
+    "initial": "0",
+    "longhands": [
+      "padding-block-start",
+      "padding-block-end"
     ],
-    "max-values": 2
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
   },
   "padding-block-end": {
     "logical-alias-for": [
@@ -2496,10 +2543,17 @@
     ]
   },
   "padding-inline": {
-    "logical-alias-for": [
-      "padding"
+    "initial": "0",
+    "longhands": [
+      "padding-inline-start",
+      "padding-inline-end"
     ],
-    "max-values": 2
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "percentages-resolve-to": "length"
   },
   "padding-inline-end": {
     "logical-alias-for": [

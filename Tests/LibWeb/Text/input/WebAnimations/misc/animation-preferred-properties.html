@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+    <script src="../../include.js"></script>
+    <script>
+        test(() => {
+            const target = document.createElement("div");
+            document.body.append(target);
+
+            const anim = target.animate(
+                {
+                    marginTop: "100px",
+                    margin: "200px",
+                    borderTop: "100px solid red",
+                    border: "200px solid red",
+                },
+                { duration: 1, easing: "step-start" }
+            );
+
+            const cs = getComputedStyle(target);
+
+            if (cs.marginTop !== "100px") {
+                println(`Fail! Longhands should be preferred over shorthands, ${cs.marginTop}`);
+                return;
+            }
+
+            if (cs.borderTopWidth !== "100px") {
+                println(
+                    `Fail! Longhands with fewer properties should be preferred over those with more ${cs.borderTopWidth}`
+                );
+                return;
+            }
+
+            println("Pass!");
+        });
+    </script>
+</html>

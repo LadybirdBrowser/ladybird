@@ -131,6 +131,13 @@ public:
     static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
     static NonnullRefPtr<CSSStyleValue const> get_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::PseudoElement> = {});
 
+    struct LogicalAliasMappingContext {
+        CSS::WritingMode writing_mode;
+        CSS::Direction direction;
+        // TODO: text-orientation
+    };
+    static PropertyID map_logical_alias_to_physical_property_id(PropertyID, LogicalAliasMappingContext);
+
     static Optional<String> user_agent_style_sheet_source(StringView name);
 
     explicit StyleComputer(DOM::Document&);
@@ -201,8 +208,9 @@ private:
 
     struct MatchingFontCandidate;
 
+    LogicalAliasMappingContext compute_logical_alias_mapping_context(DOM::Element&, Optional<CSS::PseudoElement>, ComputeStyleMode) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::Element&, Optional<CSS::PseudoElement>, ComputeStyleMode) const;
-    [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::Element&, Optional<CSS::PseudoElement>, bool& did_match_any_pseudo_element_rules, PseudoClassBitmap& attempted_pseudo_class_matches, ComputeStyleMode) const;
+    [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::Element&, Optional<CSS::PseudoElement>, bool& did_match_any_pseudo_element_rules, PseudoClassBitmap& attempted_pseudo_class_matches, ComputeStyleMode, Optional<LogicalAliasMappingContext>) const;
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
@@ -242,7 +250,8 @@ private:
         Vector<MatchingRule const*> const&,
         CascadeOrigin,
         Important,
-        Optional<FlyString> layer_name) const;
+        Optional<FlyString> layer_name,
+        Optional<LogicalAliasMappingContext>) const;
 
     void build_rule_cache();
     void build_rule_cache_if_needed() const;

@@ -356,44 +356,6 @@ static NonnullRefPtr<CSSStyleValue const> style_value_for_size(Size const& size)
     TODO();
 }
 
-enum class LogicalSide {
-    BlockStart,
-    BlockEnd,
-    InlineStart,
-    InlineEnd,
-};
-static RefPtr<CSSStyleValue const> style_value_for_length_box_logical_side(Layout::NodeWithStyle const&, LengthBox const& box, LogicalSide logical_side)
-{
-    // FIXME: Actually determine the logical sides based on layout_node's writing-mode and direction.
-    switch (logical_side) {
-    case LogicalSide::BlockStart:
-        return style_value_for_length_percentage(box.top());
-    case LogicalSide::BlockEnd:
-        return style_value_for_length_percentage(box.bottom());
-    case LogicalSide::InlineStart:
-        return style_value_for_length_percentage(box.left());
-    case LogicalSide::InlineEnd:
-        return style_value_for_length_percentage(box.right());
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static CSSPixels pixels_for_pixel_box_logical_side(Layout::NodeWithStyle const&, Painting::PixelBox const& box, LogicalSide logical_side)
-{
-    // FIXME: Actually determine the logical sides based on layout_node's writing-mode and direction.
-    switch (logical_side) {
-    case LogicalSide::BlockStart:
-        return box.top;
-    case LogicalSide::BlockEnd:
-        return box.bottom;
-    case LogicalSide::InlineStart:
-        return box.left;
-    case LogicalSide::InlineEnd:
-        return box.right;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static RefPtr<CSSStyleValue const> style_value_for_shadow(Vector<ShadowData> const& shadow_data)
 {
     if (shadow_data.is_empty())
@@ -728,11 +690,25 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         return element.computed_properties()->property(property_id);
     };
 
+    if (property_is_logical_alias(property_id)) {
+        GC::Ptr<ComputedProperties> computed_properties;
+
+        if (pseudo_element.has_value())
+            computed_properties = element.pseudo_element_computed_properties(pseudo_element.value());
+        else
+            computed_properties = element.computed_properties();
+
+        return style_value_for_computed_property(
+            layout_node,
+            StyleComputer::map_logical_alias_to_physical_property_id(property_id, StyleComputer::LogicalAliasMappingContext { computed_properties->writing_mode(), computed_properties->direction() }));
+    }
+
     // A limited number of properties have special rules for producing their "resolved value".
     // We also have to manually construct shorthands from their longhands here.
     // Everything else uses the computed value.
     // https://drafts.csswg.org/cssom/#resolved-values
 
+    // AD-HOC: We don't resolve logical properties here as we have already handled above
     // The resolved value for a given longhand property can be determined as follows:
     switch (property_id) {
         // -> background-color
@@ -752,20 +728,8 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         //    The resolved value is the used value.
     case PropertyID::BackgroundColor:
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().background_color());
-    case PropertyID::BorderBlockEndColor:
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        return style_value_for_computed_property(layout_node, PropertyID::BorderBottomColor);
-    case PropertyID::BorderBlockStartColor:
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        return style_value_for_computed_property(layout_node, PropertyID::BorderTopColor);
     case PropertyID::BorderBottomColor:
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().border_bottom().color);
-    case PropertyID::BorderInlineEndColor:
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        return style_value_for_computed_property(layout_node, PropertyID::BorderRightColor);
-    case PropertyID::BorderInlineStartColor:
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        return style_value_for_computed_property(layout_node, PropertyID::BorderLeftColor);
     case PropertyID::BorderLeftColor:
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().border_left().color);
     case PropertyID::BorderRightColor:
@@ -818,46 +782,16 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         // If the property applies to the element or pseudo-element and the resolved value of the
         // display property is not none or contents, then the resolved value is the used value.
         // Otherwise the resolved value is the computed value.
-    case PropertyID::BlockSize: {
-        auto writing_mode = layout_node.computed_values().writing_mode();
-        auto is_vertically_oriented = first_is_one_of(writing_mode, WritingMode::VerticalLr, WritingMode::VerticalRl);
-        if (is_vertically_oriented)
-            return style_value_for_computed_property(layout_node, PropertyID::Width);
-        return style_value_for_computed_property(layout_node, PropertyID::Height);
-    }
     case PropertyID::Height: {
         auto maybe_used_height = used_value_for_property([](auto const& paintable_box) { return paintable_box.content_height(); });
         if (maybe_used_height.has_value())
             return style_value_for_size(Size::make_px(maybe_used_height.release_value()));
         return style_value_for_size(layout_node.computed_values().height());
     }
-    case PropertyID::InlineSize: {
-        auto writing_mode = layout_node.computed_values().writing_mode();
-        auto is_vertically_oriented = first_is_one_of(writing_mode, WritingMode::VerticalLr, WritingMode::VerticalRl);
-        if (is_vertically_oriented)
-            return style_value_for_computed_property(layout_node, PropertyID::Height);
-        return style_value_for_computed_property(layout_node, PropertyID::Width);
-    }
-    case PropertyID::MarginBlockEnd:
-        if (auto maybe_used_value = used_value_for_property([&](auto const& paintable_box) { return pixels_for_pixel_box_logical_side(layout_node, paintable_box.box_model().margin, LogicalSide::BlockEnd); }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().margin(), LogicalSide::BlockEnd);
-    case PropertyID::MarginBlockStart:
-        if (auto maybe_used_value = used_value_for_property([&](auto const& paintable_box) { return pixels_for_pixel_box_logical_side(layout_node, paintable_box.box_model().margin, LogicalSide::BlockStart); }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().margin(), LogicalSide::BlockStart);
     case PropertyID::MarginBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().margin.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
         return style_value_for_length_percentage(layout_node.computed_values().margin().bottom());
-    case PropertyID::MarginInlineEnd:
-        if (auto maybe_used_value = used_value_for_property([&](auto const& paintable_box) { return pixels_for_pixel_box_logical_side(layout_node, paintable_box.box_model().margin, LogicalSide::InlineEnd); }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().margin(), LogicalSide::InlineEnd);
-    case PropertyID::MarginInlineStart:
-        if (auto maybe_used_value = used_value_for_property([&](auto const& paintable_box) { return pixels_for_pixel_box_logical_side(layout_node, paintable_box.box_model().margin, LogicalSide::InlineStart); }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().margin(), LogicalSide::InlineStart);
     case PropertyID::MarginLeft:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().margin.left; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
@@ -870,26 +804,10 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().margin.top; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
         return style_value_for_length_percentage(layout_node.computed_values().margin().top());
-    case PropertyID::PaddingBlockEnd:
-        if (auto maybe_used_value = used_value_for_property([&](auto const& paintable_box) { return pixels_for_pixel_box_logical_side(layout_node, paintable_box.box_model().padding, LogicalSide::BlockEnd); }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().padding(), LogicalSide::BlockEnd);
-    case PropertyID::PaddingBlockStart:
-        if (auto maybe_used_value = used_value_for_property([&](auto const& paintable_box) { return pixels_for_pixel_box_logical_side(layout_node, paintable_box.box_model().padding, LogicalSide::BlockStart); }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().padding(), LogicalSide::BlockStart);
     case PropertyID::PaddingBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().padding.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
         return style_value_for_length_percentage(layout_node.computed_values().padding().bottom());
-    case PropertyID::PaddingInlineEnd:
-        if (auto maybe_used_value = used_value_for_property([&](auto const& paintable_box) { return pixels_for_pixel_box_logical_side(layout_node, paintable_box.box_model().padding, LogicalSide::InlineEnd); }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().padding(), LogicalSide::InlineEnd);
-    case PropertyID::PaddingInlineStart:
-        if (auto maybe_used_value = used_value_for_property([&](auto const& paintable_box) { return pixels_for_pixel_box_logical_side(layout_node, paintable_box.box_model().padding, LogicalSide::InlineStart); }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().padding(), LogicalSide::InlineStart);
     case PropertyID::PaddingLeft:
         if (auto maybe_used_value = used_value_for_property([](auto const& paintable_box) { return paintable_box.box_model().padding.left; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
@@ -928,14 +846,6 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
 
         return style_value_for_length_percentage(inset.bottom());
     }
-    case PropertyID::InsetBlockEnd:
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().inset(), LogicalSide::BlockEnd);
-    case PropertyID::InsetBlockStart:
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().inset(), LogicalSide::BlockStart);
-    case PropertyID::InsetInlineEnd:
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().inset(), LogicalSide::InlineEnd);
-    case PropertyID::InsetInlineStart:
-        return style_value_for_length_box_logical_side(layout_node, layout_node.computed_values().inset(), LogicalSide::InlineStart);
     case PropertyID::Left: {
         auto& inset = layout_node.computed_values().inset();
         if (auto maybe_used_value = used_value_for_inset(inset.left(), inset.right(), [](auto const& paintable_box) { return paintable_box.box_model().inset.left; }); maybe_used_value.has_value())
