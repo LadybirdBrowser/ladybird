@@ -301,6 +301,37 @@ public:
         });
     }
 
+    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Vector<Vector<Messages::ResourceType>> desired_types, LookupOptions options = LookupOptions::default_())
+    {
+        using ResultPromise = Core::Promise<NonnullRefPtr<LookupResult const>>;
+        Vector<NonnullRefPtr<ResultPromise>> promises;
+        promises.ensure_capacity(desired_types.size());
+
+        for (auto& types : desired_types)
+            promises.unchecked_append(lookup(name, class_, types, options));
+
+        auto result_promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
+        result_promise->add_child(Core::Promise<Empty>::after(promises)
+                ->when_resolved([promises, result_promise = result_promise->make_weak_ptr<ResultPromise>()](auto&&) {
+                    if (!result_promise.ptr())
+                        return;
+                    VERIFY(promises.first()->is_resolved());
+                    result_promise->resolve(MUST(promises.first()->await()));
+                })
+                .when_rejected([promises, result_promise = result_promise->make_weak_ptr<ResultPromise>()](auto&& error) {
+                    if (!result_promise.ptr())
+                        return;
+                    for (auto& promise : promises) {
+                        if (promise->is_resolved()) {
+                            result_promise->resolve(MUST(promise->await()));
+                            return;
+                        }
+                    }
+                    result_promise->reject(move(error));
+                }));
+        return result_promise;
+    }
+
     NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_ = Messages::Class::IN, LookupOptions options = LookupOptions::default_())
     {
         return lookup(move(name), class_, { Messages::ResourceType::A, Messages::ResourceType::AAAA }, options);
@@ -449,7 +480,9 @@ public:
         }
 
         Messages::Message query;
-        if (options.repeating_lookup) {
+        if (cached_result_id.has_value()) {
+            query.header.id = cached_result_id.value();
+        } else if (options.repeating_lookup) {
             query.header.id = options.repeating_lookup->id;
             options.repeating_lookup->times_repeated++;
         } else {
@@ -688,20 +721,18 @@ private:
         //        other RRs that have the zone name as owner should appear only in the
         //        subzone and thus are signed only there.
 
-        // Figure out if this is a delegation point (this should really be optimised to avoid sequential lookups of SOA -> DS -> NS for "just" the same zone).
+        // Figure out if this is a delegation point.
+        // The records needed are SOA, DS and NS - look them up concurrently.
+        auto result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Vector { Messages::ResourceType::SOA }, { Messages::ResourceType::DS }, { Messages::ResourceType::NS } }, { .validate_dnssec_locally = !top_level })->await()));
         // - Lookup the SOA record for the domain.
-        auto soa_result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::SOA }, { .validate_dnssec_locally = !top_level })->await()));
         // - If we have no SOA record-
-        if (!soa_result->has_record_of_type(Messages::ResourceType::SOA)) {
+        if (!result->has_record_of_type(Messages::ResourceType::SOA)) {
             dbgln_if(DNS_DEBUG, "DNS: No SOA record found for {}", name.to_string());
-            // - First, check for a DS record-
-            auto ds_result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DS }, { .validate_dnssec_locally = !top_level })->await()));
             // - If there's no DS record, check for an NS record-
-            if (!ds_result->has_record_of_type(Messages::ResourceType::DS)) {
+            if (!result->has_record_of_type(Messages::ResourceType::DS)) {
                 dbgln_if(DNS_DEBUG, "DNS: No DS record found for {}", name.to_string());
                 // - If there's no DS record, check for an NS record-
-                auto ns_result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::NS }, { .validate_dnssec_locally = !top_level })->await()));
-                if (ns_result->has_record_of_type(Messages::ResourceType::NS)) {
+                if (result->has_record_of_type(Messages::ResourceType::NS)) {
                     // - but if there _is_ an NS record, this is a broken delegation, so reject.
                     dbgln_if(DNS_DEBUG, "DNS: Found NS record for {}", name.to_string());
                     promise->resolve(false);
@@ -719,7 +750,7 @@ private:
         }
 
         // So we have an SOA record, there's much rejoicing and we can continue.
-        auto& soa = soa_result->record<Messages::Records::SOA>();
+        auto& soa = result->record<Messages::Records::SOA>();
         dbgln_if(DNS_DEBUG, "DNS: Found SOA record for {}: {}", name.to_string(), soa.mname.to_string());
         if (soa.mname == name.parent()) {
             // Just go up one level, all is well.
