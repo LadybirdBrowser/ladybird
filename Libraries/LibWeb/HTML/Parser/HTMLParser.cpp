@@ -4570,11 +4570,6 @@ Vector<GC::Root<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& contex
     //         This is required for Document::parse_url() to work inside iframe srcdoc documents.
     temp_document->set_about_base_url(context_element.document().about_base_url());
 
-    // AD-HOC: The origin is not otherwise set for the document, but it may be accessed during parsing
-    //         script. For now, let's just use an opaque origin, but it is likely that the spec is
-    //         missing setting this origin.
-    temp_document->set_origin(URL::Origin::create_opaque());
-
     // 2. If context's node document is in quirks mode, then set document's mode to "quirks".
     if (context_element.document().in_quirks_mode())
         temp_document->set_quirks_mode(DOM::QuirksMode::Yes);

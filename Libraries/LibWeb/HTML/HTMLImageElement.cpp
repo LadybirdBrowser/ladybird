@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -81,6 +82,7 @@ void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_current_request);
     visitor.visit(m_pending_request);
+    visitor.visit(m_document_observer);
     visit_lazy_loading_element(visitor);
 }
 
@@ -133,7 +135,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
     }
 
     if (name.is_one_of(HTML::AttributeNames::src, HTML::AttributeNames::srcset)) {
-        update_the_image_data(true).release_value_but_fixme_should_propagate_errors();
+        update_the_image_data(true);
     }
 
     if (name == HTML::AttributeNames::alt) {
@@ -479,17 +481,38 @@ static BatchingDispatcher& batching_dispatcher()
     return dispatcher;
 }
 
-// https://html.spec.whatwg.org/multipage/images.html#update-the-image-data
-ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe_omit_events)
+void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe_omit_events)
 {
+    auto& realm = this->realm();
+
     // 1. If the element's node document is not fully active, then:
     if (!document().is_fully_active()) {
-        // FIXME: 1. Continue running this algorithm in parallel.
-        // FIXME: 2. Wait until the element's node document is fully active.
-        // FIXME: 3. If another instance of this algorithm for this img element was started after this instance
-        //           (even if it aborted and is no longer running), then return.
-        // FIXME: 4. Queue a microtask to continue this algorithm.
+        // 1. Continue running this algorithm in parallel.
+        // 2. Wait until the element's node document is fully active.
+        // 3. If another instance of this algorithm for this img element was started after this instance
+        //    (even if it aborted and is no longer running), then return.
+        if (m_document_observer)
+            return;
+
+        m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
+        m_document_observer->set_document_became_active([this, restart_animations, maybe_omit_events]() {
+            // 4. Queue a microtask to continue this algorithm.
+            queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events]() {
+                update_the_image_data_impl(restart_animations, maybe_omit_events);
+            }));
+        });
+
+        return;
     }
+
+    update_the_image_data_impl(restart_animations, maybe_omit_events);
+}
+
+// https://html.spec.whatwg.org/multipage/images.html#update-the-image-data
+void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool maybe_omit_events)
+{
+    // 1. If the element's node document is not fully active, then:
+    // NOTE: This step and it's substeps is implemented by the calling `update_the_image_data` function.
 
     // 2. FIXME: If the user agent cannot support images, or its support for images has been disabled,
     //           then abort the image request for the current request and the pending request,
@@ -572,7 +595,7 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
             });
 
             // 8. Abort the update the image data algorithm.
-            return {};
+            return;
         }
     }
 after_step_7:
@@ -730,7 +753,6 @@ after_step_7:
 
         image_request->fetch_image(realm(), request);
     }));
-    return {};
 }
 
 void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, URL::URL const& url_string, String const& previous_url)
