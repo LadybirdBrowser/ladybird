@@ -1122,10 +1122,11 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             return keyframes.begin();
         }
         auto potential_match = keyframes.find_largest_not_above_iterator(key);
-        if (output_progress.value() >= 0) {
-            return --potential_match;
+        ++potential_match;
+        if (potential_match.is_end()) {
+            --potential_match;
         }
-        return potential_match;
+        return --potential_match;
     }();
     auto keyframe_start = static_cast<i64>(keyframe_start_it.key());
     auto keyframe_values = *keyframe_start_it;
