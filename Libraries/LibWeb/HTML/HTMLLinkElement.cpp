@@ -563,6 +563,10 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
     if (document().is_render_blocking_element(*this))
         request.set_render_blocking(true);
 
+    // FIXME: We currently don't set the destination for stylesheets, so we do it here.
+    //        File a spec issue that the destination for stylesheets is not actually set if the `as` attribute is missing.
+    request.set_destination(Fetch::Infrastructure::Request::Destination::Style);
+
     // 5. Return true.
     return true;
 }
