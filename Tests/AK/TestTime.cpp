@@ -686,3 +686,81 @@ TEST_CASE(time_to_string)
     test("%t"sv, "\t"sv, 2023, 1, 1, 0, 0, 0);
     test("%%"sv, "%"sv, 2023, 1, 1, 0, 0, 0);
 }
+
+TEST_CASE(parse_time)
+{
+    auto test = [](auto format, auto time, int year, int month, int day, int hour, int minute, int second = 0) {
+        auto result = AK::UnixDateTime::parse(format, time);
+        VERIFY(result.has_value());
+
+        auto result_time = result.value().to_timeval();
+        struct tm tm;
+        VERIFY(gmtime_r(&result_time.tv_sec, &tm) != nullptr);
+
+        EXPECT_EQ(year, tm.tm_year + 1900);
+        EXPECT_EQ(month, tm.tm_mon + 1);
+        EXPECT_EQ(day, tm.tm_mday);
+        EXPECT_EQ(hour, tm.tm_hour);
+        EXPECT_EQ(minute, tm.tm_min);
+        EXPECT_EQ(second, tm.tm_sec);
+    };
+
+    test("%d-%m-%Y %H:%M"sv, "05-01-2023 00:00"sv, 2023, 1, 5, 0, 0);
+    test("%Y/%m/%d %R"sv, "2023/01/23 10:50"sv, 2023, 1, 23, 10, 50);
+    test("%Y-%m-%d %H:%M"sv, "1999-12-31 23:59"sv, 1999, 12, 31, 23, 59);
+    test("%Y/%m/%d %R"sv, "1970/01/01 00:00"sv, 1970, 1, 1, 0, 0);
+    test("%Y/%m/%d %R"sv, "2000/02/29 12:34"sv, 2000, 2, 29, 12, 34); // Leap year
+
+    // %T: full time with seconds
+    test("%Y-%m-%d %T"sv, "2023-01-23 10:50:15"sv, 2023, 1, 23, 10, 50, 15);
+    // %S: seconds
+    test("%Y-%m-%d %H:%M:%S"sv, "2023-01-23 10:50:42"sv, 2023, 1, 23, 10, 50, 42);
+    // %I: 12-hour clock, %p: AM/PM
+    test("%Y-%m-%d %I:%M %p"sv, "2023-01-23 03:21 PM"sv, 2023, 1, 23, 15, 21, 0);
+    test("%Y-%m-%d %I:%M %p"sv, "2023-01-23 12:01 AM"sv, 2023, 1, 23, 0, 1, 0);
+    // %D: shortcut for %m/%d/%y
+    test("%D %H:%M:%S"sv, "01/23/23 10:50:59"sv, 1923, 1, 23, 10, 50, 59);
+    // %y: two-digit year, %C: century
+    test("%y %C %m %d %H:%M:%S"sv, "23 20 01 23 10:50:11"sv, 2023, 1, 23, 10, 50, 11);
+    // %a/%A: short/long weekday name (parsing ignores names, but test for correct date)
+    test("%Y-%m-%d %a"sv, "2023-01-23 Mon"sv, 2023, 1, 23, 0, 0, 0);
+    test("%Y-%m-%d %A"sv, "2023-01-23 Monday"sv, 2023, 1, 23, 0, 0, 0);
+    // %b/%B: short/long month name (parsing ignores names, but test for correct date)
+    test("%d %b %Y"sv, "05 Jan 2023"sv, 2023, 1, 5, 0, 0, 0);
+    test("%d %B %Y"sv, "05 January 2023"sv, 2023, 1, 5, 0, 0, 0);
+    // %j: day of year
+    test("%Y %j %H:%M:%S"sv, "2023 023 10:50:12"sv, 2023, 1, 23, 10, 50, 12);
+    // %w: weekday number (0=Sunday)
+    test("%Y-%m-%d %w %H:%M:%S"sv, "2023-01-23 1 10:50:13"sv, 2023, 1, 23, 10, 50, 13);
+    // %n: newline, %t: tab, %%: literal %
+    test("%Y-%m-%d%n%H:%M:%S"sv, "2023-01-23\n10:50:14"sv, 2023, 1, 23, 10, 50, 14);
+    test("%Y-%m-%d%t%H:%M:%S"sv, "2023-01-23\t10:50:15"sv, 2023, 1, 23, 10, 50, 15);
+    test("%Y-%m-%d %% %H:%M:%S"sv, "2023-01-23 % 10:50:16"sv, 2023, 1, 23, 10, 50, 16);
+}
+
+TEST_CASE(parse_wildcard_characters)
+{
+    EXPECT(!AK::UnixDateTime::parse("%+"sv, ""sv).has_value());
+    EXPECT(!AK::UnixDateTime::parse("foo%+"sv, "foo"sv).has_value());
+    EXPECT(!AK::UnixDateTime::parse("[%*]"sv, "[foo"sv).has_value());
+    EXPECT(!AK::UnixDateTime::parse("[%*]"sv, "foo]"sv).has_value());
+    EXPECT(!AK::UnixDateTime::parse("%+%b"sv, "fooJan"sv).has_value());
+
+    auto test = [](auto format, auto time, int year, int month, int day) {
+        auto result = AK::UnixDateTime::parse(format, time);
+        VERIFY(result.has_value());
+
+        auto result_time = result.value().to_timeval();
+        struct tm tm;
+        VERIFY(gmtime_r(&result_time.tv_sec, &tm) != nullptr);
+
+        EXPECT_EQ(year, tm.tm_year + 1900);
+        EXPECT_EQ(month, tm.tm_mon + 1);
+        EXPECT_EQ(day, tm.tm_mday);
+    };
+
+    test("%Y %+ %m %d"sv, "2023 whf 01 23"sv, 2023, 01, 23);
+    test("%Y %m %d %+"sv, "2023 01 23 whf"sv, 2023, 01, 23);
+    test("%Y [%+] %m %d"sv, "2023 [well hello friends!] 01 23"sv, 2023, 01, 23);
+    test("%Y %m %d [%+]"sv, "2023 01 23 [well hello friends!]"sv, 2023, 01, 23);
+}
