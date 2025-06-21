@@ -13,6 +13,7 @@
 
 #ifdef AK_OS_WINDOWS
 #    include <AK/Windows.h>
+#    define tzname _tzname
 #    define localtime_r(time, tm) localtime_s(tm, time)
 #    define gmtime_r(time, tm) gmtime_s(tm, time)
 #endif
