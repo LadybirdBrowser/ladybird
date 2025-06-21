@@ -170,6 +170,7 @@ test(t => {
   div.style.animationFillMode = 'both';
   div.style.animationPlayState = 'paused';
   div.style.animationComposition = 'add';
+  div.style.animationTimeline = 'none';
 
   // Update the keyframes
   keyframesRule.deleteRule(0);
@@ -212,12 +213,17 @@ test(t => {
     'composite should be the value set by the API'
   );
 
-  // Unlike the other properties animation-play-state maps to the Animation
-  // not the KeyframeEffect so it should be overridden.
+  // Unlike the other properties animation-play-state and animation-timeline map
+  // to the Animation, not the KeyframeEffect, so they should be overridden.
   assert_equals(
     animation.playState,
     'paused',
     'play state should be the value set by style'
+  );
+  assert_equals(
+    animation.timeline,
+    null,
+    'timeline should be the value set by style'
   );
 }, 'Replacing the effect of a CSSAnimation causes subsequent changes to'
    + ' corresponding animation-* properties to be ignored');

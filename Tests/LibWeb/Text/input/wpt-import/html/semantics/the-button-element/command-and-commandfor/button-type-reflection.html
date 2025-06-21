@@ -9,6 +9,8 @@
   <button id=submit-in-form type=submit commandfor=mypopover command=toggle-popover>submit</button>
   <button id=button-in-form type=button commandfor=mypopover command=toggle-popover>type=button</button>
   <button id=invalid-in-form type=invalid commandfor=mypopover command=toggle-popover>invalid</button>
+  <button id=invalid-in-form-command-only type=invalid command=toggle-popover>invalid with command only</button>
+  <button id=invalid-in-form-commandfor-only type=invalid commandfor=mypopover >invalid with commandfor only</button>
   <button id=missing-in-form commandfor=mypopover command=toggle-popover>missing</button>
   <button id=missing-in-form-command-only command=toggle-popover>missing with command only</button>
   <button id=missing-in-form-commandfor-only commandfor=mypopover >missing with commandfor only</button>
@@ -18,6 +20,8 @@
 <button id=submit-attr-form type=submit commandfor=mypopover command=toggle-popover form=form>submit</button>
 <button id=button-attr-form type=button commandfor=mypopover command=toggle-popover form=form>type=button</button>
 <button id=invalid-attr-form type=invalid commandfor=mypopover command=toggle-popover form=form>invalid</button>
+<button id=invalid-attr-form-command-only type=invalid command=toggle-popover form=form>invalid with command only</button>
+<button id=invalid-attr-form-commandfor-only type=invalid commandfor=mypopover form=form>invalid with commandfor only</button>
 <button id=missing-attr-form commandfor=mypopover command=toggle-popover form=form>missing</button>
 <button id=missing-attr-form-command-only command=toggle-popover form=form>missing with command only</button>
 <button id=missing-attr-form-commandfor-only commandfor=mypopover form=form>missing with commandfor only</button>
@@ -26,6 +30,8 @@
 <button id=submit-outside-form type=submit commandfor=mypopover command=toggle-popover>submit</button>
 <button id=button-outside-form type=button commandfor=mypopover command=toggle-popover>type=button</button>
 <button id=invalid-outside-form type=invalid commandfor=mypopover command=toggle-popover>invalid</button>
+<button id=invalid-outside-form-command-only type=invalid command=toggle-popover>invalid with command only</button>
+<button id=invalid-outside-form-commandfor-only type=invalid commandfor=mypopover>invalid with commandfor only</button>
 <button id=missing-outside-form commandfor=mypopover command=toggle-popover>missing</button>
 <button id=missing-outside-form-command-only command=toggle-popover>missing with command only</button>
 <button id=missing-outside-form-commandfor-only commandfor=mypopover>missing with commandfor only</button>
@@ -35,21 +41,27 @@ const data = {
   'reset-in-form': 'reset',
   'submit-in-form': 'submit',
   'button-in-form': 'button',
-  'invalid-in-form': 'submit',
+  'invalid-in-form': 'button',
+  'invalid-in-form-command-only': 'button',
+  'invalid-in-form-commandfor-only': 'button',
   'missing-in-form': 'button',
   'missing-in-form-command-only': 'button',
   'missing-in-form-commandfor-only': 'button',
   'reset-attr-form': 'reset',
   'submit-attr-form': 'submit',
   'button-attr-form': 'button',
-  'invalid-attr-form': 'submit',
+  'invalid-attr-form': 'button',
+  'invalid-attr-form-command-only': 'button',
+  'invalid-attr-form-commandfor-only': 'button',
   'missing-attr-form': 'button',
   'missing-attr-form-command-only': 'button',
   'missing-attr-form-commandfor-only': 'button',
   'reset-outside-form': 'reset',
   'submit-outside-form': 'submit',
   'button-outside-form': 'button',
-  'invalid-outside-form': 'submit',
+  'invalid-outside-form': 'button',
+  'invalid-outside-form-command-only': 'button',
+  'invalid-outside-form-commandfor-only': 'button',
   'missing-outside-form': 'button',
   'missing-outside-form-command-only': 'button',
   'missing-outside-form-commandfor-only': 'button',

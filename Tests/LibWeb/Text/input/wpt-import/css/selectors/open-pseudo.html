@@ -5,51 +5,85 @@
 <script src="../../resources/testharnessreport.js"></script>
 <script src="../../resources/testdriver.js"></script>
 <script src="../../resources/testdriver-vendor.js"></script>
+<style>
+
+dialog:open + #afterdialog,
+details:open + #afterdetails,
+select:open + #afterselect {
+  will-change: text-decoration;
+}
+
+</style>
 
 <dialog>dialog</dialog>
+<p id="afterdialog"></p>
 
 <details>details</details>
+<p id="afterdetails"></p>
 
 <select>
   <option>one</option>
 </select>
+<p id="afterselect"></p>
 
 <script>
 test(() => {
   const dialog = document.querySelector('dialog');
+  const after = document.getElementById("afterdialog");
   assert_false(dialog.matches(':open'),
     ':open should not match when the dialog is closed.');
+  assert_equals(getComputedStyle(after).willChange, "auto",
+                ":open style should not be applied when the dialog is closed");
 
   dialog.show();
   assert_true(dialog.matches(':open'),
-    ':open should match after dialog.open().');
+    ':open should match after dialog.show().');
+  assert_equals(getComputedStyle(after).willChange, "text-decoration",
+                ":open style should be applied after dialog.show()");
 
   dialog.close();
+  assert_equals(getComputedStyle(after).willChange, "auto",
+                ":open style should not be applied when the dialog is closed (2)");
+
   dialog.showModal();
   assert_true(dialog.matches(':open'),
     ':open should match after dialog.showModal().');
+  assert_equals(getComputedStyle(after).willChange, "text-decoration",
+                ":open style should be applied after dialog.showModal()");
 
   dialog.close();
+  assert_equals(getComputedStyle(after).willChange, "auto",
+                ":open style should not be applied when the dialog is closed (3)");
 }, 'The dialog element should support :open.');
 
 test(() => {
   const details = document.querySelector('details');
+  const after = document.getElementById("afterdetails");
   assert_false(details.matches(':open'),
     ':open should not match when the details is closed.');
+  assert_equals(getComputedStyle(after).willChange, "auto",
+                ":open style should not be applied when the details is closed");
 
   details.open = true;
   assert_true(details.matches(':open'),
     ':open should match when the details is open.');
+  assert_equals(getComputedStyle(after).willChange, "text-decoration",
+                ":open style should be applied when the details is open");
 }, 'The details element should support :open.');
 
 promise_test(async () => {
   const select = document.querySelector('select');
+  const after = document.getElementById("afterselect");
   assert_false(select.matches(':open'),
     ':open should not match when the select is closed.');
+  assert_equals(getComputedStyle(after).willChange, "auto",
+                ":open style should not be applied when the select is closed");
 
   await test_driver.click(select);
   await new Promise(requestAnimationFrame);
   assert_true(select.matches(':open'),
     ':open should match when the select is open.');
+  assert_equals(getComputedStyle(after).willChange, "text-decoration",
+                ":open style should be applied when the select is open");
 }, 'The select element should support :open.');
 </script>

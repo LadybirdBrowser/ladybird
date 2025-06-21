@@ -340,8 +340,6 @@ var validator = {
     for (var attr in obj) {
       if (attr === "message")
         ctl.setCustomValidity(obj[attr]);
-      else if (attr === "content_value")
-        ctl.setAttribute("value", obj["content_value"])
       else if (attr === "checked" || obj[attr] || obj[attr] === "")
         ctl[attr] = obj[attr];
     }

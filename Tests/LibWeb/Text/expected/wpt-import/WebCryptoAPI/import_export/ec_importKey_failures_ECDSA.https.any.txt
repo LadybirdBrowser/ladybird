@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 608 tests
+Found 620 tests
 
-608 Pass
+620 Pass
 Pass	Bad usages: importKey(spki, {name: ECDSA, namedCurve: P-256}, true, [encrypt])
 Pass	Bad usages: importKey(spki, {name: ECDSA, namedCurve: P-256}, false, [encrypt])
 Pass	Bad usages: importKey(spki, {name: ECDSA, namedCurve: P-256}, true, [verify, encrypt])
@@ -611,3 +611,15 @@ Pass	Missing algorithm name: importKey(pkcs8, {}, true, sign)
 Pass	Missing algorithm name: importKey(pkcs8, {}, false, sign)
 Pass	Missing algorithm name: importKey(jwk(private), {}, true, sign)
 Pass	Missing algorithm name: importKey(jwk(private), {}, false, sign)
+Pass	Invalid 'kty' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-256}, true, [sign])
+Pass	Invalid 'kty' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-384}, true, [sign])
+Pass	Invalid 'kty' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-521}, true, [sign])
+Pass	Import from a non-extractable: importKey(jwk(private), {name: ECDSA, namedCurve: P-256}, true, [sign])
+Pass	Import from a non-extractable: importKey(jwk(private), {name: ECDSA, namedCurve: P-384}, true, [sign])
+Pass	Import from a non-extractable: importKey(jwk(private), {name: ECDSA, namedCurve: P-521}, true, [sign])
+Pass	Invalid 'use' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-256}, true, [sign])
+Pass	Invalid 'use' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-384}, true, [sign])
+Pass	Invalid 'use' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-521}, true, [sign])
+Pass	Invalid 'crv' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-256}, true, [sign])
+Pass	Invalid 'crv' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-384}, true, [sign])
+Pass	Invalid 'crv' field: importKey(jwk(private), {name: ECDSA, namedCurve: P-521}, true, [sign])

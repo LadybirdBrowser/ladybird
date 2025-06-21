@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 24 tests
+Found 28 tests
 
-24 Pass
+28 Pass
 Pass	e.style['grid-template'] = "none" should set grid-template-areas
 Pass	e.style['grid-template'] = "none" should set grid-template-columns
 Pass	e.style['grid-template'] = "none" should set grid-template-rows
@@ -27,3 +27,7 @@ Pass	e.style['grid-template'] = " [] \"a a a\"     [] [] \"b b b\" 1fr []  / [] 
 Pass	e.style['grid-template'] = " [] \"a a a\"     [] [] \"b b b\" 1fr []  / [] auto 1fr [] auto []" should set grid-template-columns
 Pass	e.style['grid-template'] = " [] \"a a a\"     [] [] \"b b b\" 1fr []  / [] auto 1fr [] auto []" should set grid-template-rows
 Pass	e.style['grid-template'] = " [] \"a a a\"     [] [] \"b b b\" 1fr []  / [] auto 1fr [] auto []" should not set unrelated longhands
+Pass	e.style['grid-template'] = " [] \"a a a\"     [] [] \"b b b\" 1fr [] \"c c c\" / [] auto 1fr [] auto []" should set grid-template-areas
+Pass	e.style['grid-template'] = " [] \"a a a\"     [] [] \"b b b\" 1fr [] \"c c c\" / [] auto 1fr [] auto []" should set grid-template-columns
+Pass	e.style['grid-template'] = " [] \"a a a\"     [] [] \"b b b\" 1fr [] \"c c c\" / [] auto 1fr [] auto []" should set grid-template-rows
+Pass	e.style['grid-template'] = " [] \"a a a\"     [] [] \"b b b\" 1fr [] \"c c c\" / [] auto 1fr [] auto []" should not set unrelated longhands
