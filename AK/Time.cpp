@@ -15,6 +15,7 @@
 #    include <AK/Windows.h>
 #    define localtime_r(time, tm) localtime_s(tm, time)
 #    define gmtime_r(time, tm) gmtime_s(tm, time)
+#    define tzname _tzname
 #endif
 
 namespace AK {
