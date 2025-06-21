@@ -8,5 +8,6 @@ Libraries/LibJS/Tests/modules/top-level-dispose.mjs
 Libraries/LibJS/Tests/using-declaration.js
 Libraries/LibJS/Tests/using-for-loops.js
 
+Tests/LibWeb/Crash/wpt-import/
 Tests/LibWeb/Ref/input/wpt-import
 Tests/LibWeb/Text/input/wpt-import
