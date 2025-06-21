@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Test that the autocorrect attribute is available on HTMLInputElement.
+Pass	Test that the autocorrect attribute is available on HTMLTextAreaElement.
+Pass	Test that the autocorrect attribute is available on div.
+Pass	Test that the autocorrect attribute is available on form.
+Pass	Test setting the autocorrect IDL attribute.
+Pass	Test setting the autocorrect attribute using setAttribute.
+Pass	Test inheriting autocorrection from a form.
+Pass	Test autocorrection in an editing host.
+Pass	Test autocorrection in password, URL, and email inputs.
