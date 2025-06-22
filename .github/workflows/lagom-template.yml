@@ -22,6 +22,10 @@ on:
         required: false
         type: boolean
         default: false
+      enabled:
+        required: false
+        type: boolean
+        default: true
 
 env:
   # runner.workspace = /home/runner/work/ladybird
@@ -38,6 +42,7 @@ env:
 
 jobs:
   CI:
+    if: ${{ inputs.enabled }}
     runs-on: ${{ fromJSON(inputs.runner_labels) }}
 
     steps:

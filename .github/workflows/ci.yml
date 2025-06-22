@@ -16,6 +16,9 @@ concurrency:
 jobs:
   # CI matrix - runs the job in lagom-template.yml with different configurations.
   Lagom:
+    # Run the items in this matrix only if:
+    # 1. The repository is the Ladybird repository; and
+    # 2. If the event was a push event, or a PR event other than 'labeled', or the label name is 'windows'
     if: |
       github.repository == 'LadybirdBrowser/ladybird'
       && (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'windows')
@@ -30,6 +33,7 @@ jobs:
         toolchain: ['GNU']
         clang_plugins: [false]
         runner_labels: ['["blacksmith-16vcpu-ubuntu-2404"]']
+        enabled: [true]
 
         include:
           - os_name: 'Linux'
@@ -38,6 +42,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: true
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            enabled: true
 
           - os_name: 'macOS'
             arch: 'arm64'
@@ -45,6 +50,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: false
             runner_labels: '["macos-15", "self-hosted"]'
+            enabled: true
 
           - os_name: 'Linux'
             arch: 'x86_64'
@@ -52,6 +58,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: false
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            enabled: true
 
           - os_name: 'Windows'
             arch: 'x86_64'
@@ -59,10 +66,7 @@ jobs:
             toolchain: 'ClangCL'
             clang_plugins: false
             runner_labels: '["windows-2025"]'
-
-        exclude:
-          # Exclude the Windows build from the matrix if the PR is not labeled with 'windows'.
-          - os_name: ${{ !contains(github.event.pull_request.labels.*.name, 'windows') && 'Windows' }}
+            enabled: ${{ contains(github.event.pull_request.labels.*.name, 'windows') }}
 
     uses: ./.github/workflows/lagom-template.yml
     with:
@@ -72,3 +76,4 @@ jobs:
       arch: ${{ matrix.arch }}
       build_preset: ${{ matrix.build_preset }}
       clang_plugins: ${{ matrix.clang_plugins }}
+      enabled: ${{ matrix.enabled }}
