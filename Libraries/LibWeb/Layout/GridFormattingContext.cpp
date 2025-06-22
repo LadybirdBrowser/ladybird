@@ -148,7 +148,7 @@ static Alignment to_alignment(CSS::AlignItems value)
     }
 }
 
-GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_definition(CSS::ExplicitGridTrack const& definition)
+GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit = false)
 {
     // NOTE: repeat() is expected to be expanded beforehand.
     VERIFY(!definition.is_repeat());
@@ -157,6 +157,7 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
         return GridTrack {
             .min_track_sizing_function = definition.minmax().min_grid_size(),
             .max_track_sizing_function = definition.minmax().max_grid_size(),
+            .is_auto_fit = is_auto_fit,
         };
     }
 
@@ -173,6 +174,7 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
     return GridTrack {
         .min_track_sizing_function = min_track_sizing_function,
         .max_track_sizing_function = max_track_sizing_function,
+        .is_auto_fit = is_auto_fit,
     };
 }
 
@@ -552,18 +554,20 @@ void GridFormattingContext::initialize_grid_tracks_from_definition(GridDimension
     auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
     for (auto const& track_definition : tracks_definition) {
         int repeat_count = 1;
+        bool is_auto_fit = false;
         if (track_definition.is_repeat()) {
-            if (track_definition.repeat().is_auto_fill() || track_definition.repeat().is_auto_fit())
+            is_auto_fit = track_definition.repeat().is_auto_fit();
+            if (track_definition.repeat().is_auto_fill() || is_auto_fit)
                 repeat_count = count_of_repeated_auto_fill_or_fit_tracks(dimension, track_definition);
             else
                 repeat_count = track_definition.repeat().repeat_count();
         }
         for (auto _ = 0; _ < repeat_count; _++) {
             if (track_definition.is_default() || track_definition.is_minmax()) {
-                tracks.append(GridTrack::create_from_definition(track_definition));
+                tracks.append(GridTrack::create_from_definition(track_definition, is_auto_fit));
             } else if (track_definition.is_repeat()) {
                 for (auto& explicit_grid_track : track_definition.repeat().grid_track_size_list().track_list()) {
-                    tracks.append(GridTrack::create_from_definition(explicit_grid_track));
+                    tracks.append(GridTrack::create_from_definition(explicit_grid_track, is_auto_fit));
                 }
             } else {
                 VERIFY_NOT_REACHED();
@@ -1811,18 +1815,16 @@ void GridFormattingContext::collapse_auto_fit_tracks_if_needed(GridDimension dim
     // The auto-fit keyword behaves the same as auto-fill, except that after grid item placement any
     // empty repeated tracks are collapsed. An empty track is one with no in-flow grid items placed into
     // or spanning across it. (This can result in all tracks being collapsed, if they’re all empty.)
-    auto const& grid_computed_values = grid_container().computed_values();
-    auto const& tracks_definition = dimension == GridDimension::Column ? grid_computed_values.grid_template_columns().track_list() : grid_computed_values.grid_template_rows().track_list();
     auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
-    if (tracks_definition.size() == 1 && tracks_definition.first().is_repeat() && tracks_definition.first().repeat().is_auto_fit()) {
-        for (size_t track_index = 0; track_index < tracks.size(); track_index++) {
-            if (m_occupation_grid.is_occupied(dimension == GridDimension::Column ? track_index : 0, dimension == GridDimension::Row ? track_index : 0))
-                continue;
+    for (size_t track_index = 0; track_index < tracks.size(); track_index++) {
+        if (!tracks[track_index].is_auto_fit)
+            continue;
+        if (m_occupation_grid.is_occupied(dimension == GridDimension::Column ? track_index : 0, dimension == GridDimension::Row ? track_index : 0))
+            continue;
 
-            // NOTE: A collapsed track is treated as having a fixed track sizing function of 0px
-            tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
-            tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
-        }
+        // NOTE: A collapsed track is treated as having a fixed track sizing function of 0px
+        tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
+        tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::Length::make_px(0));
     }
 }
 
