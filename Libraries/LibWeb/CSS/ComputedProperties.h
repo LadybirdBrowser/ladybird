@@ -146,6 +146,7 @@ public:
     Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const;
     Optional<Gfx::FontVariantNumeric> font_variant_numeric() const;
     FontVariantPosition font_variant_position() const;
+    FontKerning font_kerning() const;
     Optional<FlyString> font_language_override() const;
     Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const;
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;

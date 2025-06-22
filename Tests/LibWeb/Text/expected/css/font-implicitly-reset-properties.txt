@@ -1,5 +1,5 @@
 font-feature-settings: normal
-font-kerning: undefined
+font-kerning: auto
 font-language-override: normal
 font-optical-sizing: undefined
 font-size-adjust: undefined

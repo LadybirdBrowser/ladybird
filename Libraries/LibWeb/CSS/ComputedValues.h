@@ -94,6 +94,7 @@ class InitialValues {
 public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
     static CSSPixels font_size() { return 16; }
+    static FontKerning font_kerning() { return FontKerning::Auto; }
     static int font_weight() { return 400; }
     static CSSPixels line_height() { return 0; }
     static CSS::Float float_() { return CSS::Float::None; }
@@ -577,6 +578,7 @@ public:
     Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const { return m_inherited.font_variant_ligatures; }
     Optional<Gfx::FontVariantNumeric> font_variant_numeric() const { return m_inherited.font_variant_numeric; }
     FontVariantPosition font_variant_position() const { return m_inherited.font_variant_position; }
+    FontKerning font_kerning() const { return m_inherited.font_kerning; }
     Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
     Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const { return m_inherited.font_feature_settings; }
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const { return m_inherited.font_variation_settings; }
@@ -619,6 +621,7 @@ protected:
         Optional<Gfx::FontVariantLigatures> font_variant_ligatures;
         Optional<Gfx::FontVariantNumeric> font_variant_numeric;
         FontVariantPosition font_variant_position { FontVariantPosition::Normal };
+        FontKerning font_kerning { InitialValues::font_kerning() };
         Optional<FlyString> font_language_override;
         Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings;
         Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings;
@@ -815,6 +818,7 @@ public:
     void set_font_variant_ligatures(Optional<Gfx::FontVariantLigatures> font_variant_ligatures) { m_inherited.font_variant_ligatures = font_variant_ligatures; }
     void set_font_variant_numeric(Optional<Gfx::FontVariantNumeric> font_variant_numeric) { m_inherited.font_variant_numeric = font_variant_numeric; }
     void set_font_variant_position(FontVariantPosition font_variant_position) { m_inherited.font_variant_position = font_variant_position; }
+    void set_font_kerning(FontKerning font_kerning) { m_inherited.font_kerning = font_kerning; }
     void set_font_language_override(Optional<FlyString> font_language_override) { m_inherited.font_language_override = font_language_override; }
     void set_font_feature_settings(Optional<HashMap<FlyString, IntegerOrCalculated>> value) { m_inherited.font_feature_settings = move(value); }
     void set_font_variation_settings(Optional<HashMap<FlyString, NumberOrCalculated>> value) { m_inherited.font_variation_settings = move(value); }

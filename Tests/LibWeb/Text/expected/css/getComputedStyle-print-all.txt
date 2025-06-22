@@ -15,6 +15,7 @@ fill-opacity: 1
 fill-rule: nonzero
 font-family: serif
 font-feature-settings: normal
+font-kerning: auto
 font-language-override: normal
 font-size: 16px
 font-style: normal
@@ -87,7 +88,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto auto
-block-size: 1335px
+block-size: 1350px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: medium
@@ -152,7 +153,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2310px
+height: 2325px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

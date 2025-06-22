@@ -417,6 +417,20 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
         }
     }
 
+    // FIXME: vkrn should be enabled for vertical text.
+    switch (computed_values.font_kerning()) {
+    case CSS::FontKerning::Auto:
+        // FIXME: Use a heuristic to determine whether to enable kerning.
+    case CSS::FontKerning::Normal:
+        features.set("kern"sv, 1);
+        break;
+    case CSS::FontKerning::None:
+        features.set("kern"sv, 0);
+        break;
+    default:
+        break;
+    }
+
     return features;
 }
 

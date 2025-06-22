@@ -1252,6 +1252,12 @@ Variant<VerticalAlign, LengthPercentage> ComputedProperties::vertical_align() co
     VERIFY_NOT_REACHED();
 }
 
+FontKerning ComputedProperties::font_kerning() const
+{
+    auto const& value = property(PropertyID::FontKerning);
+    return keyword_to_font_kerning(value.to_keyword()).release_value();
+}
+
 Optional<FlyString> ComputedProperties::font_language_override() const
 {
     auto const& value = property(PropertyID::FontLanguageOverride);
