@@ -209,6 +209,11 @@ bool GridTrackSizeList::operator==(GridTrackSizeList const& other) const = defau
 
 void GridTrackSizeList::append(GridLineNames&& line_names)
 {
+    if (!m_list.is_empty() && m_list.last().has<GridLineNames>()) {
+        auto& last_line_names = m_list.last().get<GridLineNames>();
+        last_line_names.names.extend(move(line_names.names));
+        return;
+    }
     m_list.append(move(line_names));
 }
 

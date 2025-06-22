@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 63 tests
 
-34 Pass
-29 Fail
+35 Pass
+28 Fail
 Fail	e.style['grid'] = "none" should set grid-auto-columns
 Fail	e.style['grid'] = "none" should set grid-auto-flow
 Fail	e.style['grid'] = "none" should set grid-auto-rows
@@ -37,7 +37,7 @@ Fail	e.style['grid'] = "[header-top] \"a a a\"     [header-bottom]  [main-top] \
 Fail	e.style['grid'] = "[header-top] \"a a a\"     [header-bottom]  [main-top] \"b b b\" 1fr [main-bottom]           / auto 1fr auto" should set grid-auto-rows
 Pass	e.style['grid'] = "[header-top] \"a a a\"     [header-bottom]  [main-top] \"b b b\" 1fr [main-bottom]           / auto 1fr auto" should set grid-template-areas
 Pass	e.style['grid'] = "[header-top] \"a a a\"     [header-bottom]  [main-top] \"b b b\" 1fr [main-bottom]           / auto 1fr auto" should set grid-template-columns
-Fail	e.style['grid'] = "[header-top] \"a a a\"     [header-bottom]  [main-top] \"b b b\" 1fr [main-bottom]           / auto 1fr auto" should set grid-template-rows
+Pass	e.style['grid'] = "[header-top] \"a a a\"     [header-bottom]  [main-top] \"b b b\" 1fr [main-bottom]           / auto 1fr auto" should set grid-template-rows
 Pass	e.style['grid'] = "[header-top] \"a a a\"     [header-bottom]  [main-top] \"b b b\" 1fr [main-bottom]           / auto 1fr auto" should not set unrelated longhands
 Fail	e.style['grid'] = "  \"a a a\"  \"b b b\" 1fr/ auto 1fr auto" should set grid-auto-columns
 Fail	e.style['grid'] = "  \"a a a\"  \"b b b\" 1fr/ auto 1fr auto" should set grid-auto-flow
