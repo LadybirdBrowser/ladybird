@@ -8,6 +8,7 @@
 #include <AK/Base64.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Timer.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/PEM.h>
 #include <LibFileSystem/FileSystem.h>
@@ -38,10 +39,13 @@ static Optional<ByteString> locate_ca_certs_file()
 
 TEST_CASE(test_TLS_hello_handshake)
 {
+    Core::EventLoop loop;
+
     TLS::Options options;
+    options.blocking = false;
     options.set_root_certificates_path(locate_ca_certs_file());
 
-    auto tls = TRY_OR_FAIL(TLS::TLSv12::connect(DEFAULT_SERVER, port, move(options)));
+    auto tls = TRY_OR_FAIL(Core::BufferedSocket<TLS::TLSv12>::create(TRY_OR_FAIL(TLS::TLSv12::connect(DEFAULT_SERVER, port, move(options)))));
 
     TRY_OR_FAIL(tls->write_until_depleted("GET /generate_204 HTTP/1.1\r\nHost: "_b));
 
@@ -49,7 +53,26 @@ TEST_CASE(test_TLS_hello_handshake)
     TRY_OR_FAIL(tls->write_until_depleted(the_server.bytes()));
     TRY_OR_FAIL(tls->write_until_depleted("\r\nConnection: close\r\n\r\n"_b));
 
-    auto tmp = TRY_OR_FAIL(ByteBuffer::create_zeroed(128));
-    auto contents = TRY_OR_FAIL(tls->read_some(tmp));
-    EXPECT(contents.starts_with("HTTP/1.1 204 No Content\r\n"_b));
+    tls->on_ready_to_read = [&]() mutable -> void {
+        auto read_buffer = ByteBuffer::create_uninitialized(4096).release_value();
+        auto err = tls->can_read_up_to_delimiter("\r\n"sv.bytes());
+        if (err.is_error() && err.error().code() != EAGAIN) {
+            FAIL("Unexpected socket error during read");
+            loop.quit(1);
+            return;
+        }
+        if (!err.value())
+            return;
+
+        auto line = TRY_OR_FAIL(tls->read_until_any_of(read_buffer, Array { "\r\n"sv }));
+        EXPECT(line.starts_with("HTTP/1.1 204 No Content"_b));
+        loop.quit(0);
+    };
+    tls->set_notifications_enabled(true);
+
+    auto timeout = Core::Timer::create_single_shot(10'000, [&loop] {
+        loop.quit(1);
+    });
+
+    EXPECT_EQ(loop.exec(), 0);
 }
