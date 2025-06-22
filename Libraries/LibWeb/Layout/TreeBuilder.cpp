@@ -985,7 +985,7 @@ void TreeBuilder::fixup_reversed_counters_content()
                 continue;
 
             if (auto& text_node = fixup_item.list_of_text_nodes->at(i++))
-                text_node->set_text_content(Utf16String::from_utf8(*string));
+                MUST(text_node->set_text_content(Utf16String::from_utf8(*string)));
         }
     }
 }
