@@ -262,19 +262,16 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
         return 0;
 
     auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
-    auto free_space = get_free_space(*m_available_space, dimension).to_px_or_zero();
     auto const& gap = dimension == GridDimension::Column ? grid_computed_values.column_gap() : grid_computed_values.row_gap();
     auto gap_px = gap_to_px(gap, grid_container(), available_size.to_px_or_zero());
     auto size_of_repeated_tracks_with_gap = size_of_repeated_tracks + repeat_track_list.size() * gap_px;
-    // If any number of repetitions would overflow, then 1 repetition.
-    if (free_space <= size_of_repeated_tracks_with_gap) {
-        return 1;
-    }
     // Otherwise, if the grid container has a definite min size in the relevant axis, the number of repetitions is the
     // smallest possible positive integer that fulfills that minimum requirement
-    else if (available_size.is_definite()) {
+    if (available_size.is_definite()) {
         // NOTE: Gap size is added to free space to compensate for the fact that the last track does not have a gap
+        auto free_space = available_size.to_px_or_zero();
         auto number_of_repetitions = ((free_space + gap_px) / size_of_repeated_tracks_with_gap).to_int();
+        // If any number of repetitions would overflow, then 1 repetition.
         return max(1, number_of_repetitions);
     }
     // Otherwise, the specified track list repeats only once.
