@@ -61,6 +61,13 @@ jobs:
             clang_plugins: false
             runner_labels: '["macos-15"]'
 
+          - os_name: 'Windows'
+            arch: 'x86_64'
+            build_preset: 'Windows_Sanitizer_CI'
+            toolchain: 'ClangCL'
+            clang_plugins: false
+            runner_labels: '["windows-2025"]'
+
     uses: ./.github/workflows/lagom-template.yml
     with:
       toolchain: ${{ matrix.toolchain }}
