@@ -8,7 +8,6 @@
 #include <AK/JsonValue.h>
 #include <AK/NumericLimits.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCore/DateTime.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/Decoder.h>
@@ -138,13 +137,6 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
     auto anon_file = TRY(decoder.decode<IPC::File>());
 
     return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);
-}
-
-template<>
-ErrorOr<Core::DateTime> decode(Decoder& decoder)
-{
-    auto timestamp = TRY(decoder.decode<i64>());
-    return Core::DateTime::from_timestamp(static_cast<time_t>(timestamp));
 }
 
 template<>

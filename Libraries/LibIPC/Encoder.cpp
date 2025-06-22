@@ -15,7 +15,6 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCore/DateTime.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/System.h>
 #include <LibIPC/Encoder.h>
@@ -157,12 +156,6 @@ ErrorOr<void> encode(Encoder& encoder, Core::AnonymousBuffer const& buffer)
     }
 
     return {};
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Core::DateTime const& datetime)
-{
-    return encoder.encode(static_cast<i64>(datetime.timestamp()));
 }
 
 template<>
