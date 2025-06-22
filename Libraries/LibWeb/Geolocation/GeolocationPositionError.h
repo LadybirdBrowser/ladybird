@@ -24,15 +24,14 @@ public:
     };
 
     ErrorCode code() const { return m_code; }
-    String message() const { return m_message; }
+    String message() const;
 
 private:
-    GeolocationPositionError(JS::Realm&, ErrorCode, String);
+    GeolocationPositionError(JS::Realm&, ErrorCode);
 
     virtual void initialize(JS::Realm&) override;
 
     ErrorCode m_code { 0 };
-    String m_message;
 };
 
 }

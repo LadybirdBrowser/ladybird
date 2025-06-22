@@ -17,6 +17,12 @@ GeolocationCoordinates::GeolocationCoordinates(JS::Realm& realm)
 {
 }
 
+GeolocationCoordinates::GeolocationCoordinates(JS::Realm& realm, CoordinatesData data)
+    : PlatformObject(realm)
+    , m_coordinates_data(move(data))
+{
+}
+
 void GeolocationCoordinates::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(GeolocationCoordinates);
