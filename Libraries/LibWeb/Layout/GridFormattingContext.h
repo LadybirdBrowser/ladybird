@@ -217,8 +217,9 @@ private:
         CSSPixels item_incurred_increase { 0 };
 
         bool is_gap { false };
+        bool is_auto_fit { false };
 
-        static GridTrack create_from_definition(CSS::ExplicitGridTrack const& definition);
+        static GridTrack create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit);
         static GridTrack create_auto();
         static GridTrack create_gap(CSSPixels size);
     };
