@@ -1425,6 +1425,14 @@
       "off"
     ]
   },
+  "font-kerning": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "font-kerning"
+    ]
+  },
   "font-language-override": {
     "animation-type": "discrete",
     "inherited": true,

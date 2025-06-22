@@ -2543,7 +2543,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
 
             // Reset implicitly https://drafts.csswg.org/css-fonts/#reset-implicitly
             PropertyID::FontFeatureSettings,
-            // FIXME: PropertyID::FontKerning,
+            PropertyID::FontKerning,
             PropertyID::FontLanguageOverride,
             // FIXME: PropertyID::FontOpticalSizing,
             // FIXME: PropertyID::FontSizeAdjust,
@@ -2560,12 +2560,12 @@ RefPtr<CSSStyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>
             line_height.release_nonnull(),
 
             // Reset implicitly
-            initial_value, // font-feature-settings
-                           // FIXME: font-kerning,
-            initial_value, // font-language-override
-                           // FIXME: font-optical-sizing,
-                           // FIXME: font-size-adjust,
-            initial_value, // font-variation-settings
+            initial_value,                                   // font-feature-settings
+            property_initial_value(PropertyID::FontKerning), // font-kerning,
+            initial_value,                                   // font-language-override
+                                                             // FIXME: font-optical-sizing,
+                                                             // FIXME: font-size-adjust,
+            initial_value,                                   // font-variation-settings
         });
 }
 

@@ -257,6 +257,11 @@
     "fallback",
     "optional"
   ],
+  "font-kerning": [
+    "auto",
+    "normal",
+    "none"
+  ],
   "font-style": [
     "normal",
     "italic",
