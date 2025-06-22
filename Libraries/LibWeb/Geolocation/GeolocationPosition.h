@@ -20,15 +20,19 @@ class GeolocationPosition : public Bindings::PlatformObject {
 public:
     GC::Ref<GeolocationCoordinates const> coords() const { return m_coords; }
     HighResolutionTime::EpochTimeStamp timestamp() const { return m_timestamp; }
+    bool is_high_accuracy() const { return m_is_high_accuracy; }
 
 private:
-    GeolocationPosition(JS::Realm&, GC::Ref<GeolocationCoordinates>, HighResolutionTime::EpochTimeStamp);
+    GeolocationPosition(JS::Realm&, GC::Ref<GeolocationCoordinates>, HighResolutionTime::EpochTimeStamp, bool is_high_accuracy);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<GeolocationCoordinates const> m_coords;
     HighResolutionTime::EpochTimeStamp m_timestamp;
+
+    // https://w3c.github.io/geolocation/#dfn-ishighaccuracy
+    bool m_is_high_accuracy;
 };
 
 }

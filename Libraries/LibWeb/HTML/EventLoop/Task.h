@@ -35,6 +35,9 @@ public:
         TimerTask,
         JavaScriptEngine,
 
+        // https://w3c.github.io/geolocation/#dfn-geolocation-task-source
+        Geolocation,
+
         // https://html.spec.whatwg.org/multipage/webappapis.html#navigation-and-traversal-task-source
         NavigationAndTraversal,
 
