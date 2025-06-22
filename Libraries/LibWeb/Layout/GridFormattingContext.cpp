@@ -202,20 +202,12 @@ GridFormattingContext::GridFormattingContext(LayoutState& state, LayoutMode layo
 
 GridFormattingContext::~GridFormattingContext() = default;
 
-CSSPixels GridFormattingContext::resolve_definite_track_size(CSS::GridSize const& grid_size, AvailableSpace const& available_space)
+CSSPixels GridFormattingContext::resolve_definite_track_size(CSS::GridSize const& grid_size, AvailableSpace const& available_space) const
 {
     VERIFY(grid_size.is_definite());
-    switch (grid_size.type()) {
-    case CSS::GridSize::Type::LengthPercentage: {
-        if (!grid_size.length_percentage().is_auto()) {
-            return grid_size.css_size().to_px(grid_container(), available_space.width.to_px_or_zero());
-        }
-        break;
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
-    return 0;
+    if (grid_size.type() == CSS::GridSize::Type::LengthPercentage)
+        return grid_size.css_size().to_px(grid_container(), available_space.width.to_px_or_zero());
+    VERIFY_NOT_REACHED();
 }
 
 int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimension dimension, CSS::ExplicitGridTrack const& repeated_track)
