@@ -8,7 +8,6 @@ set(SOURCES
     Environment.cpp
     File.cpp
     StandardPaths.cpp
-    Version.cpp
 )
 
 if (WIN32)
