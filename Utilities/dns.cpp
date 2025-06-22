@@ -78,8 +78,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             auto make_resolver = [&](Core::SocketAddress const& address) -> ErrorOr<DNS::Resolver::SocketResult> {
                 if (use_tls) {
                     TLS::Options options;
-                    options.set_root_certificates_path(cert_path);
-                    options.set_blocking(false);
+                    options.root_certificates_path = cert_path;
 
                     auto tls = TRY(TLS::TLSv12::connect(address, server_address, move(options)));
                     return DNS::Resolver::SocketResult { move(tls), DNS::Resolver::ConnectionMode::TCP };

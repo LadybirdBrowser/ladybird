@@ -94,8 +94,7 @@ TEST_CASE(test_tls)
             Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"sv).value(), static_cast<u16>(853) };
 
             TLS::Options options;
-            options.set_root_certificates_path(locate_ca_certs_file());
-            options.set_blocking(false);
+            options.root_certificates_path = locate_ca_certs_file();
 
             return DNS::Resolver::SocketResult {
                 MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(addr, "1.1.1.1", move(options)))),
