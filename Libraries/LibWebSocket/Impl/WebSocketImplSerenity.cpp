@@ -46,8 +46,7 @@ void WebSocketImplSerenity::connect(ConnectionInfo const& connection_info)
         auto host = connection_info.url().serialized_host().to_byte_string();
         if (connection_info.is_secure()) {
             TLS::Options options;
-            options.set_root_certificates_path(connection_info.root_certificates_path());
-            options.set_blocking(false);
+            options.root_certificates_path = connection_info.root_certificates_path();
 
             return TRY(Core::BufferedSocket<TLS::TLSv12>::create(
                 TRY(TLS::TLSv12::connect(host, connection_info.url().port_or_default(), move(options)))));

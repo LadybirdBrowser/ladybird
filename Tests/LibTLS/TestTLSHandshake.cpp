@@ -42,8 +42,7 @@ TEST_CASE(test_TLS_hello_handshake)
     Core::EventLoop loop;
 
     TLS::Options options;
-    options.blocking = false;
-    options.set_root_certificates_path(locate_ca_certs_file());
+    options.root_certificates_path = locate_ca_certs_file();
 
     auto tls = TRY_OR_FAIL(Core::BufferedSocket<TLS::TLSv12>::create(TRY_OR_FAIL(TLS::TLSv12::connect(DEFAULT_SERVER, port, move(options)))));
 

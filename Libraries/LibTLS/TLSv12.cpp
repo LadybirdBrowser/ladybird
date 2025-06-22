@@ -202,7 +202,7 @@ TLSv12::~TLSv12()
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPSocket> socket, ByteString const& host, Options options)
 {
-    TRY(socket->set_blocking(options.blocking));
+    TRY(socket->set_blocking(false));
 
     auto* ssl_ctx = OPENSSL_TRY_PTR(SSL_CTX_new(TLS_client_method()));
     ArmedScopeGuard free_ssl_ctx = [&] { SSL_CTX_free(ssl_ctx); };
