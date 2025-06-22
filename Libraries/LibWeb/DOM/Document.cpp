@@ -17,7 +17,6 @@
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
-#include <LibCore/DateTime.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Array.h>
@@ -166,6 +165,11 @@
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+
+#ifdef AK_OS_WINDOWS
+#    include <AK/Windows.h>
+#    define localtime_r(time, tm) localtime_s(tm, time)
+#endif
 
 namespace Web::DOM {
 
@@ -376,10 +380,19 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
     // NOTE: Non-standard: Pull out the Last-Modified header for use in the lastModified property.
     if (auto maybe_last_modified = navigation_params.response->header_list()->get("Last-Modified"sv.bytes()); maybe_last_modified.has_value()) {
-        auto last_modified_datetime = Core::DateTime::parse("%a, %d %b %Y %H:%M:%S %Z"sv, maybe_last_modified.value());
-        document->m_last_modified = last_modified_datetime.has_value()
-            ? AK::UnixDateTime::from_seconds_since_epoch(last_modified_datetime.value().timestamp())
-            : Optional<AK::UnixDateTime>();
+        // rfc9110, 8.8.2: The Last-Modified header field must be in GMT time zone.
+        // document->m_last_modified is in local time zone.
+        auto gmt_last_modified_datetime = AK::UnixDateTime::parse("%a, %d %b %Y %H:%M:%S GMT"sv, maybe_last_modified.value());
+        if (!gmt_last_modified_datetime.has_value()) {
+            document->m_last_modified = Optional<AK::UnixDateTime>();
+        } else {
+            auto gmt_time = gmt_last_modified_datetime.value().to_timespec().tv_sec;
+            struct tm local_tm;
+            if (localtime_r(&gmt_time, &local_tm) == nullptr)
+                document->m_last_modified = Optional<AK::UnixDateTime>();
+            else
+                document->m_last_modified = AK::UnixDateTime::from_unix_time_parts(local_tm.tm_year + 1900, local_tm.tm_mon + 1, local_tm.tm_mday, local_tm.tm_hour, local_tm.tm_min, local_tm.tm_sec, 0);
+        }
     }
 
     // NOTE: Non-standard: Pull out the Content-Language header to determine the document's language.
