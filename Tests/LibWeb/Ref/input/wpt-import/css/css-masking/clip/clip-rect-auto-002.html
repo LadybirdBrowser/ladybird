@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Masking: Test clip property with rect function and auto values clip to border box - 2</title>
+    <link rel="author" title="Dirk Schulze" href="mailto:dschulze@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#clipping-paths">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#clip-property">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip/reference/clip-no-clipping-ref.html">
+    <meta name="assert" content="A value of 'auto' in the rect function is
+    equal to the certain edge of the border box. The box shadow should be
+    clipped, since it is painted outside the border box. On pass you should see
+    a green square with a blue border.">
+</head>
+<body>
+    <p>The test passes if there is a green square with a blue border.</p>
+    <div style="width: 100px; height: 100px; border: solid blue 50px; background-color: green; position: absolute; clip: rect(auto, auto, auto, auto); box-shadow: 0 0 10px red;"></div>
+</body>
+</html>

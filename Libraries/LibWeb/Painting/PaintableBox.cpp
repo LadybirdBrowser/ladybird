@@ -326,6 +326,8 @@ void PaintableBox::before_paint(PaintContext& context, [[maybe_unused]] PaintPha
     if (!is_visible())
         return;
 
+    apply_own_clip_rect(context, phase);
+
     if (!has_css_transform()) {
         apply_clip_overflow_rect(context, phase);
     }
@@ -336,6 +338,8 @@ void PaintableBox::after_paint(PaintContext& context, [[maybe_unused]] PaintPhas
 {
     if (!is_visible())
         return;
+
+    clear_own_clip_rect(context, phase);
 
     reset_scroll_offset(context, phase);
     if (!has_css_transform()) {
@@ -651,6 +655,38 @@ void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase ph
     restore_clip(context, enclosing_clip_frame());
 }
 
+void PaintableBox::apply_own_clip_rect(PaintContext& context, PaintPhase phase) const
+{
+    if (!own_clip_frame())
+        return;
+
+    // FIXME: This should apply to SVGs
+    if (is<SVGPaintable>(*this) || is<SVGSVGPaintable>(*this))
+        return;
+
+    // FIXME: This should also apply to borders and outlines.
+    if (!first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground))
+        return;
+
+    apply_clip(context, own_clip_frame());
+}
+
+void PaintableBox::clear_own_clip_rect(PaintContext& context, PaintPhase phase) const
+{
+    if (!own_clip_frame())
+        return;
+
+    // FIXME: This should apply to SVGs
+    if (is<SVGPaintable>(*this) || is<SVGSVGPaintable>(*this))
+        return;
+
+    // FIXME: This should also apply to borders and outlines.
+    if (!first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground))
+        return;
+
+    restore_clip(context, own_clip_frame());
+}
+
 void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
 {
     auto const& navigable = *paintable.navigable();
@@ -870,12 +906,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     PaintableBox::paint(context, phase);
 
-    if (own_clip_frame()) {
-        apply_clip(context, own_clip_frame());
-        if (own_scroll_frame_id().has_value()) {
-            context.display_list_recorder().push_scroll_frame_id(own_scroll_frame_id().value());
-        }
-    }
+    apply_own_clip_rect(context, phase);
 
     // Text shadows
     // This is yet another loop, but done here because all shadows should appear under all text.
@@ -899,12 +930,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
             paint_text_fragment(context, static_cast<TextPaintable const&>(fragment.paintable()), fragment, phase);
     }
 
-    if (own_clip_frame()) {
-        if (own_scroll_frame_id().has_value()) {
-            context.display_list_recorder().pop_scroll_frame_id();
-        }
-        restore_clip(context, own_clip_frame());
-    }
+    clear_own_clip_rect(context, phase);
 }
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
