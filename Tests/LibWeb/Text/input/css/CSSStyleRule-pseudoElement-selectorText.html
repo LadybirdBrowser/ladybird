@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+::-webkit-scrollbar-thumb {
+  background: #28bea5;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #28bea5;
+}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (let rule of document.styleSheets[0].cssRules) {
+            println(rule.selectorText);
+        }
+    });
+</script>

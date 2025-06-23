@@ -475,7 +475,8 @@ String Selector::SimpleSelector::serialize() const
         break;
     }
     case Selector::SimpleSelector::Type::PseudoElement:
-        // Note: Pseudo-elements are dealt with in Selector::serialize()
+        // AD-HOC: Spec issue: https://github.com/w3c/csswg-drafts/issues/11997
+        s.append(this->pseudo_element().serialize());
         break;
     case Type::Nesting:
         // AD-HOC: Not in spec yet.
@@ -572,9 +573,8 @@ String Selector::serialize() const
         } else {
             // 4. If this is the last part of the chain of the selector and there is a pseudo-element,
             // append "::" followed by the name of the pseudo-element, to s.
-            if (compound_selector.simple_selectors.last().type == Selector::SimpleSelector::Type::PseudoElement) {
-                s.append(compound_selector.simple_selectors.last().pseudo_element().serialize());
-            }
+            // This algorithm has a problem, see https://github.com/w3c/csswg-drafts/issues/11997
+            //      serialization of pseudoElements was moved to SimpleSelector::serialize()
         }
     }
 
