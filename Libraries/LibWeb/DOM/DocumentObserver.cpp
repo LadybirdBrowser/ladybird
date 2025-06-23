@@ -12,7 +12,7 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(DocumentObserver);
 
-DocumentObserver::DocumentObserver(JS::Realm& realm, DOM::Document& document)
+DocumentObserver::DocumentObserver(JS::Realm& realm, Document& document)
     : Bindings::PlatformObject(realm)
     , m_document(document)
 {
@@ -35,6 +35,14 @@ void DocumentObserver::finalize()
 {
     Base::finalize();
     m_document->unregister_document_observer({}, *this);
+}
+
+void DocumentObserver::set_document(GC::Ref<Document> document)
+{
+    VERIFY(document != m_document);
+    m_document->unregister_document_observer({}, *this);
+    m_document = document;
+    document->register_document_observer({}, *this);
 }
 
 void DocumentObserver::set_document_became_active(Function<void()> callback)
