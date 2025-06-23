@@ -2343,9 +2343,11 @@ static ErrorOr<void> scroll_an_element_into_view(Element& target, Bindings::Scro
             }
         }
 
-        // 4. If container is not null and scrolling box is a shadow-including inclusive ancestor of container,
-        //    abort the rest of these steps.
-        if (container != nullptr && scrolling_box.is_shadow_including_ancestor_of(*container))
+        // 4. If container is not null and either scrolling box is a shadow-including inclusive ancestor of container
+        //    or is a viewport whose document is a shadow-including inclusive ancestor of container, abort the rest of
+        //    these steps.
+        // NB: Our viewports *are* Documents in the DOM, so both checks are equivalent.
+        if (container != nullptr && scrolling_box.is_shadow_including_inclusive_ancestor_of(*container))
             break;
     }
 
@@ -2380,7 +2382,7 @@ ErrorOr<void> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOpt
         // 3. Set inline to the inline dictionary member of options.
         inline_ = options.inline_;
 
-        // 4. If the container dictionary member of options is "nearest", set container to this element.
+        // 4. If the container dictionary member of options is "nearest", set container to the element.
         if (options.container == Bindings::ScrollIntoViewContainer::Nearest)
             container = this;
     }
