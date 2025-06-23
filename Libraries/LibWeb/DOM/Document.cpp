@@ -3384,13 +3384,21 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     // 2. Set document's visibility state to visibilityState.
     m_visibility_state = visibility_state;
 
-    // 3. Run any page visibility change steps which may be defined in other specifications, with visibility state and document.
+    // FIXME: 3. Queue a new VisibilityStateEntry whose visibility state is visibilityState and whose timestamp is the current
+    //    high resolution time given document's relevant global object.
+
+    // FIXME: 4. Run the screen orientation change steps with document.
+
+    // FIXME: 5. Run the view transition page visibility change steps with document.
+
+    // 6. Run any page visibility change steps which may be defined in other specifications, with visibility state and
+    //    document.
     notify_each_document_observer([&](auto const& document_observer) {
         return document_observer.document_visibility_state_observer();
     },
         m_visibility_state);
 
-    // 4. Fire an event named visibilitychange at document, with its bubbles attribute initialized to true.
+    // 7. Fire an event named visibilitychange at document, with its bubbles attribute initialized to true.
     auto event = DOM::Event::create(realm(), HTML::EventNames::visibilitychange);
     event->set_bubbles(true);
     dispatch_event(event);
