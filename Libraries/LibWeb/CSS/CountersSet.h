@@ -56,7 +56,4 @@ private:
     Vector<Counter> m_counters;
 };
 
-void resolve_counters(DOM::AbstractElement&);
-void inherit_counters(DOM::AbstractElement&);
-
 }

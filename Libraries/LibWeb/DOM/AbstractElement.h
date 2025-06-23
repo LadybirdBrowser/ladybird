@@ -37,6 +37,9 @@ public:
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
+    void resolve_counters();
+    void inherit_counters();
+
     void update_initial_value_for_reversed_counter__after_increment(FlyString const&, int) const;
     void update_initial_value_for_reversed_counter__after_set(FlyString const&, int) const;
 

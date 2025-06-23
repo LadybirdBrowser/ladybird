@@ -232,7 +232,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
     pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content);
 
     DOM::AbstractElement pseudo_element_reference { element, pseudo_element };
-    CSS::resolve_counters(pseudo_element_reference);
+    pseudo_element_reference.resolve_counters();
     // Now that we have counters, we can compute the content for real. Which is silly.
     if (pseudo_element_content.type == CSS::ContentData::Type::String) {
         auto [new_content, ignore_final_quote_nesting_level, needs_reversed_counter_fixup] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
@@ -557,7 +557,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         // Resolve counters now that we exist in the layout tree.
         if (auto* element = as_if<DOM::Element>(dom_node)) {
             DOM::AbstractElement element_reference { *element };
-            CSS::resolve_counters(element_reference);
+            element_reference.resolve_counters();
         }
 
         update_layout_tree_before_children(dom_node, *layout_node, context, element_has_content_visibility_hidden);
@@ -731,7 +731,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         layout_node->prepend_child(*list_item_marker);
         DOM::AbstractElement marker_reference { element, CSS::PseudoElement::Marker };
-        CSS::resolve_counters(marker_reference);
+        marker_reference.resolve_counters();
     }
 
     if (is<SVG::SVGGraphicsElement>(dom_node)) {
