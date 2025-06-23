@@ -126,12 +126,17 @@ void CSSStyleRule::set_selector_text(StringView selector_text)
     clear_caches();
 
     // 1. Run the parse a group of selectors algorithm on the given value.
+    Parser::ParsingParams parsing_params { realm() };
+
+    if (m_parent_style_sheet)
+        parsing_params.declared_namespaces = m_parent_style_sheet->declared_namespaces();
+
     Optional<SelectorList> parsed_selectors;
     if (parent_style_rule()) {
         // AD-HOC: If we're a nested style rule, then we need to parse the selector as relative and then adapt it with implicit &s.
-        parsed_selectors = parse_selector_for_nested_style_rule(Parser::ParsingParams { realm() }, selector_text);
+        parsed_selectors = parse_selector_for_nested_style_rule(parsing_params, selector_text);
     } else {
-        parsed_selectors = parse_selector(Parser::ParsingParams { realm() }, selector_text);
+        parsed_selectors = parse_selector(parsing_params, selector_text);
     }
 
     // 2. If the algorithm returns a non-null value replace the associated group of selectors with the returned value.

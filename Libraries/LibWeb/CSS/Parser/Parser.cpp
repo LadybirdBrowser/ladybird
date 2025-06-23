@@ -66,6 +66,7 @@ Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
     , m_rule_context(move(context.rule_context))
+    , m_declared_namespaces(move(context.declared_namespaces))
 {
 }
 
@@ -141,6 +142,8 @@ GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_r
 
             if (!namespace_rules_valid)
                 continue;
+
+            m_declared_namespaces.set(as<CSSNamespaceRule>(*rule).prefix());
             break;
         default:
             import_rules_valid = false;

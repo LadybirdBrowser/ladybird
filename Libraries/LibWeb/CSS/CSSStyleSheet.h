@@ -72,6 +72,7 @@ public:
 
     Optional<FlyString> default_namespace() const;
     GC::Ptr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }
+    HashTable<FlyString> declared_namespaces() const;
 
     Optional<FlyString> namespace_uri(StringView namespace_prefix) const;
 

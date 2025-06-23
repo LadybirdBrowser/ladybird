@@ -81,6 +81,7 @@ struct ParsingParams {
     ParsingMode mode { ParsingMode::Normal };
 
     Vector<RuleContext> rule_context;
+    HashTable<FlyString> declared_namespaces;
 };
 
 // The very large CSS Parser implementation code is broken up among several .cpp files:
@@ -543,6 +544,7 @@ private:
     bool context_allows_quirky_length() const;
 
     Vector<RuleContext> m_rule_context;
+    HashTable<FlyString> m_declared_namespaces;
 
     Vector<PseudoClass> m_pseudo_class_context; // Stack of pseudo-class functions we're currently inside
 };
