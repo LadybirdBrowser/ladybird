@@ -242,26 +242,26 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
     case GL_@parameter_name@: {)~~~");
         if (is_integer_type(type_name)) {
             impl_generator.append(R"~~~(
-        GLint result;
-        glGetIntegerv(GL_@parameter_name@, &result);
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_@parameter_name@, 1, nullptr, &result);
         return JS::Value(result);
 )~~~");
         } else if (type_name == "GLfloat"sv) {
             impl_generator.append(R"~~~(
-        GLfloat result;
-        glGetFloatv(GL_@parameter_name@, &result);
+        GLfloat result { 0.0f };
+        glGetFloatvRobustANGLE(GL_@parameter_name@, 1, nullptr, &result);
         return JS::Value(result);
 )~~~");
         } else if (type_name == "GLboolean"sv) {
             impl_generator.append(R"~~~(
-        GLboolean result;
-        glGetBooleanv(GL_@parameter_name@, &result);
+        GLboolean result { GL_FALSE };
+        glGetBooleanvRobustANGLE(GL_@parameter_name@, 1, nullptr, &result);
         return JS::Value(result == GL_TRUE);
 )~~~");
         } else if (type_name == "GLint64"sv) {
             impl_generator.append(R"~~~(
-        GLint64 result;
-        glGetInteger64v(GL_@parameter_name@, &result);
+        GLint64 result { 0 };
+        glGetInteger64vRobustANGLE(GL_@parameter_name@, 1, nullptr, &result);
         return JS::Value(static_cast<double>(result));
 )~~~");
         } else if (type_name == "DOMString"sv) {
@@ -272,18 +272,20 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
             auto element_count = name_and_type.return_type.element_count;
             impl_generator.set("element_count", MUST(String::formatted("{}", element_count)));
             if (type_name == "Int32Array"sv) {
-                impl_generator.set("gl_function_name", "glGetIntegerv"sv);
+                impl_generator.set("gl_function_name", "glGetIntegervRobustANGLE"sv);
                 impl_generator.set("element_type", "GLint"sv);
             } else if (type_name == "Float32Array"sv) {
-                impl_generator.set("gl_function_name", "glGetFloatv"sv);
+                impl_generator.set("gl_function_name", "glGetFloatvRobustANGLE"sv);
                 impl_generator.set("element_type", "GLfloat"sv);
             } else {
                 VERIFY_NOT_REACHED();
             }
             impl_generator.append(R"~~~(
         Array<@element_type@, @element_count@> result;
-        @gl_function_name@(GL_@parameter_name@, result.data());
-        auto byte_buffer = MUST(ByteBuffer::copy(result.data(), @element_count@ * sizeof(@element_type@)));
+        result.fill(0);
+        constexpr size_t buffer_size = @element_count@ * sizeof(@element_type@);
+        @gl_function_name@(GL_@parameter_name@, @element_count@, nullptr, result.data());
+        auto byte_buffer = MUST(ByteBuffer::copy(result.data(), buffer_size));
         auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
         return JS::@type_name@::create(m_realm, @element_count@, array_buffer);
 )~~~");
@@ -330,8 +332,8 @@ static void generate_get_buffer_parameter(SourceGenerator& generator)
         impl_generator.set("type_name", type_name);
         impl_generator.append(R"~~~(
     case GL_@parameter_name@: {
-        GLint result;
-        glGetBufferParameteriv(target, GL_@parameter_name@, &result);
+        GLint result { 0 };
+        glGetBufferParameterivRobustANGLE(target, GL_@parameter_name@, 1, nullptr, &result);
         return JS::Value(result);
     }
 )~~~");
@@ -353,9 +355,10 @@ static void generate_get_internal_format_parameter(SourceGenerator& generator)
     switch (pname) {
     case GL_SAMPLES: {
         GLint num_sample_counts { 0 };
-        glGetInternalformativ(target, internalformat, GL_NUM_SAMPLE_COUNTS, 1, &num_sample_counts);
-        auto samples_buffer = MUST(ByteBuffer::create_zeroed(num_sample_counts * sizeof(GLint)));
-        glGetInternalformativ(target, internalformat, GL_SAMPLES, num_sample_counts, reinterpret_cast<GLint*>(samples_buffer.data()));
+        glGetInternalformativRobustANGLE(target, internalformat, GL_NUM_SAMPLE_COUNTS, 1, nullptr, &num_sample_counts);
+        size_t buffer_size = num_sample_counts * sizeof(GLint);
+        auto samples_buffer = MUST(ByteBuffer::create_zeroed(buffer_size));
+        glGetInternalformativRobustANGLE(target, internalformat, GL_SAMPLES, buffer_size, nullptr, reinterpret_cast<GLint*>(samples_buffer.data()));
         auto array_buffer = JS::ArrayBuffer::create(m_realm, move(samples_buffer));
         return JS::Int32Array::create(m_realm, num_sample_counts, array_buffer);
     }
@@ -397,21 +400,22 @@ static void generate_get_active_uniform_block_parameter(SourceGenerator& generat
     case GL_UNIFORM_BLOCK_DATA_SIZE:
     case GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS: {
         GLint result = 0;
-        glGetActiveUniformBlockiv(program_handle, uniform_block_index, pname, &result);
+        glGetActiveUniformBlockivRobustANGLE(program_handle, uniform_block_index, pname, 1, nullptr, &result);
         return JS::Value(result);
     }
     case GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES: {
         GLint num_active_uniforms = 0;
-        glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &num_active_uniforms);
-        auto active_uniform_indices_buffer = MUST(ByteBuffer::create_zeroed(num_active_uniforms * sizeof(GLint)));
-        glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, reinterpret_cast<GLint*>(active_uniform_indices_buffer.data()));
+        glGetActiveUniformBlockivRobustANGLE(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, sizeof(GLint), nullptr, &num_active_uniforms);
+        size_t buffer_size = num_active_uniforms * sizeof(GLint);
+        auto active_uniform_indices_buffer = MUST(ByteBuffer::create_zeroed(buffer_size));
+        glGetActiveUniformBlockivRobustANGLE(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, num_active_uniforms, nullptr, reinterpret_cast<GLint*>(active_uniform_indices_buffer.data()));
         auto array_buffer = JS::ArrayBuffer::create(m_realm, move(active_uniform_indices_buffer));
         return JS::Uint32Array::create(m_realm, num_active_uniforms, array_buffer);
     }
     case GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER:
     case GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER: {
         GLint result = 0;
-        glGetActiveUniformBlockiv(program_handle, uniform_block_index, pname, &result);
+        glGetActiveUniformBlockivRobustANGLE(program_handle, uniform_block_index, pname, 1, nullptr, &result);
         return JS::Value(result == GL_TRUE);
     }
     default:
@@ -479,12 +483,20 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto webgl_version = class_name == "WebGLRenderingContextImpl" ? 1 : 2;
     if (webgl_version == 1) {
         implementation_file_generator.append(R"~~~(
+#define GL_GLEXT_PROTOTYPES 1
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+extern "C" {
+#include <GLES2/gl2ext_angle.h>
+}
 )~~~");
     } else {
         implementation_file_generator.append(R"~~~(
+#define GL_GLEXT_PROTOTYPES 1
 #include <GLES3/gl3.h>
+extern "C" {
+#include <GLES2/gl2ext_angle.h>
+}
 )~~~");
     }
 
@@ -1058,12 +1070,14 @@ public:
         if (function.name == "texImage2D"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
+    size_t buffer_size = 0;
     if (pixels) {
         auto const& viewed_array_buffer = pixels->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
         pixels_ptr = byte_buffer.data() + pixels->byte_offset();
+        buffer_size = pixels->byte_length();
     }
-    glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels_ptr);
+    glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, buffer_size, pixels_ptr);
 )~~~");
             continue;
         }
@@ -1074,15 +1088,18 @@ public:
             // FIXME: If type is specified as FLOAT_32_UNSIGNED_INT_24_8_REV, srcData must be null; otherwise, generates an INVALID_OPERATION error.
             // FIXME: If srcData is non-null, the type of srcData must match the type according to the above table; otherwise, generate an INVALID_OPERATION error.
             // FIXME: If an attempt is made to call this function with no WebGLTexture bound (see above), generates an INVALID_OPERATION error.
-            // FIXME: If there's not enough data in srcData starting at srcOffset, generate INVALID_OPERATION.
+            // If there's not enough data in srcData starting at srcOffset, generate INVALID_OPERATION.
+            // NOTE: This is done by using the RobustANGLE version of the API call.
             function_impl_generator.append(R"~~~(
     void const* src_data_ptr = nullptr;
+    size_t buffer_size = 0;
     if (src_data) {
         auto const& viewed_array_buffer = src_data->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
         src_data_ptr = byte_buffer.data() + src_data->byte_offset();
+        buffer_size = src_data->byte_length();
     }
-    glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, src_data_ptr);
+    glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, buffer_size, src_data_ptr);
 )~~~");
             continue;
         }
@@ -1093,15 +1110,18 @@ public:
             // FIXME: If type is specified as FLOAT_32_UNSIGNED_INT_24_8_REV, srcData must be null; otherwise, generates an INVALID_OPERATION error.
             // FIXME: If srcData is non-null, the type of srcData must match the type according to the above table; otherwise, generate an INVALID_OPERATION error.
             // FIXME: If an attempt is made to call this function with no WebGLTexture bound (see above), generates an INVALID_OPERATION error.
-            // FIXME: If there's not enough data in srcData starting at srcOffset, generate INVALID_OPERATION.
+            // - If there's not enough data in srcData starting at srcOffset, generate INVALID_OPERATION.
+            // NOTE: This is done by using the RobustANGLE version of the API call.
             function_impl_generator.append(R"~~~(
     void const* src_data_ptr = nullptr;
+    size_t buffer_size = 0;
     if (src_data) {
         auto const& viewed_array_buffer = src_data->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
         src_data_ptr = byte_buffer.data() + src_offset;
+        buffer_size = src_data->byte_length();
     }
-    glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, src_data_ptr);
+    glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, buffer_size, src_data_ptr);
 )~~~");
             continue;
         }
@@ -1113,7 +1133,7 @@ public:
     if (!maybe_converted_texture.has_value())
         return;
     auto converted_texture = maybe_converted_texture.release_value();
-    glTexImage2D(target, level, internalformat, converted_texture.width, converted_texture.height, border, format, type, converted_texture.buffer.data());
+    glTexImage2DRobustANGLE(target, level, internalformat, converted_texture.width, converted_texture.height, border, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
 )~~~");
             } else {
                 function_impl_generator.append(R"~~~(
@@ -1121,7 +1141,7 @@ public:
     if (!maybe_converted_texture.has_value())
         return;
     auto converted_texture = maybe_converted_texture.release_value();
-    glTexImage2D(target, level, internalformat, converted_texture.width, converted_texture.height, 0, format, type, converted_texture.buffer.data());
+    glTexImage2DRobustANGLE(target, level, internalformat, converted_texture.width, converted_texture.height, 0, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
 )~~~");
             }
             continue;
@@ -1130,12 +1150,14 @@ public:
         if (webgl_version == 2 && function.name == "texImage2D"sv && function.overload_index == 3) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
+    size_t buffer_size = 0;
     if (src_data) {
         auto const& viewed_array_buffer = src_data->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
         pixels_ptr = byte_buffer.data() + src_offset;
+        buffer_size = src_data->byte_length();
     }
-    glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels_ptr);
+    glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, buffer_size, pixels_ptr);
 )~~~");
             continue;
         }
@@ -1143,12 +1165,14 @@ public:
         if (function.name == "texSubImage2D"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
+    size_t buffer_size = 0;
     if (pixels) {
         auto const& viewed_array_buffer = pixels->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
         pixels_ptr = byte_buffer.data() + pixels->byte_offset();
+        buffer_size = pixels->byte_length();
     }
-    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
+    glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, type, buffer_size, pixels_ptr);
 )~~~");
             continue;
         }
@@ -1168,7 +1192,7 @@ public:
     if (!maybe_converted_texture.has_value())
         return;
     auto converted_texture = maybe_converted_texture.release_value();
-    glTexSubImage2D(target, level, xoffset, yoffset, converted_texture.width, converted_texture.height, format, type, converted_texture.buffer.data());
+    glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, converted_texture.width, converted_texture.height, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
 )~~~");
             continue;
         }
@@ -1176,12 +1200,14 @@ public:
         if (webgl_version == 2 && function.name == "texSubImage2D"sv && function.overload_index == 3) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
+    size_t buffer_size = 0;
     if (src_data) {
         auto const& viewed_array_buffer = src_data->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
         pixels_ptr = byte_buffer.data() + src_data->byte_offset() + src_offset;
+        buffer_size = src_data->byte_length();
     }
-    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
+    glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, type, buffer_size, pixels_ptr);
 )~~~");
             continue;
         }
@@ -1189,12 +1215,32 @@ public:
         if (function.name == "texSubImage3D"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
+    size_t buffer_size = 0;
     if (src_data) {
         auto const& viewed_array_buffer = src_data->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
         pixels_ptr = byte_buffer.data() + src_offset;
+        buffer_size = src_data->byte_length();
     }
-    glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels_ptr);
+    glTexSubImage3DRobustANGLE(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, buffer_size, pixels_ptr);
+)~~~");
+            continue;
+        }
+
+        if (webgl_version == 1 && function.name == "compressedTexImage2D"sv) {
+            function_impl_generator.append(R"~~~(
+    void const* ptr = data->viewed_array_buffer()->buffer().data() + data->byte_offset();
+    size_t byte_size = data->byte_length();
+    glCompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border, byte_size, byte_size, ptr);
+)~~~");
+            continue;
+        }
+
+        if (webgl_version == 1 && function.name == "compressedTexSubImage2D"sv) {
+            function_impl_generator.append(R"~~~(
+    void const* ptr = data->viewed_array_buffer()->buffer().data() + data->byte_offset();
+    size_t byte_size = data->byte_length();
+    glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, byte_size, byte_size, ptr);
 )~~~");
             continue;
         }
@@ -1218,7 +1264,7 @@ public:
         count = src_length_override;
     }
 
-    glCompressedTexImage2D(target, level, internalformat, width, height, border, count, pixels_ptr);
+    glCompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border, count, src_data->byte_length(), pixels_ptr);
 )~~~");
             continue;
         }
@@ -1242,7 +1288,7 @@ public:
         count = src_length_override;
     }
 
-    glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, count, pixels_ptr);
+    glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, count, src_data->byte_length(), pixels_ptr);
 )~~~");
             continue;
         }
@@ -1251,7 +1297,7 @@ public:
             generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, "JS::js_null()"sv);
             function_impl_generator.append(R"~~~(
     GLint result = 0;
-    glGetShaderiv(shader_handle, pname, &result);
+    glGetShaderivRobustANGLE(shader_handle, pname, 1, nullptr, &result);
     switch (pname) {
     case GL_SHADER_TYPE:
         return JS::Value(result);
@@ -1271,7 +1317,7 @@ public:
             generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "JS::js_null()"sv);
             function_impl_generator.append(R"~~~(
     GLint result = 0;
-    glGetProgramiv(program_handle, pname, &result);
+    glGetProgramivRobustANGLE(program_handle, pname, 1, nullptr, &result);
     switch (pname) {
     case GL_ATTACHED_SHADERS:
     case GL_ACTIVE_ATTRIBUTES:
@@ -1410,7 +1456,7 @@ public:
     }
 
     void *ptr = pixels->viewed_array_buffer()->buffer().data() + pixels->byte_offset();
-    glReadPixels(x, y, width, height, format, type, ptr);
+    glReadPixelsRobustANGLE(x, y, width, height, format, type, pixels->byte_length(), nullptr, nullptr, nullptr, ptr);
 )~~~");
             continue;
         }
@@ -1550,16 +1596,28 @@ public:
         }
 
         if (function.name == "vertexAttrib1fv"sv || function.name == "vertexAttrib2fv"sv || function.name == "vertexAttrib3fv"sv || function.name == "vertexAttrib4fv"sv) {
+            // If the array passed to any of the vector forms (those ending in v) is too short, an INVALID_VALUE error will be generated.
             auto number_of_vector_elements = function.name.substring_view(12, 1);
             function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
             function_impl_generator.append(R"~~~(
     if (values.has<Vector<float>>()) {
         auto& data = values.get<Vector<float>>();
+        if (data.size() < @number_of_vector_elements@) {
+            set_error(GL_INVALID_VALUE);
+            return;
+        }
+
         glVertexAttrib@number_of_vector_elements@fv(index, data.data());
         return;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+    auto& buffer_source = values.get<GC::Root<WebIDL::BufferSource>>();
+    if (buffer_source->byte_length() < @number_of_vector_elements@ * sizeof(float)) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*buffer_source->raw_object());
     auto& float32_array = as<JS::Float32Array>(typed_array_base);
     float const* data = float32_array.data().data();
     glVertexAttrib@number_of_vector_elements@fv(index, data);
@@ -1701,7 +1759,7 @@ public:
             generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "OptionalNone {}"sv);
             function_impl_generator.append(R"~~~(
     GLint uniform_block_name_length = 0;
-    glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_NAME_LENGTH, &uniform_block_name_length);
+    glGetActiveUniformBlockivRobustANGLE(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_NAME_LENGTH, 1, nullptr, &uniform_block_name_length);
     Vector<GLchar> uniform_block_name;
     uniform_block_name.resize(uniform_block_name_length);
     if (!uniform_block_name_length)
