@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(StringView rule, u32 index
 {
     // The insertRule(rule, index) method must return the result of invoking insert a CSS rule rule into the child CSS
     // rules at index, with the nested flag set.
-    TRY(m_rules->insert_a_css_rule(rule, index, CSSRuleList::Nested::Yes));
+    TRY(m_rules->insert_a_css_rule(rule, index, CSSRuleList::Nested::Yes, m_parent_style_sheet->declared_namespaces()));
 
     // AD-HOC: The spec doesn't say where to set the parent rule, so we'll do it here.
     m_rules->item(index)->set_parent_rule(this);

@@ -1,0 +1,10 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="L. David Baron" href="https://dbaron.org/"/>
+  <link rel="author" title="Mozilla" href="http://mozilla.org/"/>
+  <title>CSS Namespaces Test Suite reference</title>
+ </head>
+ <body>
+  <p><test style="background: lime">This sentence should have a green background.</test></p>
+ </body>
+</html>

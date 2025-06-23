@@ -49,8 +49,9 @@ void CSSRuleList::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_owner_rule);
 }
 
+// AD-HOC: The spec doesn't include a declared_namespaces parameter, but we need it to handle parsing of namespaced selectors.
 // https://drafts.csswg.org/cssom/#insert-a-css-rule
-WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index, Nested nested)
+WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView, CSSRule*> rule, u32 index, Nested nested, HashTable<FlyString> const& declared_namespaces)
 {
     // 1. Set length to the number of items in list.
     auto length = m_rules.size();
@@ -63,9 +64,13 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     // NOTE: The insert-a-css-rule spec expects `rule` to be a string, but the CSSStyleSheet.insertRule()
     //       spec calls this algorithm with an already-parsed CSSRule. So, we use a Variant and skip step 3
     //       if that variant holds a CSSRule already.
+
     CSSRule* new_rule = nullptr;
     if (rule.has<StringView>()) {
-        new_rule = parse_css_rule(Parser::ParsingParams { realm() }, rule.get<StringView>());
+        Parser::ParsingParams parsing_params { realm() };
+        parsing_params.declared_namespaces = declared_namespaces;
+
+        new_rule = parse_css_rule(parsing_params, rule.get<StringView>());
     } else {
         new_rule = rule.get<CSSRule*>();
     }
@@ -74,6 +79,8 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     if (!new_rule && nested == Nested::Yes) {
         Parser::ParsingParams parsing_params { realm() };
         parsing_params.rule_context = rule_context();
+        parsing_params.declared_namespaces = declared_namespaces;
+
         // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
         auto declarations = parse_css_property_declaration_block(parsing_params, rule.get<StringView>());
 

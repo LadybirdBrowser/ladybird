@@ -151,7 +151,7 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsign
         return WebIDL::SyntaxError::create(realm(), "Can't insert @import rules into a constructed stylesheet."_string);
 
     // 6. Return the result of invoking insert a CSS rule rule in the CSS rules at index.
-    auto result = m_rules->insert_a_css_rule(parsed_rule, index);
+    auto result = m_rules->insert_a_css_rule(parsed_rule, index, CSSRuleList::Nested::No, declared_namespaces());
 
     if (!result.is_exception()) {
         // NOTE: The spec doesn't say where to set the parent style sheet, so we'll do it here.
@@ -375,6 +375,17 @@ Optional<FlyString> CSSStyleSheet::default_namespace() const
     return {};
 }
 
+HashTable<FlyString> CSSStyleSheet::declared_namespaces() const
+{
+    HashTable<FlyString> declared_namespaces;
+
+    for (auto namespace_ : m_namespace_rules.keys()) {
+        declared_namespaces.set(namespace_);
+    }
+
+    return declared_namespaces;
+}
+
 Optional<FlyString> CSSStyleSheet::namespace_uri(StringView namespace_prefix) const
 {
     return m_namespace_rules.get(namespace_prefix)
@@ -444,9 +455,14 @@ bool CSSStyleSheet::has_associated_font_loader(FontLoader& font_loader) const
 
 Parser::ParsingParams CSSStyleSheet::make_parsing_params() const
 {
+    Parser::ParsingParams parsing_params;
     if (auto document = owning_document())
-        return Parser::ParsingParams { *document };
-    return Parser::ParsingParams { realm() };
+        parsing_params = Parser::ParsingParams { *document };
+    else
+        parsing_params = Parser::ParsingParams { realm() };
+
+    parsing_params.declared_namespaces = declared_namespaces();
+    return parsing_params;
 }
 
 }
