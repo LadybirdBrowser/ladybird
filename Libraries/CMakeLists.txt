@@ -14,6 +14,7 @@ add_subdirectory(LibThreading)
 add_subdirectory(LibTLS)
 add_subdirectory(LibUnicode)
 add_subdirectory(LibURL)
+add_subdirectory(LibWebSocket)
 add_subdirectory(LibXML)
 
 # FIXME: Increase support for building targets on Windows
@@ -25,7 +26,6 @@ add_subdirectory(LibHTTP)
 add_subdirectory(LibLine)
 add_subdirectory(LibRequests)
 add_subdirectory(LibWasm)
-add_subdirectory(LibWebSocket)
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibDevTools)
