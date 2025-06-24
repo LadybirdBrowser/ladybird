@@ -713,7 +713,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
         }));
     }
 
-    // 1. If document is an XML document, then throw an "InvalidStateError" DOMException exception.
+    // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
         return WebIDL::InvalidStateError::create(realm(), "open() called on XML document."_string);
 
@@ -793,7 +793,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open-window
 WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(StringView url, StringView name, StringView features)
 {
-    // 1. If this is not fully active, then throw an "InvalidAccessError" DOMException exception.
+    // 1. If this is not fully active, then throw an "InvalidAccessError" DOMException.
     if (!is_fully_active())
         return WebIDL::InvalidAccessError::create(realm(), "Cannot perform open on a document that isn't fully active."_string);
 
@@ -4428,7 +4428,7 @@ GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
             if (document_type() == Type::HTML)
                 new_document->set_document_type(Type::HTML);
 
-            // 3. Let doc's associated inert template document be new doc.
+            // 3. Set doc's associated inert template document to new doc.
             m_associated_inert_template_document = new_document;
         }
         // 2. Set doc to doc's associated inert template document.
@@ -4879,7 +4879,7 @@ void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::
     // 4. Let time be 0.
     u32 time = 0;
 
-    // 5. Collect a sequence of code points that are ASCII digits from input given position, and let the result be timeString.
+    // 5. Collect a sequence of code points that are ASCII digits from input given position, and let timeString be the result.
     auto time_string = lexer.consume_while(is_ascii_digit);
 
     // 6. If timeString is the empty string, then:

@@ -376,7 +376,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
     {
         bool dropped = false;
 
-        // 1. If the current drag operation is "none" (no drag operation), or, if the user ended the drag-and-drop
+        // 1. If the current drag operation is "none" (no drag operation), or if the user ended the drag-and-drop
         //    operation by canceling it (e.g. by hitting the Escape key), or if the current target element is null, then
         //    the drag operation failed. Run these substeps:
         if (m_current_drag_operation == HTML::DataTransferEffect::none || cancelled == Cancelled::Yes || !m_current_target_element) {

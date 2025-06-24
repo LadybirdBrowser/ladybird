@@ -2056,6 +2056,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
         || (context->document().document_type() == Document::Type::HTML
             && static_cast<Element const&>(*context).local_name() == "html"sv
             && static_cast<Element const&>(*context).namespace_uri() == Namespace::HTML)) {
+        // then set context to the result of creating an element given this's node document, "body", and the HTML namespace.
         context = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
     }
 

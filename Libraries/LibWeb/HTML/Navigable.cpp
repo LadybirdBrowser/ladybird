@@ -1146,7 +1146,8 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
     auto result_policy_container = determine_navigation_params_policy_container(*response_holder->response()->url(), realm.heap(), history_policy_container, source_snapshot_params.source_policy_container, {}, response_policy_container);
 
-    // 24. If navigable's container is an iframe, and response's timing allow passed flag is set, then set container's pending resource-timing start time to null.
+    // 24. If navigable's container is an iframe, and response's timing allow passed flag is set,
+    //     then set navigable's container's pending resource-timing start time to null.
     if (navigable->container() && is<HTML::HTMLIFrameElement>(*navigable->container()) && response_holder->response()->timing_allow_passed())
         static_cast<HTML::HTMLIFrameElement&>(*navigable->container()).set_pending_resource_start_time({});
 

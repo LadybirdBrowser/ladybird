@@ -598,7 +598,7 @@ GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(StringView text)
 {
     // The measureText(text) method steps are to run the text preparation
     // algorithm, passing it text and the object implementing the CanvasText
-    // interface, and then using the returned inline box must return a new
+    // interface, and then using the returned inline box return a new
     // TextMetrics object with members behaving as described in the following
     // list:
     auto prepared_text = prepare_text(text);

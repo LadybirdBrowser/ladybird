@@ -190,7 +190,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
     // 7. ⌛ Let URL be the track URL of the track element.
     auto url = track_url();
 
-    // 8. ⌛ If the track element's parent is a media element then let corsAttributeState be the state of the
+    // 8. ⌛ If the track element's parent is a media element, then let corsAttributeState be the state of the
     //    parent media element's crossorigin content attribute. Otherwise, let corsAttributeState be No CORS.
     auto cors_attribute_state = CORSSettingAttribute::NoCORS;
     if (is<HTMLMediaElement>(parent())) {

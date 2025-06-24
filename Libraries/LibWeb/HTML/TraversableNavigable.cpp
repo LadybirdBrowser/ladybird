@@ -1371,7 +1371,7 @@ void TraversableNavigable::set_system_visibility_state(VisibilityState visibilit
         return;
     m_system_visibility_state = visibility_state;
 
-    // When a user-agent determines that the system visibility state for
+    // When a user agent determines that the system visibility state for
     // traversable navigable traversable has changed to newState, it must run the following steps:
 
     // 1. Let navigables be the inclusive descendant navigables of traversable's active document.

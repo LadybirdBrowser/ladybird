@@ -951,7 +951,7 @@ Messages::WebDriverClient::ConsumeUserActivationResponse WebDriverConnection::co
     // If the current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
 
-    // 1. Let window be current browsing context's active window.
+    // 1. Let window be the current browsing context's active window.
     auto* window = current_browsing_context().active_window();
 
     // 2. Let consume be true if window has transient activation; otherwise false.

@@ -237,7 +237,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
                 MUST(target->show_popover(ThrowExceptions::No, this));
             }
 
-            // 2. Otheriwse, if the result of running check popover validity given target, true, false, and null is true,
+            // 2. Otherwise, if the result of running check popover validity given target, true, false, and null is true,
             //    then run the hide popover algorithm given target, true, true, false and element.
             else if (MUST(target->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
                 MUST(target->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, this));
@@ -253,7 +253,8 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
             }
         }
 
-        // 12. Otherwise, if this standard defines invoker command steps for target's local name, then run the corresponding invoker command steps given target, element and command.
+        // 12. Otherwise, if this standard defines invoker command steps for target's local name,
+        //     then run the corresponding invoker command steps given target, element, and command.
         else {
             target->invoker_command_steps(*this, command);
         }
@@ -302,7 +303,7 @@ String HTMLButtonElement::command() const
 
     // NOTE: Steps are re-ordered a bit.
 
-    // 4. Return the keword corresponding to the value of command.return
+    // 4. Return the keyword corresponding to the value of command.return
     if (command.has_value()) {
         auto command_value = command.value();
         for (auto const& value : valid_values) {

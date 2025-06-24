@@ -149,13 +149,13 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     AttributeDetails attr_details {};
 
     auto step_default = [&] {
-        // 32. Default: Let the element's IDL-exposed autofill value be the empty string, and its autofill hint set and autofill scope be empty.
+        // 32. Default: Set the element's IDL-exposed autofill value to the empty string, and its autofill hint set and autofill scope to empty.
         attr_details.value = {};
         attr_details.hint_set = {};
         attr_details.scope = {};
 
         // 33. If the element's autocomplete attribute is wearing the autofill anchor mantle,
-        //     then let the element's autofill field name be the empty string and return.
+        //     then set the element's autofill field name to the empty string and return.
         if (get_autofill_mantle() == AutofillMantle::Anchor) {
             attr_details.field_name = {};
             return attr_details;
@@ -164,11 +164,11 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         // 34. Let form be the element's form owner, if any, or null otherwise.
         auto const* form = as<FormAssociatedElement const>(autocomplete_element_to_html_element()).form();
 
-        // 35. If form is not null and form's autocomplete attribute is in the off state, then let the element's autofill field name be "off".
+        // 35. If form is not null and form's autocomplete attribute is in the off state, then set the element's autofill field name to "off".
         if (form && form->attribute(AttributeNames::autocomplete) == idl_enum_to_string(Bindings::Autocomplete::Off)) {
             attr_details.field_name = "off"_string;
         }
-        // Otherwise, let the element's autofill field name be "on".
+        // Otherwise, set the element's autofill field name to "on".
         else {
             attr_details.field_name = "on"_string;
         }
@@ -210,8 +210,8 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         && get_autofill_mantle() == AutofillMantle::Anchor)
         return step_default();
 
-    // 10. If category is Off, let the element's autofill field name be the string "off", let its autofill hint set be empty,
-    //     and let its IDL-exposed autofill value be the string "off". Then, return.
+    // 10. If category is Off, set the element's autofill field name to the string "off", set its autofill hint set to empty,
+    //     and set its IDL-exposed autofill value to the string "off". Then, return.
     if (category == Category::Off) {
         attr_details.field_name = "off"_string;
         attr_details.hint_set = {};
@@ -219,8 +219,8 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         return attr_details;
     }
 
-    // 11. If category is Automatic, let the element's autofill field name be the string "on", let its autofill hint set be empty,
-    //     and let its IDL-exposed autofill value be the string "on". Then, return.
+    // 11. If category is Automatic, set the element's autofill field name to the string "on", set its autofill hint set to empty,
+    //     and set its IDL-exposed autofill value to the string "on". Then, return.
     if (category == Category::Automatic) {
         attr_details.field_name = "on"_string;
         attr_details.hint_set = {};
@@ -242,19 +242,19 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     auto idl_value = field.to_ascii_lowercase();
 
     auto step_done = [&] {
-        // 26. Done: Let the element's autofill hint set be hint tokens.
+        // 26. Done: Set the element's autofill hint set to hint tokens.
         attr_details.hint_set = hint_tokens.values();
 
-        // 27. Let the element's non-autofill credential type be credential type.
+        // 27. Set the element's non-autofill credential type to credential type.
         attr_details.credential_type = credential_type;
 
-        // 28. Let the element's autofill scope be scope tokens.
+        // 28. Set the element's autofill scope to scope tokens.
         attr_details.scope = scope_tokens;
 
-        // 29. Let the element's autofill field name be field.
+        // 29. Set the element's autofill field name to field.
         attr_details.field_name = field;
 
-        // 30. Let the element's IDL-exposed autofill value be IDL value.
+        // 30. Set the element's IDL-exposed autofill value to IDL value.
         attr_details.value = idl_value;
 
         // 31. Return.

@@ -168,7 +168,7 @@ GC::Ref<TimeRanges> HTMLMediaElement::buffered() const
     auto& realm = this->realm();
 
     // FIXME: The buffered attribute must return a new static normalized TimeRanges object that represents the ranges of the
-    //        media resource, if any, that the user agent has buffered, at the time the attribute is evaluated. Users agents
+    //        media resource, if any, that the user agent has buffered, at the time the attribute is evaluated. User agents
     //        must accurately determine the ranges available, even for media streams where this can only be determined by
     //        tedious inspection.
     return realm.create<TimeRanges>(realm);
@@ -336,7 +336,7 @@ bool HTMLMediaElement::ended() const
 void HTMLMediaElement::set_duration(double duration)
 {
     // When the length of the media resource changes to a known value (e.g. from being unknown to known, or from a previously established length to a new
-    // length) the user agent must queue a media element task given the media element to fire an event named durationchange at the media element. (The event
+    // length), the user agent must queue a media element task given the media element to fire an event named durationchange at the media element. (The event
     // is not fired when the duration is reset as part of loading a new media resource.) If the duration is changed such that the current playback position
     // ends up being greater than the time of the end of the media resource, then the user agent must also seek to the time of the end of the media resource.
     if (!isnan(duration)) {
@@ -997,7 +997,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             : Fetch::Infrastructure::Request::Destination::Video;
 
         // 3. Let request be the result of creating a potential-CORS request given current media resource's URL record, destination, and the current state
-        //    of media element's crossorigin content attribute.
+        //    of the media element's crossorigin content attribute.
         auto request = create_potential_CORS_request(vm, url_record, destination, m_crossorigin);
 
         // 4. Set request's client to the media element's node document's relevant settings object.
@@ -1016,7 +1016,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
         ByteRange byte_range = EntireResource {};
 
         // FIXME: 7. If byteRange is not "entire resource", then:
-        //            1. If byteRange[1] is "until end" then add a range header to request given byteRange[0].
+        //            1. If byteRange[1] is "until end", then add a range header to request given byteRange[0].
         //            2. Otherwise, add a range header to request given byteRange[0] and byteRange[1].
 
         // 8. Fetch request, with processResponse set to the following steps given response response:
@@ -1256,7 +1256,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
             jumped = true;
         }
 
-        // 9. Let the media element's default playback start position be zero.
+        // 9. Set the media element's default playback start position to zero.
         m_default_playback_start_position = 0;
 
         // FIXME: 10. Let the initial playback position be zero.
@@ -1587,7 +1587,7 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
         // then let it be the position in one of the ranges given in the seekable attribute that is the nearest to the new
         // playback position.
 
-        // If there are no ranges given in the seekable attribute then set the seeking IDL attribute to false and return.
+        // If there are no ranges given in the seekable attribute, then set the seeking IDL attribute to false and return.
         if (time_ranges->length() == 0) {
             set_seeking(false);
             return;
@@ -1610,7 +1610,7 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
         }
 
         // If two positions both satisfy that constraint (i.e. the new playback position is exactly in the middle between two ranges
-        // in the seekable attribute) then use the position that is closest to the current playback position.
+        // in the seekable attribute), then use the position that is closest to the current playback position.
         if (other_nearest_point.has_value()) {
             auto nearest_point_distance = abs(m_current_playback_position - nearest_point);
             auto other_nearest_point_distance = abs(m_current_playback_position - other_nearest_point.value());
@@ -1717,7 +1717,7 @@ void HTMLMediaElement::set_paused(bool paused)
 void HTMLMediaElement::set_default_playback_rate(double new_value)
 {
     // When the defaultPlaybackRate or playbackRate attributes change value (either by being set by script or by being changed directly by the user agent, e.g. in response to user
-    // control) the user agent must queue a media element task given the media element to fire an event named ratechange at the media element.
+    // control), the user agent must queue a media element task given the media element to fire an event named ratechange at the media element.
     if (m_default_playback_rate != new_value) {
         queue_a_media_element_task([this] {
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::ratechange));
@@ -1739,7 +1739,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_playback_rate(double new_value)
         return WebIDL::NotSupportedError::create(realm(), "Playback rates other than 1 are not supported."_string);
 
     // When the defaultPlaybackRate or playbackRate attributes change value (either by being set by script or by being changed directly by the user agent, e.g. in response to user
-    // control) the user agent must queue a media element task given the media element to fire an event named ratechange at the media element.
+    // control), the user agent must queue a media element task given the media element to fire an event named ratechange at the media element.
     if (m_playback_rate != new_value) {
         queue_a_media_element_task([this] {
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::ratechange));
