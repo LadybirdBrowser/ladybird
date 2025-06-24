@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 141 tests
 
-98 Pass
-43 Fail
+100 Pass
+41 Fail
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid-template-areas
 Pass	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid
@@ -14,8 +14,8 @@ Fail	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column shoul
 Pass	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-auto-flow
 Pass	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-template
 Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-template: 30px 40px / 50px 60px;' in its serialization
-Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-rows: auto;' in its serialization
-Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-columns: auto;' in its serialization
+Pass	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-rows: auto;' in its serialization
+Pass	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-columns: auto;' in its serialization
 Pass	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-flow: column;' in its serialization
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: 20px should set grid
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: 20px should set grid-template
