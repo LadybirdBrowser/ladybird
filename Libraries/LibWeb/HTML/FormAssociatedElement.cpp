@@ -738,7 +738,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     auto new_selection_start = AK::min(start.value(), relevant_value_length);
     auto new_selection_end = AK::min(end.value(), relevant_value_length);
 
-    //    If end is less than or equal to start then the start of the selection and the end of the
+    //    If end is less than or equal to start, then the start of the selection and the end of the
     //    selection must both be placed immediately before the character with offset end. In UAs
     //    where there is no concept of an empty selection, this must set the cursor to be just
     //    before the character with offset end.

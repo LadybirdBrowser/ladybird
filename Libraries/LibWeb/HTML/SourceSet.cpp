@@ -49,7 +49,7 @@ ImageSourceAndPixelDensity SourceSet::select_an_image_source()
         }
     }
 
-    // 2. In an implementation-defined manner, choose one image source from sourceSet. Let this be selectedSource.
+    // 2. In an implementation-defined manner, choose one image source from sourceSet. Let selectedSource be this choice.
     //    In our case, select the lowest density greater than 1, otherwise the greatest density available.
     // 3. Return selectedSource and its associated pixel density.
 
@@ -108,7 +108,7 @@ splitting_loop:
         return candidates;
     }
 
-    // 6. Collect a sequence of code points that are not ASCII whitespace from input given position, and let that be url.
+    // 6. Collect a sequence of code points that are not ASCII whitespace from input given position, and let url be that result.
     auto url = collect_a_sequence_of_code_points(
         [](u32 code_point) { return !Infra::is_ascii_whitespace(code_point); },
         input, position);
@@ -357,7 +357,7 @@ SourceSet SourceSet::create(DOM::Element const& element, String const& default_s
     if (!srcset.is_empty())
         source_set = parse_a_srcset_attribute(srcset);
 
-    // 3. Let source size be the result of parsing sizes with img.
+    // 3. Set source set's source size to the result of parsing sizes with img.
     source_set.m_source_size = parse_a_sizes_attribute(element, sizes, img);
 
     // 4. If default source is not the empty string and source set does not contain an image source

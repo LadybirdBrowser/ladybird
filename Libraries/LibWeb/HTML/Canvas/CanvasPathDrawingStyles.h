@@ -86,7 +86,7 @@ public:
         if (segments.size() % 2 == 1)
             segments.extend(segments);
 
-        // 3. Let the object's dash list be segments.
+        // 3. Set the object's dash list to segments.
         my_drawing_state().dash_list = move(segments);
     }
 

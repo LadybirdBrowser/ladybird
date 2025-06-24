@@ -493,7 +493,7 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
 
     // 2. FIXME: If the user agent cannot support images, or its support for images has been disabled,
     //           then abort the image request for the current request and the pending request,
-    //           set current request's state to unavailable, set pending request to null, and return.
+    //           set the current request's state to unavailable, set the pending request to null, and return.
 
     // 3. Let previousURL be the current request's current URL.
     auto previous_url = m_current_request->current_url();
@@ -541,18 +541,18 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
             abort_the_image_request(realm(), m_current_request);
             abort_the_image_request(realm(), m_pending_request);
 
-            // 3. Set pending request to null.
+            // 3. Set the pending request to null.
             m_pending_request = nullptr;
 
-            // 4. Let current request be a new image request whose image data is that of the entry and whose state is completely available.
+            // 4. Set the current request to a new image request whose image data is that of the entry and whose state is completely available.
             m_current_request = ImageRequest::create(realm(), document().page());
             m_current_request->set_image_data(entry->image_data);
             m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
 
-            // 5. Prepare current request for presentation given the img element.
+            // 5. Prepare the current request for presentation given the img element.
             m_current_request->prepare_for_presentation(*this);
 
-            // 6. Set current request's current pixel density to selected pixel density.
+            // 6. Set the current request's current pixel density to selected pixel density.
             // FIXME: Spec bug! `selected_pixel_density` can be undefined here, per the spec.
             //        That's why we value_or(1.0f) it.
             m_current_request->set_current_pixel_density(selected_pixel_density.value_or(1.0f));
@@ -563,7 +563,7 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
                 if (restart_animations)
                     restart_the_animation();
 
-                // 2. Set current request's current URL to urlString.
+                // 2. Set the current request's current URL to urlString.
                 m_current_request->set_current_url(realm(), url_string);
 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
@@ -594,7 +594,7 @@ after_step_7:
         if (!selected_source.has_value()) {
             // 1. Set the current request's state to broken,
             //    abort the image request for the current request and the pending request,
-            //    and set pending request to null.
+            //    and set the pending request to null.
             m_current_request->set_state(ImageRequest::State::Broken);
             abort_the_image_request(realm(), m_current_request);
             abort_the_image_request(realm(), m_pending_request);
@@ -630,7 +630,7 @@ after_step_7:
             // 2. Set the current request's state to broken.
             m_current_request->set_state(ImageRequest::State::Broken);
 
-            // 3. Set pending request to null.
+            // 3. Set the pending request to null.
             m_pending_request = nullptr;
 
             // 4. Queue an element task on the DOM manipulation task source given the img element and the following steps:
@@ -652,7 +652,7 @@ after_step_7:
         if (m_pending_request && url_string == m_pending_request->current_url())
             return;
 
-        // 14. If urlString is the same as the current request's current URL and current request's state is partially available,
+        // 14. If urlString is the same as the current request's current URL and the current request's state is partially available,
         //     then abort the image request for the pending request,
         //     queue an element task on the DOM manipulation task source given the img element
         //     to restart the animation if restart animation is set, and return.
@@ -676,7 +676,7 @@ after_step_7:
         auto image_request = ImageRequest::create(realm(), document().page());
         image_request->set_current_url(realm(), url_string);
 
-        // 17. If current request's state is unavailable or broken, then set the current request to image request.
+        // 17. If the current request's state is unavailable or broken, then set the current request to image request.
         //     Otherwise, set the pending request to image request.
         if (m_current_request->state() == ImageRequest::State::Unavailable || m_current_request->state() == ImageRequest::State::Broken)
             m_current_request = image_request;
@@ -823,8 +823,8 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
     // 2. ⌛ If the img element does not use srcset or picture,
     //       its node document is not fully active,
-    //       FIXME: has image data whose resource type is multipart/x-mixed-replace,
-    //       or the pending request is not null,
+    //       FIXME: it has image data whose resource type is multipart/x-mixed-replace,
+    //       or its pending request is not null,
     //       then return.
     if (!uses_srcset_or_picture() || !document().is_fully_active() || m_pending_request)
         return;
@@ -874,7 +874,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
     auto image_request = ImageRequest::create(realm(), document().page());
     image_request->set_current_url(realm(), url_string);
 
-    // 12. ⌛ Let the element's pending request be image request.
+    // 12. ⌛ Set the element's pending request to image request.
     m_pending_request = image_request;
 
     // FIXME: 13. End the synchronous section, continuing the remaining steps in parallel.
@@ -882,13 +882,14 @@ void HTMLImageElement::react_to_changes_in_the_environment()
     auto step_15 = [this](String const& selected_source, GC::Ref<ImageRequest> image_request, ListOfAvailableImages::Key const& key, GC::Ref<DecodedImageData> image_data) {
         // 15. Queue an element task on the DOM manipulation task source given the img element and the following steps:
         queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, image_request, key, image_data] {
-            // 1. FIXME: If the img element has experienced relevant mutations since this algorithm started, then let pending request be null and abort these steps.
+            // 1. FIXME: If the img element has experienced relevant mutations since this algorithm started, then set the pending request to null and abort these steps.
             // AD-HOC: Check if we have a pending request still, otherwise we will crash when upgrading the request. This will happen if the image has experienced mutations,
             //        but since the pending request may be set by another task soon after it is cleared, this check is probably not sufficient.
             if (!m_pending_request)
                 return;
 
-            // 2. Let the img element's last selected source be selected source and the img element's current pixel density be selected pixel density.
+            // 2. Set the img element's last selected source to selected source and the img element's current pixel density to selected pixel density.
+            // FIXME: pixel density
             m_last_selected_source = selected_source;
 
             // 3. Set the image request's state to completely available.
@@ -923,7 +924,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
         // 1. Let request be the result of creating a potential-CORS request given urlString, "image", and corsAttributeState.
         auto request = create_potential_CORS_request(vm(), *maybe_url, Fetch::Infrastructure::Request::Destination::Image, m_cors_setting);
 
-        // 2. Set request's client to client, initiator to "imageset", and set request's synchronous flag.
+        // 2. Set request's client to client, set request's initiator to "imageset", and set request's synchronous flag.
         request->set_client(&client);
         request->set_initiator(Fetch::Infrastructure::Request::Initiator::ImageSet);
 
@@ -946,7 +947,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
                 // FIXME: or if the resource type is multipart/x-mixed-replace,
 
-                // then let pending request be null and abort these steps.
+                // then set the pending request to null and abort these steps.
 
                 batching_dispatcher().enqueue(GC::create_function(realm().heap(), [step_15, selected_source = move(selected_source), image_request, key] {
                     // 7. Otherwise, response's unsafe response is image request's image data. It can be either CORS-same-origin
@@ -974,11 +975,11 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 // https://html.spec.whatwg.org/multipage/images.html#upgrade-the-pending-request-to-the-current-request
 void HTMLImageElement::upgrade_pending_request_to_current_request()
 {
-    // 1. Let the img element's current request be the pending request.
+    // 1. Set the img element's current request to the pending request.
     VERIFY(m_pending_request);
     m_current_request = m_pending_request;
 
-    // 2. Let the img element's pending request be null.
+    // 2. Set the img element's pending request to null.
     m_pending_request = nullptr;
 }
 
@@ -1108,7 +1109,7 @@ static void update_the_source_set(DOM::Element& element)
                     default_source = href_value.release_value();
             }
 
-            // 10. Let el's source set be the result of creating a source set given default source, srcset, sizes, and img.
+            // 10. Set el's source set to the result of creating a source set given default source, srcset, sizes, and img.
             if (is<HTMLImageElement>(element))
                 static_cast<HTMLImageElement&>(element).set_source_set(SourceSet::create(element, default_source, srcset, sizes, img));
             else if (is<HTMLLinkElement>(element))
@@ -1125,7 +1126,7 @@ static void update_the_source_set(DOM::Element& element)
         if (!child->has_attribute(HTML::AttributeNames::srcset))
             continue;
 
-        // 4. Parse child's srcset attribute and let the returned source set be source set.
+        // 4. Parse child's srcset attribute and let source set be the returned source set.
         auto source_set = parse_a_srcset_attribute(child->get_attribute_value(HTML::AttributeNames::srcset));
 
         // 5. If source set has zero image sources, continue to the next child.
@@ -1161,9 +1162,9 @@ static void update_the_source_set(DOM::Element& element)
         // 10. Normalize the source densities of source set.
         source_set.normalize_source_densities(element);
 
-        // 11. Let el's source set be source set.
-        if (is<HTMLImageElement>(element))
-            static_cast<HTMLImageElement&>(element).set_source_set(move(source_set));
+        // 11. Set el's source set to source set.
+        if (auto* image_element = as_if<HTMLImageElement>(element))
+            image_element->set_source_set(move(source_set));
         else if (is<HTMLLinkElement>(element))
             TODO();
 

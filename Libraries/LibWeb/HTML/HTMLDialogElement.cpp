@@ -240,7 +240,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
     // 14. Add subject to subject's node document's open dialogs list.
     subject.document().open_dialogs_list().append(subject);
 
-    // FIXME: 15. Let subject's node document be blocked by the modal dialog subject.
+    // FIXME: 15. Set subject's node document to be blocked by the modal dialog subject.
 
     // 16. If subject's node document's top layer does not already contain subject, then add an element to the top layer given subject.
     if (!subject.document().top_layer_elements().contains(subject))

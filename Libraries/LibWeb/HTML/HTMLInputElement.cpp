@@ -1970,13 +1970,13 @@ void HTMLInputElement::legacy_cancelled_activation_behavior()
         set_indeterminate(m_before_legacy_pre_activation_behavior_indeterminate);
     }
 
-    // 2. If this element 's type attribute is in the Radio Button state, then
+    // 2. If this element's type attribute is in the Radio Button state, then
     // if the element to which a reference was obtained in the
     // legacy-pre-activation behavior, if any, is still in what is now this
-    // element' s radio button group, if it still has one, and if so, setting
+    // element' s radio button group, if it still has one, and if so, set
     // that element 's checkedness to true; or else, if there was no such
     // element, or that element is no longer in this element' s radio button
-    // group, or if this element no longer has a radio button group, setting
+    // group, or if this element no longer has a radio button group, set
     // this element's checkedness to false.
     if (type_state() == TypeAttributeState::RadioButton) {
         bool did_reselect_previous_element = false;

@@ -106,7 +106,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     // 2. Let reorder be true.
     // 3. If this's map[key] exists:
 
-    // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException exception.
+    // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException.
     // 5. Set this's map[key] to value.
     auto error = m_storage_bottle->set(key, value);
     if (error == WebView::StorageOperationError::QuotaExceededError) {
@@ -177,7 +177,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
         if (storage->type() != type())
             continue;
 
-        // * relevant settings object's origin is same origin with storage's relevant settings object's origin.
+        // * relevant settings object's origin is same origin with storage's relevant settings object's origin
         if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(storage).origin()))
             continue;
 

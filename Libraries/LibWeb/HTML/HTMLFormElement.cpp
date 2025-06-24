@@ -616,7 +616,7 @@ bool HTMLFormElement::interactively_validate_constraints()
     //       For elements that are form-associated custom elements, user agents should use their validation anchor instead, for the purposes of these actions.
     //     - User agents may report more than one constraint violation.
     //     - User agents may coalesce related constraint violation reports if appropriate (e.g. if multiple radio buttons in a group are marked as required, only one error need be reported).
-    //     - If one of the controls is not being rendered (e.g. it has the hidden attribute set) then user agents may report a script error.
+    //     - If one of the controls is not being rendered (e.g. it has the hidden attribute set), then user agents may report a script error.
     // FIXME: Does this align with other browsers?
     auto first_invalid_control = unhandled_invalid_controls.first_matching([](auto control) {
         return control->check_visibility({});

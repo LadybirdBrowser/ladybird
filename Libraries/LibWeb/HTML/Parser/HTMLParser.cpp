@@ -2795,7 +2795,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // 3. Switch the tokenizer to the RCDATA state.
         m_tokenizer.switch_to({}, HTMLTokenizer::State::RCDATA);
 
-        // 4. Let the original insertion mode be the current insertion mode.
+        // 4. Set the original insertion mode to the current insertion mode.
         m_original_insertion_mode = m_insertion_mode;
 
         // 5. Set the frameset-ok flag to "not ok".
@@ -3690,7 +3690,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
         // Let the pending table character tokens be an empty list of tokens.
         m_pending_table_character_tokens.clear();
 
-        // Let the original insertion mode be the current insertion mode.
+        // Set the original insertion mode to the current insertion mode.
         m_original_insertion_mode = m_insertion_mode;
 
         // Switch the insertion mode to "in table text" and reprocess the token.

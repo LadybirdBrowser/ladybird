@@ -125,7 +125,7 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
         //    If this succeeds, let script be the result. Otherwise, rethrow the exception.
         auto classic_script = TRY(HTML::fetch_a_classic_worker_imported_script(url_record, settings_object, perform_fetch));
 
-        // 2. Run the classic script script, with the rethrow errors argument set to true.
+        // 2. Run the classic script script, with rethrow errors set to true.
         // NOTE: script will run until it either returns, fails to parse, fails to catch an exception,
         //       or gets prematurely aborted by the terminate a worker algorithm defined above.
         // If an exception was thrown or if the script was prematurely aborted, then abort all these steps,

@@ -324,9 +324,9 @@ static auto create_radial_gradient_between_two_circles(Gfx::FloatPoint start_cen
 
     // Spec steps: Useless for writing an actual implementation (give it a go :P):
     //
-    // 2. Let x(ω) = (x1-x0)ω + x0
-    //    Let y(ω) = (y1-y0)ω + y0
-    //    Let r(ω) = (r1-r0)ω + r0
+    // 2. Let x(ω) = (x1-x0)ω + x0.
+    //    Let y(ω) = (y1-y0)ω + y0.
+    //    Let r(ω) = (r1-r0)ω + r0.
     // Let the color at ω be the color at that position on the gradient
     // (with the colors coming from the interpolation and extrapolation described above).
     //

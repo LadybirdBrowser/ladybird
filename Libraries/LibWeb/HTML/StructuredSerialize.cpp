@@ -258,7 +258,7 @@ public:
             TRY(serialize_viewed_array_buffer(m_vm, m_serialized, static_cast<JS::DataView&>(value.as_object()), m_for_storage, m_memory));
         }
 
-        // 15. Otherwise, if value has [[MapData]] internal slot, then:
+        // 15. Otherwise, if value has a [[MapData]] internal slot, then:
         else if (value.is_object() && is<JS::Map>(value.as_object())) {
             // 1. Set serialized to { [[Type]]: "Map", [[MapData]]: a new empty List }.
             serialize_enum(m_serialized, ValueTag::MapObject);
@@ -266,7 +266,7 @@ public:
             deep = true;
         }
 
-        // 16. Otherwise, if value has [[SetData]] internal slot, then:
+        // 16. Otherwise, if value has a [[SetData]] internal slot, then:
         else if (value.is_object() && is<JS::Set>(value.as_object())) {
             // 1. Set serialized to { [[Type]]: "Set", [[SetData]]: a new empty List }.
             serialize_enum(m_serialized, ValueTag::SetObject);
