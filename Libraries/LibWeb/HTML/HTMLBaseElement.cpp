@@ -49,7 +49,7 @@ void HTMLBaseElement::removed_from(Node* old_parent, Node& old_root)
     // The frozen base URL must be immediately set for an element whenever any of the following situations occur:
     // - The base element becomes the first base element in tree order with an href content attribute in its Document.
     auto first_base_element_with_href_in_document = document().first_base_element_with_href_in_tree_order();
-    if (first_base_element_with_href_in_document != old_first_base_element_with_href_in_tree_order)
+    if (first_base_element_with_href_in_document && first_base_element_with_href_in_document != old_first_base_element_with_href_in_tree_order)
         first_base_element_with_href_in_document->set_the_frozen_base_url();
 }
 
