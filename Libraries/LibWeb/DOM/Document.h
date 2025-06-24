@@ -235,7 +235,6 @@ public:
     HTML::OpenerPolicy const& opener_policy() const { return m_opener_policy; }
     void set_opener_policy(HTML::OpenerPolicy policy) { m_opener_policy = move(policy); }
 
-    Optional<URL::URL> parse_url(StringView) const;
     Optional<URL::URL> encoding_parse_url(StringView) const;
     Optional<String> encoding_parse_and_serialize_url(StringView) const;
 

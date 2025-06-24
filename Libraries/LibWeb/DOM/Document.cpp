@@ -1199,16 +1199,6 @@ URL::URL Document::base_url() const
     return base_element->frozen_base_url();
 }
 
-// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#parse-a-url
-Optional<URL::URL> Document::parse_url(StringView url) const
-{
-    // 1. Let baseURL be environment's base URL, if environment is a Document object; otherwise environment's API base URL.
-    auto base_url = this->base_url();
-
-    // 2. Return the result of applying the URL parser to url, with baseURL.
-    return DOMURL::parse(url, base_url);
-}
-
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
 Optional<URL::URL> Document::encoding_parse_url(StringView url) const
 {
