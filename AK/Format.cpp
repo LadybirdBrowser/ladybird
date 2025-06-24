@@ -1272,7 +1272,7 @@ void set_rich_debug_enabled(bool value)
 
 static int main_thread_id = GetCurrentThreadId();
 
-static int enable_escape_sequences()
+static int initialize_console_settings()
 {
     HANDLE console_handle = CreateFile("CONOUT$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
     if (console_handle == INVALID_HANDLE_VALUE) {
@@ -1288,16 +1288,20 @@ static int enable_escape_sequences()
         return 0;
     }
 
+    // Enable Virtual Terminal Processing to allow ANSI escape codes
     mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     if (!SetConsoleMode(console_handle, mode)) {
         dbgln("Unable to set console mode");
         return 0;
     }
 
+    // Set the output code page to UTF-8 to support Emoji and other Unicode characters
+    (void)SetConsoleOutputCP(CP_UTF8);
+
     return 0;
 }
 
-static int dummy = enable_escape_sequences();
+static int dummy = initialize_console_settings();
 
 #endif
 
