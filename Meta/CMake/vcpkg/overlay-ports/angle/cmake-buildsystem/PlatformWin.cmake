@@ -52,7 +52,7 @@ if(USE_OPENGL)
 
     if(USE_ANGLE_EGL OR ENABLE_WEBGL)
         list(APPEND ANGLE_SOURCES
-            ${_gl_backend_sources}
+            ${gl_backend_sources}
 
             ${libangle_gl_egl_dl_sources}
             ${libangle_gl_egl_sources}

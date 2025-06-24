@@ -8,7 +8,7 @@ endif ()
 
 if (USE_ANGLE_EGL OR ENABLE_WEBGL)
     list(APPEND ANGLE_SOURCES
-        ${_gl_backend_sources}
+        ${gl_backend_sources}
 
         ${angle_system_utils_sources_linux}
         ${angle_system_utils_sources_posix}

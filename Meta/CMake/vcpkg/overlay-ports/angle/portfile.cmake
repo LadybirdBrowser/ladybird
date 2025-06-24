@@ -1,6 +1,6 @@
 if (VCPKG_TARGET_IS_LINUX)
     message(WARNING "Building with a gcc version less than 6.1 is not supported.")
-    message(WARNING "${PORT} currently requires the following libraries from the system package manager:\n    libx11-dev\n    mesa-common-dev\n    libxi-dev\n    libxext-dev\n\nThese can be installed on Ubuntu systems via apt-get install libx11-dev mesa-common-dev libxi-dev libxext-dev.")
+    message(WARNING "${PORT} currently requires the following libraries from the system package manager:\n    mesa-common-dev\n\nThese can be installed on Ubuntu systems via apt-get install mesa-common-dev.")
 endif()
 
 if (VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")

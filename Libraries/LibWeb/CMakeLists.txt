@@ -2,7 +2,7 @@ include(libweb_generators)
 include(vulkan)
 include(skia)
 
-if (APPLE)
+if (APPLE OR LINUX)
     find_package(unofficial-angle REQUIRED CONFIG)
 endif()
 
@@ -1016,7 +1016,7 @@ serenity_lib(LibWeb web)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia)
 
-if (APPLE)
+if (APPLE OR LINUX)
     target_link_libraries(LibWeb PRIVATE unofficial::angle::libEGL unofficial::angle::libGLESv2)
 else()
     target_link_libraries(LibWeb PRIVATE GL)
