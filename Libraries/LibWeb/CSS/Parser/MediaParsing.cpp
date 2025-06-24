@@ -561,6 +561,15 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
 
 GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested nested)
 {
+    // https://drafts.csswg.org/css-conditional-3/#at-media
+    // @media <media-query-list> {
+    // <rule-list>
+    // }
+    if (!rule.is_block_rule) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @media rule: Expected a block.");
+        return nullptr;
+    }
+
     auto media_query_tokens = TokenStream { rule.prelude };
     auto media_query_list = parse_a_media_query_list(media_query_tokens);
     auto media_list = MediaList::create(realm(), move(media_query_list));
