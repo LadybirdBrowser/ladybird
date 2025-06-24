@@ -11,6 +11,7 @@ add_subdirectory(LibThreading)
 add_subdirectory(LibTLS)
 add_subdirectory(LibUnicode)
 add_subdirectory(LibURL)
+add_subdirectory(LibWasm)
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibGfx)
@@ -23,7 +24,6 @@ endif()
 
 add_subdirectory(LibCore)
 add_subdirectory(LibDNS)
-add_subdirectory(LibWasm)
 add_subdirectory(LibXML)
 
 if (ENABLE_GUI_TARGETS)
