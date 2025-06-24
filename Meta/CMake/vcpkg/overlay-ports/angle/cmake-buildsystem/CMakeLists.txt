@@ -261,6 +261,7 @@ if (USE_ANGLE_EGL OR ENABLE_WEBGL)
     target_compile_definitions(ANGLEFramework INTERFACE ${gl_prototypes})
 
     add_library(GLESv2 ${GLESv2_LIBRARY_TYPE}
+        ${libglesv2_entry_point_sources}
         ${libglesv2_sources}
     )
     target_include_directories(GLESv2 PRIVATE ${ANGLE_PRIVATE_INCLUDE_DIRECTORIES})

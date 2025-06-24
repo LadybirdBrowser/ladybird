@@ -142,7 +142,7 @@
   "overrides": [
     {
       "name": "angle",
-      "version": "chromium_5414#9"
+      "version": "chromium_7258#0"
     },
     {
       "name": "curl",
