@@ -28,8 +28,6 @@ using Detail::Block;
 template<typename Parser>
 void Regex<Parser>::run_optimization_passes()
 {
-    parser_result.bytecode.flatten();
-
     rewrite_with_useless_jumps_removed();
 
     auto blocks = split_basic_blocks(parser_result.bytecode);
