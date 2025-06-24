@@ -4323,17 +4323,30 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_placement_shorthand_value(P
 
 // https://www.w3.org/TR/css-grid-2/#explicit-grid-shorthand
 // 7.4. Explicit Grid Shorthand: the grid-template property
-RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list_shorthand_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list_shorthand_value(PropertyID property_id, TokenStream<ComponentValue>& tokens, bool include_grid_auto_properties)
 {
-    auto empty_grid_areas = GridTemplateAreaStyleValue::create({});
-    auto empty_grid_track_size_list = GridTrackSizeListStyleValue::create({});
+    Vector<PropertyID> sub_properties;
+    Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> values;
+    if (include_grid_auto_properties) {
+        sub_properties.append(PropertyID::GridAutoFlow);
+        sub_properties.append(PropertyID::GridAutoRows);
+        sub_properties.append(PropertyID::GridAutoColumns);
+        values.append(property_initial_value(PropertyID::GridAutoFlow));
+        values.append(property_initial_value(PropertyID::GridAutoRows));
+        values.append(property_initial_value(PropertyID::GridAutoColumns));
+    }
+    sub_properties.append(PropertyID::GridTemplateAreas);
+    sub_properties.append(PropertyID::GridTemplateRows);
+    sub_properties.append(PropertyID::GridTemplateColumns);
+    values.ensure_capacity(sub_properties.size());
 
     // none
     {
         if (parse_all_as_single_keyword_value(tokens, Keyword::None)) {
-            return ShorthandStyleValue::create(property_id,
-                { PropertyID::GridTemplateAreas, PropertyID::GridTemplateRows, PropertyID::GridTemplateColumns },
-                { empty_grid_areas, empty_grid_track_size_list, empty_grid_track_size_list });
+            values.unchecked_append(property_initial_value(PropertyID::GridTemplateAreas));
+            values.unchecked_append(property_initial_value(PropertyID::GridTemplateRows));
+            values.unchecked_append(property_initial_value(PropertyID::GridTemplateColumns));
+            return ShorthandStyleValue::create(property_id, move(sub_properties), move(values));
         }
     }
 
@@ -4347,9 +4360,10 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list_shorthand_value(P
                 tokens.discard_whitespace();
                 if (auto parsed_template_columns_values = parse_grid_track_size_list(tokens)) {
                     transaction.commit();
-                    return ShorthandStyleValue::create(property_id,
-                        { PropertyID::GridTemplateAreas, PropertyID::GridTemplateRows, PropertyID::GridTemplateColumns },
-                        { empty_grid_areas, parsed_template_rows_values.release_nonnull(), parsed_template_columns_values.release_nonnull() });
+                    values.unchecked_append(property_initial_value(PropertyID::GridTemplateAreas));
+                    values.unchecked_append(parsed_template_rows_values.release_nonnull());
+                    values.unchecked_append(parsed_template_columns_values.release_nonnull());
+                    return ShorthandStyleValue::create(property_id, move(sub_properties), move(values));
                 }
             }
         }
@@ -4388,7 +4402,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list_shorthand_value(P
 
             tokens.discard_whitespace();
 
-            RefPtr<CSSStyleValue const> columns_track_list = empty_grid_track_size_list;
+            RefPtr columns_track_list = property_initial_value(PropertyID::GridTemplateColumns);
             if (tokens.has_next_token() && tokens.next_token().is_delim('/')) {
                 tokens.discard_a_token();
                 tokens.discard_whitespace();
@@ -4403,9 +4417,10 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_size_list_shorthand_value(P
             }
 
             transaction.commit();
-            return ShorthandStyleValue::create(property_id,
-                { PropertyID::GridTemplateAreas, PropertyID::GridTemplateRows, PropertyID::GridTemplateColumns },
-                { grid_areas.release_nonnull(), rows_track_list, columns_track_list.release_nonnull() });
+            values.unchecked_append(grid_areas.release_nonnull());
+            values.unchecked_append(rows_track_list);
+            values.unchecked_append(columns_track_list.release_nonnull());
+            return ShorthandStyleValue::create(property_id, move(sub_properties), move(values));
         }
     }
 
@@ -4504,7 +4519,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<
 RefPtr<CSSStyleValue const> Parser::parse_grid_shorthand_value(TokenStream<ComponentValue>& tokens)
 {
     // <'grid-template'>
-    if (auto grid_template = parse_grid_track_size_list_shorthand_value(PropertyID::Grid, tokens)) {
+    if (auto grid_template = parse_grid_track_size_list_shorthand_value(PropertyID::Grid, tokens, true)) {
         return grid_template;
     }
 
