@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Pass	Style attribute should create CSS declaration block based on its content
+Pass	Changes to style attribute should reflect on CSS declaration block
+Pass	Changes to CSS declaration block should reflect on style attribute
+Pass	Changes to CSS declaration block should queue mutation record for style attribute
+Pass	Removing non-existing property or setting invalid value on CSS declaration block shouldn't queue mutation record
+Fail	Changes to CSS declaration block after a base URL change
+Pass	Expansion of all:unset and all:revert treated identically
