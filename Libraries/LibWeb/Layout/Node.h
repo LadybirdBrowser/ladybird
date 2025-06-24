@@ -196,6 +196,9 @@ public:
     bool has_style_containment() const;
     bool has_paint_containment() const;
 
+    // https://drafts.csswg.org/css-writing-modes-4/#text-flow
+    Gfx::Orientation text_flow_direction() const;
+
     [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return m_has_been_wrapped_in_table_wrapper; }
     void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
 

@@ -1426,6 +1426,22 @@ void NodeWithStyleAndBoxModelMetrics::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_continuation_of_node);
 }
 
+// https://drafts.csswg.org/css-writing-modes-4/#text-flow
+Gfx::Orientation Node::text_flow_direction() const
+{
+    switch (computed_values().writing_mode()) {
+    case CSS::WritingMode::HorizontalTb:
+        return Gfx::Orientation::Horizontal;
+    case CSS::WritingMode::VerticalRl:
+    case CSS::WritingMode::VerticalLr:
+    case CSS::WritingMode::SidewaysRl:
+    case CSS::WritingMode::SidewaysLr:
+        return Gfx::Orientation::Vertical;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
 {
     if (m_needs_layout_update)
