@@ -51,9 +51,7 @@
       },
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-cl",
-        "CMAKE_CXX_COMPILER": "clang-cl",
-        "ENABLE_QT": "OFF",
-        "ENABLE_GUI_TARGETS": "OFF"
+        "CMAKE_CXX_COMPILER": "clang-cl"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -156,7 +154,8 @@
       ],
       "displayName": "Windows CI Config",
       "cacheVariables": {
-        "ENABLE_WINDOWS_CI": "ON"
+        "ENABLE_WINDOWS_CI": "ON",
+        "ENABLE_QT": "OFF"
       }
     },
     {
