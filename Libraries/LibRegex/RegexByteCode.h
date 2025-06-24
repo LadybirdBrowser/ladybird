@@ -652,7 +652,7 @@ public:
     ALWAYS_INLINE StringView name() const;
     static StringView name(OpCodeId);
 
-    ALWAYS_INLINE void set_state(MatchState& state) { m_state = &state; }
+    ALWAYS_INLINE void set_state(MatchState const& state) { m_state = &state; }
 
     ALWAYS_INLINE void set_bytecode(ByteCode& bytecode) { m_bytecode = &bytecode; }
 
@@ -673,7 +673,7 @@ public:
 
 protected:
     ByteCode* m_bytecode { nullptr };
-    MatchState* m_state { nullptr };
+    MatchState const* m_state { nullptr };
 };
 
 class OpCode_Exit final : public OpCode {

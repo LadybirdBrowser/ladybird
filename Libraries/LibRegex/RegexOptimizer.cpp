@@ -1013,8 +1013,10 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         AlternateForm form;
     };
     Vector<CandidateBlock> candidate_blocks;
+    auto state = MatchState::only_for_enumeration();
 
-    auto is_an_eligible_jump = [](OpCode const& opcode, size_t ip, size_t block_start, AlternateForm alternate_form) {
+    auto is_an_eligible_jump = [&state](OpCode& opcode, size_t ip, size_t block_start, AlternateForm alternate_form) {
+        opcode.set_state(state);
         switch (opcode.opcode_id()) {
         case OpCodeId::JumpNonEmpty: {
             auto const& op = static_cast<OpCode_JumpNonEmpty const&>(opcode);
@@ -1049,7 +1051,6 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         Optional<Block> fork_fallback_block;
         if (i + 1 < basic_blocks.size())
             fork_fallback_block = basic_blocks[i + 1];
-        auto state = MatchState::only_for_enumeration();
         // Check if the last instruction in this block is a jump to the block itself:
         {
             state.instruction_position = forking_block.end;
