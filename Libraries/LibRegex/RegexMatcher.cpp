@@ -74,6 +74,7 @@ Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsT
 
         Parser parser(lexer, regex_options);
         parser_result = parser.parse();
+        parser_result.bytecode.flatten();
 
         run_optimization_passes();
 
@@ -90,6 +91,7 @@ Regex<Parser>::Regex(regex::Parser::Result parse_result, ByteString pattern, typ
     : pattern_value(move(pattern))
     , parser_result(move(parse_result))
 {
+    parser_result.bytecode.flatten();
     run_optimization_passes();
     if (parser_result.error == regex::Error::NoError)
         matcher = make<Matcher<Parser>>(this, regex_options | static_cast<decltype(regex_options.value())>(parser_result.options.value()));
