@@ -92,7 +92,7 @@ void SVGScriptElement::process_the_script_element()
     if (has_attribute(SVG::AttributeNames::href) || has_attribute_ns(Namespace::XLink.to_string(), SVG::AttributeNames::href)) {
         auto href_value = href()->base_val();
 
-        auto maybe_script_url = document().parse_url(href_value);
+        auto maybe_script_url = document().encoding_parse_url(href_value);
         if (!maybe_script_url.has_value()) {
             dbgln("Invalid script URL: {}", href_value);
             return;

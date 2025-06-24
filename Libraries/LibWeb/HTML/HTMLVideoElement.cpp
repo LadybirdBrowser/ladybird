@@ -183,13 +183,14 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     if (!poster.has_value() || poster->is_empty())
         return {};
 
-    // 3. Parse the poster attribute's value relative to the element's node document. If this fails, then there is no
-    //    poster frame; return.
-    auto url_record = document().parse_url(*poster);
+    // 3. Let url be the result of encoding-parsing a URL given the poster attribute's value, relative to the element's node document.
+    auto url_record = document().encoding_parse_url(*poster);
+
+    // 4. If url is failure, then return.
     if (!url_record.has_value())
         return {};
 
-    // 4. Let request be a new request whose URL is the resulting URL record, client is the element's node document's
+    // 5. Let request be a new request whose URL is the resulting URL record, client is the element's node document's
     //    relevant settings object, destination is "image", initiator type is "video", credentials mode is "include",
     //    and whose use-URL-credentials flag is set.
     auto request = Fetch::Infrastructure::Request::create(vm);
@@ -200,10 +201,11 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
     request->set_use_url_credentials(true);
 
-    // 5. Fetch request. This must delay the load event of the element's node document.
+    // 6. Fetch request. This must delay the load event of the element's node document.
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
     m_load_event_delayer.emplace(document());
 
+    // 7. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
     fetch_algorithms_input.process_response = [this](auto response) mutable {
         ScopeGuard guard { [&] { m_load_event_delayer.clear(); } };
 
