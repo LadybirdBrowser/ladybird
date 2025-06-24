@@ -819,7 +819,6 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
         return IntegerStyleValue::create(round_to<i64>(interpolated_value));
     }
     case CSSStyleValue::Type::Length: {
-        // FIXME: Absolutize values
         auto const& from_length = from.as_length().length();
         auto const& to_length = to.as_length().length();
         return LengthStyleValue::create(Length(interpolate_raw(from_length.raw_value(), to_length.raw_value(), delta), from_length.type()));
@@ -865,7 +864,6 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
         if (from_rect.top_edge.is_auto() != to_rect.top_edge.is_auto() || from_rect.right_edge.is_auto() != to_rect.right_edge.is_auto() || from_rect.bottom_edge.is_auto() != to_rect.bottom_edge.is_auto() || from_rect.left_edge.is_auto() != to_rect.left_edge.is_auto())
             return {};
 
-        // FIXME: Absolutize values
         return RectStyleValue::create({
             Length(interpolate_raw(from_rect.top_edge.raw_value(), to_rect.top_edge.raw_value(), delta), from_rect.top_edge.type()),
             Length(interpolate_raw(from_rect.right_edge.raw_value(), to_rect.right_edge.raw_value(), delta), from_rect.right_edge.type()),

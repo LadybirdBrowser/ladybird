@@ -1358,7 +1358,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
     }
 
     // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
-    auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element](auto const& keyframe_values) {
+    auto compute_keyframe_values = [refresh, &computed_properties, &element, &pseudo_element, this](auto const& keyframe_values) {
         HashMap<PropertyID, RefPtr<CSSStyleValue const>> result;
         HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
         auto property_is_set_by_use_initial = MUST(Bitmap::create(to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1, false));
@@ -1400,6 +1400,11 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
             return camel_case_string_from_property_id(a) < camel_case_string_from_property_id(b);
         };
 
+        compute_font(computed_properties, &element, pseudo_element);
+        Length::FontMetrics font_metrics {
+            root_element_font_metrics_for_element(element).font_size,
+            computed_properties.first_available_computed_font().pixel_metrics()
+        };
         for (auto const& [property_id, value] : keyframe_values.properties) {
             bool is_use_initial = false;
 
@@ -1445,7 +1450,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
 
                 longhands_set_by_property_id.set(physical_longhand_id, property_id);
                 property_is_set_by_use_initial.set(physical_longhand_id_bitmap_index, is_use_initial);
-                result.set(physical_longhand_id, { longhand_value });
+                result.set(physical_longhand_id, { longhand_value.absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics) });
             });
         }
         return result;
