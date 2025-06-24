@@ -20,14 +20,22 @@ jobs:
       matrix:
         os_name: ['Linux']
         arch: ['x86_64']
+        toolchain: ['Clang']
         package_type: ['Linux-x86_64']
         runner_labels: ['["blacksmith-8vcpu-ubuntu-2404"]']
 
         include:
           - os_name: 'macOS'
             arch: 'arm64'
+            toolchain: 'Clang'
             package_type: 'macOS-arm64'
             runner_labels: '["macos-15", "self-hosted"]'
+
+          - os_name: 'Linux'
+            arch: 'arm64'
+            toolchain: 'Clang'
+            package_type: 'Linux-aarch64'
+            runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
