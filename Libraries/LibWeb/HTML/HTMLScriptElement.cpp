@@ -387,10 +387,10 @@ void HTMLScriptElement::prepare_script()
         // 4. Set el's from an external file to true.
         m_from_an_external_file = true;
 
-        // 5. Parse src relative to el's node document.
-        auto url = document().parse_url(src);
+        // 5. Let url be the result of encoding-parsing a URL given src, relative to el's node document.
+        auto url = document().encoding_parse_url(src);
 
-        // 6. If the previous step failed, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return. Otherwise, let url be the resulting URL record.
+        // 6. If url is failure, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (!url.has_value()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src URL '{}' is invalid.", url);
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {

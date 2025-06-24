@@ -146,7 +146,7 @@ void SVGImageElement::process_the_url(Optional<String> const& href)
         return;
     }
 
-    m_href = document().parse_url(*href);
+    m_href = document().encoding_parse_url(*href);
     if (!m_href.has_value())
         return;
 

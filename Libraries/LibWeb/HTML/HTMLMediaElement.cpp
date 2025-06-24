@@ -647,29 +647,28 @@ public:
             return {};
         }
 
-        // 3. ⌛ Let urlString and urlRecord be the resulting URL string and the resulting URL record, respectively, that
-        //    would have resulted from parsing the URL specified by candidate's src attribute's value relative to the
-        //    candidate's node document when the src attribute was last changed.
-        auto url_record = m_candidate->document().parse_url(candidate_src);
+        // FIXME: 3: ⌛ If candidate has a media attribute whose value does not match the environment,
+        //           then end the synchronous section, and jump down to the failed with elements step below.
 
-        // 4. ⌛ If urlString was not obtained successfully, then end the synchronous section, and jump down to the failed
-        //    with elements step below.
+        // 4. ⌛ Let urlRecord be the result of encoding-parsing a URL given candidate's src attribute's value, relative to candidate's node document when the src attribute was last changed.
+        auto url_record = m_candidate->document().encoding_parse_url(candidate_src);
+
+        // 5. ⌛ If urlRecord is failure, then end the synchronous section, and jump down to the failed with elements step below.
         if (!url_record.has_value()) {
             TRY(failed_with_elements());
             return {};
         }
-        auto url_string = url_record->to_string();
 
-        // FIXME: 5. ⌛ If candidate has a type attribute whose value, when parsed as a MIME type (including any codecs described
+        // FIXME: 6. ⌛ If candidate has a type attribute whose value, when parsed as a MIME type (including any codecs described
         //           by the codecs parameter, for types that define that parameter), represents a type that the user agent knows
         //           it cannot render, then end the synchronous section, and jump down to the failed with elements step below.
 
-        // 6. ⌛ Set the currentSrc attribute to urlString.
-        m_media_element->m_current_src = move(url_string);
+        // 7. ⌛ Set the currentSrc attribute to the result of applying the URL serializer to urlRecord.
+        m_media_element->m_current_src = url_record->serialize();
 
-        // 7. End the synchronous section, continuing the remaining steps in parallel.
+        // 8. End the synchronous section, continuing the remaining steps in parallel.
 
-        // 8. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
+        // 9. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
         //    the load failed.
         TRY(m_media_element->fetch_resource(*url_record, [this](auto) {
             failed_with_elements().release_value_but_fixme_should_propagate_errors();
@@ -895,13 +894,13 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
                 return;
             }
 
-            // 2. ⌛ Let urlString and urlRecord be the resulting URL string and the resulting URL record, respectively, that would have resulted from parsing
-            //    the URL specified by the src attribute's value relative to the media element's node document when the src attribute was last changed.
-            auto url_record = document().parse_url(source);
+            // 2. ⌛ Let urlRecord be the result of encoding-parsing a URL given the src attribute's value,
+            //    relative to the media element's node document when the src attribute was last changed.
+            auto url_record = document().encoding_parse_url(source);
 
-            // 3. ⌛ If urlString was obtained successfully, set the currentSrc attribute to urlString.
+            // 3. ⌛ If urlRecord is not failure, then set the currentSrc attribute to the result of applying the URL serializer to urlRecord.
             if (url_record.has_value())
-                m_current_src = url_record->to_string();
+                m_current_src = url_record->serialize();
 
             // 4. End the synchronous section, continuing the remaining steps in parallel.
 

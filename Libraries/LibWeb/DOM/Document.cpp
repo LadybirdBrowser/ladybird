@@ -4975,9 +4975,8 @@ void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::
     }
 
     parse:
-        // 11. Parse: Parse urlString relative to document. If that fails, return. Otherwise, set urlRecord to the
-        //     resulting URL record.
-        auto maybe_url_record = parse_url(url_string);
+        // 11. Set urlRecord to the result of encoding-parsing a URL given urlString, relative to document.
+        auto maybe_url_record = encoding_parse_url(url_string);
         if (!maybe_url_record.has_value())
             return;
 
