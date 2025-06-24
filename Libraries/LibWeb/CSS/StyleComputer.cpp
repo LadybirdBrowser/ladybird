@@ -2487,8 +2487,17 @@ void StyleComputer::absolutize_values(ComputedProperties& style, GC::Ptr<DOM::El
         style.first_available_computed_font().pixel_metrics()
     };
 
-    auto font_size = style.property(CSS::PropertyID::FontSize).as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
+    // "A percentage value specifies an absolute font size relative to the parent element’s computed font-size. Negative percentages are invalid."
+    auto& font_size_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::FontSize)];
+    if (font_size_value_slot && font_size_value_slot->is_percentage()) {
+        auto parent_font_size = get_inherit_value(CSS::PropertyID::FontSize, element)->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
+        font_size_value_slot = LengthStyleValue::create(
+            Length::make_px(CSSPixels::nearest_value_for(parent_font_size * font_size_value_slot->as_percentage().percentage().as_fraction())));
+    }
+
+    auto font_size = font_size_value_slot->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
     font_metrics.font_size = font_size;
+    style.set_font_size({}, font_size);
 
     // NOTE: Percentage line-height values are relative to the font-size of the element.
     //       We have to resolve them right away, so that the *computed* line-height is ready for inheritance.
