@@ -94,6 +94,17 @@ jobs:
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
+      - name: Sanity-check the js repl
+        shell: bash
+        run: |
+          set -e
+          tar -xvzf Build/distribution/ladybird-js-${{ matrix.package_type }}.tar.gz
+          ./bin/js -c "console.log('Hello, World\!');" > out.txt
+          if ! grep -q "\"Hello, World\!\"" out.txt; then
+              echo "Sanity check failed: \"Hello, World\!\" not found in output."
+              exit 1
+          fi
+
       - name: Upload js package
         uses: actions/upload-artifact@v4
         with:
