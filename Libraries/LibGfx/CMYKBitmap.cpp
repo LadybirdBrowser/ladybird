@@ -21,10 +21,10 @@ ErrorOr<NonnullRefPtr<CMYKBitmap>> CMYKBitmap::create_with_size(IntSize const& s
     return adopt_ref(*new CMYKBitmap(size, move(data)));
 }
 
-ErrorOr<RefPtr<Bitmap>> CMYKBitmap::to_low_quality_rgb() const
+ErrorOr<NonnullRefPtr<Bitmap>> CMYKBitmap::to_low_quality_rgb() const
 {
     if (!m_rgb_bitmap) {
-        m_rgb_bitmap = TRY(Bitmap::create(BitmapFormat::BGRx8888, { m_size.width(), m_size.height() }));
+        m_rgb_bitmap = TRY(Bitmap::create(BitmapFormat::BGRx8888, m_size));
 
         for (int y = 0; y < m_size.height(); ++y) {
             for (int x = 0; x < m_size.width(); ++x) {
@@ -35,7 +35,7 @@ ErrorOr<RefPtr<Bitmap>> CMYKBitmap::to_low_quality_rgb() const
         }
     }
 
-    return m_rgb_bitmap;
+    return *m_rgb_bitmap;
 }
 
 }

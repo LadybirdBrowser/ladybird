@@ -488,20 +488,20 @@ ErrorOr<ImageFrameDescriptor> GIFImageDecoderPlugin::frame(size_t index, Optiona
             m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame;
             return result.release_error();
         }
-        if (auto result = decode_frame(*m_context, 0); result.is_error()) {
+        if (result = decode_frame(*m_context, 0); result.is_error()) {
             m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAnyFrame;
             return result.release_error();
         }
         m_context->error_state = GIFLoadingContext::ErrorState::FailedToDecodeAllFrames;
     }
 
-    ImageFrameDescriptor frame {};
-    frame.image = TRY(m_context->frame_buffer->clone());
-    frame.duration = m_context->images[index]->duration * 10;
+    ImageFrameDescriptor frame {
+        .image = TRY(m_context->frame_buffer->clone()),
+        .duration = m_context->images[index]->duration * 10,
+    };
 
-    if (frame.duration <= 10) {
+    if (frame.duration <= 10)
         frame.duration = 100;
-    }
 
     return frame;
 }

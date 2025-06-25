@@ -217,7 +217,7 @@ ErrorOr<ImageFrameDescriptor> JPEGImageDecoderPlugin::frame(size_t index, Option
         m_context->state = JPEGLoadingContext::State::Decoded;
     }
 
-    return ImageFrameDescriptor { m_context->rgb_bitmap, 0 };
+    return ImageFrameDescriptor { *m_context->rgb_bitmap, 0 };
 }
 
 Optional<Metadata const&> JPEGImageDecoderPlugin::metadata()

@@ -86,15 +86,17 @@ Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::co
 
 static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<RefPtr<Gfx::Bitmap>>& bitmaps, Vector<u32>& durations)
 {
+    bitmaps.ensure_capacity(decoder.frame_count());
+    durations.ensure_capacity(decoder.frame_count());
     for (size_t i = 0; i < decoder.frame_count(); ++i) {
         auto frame_or_error = decoder.frame(i, ideal_size);
         if (frame_or_error.is_error()) {
-            bitmaps.append({});
-            durations.append(0);
+            bitmaps.unchecked_append({});
+            durations.unchecked_append(0);
         } else {
             auto frame = frame_or_error.release_value();
-            bitmaps.append(frame.image.release_nonnull());
-            durations.append(frame.duration);
+            bitmaps.unchecked_append(frame.image);
+            durations.unchecked_append(frame.duration);
         }
     }
 }
