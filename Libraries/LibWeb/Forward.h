@@ -240,6 +240,7 @@ class FrequencyOrCalculated;
 class FrequencyPercentage;
 class FrequencyStyleValue;
 class GridAutoFlowStyleValue;
+class GridLineNames;
 class GridMinMax;
 class GridRepeat;
 class GridSize;
@@ -316,7 +317,6 @@ enum class PropertyID : u16;
 
 struct BackgroundLayerData;
 struct CSSStyleSheetInit;
-struct GridLineNames;
 struct GridRepeatParams;
 struct StyleSheetIdentifier;
 

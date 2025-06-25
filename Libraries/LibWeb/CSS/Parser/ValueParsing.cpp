@@ -3291,7 +3291,7 @@ Optional<GridLineNames> Parser::parse_grid_line_names(TokenStream<ComponentValue
         auto maybe_ident = parse_custom_ident(block_tokens, { { "span"sv, "auto"sv } });
         if (!maybe_ident.has_value())
             return OptionalNone {};
-        line_names.names.append(maybe_ident.release_value());
+        line_names.append(maybe_ident.release_value());
         block_tokens.discard_whitespace();
     }
 
@@ -3313,13 +3313,13 @@ size_t Parser::parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTr
         if (!explicit_grid_track.has_value())
             break;
 
-        if (line_names.has_value() && !line_names->names.is_empty())
+        if (line_names.has_value() && !line_names->is_empty())
             output.append(line_names.release_value());
 
         output.append(explicit_grid_track.release_value());
         if (allow_trailing_line_names_for_each_track == AllowTrailingLineNamesForEachTrack::Yes) {
             auto trailing_line_names = parse_grid_line_names(tokens);
-            if (trailing_line_names.has_value() && !trailing_line_names->names.is_empty()) {
+            if (trailing_line_names.has_value() && !trailing_line_names->is_empty()) {
                 output.append(trailing_line_names.release_value());
             }
         }
@@ -3328,7 +3328,7 @@ size_t Parser::parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTr
     }
 
     if (allow_trailing_line_names_for_each_track == AllowTrailingLineNamesForEachTrack::No) {
-        if (auto trailing_line_names = parse_grid_line_names(tokens); trailing_line_names.has_value() && !trailing_line_names->names.is_empty()) {
+        if (auto trailing_line_names = parse_grid_line_names(tokens); trailing_line_names.has_value() && !trailing_line_names->is_empty()) {
             output.append(trailing_line_names.release_value());
         }
     }
