@@ -13,7 +13,7 @@ if (ENABLE_PUBLIC_SUFFIX_DOWNLOAD)
     else()
         message(STATUS "Skipping download of ${PUBLIC_SUFFIX_DATA_URL}, expecting it to be in ${PUBLIC_SUFFIX_DATA_PATH}")
     endif()
-    invoke_generator(
+    invoke_cpp_generator(
         "PublicSuffixData"
         Lagom::GeneratePublicSuffixData
         "${PUBLIC_SUFFIX_PATH}/"
