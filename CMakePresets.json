@@ -69,12 +69,14 @@
     {
       "name": "Release",
       "inherits": "unix_base",
-      "displayName": "Release Config"
+      "displayName": "Release Config",
+      "description": "Release unix build"
     },
     {
       "name": "Debug",
       "inherits": "unix_base",
       "displayName": "Debug Config",
+      "description": "Debug unix build",
       "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -85,7 +87,7 @@
       "name": "Windows_Experimental",
       "inherits": "windows_base",
       "displayName": "Windows Experimental Config",
-      "description": "Experimental windows configuration that builds all targets, allowing for gradual increase in support",
+      "description": "Experimental windows build. Not all targets in this preset are supported",
       "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -112,7 +114,7 @@
         "Release"
       ],
       "displayName": "Sanitizer Config",
-      "description": "Sanitizer build",
+      "description": "Sanitizer unix build",
       "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
         "ENABLE_UNDEFINED_SANITIZER": "ON",
@@ -125,7 +127,8 @@
       "inherits": [
         "Windows_Experimental"
       ],
-      "displayName": "Windows Sanitizer Config",
+      "displayName": "Windows Sanitizer Experimental Config",
+      "description": "Experimental sanitizer windows build. Not all targets in this preset are supported",
       "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
         "ENABLE_WINDOWS_CI": "OFF",
@@ -142,7 +145,8 @@
     },
     {
       "name": "CI",
-      "displayName": "Non-Sanitizer CI Config",
+      "displayName": "CI Config",
+      "description": "CI unix build",
       "inherits": [
         "vcpkg_ci",
         "unix_base"
@@ -155,6 +159,7 @@
         "windows_base"
       ],
       "displayName": "Windows CI Config",
+      "description": "CI windows build",
       "cacheVariables": {
         "ENABLE_WINDOWS_CI": "ON"
       }
@@ -166,7 +171,7 @@
         "Distribution"
       ],
       "displayName": "Distribution CI Config",
-      "description": "Distribution build with GitHub Actions cache"
+      "description": "Distribution unix build with GitHub Actions cache"
     },
     {
       "name": "Sanitizer_CI",
@@ -174,7 +179,8 @@
         "vcpkg_ci",
         "Sanitizer"
       ],
-      "displayName": "Sanitizer CI Config"
+      "displayName": "Sanitizer CI Config",
+      "description": "Sanitizer CI unix build"
     },
     {
       "name": "Windows_Sanitizer_CI",
@@ -182,6 +188,7 @@
         "Windows_CI"
       ],
       "displayName": "Windows Sanitizer CI Config",
+      "description": "Sanitizer CI windows build",
       "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
         "ENABLE_WINDOWS_CI": "ON",
@@ -195,7 +202,7 @@
       "name": "Fuzzers",
       "inherits": "unix_base",
       "displayName": "Fuzzers Config",
-      "description": "Fuzzers build",
+      "description": "Fuzzers unix build",
       "binaryDir": "${fileDir}/Build/fuzzers",
       "cacheVariables": {
         "BUILD_SHARED_LIBS": "OFF",
@@ -218,7 +225,7 @@
       "name": "Swift_Release",
       "inherits": "unix_base",
       "displayName": "Swift Release Config",
-      "description": "Swift release build using Ninja generator",
+      "description": "Swift unix release build using Ninja generator",
       "binaryDir": "${fileDir}/Build/swift",
       "cacheVariables": {
         "ENABLE_SWIFT": "ON",
@@ -266,64 +273,64 @@
       "name": "Release",
       "inherits": "unix_base",
       "configurePreset": "Release",
-      "displayName": "Build",
-      "description": "Build the project in release"
+      "displayName": "Release Build",
+      "description": "Build the project in release on Unix"
     },
     {
       "name": "Debug",
       "inherits": "unix_base",
       "configurePreset": "Debug",
-      "displayName": "Build",
-      "description": "Build the project in debug"
+      "displayName": "Debug Build",
+      "description": "Build the project in debug on Unix"
     },
     {
       "name": "Windows_Experimental",
       "inherits": "windows_base",
       "configurePreset": "Windows_Experimental",
-      "displayName": "Build",
-      "description": "Build the project"
+      "displayName": "Windows Experimental Build",
+      "description": "Build the project in debug on Windows. Not all targets in this preset are supported"
     },
     {
       "name": "Distribution",
       "inherits": "unix_base",
       "configurePreset": "Distribution",
-      "displayName": "Build",
-      "description": "Build the project for distribution"
+      "displayName": "Distribution Build",
+      "description": "Build the project for distribution on Unix"
     },
     {
       "name": "Sanitizer",
       "inherits": "unix_base",
       "configurePreset": "Sanitizer",
-      "displayName": "Build with Sanitizers",
-      "description": "Build the project with Sanitizers"
+      "displayName": "Sanitizer Build",
+      "description": "Build the project with Sanitizers on Unix"
     },
     {
       "name": "Windows_Sanitizer_Experimental",
       "inherits": "windows_base",
       "configurePreset": "Windows_Sanitizer_Experimental",
-      "displayName": "Build with Sanitizers",
-      "description": "Build the project with Sanitizers"
+      "displayName": "Windows Sanitizer Experimental Build",
+      "description": "Build the project with Sanitizers on Windows. Not all targets in this preset are supported"
     },
     {
       "name": "Windows_CI",
       "inherits": "windows_base",
       "configurePreset": "Windows_CI",
-      "displayName": "Windows_CI Build",
+      "displayName": "Windows CI Build",
       "description": "Build the project for Windows CI"
     },
     {
       "name": "Windows_Sanitizer_CI",
       "inherits": "windows_base",
       "configurePreset": "Windows_Sanitizer_CI",
-      "displayName": "Windows_Sanitizer_CI Build",
+      "displayName": "Windows Sanitizer CI Build",
       "description": "Build the project with sanitizers for Windows CI"
     },
     {
       "name": "Swift_Release",
       "inherits": "unix_base",
       "configurePreset": "Swift_Release",
-      "displayName": "Build Swift Release",
-      "description": "Build the project for Swift release"
+      "displayName": "Swift Release Build",
+      "description": "Build the project for Swift release on Unix"
     }
   ],
   "testPresets": [
