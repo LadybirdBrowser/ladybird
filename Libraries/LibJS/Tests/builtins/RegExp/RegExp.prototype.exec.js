@@ -212,3 +212,17 @@ test("string coercion", () => {
     expect(result[0]).toBe("1");
     expect(result.index).toBe(0);
 });
+
+test("cached UTF-16 code point length", () => {
+    // This exercises a regression where we incorrectly cached the code point length of the `match` string,
+    // causing subsequent code point lookups on that string to be incorrect.
+    const regex = /\p{Emoji_Presentation}/u;
+
+    let result = regex.exec("😀");
+    let match = result[0];
+
+    result = regex.exec(match);
+    match = result[0];
+
+    expect(match.codePointAt(0)).toBe(0x1f600);
+});

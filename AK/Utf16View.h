@@ -113,6 +113,13 @@ public:
     size_t length_in_code_units() const { return m_code_units.size(); }
     size_t length_in_code_points() const;
 
+    Optional<size_t> length_in_code_points_if_known() const
+    {
+        if (m_length_in_code_points == NumericLimits<size_t>::max())
+            return {};
+        return m_length_in_code_points;
+    }
+
     Utf16CodePointIterator begin() const { return { begin_ptr(), m_code_units.size() }; }
     Utf16CodePointIterator end() const { return { end_ptr(), 0 }; }
 
