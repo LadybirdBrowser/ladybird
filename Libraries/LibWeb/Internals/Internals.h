@@ -23,6 +23,8 @@ public:
     void signal_test_is_done(String const& text);
     void set_test_timeout(double milliseconds);
 
+    WebIDL::ExceptionOr<String> set_time_zone(StringView time_zone);
+
     void gc();
     JS::Object* hit_test(double x, double y);
 
