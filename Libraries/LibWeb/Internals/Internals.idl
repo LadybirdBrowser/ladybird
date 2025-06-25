@@ -8,6 +8,8 @@ interface Internals {
     undefined signalTestIsDone(DOMString text);
     undefined setTestTimeout(double milliseconds);
 
+    DOMString setTimeZone(DOMString timeZone);
+
     undefined gc();
     object hitTest(double x, double y);
 
