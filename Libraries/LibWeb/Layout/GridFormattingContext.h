@@ -233,11 +233,8 @@ private:
         bool invalid { false }; /* FIXME: Ignore ignore invalid areas during layout */
     };
 
-    struct GridLine {
-        Vector<FlyString> names;
-    };
-    Vector<GridLine> m_row_lines;
-    Vector<GridLine> m_column_lines;
+    Vector<Vector<CSS::GridLineName>> m_row_lines;
+    Vector<Vector<CSS::GridLineName>> m_column_lines;
 
     void init_grid_lines(GridDimension);
 

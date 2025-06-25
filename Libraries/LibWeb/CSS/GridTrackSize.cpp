@@ -166,7 +166,11 @@ String GridLineNames::to_string() const
 {
     StringBuilder builder;
     builder.append("["sv);
-    builder.join(' ', names);
+    for (size_t i = 0; i < m_names.size(); ++i) {
+        if (i > 0)
+            builder.append(" "sv);
+        builder.append(m_names[i].name);
+    }
     builder.append("]"sv);
     return MUST(builder.to_string());
 }
@@ -211,7 +215,8 @@ void GridTrackSizeList::append(GridLineNames&& line_names)
 {
     if (!m_list.is_empty() && m_list.last().has<GridLineNames>()) {
         auto& last_line_names = m_list.last().get<GridLineNames>();
-        last_line_names.names.extend(move(line_names.names));
+        for (auto const& name : line_names.names())
+            last_line_names.append(name.name);
         return;
     }
     m_list.append(move(line_names));

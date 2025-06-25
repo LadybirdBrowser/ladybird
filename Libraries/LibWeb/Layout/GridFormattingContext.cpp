@@ -1385,10 +1385,10 @@ void GridFormattingContext::build_grid_areas()
     // and column-end lines of the named grid area.
     for (auto const& it : grid_areas) {
         auto const& grid_area = it.value;
-        m_column_lines[grid_area.column_start].names.append(MUST(String::formatted("{}-start", grid_area.name)));
-        m_column_lines[grid_area.column_end].names.append(MUST(String::formatted("{}-end", grid_area.name)));
-        m_row_lines[grid_area.row_start].names.append(MUST(String::formatted("{}-start", grid_area.name)));
-        m_row_lines[grid_area.row_end].names.append(MUST(String::formatted("{}-end", grid_area.name)));
+        m_column_lines[grid_area.column_start].append({ .name = MUST(String::formatted("{}-start", grid_area.name)), .implicit = true });
+        m_column_lines[grid_area.column_end].append({ .name = MUST(String::formatted("{}-end", grid_area.name)), .implicit = true });
+        m_row_lines[grid_area.row_start].append({ .name = MUST(String::formatted("{}-start", grid_area.name)), .implicit = true });
+        m_row_lines[grid_area.row_end].append({ .name = MUST(String::formatted("{}-end", grid_area.name)), .implicit = true });
     }
 }
 
@@ -2061,9 +2061,14 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
     auto serialize = [](auto const& tracks, auto const& lines) {
         CSS::GridTrackSizeList result;
         for (size_t i = 0; i < lines.size(); ++i) {
-            auto const& line = lines[i];
-            if (!line.names.is_empty()) {
-                result.append(CSS::GridLineNames { line.names });
+            auto const& names = lines[i];
+            if (!names.is_empty()) {
+                CSS::GridLineNames grid_line_names;
+                for (auto const& [name, implicit] : names) {
+                    if (!implicit)
+                        grid_line_names.append(name);
+                }
+                result.append(CSS::GridLineNames { move(grid_line_names) });
             }
 
             if (i < tracks.size()) {
@@ -2273,8 +2278,8 @@ Optional<int> GridFormattingContext::get_nth_line_index_by_line_name(GridDimensi
     // of the explicit grid corresponding to the search direction are assumed to have that name for the purpose of counting this span.
     // Source: https://drafts.csswg.org/css-grid/#line-placement
     for (size_t actual_line_index = 0; actual_line_index < lines.size(); actual_line_index++) {
-        for (auto const& name : lines[actual_line_index].names) {
-            if (name == line_name) {
+        for (auto const& line : lines[actual_line_index]) {
+            if (line.name == line_name) {
                 // https://drafts.csswg.org/css-grid/#line-placement
                 // Contributes the nth grid line to the grid item’s placement.
                 if (line_index == 0)
@@ -2293,15 +2298,15 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
     auto const& lines_definition = dimension == GridDimension::Column ? grid_computed_values.grid_template_columns() : grid_computed_values.grid_template_rows();
     auto& lines = dimension == GridDimension::Column ? m_column_lines : m_row_lines;
 
-    Vector<FlyString> line_names;
+    Vector<CSS::GridLineName> line_names;
     Function<void(CSS::GridTrackSizeList const&)> expand_lines_definition = [&](CSS::GridTrackSizeList const& lines_definition) {
         for (auto const& item : lines_definition.list()) {
             if (item.has<CSS::GridLineNames>()) {
-                line_names.extend(item.get<CSS::GridLineNames>().names);
+                line_names.extend(item.get<CSS::GridLineNames>().names());
             } else if (item.has<CSS::ExplicitGridTrack>()) {
                 auto const& explicit_track = item.get<CSS::ExplicitGridTrack>();
                 if (explicit_track.is_default() || explicit_track.is_minmax()) {
-                    lines.append({ .names = line_names });
+                    lines.append(line_names);
                     line_names.clear();
                 } else if (explicit_track.is_repeat()) {
                     int repeat_count = 0;
@@ -2320,7 +2325,7 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
     };
 
     expand_lines_definition(lines_definition);
-    lines.append({ .names = line_names });
+    lines.append(line_names);
 }
 
 void OccupationGrid::set_occupied(int column_start, int column_end, int row_start, int row_end)

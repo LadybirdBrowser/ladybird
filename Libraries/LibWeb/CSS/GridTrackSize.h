@@ -78,11 +78,25 @@ private:
     GridSize m_max_grid_size;
 };
 
-struct GridLineNames {
-    Vector<FlyString> names;
+struct GridLineName {
+    FlyString name;
+    bool implicit { false };
+
+    bool operator==(GridLineName const& other) const = default;
+};
+
+class GridLineNames {
+public:
+    void append(FlyString const& name) { m_names.append({ name }); }
+    bool is_empty() const { return m_names.is_empty(); }
+    auto const& names() const& { return m_names; }
 
     String to_string() const;
+
     bool operator==(GridLineNames const& other) const = default;
+
+private:
+    Vector<GridLineName> m_names;
 };
 
 class GridTrackSizeList {
