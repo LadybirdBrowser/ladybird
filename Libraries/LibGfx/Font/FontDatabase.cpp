@@ -63,6 +63,7 @@ ErrorOr<Vector<String>> FontDatabase::font_directories()
         char const* dir_cstring = reinterpret_cast<char const*>(dir);
         paths.append(TRY(String::from_utf8(StringView { dir_cstring, strlen(dir_cstring) })));
     }
+    FcStrListDone(dirs);
     return paths;
 
 #elif defined(AK_OS_HAIKU)
