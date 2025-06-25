@@ -3026,10 +3026,13 @@ void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element,
 
 HashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::PseudoElement> pseudo_element) const
 {
+    static HashMap<FlyString, CSS::StyleProperty> s_empty_custom_properties;
+
     if (!pseudo_element.has_value())
         return m_custom_properties;
 
-    VERIFY(CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()));
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
+        return s_empty_custom_properties;
 
     return ensure_pseudo_element(pseudo_element.value()).custom_properties();
 }
