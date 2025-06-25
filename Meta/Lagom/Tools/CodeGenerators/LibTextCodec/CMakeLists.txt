@@ -1,1 +1,0 @@
-lagom_tool(GenerateEncodingIndexes SOURCES GenerateEncodingIndexes.cpp LIBS LibMain)
