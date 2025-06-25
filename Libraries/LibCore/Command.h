@@ -18,16 +18,6 @@
 
 namespace Core {
 
-// FIXME: Unify this and the below 'command' functions with Command class below
-struct CommandResult {
-    int exit_code { 0 };
-    ByteBuffer output;
-    ByteBuffer error;
-};
-
-ErrorOr<CommandResult> command(ByteString const& program, Vector<ByteString> const& arguments, Optional<LexicalPath> chdir);
-ErrorOr<CommandResult> command(ByteString const& command_string, Optional<LexicalPath> chdir);
-
 class Command {
 public:
     struct ProcessOutputs {
@@ -35,6 +25,17 @@ public:
         ByteBuffer standard_error;
     };
 
+    struct ProcessResult {
+        int exit_code { 0 };
+        ByteBuffer output;
+        ByteBuffer error;
+    };
+
+    // Static convenience methods for synchronous execution (replaces standalone functions)
+    static ErrorOr<ProcessResult> run(ByteString const& program, Vector<ByteString> const& arguments, Optional<LexicalPath> chdir = {});
+    static ErrorOr<ProcessResult> run(ByteString const& command_string, Optional<LexicalPath> chdir = {});
+
+    // Factory method for interactive command execution
     static ErrorOr<OwnPtr<Command>> create(StringView command, char const* const arguments[]);
 
     Command(pid_t pid, NonnullOwnPtr<Core::File> stdin_file, NonnullOwnPtr<Core::File> stdout_file, NonnullOwnPtr<Core::File> stderr_file);
@@ -45,7 +46,10 @@ public:
 
     ErrorOr<ProcessOutputs> read_all();
 
-    enum class ProcessResult {
+    // Run to completion and return results (for converting from interactive to synchronous usage)
+    ErrorOr<ProcessResult> run_to_completion();
+
+    enum class Status {
         Running,
         DoneWithZeroExitCode,
         Failed,
@@ -53,7 +57,7 @@ public:
         Unknown,
     };
 
-    ErrorOr<ProcessResult> status(int options = 0);
+    ErrorOr<Status> status(int options = 0);
 
 private:
     pid_t m_pid { -1 };
@@ -61,5 +65,9 @@ private:
     NonnullOwnPtr<Core::File> m_stdout;
     NonnullOwnPtr<Core::File> m_stderr;
 };
+
+// Legacy compatibility functions (deprecated, use Command::run instead)
+ErrorOr<Command::ProcessResult> command(ByteString const& program, Vector<ByteString> const& arguments, Optional<LexicalPath> chdir = {});
+ErrorOr<Command::ProcessResult> command(ByteString const& command_string, Optional<LexicalPath> chdir = {});
 
 }
