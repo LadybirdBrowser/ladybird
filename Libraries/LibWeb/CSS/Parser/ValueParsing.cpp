@@ -4675,4 +4675,94 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
     return false;
 }
 
+// https://drafts.csswg.org/css-variables/#funcdef-var
+bool Parser::is_valid_var_function_contents(TokenStream<ComponentValue>& var_contents)
+{
+    var_contents.discard_whitespace();
+    if (!var_contents.has_next_token())
+        return false;
+
+    auto const& custom_property_name_token = var_contents.consume_a_token();
+    if (!custom_property_name_token.is(Token::Type::Ident))
+        return false;
+
+    auto custom_property_name = custom_property_name_token.token().ident();
+    if (!is_a_custom_property_name_string(custom_property_name))
+        return false;
+
+    var_contents.discard_whitespace();
+    if (var_contents.has_next_token()) {
+        if (auto const& comma_token = var_contents.consume_a_token(); !comma_token.is(Token::Type::Comma))
+            return false;
+
+        var_contents.discard_whitespace();
+        if (var_contents.next_token().is_function() && var_contents.next_token().function().name == "var"sv) {
+            TokenStream inner_var_contents { var_contents.next_token().function().value };
+            if (!is_valid_var_function_contents(inner_var_contents))
+                return false;
+        }
+
+        if (!is_valid_declaration_value(var_contents))
+            return false;
+    }
+
+    return true;
+}
+
+// https://drafts.csswg.org/css-syntax/#any-value
+bool Parser::is_valid_declaration_value(TokenStream<ComponentValue>& tokens)
+{
+    tokens.begin_transaction();
+
+    // The <declaration-value> production matches any sequence of one or more tokens,
+    // so long as the sequence does not contain <bad-string-token>, <bad-url-token>,
+    // unmatched <)-token>, <]-token>, or <}-token>, or top-level <semicolon-token> tokens
+    // or <delim-token> tokens with a value of "!".
+    // It represents the entirety of what a valid declaration can have as its value.
+    auto curly_count = 0;
+    auto parenthesis_count = 0;
+    auto square_bracket_count = 0;
+    while (tokens.has_next_token()) {
+        auto& component_value = tokens.consume_a_token();
+        if (!component_value.is_token())
+            continue;
+
+        auto& token = component_value.token();
+        switch (token.type()) {
+        case Token::Type::BadString:
+        case Token::Type::BadUrl:
+        case Token::Type::Semicolon:
+            return false;
+        case Token::Type::OpenCurly:
+            curly_count++;
+            break;
+        case Token::Type::CloseCurly:
+            curly_count--;
+            break;
+        case Token::Type::OpenParen:
+            parenthesis_count++;
+            break;
+        case Token::Type::CloseParen:
+            parenthesis_count--;
+            break;
+        case Token::Type::OpenSquare:
+            square_bracket_count++;
+            break;
+        case Token::Type::CloseSquare:
+            square_bracket_count--;
+            break;
+        case Token::Type::Delim:
+            if (token.delim() == '!')
+                return false;
+            break;
+        default:
+            break;
+        }
+        if (curly_count < 0 || parenthesis_count < 0 || square_bracket_count < 0)
+            return false;
+    }
+
+    return curly_count == 0 && parenthesis_count == 0 && square_bracket_count == 0;
+}
+
 }

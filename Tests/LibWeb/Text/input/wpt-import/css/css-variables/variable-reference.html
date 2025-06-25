@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Parse, store, and serialize CSS variable references</title>
+
+    <meta rel="author" title="Kevin Babbitt">
+    <meta rel="author" title="Greg Whitworth">
+    <link rel="author" title="Microsoft Corporation" href="http://microsoft.com" />
+    <link rel="help" href="http://www.w3.org/TR/css-variables-1/#using-variables">
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+
+    <!--
+        https://drafts.csswg.org/css-syntax/#error-handling
+        If the stylesheet ends while any rule, declaration, function, string, etc. are still open, everything is automatically closed.
+    -->
+    <style id="variable-reference-left-open">
+        div
+        {
+            width: var(--prop</style>
+</head>
+<body>
+
+<script type="text/javascript">
+    "use strict";
+
+    var testcases = [
+        { cssText: "width: var(--prop);",                   expectedPropertyValue: "var(--prop)" },
+        { cssText: "width: var(--prop) !important;",        expectedPropertyValue: "var(--prop)" },
+        { cssText: "width: var(--prop, );",                 expectedPropertyValue: "var(--prop, )" },
+        { cssText: "width: var(--prop, 20px);",             expectedPropertyValue: "var(--prop, 20px)" },
+        { cssText: "width: var(--prop, blue);",             expectedPropertyValue: "var(--prop, blue)" },
+        { cssText: "width: var(--prop1, var(--prop2));",    expectedPropertyValue: "var(--prop1, var(--prop2))" },
+        { cssText: "width: var(--prop1, var(--prop2, var(--prop3, auto)));", expectedPropertyValue: "var(--prop1, var(--prop2, var(--prop3, auto)))" },
+        { cssText: "width: var(--prop1) var(--prop2)",      expectedPropertyValue: "var(--prop1) var(--prop2)" },
+        { cssText: "width: var(--prop,);",                  expectedPropertyValue: "var(--prop,)" },
+
+        { cssText: "width: var();",                         expectedPropertyValue: "" },
+        { cssText: "width: var(prop);",                     expectedPropertyValue: "" },
+        { cssText: "width: var(-prop);",                    expectedPropertyValue: "" },
+        { cssText: "width: var(--prop 20px);",              expectedPropertyValue: "" },
+        { cssText: "width: var(--prop, var(prop));",        expectedPropertyValue: "" },
+        { cssText: "width: var(--prop, var(-prop));",       expectedPropertyValue: "" },
+        { cssText: "width: var(20px);",                     expectedPropertyValue: "" },
+        { cssText: "width: var(var(--prop));",              expectedPropertyValue: "" },
+    ];
+
+    testcases.forEach(function (testcase) {
+        test( function () {
+            var div = document.createElement("div");
+            document.body.appendChild(div);
+            div.style.cssText = testcase.cssText;
+            var actualPropertyValue = div.style.getPropertyValue("width").trim();
+            assert_equals(actualPropertyValue, testcase.expectedPropertyValue);
+            document.body.removeChild(div);
+        }, testcase.cssText);
+    });
+
+    test( function() {
+            var actualPropertyValue = document.getElementById("variable-reference-left-open").sheet.cssRules[0].style.getPropertyValue("width").trim();
+            assert_equals(actualPropertyValue, "var(--prop");
+        }, "Variable reference left open at end of stylesheet");
+</script>
+
+</body>
+</html>

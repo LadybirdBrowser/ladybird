@@ -509,6 +509,8 @@ private:
     bool expand_variables(DOM::Element&, Optional<PseudoElement>, FlyString const& property_name, HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>>& dependencies, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
     bool expand_unresolved_values(DOM::Element&, FlyString const& property_name, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
     bool substitute_attr_function(DOM::Element& element, FlyString const& property_name, Function const& attr_function, Vector<ComponentValue>& dest);
+    bool is_valid_var_function_contents(TokenStream<ComponentValue>&);
+    bool is_valid_declaration_value(TokenStream<ComponentValue>&);
 
     static bool has_ignored_vendor_prefix(StringView);
 

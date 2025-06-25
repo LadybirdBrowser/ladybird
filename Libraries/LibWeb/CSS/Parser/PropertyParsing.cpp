@@ -454,10 +454,18 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         }
 
         if (!contains_arbitrary_substitution_function) {
-            if (token.is_function() && token.function().contains_arbitrary_substitution_function())
+            if (token.is_function() && token.function().contains_arbitrary_substitution_function()) {
+                auto& function = token.function();
+                if (function.name.equals_ignoring_ascii_case("var"sv)) {
+                    TokenStream var_contents { function.value };
+                    if (!is_valid_var_function_contents(var_contents)) {
+                        return ParseError::SyntaxError;
+                    }
+                }
                 contains_arbitrary_substitution_function = true;
-            else if (token.is_block() && token.block().contains_arbitrary_substitution_function())
+            } else if (token.is_block() && token.block().contains_arbitrary_substitution_function()) {
                 contains_arbitrary_substitution_function = true;
+            }
         }
 
         component_values.append(token);

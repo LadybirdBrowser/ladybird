@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+17 Pass
+1 Fail
+Pass	width: var(--prop);
+Pass	width: var(--prop) !important;
+Pass	width: var(--prop, );
+Pass	width: var(--prop, 20px);
+Pass	width: var(--prop, blue);
+Pass	width: var(--prop1, var(--prop2));
+Pass	width: var(--prop1, var(--prop2, var(--prop3, auto)));
+Pass	width: var(--prop1) var(--prop2)
+Pass	width: var(--prop,);
+Pass	width: var();
+Pass	width: var(prop);
+Pass	width: var(-prop);
+Pass	width: var(--prop 20px);
+Pass	width: var(--prop, var(prop));
+Pass	width: var(--prop, var(-prop));
+Pass	width: var(20px);
+Pass	width: var(var(--prop));
+Fail	Variable reference left open at end of stylesheet
