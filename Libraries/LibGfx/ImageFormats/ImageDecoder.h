@@ -23,12 +23,12 @@ namespace Gfx {
 class Bitmap;
 
 struct ImageFrameDescriptor {
-    RefPtr<Bitmap> image;
+    NonnullRefPtr<Bitmap> image;
     int duration { 0 };
 };
 
 struct VectorImageFrameDescriptor {
-    RefPtr<VectorGraphic> image;
+    NonnullRefPtr<VectorGraphic> image;
     int duration { 0 };
 };
 

@@ -211,7 +211,6 @@ TEST_CASE(test_gif_without_global_color_table)
     auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(gif_data));
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
     auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
-    EXPECT(frame.image);
     EXPECT_EQ(frame.image->size(), Gfx::IntSize(1, 1));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
 }

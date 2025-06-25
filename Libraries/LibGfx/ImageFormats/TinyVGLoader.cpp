@@ -571,13 +571,13 @@ ErrorOr<ImageFrameDescriptor> TinyVGImageDecoderPlugin::frame(size_t, Optional<I
     auto target_size = ideal_size.value_or(m_context->decoded_image->size());
     if (!m_context->bitmap || m_context->bitmap->size() != target_size)
         m_context->bitmap = TRY(m_context->decoded_image->bitmap(target_size));
-    return ImageFrameDescriptor { m_context->bitmap };
+    return ImageFrameDescriptor { *m_context->bitmap };
 }
 
 ErrorOr<VectorImageFrameDescriptor> TinyVGImageDecoderPlugin::vector_frame(size_t)
 {
     TRY(ensure_fully_decoded(*m_context));
-    return VectorImageFrameDescriptor { m_context->decoded_image, 0 };
+    return VectorImageFrameDescriptor { *m_context->decoded_image, 0 };
 }
 
 }

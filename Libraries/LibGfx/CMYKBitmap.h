@@ -36,7 +36,7 @@ public:
     [[nodiscard]] CMYK* end();
     [[nodiscard]] size_t data_size() const { return m_data.size(); }
 
-    ErrorOr<RefPtr<Bitmap>> to_low_quality_rgb() const;
+    ErrorOr<NonnullRefPtr<Bitmap>> to_low_quality_rgb() const;
 
 private:
     CMYKBitmap(IntSize const& size, ByteBuffer data)

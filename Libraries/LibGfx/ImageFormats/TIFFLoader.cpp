@@ -786,7 +786,7 @@ ErrorOr<ImageFrameDescriptor> TIFFImageDecoderPlugin::frame(size_t index, Option
     if (m_context->cmyk_bitmap())
         return ImageFrameDescriptor { TRY(m_context->cmyk_bitmap()->to_low_quality_rgb()), 0 };
 
-    return ImageFrameDescriptor { m_context->bitmap(), 0 };
+    return ImageFrameDescriptor { *m_context->bitmap(), 0 };
 }
 
 Optional<Metadata const&> TIFFImageDecoderPlugin::metadata()
