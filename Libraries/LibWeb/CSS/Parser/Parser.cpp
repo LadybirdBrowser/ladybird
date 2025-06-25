@@ -1125,6 +1125,8 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
 
     // 8. If decl’s name is a custom property name string, then set decl’s original text to the segment
     //    of the original source text string corresponding to the tokens of decl’s value.
+    if (is_invalid_custom_property_name_string(declaration.name))
+        return {};
     if (is_a_custom_property_name_string(declaration.name)) {
         // TODO: If we could reach inside the source string that the TokenStream uses, we could grab this as
         //       a single substring instead of having to reconstruct it.
