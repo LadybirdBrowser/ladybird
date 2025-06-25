@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#trig-funcs">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Apple Inc">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/numeric-testcommon.js"></script>
+<div id="target"></div>
+<script>
+function test_angle_equals(value, expected) {
+  test_math_used(value, expected, {type: "angle"});
+}
+// Simple tests
+test_angle_equals('acos(1)', '0deg');
+test_angle_equals('atan(0)', '0deg');
+test_angle_equals('asin(0)', '0deg');
+test_angle_equals('atan2(0,0)', '0deg');
+
+// Test pi
+test_math_used('calc(asin(sin(pi/2)))', '90deg', {type:'angle', approx:0.1});
+test_math_used('calc(acos(cos(pi - 3.14159265358979323846)))', '0deg', {type:'angle', approx:0.1});
+
+// Test e
+test_math_used('calc(atan(e - 2.7182818284590452354) )', '0deg', {type:'angle', approx:0.1});
+
+// General calculations
+test_math_used('calc(asin(sin(30deg + 1.0471967rad ) ))', '90deg', {type:'angle', approx:0.1});
+test_math_used('calc(acos(cos(30deg - 0.523599rad ) ))', '0deg', {type:'angle', approx:0.1});
+test_math_used('calc(asin(sin(3.14159 / 2 + 1 - 1) ))', '90deg', {type:'angle', approx:0.1});
+test_math_used('calc(asin(sin(100grad) ))', '90deg', {type:'angle', approx:0.1});
+test_math_used('calc(acos(cos(0 / 2 + 1 - 1) ))', '0deg', {type:'angle', approx:0.1});
+test_math_used('calc(atan(tan(30deg + 0.261799rad ) ))', '45deg', {type:'angle', approx:0.1});
+test_math_used('calc(atan(tan(0.7853975rad ) ))', '45deg', {type:'angle', approx:0.1});
+test_math_used('calc(atan(tan(3.14159 / 4 + 1 - 1) ))', '45deg', {type:'angle', approx:0.1});
+test_math_used('calc(asin(sin(0.25turn)) )', '90deg', {type:'angle', approx:0.1});
+test_math_used('calc(atan2(0,1))', '0deg', {type:'angle', approx:0.1});
+test_math_used('calc(atan2(0,-1) / 4)', '45deg', {type:'angle', approx:0.1}); // atan2(0,-1) equals 180deg, result is divided to avoid ambiguity with -180deg
+test_math_used('calc(atan2(1,-1))', '135deg', {type:'angle', approx:0.1});
+test_math_used('calc(atan2(-1,1))', '-45deg', {type:'angle', approx:0.1});
+
+// Test unresolved at parse time
+test_math_used('calc(asin(sin(180deg * sibling-index())))', '0deg', {type:'angle', approx:0.1});
+test_math_used('calc(acos(cos(180deg * sibling-index())))', '180deg', {type:'angle', approx:0.1});
+test_math_used('calc(atan(tan(180deg * sibling-index())))', '0deg', {type:'angle', approx:0.1});
+
+// Test nesting
+test_math_used('calc(cos(sin(acos(cos(pi)))))', '1', {type:'number', approx:0.1});
+
+// Test types for atan2
+test_math_used('atan2(1px, -1px)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1cm, -1cm)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1mm, -1mm)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1Q, -1Q)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1in, -1in)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1pc, -1pc)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1pt, -1pt)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1em, -1em)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1ex, -1ex)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1ch, -1ch)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1rem, -1rem)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1rem + 1px - 1px, -1rem)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1vh, -1vh)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1vh + 0px, -1vh + 0px)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1vw, -1vw)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1deg, -1deg)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1grad, -1grad)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1turn, -1turn)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1rad, -1rad)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1s, -1s)', '135deg', {type:'angle', approx:0.1});
+test_math_used('atan2(1ms, -1ms)', '135deg', {type:'angle', approx:0.1});
+
+</script>

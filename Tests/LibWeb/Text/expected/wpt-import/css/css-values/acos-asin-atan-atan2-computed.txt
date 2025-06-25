@@ -1,0 +1,51 @@
+Harness status: OK
+
+Found 45 tests
+
+34 Pass
+11 Fail
+Pass	acos(1) should be used-value-equivalent to 0deg
+Pass	atan(0) should be used-value-equivalent to 0deg
+Pass	asin(0) should be used-value-equivalent to 0deg
+Pass	atan2(0,0) should be used-value-equivalent to 0deg
+Pass	calc(asin(sin(pi/2))) should be used-value-equivalent to 90deg
+Pass	calc(acos(cos(pi - 3.14159265358979323846))) should be used-value-equivalent to 0deg
+Pass	calc(atan(e - 2.7182818284590452354) ) should be used-value-equivalent to 0deg
+Pass	calc(asin(sin(30deg + 1.0471967rad ) )) should be used-value-equivalent to 90deg
+Pass	calc(acos(cos(30deg - 0.523599rad ) )) should be used-value-equivalent to 0deg
+Pass	calc(asin(sin(3.14159 / 2 + 1 - 1) )) should be used-value-equivalent to 90deg
+Pass	calc(asin(sin(100grad) )) should be used-value-equivalent to 90deg
+Pass	calc(acos(cos(0 / 2 + 1 - 1) )) should be used-value-equivalent to 0deg
+Pass	calc(atan(tan(30deg + 0.261799rad ) )) should be used-value-equivalent to 45deg
+Pass	calc(atan(tan(0.7853975rad ) )) should be used-value-equivalent to 45deg
+Pass	calc(atan(tan(3.14159 / 4 + 1 - 1) )) should be used-value-equivalent to 45deg
+Pass	calc(asin(sin(0.25turn)) ) should be used-value-equivalent to 90deg
+Pass	calc(atan2(0,1)) should be used-value-equivalent to 0deg
+Pass	calc(atan2(0,-1) / 4) should be used-value-equivalent to 45deg
+Pass	calc(atan2(1,-1)) should be used-value-equivalent to 135deg
+Pass	calc(atan2(-1,1)) should be used-value-equivalent to -45deg
+Fail	calc(asin(sin(180deg * sibling-index()))) should be used-value-equivalent to 0deg
+Fail	calc(acos(cos(180deg * sibling-index()))) should be used-value-equivalent to 180deg
+Fail	calc(atan(tan(180deg * sibling-index()))) should be used-value-equivalent to 0deg
+Pass	calc(cos(sin(acos(cos(pi))))) should be used-value-equivalent to 1
+Pass	atan2(1px, -1px) should be used-value-equivalent to 135deg
+Pass	atan2(1cm, -1cm) should be used-value-equivalent to 135deg
+Pass	atan2(1mm, -1mm) should be used-value-equivalent to 135deg
+Pass	atan2(1Q, -1Q) should be used-value-equivalent to 135deg
+Pass	atan2(1in, -1in) should be used-value-equivalent to 135deg
+Pass	atan2(1pc, -1pc) should be used-value-equivalent to 135deg
+Pass	atan2(1pt, -1pt) should be used-value-equivalent to 135deg
+Fail	atan2(1em, -1em) should be used-value-equivalent to 135deg
+Fail	atan2(1ex, -1ex) should be used-value-equivalent to 135deg
+Fail	atan2(1ch, -1ch) should be used-value-equivalent to 135deg
+Fail	atan2(1rem, -1rem) should be used-value-equivalent to 135deg
+Fail	atan2(1rem + 1px - 1px, -1rem) should be used-value-equivalent to 135deg
+Fail	atan2(1vh, -1vh) should be used-value-equivalent to 135deg
+Fail	atan2(1vh + 0px, -1vh + 0px) should be used-value-equivalent to 135deg
+Fail	atan2(1vw, -1vw) should be used-value-equivalent to 135deg
+Pass	atan2(1deg, -1deg) should be used-value-equivalent to 135deg
+Pass	atan2(1grad, -1grad) should be used-value-equivalent to 135deg
+Pass	atan2(1turn, -1turn) should be used-value-equivalent to 135deg
+Pass	atan2(1rad, -1rad) should be used-value-equivalent to 135deg
+Pass	atan2(1s, -1s) should be used-value-equivalent to 135deg
+Pass	atan2(1ms, -1ms) should be used-value-equivalent to 135deg
