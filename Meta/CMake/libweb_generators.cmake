@@ -2,7 +2,7 @@ function (generate_css_implementation)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
 
 
-    invoke_generator(
+    invoke_cpp_generator(
         "DescriptorID.cpp"
         Lagom::GenerateCSSDescriptors
         "${LIBWEB_INPUT_FOLDER}/CSS/Descriptors.json"
@@ -11,7 +11,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Descriptors.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "Enums.cpp"
         Lagom::GenerateCSSEnums
         "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json"
@@ -20,7 +20,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "MathFunctions.cpp"
         Lagom::GenerateCSSMathFunctions
         "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
@@ -29,7 +29,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "MediaFeatureID.cpp"
         Lagom::GenerateCSSMediaFeatureID
         "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
@@ -38,7 +38,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "PropertyID.cpp"
         Lagom::GenerateCSSPropertyID
         "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
@@ -47,7 +47,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "PseudoClass.cpp"
         Lagom::GenerateCSSPseudoClass
         "${LIBWEB_INPUT_FOLDER}/CSS/PseudoClasses.json"
@@ -56,7 +56,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoClasses.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "PseudoElement.cpp"
         Lagom::GenerateCSSPseudoElement
         "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
@@ -65,7 +65,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "TransformFunctions.cpp"
         Lagom::GenerateCSSTransformFunctions
         "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
@@ -74,7 +74,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
     )
 
-    invoke_generator(
+    invoke_cpp_generator(
         "Keyword.cpp"
         Lagom::GenerateCSSKeyword
         "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
@@ -154,7 +154,7 @@ endfunction()
 function (generate_html_implementation)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
 
-    invoke_generator(
+    invoke_cpp_generator(
         "NamedCharacterReferences.cpp"
         Lagom::GenerateNamedCharacterReferences
         "${LIBWEB_INPUT_FOLDER}/HTML/Parser/Entities.json"

@@ -40,23 +40,49 @@ function(remove_path_if_version_changed version version_file cache_path)
     endif()
 endfunction()
 
-function(invoke_generator name generator primary_source header implementation)
-    cmake_parse_arguments(invoke_generator "" "" "arguments;dependencies" ${ARGN})
-
+function(invoke_generator_impl name generator primary_source header implementation)
+    cmake_parse_arguments(invoke_generator_impl "" "" "command;arguments;dependencies" ${ARGN})
     add_custom_command(
         OUTPUT "${header}" "${implementation}"
-        COMMAND $<TARGET_FILE:${generator}> -h "${header}.tmp" -c "${implementation}.tmp" ${invoke_generator_arguments}
+        COMMAND ${invoke_generator_impl_command} ${generator} -h "${header}.tmp" -c "${implementation}.tmp" ${invoke_generator_impl_arguments}
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${header}.tmp" "${header}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${implementation}.tmp" "${implementation}"
         COMMAND "${CMAKE_COMMAND}" -E remove "${header}.tmp" "${implementation}.tmp"
         VERBATIM
-        DEPENDS ${generator} ${invoke_generator_dependencies} "${primary_source}"
+        DEPENDS ${generator} ${invoke_generator_impl_dependencies} "${primary_source}"
     )
 
     add_custom_target("generate_${name}" DEPENDS "${header}" "${implementation}")
     add_dependencies(all_generated "generate_${name}")
     list(APPEND CURRENT_LIB_GENERATED "${name}")
     set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
+endfunction()
+
+function(invoke_cpp_generator name generator primary_source header implementation)
+    cmake_parse_arguments(invoke_cpp_generator "" "" "arguments;dependencies" ${ARGN})
+    invoke_generator_impl(
+        ${name}
+        $<TARGET_FILE:${generator}>
+        ${primary_source}
+        ${header}
+        ${implementation}
+        arguments ${invoke_cpp_generator_arguments}
+        dependencies ${invoke_cpp_generator_dependencies}
+    )
+endfunction()
+
+function(invoke_py_generator name script primary_source header implementation)
+    cmake_parse_arguments(invoke_py_generator "" "" "arguments" ${ARGN})
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    invoke_generator_impl(
+        ${name}
+        "${SerenityOS_SOURCE_DIR}/Meta/${script}"
+        ${primary_source}
+        ${header}
+        ${implementation}
+        command ${Python3_EXECUTABLE}
+        arguments ${invoke_py_generator_arguments}
+    )
 endfunction()
 
 function(invoke_idl_generator cpp_name idl_name generator primary_source header implementation idl)

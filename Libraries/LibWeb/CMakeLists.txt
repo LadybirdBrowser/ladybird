@@ -951,7 +951,7 @@ set(SOURCES
 compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)
 compile_ipc(Worker/WebWorkerServer.ipc Worker/WebWorkerServerEndpoint.h)
 
-invoke_generator(
+invoke_cpp_generator(
     "AriaRoles.cpp"
     Lagom::GenerateAriaRoles
     "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
@@ -964,7 +964,7 @@ generate_css_implementation()
 
 generate_html_implementation()
 
-invoke_generator(
+invoke_cpp_generator(
     "WebGLRenderingContextImpl.cpp"
     Lagom::GenerateWebGLRenderingContext
     "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContextBase.idl"
@@ -976,7 +976,7 @@ invoke_generator(
     dependencies WebGL/WebGLRenderingContextBase.idl WebGL/WebGLRenderingContextOverloads.idl CSS/GeneratedCSSStyleProperties.idl
 )
 
-invoke_generator(
+invoke_cpp_generator(
     "WebGL2RenderingContextImpl.cpp"
     Lagom::GenerateWebGLRenderingContext
     "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGL2RenderingContextBase.idl"
