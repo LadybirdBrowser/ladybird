@@ -1702,7 +1702,7 @@ static Optional<CalculatedStyleValue::CalculationResult> run_asin_acos_or_atan_o
         break;
     }
 
-    return CalculatedStyleValue::CalculationResult { result, CSSNumericType {}.made_consistent_with(child.numeric_type().value()) };
+    return CalculatedStyleValue::CalculationResult { result, CSSNumericType { CSSNumericType::BaseType::Angle, 1 }.made_consistent_with(child.numeric_type().value()) };
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-asin
