@@ -1,0 +1,28 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 78e0af04..b4aa973d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -276,6 +276,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+   SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+ endif()
+ 
++if(CPPTRACE_DELAYLOAD_DBGHELP AND BUILD_SHARED_LIBS AND MSVC)
++  target_link_libraries(${target_name} PRIVATE delayimp.lib)
++  target_link_options(${target_name} PRIVATE /DELAYLOAD:dbghelp.dll)
++endif()
++
+ # =================================================== Back-end setup ===================================================
+ 
+ if(HAS_CXX_EXCEPTION_TYPE)
+diff --git a/cmake/OptionVariables.cmake b/cmake/OptionVariables.cmake
+index 417982bd..e726db11 100644
+--- a/cmake/OptionVariables.cmake
++++ b/cmake/OptionVariables.cmake
+@@ -187,6 +187,7 @@ set(CPPTRACE_LIBDWARF_SHALLOW "1" CACHE STRING "")
+ option(CPPTRACE_PROVIDE_EXPORT_SET "" ON)
+ option(CPPTRACE_PROVIDE_EXPORT_SET_FOR_LIBDWARF "" OFF)
+ option(CPPTRACE_DISABLE_CXX_20_MODULES "" OFF)
++option(CPPTRACE_DELAYLOAD_DBGHELP "" OFF)
+ 
+ mark_as_advanced(
+   CPPTRACE_BACKTRACE_PATH
