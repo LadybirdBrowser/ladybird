@@ -44,7 +44,7 @@ public:
 
     [[nodiscard]] SourceGenerator fork()
     {
-        return SourceGenerator { m_builder, MUST(m_mapping.clone()), m_opening, m_closing };
+        return SourceGenerator { m_builder, MUST(m_mapping.clone()), m_opening, m_closing, m_escape };
     }
 
     void set(StringView key, String value)
