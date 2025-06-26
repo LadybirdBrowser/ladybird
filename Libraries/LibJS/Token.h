@@ -10,6 +10,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <LibJS/Export.h>
 
 namespace JS {
 
@@ -175,7 +176,7 @@ enum class TokenCategory {
     Identifier
 };
 
-class Token {
+class JS_API Token {
 public:
     Token() = default;
 

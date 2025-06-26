@@ -12,9 +12,6 @@
 #ifdef AK_OS_WINDOWS
 // Forward declare to avoid pulling Windows.h into every file in existence.
 extern "C" __declspec(dllimport) void __stdcall Sleep(unsigned long);
-#    ifndef sched_yield
-#        define sched_yield() Sleep(0)
-#    endif
 #else
 #    include <sched.h>
 #endif
@@ -57,7 +54,11 @@ public:
             }
             // Someone else was faster, wait until they're done
             while (obj == (T*)0x1) {
+#if defined(AK_OS_WINDOWS)
+                Sleep(0);
+#else
                 sched_yield();
+#endif
                 obj = obj_var.load(AK::memory_order_acquire);
             }
             if constexpr (allow_create) {

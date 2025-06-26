@@ -119,6 +119,12 @@ runs:
         brew update
         brew install autoconf autoconf-archive automake bash ccache coreutils llvm@20 nasm ninja pkg-config qt unzip wabt
 
+    - name: Install Qt (Windows)
+      if: ${{ inputs.os == 'Windows' }}
+      uses: jurplel/install-qt-action@v4
+      with:
+        modules: "qtmultimedia"
+
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
       uses: actions/github-script@v7
