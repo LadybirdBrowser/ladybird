@@ -138,6 +138,12 @@ public:
 
     [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
+    enum class StopAtComma : u8 {
+        No,
+        Yes,
+    };
+    static Optional<Vector<ComponentValue>> parse_declaration_value(TokenStream<ComponentValue>&, StopAtComma = StopAtComma::No);
+
 private:
     Parser(ParsingParams const&, Vector<Token>);
 
