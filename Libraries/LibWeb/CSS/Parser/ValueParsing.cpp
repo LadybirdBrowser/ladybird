@@ -94,6 +94,61 @@ RefPtr<CSSStyleValue const> Parser::parse_comma_separated_value_list(TokenStream
     return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
 }
 
+// https://drafts.csswg.org/css-syntax/#typedef-declaration-value
+Optional<Vector<ComponentValue>> Parser::parse_declaration_value(TokenStream<ComponentValue>& tokens, StopAtComma stop_at_comma)
+{
+    // The <declaration-value> production matches any sequence of one or more tokens, so long as the sequence does not
+    // contain <bad-string-token>, <bad-url-token>, unmatched <)-token>, <]-token>, or <}-token>, or top-level
+    // <semicolon-token> tokens or <delim-token> tokens with a value of "!". It represents the entirety of what a valid
+    // declaration can have as its value.
+    auto transaction = tokens.begin_transaction();
+    Vector<ComponentValue> declaration_value;
+    while (tokens.has_next_token()) {
+        auto const& peek = tokens.next_token();
+        if (!peek.is_token()) {
+            declaration_value.append(tokens.consume_a_token());
+            continue;
+        }
+
+        bool valid = true;
+        switch (peek.token().type()) {
+        case Token::Type::Invalid:
+        case Token::Type::EndOfFile:
+        case Token::Type::BadString:
+        case Token::Type::BadUrl:
+        case Token::Type::Semicolon:
+            // NB: We're dealing with ComponentValues, so all valid function and block-related tokens will already be
+            //     converted to Function or SimpleBlock ComponentValues. Any remaining ones are invalid.
+        case Token::Type::Function:
+        case Token::Type::OpenCurly:
+        case Token::Type::OpenParen:
+        case Token::Type::OpenSquare:
+        case Token::Type::CloseCurly:
+        case Token::Type::CloseParen:
+        case Token::Type::CloseSquare:
+            valid = false;
+            break;
+        case Token::Type::Delim:
+            valid = peek.token().delim() != '!';
+            break;
+        case Token::Type::Comma:
+            valid = stop_at_comma == StopAtComma::No;
+            break;
+        default:
+            break;
+        }
+
+        if (!valid)
+            break;
+        declaration_value.append(tokens.consume_a_token());
+    }
+
+    if (declaration_value.is_empty())
+        return OptionalNone {};
+    transaction.commit();
+    return declaration_value;
+}
+
 Optional<Dimension> Parser::parse_dimension(ComponentValue const& component_value)
 {
     if (component_value.is(Token::Type::Dimension)) {
