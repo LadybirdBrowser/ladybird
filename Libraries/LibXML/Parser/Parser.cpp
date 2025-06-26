@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringConversions.h>
 #include <LibXML/DOM/Document.h>
 #include <LibXML/Parser/Parser.h>
 
@@ -791,7 +792,7 @@ ErrorOr<Variant<Parser::EntityReference, ByteString>, ParseError> Parser::parse_
             auto hex = TRY(expect_many(
                 ranges_for_search<Range('0', '9'), Range('a', 'f'), Range('A', 'F')>(),
                 "any of [0-9a-fA-F]"sv));
-            code_point = AK::StringUtils::convert_to_uint_from_hex<u32>(hex);
+            code_point = AK::parse_hexadecimal_number<u32>(hex);
         } else {
             auto decimal = TRY(expect_many(
                 ranges_for_search<Range('0', '9')>(),

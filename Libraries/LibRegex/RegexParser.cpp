@@ -14,7 +14,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
-#include <AK/StringUtils.h>
+#include <AK/StringConversions.h>
 #include <AK/TemporaryChange.h>
 #include <LibUnicode/CharacterTypes.h>
 
@@ -1220,7 +1220,7 @@ StringView ECMA262Parser::read_digits_as_string(ReadDigitsInitialZeroState initi
         if (max_count > 0 && count >= max_count)
             break;
 
-        if (hex && !AK::StringUtils::convert_to_uint_from_hex(c).has_value())
+        if (hex && !AK::parse_hexadecimal_number<u32>(c).has_value())
             break;
         if (!hex && !c.to_number<unsigned>().has_value())
             break;
@@ -1241,7 +1241,7 @@ Optional<unsigned> ECMA262Parser::read_digits(ECMA262Parser::ReadDigitsInitialZe
     if (str.is_empty())
         return {};
     if (hex)
-        return AK::StringUtils::convert_to_uint_from_hex(str);
+        return AK::parse_hexadecimal_number<u32>(str);
     return str.to_number<unsigned>();
 }
 

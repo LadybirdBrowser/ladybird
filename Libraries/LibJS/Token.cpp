@@ -8,7 +8,6 @@
 #include "Token.h"
 #include <AK/Assertions.h>
 #include <AK/CharacterTypes.h>
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/GenericLexer.h>
 #include <AK/StringBuilder.h>
 

@@ -25,6 +25,7 @@
       "name": "dirent",
       "platform": "windows"
     },
+    "fast-float",
     {
       "name": "ffmpeg",
       "platform": "!android",
@@ -151,6 +152,10 @@
     {
       "name": "dirent",
       "version": "1.24#0"
+    },
+    {
+      "name": "fast-float",
+      "version": "8.0.2#0"
     },
     {
       "name": "ffmpeg",
