@@ -1,0 +1,39 @@
+diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
+index ea22103e..c6dbbe9f 100644
+--- a/third_party/CMakeLists.txt
++++ b/third_party/CMakeLists.txt
+@@ -31,8 +31,9 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/highway/CMakeLists.txt" AND
+   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/highway/LICENSE"
+                  ${PROJECT_BINARY_DIR}/LICENSE.highway COPYONLY)
+ else()
+-  find_package(HWY 1.0.7)
+-  if (NOT HWY_FOUND)
++  find_package(HWY NAMES hwy REQUIRED)
++  add_library(hwy ALIAS hwy::hwy)
++  if (NOT TARGET hwy::hwy)
+     message(FATAL_ERROR
+         "Highway library (hwy) not found. Install libhwy-dev or download it "
+         "to third_party/highway from https://github.com/google/highway . "
+@@ -48,7 +49,11 @@ endif()
+ # brotli
+ if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/brotli/c/include/brotli/decode.h" OR
+     JPEGXL_FORCE_SYSTEM_BROTLI)
+-  find_package(Brotli)
++  find_package(Brotli NAMES unofficial-brotli REQUIRED)
++  foreach(brlib IN ITEMS brotlienc brotlidec brotlicommon)
++      add_library(${brlib} ALIAS unofficial::brotli::${brlib})
++      add_library(${brlib}-static ALIAS unofficial::brotli::${brlib})
++  endforeach()
+   if (NOT Brotli_FOUND)
+     message(FATAL_ERROR
+         "Brotli not found, install brotli-dev or download brotli source code to"
+@@ -106,7 +111,8 @@ if (JPEGXL_ENABLE_SKCMS)
+ endif ()
+ if (JPEGXL_ENABLE_VIEWERS OR NOT JPEGXL_ENABLE_SKCMS OR JPEGXL_ENABLE_PLUGINS)
+   if( NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lcms/.git" OR JPEGXL_FORCE_SYSTEM_LCMS2 )
+-    find_package(LCMS2 2.12)
++    find_package(LCMS2 NAMES lcms2 REQUIRED)
++    add_library(lcms2 ALIAS lcms2::lcms2)
+     if ( NOT LCMS2_FOUND )
+       message(FATAL_ERROR "Please install lcms2 or run git submodule update --init")
+     endif ()
