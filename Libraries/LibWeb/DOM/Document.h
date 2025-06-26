@@ -832,14 +832,7 @@ public:
     void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
     void set_needs_display(CSSPixelRect const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
 
-    struct PaintConfig {
-        bool paint_overlay { false };
-        bool should_show_line_box_borders { false };
-        Optional<Gfx::IntRect> canvas_fill_rect {};
-
-        bool operator==(PaintConfig const& other) const = default;
-    };
-    RefPtr<Painting::DisplayList> record_display_list(PaintConfig);
+    RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig);
 
     void invalidate_display_list();
 
@@ -1235,7 +1228,7 @@ private:
 
     bool m_enable_cookies_on_file_domains { false };
 
-    Optional<PaintConfig> m_cached_display_list_paint_config;
+    Optional<HTML::PaintConfig> m_cached_display_list_paint_config;
     RefPtr<Painting::DisplayList> m_cached_display_list;
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;

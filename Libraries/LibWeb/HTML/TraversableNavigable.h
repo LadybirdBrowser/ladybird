@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -102,9 +103,6 @@ public:
 
     [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
-    RefPtr<Painting::DisplayList> record_display_list(DevicePixelRect const&, PaintOptions);
-    void start_display_list_rendering(NonnullRefPtr<Painting::DisplayList>, NonnullRefPtr<Painting::BackingStore>, Function<void()>&& callback);
-
     enum class CheckIfUnloadingIsCanceledResult {
         CanceledByBeforeUnload,
         CanceledByNavigate,
@@ -112,19 +110,19 @@ public:
     };
     CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload);
 
-    RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const { return m_skia_backend_context; }
-
     StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
     StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
-
-    void set_viewport_size(CSSPixelSize) override;
-
-    bool needs_repaint() const { return m_needs_repaint; }
-    void set_needs_repaint() { m_needs_repaint = true; }
 
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     Geolocation::EmulatedPositionData const& emulated_position_data() const;
     void set_emulated_position_data(Geolocation::EmulatedPositionData data);
+
+    void process_screenshot_requests();
+    void queue_screenshot_task(Optional<UniqueNodeID> node_id)
+    {
+        m_screenshot_tasks.enqueue({ node_id });
+        set_needs_repaint();
+    }
 
 private:
     TraversableNavigable(GC::Ref<Page>);
@@ -148,8 +146,6 @@ private:
     Vector<GC::Ref<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
 
     [[nodiscard]] bool can_go_forward() const;
-
-    RenderingThread m_rendering_thread;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
@@ -176,12 +172,13 @@ private:
 
     String m_window_handle;
 
-    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-
-    bool m_needs_repaint { true };
-
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     Geolocation::EmulatedPositionData m_emulated_position_data;
+
+    struct ScreenshotTask {
+        Optional<Web::UniqueNodeID> node_id;
+    };
+    Queue<ScreenshotTask> m_screenshot_tasks;
 };
 
 struct BrowsingContextAndDocument {

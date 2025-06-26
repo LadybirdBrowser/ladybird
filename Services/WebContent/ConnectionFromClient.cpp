@@ -334,8 +334,9 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
 
     if (request == "set-line-box-borders") {
         bool state = argument == "on";
-        page->set_should_show_line_box_borders(state);
-        page->page().top_level_traversable()->set_needs_repaint();
+        auto traversable = page->page().top_level_traversable();
+        traversable->set_should_show_line_box_borders(state);
+        traversable->set_needs_repaint();
         return;
     }
 

@@ -65,7 +65,6 @@ PageClient::PageClient(PageHost& owner, u64 id)
     : m_owner(owner)
     , m_page(Web::Page::create(Web::Bindings::main_thread_vm(), *this))
     , m_id(id)
-    , m_backing_store_manager(*this)
 {
     setup_palette();
 
@@ -78,11 +77,6 @@ PageClient::PageClient(PageHost& owner, u64 id)
 }
 
 PageClient::~PageClient() = default;
-
-bool PageClient::is_ready_to_paint() const
-{
-    return m_number_of_queued_rasterization_tasks <= 1;
-}
 
 void PageClient::visit_edges(JS::Cell::Visitor& visitor)
 {
@@ -188,64 +182,9 @@ Web::Layout::Viewport* PageClient::layout_root()
     return document->layout_node();
 }
 
-void PageClient::process_screenshot_requests()
-{
-    while (!m_screenshot_tasks.is_empty()) {
-        auto task = m_screenshot_tasks.dequeue();
-        if (task.node_id.has_value()) {
-            auto* dom_node = Web::DOM::Node::from_unique_id(*task.node_id);
-            if (!dom_node || !dom_node->paintable_box()) {
-                client().async_did_take_screenshot(m_id, {});
-                continue;
-            }
-            auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
-            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
-            auto backing_store = Web::Painting::BitmapBackingStore::create(*bitmap);
-            start_display_list_rendering(rect, backing_store, { .paint_overlay = Web::PaintOptions::PaintOverlay::No }, [this, backing_store] {
-                client().async_did_take_screenshot(m_id, backing_store->bitmap().to_shareable_bitmap());
-            });
-        } else {
-            Web::DevicePixelRect rect { { 0, 0 }, content_size() };
-            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
-            auto backing_store = Web::Painting::BitmapBackingStore::create(*bitmap);
-            start_display_list_rendering(rect, backing_store, {}, [this, backing_store] {
-                client().async_did_take_screenshot(m_id, backing_store->bitmap().to_shareable_bitmap());
-            });
-        }
-    }
-}
-
 void PageClient::ready_to_paint()
 {
-    m_number_of_queued_rasterization_tasks--;
-    VERIFY(m_number_of_queued_rasterization_tasks >= 0 && m_number_of_queued_rasterization_tasks < 2);
-}
-
-void PageClient::paint_next_frame()
-{
-    auto [backing_store_id, back_store] = m_backing_store_manager.acquire_store_for_next_frame();
-    if (!back_store)
-        return;
-
-    VERIFY(m_number_of_queued_rasterization_tasks <= 1);
-    m_number_of_queued_rasterization_tasks++;
-
-    auto viewport_rect = page().css_to_device_rect(page().top_level_traversable()->viewport_rect());
-    start_display_list_rendering(viewport_rect, *back_store, {}, [this, viewport_rect, backing_store_id] {
-        client().async_did_paint(m_id, viewport_rect.to_type<int>(), backing_store_id);
-    });
-}
-
-void PageClient::start_display_list_rendering(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore& target, Web::PaintOptions paint_options, Function<void()>&& callback)
-{
-    paint_options.should_show_line_box_borders = m_should_show_line_box_borders;
-    auto& traversable = *page().top_level_traversable();
-    auto display_list = traversable.record_display_list(content_rect, paint_options);
-    if (!display_list) {
-        callback();
-        return;
-    }
-    traversable.start_display_list_rendering(*display_list, target, move(callback));
+    page().top_level_traversable()->ready_to_paint();
 }
 
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()
@@ -261,10 +200,6 @@ void PageClient::report_finished_handling_input_event(u64 page_id, Web::EventRes
 void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
 {
     page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size));
-
-    m_backing_store_manager.restart_resize_timer();
-    m_backing_store_manager.resize_backing_stores_if_needed(BackingStoreManager::WindowResizingInProgress::Yes);
-    m_pending_set_browser_zoom_request = false;
 }
 
 void PageClient::page_did_request_cursor_change(Gfx::Cursor const& cursor)
@@ -411,12 +346,12 @@ void PageClient::page_did_set_test_timeout(double milliseconds)
 
 void PageClient::page_did_set_browser_zoom(double factor)
 {
-    m_pending_set_browser_zoom_request = true;
+    auto traversable = page().top_level_traversable();
+    traversable->set_pending_set_browser_zoom_request(true);
     client().async_did_set_browser_zoom(m_id, factor);
-
     auto& event_loop = Web::HTML::main_thread_event_loop();
-    event_loop.spin_until(GC::create_function(event_loop.heap(), [&]() {
-        return !m_pending_set_browser_zoom_request || !is_connection_open();
+    event_loop.spin_until(GC::create_function(event_loop.heap(), [this, traversable]() {
+        return !traversable->pending_set_browser_zoom_request() || !is_connection_open();
     }));
 }
 
@@ -765,6 +700,16 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
 }
 
+void PageClient::page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id)
+{
+    client().async_did_paint(m_id, content_rect, bitmap_id);
+}
+
+void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot)
+{
+    client().async_did_take_screenshot(m_id, screenshot);
+}
+
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_path)
 {
     VERIFY(!m_webdriver);
@@ -961,8 +906,7 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
 
 void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
 {
-    m_screenshot_tasks.enqueue({ node_id });
-    page().top_level_traversable()->set_needs_repaint();
+    page().top_level_traversable()->queue_screenshot_task(node_id);
 }
 
 }

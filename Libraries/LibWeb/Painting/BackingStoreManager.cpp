@@ -6,7 +6,7 @@
 
 #include <LibCore/Timer.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
-#include <WebContent/BackingStoreManager.h>
+#include <LibWeb/Painting/BackingStoreManager.h>
 #include <WebContent/PageClient.h>
 
 #ifdef AK_OS_MACOS
@@ -15,7 +15,9 @@
 #    include <LibCore/Platform/MachMessageTypes.h>
 #endif
 
-namespace WebContent {
+namespace Web::Painting {
+
+GC_DEFINE_ALLOCATOR(BackingStoreManager);
 
 #ifdef AK_OS_MACOS
 static Optional<Core::MachPort> s_browser_mach_port;
@@ -25,12 +27,18 @@ void BackingStoreManager::set_browser_mach_port(Core::MachPort&& port)
 }
 #endif
 
-BackingStoreManager::BackingStoreManager(PageClient& page_client)
-    : m_page_client(page_client)
+BackingStoreManager::BackingStoreManager(HTML::Navigable& navigable)
+    : m_navigable(navigable)
 {
     m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, [this] {
         resize_backing_stores_if_needed(WindowResizingInProgress::No);
     });
+}
+
+void BackingStoreManager::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_navigable);
 }
 
 void BackingStoreManager::restart_resize_timer()
@@ -41,7 +49,7 @@ void BackingStoreManager::restart_resize_timer()
 void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 {
 #ifdef AK_OS_MACOS
-    if (s_browser_mach_port.has_value()) {
+    if (m_navigable->is_top_level_traversable() && s_browser_mach_port.has_value()) {
         auto back_iosurface = Core::IOSurfaceHandle::create(size.width(), size.height());
         auto back_iosurface_port = back_iosurface.create_mach_port();
 
@@ -51,8 +59,10 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
         m_front_bitmap_id = m_next_bitmap_id++;
         m_back_bitmap_id = m_next_bitmap_id++;
 
+        auto& page_client = m_navigable->top_level_traversable()->page().client();
+
         Core::Platform::BackingStoreMetadata metadata;
-        metadata.page_id = m_page_client.m_id;
+        metadata.page_id = page_client.id();
         metadata.front_backing_store_id = m_front_bitmap_id;
         metadata.back_backing_store_id = m_back_bitmap_id;
 
@@ -83,8 +93,8 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
             VERIFY_NOT_REACHED();
         }
 
-        m_front_store = Web::Painting::IOSurfaceBackingStore::create(move(front_iosurface));
-        m_back_store = Web::Painting::IOSurfaceBackingStore::create(move(back_iosurface));
+        m_front_store = IOSurfaceBackingStore::create(move(front_iosurface));
+        m_back_store = IOSurfaceBackingStore::create(move(back_iosurface));
 
         return;
     }
@@ -96,17 +106,18 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     auto front_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
     auto back_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
 
-    m_front_store = Web::Painting::BitmapBackingStore::create(front_bitmap);
-    m_back_store = Web::Painting::BitmapBackingStore::create(back_bitmap);
+    m_front_store = BitmapBackingStore::create(front_bitmap);
+    m_back_store = BitmapBackingStore::create(back_bitmap);
 
-    m_page_client.page_did_allocate_backing_stores(m_front_bitmap_id, front_bitmap->to_shareable_bitmap(), m_back_bitmap_id, back_bitmap->to_shareable_bitmap());
+    if (m_navigable->is_top_level_traversable()) {
+        auto& page_client = m_navigable->top_level_traversable()->page().client();
+        page_client.page_did_allocate_backing_stores(m_front_bitmap_id, front_bitmap->to_shareable_bitmap(), m_back_bitmap_id, back_bitmap->to_shareable_bitmap());
+    }
 }
 
 void BackingStoreManager::resize_backing_stores_if_needed(WindowResizingInProgress window_resize_in_progress)
 {
-    auto css_pixels_viewpor_rect = m_page_client.page().top_level_traversable()->viewport_rect();
-    auto viewport_size = m_page_client.page().css_to_device_rect(css_pixels_viewpor_rect).size();
-
+    auto viewport_size = m_navigable->page().css_to_device_rect(m_navigable->viewport_rect()).size();
     if (viewport_size.is_empty())
         return;
 

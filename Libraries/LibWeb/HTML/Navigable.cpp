@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -109,11 +109,50 @@ bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
     return false;
 }
 
-Navigable::Navigable(GC::Ref<Page> page)
+static RefPtr<Gfx::SkiaBackendContext> g_cached_skia_backend_context;
+
+static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
+{
+    if (!g_cached_skia_backend_context) {
+#ifdef AK_OS_MACOS
+        auto metal_context = Gfx::get_metal_context();
+        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
+#elif USE_VULKAN
+        auto maybe_vulkan_context = Gfx::create_vulkan_context();
+        if (maybe_vulkan_context.is_error()) {
+            dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
+            return {};
+        }
+
+        auto vulkan_context = maybe_vulkan_context.release_value();
+        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_vulkan_context(vulkan_context);
+#endif
+    }
+    return g_cached_skia_backend_context;
+}
+
+Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
     : m_page(page)
     , m_event_handler({}, *this)
+    , m_is_svg_page(is_svg_page)
+    , m_backing_store_manager(heap().allocate<Painting::BackingStoreManager>(*this))
 {
     all_navigables().set(*this);
+
+    if (!m_is_svg_page) {
+        auto display_list_player_type = page->client().display_list_player_type();
+        OwnPtr<Painting::DisplayListPlayerSkia> skia_player;
+        if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
+            m_skia_backend_context = get_skia_backend_context();
+            skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
+        } else {
+            skia_player = make<Painting::DisplayListPlayerSkia>();
+        }
+
+        m_rendering_thread.set_skia_player(move(skia_player));
+        m_rendering_thread.set_skia_backend_context(m_skia_backend_context);
+        m_rendering_thread.start(display_list_player_type);
+    }
 }
 
 Navigable::~Navigable() = default;
@@ -133,6 +172,7 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_session_history_entry);
     visitor.visit(m_container);
     visitor.visit(m_navigation_observers);
+    visitor.visit(m_backing_store_manager);
     m_event_handler.visit_edges(visitor);
 
     for (auto& navigation_params : m_pending_navigations) {
@@ -2287,6 +2327,14 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     if (m_viewport_size == size)
         return;
 
+    m_rendering_thread.clear_bitmap_to_surface_cache();
+
+    if (!m_is_svg_page) {
+        m_backing_store_manager->restart_resize_timer();
+        m_backing_store_manager->resize_backing_stores_if_needed(Web::Painting::BackingStoreManager::WindowResizingInProgress::Yes);
+        m_pending_set_browser_zoom_request = false;
+    }
+
     m_viewport_size = size;
     if (auto document = active_document()) {
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
@@ -2338,10 +2386,7 @@ bool Navigable::has_a_rendering_opportunity() const
     // Rendering opportunities typically occur at regular intervals.
 
     // FIXME: Return `false` here if we're an inactive browser tab.
-    auto browsing_context = const_cast<Navigable*>(this)->active_browsing_context();
-    if (!browsing_context)
-        return false;
-    return browsing_context->page().client().is_ready_to_paint();
+    return is_ready_to_paint();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#inform-the-navigation-api-about-child-navigable-destruction
@@ -2497,6 +2542,54 @@ void Navigable::set_has_session_history_entry_and_ready_for_navigation()
         auto navigation_params = m_pending_navigations.take_first();
         begin_navigation(navigation_params);
     }
+}
+
+bool Navigable::is_ready_to_paint() const
+{
+    return m_number_of_queued_rasterization_tasks <= 1;
+}
+
+void Navigable::ready_to_paint()
+{
+    m_number_of_queued_rasterization_tasks--;
+    VERIFY(m_number_of_queued_rasterization_tasks >= 0 && m_number_of_queued_rasterization_tasks < 2);
+}
+
+void Navigable::paint_next_frame()
+{
+    auto [backing_store_id, back_store] = m_backing_store_manager->acquire_store_for_next_frame();
+    if (!back_store)
+        return;
+
+    VERIFY(m_number_of_queued_rasterization_tasks <= 1);
+    m_number_of_queued_rasterization_tasks++;
+
+    auto viewport_rect = page().css_to_device_rect(this->viewport_rect());
+    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size().to_type<int>() } };
+    start_display_list_rendering(*back_store, paint_config, [this, viewport_rect, backing_store_id] {
+        if (!is_top_level_traversable())
+            return;
+        auto& traversable = *page().top_level_traversable();
+        traversable.page().client().page_did_paint(viewport_rect.to_type<int>(), backing_store_id);
+    });
+}
+
+void Navigable::start_display_list_rendering(Painting::BackingStore& target, PaintConfig paint_config, Function<void()>&& callback)
+{
+    m_needs_repaint = false;
+    auto document = active_document();
+    if (!document) {
+        callback();
+        return;
+    }
+    document->paintable()->refresh_scroll_state();
+    auto display_list = document->record_display_list(paint_config);
+    if (!display_list) {
+        callback();
+        return;
+    }
+    auto scroll_state_snapshot = document->paintable()->scroll_state().snapshot();
+    m_rendering_thread.enqueue_rendering_task(*display_list, move(scroll_state_snapshot), target, move(callback));
 }
 
 }

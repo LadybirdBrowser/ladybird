@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Noncopyable.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Size.h>
 
 #ifdef AK_OS_MACOS

@@ -66,6 +66,7 @@ public:
     GC::Ref<Page> m_host_page;
     GC::Ptr<Page> m_svg_page;
 
+    virtual u64 id() const override { VERIFY_NOT_REACHED(); }
     virtual Page& page() override { return *m_svg_page; }
     virtual Page const& page() const override { return *m_svg_page; }
     virtual bool is_connection_open() const override { return false; }
@@ -76,10 +77,6 @@ public:
     virtual CSS::PreferredContrast preferred_contrast() const override { return m_host_page->client().preferred_contrast(); }
     virtual CSS::PreferredMotion preferred_motion() const override { return m_host_page->client().preferred_motion(); }
     virtual void request_file(FileRequest) override { }
-    virtual void paint_next_frame() override { }
-    virtual void process_screenshot_requests() override { }
-    virtual void start_display_list_rendering(DevicePixelRect const&, Painting::BackingStore&, PaintOptions, Function<void()>&&) override { }
-    virtual bool is_ready_to_paint() const override { return true; }
     virtual Queue<QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] EventResult event_was_handled) override { }
 

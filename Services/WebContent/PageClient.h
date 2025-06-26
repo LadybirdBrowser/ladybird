@@ -13,11 +13,11 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/StorageOperationError.h>
-#include <WebContent/BackingStoreManager.h>
 #include <WebContent/Forward.h>
 
 namespace WebContent {
@@ -31,6 +31,8 @@ public:
 
     virtual ~PageClient() override;
 
+    virtual u64 id() const override { return m_id; }
+
     enum class UseSkiaPainter {
         CPUBackend,
         GPUBackendIfAvailable,
@@ -40,17 +42,11 @@ public:
     virtual bool is_headless() const override;
     static void set_is_headless(bool);
 
-    virtual bool is_ready_to_paint() const override;
-
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
 
     ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_ipc_path);
     ErrorOr<void> connect_to_web_ui(IPC::File);
-
-    virtual void paint_next_frame() override;
-    virtual void process_screenshot_requests() override;
-    virtual void start_display_list_rendering(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore&, Web::PaintOptions, Function<void()>&& callback) override;
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;
     virtual void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled) override;
@@ -62,7 +58,6 @@ public:
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
-    void set_should_show_line_box_borders(bool b) { m_should_show_line_box_borders = b; }
     void set_has_focus(bool);
     void set_is_scripting_enabled(bool);
     void set_window_position(Web::DevicePixelPoint);
@@ -101,8 +96,6 @@ public:
     virtual Web::DisplayListPlayerType display_list_player_type() const override;
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
-
-    friend class BackingStoreManager;
 
 private:
     PageClient(PageHost&, u64 id);
@@ -182,6 +175,8 @@ private:
     virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) override;
     virtual IPC::File request_worker_agent(Web::Bindings::AgentType) override;
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
+    virtual void page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id) override;
+    virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
     virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
 
     Web::Layout::Viewport* layout_root();
@@ -195,15 +190,7 @@ private:
     Web::DevicePixelSize m_content_size;
     float m_device_pixels_per_css_pixel { 1.0f };
     u64 m_id { 0 };
-    bool m_should_show_line_box_borders { false };
     bool m_has_focus { false };
-
-    i32 m_number_of_queued_rasterization_tasks { 0 };
-
-    struct ScreenshotTask {
-        Optional<Web::UniqueNodeID> node_id;
-    };
-    Queue<ScreenshotTask> m_screenshot_tasks;
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::NoPreference };
@@ -212,15 +199,11 @@ private:
     RefPtr<WebDriverConnection> m_webdriver;
     RefPtr<WebUIConnection> m_web_ui;
 
-    BackingStoreManager m_backing_store_manager;
-
     WeakPtr<WebContentConsoleClient> m_top_level_document_console_client;
 
     GC::Root<JS::GlobalObject> m_console_global_object;
 
     RefPtr<Core::Timer> m_paint_refresh_timer;
-
-    bool m_pending_set_browser_zoom_request = false;
 };
 
 }

@@ -24,6 +24,7 @@
 #include <LibWeb/Loader/ContentFilter.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
@@ -186,7 +187,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         // FIXME: For some reason, our implementation of IOSurface does not work on Intel macOS. Remove this conditional
         //        compilation when that is resolved.
 #    if ARCH(AARCH64)
-        WebContent::BackingStoreManager::set_browser_mach_port(move(server_port));
+        Web::Painting::BackingStoreManager::set_browser_mach_port(move(server_port));
 #    endif
     }
 #endif
