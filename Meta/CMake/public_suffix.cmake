@@ -10,9 +10,9 @@ if (ENABLE_NETWORK_DOWNLOADS)
 else()
     message(STATUS "Skipping download of ${PUBLIC_SUFFIX_DATA_URL}, expecting it to be in ${PUBLIC_SUFFIX_DATA_PATH}")
 endif()
-invoke_cpp_generator(
+invoke_py_generator(
     "PublicSuffixData"
-    Lagom::GeneratePublicSuffixData
+    "generate_public_suffix_data.py"
     "${PUBLIC_SUFFIX_PATH}/"
     "${PUBLIC_SUFFIX_DATA_HEADER}"
     "${PUBLIC_SUFFIX_DATA_IMPLEMENTATION}"
