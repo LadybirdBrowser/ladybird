@@ -606,7 +606,7 @@ public:
     void set_about_base_url(Optional<URL::URL> url) { m_about_base_url = url; }
 
     String domain() const;
-    void set_domain(String const&);
+    WebIDL::ExceptionOr<void> set_domain(String const&);
 
     auto& pending_scroll_event_targets() { return m_pending_scroll_event_targets; }
     auto& pending_scrollend_event_targets() { return m_pending_scrollend_event_targets; }
