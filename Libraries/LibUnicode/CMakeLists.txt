@@ -26,3 +26,11 @@ ladybird_lib(LibUnicode unicode)
 
 find_package(ICU 76 REQUIRED COMPONENTS data i18n uc)
 target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
+
+# FIXME: Add support for building LibGfx in sanitize
+#   lld-link: error: /failifmismatch: mismatch detected for 'annotate_string':
+#   >>> lagom-unicode.lib(TimeZone.cpp.obj) has value 1
+#   >>> lagom-gfx.lib(PaintingSurface.cpp.obj) has value 0
+if (WIN32 AND ENABLE_WINDOWS_CI)
+    target_compile_options(LibUnicode PRIVATE -fno-sanitize=address)
+endif()
