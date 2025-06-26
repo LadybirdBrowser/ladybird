@@ -65,6 +65,8 @@ public:
 
     // https://url.spec.whatwg.org/#shorten-a-urls-path
     static void shorten_urls_path(URL&);
+
+    static Optional<Host> parse_host(StringView input, bool is_opaque = false);
 };
 
 #undef ENUMERATE_STATES
