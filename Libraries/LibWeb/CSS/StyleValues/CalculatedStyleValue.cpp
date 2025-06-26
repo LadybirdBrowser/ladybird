@@ -2362,6 +2362,55 @@ Optional<CalculatedStyleValue::CalculationResult> RoundCalculationNode::run_oper
     auto a = maybe_a->value();
     auto b = maybe_b->value();
 
+    // https://drafts.csswg.org/css-values-4/#round-infinities
+    // In round(A, B), if B is 0, the result is NaN. If A and B are both infinite, the result is NaN.
+    if (b == 0 || (isinf(a) && isinf(b)))
+        return CalculatedStyleValue::CalculationResult { AK::NaN<double>, consistent_type };
+
+    // If A is infinite but B is finite, the result is the same infinity.
+    if (isinf(a) && isfinite(b))
+        return CalculatedStyleValue::CalculationResult { a, consistent_type };
+
+    // If A is finite but B is infinite, the result depends on the <rounding-strategy> and the sign of A:
+    if (isfinite(a) && isinf(b)) {
+        FloatExtractor<double> const extractor { .d = a };
+
+        switch (m_strategy) {
+        // nearest, to-zero:
+        case RoundingStrategy::Nearest:
+        case RoundingStrategy::ToZero: {
+            // If A is positive or 0⁺, return 0⁺. Otherwise, return 0⁻.
+            return CalculatedStyleValue::CalculationResult { !extractor.sign ? 0.0 : -0.0, consistent_type };
+        }
+        // up:
+        case RoundingStrategy::Up: {
+            double result;
+            if (a > 0) {
+                // If A is positive(not zero), return +∞.
+                result = AK::Infinity<double>;
+            } else {
+                // If A is 0⁺, return 0⁺. Otherwise, return 0⁻.
+                result = !extractor.sign ? 0.0 : -0.0;
+            }
+
+            return CalculatedStyleValue::CalculationResult { result, consistent_type };
+        }
+        // down:
+        case RoundingStrategy::Down: {
+            double result;
+            if (a < 0) {
+                // If A is negative (not zero), return −∞.
+                result = -AK::Infinity<double>;
+            } else {
+                // If A is 0⁻, return 0⁻. Otherwise, return 0⁺.
+                result = extractor.sign ? -0.0 : 0.0;
+            }
+
+            return CalculatedStyleValue::CalculationResult { result, consistent_type };
+        }
+        }
+    }
+
     // If A is exactly equal to an integer multiple of B, round() resolves to A exactly (preserving whether A is 0⁻ or
     // 0⁺, if relevant).
     if (fmod(a, b) == 0)

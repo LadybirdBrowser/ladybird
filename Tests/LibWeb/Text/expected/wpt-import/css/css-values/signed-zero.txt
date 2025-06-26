@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 162 tests
 
-154 Pass
-8 Fail
+156 Pass
+6 Fail
 Pass	sign(calc(-0)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(calc(-0)), 1) should be used-value-equivalent to -1
 Pass	sign(calc( 0)) should be used-value-equivalent to 0
@@ -79,7 +79,7 @@ Pass	clamp(-1, 1 / sign(round(nearest, -0, infinity)), 1) should be used-value-e
 Pass	sign(round(nearest,  0, infinity)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(round(nearest,  0, infinity)), 1) should be used-value-equivalent to 1
 Pass	sign(round(nearest,  1, infinity)) should be used-value-equivalent to 0
-Fail	clamp(-1, 1 / sign(round(nearest,  1, infinity)), 1) should be used-value-equivalent to 1
+Pass	clamp(-1, 1 / sign(round(nearest,  1, infinity)), 1) should be used-value-equivalent to 1
 Pass	sign(round(up, -1, infinity)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(round(up, -1, infinity)), 1) should be used-value-equivalent to -1
 Pass	sign(round(up, -0, infinity)) should be used-value-equivalent to 0
@@ -91,7 +91,7 @@ Pass	clamp(-1, 1 / sign(round(down, -0, infinity)), 1) should be used-value-equi
 Pass	sign(round(down,  0, infinity)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(round(down,  0, infinity)), 1) should be used-value-equivalent to 1
 Pass	sign(round(down,  1, infinity)) should be used-value-equivalent to 0
-Fail	clamp(-1, 1 / sign(round(down,  1, infinity)), 1) should be used-value-equivalent to 1
+Pass	clamp(-1, 1 / sign(round(down,  1, infinity)), 1) should be used-value-equivalent to 1
 Pass	sign(mod(-1, -1)) should be used-value-equivalent to 0
 Fail	clamp(-1, 1 / sign(mod(-1, -1)), 1) should be used-value-equivalent to -1
 Pass	sign(mod(-1,  1)) should be used-value-equivalent to 0
