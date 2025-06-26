@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -60,8 +60,7 @@ TEST_CASE(encode_utf8)
         EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No)), utf8_string);
     }
     {
-        auto encoded = Array { (u16)0xd83d };
-        Utf16View view { encoded };
+        Utf16View view { u"\xd83d"sv };
         EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
         EXPECT(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No).is_error());
     }
@@ -69,11 +68,8 @@ TEST_CASE(encode_utf8)
 
 TEST_CASE(decode_utf16)
 {
-    // Same string as the decode_utf8 test.
-    auto encoded = Array { (u16)0x041f, 0x0440, 0x0438, 0x0432, 0x0435, 0x0442, 0x002c, 0x0020, 0x043c, 0x0438, 0x0440, 0x0021, 0x0020, 0xd83d, 0xde00, 0x0020, 0x03b3, 0x03b5, 0x03b9, 0x03ac, 0x0020, 0x03c3, 0x03bf, 0x03c5, 0x0020, 0x03ba, 0x03cc, 0x03c3, 0x03bc, 0x03bf, 0x03c2, 0x0020, 0x3053, 0x3093, 0x306b, 0x3061, 0x306f, 0x4e16, 0x754c };
-
-    Utf16View view { encoded };
-    EXPECT_EQ(encoded.size(), view.length_in_code_units());
+    Utf16View view { u"Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv };
+    EXPECT_EQ(view.length_in_code_units(), 39uz);
 
     size_t valid_code_units = 0;
     EXPECT(view.validate(valid_code_units));
@@ -113,18 +109,18 @@ TEST_CASE(null_view)
 TEST_CASE(utf16_literal)
 {
     {
-        Utf16View view { u"" };
+        Utf16View view { u""sv };
         EXPECT(view.validate());
         EXPECT_EQ(view.length_in_code_units(), 0u);
     }
     {
-        Utf16View view { u"a" };
+        Utf16View view { u"a"sv };
         EXPECT(view.validate());
         EXPECT_EQ(view.length_in_code_units(), 1u);
         EXPECT_EQ(view.code_unit_at(0), 0x61u);
     }
     {
-        Utf16View view { u"abc" };
+        Utf16View view { u"abc"sv };
         EXPECT(view.validate());
         EXPECT_EQ(view.length_in_code_units(), 3u);
         EXPECT_EQ(view.code_unit_at(0), 0x61u);
@@ -132,7 +128,7 @@ TEST_CASE(utf16_literal)
         EXPECT_EQ(view.code_unit_at(2), 0x63u);
     }
     {
-        Utf16View view { u"🙃" };
+        Utf16View view { u"🙃"sv };
         EXPECT(view.validate());
         EXPECT_EQ(view.length_in_code_units(), 2u);
         EXPECT_EQ(view.code_unit_at(0), 0xd83du);
@@ -190,14 +186,14 @@ TEST_CASE(validate_invalid_utf16)
     Utf16View invalid;
     {
         // Lonely high surrogate.
-        invalid = u"\xd800";
+        invalid = u"\xd800"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
 
         EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
         EXPECT_EQ(valid_code_units, 1uz);
 
-        invalid = u"\xdbff";
+        invalid = u"\xdbff"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
 
@@ -206,14 +202,14 @@ TEST_CASE(validate_invalid_utf16)
     }
     {
         // Lonely low surrogate.
-        invalid = u"\xdc00";
+        invalid = u"\xdc00"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
 
         EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
         EXPECT_EQ(valid_code_units, 1uz);
 
-        invalid = u"\xdfff";
+        invalid = u"\xdfff"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
 
@@ -222,14 +218,14 @@ TEST_CASE(validate_invalid_utf16)
     }
     {
         // High surrogate followed by non-surrogate.
-        invalid = u"\xd800\x0000";
+        invalid = u"\xd800\x0000"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
 
         EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
         EXPECT_EQ(valid_code_units, 2uz);
 
-        invalid = u"\xd800\xe000";
+        invalid = u"\xd800\xe000"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
 
@@ -238,14 +234,14 @@ TEST_CASE(validate_invalid_utf16)
     }
     {
         // High surrogate followed by high surrogate.
-        invalid = u"\xd800\xd800";
+        invalid = u"\xd800\xd800"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
 
         EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
         EXPECT_EQ(valid_code_units, 2uz);
 
-        invalid = u"\xd800\xdbff";
+        invalid = u"\xd800\xdbff"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 0uz);
 
@@ -254,14 +250,14 @@ TEST_CASE(validate_invalid_utf16)
     }
     {
         // Valid UTF-16 followed by invalid code units.
-        invalid = u"\x0041\x0041\xd800";
+        invalid = u"\x0041\x0041\xd800"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 2uz);
 
         EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
         EXPECT_EQ(valid_code_units, 3uz);
 
-        invalid = u"\x0041\x0041\xd800";
+        invalid = u"\x0041\x0041\xd800"sv;
         EXPECT(!invalid.validate(valid_code_units));
         EXPECT_EQ(valid_code_units, 2uz);
 
@@ -274,10 +270,8 @@ TEST_CASE(decode_invalid_utf16)
 {
     {
         // Lonely high surrogate.
-        auto invalid = Array { (u16)0x41, 0x42, 0xd800 };
-
-        Utf16View view { invalid };
-        EXPECT_EQ(invalid.size(), view.length_in_code_units());
+        Utf16View view { u"AB\xd800"sv };
+        EXPECT_EQ(view.length_in_code_units(), 3uz);
 
         auto expected = Array { (u32)0x41, 0x42, 0xfffd };
         EXPECT_EQ(expected.size(), view.length_in_code_points());
@@ -290,10 +284,8 @@ TEST_CASE(decode_invalid_utf16)
     }
     {
         // Lonely low surrogate.
-        auto invalid = Array { (u16)0x41, 0x42, 0xdc00 };
-
-        Utf16View view { invalid };
-        EXPECT_EQ(invalid.size(), view.length_in_code_units());
+        Utf16View view { u"AB\xdc00"sv };
+        EXPECT_EQ(view.length_in_code_units(), 3uz);
 
         auto expected = Array { (u32)0x41, 0x42, 0xfffd };
         EXPECT_EQ(expected.size(), view.length_in_code_points());
@@ -306,10 +298,8 @@ TEST_CASE(decode_invalid_utf16)
     }
     {
         // High surrogate followed by non-surrogate.
-        auto invalid = Array { (u16)0x41, 0x42, 0xd800, 0 };
-
-        Utf16View view { invalid };
-        EXPECT_EQ(invalid.size(), view.length_in_code_units());
+        Utf16View view { u"AB\xd800\x0000"sv };
+        EXPECT_EQ(view.length_in_code_units(), 4uz);
 
         auto expected = Array { (u32)0x41, 0x42, 0xfffd, 0 };
         EXPECT_EQ(expected.size(), view.length_in_code_points());
@@ -322,10 +312,8 @@ TEST_CASE(decode_invalid_utf16)
     }
     {
         // High surrogate followed by high surrogate.
-        auto invalid = Array { (u16)0x41, 0x42, 0xd800, 0xd800 };
-
-        Utf16View view { invalid };
-        EXPECT_EQ(invalid.size(), view.length_in_code_units());
+        Utf16View view { u"AB\xd800\xd800"sv };
+        EXPECT_EQ(view.length_in_code_units(), 4uz);
 
         auto expected = Array { (u32)0x41, 0x42, 0xfffd, 0xfffd };
         EXPECT_EQ(expected.size(), view.length_in_code_points());
@@ -341,13 +329,13 @@ TEST_CASE(decode_invalid_utf16)
 TEST_CASE(is_ascii)
 {
     EXPECT(Utf16View {}.is_ascii());
-    EXPECT(Utf16View { u"a" }.is_ascii());
-    EXPECT(Utf16View { u"foo" }.is_ascii());
-    EXPECT(Utf16View { u"foo\t\n\rbar\v\b123" }.is_ascii());
+    EXPECT(u"a"sv.is_ascii());
+    EXPECT(u"foo"sv.is_ascii());
+    EXPECT(u"foo\t\n\rbar\v\b123"sv.is_ascii());
 
-    EXPECT(!Utf16View { u"😀" }.is_ascii());
-    EXPECT(!Utf16View { u"foo 😀" }.is_ascii());
-    EXPECT(!Utf16View { u"😀 foo" }.is_ascii());
+    EXPECT(!u"😀"sv.is_ascii());
+    EXPECT(!u"foo 😀"sv.is_ascii());
+    EXPECT(!u"😀 foo"sv.is_ascii());
 }
 
 TEST_CASE(equals_ignoring_case)
@@ -387,28 +375,28 @@ TEST_CASE(substring_view)
 
 TEST_CASE(starts_with)
 {
-    EXPECT(Utf16View {}.starts_with(u""));
-    EXPECT(!Utf16View {}.starts_with(u" "));
+    EXPECT(Utf16View {}.starts_with(u""sv));
+    EXPECT(!Utf16View {}.starts_with(u" "sv));
 
-    EXPECT(Utf16View { u"a" }.starts_with(u""));
-    EXPECT(Utf16View { u"a" }.starts_with(u"a"));
-    EXPECT(!Utf16View { u"a" }.starts_with(u"b"));
-    EXPECT(!Utf16View { u"a" }.starts_with(u"ab"));
+    EXPECT(u"a"sv.starts_with(u""sv));
+    EXPECT(u"a"sv.starts_with(u"a"sv));
+    EXPECT(!u"a"sv.starts_with(u"b"sv));
+    EXPECT(!u"a"sv.starts_with(u"ab"sv));
 
-    EXPECT(Utf16View { u"abc" }.starts_with(u""));
-    EXPECT(Utf16View { u"abc" }.starts_with(u"a"));
-    EXPECT(Utf16View { u"abc" }.starts_with(u"ab"));
-    EXPECT(Utf16View { u"abc" }.starts_with(u"abc"));
-    EXPECT(!Utf16View { u"abc" }.starts_with(u"b"));
-    EXPECT(!Utf16View { u"abc" }.starts_with(u"bc"));
+    EXPECT(u"abc"sv.starts_with(u""sv));
+    EXPECT(u"abc"sv.starts_with(u"a"sv));
+    EXPECT(u"abc"sv.starts_with(u"ab"sv));
+    EXPECT(u"abc"sv.starts_with(u"abc"sv));
+    EXPECT(!u"abc"sv.starts_with(u"b"sv));
+    EXPECT(!u"abc"sv.starts_with(u"bc"sv));
 
-    auto emoji = Utf16View { u"😀🙃" };
+    auto emoji = u"😀🙃"sv;
 
-    EXPECT(emoji.starts_with(u""));
-    EXPECT(emoji.starts_with(u"😀"));
-    EXPECT(emoji.starts_with(u"😀🙃"));
-    EXPECT(!emoji.starts_with(u"a"));
-    EXPECT(!emoji.starts_with(u"🙃"));
+    EXPECT(emoji.starts_with(u""sv));
+    EXPECT(emoji.starts_with(u"😀"sv));
+    EXPECT(emoji.starts_with(u"😀🙃"sv));
+    EXPECT(!emoji.starts_with(u"a"sv));
+    EXPECT(!emoji.starts_with(u"🙃"sv));
 }
 
 TEST_CASE(find_code_unit_offset)
@@ -416,16 +404,16 @@ TEST_CASE(find_code_unit_offset)
     auto conversion_result = MUST(AK::utf8_to_utf16("😀foo😀bar"sv));
     Utf16View const view { conversion_result };
 
-    EXPECT_EQ(0u, view.find_code_unit_offset(u"").value());
-    EXPECT_EQ(4u, view.find_code_unit_offset(u"", 4).value());
-    EXPECT(!view.find_code_unit_offset(u"", 16).has_value());
+    EXPECT_EQ(0u, view.find_code_unit_offset(u""sv).value());
+    EXPECT_EQ(4u, view.find_code_unit_offset(u""sv, 4).value());
+    EXPECT(!view.find_code_unit_offset(u""sv, 16).has_value());
 
-    EXPECT_EQ(0u, view.find_code_unit_offset(u"😀").value());
-    EXPECT_EQ(5u, view.find_code_unit_offset(u"😀", 1).value());
-    EXPECT_EQ(2u, view.find_code_unit_offset(u"foo").value());
-    EXPECT_EQ(7u, view.find_code_unit_offset(u"bar").value());
+    EXPECT_EQ(0u, view.find_code_unit_offset(u"😀"sv).value());
+    EXPECT_EQ(5u, view.find_code_unit_offset(u"😀"sv, 1).value());
+    EXPECT_EQ(2u, view.find_code_unit_offset(u"foo"sv).value());
+    EXPECT_EQ(7u, view.find_code_unit_offset(u"bar"sv).value());
 
-    EXPECT(!view.find_code_unit_offset(u"baz").has_value());
+    EXPECT(!view.find_code_unit_offset(u"baz"sv).has_value());
 }
 
 TEST_CASE(find_code_unit_offset_ignoring_case)
@@ -433,13 +421,13 @@ TEST_CASE(find_code_unit_offset_ignoring_case)
     auto conversion_result = MUST(AK::utf8_to_utf16("😀Foo😀Bar"sv));
     Utf16View const view { conversion_result };
 
-    EXPECT_EQ(0u, view.find_code_unit_offset_ignoring_case(u"").value());
-    EXPECT_EQ(4u, view.find_code_unit_offset_ignoring_case(u"", 4).value());
-    EXPECT(!view.find_code_unit_offset_ignoring_case(u"", 16).has_value());
+    EXPECT_EQ(0u, view.find_code_unit_offset_ignoring_case(u""sv).value());
+    EXPECT_EQ(4u, view.find_code_unit_offset_ignoring_case(u""sv, 4).value());
+    EXPECT(!view.find_code_unit_offset_ignoring_case(u""sv, 16).has_value());
 
-    EXPECT_EQ(0u, view.find_code_unit_offset_ignoring_case(u"😀").value());
-    EXPECT_EQ(5u, view.find_code_unit_offset_ignoring_case(u"😀", 1).value());
-    EXPECT_EQ(2u, view.find_code_unit_offset_ignoring_case(u"foO").value());
-    EXPECT_EQ(7u, view.find_code_unit_offset_ignoring_case(u"baR").value());
-    EXPECT(!view.find_code_unit_offset_ignoring_case(u"baz").has_value());
+    EXPECT_EQ(0u, view.find_code_unit_offset_ignoring_case(u"😀"sv).value());
+    EXPECT_EQ(5u, view.find_code_unit_offset_ignoring_case(u"😀"sv, 1).value());
+    EXPECT_EQ(2u, view.find_code_unit_offset_ignoring_case(u"foO"sv).value());
+    EXPECT_EQ(7u, view.find_code_unit_offset_ignoring_case(u"baR"sv).value());
+    EXPECT(!view.find_code_unit_offset_ignoring_case(u"baz"sv).has_value());
 }

@@ -44,7 +44,7 @@ NonnullRefPtr<Utf16StringImpl> Utf16StringImpl::create(Utf16View const& view)
 {
     Utf16Data string;
     string.ensure_capacity(view.length_in_code_units());
-    string.unchecked_append(view.data(), view.length_in_code_units());
+    string.unchecked_append(view.span().data(), view.length_in_code_units());
 
     auto impl = create(move(string));
     if (auto length_in_code_points = view.length_in_code_points_if_known(); length_in_code_points.has_value())

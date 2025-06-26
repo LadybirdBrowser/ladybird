@@ -48,7 +48,7 @@ private:
     mutable bool m_has_hash { false };
     mutable u32 m_hash { 0 };
     Utf16Data m_string;
-    Utf16View m_cached_view { m_string.span() };
+    Utf16View m_cached_view { m_string };
 };
 
 }

@@ -147,9 +147,8 @@ public:
                     return Vector<RegexStringView> { view };
 
                 Vector<RegexStringView> views;
-                u16 newline = '\n';
                 while (!view.is_empty()) {
-                    auto position = AK::memmem_optional(view.data(), view.length_in_code_units() * sizeof(u16), &newline, sizeof(u16));
+                    auto position = view.find_code_unit_offset(u'\n');
                     if (!position.has_value())
                         break;
                     auto offset = position.value() / sizeof(u16);

@@ -250,17 +250,17 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
     if (utf16_view.is_empty())
         return {};
 
-    auto maximum_utf8_length = UnicodeUtils::maximum_utf8_length_from_utf16(utf16_view.span());
+    auto remaining_view = utf16_view.span();
+    auto maximum_utf8_length = UnicodeUtils::maximum_utf8_length_from_utf16(remaining_view);
 
     // Possibly over-allocate a little to ensure we don't have to allocate later.
     TRY(will_append(maximum_utf8_length));
 
-    Utf16View remaining_view = utf16_view;
     for (;;) {
-        auto uninitialized_data_pointer = static_cast<char*>(m_buffer.end_pointer());
+        auto* uninitialized_data_pointer = static_cast<char*>(m_buffer.end_pointer());
 
         // Fast path.
-        auto result = simdutf::convert_utf16_to_utf8_with_errors(remaining_view.char_data(), remaining_view.length_in_code_units(), uninitialized_data_pointer);
+        auto result = simdutf::convert_utf16_to_utf8_with_errors(remaining_view.data(), remaining_view.size(), uninitialized_data_pointer);
         if (result.error == simdutf::SUCCESS) {
             auto bytes_just_written = result.count;
             m_buffer.set_size(m_buffer.size() + bytes_just_written);
@@ -269,13 +269,13 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
 
         // Slow path. Found unmatched surrogate code unit.
         auto first_invalid_code_unit = result.count;
-        ASSERT(first_invalid_code_unit < remaining_view.length_in_code_units());
+        ASSERT(first_invalid_code_unit < remaining_view.size());
 
         // Unfortunately, `simdutf` does not tell us how many bytes it just wrote in case of an error, so we have to calculate it ourselves.
-        auto bytes_just_written = simdutf::utf8_length_from_utf16(remaining_view.char_data(), first_invalid_code_unit);
+        auto bytes_just_written = simdutf::utf8_length_from_utf16(remaining_view.data(), first_invalid_code_unit);
 
         do {
-            auto code_unit = remaining_view.code_unit_at(first_invalid_code_unit++);
+            auto code_unit = remaining_view[first_invalid_code_unit++];
 
             // Invalid surrogate code units are U+D800 - U+DFFF, so they are always encoded using 3 bytes.
             ASSERT(code_unit >= 0xD800 && code_unit <= 0xDFFF);
@@ -283,11 +283,11 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 12) & 0x0f) | 0xe0);
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 6) & 0x3f) | 0x80);
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 0) & 0x3f) | 0x80);
-        } while (first_invalid_code_unit < remaining_view.length_in_code_units() && UnicodeUtils::is_utf16_low_surrogate(remaining_view.data()[first_invalid_code_unit]));
+        } while (first_invalid_code_unit < remaining_view.size() && UnicodeUtils::is_utf16_low_surrogate(remaining_view.data()[first_invalid_code_unit]));
 
         // Code unit might no longer be invalid, retry on the remaining data.
         m_buffer.set_size(m_buffer.size() + bytes_just_written);
-        remaining_view = remaining_view.substring_view(first_invalid_code_unit);
+        remaining_view = remaining_view.slice(first_invalid_code_unit);
     }
 
     return {};

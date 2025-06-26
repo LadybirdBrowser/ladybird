@@ -10,6 +10,7 @@
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
+#include <AK/MemMem.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/String.h>
@@ -21,7 +22,7 @@
 
 namespace AK {
 
-using Utf16Data = Vector<u16, 1>;
+using Utf16Data = Vector<char16_t, 1>;
 
 struct Utf16ConversionResult {
     Utf16Data data;
@@ -36,8 +37,6 @@ ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const&);
 
 size_t utf16_code_unit_length_from_utf8(StringView);
 
-class Utf16View;
-
 class Utf16CodePointIterator {
     friend class Utf16View;
 
@@ -45,27 +44,57 @@ public:
     Utf16CodePointIterator() = default;
     ~Utf16CodePointIterator() = default;
 
-    bool operator==(Utf16CodePointIterator const& other) const
+    constexpr Utf16CodePointIterator& operator++()
     {
-        return (m_ptr == other.m_ptr) && (m_remaining_code_units == other.m_remaining_code_units);
+        VERIFY(m_remaining_code_units > 0);
+
+        auto length = min(length_in_code_units(), m_remaining_code_units);
+        m_iterator += length;
+        m_remaining_code_units -= length;
+
+        return *this;
     }
 
-    Utf16CodePointIterator& operator++();
-    u32 operator*() const;
+    constexpr u32 operator*() const
+    {
+        VERIFY(m_remaining_code_units > 0);
+        auto code_unit = *m_iterator;
 
-    size_t length_in_code_units() const
+        if (UnicodeUtils::is_utf16_high_surrogate(code_unit)) {
+            if (m_remaining_code_units > 1) {
+                auto next_code_unit = *(m_iterator + 1);
+
+                if (UnicodeUtils::is_utf16_low_surrogate(next_code_unit))
+                    return UnicodeUtils::decode_utf16_surrogate_pair(code_unit, next_code_unit);
+            }
+
+            return UnicodeUtils::REPLACEMENT_CODE_POINT;
+        }
+
+        if (UnicodeUtils::is_utf16_low_surrogate(code_unit))
+            return UnicodeUtils::REPLACEMENT_CODE_POINT;
+
+        return static_cast<u32>(code_unit);
+    }
+
+    [[nodiscard]] constexpr bool operator==(Utf16CodePointIterator const& other) const
+    {
+        return (m_iterator == other.m_iterator) && (m_remaining_code_units == other.m_remaining_code_units);
+    }
+
+    [[nodiscard]] constexpr size_t length_in_code_units() const
     {
         return UnicodeUtils::code_unit_length_for_code_point(**this);
     }
 
 private:
-    Utf16CodePointIterator(u16 const* ptr, size_t length)
-        : m_ptr(ptr)
+    Utf16CodePointIterator(char16_t const* ptr, size_t length)
+        : m_iterator(ptr)
         , m_remaining_code_units(length)
     {
     }
 
-    u16 const* m_ptr { nullptr };
+    char16_t const* m_iterator { nullptr };
     size_t m_remaining_code_units { 0 };
 };
 
@@ -73,101 +102,233 @@ class Utf16View {
 public:
     using Iterator = Utf16CodePointIterator;
 
+    enum class AllowInvalidCodeUnits {
+        No,
+        Yes,
+    };
+
     Utf16View() = default;
     ~Utf16View() = default;
 
-    explicit Utf16View(ReadonlySpan<u16> code_units)
-        : m_code_units(code_units)
+    constexpr Utf16View(char16_t const* string, size_t length_in_code_units)
+        : m_string(string)
+        , m_length_in_code_units(length_in_code_units)
+    {
+    }
+
+    constexpr Utf16View(Utf16Data const& string)
+        : m_string(string.data())
+        , m_length_in_code_units(string.size())
     {
     }
 
     Utf16View(Utf16ConversionResult&&) = delete;
     explicit Utf16View(Utf16ConversionResult const& conversion_result)
-        : m_code_units(conversion_result.data)
+        : m_string(conversion_result.data.data())
+        , m_length_in_code_units(conversion_result.data.size())
         , m_length_in_code_points(conversion_result.code_point_count)
     {
     }
 
-    template<size_t Size>
-    Utf16View(char16_t const (&code_units)[Size])
-        : m_code_units(
-              reinterpret_cast<u16 const*>(&code_units[0]),
-              code_units[Size - 1] == u'\0' ? Size - 1 : Size)
+    ErrorOr<String> to_utf8(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+    ErrorOr<ByteString> to_byte_string(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+
+    [[nodiscard]] constexpr ReadonlySpan<char16_t> span() const
     {
+        return { m_string, length_in_code_units() };
     }
 
-    bool operator==(Utf16View const& other) const { return m_code_units == other.m_code_units; }
+    [[nodiscard]] constexpr bool operator==(Utf16View const& other) const
+    {
+        if (length_in_code_units() != other.length_in_code_units())
+            return false;
+        return TypedTransfer<char16_t>::compare(m_string, other.m_string, length_in_code_units());
+    }
 
-    enum class AllowInvalidCodeUnits {
-        Yes,
-        No,
-    };
+    [[nodiscard]] constexpr bool equals_ignoring_case(Utf16View const& other) const
+    {
+        // FIXME: Handle non-ASCII case insensitive comparisons.
+        return equals_ignoring_ascii_case(other);
+    }
 
-    ErrorOr<ByteString> to_byte_string(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
-    ErrorOr<String> to_utf8(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+    [[nodiscard]] constexpr bool equals_ignoring_ascii_case(Utf16View const& other) const
+    {
+        if (length_in_code_units() != other.length_in_code_units())
+            return false;
 
-    void unsafe_set_code_point_length(size_t length) const { m_length_in_code_points = length; }
+        for (size_t i = 0; i < length_in_code_units(); ++i) {
+            if (to_ascii_lowercase(code_unit_at(i)) != to_ascii_lowercase(other.code_unit_at(i)))
+                return false;
+        }
 
-    bool is_null() const { return m_code_units.is_null(); }
-    bool is_empty() const { return m_code_units.is_empty(); }
-    bool is_ascii() const;
+        return true;
+    }
 
-    size_t length_in_code_units() const { return m_code_units.size(); }
-    size_t length_in_code_points() const;
+    template<typename... Ts>
+    [[nodiscard]] constexpr bool is_one_of(Ts&&... strings) const
+    {
+        return (this->operator==(forward<Ts>(strings)) || ...);
+    }
 
-    Optional<size_t> length_in_code_points_if_known() const
+    template<typename... Ts>
+    [[nodiscard]] constexpr bool is_one_of_ignoring_ascii_case(Ts&&... strings) const
+    {
+        return (this->equals_ignoring_ascii_case(forward<Ts>(strings)) || ...);
+    }
+
+    [[nodiscard]] constexpr u32 hash() const
+    {
+        if (is_empty())
+            return 0;
+        return string_hash(reinterpret_cast<char const*>(m_string), length_in_code_units() * sizeof(char16_t));
+    }
+
+    [[nodiscard]] constexpr bool is_null() const { return m_string == nullptr; }
+    [[nodiscard]] constexpr bool is_empty() const { return length_in_code_units() == 0; }
+    [[nodiscard]] bool is_ascii() const;
+
+    [[nodiscard]] ALWAYS_INLINE bool validate(AllowInvalidCodeUnits allow_invalid_code_units = AllowInvalidCodeUnits::No) const
+    {
+        size_t valid_code_units = 0;
+        return validate(valid_code_units, allow_invalid_code_units);
+    }
+
+    [[nodiscard]] bool validate(size_t& valid_code_units, AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+
+    [[nodiscard]] constexpr size_t length_in_code_units() const { return m_length_in_code_units; }
+
+    [[nodiscard]] ALWAYS_INLINE size_t length_in_code_points() const
+    {
+        if (m_length_in_code_points == NumericLimits<size_t>::max())
+            m_length_in_code_points = calculate_length_in_code_points();
+        return m_length_in_code_points;
+    }
+
+    constexpr Optional<size_t> length_in_code_points_if_known() const
     {
         if (m_length_in_code_points == NumericLimits<size_t>::max())
             return {};
         return m_length_in_code_points;
     }
 
-    u32 hash() const
+    constexpr void unsafe_set_code_point_length(size_t length) const { m_length_in_code_points = length; }
+
+    [[nodiscard]] constexpr char16_t code_unit_at(size_t index) const
     {
-        if (is_empty())
-            return 0;
-        return string_hash(reinterpret_cast<char const*>(m_code_units.data()), m_code_units.size() * sizeof(u16));
+        VERIFY(index < length_in_code_units());
+        return m_string[index];
     }
 
-    Utf16CodePointIterator begin() const { return { begin_ptr(), m_code_units.size() }; }
-    Utf16CodePointIterator end() const { return { end_ptr(), 0 }; }
+    [[nodiscard]] constexpr u32 code_point_at(size_t index) const
+    {
+        VERIFY(index < length_in_code_units());
+        u32 code_point = code_unit_at(index);
 
-    u16 const* data() const { return m_code_units.data(); }
-    char16_t const* char_data() const { return reinterpret_cast<char16_t const*>(data()); }
+        if (!UnicodeUtils::is_utf16_high_surrogate(code_point) && !UnicodeUtils::is_utf16_low_surrogate(code_point))
+            return code_point;
+        if (UnicodeUtils::is_utf16_low_surrogate(code_point) || (index + 1 == length_in_code_units()))
+            return code_point;
 
-    ReadonlySpan<u16> span() const { return m_code_units; }
+        auto second = code_unit_at(index + 1);
+        if (!UnicodeUtils::is_utf16_low_surrogate(second))
+            return code_point;
 
-    u16 code_unit_at(size_t index) const;
-    u32 code_point_at(size_t index) const;
+        return UnicodeUtils::decode_utf16_surrogate_pair(code_point, second);
+    }
 
-    size_t code_point_offset_of(size_t code_unit_offset) const;
-    size_t code_unit_offset_of(size_t code_point_offset) const;
-    size_t code_unit_offset_of(Utf16CodePointIterator const&) const;
+    [[nodiscard]] size_t code_unit_offset_of(size_t code_point_offset) const;
+    [[nodiscard]] size_t code_point_offset_of(size_t code_unit_offset) const;
 
-    Utf16View substring_view(size_t code_unit_offset, size_t code_unit_length) const;
-    Utf16View substring_view(size_t code_unit_offset) const { return substring_view(code_unit_offset, length_in_code_units() - code_unit_offset); }
+    [[nodiscard]] constexpr Utf16CodePointIterator begin() const
+    {
+        return { m_string, length_in_code_units() };
+    }
 
-    Utf16View unicode_substring_view(size_t code_point_offset, size_t code_point_length) const;
-    Utf16View unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length_in_code_points() - code_point_offset); }
+    [[nodiscard]] constexpr Utf16CodePointIterator end() const
+    {
+        return { m_string + length_in_code_units(), 0 };
+    }
 
-    Optional<size_t> find_code_unit_offset(Utf16View const& needle, size_t start_offset = 0) const;
-    Optional<size_t> find_code_unit_offset_ignoring_case(Utf16View const& needle, size_t start_offset = 0) const;
+    [[nodiscard]] constexpr Utf16View substring_view(size_t code_unit_offset, size_t code_unit_length) const
+    {
+        VERIFY(code_unit_offset + code_unit_length <= length_in_code_units());
+        return { m_string + code_unit_offset, code_unit_length };
+    }
 
-    bool starts_with(Utf16View const&) const;
-    bool is_code_unit_less_than(Utf16View const& other) const;
+    [[nodiscard]] constexpr Utf16View substring_view(size_t code_unit_offset) const { return substring_view(code_unit_offset, length_in_code_units() - code_unit_offset); }
 
-    bool validate(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
-    bool validate(size_t& valid_code_units, AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+    [[nodiscard]] Utf16View unicode_substring_view(size_t code_point_offset, size_t code_point_length) const;
+    [[nodiscard]] Utf16View unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length_in_code_points() - code_point_offset); }
 
-    bool equals_ignoring_case(Utf16View const&) const;
+    constexpr Optional<size_t> find_code_unit_offset(char16_t needle, size_t start_offset = 0) const
+    {
+        if (start_offset >= length_in_code_units())
+            return {};
+        return AK::memmem_optional(m_string + start_offset, (length_in_code_units() - start_offset) * sizeof(char16_t), &needle, sizeof(needle));
+    }
+
+    constexpr Optional<size_t> find_code_unit_offset(Utf16View const& needle, size_t start_offset = 0) const
+    {
+        return span().index_of(needle.span(), start_offset);
+    }
+
+    constexpr Optional<size_t> find_code_unit_offset_ignoring_case(Utf16View const& needle, size_t start_offset = 0) const
+    {
+        Checked maximum_offset { start_offset };
+        maximum_offset += needle.length_in_code_units();
+        if (maximum_offset.has_overflow() || maximum_offset.value() > length_in_code_units())
+            return {};
+
+        if (needle.is_empty())
+            return start_offset;
+
+        size_t index = start_offset;
+        while (index <= length_in_code_units() - needle.length_in_code_units()) {
+            auto slice = substring_view(index, needle.length_in_code_units());
+            if (slice.equals_ignoring_case(needle))
+                return index;
+
+            index += slice.begin().length_in_code_units();
+        }
+
+        return {};
+    }
+
+    [[nodiscard]] constexpr bool starts_with(Utf16View const& needle) const
+    {
+        if (needle.is_empty())
+            return true;
+        if (is_empty())
+            return false;
+        if (needle.length_in_code_units() > length_in_code_units())
+            return false;
+
+        if (m_string == needle.m_string)
+            return true;
+        return span().starts_with(needle.span());
+    }
+
+    // https://infra.spec.whatwg.org/#code-unit-less-than
+    [[nodiscard]] constexpr bool is_code_unit_less_than(Utf16View const& other) const
+    {
+        auto common_length = min(length_in_code_units(), other.length_in_code_units());
+
+        for (size_t position = 0; position < common_length; ++position) {
+            auto this_code_unit = code_unit_at(position);
+            auto other_code_unit = other.code_unit_at(position);
+
+            if (this_code_unit != other_code_unit)
+                return this_code_unit < other_code_unit;
+        }
+
+        return length_in_code_units() < other.length_in_code_units();
+    }
 
 private:
-    u16 const* begin_ptr() const { return m_code_units.data(); }
-    u16 const* end_ptr() const { return begin_ptr() + m_code_units.size(); }
+    [[nodiscard]] size_t calculate_length_in_code_points() const;
 
-    size_t calculate_length_in_code_points() const;
-
-    ReadonlySpan<u16> m_code_units;
+    char16_t const* m_string { nullptr };
+    size_t m_length_in_code_units { 0 };
     mutable size_t m_length_in_code_points { NumericLimits<size_t>::max() };
 };
 
@@ -186,6 +347,13 @@ struct Traits<Utf16View> : public DefaultTraits<Utf16View> {
     static unsigned hash(Utf16View const& s) { return s.hash(); }
 };
 
+}
+
+[[nodiscard]] ALWAYS_INLINE AK_STRING_VIEW_LITERAL_CONSTEVAL AK::Utf16View operator""sv(char16_t const* string, size_t length)
+{
+    AK::Utf16View view { string, length };
+    ASSERT(view.validate());
+    return view;
 }
 
 #if USING_AK_GLOBALLY
