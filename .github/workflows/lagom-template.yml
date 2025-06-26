@@ -135,6 +135,12 @@ jobs:
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
+      - name: Install Qt (Windows)
+        if: ${{ inputs.os_name == 'Windows' }}
+        uses: jurplel/install-qt-action@v4
+        with:
+          modules: "qtmultimedia"
+
       - name: Create Build Environment (Windows)
         if: ${{ inputs.os_name == 'Windows' }}
         working-directory: ${{ github.workspace }}
