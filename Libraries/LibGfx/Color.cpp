@@ -8,8 +8,8 @@
 
 #include <AK/Assertions.h>
 #include <AK/ByteString.h>
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/Optional.h>
+#include <AK/StringConversions.h>
 #include <AK/Swift.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
@@ -99,12 +99,8 @@ static Optional<Color> parse_rgba_color(StringView string)
     auto g = parts[1].to_number<double>().map(AK::clamp_to<u8, double>);
     auto b = parts[2].to_number<double>().map(AK::clamp_to<u8, double>);
 
-    double alpha = 0;
-    auto alpha_str = parts[3].trim_whitespace();
-    char const* start = alpha_str.characters_without_null_termination();
-    auto alpha_result = parse_first_floating_point(start, start + alpha_str.length());
-    if (alpha_result.parsed_value())
-        alpha = alpha_result.value;
+    auto parse_result = AK::parse_first_number<double>(parts[3]);
+    auto alpha = parse_result.has_value() ? parse_result->value : 0.0;
 
     unsigned a = alpha * 255;
 

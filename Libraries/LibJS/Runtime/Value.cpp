@@ -10,7 +10,6 @@
 #include <AK/Assertions.h>
 #include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringFloatingPointConversions.h>
 #include <AK/Utf8View.h>

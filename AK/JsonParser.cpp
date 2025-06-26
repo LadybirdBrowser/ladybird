@@ -5,10 +5,10 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonParser.h>
+#include <AK/StringConversions.h>
 #include <math.h>
 
 namespace AK {
@@ -219,18 +219,14 @@ ErrorOr<JsonValue> JsonParser::parse_number()
         //        use that in the floating point parser.
 
         // The first part should be just ascii digits
-        StringView view = m_input.substring_view(start_index);
+        auto view = m_input.substring_view(start_index);
 
-        char const* start = view.characters_without_null_termination();
-        auto parse_result = parse_first_floating_point(start, start + view.length());
+        auto parse_result = parse_first_number<double>(view, TrimWhitespace::No);
+        if (!parse_result.has_value())
+            return Error::from_string_literal("JsonParser: Invalid floating point");
 
-        if (parse_result.parsed_value()) {
-            auto characters_parsed = parse_result.end_ptr - start;
-            m_index = start_index + characters_parsed;
-
-            return JsonValue(parse_result.value);
-        }
-        return Error::from_string_literal("JsonParser: Invalid floating point");
+        m_index = start_index + parse_result->characters_parsed;
+        return JsonValue { parse_result->value };
     };
 
     if (peek() == '0') {

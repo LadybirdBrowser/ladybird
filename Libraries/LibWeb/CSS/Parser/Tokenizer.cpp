@@ -6,8 +6,8 @@
  */
 
 #include <AK/Debug.h>
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/SourceLocation.h>
+#include <AK/StringConversions.h>
 #include <AK/Vector.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/CSS/CharacterTypes.h>
@@ -377,7 +377,7 @@ u32 Tokenizer::consume_escaped_code_point()
         }
 
         // Interpret the hex digits as a hexadecimal number.
-        auto unhexed = AK::StringUtils::convert_to_uint_from_hex<u32>(builder.string_view()).value_or(0);
+        auto unhexed = AK::parse_hexadecimal_number<u32>(builder.string_view()).value_or(0);
         // If this number is zero, or is for a surrogate, or is greater than the maximum allowed
         // code point, return U+FFFD REPLACEMENT CHARACTER (�).
         if (unhexed == 0 || is_unicode_surrogate(unhexed) || is_greater_than_maximum_allowed_code_point(unhexed)) {

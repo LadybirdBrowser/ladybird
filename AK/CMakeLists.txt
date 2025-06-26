@@ -7,7 +7,6 @@ set(SOURCES
     ConstrainedStream.cpp
     CountingStream.cpp
     Error.cpp
-    FloatingPointStringConversions.cpp
     FlyString.cpp
     Format.cpp
     GenericLexer.cpp
@@ -25,6 +24,7 @@ set(SOURCES
     String.cpp
     StringBase.cpp
     StringBuilder.cpp
+    StringConversions.cpp
     StringFloatingPointConversions.cpp
     StringUtils.cpp
     StringView.cpp
