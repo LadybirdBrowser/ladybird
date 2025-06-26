@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 31 tests
+
+27 Pass
+4 Fail
+Pass	'calc(NaN)' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(infinity)' as a specified value should serialize as 'calc(infinity)'.
+Pass	'calc(-infinity)' as a specified value should serialize as 'calc(-infinity)'.
+Pass	'calc(1 * NaN)' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * nan)' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * infinity / infinity)' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * 0 * infinity)' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * (infinity + -infinity))' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * (-infinity + infinity))' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * (infinity - infinity))' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * infinity)' as a specified value should serialize as 'calc(infinity)'.
+Pass	'calc(1 * -infinity)' as a specified value should serialize as 'calc(-infinity)'.
+Pass	'calc(1 * iNFinIty)' as a specified value should serialize as 'calc(infinity)'.
+Pass	'calc(1 * (infinity + infinity))' as a specified value should serialize as 'calc(infinity)'.
+Pass	'calc(1 * (-infinity + -infinity))' as a specified value should serialize as 'calc(-infinity)'.
+Pass	'calc(1 * 1/infinity)' as a specified value should serialize as 'calc(0)'.
+Pass	'calc(1 * infinity * infinity)' as a specified value should serialize as 'calc(infinity)'.
+Pass	'calc(1 * -infinity * -infinity)' as a specified value should serialize as 'calc(infinity)'.
+Pass	'calc(1 * max(INFinity*3, 0))' as a specified value should serialize as 'calc(infinity)'.
+Pass	'calc(1 * min(inFInity*4, 0))' as a specified value should serialize as 'calc(0)'.
+Pass	'calc(1 * max(nAn*2, 0))' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * min(nan*3, 0))' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * clamp(-INFINITY*20, 0, infiniTY*10))' as a specified value should serialize as 'calc(0)'.
+Pass	'calc(1 * max(NaN, min(0,10)))' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * clamp(NaN, 0, 10))' as a specified value should serialize as 'calc(NaN)'.
+Fail	'calc(1 * max(0, min(10, NaN)))' as a specified value should serialize as 'calc(NaN)'.
+Fail	'calc(1 * clamp(0, 10, NaN))' as a specified value should serialize as 'calc(NaN)'.
+Fail	'calc(1 * max(0, min(NaN, 10)))' as a specified value should serialize as 'calc(NaN)'.
+Fail	'calc(1 * clamp(0, NaN, 10))' as a specified value should serialize as 'calc(NaN)'.
+Pass	'calc(1 * clamp(-Infinity, 0, infinity))' as a specified value should serialize as 'calc(0)'.
+Pass	'calc(1 * clamp(-inFinity, infinity, 10))' as a specified value should serialize as 'calc(10)'.

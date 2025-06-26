@@ -1,0 +1,36 @@
+Harness status: OK
+
+Found 30 tests
+
+26 Pass
+4 Fail
+Pass	'rotate(calc(1deg * NaN))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1rad * NaN))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1turn * NaN))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1grad * nan))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1deg * infinity / infinity))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1deg * 0 * infinity))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1deg * (infinity + -infinity)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1deg * (-infinity + infinity)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1deg * (infinity - infinity)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1deg * infinity))' as a specified value should serialize as 'rotate(calc(infinity * 1deg))'.
+Pass	'rotate(calc(1deg * -infinity))' as a specified value should serialize as 'rotate(calc(-infinity * 1deg))'.
+Pass	'rotate(calc(1deg * iNFinIty))' as a specified value should serialize as 'rotate(calc(infinity * 1deg))'.
+Pass	'rotate(calc(1deg * (infinity + infinity)))' as a specified value should serialize as 'rotate(calc(infinity * 1deg))'.
+Pass	'rotate(calc(1deg * (-infinity + -infinity)))' as a specified value should serialize as 'rotate(calc(-infinity * 1deg))'.
+Pass	'rotate(calc(1deg * 1/infinity))' as a specified value should serialize as 'rotate(calc(0deg))'.
+Pass	'rotate(calc(1deg * infinity * infinity))' as a specified value should serialize as 'rotate(calc(infinity * 1deg))'.
+Pass	'rotate(calc(1deg * -infinity * -infinity))' as a specified value should serialize as 'rotate(calc(infinity * 1deg))'.
+Pass	'rotate(calc(1 * max(INFinity*3deg, 0deg)))' as a specified value should serialize as 'rotate(calc(infinity * 1deg))'.
+Pass	'rotate(calc(1 * min(inFInity*4deg, 0deg)))' as a specified value should serialize as 'rotate(calc(0deg))'.
+Pass	'rotate(calc(1 * max(nAn*2deg, 0deg)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1 * min(nan*3deg, 0deg)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1 * clamp(-INFINITY*20deg, 0deg, infiniTY*10deg)))' as a specified value should serialize as 'rotate(calc(0deg))'.
+Pass	'rotate(calc(1deg * max(NaN, min(0,10))))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1deg * clamp(NaN, 0, 10)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Fail	'rotate(calc(1deg * max(0, min(10, NaN))))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Fail	'rotate(calc(1deg * clamp(0, 10, NaN)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Fail	'rotate(calc(1deg * max(0, min(NaN, 10))))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Fail	'rotate(calc(1deg * clamp(0, NaN, 10)))' as a specified value should serialize as 'rotate(calc(NaN * 1deg))'.
+Pass	'rotate(calc(1deg * clamp(-Infinity, 0, infinity)))' as a specified value should serialize as 'rotate(calc(0deg))'.
+Pass	'rotate(calc(1deg * clamp(-inFinity, infinity, 10)))' as a specified value should serialize as 'rotate(calc(10deg))'.
