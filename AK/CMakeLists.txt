@@ -89,6 +89,13 @@ if (WIN32)
         set(DELAYLOAD_DBGHLP_VISIBILITY INTERFACE)
     endif()
     target_link_options(AK ${DELAYLOAD_DBGHLP_VISIBILITY} /DELAYLOAD:dbghelp.dll)
+    # FIXME: Add support for building LibUnicode in sanitize
+    #   lld-link: error: /failifmismatch: mismatch detected for 'annotate_string':
+    #   >>> lagom-ak.lib(Utf16View.cpp.obj) has value 1
+    #   >>> lagom-unicode.lib(IDNA.cpp.obj) has value 0
+    if (ENABLE_WINDOWS_CI)
+        target_compile_options(AK PRIVATE -fno-sanitize=address)
+    endif()
 elseif (APPLE)
     set(ASSERTION_HANDLER_VISIBILITY PRIVATE)
     if (NOT BUILD_SHARED_LIBS)
