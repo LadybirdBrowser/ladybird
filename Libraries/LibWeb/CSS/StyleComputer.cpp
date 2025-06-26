@@ -55,6 +55,7 @@
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -2569,6 +2570,7 @@ RefPtr<CSSStyleValue const> StyleComputer::recascade_font_size_if_needed(
 
 GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& element, Optional<PseudoElement> pseudo_element, CascadedProperties& cascaded_properties) const
 {
+    DOM::AbstractElement abstract_element { element, pseudo_element };
     auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
 
     auto new_font_size = recascade_font_size_if_needed(element, pseudo_element, cascaded_properties);
@@ -2681,6 +2683,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
             }
         }
     }
+
+    // Compute the value of custom properties
+    compute_custom_properties(computed_style, abstract_element);
 
     // 2. Compute the math-depth property, since that might affect the font-size
     compute_math_depth(computed_style, &element, pseudo_element);
@@ -3088,6 +3093,63 @@ void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
             return sheet.has_associated_font_loader(*font_loader);
         });
     }
+}
+
+NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name)
+{
+    // https://drafts.csswg.org/css-variables/#propdef-
+    // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
+    // FIXME: These should probably be part of ComputedProperties.
+
+    auto value = abstract_element.get_custom_property(name);
+    if (!value)
+        return GuaranteedInvalidStyleValue::create();
+
+    // Initial value is the guaranteed-invalid value.
+    if (value->is_initial())
+        return GuaranteedInvalidStyleValue::create();
+
+    // Unset is the same as inherit for inherited properties, and by default all custom properties are inherited.
+    // FIXME: Update handling of css-wide keywords once we support @property properly.
+    if (value->is_inherit() || value->is_unset()) {
+        auto inherited_value = DOM::AbstractElement { const_cast<DOM::Element&>(*abstract_element.parent_element()) }.get_custom_property(name);
+        if (!inherited_value)
+            return GuaranteedInvalidStyleValue::create();
+        return inherited_value.release_nonnull();
+    }
+
+    if (value->is_revert()) {
+        // FIXME: Implement reverting custom properties.
+    }
+    if (value->is_revert_layer()) {
+        // FIXME: Implement reverting custom properties.
+    }
+
+    if (!value->is_unresolved() || !value->as_unresolved().contains_arbitrary_substitution_function())
+        return value.release_nonnull();
+
+    auto& unresolved = value->as_unresolved();
+    return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams {}, abstract_element.element(), abstract_element.pseudo_element(), name, unresolved);
+}
+
+void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::AbstractElement abstract_element) const
+{
+    // https://drafts.csswg.org/css-variables/#propdef-
+    // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
+    // FIXME: These should probably be part of ComputedProperties.
+    auto custom_properties = abstract_element.custom_properties();
+    decltype(custom_properties) resolved_custom_properties;
+
+    for (auto const& [name, style_property] : custom_properties) {
+        resolved_custom_properties.set(name,
+            StyleProperty {
+                .important = style_property.important,
+                .property_id = style_property.property_id,
+                .value = compute_value_of_custom_property(abstract_element, name),
+                .custom_name = style_property.custom_name,
+            });
+    }
+    abstract_element.set_custom_properties(move(resolved_custom_properties));
 }
 
 void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element const* element, Optional<CSS::PseudoElement> pseudo_element) const

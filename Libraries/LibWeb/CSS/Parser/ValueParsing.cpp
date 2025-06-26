@@ -4218,14 +4218,14 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
     return FontSourceStyleValue::create(url.release_value(), move(format), move(tech));
 }
 
-NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved)
 {
     // Unresolved always contains a var() or attr(), unless it is a custom property's value, in which case we shouldn't be trying
     // to produce a different CSSStyleValue from it.
     VERIFY(unresolved.contains_arbitrary_substitution_function());
 
     auto parser = Parser::create(context, ""sv);
-    return parser.resolve_unresolved_style_value(element, pseudo_element, property_id, unresolved);
+    return parser.resolve_unresolved_style_value(element, pseudo_element, property, unresolved);
 }
 
 class PropertyDependencyNode : public RefCounted<PropertyDependencyNode> {
@@ -4271,10 +4271,14 @@ private:
     bool m_marked { false };
 };
 
-NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::Element& element, Optional<PseudoElement> pseudo_element, PropertyIDOrCustomPropertyName property, UnresolvedStyleValue const& unresolved)
 {
     TokenStream unresolved_values_without_variables_expanded { unresolved.values() };
     Vector<ComponentValue> values_with_variables_expanded;
+
+    auto const& property_name = property.visit(
+        [](PropertyID const& property_id) { return string_from_property_id(property_id); },
+        [](FlyString const& name) { return name; });
 
     HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>> dependencies;
     ScopeGuard mark_element_if_uses_custom_properties = [&] {
@@ -4285,19 +4289,25 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::E
             }
         }
     };
-    if (!expand_variables(element, pseudo_element, string_from_property_id(property_id), dependencies, unresolved_values_without_variables_expanded, values_with_variables_expanded))
+    if (!expand_variables(element, pseudo_element, property_name, dependencies, unresolved_values_without_variables_expanded, values_with_variables_expanded))
         return GuaranteedInvalidStyleValue::create();
 
     TokenStream unresolved_values_with_variables_expanded { values_with_variables_expanded };
     Vector<ComponentValue> expanded_values;
-    if (!expand_unresolved_values(element, string_from_property_id(property_id), unresolved_values_with_variables_expanded, expanded_values))
+    if (!expand_unresolved_values(element, property_name, unresolved_values_with_variables_expanded, expanded_values))
         return GuaranteedInvalidStyleValue::create();
 
-    auto expanded_value_tokens = TokenStream { expanded_values };
-    if (auto parsed_value = parse_css_value(property_id, expanded_value_tokens); !parsed_value.is_error())
-        return parsed_value.release_value();
+    return property.visit(
+        [&](PropertyID const& property_id) -> NonnullRefPtr<CSSStyleValue const> {
+            auto expanded_value_tokens = TokenStream { expanded_values };
+            if (auto parsed_value = parse_css_value(property_id, expanded_value_tokens); !parsed_value.is_error())
+                return parsed_value.release_value();
 
-    return GuaranteedInvalidStyleValue::create();
+            return GuaranteedInvalidStyleValue::create();
+        },
+        [&](FlyString const&) -> NonnullRefPtr<CSSStyleValue const> {
+            return UnresolvedStyleValue::create(move(expanded_values), false, {});
+        });
 }
 
 static RefPtr<CSSStyleValue const> get_custom_property(DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element, FlyString const& custom_property_name)
@@ -4333,9 +4343,6 @@ bool Parser::expand_variables(DOM::Element& element, Optional<PseudoElement> pse
     };
 
     while (source.has_next_token()) {
-        // FIXME: We should properly cascade here instead of doing a basic fallback for CSS-wide keywords.
-        if (auto builtin_value = parse_builtin_value(source))
-            continue;
         auto const& value = source.consume_a_token();
         if (value.is_block()) {
             auto const& source_block = value.block();
@@ -4383,8 +4390,9 @@ bool Parser::expand_variables(DOM::Element& element, Optional<PseudoElement> pse
         if (parent->has_cycles())
             return false;
 
-        if (auto custom_property_value = get_custom_property(element, pseudo_element, custom_property_name)) {
-            VERIFY(custom_property_value->is_unresolved());
+        if (auto custom_property_value = get_custom_property(element, pseudo_element, custom_property_name);
+            custom_property_value && custom_property_value->is_unresolved()) {
+            // FIXME: We should properly cascade here instead of doing a basic fallback for CSS-wide keywords.
             TokenStream custom_property_tokens { custom_property_value->as_unresolved().values() };
 
             auto dest_size_before = dest.size();

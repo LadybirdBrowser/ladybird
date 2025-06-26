@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 11 tests
 
-1 Pass
-10 Fail
-Fail	Self-cycle
-Fail	Simple a/b cycle
-Fail	Three-var cycle
+4 Pass
+7 Fail
+Pass	Self-cycle
+Pass	Simple a/b cycle
+Pass	Three-var cycle
 Fail	Cycle that starts in the middle of a chain
 Fail	Cycle with extra edge
 Fail	Cycle with extra edge (2)

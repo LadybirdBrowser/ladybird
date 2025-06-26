@@ -193,6 +193,8 @@ public:
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
 
+    static NonnullRefPtr<CSSStyleValue const> compute_value_of_custom_property(DOM::AbstractElement, FlyString const& custom_property);
+
 private:
     enum class ComputeStyleMode {
         Normal,
@@ -207,6 +209,7 @@ private:
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
+    void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void compute_math_depth(ComputedProperties&, DOM::Element const*, Optional<CSS::PseudoElement>) const;
     void compute_defaulted_values(ComputedProperties&, DOM::Element const*, Optional<CSS::PseudoElement>) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::Element&, Optional<PseudoElement>) const;
