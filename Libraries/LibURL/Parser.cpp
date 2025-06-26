@@ -551,7 +551,7 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
 }
 
 // https://url.spec.whatwg.org/#concept-host-parser
-static Optional<Host> parse_host(StringView input, bool is_opaque = false)
+Optional<Host> Parser::parse_host(StringView input, bool is_opaque)
 {
     // 1. If input starts with U+005B ([), then:
     if (input.starts_with('[')) {
