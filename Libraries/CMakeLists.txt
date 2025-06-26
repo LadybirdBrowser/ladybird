@@ -24,6 +24,7 @@ if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibImageDecoderClient)
     add_subdirectory(LibMedia)
     add_subdirectory(LibWeb)
+    add_subdirectory(LibWebView)
 endif()
 
 # FIXME: Increase support for building targets on Windows
@@ -36,5 +37,4 @@ add_subdirectory(LibLine)
 if (ENABLE_GUI_TARGETS)
     # FIXME: TCPServer still needs to be implemented on Windows
     add_subdirectory(LibDevTools)
-    add_subdirectory(LibWebView)
 endif()
