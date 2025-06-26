@@ -41,6 +41,8 @@ AudioTrack::AudioTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element
     m_audio_plugin->on_decoder_error = [this](String error_message) {
         m_media_element->set_decoder_error(move(error_message));
     };
+
+    update_volume();
 }
 
 AudioTrack::~AudioTrack()
