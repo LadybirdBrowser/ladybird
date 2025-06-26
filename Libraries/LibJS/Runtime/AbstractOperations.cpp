@@ -6,7 +6,6 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/Utf16View.h>

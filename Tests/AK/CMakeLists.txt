@@ -27,7 +27,6 @@ set(AK_TEST_SOURCES
     TestFind.cpp
     TestFixedArray.cpp
     TestFixedPoint.cpp
-    TestFloatingPointParsing.cpp
     TestFlyString.cpp
     TestFormat.cpp
     TestGenericLexer.cpp
@@ -67,6 +66,7 @@ set(AK_TEST_SOURCES
     TestStack.cpp
     TestStdLibExtras.cpp
     TestString.cpp
+    TestStringConversions.cpp
     TestStringFloatingPointConversions.cpp
     TestStringUtils.cpp
     TestStringView.cpp

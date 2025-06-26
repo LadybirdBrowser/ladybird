@@ -5,6 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/StringConversions.h>
 #include <AK/StringUtils.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -502,7 +503,7 @@ DecodeResult from_hex(VM& vm, StringView string, Optional<size_t> max_length)
         // d. Let byte be the integer value represented by hexits in base-16 notation, using the letters A-F and a-f
         //    for digits with values 10 through 15.
         // NOTE: We do this early so that we don't have to effectively parse hexits twice.
-        auto byte = AK::StringUtils::convert_to_uint_from_hex<u8>(hexits, AK::TrimWhitespace::No);
+        auto byte = AK::parse_hexadecimal_number<u8>(hexits, TrimWhitespace::No);
 
         // b. If hexits contains any code units which are not in "0123456789abcdefABCDEF", then
         if (!byte.has_value()) {

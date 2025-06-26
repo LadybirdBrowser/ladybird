@@ -6,18 +6,16 @@
 
 #include <LibTest/TestCase.h>
 
-#include <AK/FloatingPointStringConversions.h>
+#include <AK/StringConversions.h>
 
 static double parse_complete_double(StringView view)
 {
-    char const* start = view.characters_without_null_termination();
-    return parse_floating_point_completely<double>(start, start + view.length()).release_value();
+    return AK::parse_number<double>(view, TrimWhitespace::No).release_value();
 }
 
 static float parse_complete_float(StringView view)
 {
-    char const* start = view.characters_without_null_termination();
-    return parse_floating_point_completely<float>(start, start + view.length()).release_value();
+    return AK::parse_number<float>(view, TrimWhitespace::No).release_value();
 }
 
 TEST_CASE(simple_cases)
@@ -264,14 +262,12 @@ TEST_CASE(simple_cases)
 
 TEST_CASE(partial_parse_stops_at_right_spot)
 {
-#define EXPECT_PARSE_TO_VALUE_AND_CONSUME_CHARS(string_value, double_value, chars_parsed)         \
-    do {                                                                                          \
-        StringView view = string_value##sv;                                                       \
-        char const* start = view.characters_without_null_termination();                           \
-        auto result = parse_first_floating_point<double>(start, start + view.length());           \
-        EXPECT(result.error == AK::FloatingPointError::None);                                     \
-        EXPECT_EQ(bit_cast<u64>(result.value), bit_cast<u64>(static_cast<double>(double_value))); \
-        EXPECT_EQ(result.end_ptr - start, chars_parsed);                                          \
+#define EXPECT_PARSE_TO_VALUE_AND_CONSUME_CHARS(string_value, double_value, chars_parsed)          \
+    do {                                                                                           \
+        auto result = AK::parse_first_number<double>(string_value##sv);                            \
+        VERIFY(result.has_value());                                                                \
+        EXPECT_EQ(bit_cast<u64>(result->value), bit_cast<u64>(static_cast<double>(double_value))); \
+        EXPECT_EQ(result->characters_parsed, chars_parsed##uz);                                    \
     } while (false)
 
     EXPECT_PARSE_TO_VALUE_AND_CONSUME_CHARS("0x", 0., 1);
@@ -289,12 +285,10 @@ TEST_CASE(partial_parse_stops_at_right_spot)
 
 TEST_CASE(invalid_parse)
 {
-#define EXPECT_PARSE_TO_FAIL(string_value)                                              \
-    do {                                                                                \
-        StringView view = string_value##sv;                                             \
-        char const* start = view.characters_without_null_termination();                 \
-        auto result = parse_first_floating_point<double>(start, start + view.length()); \
-        EXPECT(result.error == AK::FloatingPointError::NoOrInvalidInput);               \
+#define EXPECT_PARSE_TO_FAIL(string_value)                              \
+    do {                                                                \
+        auto result = AK::parse_first_number<double>(string_value##sv); \
+        EXPECT(!result.has_value());                                    \
     } while (false)
 
     EXPECT_PARSE_TO_FAIL("");
@@ -333,25 +327,22 @@ TEST_CASE(invalid_parse)
 
 TEST_CASE(detect_out_of_range_values)
 {
-#define EXPECT_PARSE_TO_HAVE_ERROR(string_value, error_value)                           \
-    do {                                                                                \
-        StringView view = string_value##sv;                                             \
-        char const* start = view.characters_without_null_termination();                 \
-        auto result = parse_first_floating_point<double>(start, start + view.length()); \
-        EXPECT(result.error == error_value);                                            \
-        EXPECT(result.end_ptr == start + view.length());                                \
+#define EXPECT_PARSE_TO_HAVE_ERROR(string_value, double_value)                                     \
+    do {                                                                                           \
+        auto result = AK::parse_first_number<double>(string_value##sv);                            \
+        VERIFY(result.has_value());                                                                \
+        EXPECT_EQ(bit_cast<u64>(result->value), bit_cast<u64>(static_cast<double>(double_value))); \
     } while (false)
 
-    EXPECT_PARSE_TO_HAVE_ERROR("10e-10000", AK::FloatingPointError::RoundedDownToZero);
-    EXPECT_PARSE_TO_HAVE_ERROR("-10e-10000", AK::FloatingPointError::RoundedDownToZero);
-    EXPECT_PARSE_TO_HAVE_ERROR("10e10000", AK::FloatingPointError::OutOfRange);
-    EXPECT_PARSE_TO_HAVE_ERROR("-10e10000", AK::FloatingPointError::OutOfRange);
+    EXPECT_PARSE_TO_HAVE_ERROR("10e-10000", 0.0);
+    EXPECT_PARSE_TO_HAVE_ERROR("-10e-10000", -0.0);
+    EXPECT_PARSE_TO_HAVE_ERROR("10e10000", INFINITY);
+    EXPECT_PARSE_TO_HAVE_ERROR("-10e10000", -INFINITY);
 }
 
 static bool parse_completely_passes(StringView view)
 {
-    char const* start = view.characters_without_null_termination();
-    return parse_floating_point_completely<double>(start, start + view.length()).has_value();
+    return AK::parse_number<double>(view, TrimWhitespace::No).has_value();
 }
 
 TEST_CASE(parse_completely_must_be_just_floating_point)
@@ -406,173 +397,6 @@ TEST_CASE(parse_completely_must_be_just_floating_point)
     EXPECT_PARSE_COMPLETELY_TO_FAIL("1234567=890");
 }
 
-static double newhex(char const* view)
-{
-    auto value = parse_first_hexfloat_until_zero_character<double>(view);
-    VERIFY(value.error == AK::FloatingPointError::None);
-    return value.value;
-}
-
-static float newhexf(char const* view)
-{
-    auto value = parse_first_hexfloat_until_zero_character<float>(view);
-    VERIFY(value.error == AK::FloatingPointError::None);
-    return value.value;
-}
-
-TEST_CASE(hexfloat)
-{
-
-#define DOES_PARSE_HEX_DOUBLE_LIKE_CPP(value)                       \
-    do {                                                            \
-        EXPECT_EQ(static_cast<double>(value), newhex(#value));      \
-        EXPECT_EQ(-static_cast<double>(value), newhex("-" #value)); \
-    } while (false)
-
-#define DOES_PARSE_HEX_FLOAT_LIKE_CPP(value)                           \
-    do {                                                               \
-        EXPECT_EQ(static_cast<float>(value##f), newhexf(#value));      \
-        EXPECT_EQ(-static_cast<float>(value##f), newhexf("-" #value)); \
-    } while (false)
-
-#define DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(value) \
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(value);              \
-    DOES_PARSE_HEX_FLOAT_LIKE_CPP(value)
-
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x123456789ABCDEFp0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x123456789ABCDEFp+0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x123456789ABCDEFp-0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x123456789ABCDEF.p-0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x123456789ABCDEF.123456789ABCDEFp-0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x123456789ABCDEF.123456789ABCDEFp-1);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x123456789ABCDEF.123456789ABCDEFp+1);
-
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c0p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c00p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c000p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c001p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c10001p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c8p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c8001p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c80000000000000000000000000000000000000000000000000000000001p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c80000000000000000000000000000000000000000000000000000000000p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffp+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c9p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c9001p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x180eafb89ba47c9.001p+52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x180eafb89ba47c9.001p-4);
-
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-1075);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-1075);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-1040);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-1040);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-999);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-999);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-788);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-788);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-632);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-632);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-408);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-408);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-189);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-189);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-76);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-76);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-52);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-25);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-25);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-13);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-13);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp-3);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p-3);
-
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+3);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+3);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+6);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+6);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+13);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+13);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+19);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+19);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+154);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+154);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+298);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+298);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+455);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+455);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+692);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+692);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+901);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+901);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47cp+1023);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.80eafb89ba47c1p+1023);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x.80eafb89ba47cp+1024);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x.80eafb89ba47c1p+1024);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x.080eafb89ba47cp+1025);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x.080eafb89ba47c1p+1025);
-
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.c5e1463479f8ep+218);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.c5e1463479f8e8p+218);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.c5e1463479f8e80p+218);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.c5e1463479f8e800p+218);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.c5e1463479f8e8001p+218);
-
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.42100a53adbd5p-1024);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.d542100a53adbp-1023);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.fffffffffffffp-1023);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.fffffffffffff9p-1023);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.fffffffffffff8p-1023);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.fffffffffffff7p-1023);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.fffffffffffff800000001p-1023);
-
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1p-1022);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x2p-1022);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x3p-1022);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x1.0p-1022);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x000000000000000000000000000000000001.0p-1022);
-    DOES_PARSE_HEX_DOUBLE_LIKE_CPP(0x000000000000000000000000000000000001.000000000000000000p-1022);
-
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xCap0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xCAp0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xcAp0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xcAP0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xcaP0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xcap0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xcap1);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xca.p1);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0xc.ap1);
-
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x1.p0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x11.p0);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x11.p1);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x11.p2);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x11.p-2);
-    DOES_PARSE_HEX_FLOAT_AND_DOUBLE_LIKE_CPP(0x11.p-0);
-}
-
-TEST_CASE(invalid_hex_floats)
-{
-#define EXPECT_HEX_PARSE_TO_VALUE_AND_CONSUME_CHARS(string_value, double_value, chars_parsed)     \
-    do {                                                                                          \
-        char const* c_str = string_value;                                                         \
-        auto result = parse_first_hexfloat_until_zero_character<double>(c_str);                   \
-        EXPECT(result.error == AK::FloatingPointError::None);                                     \
-        EXPECT_EQ(bit_cast<u64>(result.value), bit_cast<u64>(static_cast<double>(double_value))); \
-        EXPECT_EQ(result.end_ptr - c_str, chars_parsed);                                          \
-    } while (false)
-
-    EXPECT_HEX_PARSE_TO_VALUE_AND_CONSUME_CHARS("0xab.cdpef", 0xab.cdp0, 7);
-    EXPECT_HEX_PARSE_TO_VALUE_AND_CONSUME_CHARS("0xab.cdPef", 0xab.cdp0, 7);
-    EXPECT_HEX_PARSE_TO_VALUE_AND_CONSUME_CHARS("0xab.cdPEf", 0xab.cdp0, 7);
-    EXPECT_HEX_PARSE_TO_VALUE_AND_CONSUME_CHARS("0xab.cdPEF", 0xab.cdp0, 7);
-    EXPECT_HEX_PARSE_TO_VALUE_AND_CONSUME_CHARS("0xAB.cdPEF", 0xab.cdp0, 7);
-    EXPECT_HEX_PARSE_TO_VALUE_AND_CONSUME_CHARS("0xABCDPEF", 0xabcdp0, 6);
-    EXPECT_HEX_PARSE_TO_VALUE_AND_CONSUME_CHARS("0xCAPE", 0xCAp0, 4);
-}
-
 #define BENCHMARK_DOUBLE_PARSING(value, iterations)           \
     do {                                                      \
         auto data = #value##sv;                               \
@@ -601,4 +425,208 @@ BENCHMARK_CASE(float_with_exponent)
 BENCHMARK_CASE(inadequate_float)
 {
     BENCHMARK_DOUBLE_PARSING(7.4109846876186981626485318930233205854758970392148714663837852375101326090531312779794975454245398856969484704316857659638998506553390969459816219401617281718945106978546710679176872575177347315553307795408549809608457500958111373034747658096871009590975442271004757307809711118935784838675653998783503015228055934046593739791790738723868299395818481660169122019456499931289798411362062484498678713572180352209017023903285791732520220528974020802906854021606612375549983402671300035812486479041385743401875520901590172592547146296175134159774938718574737870961645638908718119841271673056017045493004705269590165763776884908267986972573366521765567941072508764337560846003984904972149117463085539556354188641513168478436313080237596295773983001708984375001e-324, 4);
+}
+
+TEST_CASE(signed_integer)
+{
+    auto value = AK::parse_number<int>(StringView());
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<int>(""sv);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<int>("a"sv);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<int>("+"sv);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<int>("-"sv);
+    EXPECT(!value.has_value());
+
+    auto actual = AK::parse_number<int>("0"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 0);
+
+    actual = AK::parse_number<int>("1"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 1);
+
+    actual = AK::parse_number<int>("+1"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 1);
+
+    actual = AK::parse_number<int>("-1"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), -1);
+
+    actual = AK::parse_number<int>("01"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 1);
+
+    actual = AK::parse_number<int>("12345"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 12345);
+
+    actual = AK::parse_number<int>("-12345"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), -12345);
+
+    actual = AK::parse_number<int>(" \t-12345 \n\n"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), -12345);
+
+    auto actual_i8 = AK::parse_number<i8>("-1"sv);
+    EXPECT(actual_i8.has_value());
+    EXPECT_EQ(actual_i8.value(), -1);
+    EXPECT_EQ(sizeof(actual_i8.value()), (size_t)1);
+    actual_i8 = AK::parse_number<i8>("128"sv);
+    EXPECT(!actual_i8.has_value());
+
+    auto actual_i16 = AK::parse_number<i16>("-1"sv);
+    EXPECT(actual_i16.has_value());
+    EXPECT_EQ(actual_i16.value(), -1);
+    EXPECT_EQ(sizeof(actual_i16.value()), (size_t)2);
+    actual_i16 = AK::parse_number<i16>("32768"sv);
+    EXPECT(!actual_i16.has_value());
+
+    auto actual_i32 = AK::parse_number<i32>("-1"sv);
+    EXPECT(actual_i32.has_value());
+    EXPECT_EQ(actual_i32.value(), -1);
+    EXPECT_EQ(sizeof(actual_i32.value()), (size_t)4);
+    actual_i32 = AK::parse_number<i32>("2147483648"sv);
+    EXPECT(!actual_i32.has_value());
+
+    auto actual_i64 = AK::parse_number<i64>("-1"sv);
+    EXPECT(actual_i64.has_value());
+    EXPECT_EQ(actual_i64.value(), -1);
+    EXPECT_EQ(sizeof(actual_i64.value()), (size_t)8);
+    actual_i64 = AK::parse_number<i64>("9223372036854775808"sv);
+    EXPECT(!actual_i64.has_value());
+}
+
+TEST_CASE(unsigned_integer)
+{
+    auto value = AK::parse_number<unsigned>(StringView());
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<unsigned>(""sv);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<unsigned>("a"sv);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<unsigned>("+"sv);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<unsigned>("-"sv);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<unsigned>("+1"sv);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<unsigned>("-1"sv);
+    EXPECT(!value.has_value());
+
+    auto actual = AK::parse_number<unsigned>("0"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 0u);
+
+    actual = AK::parse_number<unsigned>("1"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 1u);
+
+    actual = AK::parse_number<unsigned>("01"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 1u);
+
+    actual = AK::parse_number<unsigned>("12345"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 12345u);
+
+    actual = AK::parse_number<unsigned>(" \t12345 \n\n"sv);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 12345u);
+
+    auto actual_u8 = AK::parse_number<u8>("255"sv);
+    EXPECT(actual_u8.has_value());
+    EXPECT_EQ(actual_u8.value(), 255u);
+    EXPECT_EQ(sizeof(actual_u8.value()), (size_t)1);
+    actual_u8 = AK::parse_number<u8>("256"sv);
+    EXPECT(!actual_u8.has_value());
+
+    auto actual_u16 = AK::parse_number<u16>("65535"sv);
+    EXPECT(actual_u16.has_value());
+    EXPECT_EQ(actual_u16.value(), 65535u);
+    EXPECT_EQ(sizeof(actual_u16.value()), (size_t)2);
+    actual_u16 = AK::parse_number<u16>("65536"sv);
+    EXPECT(!actual_u16.has_value());
+
+    auto actual_u32 = AK::parse_number<u32>("4294967295"sv);
+    EXPECT(actual_u32.has_value());
+    EXPECT_EQ(actual_u32.value(), 4294967295ul);
+    EXPECT_EQ(sizeof(actual_u32.value()), (size_t)4);
+    actual_u32 = AK::parse_number<u32>("4294967296"sv);
+    EXPECT(!actual_u32.has_value());
+
+    auto actual_u64 = AK::parse_number<u64>("18446744073709551615"sv);
+    EXPECT(actual_u64.has_value());
+    EXPECT_EQ(actual_u64.value(), 18446744073709551615ull);
+    EXPECT_EQ(sizeof(actual_u64.value()), (size_t)8);
+    actual_u64 = AK::parse_number<u64>("18446744073709551616"sv);
+    EXPECT(!actual_u64.has_value());
+}
+
+TEST_CASE(octal)
+{
+    auto value = AK::parse_number<u16>(StringView(), AK::TrimWhitespace::No, 8);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<u16>(""sv, AK::TrimWhitespace::No, 8);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<u16>("a"sv, AK::TrimWhitespace::No, 8);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<u16>("+"sv, AK::TrimWhitespace::No, 8);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<u16>("-"sv, AK::TrimWhitespace::No, 8);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<u16>("+1"sv, AK::TrimWhitespace::No, 8);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<u16>("-1"sv, AK::TrimWhitespace::No, 8);
+    EXPECT(!value.has_value());
+
+    value = AK::parse_number<u16>("8"sv, AK::TrimWhitespace::No, 8);
+    EXPECT(!value.has_value());
+
+    auto actual = AK::parse_number<u16>("77777777"sv, AK::TrimWhitespace::No, 8);
+    EXPECT(!actual.has_value());
+
+    actual = AK::parse_number<u16>("0"sv, AK::TrimWhitespace::No, 8);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 0u);
+
+    actual = AK::parse_number<u16>("1"sv, AK::TrimWhitespace::No, 8);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 1u);
+
+    actual = AK::parse_number<u16>("0755"sv, AK::TrimWhitespace::No, 8);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 0755u);
+
+    actual = AK::parse_number<u16>("755"sv, AK::TrimWhitespace::No, 8);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 0755u);
+
+    actual = AK::parse_number<u16>(" \t644 \n\n"sv, AK::TrimWhitespace::Yes, 8);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 0644u);
+
+    actual = AK::parse_number<u16>("177777"sv, AK::TrimWhitespace::No, 8);
+    EXPECT_EQ(actual.has_value(), true);
+    EXPECT_EQ(actual.value(), 0177777u);
 }

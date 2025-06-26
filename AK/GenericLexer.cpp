@@ -132,7 +132,7 @@ ErrorOr<T> GenericLexer::consume_decimal_integer()
     if (number_view.is_empty())
         return Error::from_errno(EINVAL);
 
-    auto maybe_number = StringUtils::convert_to_uint<UnsignedT>(number_view, TrimWhitespace::No);
+    auto maybe_number = number_view.to_number<UnsignedT>(TrimWhitespace::No);
     if (!maybe_number.has_value())
         return Error::from_errno(ERANGE);
     auto number = maybe_number.value();

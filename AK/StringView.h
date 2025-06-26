@@ -14,6 +14,7 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/StdLibExtras.h>
+#include <AK/StringConversions.h>
 #include <AK/StringHash.h>
 #include <AK/StringUtils.h>
 
@@ -349,12 +350,7 @@ public:
     template<Arithmetic T>
     Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
     {
-        if constexpr (IsFloatingPoint<T>)
-            return StringUtils::convert_to_floating_point<T>(*this, trim_whitespace);
-        if constexpr (IsSigned<T>)
-            return StringUtils::convert_to_int<T>(*this, trim_whitespace);
-        else
-            return StringUtils::convert_to_uint<T>(*this, trim_whitespace);
+        return parse_number<T>(*this, trim_whitespace);
     }
 
 private:
