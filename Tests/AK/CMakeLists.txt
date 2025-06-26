@@ -90,7 +90,9 @@ set(AK_TEST_SOURCES
 if(NOT WIN32)
     list(APPEND AK_TEST_SOURCES TestLexicalPath.cpp)
 else()
-    list(APPEND AK_TEST_SOURCES TestDelayLoadWindows.cpp)
+    # FIXME: Using cpptrace for backtraces broke this.
+    # Using delayload would need to be added upstream or to an overlay port.
+    # list(APPEND AK_TEST_SOURCES TestDelayLoadWindows.cpp)
 endif()
 
 foreach(source IN LISTS AK_TEST_SOURCES)

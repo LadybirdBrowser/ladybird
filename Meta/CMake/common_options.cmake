@@ -5,8 +5,8 @@ endif()
 
 # Enable better flags for configuring swift compilation mode
 if (POLICY CMP0157)
-   cmake_policy(SET CMP0157 NEW)
-   set(CMAKE_Swift_COMPILATION_MODE "$<IF:$<CONFIG:Release>,wholemodule,incremental>")
+    cmake_policy(SET CMP0157 NEW)
+    set(CMAKE_Swift_COMPILATION_MODE "$<IF:$<CONFIG:Release>,wholemodule,incremental>")
 endif()
 
 # Check arguments to return()
@@ -42,7 +42,7 @@ ladybird_option(ENABLE_GUI_TARGETS ON CACHE BOOL "Enable building GUI targets")
 ladybird_option(ENABLE_INSTALL_HEADERS ON CACHE BOOL "Enable installing headers")
 ladybird_option(ENABLE_INSTALL_FREEDESKTOP_FILES ${freedesktop_files_default} CACHE BOOL "Enable installing .desktop and .service files")
 ladybird_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
-ladybird_option(ENABLE_STD_STACKTRACE OFF CACHE BOOL "Force use of std::stacktrace instead of libbacktrace. If it is not supported the build will fail")
+ladybird_option(ENABLE_STD_STACKTRACE ON CACHE BOOL "Enable use of std::stacktrace as the default. If not available falls back to backtrace.h")
 ladybird_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets supported on Windows for CI")
 
 if (ENABLE_FUZZERS_LIBFUZZER)
