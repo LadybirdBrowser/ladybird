@@ -57,10 +57,10 @@ WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t 
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
     if (offset + count > length)
-        return MUST(utf16_view.substring_view(offset).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+        return MUST(utf16_view.substring_view(offset).to_utf8());
 
     // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in node’s data.
-    return MUST(utf16_view.substring_view(offset, count).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(utf16_view.substring_view(offset, count).to_utf8());
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
@@ -99,7 +99,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // OPTIMIZATION: Skip UTF-8 encoding if the characters are the same.
     if (!characters_are_the_same) {
-        m_data = MUST(full_view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+        m_data = MUST(full_view.to_utf8());
     }
 
     // 4. Queue a mutation record of "characterData" for node with null, null, node’s data, « », « », null, and null.

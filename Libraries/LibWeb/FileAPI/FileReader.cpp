@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         builder.ensure_capacity(bytes.size());
         for (auto byte : bytes.bytes())
             builder.unchecked_append(byte);
-        return MUST(Utf16View { builder }.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+        return MUST(Utf16View { builder }.to_utf8());
     }
     VERIFY_NOT_REACHED();
 }

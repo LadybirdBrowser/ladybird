@@ -46,7 +46,7 @@ ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const& utf8_view)
         return Utf16ConversionResult { Utf16Data {}, 0 };
 
     // All callers want to allow lonely surrogates, which simdutf does not permit.
-    if (!utf8_view.validate(Utf8View::AllowSurrogates::No)) [[unlikely]]
+    if (!utf8_view.validate(AllowLonelySurrogates::No)) [[unlikely]]
         return to_utf16_slow(utf8_view);
 
     auto const* data = reinterpret_cast<char const*>(utf8_view.bytes());
@@ -95,14 +95,14 @@ size_t utf16_code_unit_length_from_utf8(StringView string)
     return simdutf::utf16_length_from_utf8(string.characters_without_null_termination(), string.length());
 }
 
-ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_units) const
+ErrorOr<String> Utf16View::to_utf8(AllowLonelySurrogates allow_lonely_surrogates) const
 {
     if (is_empty())
         return String {};
-    if (!validate(allow_invalid_code_units))
+    if (!validate(allow_lonely_surrogates))
         return Error::from_string_literal("Input was not valid UTF-16");
 
-    if (allow_invalid_code_units == AllowInvalidCodeUnits::No) {
+    if (allow_lonely_surrogates == AllowLonelySurrogates::No) {
         String result;
         auto utf8_length = simdutf::utf8_length_from_utf16(m_string, length_in_code_units());
 
@@ -120,9 +120,9 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
     return builder.to_string();
 }
 
-ErrorOr<ByteString> Utf16View::to_byte_string(AllowInvalidCodeUnits allow_invalid_code_units) const
+ErrorOr<ByteString> Utf16View::to_byte_string(AllowLonelySurrogates allow_lonely_surrogates) const
 {
-    return TRY(to_utf8(allow_invalid_code_units)).to_byte_string();
+    return TRY(to_utf8(allow_lonely_surrogates)).to_byte_string();
 }
 
 bool Utf16View::is_ascii() const
@@ -130,7 +130,7 @@ bool Utf16View::is_ascii() const
     return simdutf::validate_ascii(reinterpret_cast<char const*>(m_string), length_in_code_units() * sizeof(char16_t));
 }
 
-bool Utf16View::validate(size_t& valid_code_units, AllowInvalidCodeUnits allow_invalid_code_units) const
+bool Utf16View::validate(size_t& valid_code_units, AllowLonelySurrogates allow_lonely_surrogates) const
 {
     auto view = *this;
     valid_code_units = 0;
@@ -141,7 +141,7 @@ bool Utf16View::validate(size_t& valid_code_units, AllowInvalidCodeUnits allow_i
 
         if (result.error == simdutf::SUCCESS)
             return true;
-        if (allow_invalid_code_units == AllowInvalidCodeUnits::No || result.error != simdutf::SURROGATE)
+        if (allow_lonely_surrogates == AllowLonelySurrogates::No || result.error != simdutf::SURROGATE)
             return false;
 
         view = view.substring_view(result.count + 1);
@@ -219,10 +219,8 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
 
 size_t Utf16View::calculate_length_in_code_points() const
 {
-    // FIXME: simdutf's code point length method assumes valid UTF-16, whereas Utf16View uses U+FFFD as a replacement
-    //        for invalid code points. If we change Utf16View to only accept valid encodings as an invariant, we can
-    //        remove this branch.
-    if (validate()) [[likely]]
+    // simdutf's code point length method assumes valid UTF-16, whereas we allow lonely surrogates.
+    if (validate(AllowLonelySurrogates::No)) [[likely]]
         return simdutf::count_utf16(m_string, length_in_code_units());
 
     size_t code_points = 0;

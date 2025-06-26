@@ -56,13 +56,13 @@ TEST_CASE(encode_utf8)
         auto utf8_string = "Привет, мир! 😀 γειά σου κόσμος こんにちは世界"_string;
         auto string = MUST(AK::utf8_to_utf16(utf8_string));
         Utf16View view { string };
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), utf8_string);
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No)), utf8_string);
+        EXPECT_EQ(MUST(view.to_utf8(AllowLonelySurrogates::Yes)), utf8_string);
+        EXPECT_EQ(MUST(view.to_utf8(AllowLonelySurrogates::No)), utf8_string);
     }
     {
         Utf16View view { u"\xd83d"sv };
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
-        EXPECT(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No).is_error());
+        EXPECT_EQ(MUST(view.to_utf8(AllowLonelySurrogates::Yes)), "\xed\xa0\xbd"sv);
+        EXPECT(view.to_utf8(AllowLonelySurrogates::No).is_error());
     }
 }
 
@@ -99,8 +99,8 @@ TEST_CASE(null_view)
     EXPECT(view.validate());
     EXPECT_EQ(view.length_in_code_units(), 0zu);
     EXPECT_EQ(view.length_in_code_points(), 0zu);
-    EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No)), ""sv);
-    EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), ""sv);
+    EXPECT_EQ(MUST(view.to_utf8(AllowLonelySurrogates::No)), ""sv);
+    EXPECT_EQ(MUST(view.to_utf8(AllowLonelySurrogates::Yes)), ""sv);
 
     for ([[maybe_unused]] auto it : view)
         FAIL("Iterating a null UTF-16 string should not produce any values");
@@ -187,81 +187,81 @@ TEST_CASE(validate_invalid_utf16)
     {
         // Lonely high surrogate.
         invalid = u"\xd800"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 0uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 1uz);
 
         invalid = u"\xdbff"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 0uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 1uz);
     }
     {
         // Lonely low surrogate.
         invalid = u"\xdc00"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 0uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 1uz);
 
         invalid = u"\xdfff"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 0uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 1uz);
     }
     {
         // High surrogate followed by non-surrogate.
         invalid = u"\xd800\x0000"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 0uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 2uz);
 
         invalid = u"\xd800\xe000"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 0uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 2uz);
     }
     {
         // High surrogate followed by high surrogate.
         invalid = u"\xd800\xd800"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 0uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 2uz);
 
         invalid = u"\xd800\xdbff"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 0uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 2uz);
     }
     {
         // Valid UTF-16 followed by invalid code units.
         invalid = u"\x0041\x0041\xd800"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 2uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 3uz);
 
         invalid = u"\x0041\x0041\xd800"sv;
-        EXPECT(!invalid.validate(valid_code_units));
+        EXPECT(!invalid.validate(valid_code_units, AllowLonelySurrogates::No));
         EXPECT_EQ(valid_code_units, 2uz);
 
-        EXPECT(invalid.validate(valid_code_units, Utf16View::AllowInvalidCodeUnits::Yes));
+        EXPECT(invalid.validate(valid_code_units, AllowLonelySurrogates::Yes));
         EXPECT_EQ(valid_code_units, 3uz);
     }
 }
@@ -368,8 +368,8 @@ TEST_CASE(substring_view)
         view = view.substring_view(7, 1);
 
         EXPECT(view.length_in_code_units() == 1);
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
-        EXPECT(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No).is_error());
+        EXPECT_EQ(MUST(view.to_utf8(AllowLonelySurrogates::Yes)), "\xed\xa0\xbd"sv);
+        EXPECT(view.to_utf8(AllowLonelySurrogates::No).is_error());
     }
 }
 

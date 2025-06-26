@@ -1393,7 +1393,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
 
                 // 2. Let groupName be the substring of templateRemainder from 2 to gtPos.
                 auto group_name_view = template_remainder.substring_view(2, *greater_than_position - 2);
-                auto group_name = MUST(group_name_view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+                auto group_name = MUST(group_name_view.to_utf8());
 
                 // 3. Assert: namedCaptures is an Object.
                 VERIFY(named_captures.is_object());
@@ -1435,7 +1435,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     }
 
     // 6. Return result.
-    return MUST(Utf16View { result }.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(Utf16View { result }.to_utf8());
 }
 
 void DisposeCapability::visit_edges(GC::Cell::Visitor& visitor) const
