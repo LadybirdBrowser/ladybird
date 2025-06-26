@@ -125,12 +125,12 @@ Utf16View Utf16String::substring_view(size_t code_unit_offset) const
 
 String Utf16String::to_utf8() const
 {
-    return MUST(view().to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(view().to_utf8());
 }
 
 ByteString Utf16String::to_byte_string() const
 {
-    return MUST(view().to_byte_string(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(view().to_byte_string());
 }
 
 u16 Utf16String::code_unit_at(size_t index) const

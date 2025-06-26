@@ -102,11 +102,6 @@ class Utf16View {
 public:
     using Iterator = Utf16CodePointIterator;
 
-    enum class AllowInvalidCodeUnits {
-        No,
-        Yes,
-    };
-
     Utf16View() = default;
     ~Utf16View() = default;
 
@@ -130,8 +125,8 @@ public:
     {
     }
 
-    ErrorOr<String> to_utf8(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
-    ErrorOr<ByteString> to_byte_string(AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+    ErrorOr<String> to_utf8(AllowLonelySurrogates = AllowLonelySurrogates::Yes) const;
+    ErrorOr<ByteString> to_byte_string(AllowLonelySurrogates = AllowLonelySurrogates::Yes) const;
 
     [[nodiscard]] constexpr ReadonlySpan<char16_t> span() const
     {
@@ -187,13 +182,13 @@ public:
     [[nodiscard]] constexpr bool is_empty() const { return length_in_code_units() == 0; }
     [[nodiscard]] bool is_ascii() const;
 
-    [[nodiscard]] ALWAYS_INLINE bool validate(AllowInvalidCodeUnits allow_invalid_code_units = AllowInvalidCodeUnits::No) const
+    [[nodiscard]] ALWAYS_INLINE bool validate(AllowLonelySurrogates allow_lonely_surrogates = AllowLonelySurrogates::Yes) const
     {
         size_t valid_code_units = 0;
-        return validate(valid_code_units, allow_invalid_code_units);
+        return validate(valid_code_units, allow_lonely_surrogates);
     }
 
-    [[nodiscard]] bool validate(size_t& valid_code_units, AllowInvalidCodeUnits = AllowInvalidCodeUnits::No) const;
+    [[nodiscard]] bool validate(size_t& valid_code_units, AllowLonelySurrogates = AllowLonelySurrogates::Yes) const;
 
     [[nodiscard]] constexpr size_t length_in_code_units() const { return m_length_in_code_units; }
 
