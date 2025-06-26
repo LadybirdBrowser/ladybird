@@ -464,6 +464,12 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         component_values.append(token);
     }
 
+    if (component_values.size() == 1) {
+        auto tokens = TokenStream { component_values };
+        if (auto parsed_value = parse_builtin_value(tokens))
+            return parsed_value.release_nonnull();
+    }
+
     if (property_id == PropertyID::Custom || contains_arbitrary_substitution_function)
         return UnresolvedStyleValue::create(move(component_values), contains_arbitrary_substitution_function, original_source_text);
 
@@ -471,11 +477,6 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         return ParseError::SyntaxError;
 
     auto tokens = TokenStream { component_values };
-
-    if (component_values.size() == 1) {
-        if (auto parsed_value = parse_builtin_value(tokens))
-            return parsed_value.release_nonnull();
-    }
 
     // Special-case property handling
     switch (property_id) {

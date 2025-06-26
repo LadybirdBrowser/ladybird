@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+#a { --foo: "Hello"; }
+#b { --bar: var(--foo) "world!"; }
+</style>
+<div id="a"><div id="b"></div></div>
+<script>
+    test(() => {
+        println(getComputedStyle(document.getElementById("b")).getPropertyValue("--bar"));
+    });
+</script>
