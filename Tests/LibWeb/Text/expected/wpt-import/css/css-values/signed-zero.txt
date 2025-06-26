@@ -1,0 +1,168 @@
+Harness status: OK
+
+Found 162 tests
+
+154 Pass
+8 Fail
+Pass	sign(calc(-0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-0)), 1) should be used-value-equivalent to -1
+Pass	sign(calc( 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 0)), 1) should be used-value-equivalent to 1
+Pass	sign(calc(-0 * -1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-0 * -1)), 1) should be used-value-equivalent to 1
+Pass	sign(calc(-0 *  1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-0 *  1)), 1) should be used-value-equivalent to -1
+Pass	sign(calc( 0 * -1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 0 * -1)), 1) should be used-value-equivalent to -1
+Pass	sign(calc( 0 *  1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 0 *  1)), 1) should be used-value-equivalent to 1
+Pass	sign(calc(-1 / -infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-1 / -infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(calc(-1 /  infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-1 /  infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(calc( 1 / -infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 1 / -infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(calc( 1 /  infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 1 /  infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(calc(-0 + -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-0 + -0)), 1) should be used-value-equivalent to -1
+Pass	sign(calc(-0 +  0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-0 +  0)), 1) should be used-value-equivalent to 1
+Pass	sign(calc( 0 + -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 0 + -0)), 1) should be used-value-equivalent to 1
+Pass	sign(calc( 0 +  0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 0 +  0)), 1) should be used-value-equivalent to 1
+Pass	sign(calc(-0 - -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-0 - -0)), 1) should be used-value-equivalent to 1
+Pass	sign(calc(-0 -  0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc(-0 -  0)), 1) should be used-value-equivalent to -1
+Pass	sign(calc( 0 - -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 0 - -0)), 1) should be used-value-equivalent to 1
+Pass	sign(calc( 0 -  0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(calc( 0 -  0)), 1) should be used-value-equivalent to 1
+Pass	sign(min(-0,  0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(min(-0,  0)), 1) should be used-value-equivalent to -1
+Pass	sign(min( 0, -0)) should be used-value-equivalent to 0
+Fail	clamp(-1, 1 / sign(min( 0, -0)), 1) should be used-value-equivalent to -1
+Pass	sign(max(-0,  0)) should be used-value-equivalent to 0
+Fail	clamp(-1, 1 / sign(max(-0,  0)), 1) should be used-value-equivalent to 1
+Pass	sign(max( 0, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(max( 0, -0)), 1) should be used-value-equivalent to 1
+Pass	sign(clamp(-0, -1, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(-0, -1, -0)), 1) should be used-value-equivalent to -1
+Pass	sign(clamp(-0, -0, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(-0, -0, -0)), 1) should be used-value-equivalent to -1
+Pass	sign(clamp(-0,  0, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(-0,  0, -0)), 1) should be used-value-equivalent to -1
+Pass	sign(clamp(-0,  1, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(-0,  1, -0)), 1) should be used-value-equivalent to -1
+Pass	sign(clamp(-0, -1, 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(-0, -1, 0)), 1) should be used-value-equivalent to -1
+Pass	sign(clamp(-0, -0, 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(-0, -0, 0)), 1) should be used-value-equivalent to -1
+Pass	sign(clamp(-0,  0, 0)) should be used-value-equivalent to 0
+Fail	clamp(-1, 1 / sign(clamp(-0,  0, 0)), 1) should be used-value-equivalent to 1
+Pass	sign(clamp(-0,  1, 0)) should be used-value-equivalent to 0
+Fail	clamp(-1, 1 / sign(clamp(-0,  1, 0)), 1) should be used-value-equivalent to 1
+Pass	sign(clamp(0, -1, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(0, -1, -0)), 1) should be used-value-equivalent to 1
+Pass	sign(clamp(0, -0, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(0, -0, -0)), 1) should be used-value-equivalent to 1
+Pass	sign(clamp(0,  0, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(0,  0, -0)), 1) should be used-value-equivalent to 1
+Pass	sign(clamp(0,  1, -0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(clamp(0,  1, -0)), 1) should be used-value-equivalent to 1
+Pass	sign(round(nearest, -1, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(round(nearest, -1, infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(round(nearest, -0, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(round(nearest, -0, infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(round(nearest,  0, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(round(nearest,  0, infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(round(nearest,  1, infinity)) should be used-value-equivalent to 0
+Fail	clamp(-1, 1 / sign(round(nearest,  1, infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(round(up, -1, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(round(up, -1, infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(round(up, -0, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(round(up, -0, infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(round(up,  0, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(round(up,  0, infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(round(down, -0, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(round(down, -0, infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(round(down,  0, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(round(down,  0, infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(round(down,  1, infinity)) should be used-value-equivalent to 0
+Fail	clamp(-1, 1 / sign(round(down,  1, infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(mod(-1, -1)) should be used-value-equivalent to 0
+Fail	clamp(-1, 1 / sign(mod(-1, -1)), 1) should be used-value-equivalent to -1
+Pass	sign(mod(-1,  1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(mod(-1,  1)), 1) should be used-value-equivalent to 1
+Pass	sign(mod( 1, -1)) should be used-value-equivalent to 0
+Fail	clamp(-1, 1 / sign(mod( 1, -1)), 1) should be used-value-equivalent to -1
+Pass	sign(mod( 1,  1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(mod( 1,  1)), 1) should be used-value-equivalent to 1
+Pass	sign(rem(-1, -1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(rem(-1, -1)), 1) should be used-value-equivalent to -1
+Pass	sign(rem(-1,  1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(rem(-1,  1)), 1) should be used-value-equivalent to -1
+Pass	sign(rem( 1, -1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(rem( 1, -1)), 1) should be used-value-equivalent to 1
+Pass	sign(rem( 1,  1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(rem( 1,  1)), 1) should be used-value-equivalent to 1
+Pass	sign(asin(-0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(asin(-0)), 1) should be used-value-equivalent to -1
+Pass	sign(asin( 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(asin( 0)), 1) should be used-value-equivalent to 1
+Pass	sign(atan(-0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan(-0)), 1) should be used-value-equivalent to -1
+Pass	sign(atan( 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan( 0)), 1) should be used-value-equivalent to 1
+Pass	sign(atan2(-0, 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan2(-0, 0)), 1) should be used-value-equivalent to -1
+Pass	sign(atan2(-0, 1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan2(-0, 1)), 1) should be used-value-equivalent to -1
+Pass	sign(atan2(-0, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan2(-0, infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(atan2(0, 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan2(0, 0)), 1) should be used-value-equivalent to 1
+Pass	sign(atan2(0, 1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan2(0, 1)), 1) should be used-value-equivalent to 1
+Pass	sign(atan2(0, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan2(0, infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(atan2(-1, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan2(-1, infinity)), 1) should be used-value-equivalent to -1
+Pass	sign(atan2( 1, infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(atan2( 1, infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(pow(-infinity, -2)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(pow(-infinity, -2)), 1) should be used-value-equivalent to 1
+Pass	sign(pow(-infinity, -1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(pow(-infinity, -1)), 1) should be used-value-equivalent to -1
+Pass	sign(pow(-0, 1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(pow(-0, 1)), 1) should be used-value-equivalent to -1
+Pass	sign(pow(-0, 2)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(pow(-0, 2)), 1) should be used-value-equivalent to 1
+Pass	sign(pow(0, 1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(pow(0, 1)), 1) should be used-value-equivalent to 1
+Pass	sign(pow(0, 2)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(pow(0, 2)), 1) should be used-value-equivalent to 1
+Pass	sign(pow(infinity, -2)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(pow(infinity, -2)), 1) should be used-value-equivalent to 1
+Pass	sign(pow(infinity, -1)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(pow(infinity, -1)), 1) should be used-value-equivalent to 1
+Pass	sign(sqrt(-0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(sqrt(-0)), 1) should be used-value-equivalent to -1
+Pass	sign(sqrt( 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(sqrt( 0)), 1) should be used-value-equivalent to 1
+Pass	sign(hypot(-0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(hypot(-0)), 1) should be used-value-equivalent to 1
+Pass	sign(hypot( 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(hypot( 0)), 1) should be used-value-equivalent to 1
+Pass	sign(exp(-infinity)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(exp(-infinity)), 1) should be used-value-equivalent to 1
+Pass	sign(abs(-0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(abs(-0)), 1) should be used-value-equivalent to 1
+Pass	sign(abs( 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(abs( 0)), 1) should be used-value-equivalent to 1
+Pass	sign(sign(-0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(sign(-0)), 1) should be used-value-equivalent to -1
+Pass	sign(sign( 0)) should be used-value-equivalent to 0
+Pass	clamp(-1, 1 / sign(sign( 0)), 1) should be used-value-equivalent to 1

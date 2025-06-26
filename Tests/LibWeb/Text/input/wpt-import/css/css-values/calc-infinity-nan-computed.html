@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Infinity and NaN: calc() computed value.</title>
+<link rel="author" title="Seokho Song"  href="mailto:0xdevssh@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-values/#calc-type-checking">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+const REALLY_LARGE = 1e6;
+const REALLY_LARGE_NEGATIVE = -REALLY_LARGE;
+
+// For <length>
+test_computed_value("width", "calc(NaN * 1px)", "0px");
+test_computed_value("width", "calc(NaN * 1%)", "0px");
+testComputedValueGreaterOrLowerThan("width", "calc(infinity * 1px)", REALLY_LARGE);
+testComputedValueGreaterOrLowerThan("width", "calc(infinity * 1%)", REALLY_LARGE);
+testComputedValueGreaterOrLowerThan("width", "calc(infinity * 1cm)", REALLY_LARGE);
+test_computed_value("width", "calc(NaN * 1rem)", "0px");
+test_computed_value("width", "calc(10.135262721212548pc - 199pt / NaN)", "0px");
+
+test_computed_value("width", "max(15px, NaN * 1px)", "0px");
+test_computed_value("width", "max(NaN * 1px, 15px)", "0px");
+test_computed_value("width", "max(-15px, NaN * 1px)", "0px");
+test_computed_value("width", "max(NaN * 1px, -15px)", "0px");
+test_computed_value("width", "min(15px, NaN * 1px)", "0px");
+test_computed_value("width", "min(NaN * 1px, 15px)", "0px");
+test_computed_value("width", "min(-15px, NaN * 1px)", "0px");
+test_computed_value("width", "min(NaN * 1px, -15px)", "0px");
+
+test_computed_value("width", "calc(infinity * 1px - infinity * 1%)", "0px");
+testComputedValueGreaterOrLowerThan("width", "calc(infinity * 1px + infinity * 1%)", REALLY_LARGE);
+test_computed_value("width", "calc(min(NaN * 1px, infinity * 1px) + max(infinity * 1px, -infinity * 1px))", "0px");
+test_computed_value("width", "calc(infinity * 1px - max(infinity * 1%, 0%))", "0px");
+
+testComputedValueGreaterOrLowerThan("width", "calc(max(infinity * 1px, 10px))", REALLY_LARGE);
+
+testComputedValueGreaterOrLowerThan("margin-left", "calc(-infinity * 1px)", REALLY_LARGE_NEGATIVE);
+testComputedValueGreaterOrLowerThan("margin-left", "calc(min(1px, -infinity * 1%))", REALLY_LARGE_NEGATIVE);
+
+testComputedValueGreaterOrLowerThan("margin-left", "calc(-infinity * 1%)", REALLY_LARGE_NEGATIVE);
+testComputedValueGreaterOrLowerThan("margin-left", "calc(max(10000px, 0px) + min(-infinity * 1px, infinity * 1px))", REALLY_LARGE_NEGATIVE);
+
+testComputedValueGreaterOrLowerThan("margin-left", "calc(-infinity * 1px - infinity * 1px)", REALLY_LARGE_NEGATIVE);
+testComputedValueGreaterOrLowerThan("margin-left", "calc(min(-infinity * 1px, 10px))", REALLY_LARGE_NEGATIVE);
+
+// For <time>
+test_computed_value("animation-duration", "calc(NaN * 1s)", "0s");
+testComputedValueGreaterOrLowerThan("animation-duration", "calc(infinity * 1s)", REALLY_LARGE);
+testComputedValueGreaterOrLowerThan("animation-duration", "calc(1 / 0 * 1s)", REALLY_LARGE);
+testComputedValueGreaterOrLowerThan("animation-duration", "calc(max(infinity * 1s, 10s)", REALLY_LARGE);
+
+testComputedValueGreaterOrLowerThan("transition-delay", "calc(-infinity* 1s)", REALLY_LARGE_NEGATIVE);
+testComputedValueGreaterOrLowerThan("transition-delay", "calc(max(10000s, 0s) + min(-infinity * 1s, infinity * 1s))", REALLY_LARGE_NEGATIVE);
+testComputedValueGreaterOrLowerThan("transition-delay", "calc(min(-infinity * 1s, 10s))", REALLY_LARGE_NEGATIVE);
+
+// For <angle>
+testTransformValuesCloseTo("rotate(calc(infinity * 1deg))", 0.0001, "rotate(0deg)");
+testTransformValuesCloseTo("rotate(calc(-infinity * 1deg))", 0.0001, "rotate(0deg)");
+testTransformValuesCloseTo("rotate(calc(NaN * 1deg))", 0.0001, "rotate(0deg)");
+
+testTransformValuesCloseTo("rotate(calc(infinity * 1turn))", 0.0001, "rotate(0deg)");
+testTransformValuesCloseTo("rotate(calc(-infinity * 1turn))", 0.0001, "rotate(0deg)");
+testTransformValuesCloseTo("rotate(calc(NaN * 1turn))", 0.0001, "rotate(0deg)");
+
+testTransformValuesCloseTo("rotate(calc(infinity * 1rad))", 0.0001, "rotate(0deg)");
+testTransformValuesCloseTo("rotate(calc(-infinity * 1rad))", 0.0001, "rotate(0deg)");
+testTransformValuesCloseTo("rotate(calc(NaN * 1rad))", 0.0001, "rotate(0deg)");
+
+testTransformValuesCloseTo("rotate(calc(infinity * 1grad))", 0.0001, "rotate(0deg)");
+testTransformValuesCloseTo("rotate(calc(-infinity * 1grad))", 0.0001, "rotate(0deg)");
+testTransformValuesCloseTo("rotate(calc(NaN * 1grad))", 0.0001, "rotate(0deg)");
+
+</script>
+</body>
+</html>

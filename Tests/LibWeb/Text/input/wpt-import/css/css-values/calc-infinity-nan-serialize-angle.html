@@ -1,0 +1,55 @@
+<!DOCTYPE HTML>
+<title>Infinity and NaN: calc() serialization for length values.</title>
+<link rel="author" title="Seokho Song"  href="mailto:0xdevssh@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-values/#calc-type-checking">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/serialize-testcommon.js"></script>
+<div id="target"></div>
+<div id="log"></div>
+<script>
+function test_serialization(t,s, {prop="transform"}={}) {
+    test_specified_serialization(prop, t, s)
+}
+//TEST CASE                                            | EXPECTED
+var test_map = {
+    "1deg * NaN"                                       :"calc(NaN * 1deg)",
+    "1rad * NaN"                                       :"calc(NaN * 1deg)",
+    "1turn * NaN"                                      :"calc(NaN * 1deg)",
+    "1grad * nan"                                      :"calc(NaN * 1deg)",
+    "1deg * infinity / infinity"                       :"calc(NaN * 1deg)",
+    "1deg * 0 * infinity"                              :"calc(NaN * 1deg)",
+    "1deg * (infinity + -infinity)"                    :"calc(NaN * 1deg)",
+    "1deg * (-infinity + infinity)"                    :"calc(NaN * 1deg)",
+    "1deg * (infinity - infinity)"                     :"calc(NaN * 1deg)",
+    "1deg * infinity"                                  :"calc(infinity * 1deg)",
+    "1deg * -infinity"                                 :"calc(-infinity * 1deg)",
+    "1deg * iNFinIty"                                  :"calc(infinity * 1deg)",
+    "1deg * (infinity + infinity)"                     :"calc(infinity * 1deg)",
+    "1deg * (-infinity + -infinity)"                   :"calc(-infinity * 1deg)",
+    "1deg * 1/infinity"                                :"calc(0deg)",
+    "1deg * infinity * infinity"                       :"calc(infinity * 1deg)",
+    "1deg * -infinity * -infinity"                     :"calc(infinity * 1deg)",
+    "1 * max(INFinity*3deg, 0deg)"                     :"calc(infinity * 1deg)",
+    "1 * min(inFInity*4deg, 0deg)"                     :"calc(0deg)",
+    "1 * max(nAn*2deg, 0deg)"                          :"calc(NaN * 1deg)",
+    "1 * min(nan*3deg, 0deg)"                          :"calc(NaN * 1deg)",
+    "1 * clamp(-INFINITY*20deg, 0deg, infiniTY*10deg)" :"calc(0deg)",
+
+    "1deg * max(NaN, min(0,10))"                       :"calc(NaN * 1deg)",
+    "1deg * clamp(NaN, 0, 10)"                         :"calc(NaN * 1deg)",
+
+    "1deg * max(0, min(10, NaN))"                      :"calc(NaN * 1deg)",
+    "1deg * clamp(0, 10, NaN)"                         :"calc(NaN * 1deg)",
+
+    "1deg * max(0, min(NaN, 10))"                      :"calc(NaN * 1deg)",
+    "1deg * clamp(0, NaN, 10)"                         :"calc(NaN * 1deg)",
+
+    "1deg * clamp(-Infinity, 0, infinity)"             :"calc(0deg)",
+    "1deg * clamp(-inFinity, infinity, 10)"            :"calc(10deg)",
+};
+
+for (var exp in test_map) {
+    test_serialization("rotate(calc("+exp+"))", "rotate("+test_map[exp]+")");
+}
+</script>
