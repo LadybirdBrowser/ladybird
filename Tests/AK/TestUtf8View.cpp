@@ -51,8 +51,8 @@ TEST_CASE(decode_utf8)
 TEST_CASE(null_view)
 {
     Utf8View view;
-    EXPECT(view.validate(Utf8View::AllowSurrogates::No));
-    EXPECT(view.validate(Utf8View::AllowSurrogates::Yes));
+    EXPECT(view.validate(AllowLonelySurrogates::No));
+    EXPECT(view.validate(AllowLonelySurrogates::Yes));
     EXPECT_EQ(view.byte_length(), 0zu);
     EXPECT_EQ(view.length(), 0zu);
 
@@ -95,7 +95,7 @@ TEST_CASE(validate_invalid_ut8)
 
     char invalid_utf8_7[] = { (char)0xed, (char)0xa0, (char)0x80 }; // U+d800
     Utf8View utf8_7 { StringView { invalid_utf8_7, 3 } };
-    EXPECT(!utf8_7.validate(valid_bytes, Utf8View::AllowSurrogates::No));
+    EXPECT(!utf8_7.validate(valid_bytes, AllowLonelySurrogates::No));
     EXPECT(valid_bytes == 0);
 }
 

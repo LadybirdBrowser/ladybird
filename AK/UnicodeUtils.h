@@ -85,6 +85,11 @@ constexpr inline u16 LOW_SURROGATE_MAX = 0xdfff;
 constexpr inline u32 REPLACEMENT_CODE_POINT = 0xfffd;
 constexpr inline u32 FIRST_SUPPLEMENTARY_PLANE_CODE_POINT = 0x10000;
 
+enum class AllowLonelySurrogates {
+    No,
+    Yes,
+};
+
 [[nodiscard]] constexpr size_t code_unit_length_for_code_point(u32 code_point)
 {
     return code_point < FIRST_SUPPLEMENTARY_PLANE_CODE_POINT ? 1uz : 2uz;
@@ -201,3 +206,7 @@ constexpr ErrorOr<size_t> try_code_point_to_utf16(u32 code_point, Callback callb
 }
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::UnicodeUtils::AllowLonelySurrogates;
+#endif

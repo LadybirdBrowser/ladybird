@@ -181,7 +181,7 @@ public:
     {
         return m_view.visit(
             [](StringView view) { return view.to_byte_string(); },
-            [](Utf16View view) { return view.to_byte_string(Utf16View::AllowInvalidCodeUnits::Yes).release_value_but_fixme_should_propagate_errors(); },
+            [](Utf16View view) { return view.to_byte_string().release_value_but_fixme_should_propagate_errors(); },
             [](auto& view) {
                 StringBuilder builder;
                 for (auto it = view.begin(); it != view.end(); ++it)
@@ -194,7 +194,7 @@ public:
     {
         return m_view.visit(
             [](StringView view) { return String::from_utf8(view); },
-            [](Utf16View view) { return view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes); },
+            [](Utf16View view) { return view.to_utf8(); },
             [](auto& view) -> ErrorOr<String> {
                 StringBuilder builder;
                 for (auto it = view.begin(); it != view.end(); ++it)
