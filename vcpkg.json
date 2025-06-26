@@ -13,6 +13,10 @@
       "platform": "linux | windows | android | freebsd"
     },
     {
+      "name": "cpptrace",
+      "platform": "linux | windows | freebsd | osx"
+    },
+    {
       "name": "curl",
       "default-features": false,
       "features": [
