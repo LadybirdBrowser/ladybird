@@ -107,8 +107,6 @@ void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String>
         load_element().release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value);
-    } else if (name == HTML::AttributeNames::muted) {
-        set_muted(true);
     }
 }
 

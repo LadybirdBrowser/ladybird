@@ -832,6 +832,17 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         return IterationDecision::Continue;
     });
 
+    // AD-HOC: The muted attribute on media elements is only set if the muted content attribute is present when the element is first created.
+    if (element->is_html_media_element() && namespace_ == Namespace::HTML) {
+        // https://html.spec.whatwg.org/multipage/media.html#user-interface:attr-media-muted
+        // When a media element is created, if the element has a muted content attribute specified, then the muted IDL
+        // attribute should be set to true; otherwise, the user agents may set the value to the user's preferred value.
+        if (element->has_attribute(HTML::AttributeNames::muted)) {
+            auto& media_element = as<HTMLMediaElement>(*element);
+            media_element.set_muted(true);
+        }
+    }
+
     // 11. If willExecuteScript is true:
     if (will_execute_script) {
         // 1. Let queue be the result of popping from document's relevant agent's custom element reactions stack. (This will be the same element queue as was pushed above.)
