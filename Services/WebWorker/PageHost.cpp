@@ -77,10 +77,6 @@ Web::CSS::PreferredMotion PageHost::preferred_motion() const
     return Web::CSS::PreferredMotion::Auto;
 }
 
-void PageHost::start_display_list_rendering(Web::DevicePixelRect const&, Web::Painting::BackingStore&, Web::PaintOptions, Function<void()>&&)
-{
-}
-
 void PageHost::request_file(Web::FileRequest request)
 {
     m_client.request_file(move(request));

@@ -55,7 +55,7 @@ void NavigableContainerViewportPaintable::paint(PaintContext& context, PaintPhas
 
         context.display_list_recorder().add_clip_rect(clip_rect.to_type<int>());
 
-        DOM::Document::PaintConfig paint_config;
+        HTML::PaintConfig paint_config;
         paint_config.paint_overlay = context.should_paint_overlay();
         paint_config.should_show_line_box_borders = context.should_show_line_box_borders();
         auto display_list = const_cast<DOM::Document*>(hosted_document)->record_display_list(paint_config);

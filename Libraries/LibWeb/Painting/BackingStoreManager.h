@@ -6,12 +6,15 @@
 
 #pragma once
 
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Painting/BackingStore.h>
-#include <WebContent/Forward.h>
 
-namespace WebContent {
+namespace Web::Painting {
 
-class BackingStoreManager {
+class BackingStoreManager : public JS::Cell {
+    GC_CELL(BackingStoreManager, JS::Cell);
+    GC_DECLARE_ALLOCATOR(BackingStoreManager);
+
 public:
 #ifdef AK_OS_MACOS
     static void set_browser_mach_port(Core::MachPort&&);
@@ -39,18 +42,19 @@ public:
         return backing_store;
     }
 
-    BackingStoreManager(PageClient&);
+    virtual void visit_edges(Cell::Visitor& visitor) override;
+
+    BackingStoreManager(HTML::Navigable&);
 
 private:
     void swap_back_and_front();
 
-    // FIXME: We should come up with an ownership model for this class that makes the GC-checker happy
-    IGNORE_GC PageClient& m_page_client;
+    GC::Ref<HTML::Navigable> m_navigable;
 
     i32 m_front_bitmap_id { -1 };
     i32 m_back_bitmap_id { -1 };
-    RefPtr<Web::Painting::BackingStore> m_front_store;
-    RefPtr<Web::Painting::BackingStore> m_back_store;
+    RefPtr<Painting::BackingStore> m_front_store;
+    RefPtr<Painting::BackingStore> m_back_store;
     int m_next_bitmap_id { 0 };
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;

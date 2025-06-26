@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,6 +19,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BackingStore.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -27,47 +29,11 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TraversableNavigable);
 
-static RefPtr<Gfx::SkiaBackendContext> g_cached_skia_backend_context;
-
-static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
-{
-    if (!g_cached_skia_backend_context) {
-#ifdef AK_OS_MACOS
-        auto metal_context = Gfx::get_metal_context();
-        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
-#elif USE_VULKAN
-        auto maybe_vulkan_context = Gfx::create_vulkan_context();
-        if (maybe_vulkan_context.is_error()) {
-            dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
-            return {};
-        }
-
-        auto vulkan_context = maybe_vulkan_context.release_value();
-        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_vulkan_context(vulkan_context);
-#endif
-    }
-    return g_cached_skia_backend_context;
-}
-
 TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
-    : Navigable(page)
+    : Navigable(page, page->client().is_svg_page_client())
     , m_storage_shed(StorageAPI::StorageShed::create(page->heap()))
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
-    if (!page->client().is_svg_page_client()) {
-        auto display_list_player_type = page->client().display_list_player_type();
-        OwnPtr<Painting::DisplayListPlayerSkia> skia_player;
-        if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-            m_skia_backend_context = get_skia_backend_context();
-            skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
-        } else {
-            skia_player = make<Painting::DisplayListPlayerSkia>();
-        }
-
-        m_rendering_thread.set_skia_player(move(skia_player));
-        m_rendering_thread.set_skia_backend_context(m_skia_backend_context);
-        m_rendering_thread.start(display_list_player_type);
-    }
 }
 
 TraversableNavigable::~TraversableNavigable() = default;
@@ -1420,40 +1386,6 @@ GC::Ptr<DOM::Node> TraversableNavigable::currently_focused_area()
     return candidate;
 }
 
-void TraversableNavigable::set_viewport_size(CSSPixelSize size)
-{
-    Navigable::set_viewport_size(size);
-
-    // Invalidate the surface cache if the traversable changed size.
-    m_rendering_thread.clear_bitmap_to_surface_cache();
-}
-
-RefPtr<Painting::DisplayList> TraversableNavigable::record_display_list(DevicePixelRect const& content_rect, PaintOptions paint_options)
-{
-    m_needs_repaint = false;
-
-    auto document = active_document();
-    if (!document)
-        return {};
-
-    for (auto& navigable : all_navigables()) {
-        if (auto active_document = navigable->active_document(); active_document && active_document->paintable())
-            active_document->paintable()->refresh_scroll_state();
-    }
-
-    DOM::Document::PaintConfig paint_config;
-    paint_config.paint_overlay = paint_options.paint_overlay == PaintOptions::PaintOverlay::Yes;
-    paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
-    paint_config.canvas_fill_rect = Gfx::IntRect { {}, content_rect.size() };
-    return document->record_display_list(paint_config);
-}
-
-void TraversableNavigable::start_display_list_rendering(NonnullRefPtr<Painting::DisplayList> display_list, NonnullRefPtr<Painting::BackingStore> backing_store, Function<void()>&& callback)
-{
-    auto scroll_state_snapshot = active_document()->paintable()->scroll_state().snapshot();
-    m_rendering_thread.enqueue_rendering_task(move(display_list), move(scroll_state_snapshot), move(backing_store), move(callback));
-}
-
 // https://w3c.github.io/geolocation/#dfn-emulated-position-data
 Geolocation::EmulatedPositionData const& TraversableNavigable::emulated_position_data() const
 {
@@ -1466,6 +1398,37 @@ void TraversableNavigable::set_emulated_position_data(Geolocation::EmulatedPosit
 {
     VERIFY(is_top_level_traversable());
     m_emulated_position_data = data;
+}
+
+void TraversableNavigable::process_screenshot_requests()
+{
+    auto& client = page().client();
+    while (!m_screenshot_tasks.is_empty()) {
+        auto task = m_screenshot_tasks.dequeue();
+        if (task.node_id.has_value()) {
+            auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
+            if (!dom_node || !dom_node->paintable_box()) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
+            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
+            auto backing_store = Painting::BitmapBackingStore::create(*bitmap);
+            PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
+            start_display_list_rendering(backing_store, paint_config, [backing_store, &client] {
+                client.page_did_take_screenshot(backing_store->bitmap().to_shareable_bitmap());
+            });
+        } else {
+            auto scrollable_overflow_rect = active_document()->layout_node()->paintable_box()->scrollable_overflow_rect();
+            auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
+            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
+            auto backing_store = Painting::BitmapBackingStore::create(*bitmap);
+            PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
+            start_display_list_rendering(backing_store, paint_config, [backing_store, &client] {
+                client.page_did_take_screenshot(backing_store->bitmap().to_shareable_bitmap());
+            });
+        }
+    }
 }
 
 }

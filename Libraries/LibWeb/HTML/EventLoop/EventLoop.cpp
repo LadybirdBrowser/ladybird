@@ -468,16 +468,14 @@ void EventLoop::update_the_rendering()
 
     // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
     for (auto& document : docs) {
-        document->page().client().process_screenshot_requests();
         auto navigable = document->navigable();
         if (!navigable->is_traversable())
             continue;
         auto traversable = navigable->traversable_navigable();
-        if (traversable && traversable->needs_repaint()) {
-            auto& page = traversable->page();
-            VERIFY(page.client().is_ready_to_paint());
-            page.client().paint_next_frame();
-        }
+        traversable->process_screenshot_requests();
+        if (!navigable->needs_repaint())
+            continue;
+        navigable->paint_next_frame();
     }
 
     // 23. For each doc of docs, process top layer removals given doc.
