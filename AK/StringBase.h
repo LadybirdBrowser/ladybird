@@ -86,6 +86,12 @@ public:
         return replace_with_new_string(byte_count, forward<Func>(callback));
     }
 
+    template<typename Func>
+    ALWAYS_INLINE ErrorOr<void> replace_with_new_string(Badge<Utf16View>, size_t byte_count, Func&& callback)
+    {
+        return replace_with_new_string(byte_count, forward<Func>(callback));
+    }
+
 protected:
     template<typename Func>
     ErrorOr<void> replace_with_new_string(size_t byte_count, Func&& callback)

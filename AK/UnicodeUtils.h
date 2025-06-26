@@ -158,7 +158,7 @@ constexpr ErrorOr<size_t> try_code_point_to_utf16(u32 code_point, Callback callb
  * Compute the maximum number of UTF-8 bytes needed to store a given UTF-16 string, accounting for unmatched UTF-16 surrogates.
  * This function will overcount by at most 33%; 2 bytes for every valid UTF-16 codepoint between U+100000 and U+10FFFF.
  */
-[[nodiscard]] static inline size_t maximum_utf8_length_from_utf16(ReadonlySpan<u16> code_units)
+[[nodiscard]] static inline size_t maximum_utf8_length_from_utf16(ReadonlySpan<char16_t> code_units)
 {
     // # UTF-8 code point -> no. UTF-8 bytes needed
     // U+0000   - U+007F   => 1 UTF-8 bytes

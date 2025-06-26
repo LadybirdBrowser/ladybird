@@ -159,8 +159,7 @@ String icu_string_to_string(icu::UnicodeString const& string)
 
 String icu_string_to_string(UChar const* string, i32 length)
 {
-    ReadonlySpan<u16> view { reinterpret_cast<u16 const*>(string), static_cast<size_t>(length) };
-    return MUST(Utf16View { view }.to_utf8());
+    return MUST(Utf16View { string, static_cast<size_t>(length) }.to_utf8());
 }
 
 }

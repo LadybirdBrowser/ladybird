@@ -106,7 +106,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         return JS::ArrayBuffer::create(realm, move(bytes));
     case Type::BinaryString:
         // Return bytes as a binary string, in which every byte is represented by a code unit of equal value [0..255].
-        Vector<u16> builder;
+        Utf16Data builder;
         builder.ensure_capacity(bytes.size());
         for (auto byte : bytes.bytes())
             builder.unchecked_append(byte);

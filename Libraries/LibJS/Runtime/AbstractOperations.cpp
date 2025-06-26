@@ -1271,33 +1271,33 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
         Optional<Utf16String> capture_string;
 
         // b. If templateRemainder starts with "$$", then
-        if (template_remainder.starts_with(u"$$")) {
+        if (template_remainder.starts_with(u"$$"sv)) {
             // i. Let ref be "$$".
-            ref = u"$$";
+            ref = u"$$"sv;
 
             // ii. Let refReplacement be "$".
-            ref_replacement = u"$";
+            ref_replacement = u"$"sv;
         }
         // c. Else if templateRemainder starts with "$`", then
-        else if (template_remainder.starts_with(u"$`")) {
+        else if (template_remainder.starts_with(u"$`"sv)) {
             // i. Let ref be "$`".
-            ref = u"$`";
+            ref = u"$`"sv;
 
             // ii. Let refReplacement be the substring of str from 0 to position.
             ref_replacement = str.substring_view(0, position);
         }
         // d. Else if templateRemainder starts with "$&", then
-        else if (template_remainder.starts_with(u"$&")) {
+        else if (template_remainder.starts_with(u"$&"sv)) {
             // i. Let ref be "$&".
-            ref = u"$&";
+            ref = u"$&"sv;
 
             // ii. Let refReplacement be matched.
             ref_replacement = matched;
         }
         // e. Else if templateRemainder starts with "$'" (0x0024 (DOLLAR SIGN) followed by 0x0027 (APOSTROPHE)), then
-        else if (template_remainder.starts_with(u"$'")) {
+        else if (template_remainder.starts_with(u"$'"sv)) {
             // i. Let ref be "$'".
-            ref = u"$'";
+            ref = u"$'"sv;
 
             // ii. Let matchLength be the length of matched.
             auto match_length = matched.length_in_code_units();
@@ -1311,7 +1311,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
             // v. NOTE: tailPos can exceed stringLength only if this abstract operation was invoked by a call to the intrinsic @@replace method of %RegExp.prototype% on an object whose "exec" property is not the intrinsic %RegExp.prototype.exec%.
         }
         // f. Else if templateRemainder starts with "$" followed by 1 or more decimal digits, then
-        else if (template_remainder.starts_with(u"$") && template_remainder.length_in_code_units() > 1 && is_ascii_digit(template_remainder.code_unit_at(1))) {
+        else if (template_remainder.starts_with(u"$"sv) && template_remainder.length_in_code_units() > 1 && is_ascii_digit(template_remainder.code_unit_at(1))) {
             // i. If templateRemainder starts with "$" followed by 2 or more decimal digits, let digitCount be 2. Otherwise, let digitCount be 1.
             size_t digit_count = 1;
 
@@ -1373,15 +1373,15 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
             }
         }
         // g. Else if templateRemainder starts with "$<", then
-        else if (template_remainder.starts_with(u"$<")) {
+        else if (template_remainder.starts_with(u"$<"sv)) {
             // i. Let gtPos be StringIndexOf(templateRemainder, ">", 0).
             // NOTE: We can actually start at index 2 because we know the string starts with "$<".
-            auto greater_than_position = string_index_of(template_remainder, u">", 2);
+            auto greater_than_position = string_index_of(template_remainder, u">"sv, 2);
 
             // ii. If gtPos = -1 or namedCaptures is undefined, then
             if (!greater_than_position.has_value() || named_captures.is_undefined()) {
                 // 1. Let ref be "$<".
-                ref = u"$<";
+                ref = u"$<"sv;
 
                 // 2. Let refReplacement be ref.
                 ref_replacement = ref;
@@ -1427,7 +1427,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
         auto ref_length = ref.length_in_code_units();
 
         // k. Set result to the string-concatenation of result and refReplacement.
-        result.append(ref_replacement.data(), ref_replacement.length_in_code_points());
+        result.append(ref_replacement.span().data(), ref_replacement.length_in_code_units());
 
         // j. Set templateRemainder to the substring of templateRemainder from refLength.
         // NOTE: We do this step last because refReplacement may point to templateRemainder.

@@ -93,22 +93,7 @@ ErrorOr<String> String::from_utf16_be(ReadonlyBytes bytes)
 
 ErrorOr<String> String::from_utf16(Utf16View const& utf16)
 {
-    if (!utf16.validate())
-        return Error::from_string_literal("String::from_utf16: Input was not valid UTF-16");
-    if (utf16.is_empty())
-        return String {};
-
-    String result;
-
-    auto utf8_length = simdutf::utf8_length_from_utf16(utf16.char_data(), utf16.length_in_code_units());
-
-    TRY(result.replace_with_new_string(utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
-        [[maybe_unused]] auto result = simdutf::convert_utf16_to_utf8(utf16.char_data(), utf16.length_in_code_units(), reinterpret_cast<char*>(buffer.data()));
-        ASSERT(result == buffer.size());
-        return {};
-    }));
-
-    return result;
+    return utf16.to_utf8();
 }
 
 ErrorOr<String> String::from_stream(Stream& stream, size_t byte_count)
