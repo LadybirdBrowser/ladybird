@@ -1,0 +1,21 @@
+<!doctype html>
+<title>Sandboxed document.domain</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+  test(() => {
+    assert_throws_dom("SecurityError", () => { document.domain = document.domain });
+  });
+  test(() => {
+    assert_throws_dom("SecurityError", () => { (new Document).domain = document.domain });
+  });
+  test(() => {
+    assert_throws_dom("SecurityError", () => { document.implementation.createHTMLDocument().domain = document.domain });
+  });
+  test(() => {
+    assert_throws_dom("SecurityError", () => { document.implementation.createDocument(null, "").domain = document.domain });
+  });
+  test(() => {
+    assert_throws_dom("SecurityError", () => { document.createElement("template").content.ownerDocument.domain = document.domain });
+  });
+</script>

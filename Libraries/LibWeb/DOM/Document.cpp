@@ -3813,9 +3813,85 @@ String Document::domain() const
     return effective_domain->serialize();
 }
 
-void Document::set_domain(String const& domain)
+// https://html.spec.whatwg.org/multipage/browsers.html#is-a-registrable-domain-suffix-of-or-is-equal-to
+static bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host)
 {
+    // 1. If hostSuffixString is the empty string, then return false.
+    if (host_suffix_string.is_empty())
+        return false;
+
+    // 2. Let hostSuffix be the result of parsing hostSuffixString.
+    auto host_suffix = URL::Parser::parse_host(host_suffix_string);
+
+    // 3. If hostSuffix is failure, then return false.
+    if (!host_suffix.has_value())
+        return false;
+
+    // 4. If hostSuffix does not equal originalHost, then:
+    if (host_suffix.value() != original_host) {
+        // 1. If hostSuffix or originalHost is not a domain, then return false.
+        // NOTE: This excludes hosts that are IP addresses.
+        if (!host_suffix->has<String>() || !original_host.has<String>())
+            return false;
+        auto const& host_suffix_string = host_suffix->get<String>();
+        auto const& original_host_string = original_host.get<String>();
+
+        // 2. If hostSuffix, prefixed by U+002E (.), does not match the end of originalHost, then return false.
+        auto prefixed_host_suffix = MUST(String::formatted(".{}", host_suffix_string));
+        if (!original_host_string.ends_with_bytes(prefixed_host_suffix))
+            return false;
+
+        // 3. If any of the following are true:
+        //     * hostSuffix equals hostSuffix's public suffix; or
+        //     * hostSuffix, prefixed by U+002E (.), matches the end of originalHost's public suffix,
+        //    then return false. [URL]
+        if (host_suffix_string == URL::get_public_suffix(host_suffix_string))
+            return false;
+
+        auto original_host_public_suffix = URL::get_public_suffix(original_host_string);
+        VERIFY(original_host_public_suffix.has_value());
+
+        if (original_host_public_suffix->ends_with_bytes(prefixed_host_suffix))
+            return false;
+
+        // 4. Assert: originalHost's public suffix, prefixed by U+002E (.), matches the end of hostSuffix.
+        VERIFY(host_suffix_string.ends_with_bytes(MUST(String::formatted(".{}", *original_host_public_suffix))));
+    }
+
+    // 5. Return true.
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/browsers.html#dom-document-domain
+WebIDL::ExceptionOr<void> Document::set_domain(String const& domain)
+{
+    auto& realm = this->realm();
+
+    // 1. If this's browsing context is null, then throw a "SecurityError" DOMException.
+    if (!m_browsing_context)
+        return WebIDL::SecurityError::create(realm, "Document.domain setter requires a browsing context"_string);
+
+    // 2. If this's active sandboxing flag set has its sandboxed document.domain browsing context flag set, then throw a "SecurityError" DOMException.
+    if (has_flag(active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedDocumentDomain))
+        return WebIDL::SecurityError::create(realm, "Document.domain setter is sandboxed"_string);
+
+    // 3. Let effectiveDomain be this's origin's effective domain.
+    auto effective_domain = origin().effective_domain();
+
+    // 4. If effectiveDomain is null, then throw a "SecurityError" DOMException.
+    if (!effective_domain.has_value())
+        return WebIDL::SecurityError::create(realm, "Document.domain setter called on a Document with a null effective domain"_string);
+
+    // 5. If the given value is not a registrable domain suffix of and is not equal to effectiveDomain, then throw a "SecurityError" DOMException.
+    if (!is_a_registrable_domain_suffix_of_or_is_equal_to(domain, effective_domain.value()))
+        return WebIDL::SecurityError::create(realm, "Document.domain setter called for an invalid domain"_string);
+
+    // FIXME: 6. If the surrounding agent's agent cluster's is origin-keyed is true, then return.
+
+    // FIXME: 7. Set this's origin's domain to the result of parsing the given value.
+
     dbgln("(STUBBED) Document::set_domain(domain='{}')", domain);
+    return {};
 }
 
 void Document::set_navigation_id(Optional<String> navigation_id)
