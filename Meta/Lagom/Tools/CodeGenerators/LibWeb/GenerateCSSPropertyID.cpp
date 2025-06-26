@@ -182,6 +182,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject&, Core::Fi
 #include <AK/NonnullRefPtr.h>
 #include <AK/StringView.h>
 #include <AK/Traits.h>
+#include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
@@ -254,6 +255,8 @@ enum class PropertyID : @property_id_underlying_type@ {
 
     generator.append(R"~~~(
 };
+
+using PropertyIDOrCustomPropertyName = Variant<PropertyID, FlyString>;
 
 enum class AnimationType {
     Discrete,
