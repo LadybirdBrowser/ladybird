@@ -1,0 +1,24 @@
+--- a/lib/jxl.cmake	2024-11-26 05:02:35.000000000 -0800
++++ b/lib/jxl.cmake	2025-06-26 08:37:25.999263200 -0700
+@@ -269,12 +269,15 @@
+ set(JPEGXL_LIBRARY_REQUIRES
+     "libhwy libbrotlienc libbrotlidec libjxl_cms")
+ 
+-if (BUILD_SHARED_LIBS)
+-  set(JPEGXL_REQUIRES_TYPE "Requires.private")
+-  set(JPEGXL_PRIVATE_LIBS "-lm ${PKGCONFIG_CXX_LIB}")
+-else()
+-  set(JPEGXL_REQUIRES_TYPE "Requires")
+-  set(JPEGXL_PUBLIC_LIBS "-lm ${PKGCONFIG_CXX_LIB}")
++# MSVCRT bundles math functions
++if(NOT MSVC)
++    if (BUILD_SHARED_LIBS)
++      set(JPEGXL_REQUIRES_TYPE "Requires.private")
++      set(JPEGXL_PRIVATE_LIBS "-lm ${PKGCONFIG_CXX_LIB}")
++    else()
++      set(JPEGXL_REQUIRES_TYPE "Requires")
++      set(JPEGXL_PUBLIC_LIBS "-lm ${PKGCONFIG_CXX_LIB}")
++    endif()
+ endif()
+ 
+ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/jxl/libjxl.pc.in"
