@@ -425,7 +425,9 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
     // FIXME: vkrn should be enabled for vertical text.
     switch (computed_values.font_kerning()) {
     case CSS::FontKerning::Auto:
-        // FIXME: Use a heuristic to determine whether to enable kerning.
+        // AD-HOC: Disable kerning if font-kerning is set to normal and text rendering is set to optimize speed.
+        features.set("kern"sv, computed_values.text_rendering() != CSS::TextRendering::Optimizespeed ? 1 : 0);
+        break;
     case CSS::FontKerning::Normal:
         features.set("kern"sv, 1);
         break;
