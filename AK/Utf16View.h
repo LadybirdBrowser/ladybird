@@ -14,6 +14,7 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/String.h>
+#include <AK/StringConversions.h>
 #include <AK/StringHash.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
@@ -208,6 +209,14 @@ public:
     {
         VERIFY(!has_ascii_storage());
         return { m_string.utf16, length_in_code_units() };
+    }
+
+    template<Arithmetic T>
+    ALWAYS_INLINE Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
+    {
+        if (has_ascii_storage())
+            return parse_number<T>(bytes(), trim_whitespace);
+        return parse_number<T>(*this, trim_whitespace);
     }
 
     [[nodiscard]] constexpr bool operator==(Utf16View const& other) const

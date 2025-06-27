@@ -88,6 +88,12 @@ public:
     StringView ascii_view() const&& = delete;
     Utf16View utf16_view() const&& = delete;
 
+    template<Arithmetic T>
+    ALWAYS_INLINE Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
+    {
+        return utf16_view().to_number<T>(trim_whitespace);
+    }
+
     ALWAYS_INLINE Utf16StringBase& operator=(Utf16StringBase const& other)
     {
         if (&other != this) {
