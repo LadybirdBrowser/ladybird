@@ -542,8 +542,6 @@ void HTMLInputElement::did_edit_text_node()
 
 void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state)
 {
-    set_is_open(false);
-
     if (type_state() == TypeAttributeState::Color && picked_color.has_value()) {
         // then when the user changes the element's value
         m_value = value_sanitization_algorithm(picked_color.value().to_string_without_alpha());
@@ -554,12 +552,13 @@ void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerU
         // the user agent must queue an element task on the user interaction task source
         user_interaction_did_change_input_value();
 
-        // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
-        // [...] any time the user commits the change, the user agent must queue an element task on the user interaction task source
         if (state == ColorPickerUpdateState::Closed) {
+            set_is_open(false);
+
+            // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
+            // [...] any time the user commits the change, the user agent must queue an element task on the user interaction task source given the input element to
             queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
-                // given the input element
-                // to set its user validity to true
+                // set its user validity to true
                 m_user_validity = true;
                 // and fire an event named change at the input element, with the bubbles attribute initialized to true.
                 auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
@@ -1327,7 +1326,7 @@ void HTMLInputElement::user_interaction_did_change_input_value()
     });
     // and any time the user commits the change, the user agent must queue an element task on the user interaction task source given the input
     // element to set its user validity to true and fire an event named change at the input element, with the bubbles attribute initialized to true.
-    // FIXME: Does this need to happen here?
+    // NOTE: This is done manually as needed
 }
 
 void HTMLInputElement::update_slider_shadow_tree_elements()
