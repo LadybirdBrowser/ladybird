@@ -2327,8 +2327,6 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     if (m_viewport_size == size)
         return;
 
-    m_rendering_thread.clear_bitmap_to_surface_cache();
-
     if (!m_is_svg_page) {
         m_backing_store_manager->restart_resize_timer();
         m_backing_store_manager->resize_backing_stores_if_needed(Web::Painting::BackingStoreManager::WindowResizingInProgress::Yes);
@@ -2557,8 +2555,8 @@ void Navigable::ready_to_paint()
 
 void Navigable::paint_next_frame()
 {
-    auto [backing_store_id, back_store] = m_backing_store_manager->acquire_store_for_next_frame();
-    if (!back_store)
+    auto [backing_store_id, painting_surface] = m_backing_store_manager->acquire_store_for_next_frame();
+    if (!painting_surface)
         return;
 
     VERIFY(m_number_of_queued_rasterization_tasks <= 1);
@@ -2566,7 +2564,7 @@ void Navigable::paint_next_frame()
 
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect());
     PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size().to_type<int>() } };
-    start_display_list_rendering(*back_store, paint_config, [this, viewport_rect, backing_store_id] {
+    start_display_list_rendering(*painting_surface, paint_config, [this, viewport_rect, backing_store_id] {
         if (!is_top_level_traversable())
             return;
         auto& traversable = *page().top_level_traversable();
@@ -2574,7 +2572,7 @@ void Navigable::paint_next_frame()
     });
 }
 
-void Navigable::start_display_list_rendering(Painting::BackingStore& target, PaintConfig paint_config, Function<void()>&& callback)
+void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
 {
     m_needs_repaint = false;
     auto document = active_document();
@@ -2589,7 +2587,7 @@ void Navigable::start_display_list_rendering(Painting::BackingStore& target, Pai
         return;
     }
     auto scroll_state_snapshot = document->paintable()->scroll_state().snapshot();
-    m_rendering_thread.enqueue_rendering_task(*display_list, move(scroll_state_snapshot), target, move(callback));
+    m_rendering_thread.enqueue_rendering_task(*display_list, move(scroll_state_snapshot), painting_surface, move(callback));
 }
 
 }

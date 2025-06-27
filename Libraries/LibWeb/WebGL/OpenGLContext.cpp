@@ -176,7 +176,6 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     VERIFY(!m_size.is_empty());
 
     auto iosurface = Core::IOSurfaceHandle::create(m_size.width(), m_size.height());
-    m_painting_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface, m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 
     auto width = m_size.width();
     auto height = m_size.height();
@@ -229,6 +228,8 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     glBindRenderbuffer(GL_RENDERBUFFER, m_impl->depth_buffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_impl->depth_buffer);
+
+    m_painting_surface = Gfx::PaintingSurface::create_from_iosurface(move(iosurface), m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 #endif
 }
 
