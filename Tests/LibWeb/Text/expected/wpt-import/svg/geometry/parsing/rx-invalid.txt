@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['rx'] = "10" should not set the property value
+Pass	e.style['rx'] = "none" should not set the property value
+Pass	e.style['rx'] = "10px 20px" should not set the property value
+Pass	e.style['rx'] = "-1px" should not set the property value
