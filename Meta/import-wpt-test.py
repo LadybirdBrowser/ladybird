@@ -77,6 +77,8 @@ class LinkedResourceFinder(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         self._tag_stack_.append(tag)
+        if ":" in tag:
+            tag = tag.split(":", 1)[-1]
         if tag in ["script", "img", "iframe"]:
             attr_dict = dict(attrs)
             if "src" in attr_dict:
@@ -114,6 +116,8 @@ class TestTypeIdentifier(HTMLParser):
         self.ref_test_link_found = False
 
     def handle_starttag(self, tag, attrs):
+        if ":" in tag:
+            tag = tag.split(":", 1)[-1]
         if tag == "link":
             attr_dict = dict(attrs)
             if "rel" in attr_dict and (attr_dict["rel"] == "match" or attr_dict["rel"] == "mismatch"):
