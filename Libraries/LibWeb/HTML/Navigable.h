@@ -208,7 +208,7 @@ public:
     bool is_ready_to_paint() const;
     void ready_to_paint();
     void paint_next_frame();
-    void start_display_list_rendering(Painting::BackingStore&, PaintConfig, Function<void()>&& callback);
+    void start_display_list_rendering(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }

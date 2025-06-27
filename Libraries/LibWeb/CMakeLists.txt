@@ -682,7 +682,6 @@ set(SOURCES
     Page/Page.cpp
     Painting/AudioPaintable.cpp
     Painting/BackgroundPainting.cpp
-    Painting/BackingStore.cpp
     Painting/BackingStoreManager.cpp
     Painting/BorderPainting.cpp
     Painting/BorderRadiiData.cpp

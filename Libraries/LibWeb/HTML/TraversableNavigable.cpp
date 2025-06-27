@@ -21,8 +21,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BackingStore.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
@@ -1413,19 +1412,19 @@ void TraversableNavigable::process_screenshot_requests()
             }
             auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
-            auto backing_store = Painting::BitmapBackingStore::create(*bitmap);
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
             PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
-            start_display_list_rendering(backing_store, paint_config, [backing_store, &client] {
-                client.page_did_take_screenshot(backing_store->bitmap().to_shareable_bitmap());
+            start_display_list_rendering(painting_surface, paint_config, [bitmap, &client] {
+                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
             });
         } else {
             auto scrollable_overflow_rect = active_document()->layout_node()->paintable_box()->scrollable_overflow_rect();
             auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
-            auto backing_store = Painting::BitmapBackingStore::create(*bitmap);
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
             PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
-            start_display_list_rendering(backing_store, paint_config, [backing_store, &client] {
-                client.page_did_take_screenshot(backing_store->bitmap().to_shareable_bitmap());
+            start_display_list_rendering(painting_surface, paint_config, [bitmap, &client] {
+                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
             });
         }
     }

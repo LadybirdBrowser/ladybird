@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -48,8 +48,9 @@ void BackingStoreManager::restart_resize_timer()
 
 void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 {
+    auto skia_backend_context = m_navigable->skia_backend_context();
 #ifdef AK_OS_MACOS
-    if (m_navigable->is_top_level_traversable() && s_browser_mach_port.has_value()) {
+    if (skia_backend_context && s_browser_mach_port.has_value()) {
         auto back_iosurface = Core::IOSurfaceHandle::create(size.width(), size.height());
         auto back_iosurface_port = back_iosurface.create_mach_port();
 
@@ -93,8 +94,8 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
             VERIFY_NOT_REACHED();
         }
 
-        m_front_store = IOSurfaceBackingStore::create(move(front_iosurface));
-        m_back_store = IOSurfaceBackingStore::create(move(back_iosurface));
+        m_front_store = Gfx::PaintingSurface::create_from_iosurface(move(front_iosurface), *skia_backend_context);
+        m_back_store = Gfx::PaintingSurface::create_from_iosurface(move(back_iosurface), *skia_backend_context);
 
         return;
     }
@@ -106,8 +107,23 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     auto front_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
     auto back_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
 
-    m_front_store = BitmapBackingStore::create(front_bitmap);
-    m_back_store = BitmapBackingStore::create(back_bitmap);
+#ifdef USE_VULKAN
+    if (skia_backend_context) {
+        m_front_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        m_front_store->on_flush = [front_bitmap](auto& surface) {
+            surface.read_into_bitmap(*front_bitmap);
+        };
+        m_back_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        m_back_store->on_flush = [back_bitmap](auto& surface) {
+            surface.read_into_bitmap(*back_bitmap);
+        };
+    }
+#endif
+
+    if (!m_front_store)
+        m_front_store = Gfx::PaintingSurface::wrap_bitmap(*front_bitmap);
+    if (!m_back_store)
+        m_back_store = Gfx::PaintingSurface::wrap_bitmap(*back_bitmap);
 
     if (m_navigable->is_top_level_traversable()) {
         auto& page_client = m_navigable->top_level_traversable()->page().client();
