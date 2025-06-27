@@ -215,9 +215,17 @@ namespace TextCodec {
 
 def main():
     parser = argparse.ArgumentParser(description="Generate text codec lookup tables", add_help=False)
-    parser.add_argument("-h", required=True)
-    parser.add_argument("-c", required=True)
-    parser.add_argument("-j", required=True)
+    parser.add_argument("-H", action="help", help="Show this help message and exit")
+    parser.add_argument(
+        "-h", "-generated-header-path", required=True, help="Path to the lookup table header file to generate"
+    )
+    parser.add_argument(
+        "-c",
+        "-generated_implementation_path",
+        required=True,
+        help="Path to the lookup table implementation file to generate",
+    )
+    parser.add_argument("-j", "-json-path", required=True, help="Path to the JSON file to read from")
 
     args = parser.parse_args()
 
