@@ -43,6 +43,41 @@ public:
         return Utf16String { move(copy) };
     }
 
+    ALWAYS_INLINE Utf16FlyString to_ascii_lowercase() const
+    {
+        auto view = m_data.utf16_view();
+
+        if (view.has_ascii_storage()) {
+            if (!any_of(view.ascii_span(), is_ascii_upper_alpha))
+                return *this;
+        } else {
+            if (!any_of(view.utf16_span(), is_ascii_upper_alpha))
+                return *this;
+        }
+
+        return view.to_ascii_lowercase();
+    }
+
+    ALWAYS_INLINE Utf16FlyString to_ascii_uppercase() const
+    {
+        auto view = m_data.utf16_view();
+
+        if (view.has_ascii_storage()) {
+            if (!any_of(view.ascii_span(), is_ascii_lower_alpha))
+                return *this;
+        } else {
+            if (!any_of(view.utf16_span(), is_ascii_lower_alpha))
+                return *this;
+        }
+
+        return view.to_ascii_uppercase();
+    }
+
+    ALWAYS_INLINE Utf16FlyString to_ascii_titlecase() const
+    {
+        return view().to_ascii_titlecase();
+    }
+
     ALWAYS_INLINE Utf16FlyString& operator=(Utf16String const& string)
     {
         *this = Utf16FlyString { string };

@@ -186,6 +186,10 @@ public:
         return MUST(to_utf8(allow_lonely_surrogates));
     }
 
+    Utf16String to_ascii_lowercase() const;
+    Utf16String to_ascii_uppercase() const;
+    Utf16String to_ascii_titlecase() const;
+
     [[nodiscard]] ALWAYS_INLINE bool has_ascii_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG == 0; }
 
     [[nodiscard]] constexpr ReadonlyBytes bytes() const
@@ -243,7 +247,7 @@ public:
             return false;
 
         for (size_t i = 0; i < length_in_code_units(); ++i) {
-            if (to_ascii_lowercase(code_unit_at(i)) != to_ascii_lowercase(other.code_unit_at(i)))
+            if (AK::to_ascii_lowercase(code_unit_at(i)) != AK::to_ascii_lowercase(other.code_unit_at(i)))
                 return false;
         }
 
@@ -356,6 +360,9 @@ public:
         return { m_string.utf16 + length_in_code_units(), 0 };
     }
 
+    Utf16String replace(Utf16View const& needle, Utf16View const& replacement, ReplaceMode) const;
+    Utf16String escape_html_entities() const;
+
     [[nodiscard]] constexpr Utf16View substring_view(size_t code_unit_offset, size_t code_unit_length) const
     {
         VERIFY(code_unit_offset + code_unit_length <= length_in_code_units());
@@ -369,6 +376,43 @@ public:
 
     [[nodiscard]] Utf16View unicode_substring_view(size_t code_point_offset, size_t code_point_length) const;
     [[nodiscard]] Utf16View unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length_in_code_points() - code_point_offset); }
+
+    [[nodiscard]] constexpr Utf16View trim(Utf16View const& code_units, TrimMode mode = TrimMode::Both) const
+    {
+        size_t substring_start = 0;
+        size_t substring_length = length_in_code_units();
+
+        if (mode == TrimMode::Left || mode == TrimMode::Both) {
+            for (size_t i = 0; i < length_in_code_units(); ++i) {
+                if (substring_length == 0)
+                    return {};
+                if (!code_units.contains(code_unit_at(i)))
+                    break;
+
+                ++substring_start;
+                --substring_length;
+            }
+        }
+
+        if (mode == TrimMode::Right || mode == TrimMode::Both) {
+            for (size_t i = length_in_code_units(); i > 0; --i) {
+                if (substring_length == 0)
+                    return {};
+                if (!code_units.contains(code_unit_at(i - 1)))
+                    break;
+
+                --substring_length;
+            }
+        }
+
+        return substring_view(substring_start, substring_length);
+    }
+
+    [[nodiscard]] constexpr Utf16View trim_whitespace(TrimMode mode = TrimMode::Both) const
+    {
+        static constexpr Utf16View white_space { u" \n\t\v\f\r", 6uz };
+        return trim(white_space, mode);
+    }
 
     constexpr Optional<size_t> find_code_unit_offset(char16_t needle, size_t start_offset = 0) const
     {
@@ -433,6 +477,9 @@ public:
 
         return {};
     }
+
+    [[nodiscard]] constexpr bool contains(char16_t needle) const { return find_code_unit_offset(needle).has_value(); }
+    [[nodiscard]] constexpr bool contains(Utf16View const& needle) const { return find_code_unit_offset(needle).has_value(); }
 
     [[nodiscard]] constexpr bool starts_with(Utf16View const& needle) const
     {
