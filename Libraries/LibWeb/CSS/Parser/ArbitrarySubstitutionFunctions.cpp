@@ -219,7 +219,7 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
     return result;
 }
 
-static void substitute_arbitrary_substitution_functions_step_2(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest)
+static ErrorOr<void> substitute_arbitrary_substitution_functions_step_2(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest)
 {
     // Step 2 of https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
     // 2. For each arbitrary substitution function func in values (ordered via a depth-first pre-order traversal) that
@@ -262,7 +262,16 @@ static void substitute_arbitrary_substitution_functions_step_2(DOM::AbstractElem
                     // NB: Because we're doing this in one pass recursively, we now need to substitute any ASFs in result.
                     TokenStream result_stream { result };
                     Vector<ComponentValue> result_after_processing;
-                    substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, result_stream, result_after_processing);
+                    TRY(substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, result_stream, result_after_processing));
+
+                    // NB: Protect against the billion-laughs attack by limiting to an arbitrary large number of tokens.
+                    // https://drafts.csswg.org/css-values-5/#long-substitution
+                    if (source.remaining_token_count() + result_after_processing.size() > 16384) {
+                        dest.clear();
+                        dest.empend(GuaranteedInvalidValue {});
+                        return Error::from_string_literal("Stopped expanding arbitrary substitution functions: maximum length reached.");
+                    }
+
                     dest.extend(result_after_processing);
                 }
                 continue;
@@ -270,7 +279,7 @@ static void substitute_arbitrary_substitution_functions_step_2(DOM::AbstractElem
 
             Vector<ComponentValue> function_values;
             TokenStream source_function_contents { source_function.value };
-            substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, source_function_contents, function_values);
+            TRY(substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, source_function_contents, function_values));
             dest.empend(Function { source_function.name, move(function_values) });
             continue;
         }
@@ -278,12 +287,14 @@ static void substitute_arbitrary_substitution_functions_step_2(DOM::AbstractElem
             auto const& source_block = value.block();
             TokenStream source_block_values { source_block.value };
             Vector<ComponentValue> block_values;
-            substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, source_block_values, block_values);
+            TRY(substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, source_block_values, block_values));
             dest.empend(SimpleBlock { source_block.token, move(block_values) });
             continue;
         }
         dest.empend(value);
     }
+
+    return {};
 }
 
 // https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
@@ -308,7 +319,11 @@ Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::Abstract
     //    is not nested in the contents of another arbitrary substitution function:
     Vector<ComponentValue> new_values;
     TokenStream source { values };
-    substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, source, new_values);
+    auto maybe_error = substitute_arbitrary_substitution_functions_step_2(element, guarded_contexts, source, new_values);
+    if (maybe_error.is_error()) {
+        dbgln_if(CSS_PARSER_DEBUG, "{} (context? {})", maybe_error.release_error(), context.map([](auto& it) { return it.to_string(); }));
+        return { ComponentValue { GuaranteedInvalidValue {} } };
+    }
 
     // 3. If context is marked as a cyclic substitution context, return the guaranteed-invalid value.
     // NOTE: Nested arbitrary substitution functions may have marked context as cyclic in step 2.
