@@ -633,6 +633,12 @@
     "clip",
     "ellipsis"
   ],
+  "text-rendering": [
+    "auto",
+    "optimizespeed",
+    "optimizelegibility",
+    "geometricprecision"
+  ],
   "text-transform": [
     "capitalize",
     "full-size-kana",

@@ -618,6 +618,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'text-justify': 'auto'
 'textOverflow': 'clip'
 'text-overflow': 'clip'
+'textRendering': 'auto'
+'text-rendering': 'auto'
 'textShadow': 'none'
 'text-shadow': 'none'
 'textTransform': 'none'

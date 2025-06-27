@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 42 tests
+Found 43 tests
 
-38 Pass
+39 Pass
 4 Fail
 Pass	clip-path presentation attribute supported on an unknown SVG element
 Pass	clip-rule presentation attribute supported on an unknown SVG element
@@ -40,6 +40,7 @@ Pass	stroke-width presentation attribute supported on an unknown SVG element
 Pass	text-anchor presentation attribute supported on an unknown SVG element
 Fail	text-decoration presentation attribute supported on an unknown SVG element
 Pass	text-overflow presentation attribute supported on an unknown SVG element
+Pass	text-rendering presentation attribute supported on an unknown SVG element
 Pass	transform-origin presentation attribute supported on an unknown SVG element
 Pass	unicode-bidi presentation attribute supported on an unknown SVG element
 Pass	visibility presentation attribute supported on an unknown SVG element

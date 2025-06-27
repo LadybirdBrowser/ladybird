@@ -792,6 +792,12 @@ TextOverflow ComputedProperties::text_overflow() const
     return keyword_to_text_overflow(value.to_keyword()).release_value();
 }
 
+TextRendering ComputedProperties::text_rendering() const
+{
+    auto const& value = property(PropertyID::TextRendering);
+    return keyword_to_text_rendering(value.to_keyword()).release_value();
+}
+
 PointerEvents ComputedProperties::pointer_events() const
 {
     auto const& value = property(PropertyID::PointerEvents);

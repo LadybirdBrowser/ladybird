@@ -76,6 +76,7 @@ static Array const attribute_style_properties {
     NamedPropertyID(CSS::PropertyID::StrokeOpacity),
     NamedPropertyID(CSS::PropertyID::StrokeWidth),
     NamedPropertyID(CSS::PropertyID::TextAnchor),
+    NamedPropertyID(CSS::PropertyID::TextRendering),
     NamedPropertyID(CSS::PropertyID::TextOverflow),
     NamedPropertyID(CSS::PropertyID::TransformOrigin),
     NamedPropertyID(CSS::PropertyID::UnicodeBidi),
