@@ -211,15 +211,20 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
 
     // 6.4 https://drafts.csswg.org/css-fonts/#font-variant-ligatures-prop
     auto ligature_or_null = computed_values.font_variant_ligatures();
+
+    auto disable_all_ligatures = [&]() {
+        features.set("liga"sv, 0);
+        features.set("clig"sv, 0);
+        features.set("dlig"sv, 0);
+        features.set("hlig"sv, 0);
+        features.set("calt"sv, 0);
+    };
+
     if (ligature_or_null.has_value()) {
         auto ligature = ligature_or_null.release_value();
         if (ligature.none) {
             // Specifies that all types of ligatures and contextual forms covered by this property are explicitly disabled.
-            features.set("liga"sv, 0);
-            features.set("clig"sv, 0);
-            features.set("dlig"sv, 0);
-            features.set("hlig"sv, 0);
-            features.set("calt"sv, 0);
+            disable_all_ligatures();
         } else {
             switch (ligature.common) {
             case Gfx::FontVariantLigatures::Common::Common:
@@ -275,6 +280,9 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
                 break;
             }
         }
+    } else if (computed_values.text_rendering() == CSS::TextRendering::Optimizespeed) {
+        // AD-HOC: Disable ligatures if font-variant-ligatures is set to normal and text rendering is set to optimize speed.
+        disable_all_ligatures();
     } else {
         // A value of normal specifies that common default features are enabled, as described in detail in the next section.
         features.set("liga"sv, 1);
