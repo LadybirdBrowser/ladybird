@@ -2045,11 +2045,18 @@ RefPtr<CSSStyleValue const> Parser::parse_stroke_dasharray_value(TokenStream<Com
 
         // A <dasharray> is a list of comma and/or white space separated <number> or <length-percentage> values. A <number> value represents a value in user units.
         auto value = parse_number_value(tokens);
+        if (value && value->is_number() && value->as_number().value() < 0)
+            return {};
+
         if (value) {
             dashes.append(value.release_nonnull());
         } else {
             auto value = parse_length_percentage_value(tokens);
             if (!value)
+                return {};
+            if (value->is_percentage() && value->as_percentage().value() < 0)
+                return {};
+            if (value->is_length() && value->as_length().length().raw_value() < 0)
                 return {};
             dashes.append(value.release_nonnull());
         }
