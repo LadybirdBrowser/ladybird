@@ -210,6 +210,9 @@ public:
         return utf16_view().find_code_unit_offset_ignoring_case(needle, start_offset);
     }
 
+    [[nodiscard]] ALWAYS_INLINE bool contains(char16_t needle) const { return find_code_unit_offset(needle).has_value(); }
+    [[nodiscard]] ALWAYS_INLINE bool contains(Utf16View const& needle) const { return find_code_unit_offset(needle).has_value(); }
+
     [[nodiscard]] ALWAYS_INLINE bool starts_with(Utf16View const& needle) const { return utf16_view().starts_with(needle); }
 
     // This is primarily interesting to unit tests.
