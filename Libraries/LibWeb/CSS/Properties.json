@@ -2677,8 +2677,8 @@
     "inherited": false,
     "initial": "0",
     "valid-types": [
-      "length [-∞,∞]",
-      "percentage [-∞,∞]"
+      "length [0,∞]",
+      "percentage [0,∞]"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
@@ -2727,8 +2727,8 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
-      "length [-∞,∞]",
-      "percentage [-∞,∞]"
+      "length [0,∞]",
+      "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto"
@@ -2744,8 +2744,8 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
-      "length [-∞,∞]",
-      "percentage [-∞,∞]"
+      "length [0,∞]",
+      "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto"

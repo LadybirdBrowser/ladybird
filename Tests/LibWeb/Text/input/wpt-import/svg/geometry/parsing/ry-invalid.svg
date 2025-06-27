@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="8000px">
+  <title>SVG Geometry Properties: parsing ry with invalid values</title>
+  <metadata>
+    <h:link rel="help" href="https://svgwg.org/svg2-draft/geometry.html#RY"/>
+    <h:meta name="assert" content="ry supports only the grammar '&lt;length-percentage&gt; | auto'."/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/parsing-testcommon.js"/>
+  <script><![CDATA[
+
+test_invalid_value("ry", "10");
+test_invalid_value("ry", "none");
+test_invalid_value("ry", "10px 20px");
+test_invalid_value("ry", "-1px");
+
+  ]]></script>
+</svg>
