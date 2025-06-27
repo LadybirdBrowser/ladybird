@@ -3003,6 +3003,15 @@
       "text-overflow"
     ]
   },
+  "text-rendering": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "text-rendering"
+    ]
+  },
   "text-shadow": {
     "affects-layout": false,
     "animation-type": "custom",

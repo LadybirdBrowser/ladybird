@@ -651,6 +651,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_text_align(computed_style.text_align());
     computed_values.set_text_justify(computed_style.text_justify());
     computed_values.set_text_overflow(computed_style.text_overflow());
+    computed_values.set_text_rendering(computed_style.text_rendering());
 
     if (auto text_indent = computed_style.length_percentage(CSS::PropertyID::TextIndent); text_indent.has_value())
         computed_values.set_text_indent(text_indent.release_value());

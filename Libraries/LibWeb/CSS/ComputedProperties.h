@@ -83,6 +83,7 @@ public:
     TextAlign text_align() const;
     TextJustify text_justify() const;
     TextOverflow text_overflow() const;
+    TextRendering text_rendering() const;
     Length border_spacing_horizontal(Layout::Node const&) const;
     Length border_spacing_vertical(Layout::Node const&) const;
     CaptionSide caption_side() const;
