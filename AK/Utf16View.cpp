@@ -8,6 +8,7 @@
 #include <AK/Concepts.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
 #include <AK/Utf8View.h>
@@ -127,6 +128,89 @@ ErrorOr<String> Utf16View::to_utf8(AllowLonelySurrogates allow_lonely_surrogates
 ErrorOr<ByteString> Utf16View::to_byte_string(AllowLonelySurrogates allow_lonely_surrogates) const
 {
     return TRY(to_utf8(allow_lonely_surrogates)).to_byte_string();
+}
+
+Utf16String Utf16View::to_ascii_lowercase() const
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+
+    for (size_t i = 0; i < length_in_code_units(); ++i)
+        builder.append_code_unit(AK::to_ascii_lowercase(code_unit_at(i)));
+
+    return builder.to_utf16_string();
+}
+
+Utf16String Utf16View::to_ascii_uppercase() const
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+
+    for (size_t i = 0; i < length_in_code_units(); ++i)
+        builder.append_code_unit(AK::to_ascii_uppercase(code_unit_at(i)));
+
+    return builder.to_utf16_string();
+}
+
+Utf16String Utf16View::to_ascii_titlecase() const
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+    bool next_is_upper = true;
+
+    for (size_t i = 0; i < length_in_code_units(); ++i) {
+        auto code_unit = code_unit_at(i);
+
+        if (next_is_upper)
+            builder.append_code_unit(AK::to_ascii_uppercase(code_unit));
+        else
+            builder.append_code_unit(AK::to_ascii_lowercase(code_unit));
+
+        next_is_upper = code_unit == u' ';
+    }
+
+    return builder.to_utf16_string();
+}
+
+Utf16String Utf16View::replace(Utf16View const& needle, Utf16View const& replacement, ReplaceMode replace_mode) const
+{
+    if (is_empty())
+        return {};
+
+    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+    auto remaining = *this;
+
+    do {
+        auto index = remaining.find_code_unit_offset(needle);
+        if (!index.has_value())
+            break;
+
+        builder.append(remaining.substring_view(0, *index));
+        builder.append(replacement);
+
+        remaining = remaining.substring_view(*index + needle.length_in_code_units());
+        index = remaining.find_code_unit_offset(needle);
+    } while (replace_mode == ReplaceMode::All && !remaining.is_empty());
+
+    builder.append(remaining);
+    return builder.to_utf16_string();
+}
+
+Utf16String Utf16View::escape_html_entities() const
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+
+    for (auto code_point : *this) {
+        if (code_point == '<')
+            builder.append(u"&lt;"sv);
+        else if (code_point == '>')
+            builder.append(u"&gt;"sv);
+        else if (code_point == '&')
+            builder.append(u"&amp;"sv);
+        else if (code_point == '"')
+            builder.append(u"&quot;"sv);
+        else
+            builder.append_code_point(code_point);
+    }
+
+    return builder.to_utf16_string();
 }
 
 bool Utf16View::is_ascii() const
