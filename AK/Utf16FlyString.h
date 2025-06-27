@@ -78,6 +78,12 @@ public:
         return view().to_ascii_titlecase();
     }
 
+    template<Arithmetic T>
+    ALWAYS_INLINE Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
+    {
+        return m_data.to_number<T>(trim_whitespace);
+    }
+
     ALWAYS_INLINE Utf16FlyString& operator=(Utf16String const& string)
     {
         *this = Utf16FlyString { string };

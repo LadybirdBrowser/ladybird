@@ -7,13 +7,16 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/StringConversions.h>
+#include <AK/Utf16View.h>
 
-static double parse_complete_double(StringView view)
+template<typename ViewType>
+static double parse_complete_double(ViewType const& view)
 {
     return AK::parse_number<double>(view, TrimWhitespace::No).release_value();
 }
 
-static float parse_complete_float(StringView view)
+template<typename ViewType>
+static float parse_complete_float(ViewType const& view)
 {
     return AK::parse_number<float>(view, TrimWhitespace::No).release_value();
 }
@@ -21,10 +24,13 @@ static float parse_complete_float(StringView view)
 TEST_CASE(simple_cases)
 {
 
-#define DOES_PARSE_DOUBLE_LIKE_CPP(value)                                              \
-    do {                                                                               \
-        EXPECT_EQ(static_cast<double>(value), parse_complete_double(#value##sv));      \
-        EXPECT_EQ(-static_cast<double>(value), parse_complete_double("-" #value##sv)); \
+#define DOES_PARSE_DOUBLE_LIKE_CPP(value)                                               \
+    do {                                                                                \
+        EXPECT_EQ(static_cast<double>(value), parse_complete_double(#value##sv));       \
+        EXPECT_EQ(-static_cast<double>(value), parse_complete_double("-" #value##sv));  \
+                                                                                        \
+        EXPECT_EQ(static_cast<double>(value), parse_complete_double(u"" #value##sv));   \
+        EXPECT_EQ(-static_cast<double>(value), parse_complete_double(u"-" #value##sv)); \
     } while (false)
 
 #define DOES_PARSE_FLOAT_LIKE_CPP(value)                                                \
@@ -32,11 +38,17 @@ TEST_CASE(simple_cases)
         float val = parse_complete_float(#value##sv);                                   \
         EXPECT_EQ(static_cast<float>(value##f), val);                                   \
         EXPECT_EQ(-static_cast<float>(value##f), parse_complete_float("-" #value##sv)); \
+                                                                                        \
+        val = parse_complete_float(u"" #value##sv);                                     \
+        EXPECT_EQ(static_cast<float>(value##f), val);                                   \
+        EXPECT_EQ(-static_cast<float>(value##f), parse_complete_float("-" #value##sv)); \
     } while (false)
 
 #define DOES_PARSE_FLOAT_AND_DOUBLE_LIKE_CPP(value) \
-    DOES_PARSE_DOUBLE_LIKE_CPP(value);              \
-    DOES_PARSE_FLOAT_LIKE_CPP(value);
+    do {                                            \
+        DOES_PARSE_DOUBLE_LIKE_CPP(value);          \
+        DOES_PARSE_FLOAT_LIKE_CPP(value);           \
+    } while (false)
 
     DOES_PARSE_DOUBLE_LIKE_CPP(2.22507385850720138309e-308);
 
@@ -212,10 +224,13 @@ TEST_CASE(simple_cases)
     DOES_PARSE_FLOAT_AND_DOUBLE_LIKE_CPP(8.589934335999999523162841796875e+09);
     DOES_PARSE_FLOAT_AND_DOUBLE_LIKE_CPP(0.09289376810193062);
 
-#define DOES_PARSE_INT_LIKE_VALUE_LIKE_CPP(value)                                         \
-    do {                                                                                  \
-        EXPECT_EQ(static_cast<double>(value##.), parse_complete_double(#value##sv));      \
-        EXPECT_EQ(-static_cast<double>(value##.), parse_complete_double("-" #value##sv)); \
+#define DOES_PARSE_INT_LIKE_VALUE_LIKE_CPP(value)                                          \
+    do {                                                                                   \
+        EXPECT_EQ(static_cast<double>(value##.), parse_complete_double(#value##sv));       \
+        EXPECT_EQ(-static_cast<double>(value##.), parse_complete_double("-" #value##sv));  \
+                                                                                           \
+        EXPECT_EQ(static_cast<double>(value##.), parse_complete_double(u"" #value##sv));   \
+        EXPECT_EQ(-static_cast<double>(value##.), parse_complete_double(u"-" #value##sv)); \
     } while (false)
 
     DOES_PARSE_INT_LIKE_VALUE_LIKE_CPP(0);
@@ -230,8 +245,11 @@ TEST_CASE(simple_cases)
     EXPECT_EQ(0., parse_complete_double("2.4703282292062327208828439643411068618252990130716238221279284125033775363510437593264991818081799618989828234772285886546332835517796989819938739800539093906315035659515570226392290858392449105184435931802849936536152500319370457678249219365623669863658480757001585769269903706311928279558551332927834338409351978015531246597263579574622766465272827220056374006485499977096599470454020828166226237857393450736339007967761930577506740176324673600968951340535537458516661134223766678604162159680461914467291840300530057530849048765391711386591646239524912623653881879636239373280423891018672348497668235089863388587925628302755995657524455507255189313690836254779186948667994968324049705821028513185451396213837722826145437693412532098591327667236328125e-324"sv));
     EXPECT_EQ(0., parse_complete_double("2.4703282292062327208828439643411068618252990130716238221279284125033775363510437593264991818081799618989828234772285886546332835517796989819938739800539093906315035659515570226392290858392449105184435931802849936536152500319370457678249219365623669863658480757001585769269903706311928279558551332927834338409351978015531246597263579574622766465272827220056374006485499977096599470454020828166226237857393450736339007967761930577506740176324673600968951340535537458516661134223766678604162159680461914467291840300530057530849048765391711386591646239524912623653881879636239373280423891018672348497668235089863388587925628302755995657524455507255189313690836254779186948667994968324049705821028513185451396213837722826145437693412532098591327667236328124999e-324"sv));
 
-#define EXPECT_TO_PARSE_TO_VALUE_EQUAL_TO(expected_val, str) \
-    EXPECT_EQ(bit_cast<u64>(expected_val), bit_cast<u64>(parse_complete_double(str##sv)));
+#define EXPECT_TO_PARSE_TO_VALUE_EQUAL_TO(expected_val, str)                                      \
+    do {                                                                                          \
+        EXPECT_EQ(bit_cast<u64>(expected_val), bit_cast<u64>(parse_complete_double(str##sv)));    \
+        EXPECT_EQ(bit_cast<u64>(expected_val), bit_cast<u64>(parse_complete_double(u##str##sv))); \
+    } while (false)
 
     EXPECT_TO_PARSE_TO_VALUE_EQUAL_TO(0., "1e-324");
     EXPECT_TO_PARSE_TO_VALUE_EQUAL_TO(-0., "-1e-324");
@@ -240,13 +258,22 @@ TEST_CASE(simple_cases)
     EXPECT_TO_PARSE_TO_VALUE_EQUAL_TO(0., "+.0e10");
     EXPECT_TO_PARSE_TO_VALUE_EQUAL_TO(-0., "-.0e10");
 
-#define EXPECT_TO_PARSE_TO_INFINITY(str)                                                     \
-    EXPECT_EQ(__builtin_huge_val(), parse_complete_double(str##sv));                         \
-    EXPECT_EQ(__builtin_huge_val(), parse_complete_double("+" str##sv));                     \
-    EXPECT_EQ(-__builtin_huge_val(), parse_complete_double("-" str##sv));                    \
-    EXPECT_EQ(static_cast<float>(__builtin_huge_valf()), parse_complete_float(str##sv));     \
-    EXPECT_EQ(static_cast<float>(__builtin_huge_valf()), parse_complete_float("+" str##sv)); \
-    EXPECT_EQ(static_cast<float>(-__builtin_huge_valf()), parse_complete_float("-" str##sv))
+#define EXPECT_TO_PARSE_TO_INFINITY(str)                                                           \
+    do {                                                                                           \
+        EXPECT_EQ(__builtin_huge_val(), parse_complete_double(str##sv));                           \
+        EXPECT_EQ(__builtin_huge_val(), parse_complete_double("+" str##sv));                       \
+        EXPECT_EQ(-__builtin_huge_val(), parse_complete_double("-" str##sv));                      \
+        EXPECT_EQ(static_cast<float>(__builtin_huge_valf()), parse_complete_float(str##sv));       \
+        EXPECT_EQ(static_cast<float>(__builtin_huge_valf()), parse_complete_float("+" str##sv));   \
+        EXPECT_EQ(static_cast<float>(-__builtin_huge_valf()), parse_complete_float("-" str##sv));  \
+                                                                                                   \
+        EXPECT_EQ(__builtin_huge_val(), parse_complete_double(u##str##sv));                        \
+        EXPECT_EQ(__builtin_huge_val(), parse_complete_double(u"+" str##sv));                      \
+        EXPECT_EQ(-__builtin_huge_val(), parse_complete_double(u"-" str##sv));                     \
+        EXPECT_EQ(static_cast<float>(__builtin_huge_valf()), parse_complete_float(u##str##sv));    \
+        EXPECT_EQ(static_cast<float>(__builtin_huge_valf()), parse_complete_float(u"+" str##sv));  \
+        EXPECT_EQ(static_cast<float>(-__builtin_huge_valf()), parse_complete_float(u"-" str##sv)); \
+    } while (false)
 
     EXPECT_TO_PARSE_TO_INFINITY("123.456e789");
     EXPECT_TO_PARSE_TO_INFINITY("123456.456789e789");
@@ -268,6 +295,11 @@ TEST_CASE(partial_parse_stops_at_right_spot)
         VERIFY(result.has_value());                                                                \
         EXPECT_EQ(bit_cast<u64>(result->value), bit_cast<u64>(static_cast<double>(double_value))); \
         EXPECT_EQ(result->characters_parsed, chars_parsed##uz);                                    \
+                                                                                                   \
+        result = AK::parse_first_number<double>(u##string_value##sv);                              \
+        VERIFY(result.has_value());                                                                \
+        EXPECT_EQ(bit_cast<u64>(result->value), bit_cast<u64>(static_cast<double>(double_value))); \
+        EXPECT_EQ(result->characters_parsed, chars_parsed##uz);                                    \
     } while (false)
 
     EXPECT_PARSE_TO_VALUE_AND_CONSUME_CHARS("0x", 0., 1);
@@ -285,10 +317,10 @@ TEST_CASE(partial_parse_stops_at_right_spot)
 
 TEST_CASE(invalid_parse)
 {
-#define EXPECT_PARSE_TO_FAIL(string_value)                              \
-    do {                                                                \
-        auto result = AK::parse_first_number<double>(string_value##sv); \
-        EXPECT(!result.has_value());                                    \
+#define EXPECT_PARSE_TO_FAIL(string_value)                                        \
+    do {                                                                          \
+        EXPECT(!AK::parse_first_number<double>(string_value##sv).has_value());    \
+        EXPECT(!AK::parse_first_number<double>(u##string_value##sv).has_value()); \
     } while (false)
 
     EXPECT_PARSE_TO_FAIL("");
@@ -332,6 +364,10 @@ TEST_CASE(detect_out_of_range_values)
         auto result = AK::parse_first_number<double>(string_value##sv);                            \
         VERIFY(result.has_value());                                                                \
         EXPECT_EQ(bit_cast<u64>(result->value), bit_cast<u64>(static_cast<double>(double_value))); \
+                                                                                                   \
+        result = AK::parse_first_number<double>(u##string_value##sv);                              \
+        VERIFY(result.has_value());                                                                \
+        EXPECT_EQ(bit_cast<u64>(result->value), bit_cast<u64>(static_cast<double>(double_value))); \
     } while (false)
 
     EXPECT_PARSE_TO_HAVE_ERROR("10e-10000", 0.0);
@@ -340,15 +376,13 @@ TEST_CASE(detect_out_of_range_values)
     EXPECT_PARSE_TO_HAVE_ERROR("-10e10000", -INFINITY);
 }
 
-static bool parse_completely_passes(StringView view)
-{
-    return AK::parse_number<double>(view, TrimWhitespace::No).has_value();
-}
-
 TEST_CASE(parse_completely_must_be_just_floating_point)
 {
-#define EXPECT_PARSE_COMPLETELY_TO_FAIL(value) \
-    EXPECT(!parse_completely_passes(value##sv))
+#define EXPECT_PARSE_COMPLETELY_TO_FAIL(string_value)                                           \
+    do {                                                                                        \
+        EXPECT(!AK::parse_number<double>(string_value##sv, TrimWhitespace::No).has_value());    \
+        EXPECT(!AK::parse_number<double>(u##string_value##sv, TrimWhitespace::No).has_value()); \
+    } while (false)
 
     EXPECT_PARSE_COMPLETELY_TO_FAIL("");
     EXPECT_PARSE_COMPLETELY_TO_FAIL("-");
