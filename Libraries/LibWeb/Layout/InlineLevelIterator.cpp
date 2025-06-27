@@ -214,7 +214,12 @@ HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
     if (ligature_or_null.has_value()) {
         auto ligature = ligature_or_null.release_value();
         if (ligature.none) {
-            /* nothing */
+            // Specifies that all types of ligatures and contextual forms covered by this property are explicitly disabled.
+            features.set("liga"sv, 0);
+            features.set("clig"sv, 0);
+            features.set("dlig"sv, 0);
+            features.set("hlig"sv, 0);
+            features.set("calt"sv, 0);
         } else {
             switch (ligature.common) {
             case Gfx::FontVariantLigatures::Common::Common:
