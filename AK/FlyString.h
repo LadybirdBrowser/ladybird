@@ -101,8 +101,6 @@ private:
     constexpr bool is_invalid() const { return m_data.raw(Badge<FlyString> {}) == 0; }
 };
 
-void did_destroy_fly_string_data(Badge<Detail::StringData>, Detail::StringData const&);
-
 template<>
 class Optional<FlyString> : public OptionalBase<FlyString> {
     template<typename U>
