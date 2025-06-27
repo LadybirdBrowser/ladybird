@@ -23,9 +23,18 @@ template<Arithmetic T>
 Optional<ParseFirstNumberResult<T>> parse_first_number(StringView, TrimWhitespace = TrimWhitespace::Yes, int base = 10);
 
 template<Arithmetic T>
+Optional<ParseFirstNumberResult<T>> parse_first_number(Utf16View const&, TrimWhitespace = TrimWhitespace::Yes, int base = 10);
+
+template<Arithmetic T>
 Optional<T> parse_number(StringView, TrimWhitespace = TrimWhitespace::Yes, int base = 10);
+
+template<Arithmetic T>
+Optional<T> parse_number(Utf16View const&, TrimWhitespace = TrimWhitespace::Yes, int base = 10);
 
 template<Integral T>
 Optional<T> parse_hexadecimal_number(StringView, TrimWhitespace = TrimWhitespace::Yes);
+
+template<Integral T>
+Optional<T> parse_hexadecimal_number(Utf16View const&, TrimWhitespace = TrimWhitespace::Yes);
 
 }
