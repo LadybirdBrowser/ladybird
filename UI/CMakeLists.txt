@@ -78,9 +78,12 @@ target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
 
 if(WIN32)
     # FIXME: This is a hack to get around lld-link error undefined symbols in various libraries
-    target_link_libraries(${LADYBIRD_TARGET} PRIVATE
-            $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Application>
-            $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,UserAgent>
+    target_link_libraries(${LADYBIRD_TARGET}
+        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Application>
+        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,UserAgent>
+        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Utilities>
+        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,WebContentClient>
+        LibDevTools
     )
 endif()
 
@@ -115,7 +118,10 @@ endif()
 set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
 
 add_dependencies(ladybird ${ladybird_helper_processes})
-add_dependencies(WebDriver ladybird)
+# FIXME: Increase support for building targets on Windows
+if (NOT WIN32)
+    add_dependencies(WebDriver ladybird)
+endif()
 
 set_helper_process_properties(${ladybird_helper_processes})
 if (APPLE)
