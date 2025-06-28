@@ -58,7 +58,6 @@ void NavigableContainerViewportPaintable::paint(PaintContext& context, PaintPhas
         DOM::Document::PaintConfig paint_config;
         paint_config.paint_overlay = context.should_paint_overlay();
         paint_config.should_show_line_box_borders = context.should_show_line_box_borders();
-        paint_config.has_focus = context.has_focus();
         auto display_list = const_cast<DOM::Document*>(hosted_document)->record_display_list(paint_config);
         auto scroll_state_snapshot = hosted_document->paintable()->scroll_state().snapshot();
         context.display_list_recorder().paint_nested_display_list(display_list, move(scroll_state_snapshot), context.enclosing_device_rect(absolute_rect).to_type<int>());

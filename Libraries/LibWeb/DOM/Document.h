@@ -835,7 +835,6 @@ public:
     struct PaintConfig {
         bool paint_overlay { false };
         bool should_show_line_box_borders { false };
-        bool has_focus { false };
         Optional<Gfx::IntRect> canvas_fill_rect {};
 
         bool operator==(PaintConfig const& other) const = default;

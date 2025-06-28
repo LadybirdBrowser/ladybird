@@ -1444,7 +1444,6 @@ RefPtr<Painting::DisplayList> TraversableNavigable::record_display_list(DevicePi
     DOM::Document::PaintConfig paint_config;
     paint_config.paint_overlay = paint_options.paint_overlay == PaintOptions::PaintOverlay::Yes;
     paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
-    paint_config.has_focus = paint_options.has_focus;
     paint_config.canvas_fill_rect = Gfx::IntRect { {}, content_rect.size() };
     return document->record_display_list(paint_config);
 }

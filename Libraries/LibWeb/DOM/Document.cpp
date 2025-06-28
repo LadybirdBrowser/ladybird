@@ -6491,7 +6491,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
     context.set_device_viewport_rect(viewport_rect);
     context.set_should_show_line_box_borders(config.should_show_line_box_borders);
     context.set_should_paint_overlay(config.paint_overlay);
-    context.set_has_focus(config.has_focus);
 
     update_paint_and_hit_testing_properties_if_needed();
 
