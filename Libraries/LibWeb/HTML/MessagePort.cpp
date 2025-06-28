@@ -313,7 +313,7 @@ void MessagePort::read_from_transport()
         }));
     });
 
-    if (schedule_shutdown == IPC::TransportSocket::ShouldShutdown::Yes) {
+    if (schedule_shutdown == IPC::Transport::ShouldShutdown::Yes) {
         queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this] {
             this->close();
         }));
