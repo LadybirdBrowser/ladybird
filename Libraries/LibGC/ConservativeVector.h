@@ -14,7 +14,7 @@
 
 namespace GC {
 
-class ConservativeVectorBase {
+class GC_API ConservativeVectorBase {
 public:
     virtual ReadonlySpan<FlatPtr> possible_values() const = 0;
 
@@ -32,7 +32,7 @@ public:
 };
 
 template<typename T, size_t inline_capacity>
-class ConservativeVector final
+class GC_API ConservativeVector final
     : public ConservativeVectorBase
     , public Vector<T, inline_capacity> {
 

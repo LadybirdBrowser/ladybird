@@ -30,7 +30,7 @@
 
 namespace GC {
 
-class Heap : public HeapBase {
+class GC_API Heap : public HeapBase {
     AK_MAKE_NONCOPYABLE(Heap);
     AK_MAKE_NONMOVABLE(Heap);
 
