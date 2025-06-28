@@ -14,15 +14,15 @@
 namespace Requests {
 
 struct RequestTimingInfo {
-    long domain_lookup_start_microseconds { 0 };
-    long domain_lookup_end_microseconds { 0 };
-    long connect_start_microseconds { 0 };
-    long connect_end_microseconds { 0 };
-    long secure_connect_start_microseconds { 0 };
-    long request_start_microseconds { 0 };
-    long response_start_microseconds { 0 };
-    long response_end_microseconds { 0 };
-    long encoded_body_size { 0 };
+    long long domain_lookup_start_microseconds { 0 };
+    long long domain_lookup_end_microseconds { 0 };
+    long long connect_start_microseconds { 0 };
+    long long connect_end_microseconds { 0 };
+    long long secure_connect_start_microseconds { 0 };
+    long long request_start_microseconds { 0 };
+    long long response_start_microseconds { 0 };
+    long long response_end_microseconds { 0 };
+    long long encoded_body_size { 0 };
     ALPNHttpVersion http_version_alpn_identifier { ALPNHttpVersion::None };
 };
 
