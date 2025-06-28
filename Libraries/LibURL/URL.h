@@ -202,7 +202,6 @@ Optional<URL> create_with_file_scheme(ByteString const& path, ByteString const& 
 URL create_with_data(StringView mime_type, StringView payload, bool is_base64 = false);
 
 bool is_public_suffix(StringView host);
-Optional<String> get_public_suffix(StringView host);
 Optional<String> get_registrable_domain(StringView host);
 
 inline URL about_blank() { return URL::about("blank"_string); }

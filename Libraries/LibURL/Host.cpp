@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
- * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibURL/Host.h>
+#include <LibURL/PublicSuffixData.h>
 #include <LibURL/URL.h>
 
 namespace URL {
@@ -193,7 +194,7 @@ Optional<String> Host::public_suffix() const
     // 3. Let publicSuffix be the public suffix determined by running the Public Suffix List algorithm with host as domain. [PSL]
     // NOTE: The spec algorithm for the public suffix returns "*" by default, but get_public_suffix() returns an empty Optional.
     //       Remove the `value_or()` if and when we update it.
-    auto public_suffix = get_public_suffix(host_string.bytes_as_string_view()).value_or("*"_string);
+    auto public_suffix = PublicSuffixData::the()->get_public_suffix(host_string).value_or("*"_string);
 
     // 4. Assert: publicSuffix is an ASCII string that does not end with ".".
     VERIFY(public_suffix.is_ascii());
