@@ -2,9 +2,7 @@ include(libweb_generators)
 include(vulkan)
 include(skia)
 
-if (APPLE OR LINUX)
-    find_package(unofficial-angle REQUIRED CONFIG)
-endif()
+find_package(unofficial-angle REQUIRED CONFIG)
 
 set(SOURCES
     Animations/Animatable.cpp
@@ -1014,13 +1012,7 @@ set(GENERATED_SOURCES
 
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia)
-
-if (APPLE OR LINUX)
-    target_link_libraries(LibWeb PRIVATE unofficial::angle::libEGL unofficial::angle::libGLESv2)
-else()
-    target_link_libraries(LibWeb PRIVATE GL)
-endif()
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia unofficial::angle::libEGL unofficial::angle::libGLESv2)
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
