@@ -498,7 +498,7 @@ bool is_public_suffix(StringView host)
 
 Optional<String> get_public_suffix(StringView host)
 {
-    return MUST(PublicSuffixData::the()->get_public_suffix(host));
+    return PublicSuffixData::the()->get_public_suffix(host);
 }
 
 // https://github.com/publicsuffix/list/wiki/Format#algorithm
