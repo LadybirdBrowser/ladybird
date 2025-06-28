@@ -22,6 +22,13 @@ elseif (WIN32)
     target_link_libraries(test-web PRIVATE LibDevTools)
     find_package(pthread REQUIRED)
     target_include_directories(test-web PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
+    add_custom_command(TARGET test-web POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:test-web>
+            $<TARGET_FILE_DIR:test-web>
+        COMMAND_EXPAND_LISTS
+    )
 endif()
 
 # FIXME: Increase support for building targets on Windows
