@@ -9,7 +9,10 @@
 #include <AK/MemoryStream.h>
 #include <LibCore/Forward.h>
 #include <LibWebSocket/Impl/WebSocketImpl.h>
-#include <curl/curl.h>
+
+typedef void CURL;
+typedef void CURLM;
+struct curl_slist;
 
 namespace RequestServer {
 
