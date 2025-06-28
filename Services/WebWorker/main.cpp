@@ -84,7 +84,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 {
+#if !defined(AK_OS_WINDOWS)
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+#else
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocketWindows>, "Need to handle other IPC transports here");
+#endif
     auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket));
     TRY(socket->set_blocking(true));
 
@@ -101,8 +105,11 @@ static ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 
 static ErrorOr<void> initialize_resource_loader(GC::Heap& heap, int request_server_socket)
 {
+#if !defined(AK_OS_WINDOWS)
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
-
+#else
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocketWindows>, "Need to handle other IPC transports here");
+#endif
     auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket));
     TRY(socket->set_blocking(true));
 
