@@ -3845,10 +3845,10 @@ static bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suf
         //     * hostSuffix equals hostSuffix's public suffix; or
         //     * hostSuffix, prefixed by U+002E (.), matches the end of originalHost's public suffix,
         //    then return false. [URL]
-        if (host_suffix_string == URL::get_public_suffix(host_suffix_string))
+        if (host_suffix_string == host_suffix->public_suffix())
             return false;
 
-        auto original_host_public_suffix = URL::get_public_suffix(original_host_string);
+        auto original_host_public_suffix = original_host.public_suffix();
         VERIFY(original_host_public_suffix.has_value());
 
         if (original_host_public_suffix->ends_with_bytes(prefixed_host_suffix))

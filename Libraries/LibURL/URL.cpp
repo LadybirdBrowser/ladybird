@@ -496,16 +496,11 @@ bool is_public_suffix(StringView host)
     return PublicSuffixData::the()->is_public_suffix(host);
 }
 
-Optional<String> get_public_suffix(StringView host)
-{
-    return PublicSuffixData::the()->get_public_suffix(host);
-}
-
 // https://github.com/publicsuffix/list/wiki/Format#algorithm
 Optional<String> get_registrable_domain(StringView host)
 {
     // The registered or registrable domain is the public suffix plus one additional label.
-    auto public_suffix = get_public_suffix(host);
+    auto public_suffix = PublicSuffixData::the()->get_public_suffix(host);
     if (!public_suffix.has_value() || !host.ends_with(*public_suffix))
         return {};
 
