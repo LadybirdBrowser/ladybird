@@ -11,4 +11,4 @@ set(GENERATED_SOURCES
     LookupTables.cpp
 )
 
-ladybird_lib(LibTextCodec textcodec)
+ladybird_lib(LibTextCodec textcodec EXPLICIT_SYMBOL_EXPORT)

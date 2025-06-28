@@ -8,10 +8,11 @@
 
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <LibTextCodec/Forward.h>
 
 namespace TextCodec {
 
-class Encoder {
+class TEXTCODEC_API Encoder {
 public:
     virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) = 0;
 
@@ -19,17 +20,17 @@ protected:
     virtual ~Encoder() = default;
 };
 
-class UTF8Encoder final : public Encoder {
+class TEXTCODEC_API UTF8Encoder final : public Encoder {
 public:
     virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) override;
 };
 
-class EUCJPEncoder final : public Encoder {
+class TEXTCODEC_API EUCJPEncoder final : public Encoder {
 public:
     virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) override;
 };
 
-class ISO2022JPEncoder final : public Encoder {
+class TEXTCODEC_API ISO2022JPEncoder final : public Encoder {
 public:
     virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) override;
 
@@ -43,22 +44,22 @@ private:
     ErrorOr<State> process_item(u32 item, State, Function<ErrorOr<void>(u8)>& on_byte, Function<ErrorOr<void>(u32)>& on_error);
 };
 
-class ShiftJISEncoder final : public Encoder {
+class TEXTCODEC_API ShiftJISEncoder final : public Encoder {
 public:
     virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) override;
 };
 
-class EUCKREncoder final : public Encoder {
+class TEXTCODEC_API EUCKREncoder final : public Encoder {
 public:
     virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) override;
 };
 
-class Big5Encoder final : public Encoder {
+class TEXTCODEC_API Big5Encoder final : public Encoder {
 public:
     virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) override;
 };
 
-class GB18030Encoder final : public Encoder {
+class TEXTCODEC_API GB18030Encoder final : public Encoder {
 public:
     enum class IsGBK {
         Yes,
@@ -86,7 +87,7 @@ private:
     Array<ArrayType, 128> m_translation_table;
 };
 
-Optional<Encoder&> encoder_for_exact_name(StringView encoding);
-Optional<Encoder&> encoder_for(StringView label);
+TEXTCODEC_API Optional<Encoder&> encoder_for_exact_name(StringView encoding);
+TEXTCODEC_API Optional<Encoder&> encoder_for(StringView label);
 
 }
