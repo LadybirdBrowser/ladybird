@@ -16,3 +16,25 @@ target_sources(ladybird PRIVATE
 )
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 create_ladybird_bundle(ladybird)
+
+if (WIN32)
+    qt_generate_deploy_script(
+        TARGET ladybird
+        OUTPUT_SCRIPT ladybird_deploy_script
+        CONTENT "
+qt_deploy_runtime_dependencies(
+    EXECUTABLE $<TARGET_FILE:ladybird>
+    PLUGINS_DIR $<TARGET_FILE_DIR:ladybird>
+)
+")
+
+    add_custom_command(TARGET ladybird POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ladybird>
+            $<TARGET_FILE_DIR:ladybird>
+        COMMAND ${CMAKE_COMMAND}
+            -P ${ladybird_deploy_script}
+        COMMAND_EXPAND_LISTS
+    )
+endif()
