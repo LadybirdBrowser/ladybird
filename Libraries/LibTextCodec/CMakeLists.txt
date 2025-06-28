@@ -11,4 +11,4 @@ set(GENERATED_SOURCES
     LookupTables.cpp
 )
 
-serenity_lib(LibTextCodec textcodec)
+serenity_lib(LibTextCodec textcodec EXPLICIT_SYMBOL_EXPORT)
