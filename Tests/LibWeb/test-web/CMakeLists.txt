@@ -19,6 +19,13 @@ elseif (WIN32)
         $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,WebContentClient>
     )
     target_link_libraries(test-web PRIVATE LibDevTools)
+    add_custom_command(TARGET test-web POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:test-web>
+            $<TARGET_FILE_DIR:test-web>
+        COMMAND_EXPAND_LISTS
+    )
 endif()
 
 # FIXME: Increase support for building targets on Windows
