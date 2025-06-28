@@ -14,11 +14,8 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibURL/Parser.h>
+#include <LibURL/PublicSuffixData.h>
 #include <LibURL/URL.h>
-
-#if defined(ENABLE_PUBLIC_SUFFIX)
-#    include <LibURL/PublicSuffixData.h>
-#endif
 
 namespace URL {
 
@@ -494,22 +491,14 @@ ByteString percent_decode(StringView input)
     return builder.to_byte_string();
 }
 
-bool is_public_suffix([[maybe_unused]] StringView host)
+bool is_public_suffix(StringView host)
 {
-#if defined(ENABLE_PUBLIC_SUFFIX)
     return PublicSuffixData::the()->is_public_suffix(host);
-#else
-    return false;
-#endif
 }
 
-Optional<String> get_public_suffix([[maybe_unused]] StringView host)
+Optional<String> get_public_suffix(StringView host)
 {
-#if defined(ENABLE_PUBLIC_SUFFIX)
     return MUST(PublicSuffixData::the()->get_public_suffix(host));
-#else
-    return {};
-#endif
 }
 
 // https://github.com/publicsuffix/list/wiki/Format#algorithm
