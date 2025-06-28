@@ -76,6 +76,14 @@ target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
 
+if(WIN32)
+    # FIXME: This is a hack to get around lld-link error undefined symbols in various libraries
+    target_link_libraries(${LADYBIRD_TARGET} PRIVATE
+            $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Application>
+            $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,UserAgent>
+    )
+endif()
+
 function(set_helper_process_properties)
     set(targets ${ARGV})
     if (APPLE)

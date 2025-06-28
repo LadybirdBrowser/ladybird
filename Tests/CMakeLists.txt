@@ -16,6 +16,7 @@ add_subdirectory(LibWasm)
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibGfx)
+    add_subdirectory(LibWeb)
 endif()
 
 # FIXME: Increase support for building targets on Windows
@@ -28,7 +29,6 @@ add_subdirectory(LibXML)
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibMedia)
-    add_subdirectory(LibWeb)
     add_subdirectory(LibWebView)
 endif()
 
