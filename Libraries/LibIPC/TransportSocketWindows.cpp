@@ -39,6 +39,11 @@ void TransportSocketWindows::close()
     m_socket->close();
 }
 
+void TransportSocketWindows::close_after_sending_all_pending_messages()
+{
+    close();
+}
+
 void TransportSocketWindows::wait_until_readable()
 {
     auto readable = MUST(m_socket->can_read_without_blocking(-1));
