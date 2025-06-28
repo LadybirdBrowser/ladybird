@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#angles">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<script>
+function test_invalid_angle(value) {
+  test_invalid_value('transform', `rotate(${value})`);
+}
+
+// Syntax checking
+test_invalid_angle('min()');
+test_invalid_angle('min( )');
+test_invalid_angle('min(,)');
+test_invalid_angle('min(1dag)');
+test_invalid_angle('min(1deg, )');
+test_invalid_angle('min(, 1deg)');
+test_invalid_angle('min(1deg + )');
+test_invalid_angle('min(1deg - )');
+test_invalid_angle('min(1deg * )');
+test_invalid_angle('min(1deg / )');
+test_invalid_angle('min(1deg 2deg)');
+test_invalid_angle('min(1deg, , 2deg)');
+test_invalid_angle('max()');
+test_invalid_angle('max( )');
+test_invalid_angle('max(,)');
+test_invalid_angle('max(1dag)');
+test_invalid_angle('max(1deg, )');
+test_invalid_angle('max(, 1deg)');
+test_invalid_angle('max(1deg + )');
+test_invalid_angle('max(1deg - )');
+test_invalid_angle('max(1deg * )');
+test_invalid_angle('max(1deg / )');
+test_invalid_angle('max(1deg 2deg)');
+test_invalid_angle('max(1deg, , 2deg)');
+
+// Type checking
+test_invalid_angle('min(0)');
+test_invalid_angle('min(0%)');
+test_invalid_angle('min(0px)');
+test_invalid_angle('min(0s)');
+test_invalid_angle('min(0Hz)');
+test_invalid_angle('min(0dpi)');
+test_invalid_angle('min(0fr)');
+test_invalid_angle('min(1deg, 0)');
+test_invalid_angle('min(1deg, 0%)');
+test_invalid_angle('min(1deg, 0px)');
+test_invalid_angle('min(1deg, 0s)');
+test_invalid_angle('min(1deg, 0Hz)');
+test_invalid_angle('min(1deg, 0dpi)');
+test_invalid_angle('min(1deg, 0fr)');
+test_invalid_angle('max(0)');
+test_invalid_angle('max(0%)');
+test_invalid_angle('max(0px)');
+test_invalid_angle('max(0s)');
+test_invalid_angle('max(0Hz)');
+test_invalid_angle('max(0dpi)');
+test_invalid_angle('max(0fr)');
+test_invalid_angle('max(1deg, 0)');
+test_invalid_angle('max(1deg, 0%)');
+test_invalid_angle('max(1deg, 0px)');
+test_invalid_angle('max(1deg, 0s)');
+test_invalid_angle('max(1deg, 0Hz)');
+test_invalid_angle('max(1deg, 0dpi)');
+test_invalid_angle('max(1deg, 0fr)');
+</script>

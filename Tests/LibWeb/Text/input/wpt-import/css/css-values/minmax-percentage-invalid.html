@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#percentages">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<script>
+function test_invalid_percentage(value) {
+  test_invalid_value('margin-left', value);
+}
+
+// Syntax checking
+test_invalid_percentage('min()');
+test_invalid_percentage('min( )');
+test_invalid_percentage('min(,)');
+test_invalid_percentage('min(1#)');
+test_invalid_percentage('min(%1)');
+test_invalid_percentage('min(1%, )');
+test_invalid_percentage('min(, 1%)');
+test_invalid_percentage('min(1% + )');
+test_invalid_percentage('min(1% - )');
+test_invalid_percentage('min(1% * )');
+test_invalid_percentage('min(1% / )');
+test_invalid_percentage('min(1% 2%)');
+test_invalid_percentage('min(1%, , 2%)');
+test_invalid_percentage('max()');
+test_invalid_percentage('max( )');
+test_invalid_percentage('max(,)');
+test_invalid_percentage('max(1#)');
+test_invalid_percentage('max(%1)');
+test_invalid_percentage('max(1%, )');
+test_invalid_percentage('max(, 1%)');
+test_invalid_percentage('max(1% + )');
+test_invalid_percentage('max(1% - )');
+test_invalid_percentage('max(1% * )');
+test_invalid_percentage('max(1% / )');
+test_invalid_percentage('max(1% 2%)');
+test_invalid_percentage('max(1%, , 2%)');
+
+// Type checking
+test_invalid_percentage('min(0s)');
+test_invalid_percentage('min(0deg)');
+test_invalid_percentage('min(0Hz)');
+test_invalid_percentage('min(0dpi)');
+test_invalid_percentage('min(0fr)');
+test_invalid_percentage('min(1%, 0)');
+test_invalid_percentage('min(1%, 0s)');
+test_invalid_percentage('min(1%, 0deg)');
+test_invalid_percentage('min(1%, 0Hz)');
+test_invalid_percentage('min(1%, 0dpi)');
+test_invalid_percentage('min(1%, 0fr)');
+test_invalid_percentage('max(0s)');
+test_invalid_percentage('max(0deg)');
+test_invalid_percentage('max(0Hz)');
+test_invalid_percentage('max(0dpi)');
+test_invalid_percentage('max(0fr)');
+test_invalid_percentage('max(1%, 0)');
+test_invalid_percentage('max(1%, 0s)');
+test_invalid_percentage('max(1%, 0deg)');
+test_invalid_percentage('max(1%, 0Hz)');
+test_invalid_percentage('max(1%, 0dpi)');
+test_invalid_percentage('max(1%, 0fr)');
+</script>
