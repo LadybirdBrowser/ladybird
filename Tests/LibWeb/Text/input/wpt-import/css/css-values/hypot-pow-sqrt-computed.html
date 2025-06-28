@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#exponent-funcs">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Apple Inc">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/numeric-testcommon.js"></script>
+<div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div id="target"></div>
+</div>
+<script>
+
+// Identity tests
+test_math_used('pow(1,1)', '1', {type:'integer'});
+test_math_used('sqrt(1)', '1', {type:'integer'});
+test_math_used('hypot(1)', '1', {type:'integer'});
+
+// Nestings
+test_math_used('sqrt(pow(1,1))', '1', {type:'integer'});
+test_math_used('hypot(pow(1, sqrt(1)))', '1', {type:'integer'});
+test_math_used('calc(hypot(pow((1 + sqrt(1)) / 2, sqrt(1))))', '1', {type:'integer'});
+
+// General calculations
+test_math_used('calc(100px * pow(2, pow(2, 2)))','1600px');
+test_math_used('calc(1px * pow(2, 3))', '8px')
+test_math_used('calc(100px * sqrt(100))', '1000px');
+test_math_used('calc(1px * pow(2, sqrt(100))', '1024px');
+test_math_used('hypot(3px, 4px)', '5px');
+test_math_used('hypot(3e+9px, 4e+9px)', '5e+9px');
+test_math_used('calc(100px * hypot(3, 4))', '500px');
+test_math_used('hypot(-5px)', '5px');
+test_math_used('calc(1px * hypot(-5))', '5px');
+test_math_used('calc(1px * hypot(10000))','10000px');
+test_math_used('calc(2px * sqrt(100000000))','20000px');
+test_math_used('calc(3px * pow(20, 4))', '480000px');
+test_math_used('calc(-2 * hypot(3px, 4px))', '-10px');
+test_math_used('hypot(0% + 3px, 0% + 4px)', '5px');
+test_math_used('hypot(0% + 772.333px)', 'calc(0% + 772.333px)');
+test_math_used('hypot(0% + 772.35px)', 'calc(0% + 772.35px)');
+test_math_used('hypot(0% + 600px, 0% + 800px)', '1000px');
+
+//Test unresolved at parse time
+test_math_used('sqrt(sibling-index())', '2', {type: 'integer'});
+test_math_used('calc(1px * sqrt(sibling-index()))', '2px');
+test_math_used('sqrt(pow(sibling-index(), 2))', '4', {type: 'integer'});
+
+//Type checking hypot
+test_math_used('hypot(1px)', '1px');
+test_math_used('hypot(1cm)', '1cm');
+test_math_used('hypot(1mm)', '1mm');
+test_math_used('hypot(1Q)', '1Q');
+test_math_used('hypot(1in)', '1in');
+test_math_used('hypot(1pc)', '1pc');
+test_math_used('hypot(1pt)', '1pt');
+test_math_used('hypot(1em)', '1em');
+test_math_used('hypot(1ex)', '1ex');
+test_math_used('hypot(1ch)', '1ch');
+test_math_used('hypot(1rem)', '1rem');
+test_math_used('hypot(1vh)', '1vh');
+test_math_used('hypot(1vw)', '1vw');
+test_math_used('hypot(1vmin)', '1vmin');
+test_math_used('hypot(1vmax)', '1vmax');
+test_math_used('hypot(1s)', '1s', {type:'time'});
+test_math_used('hypot(1ms)', '1ms', {type:'time'});
+test_math_used('hypot(1deg)', '1deg', {type:'angle', approx:0.001});
+test_math_used('hypot(1grad)', '1grad', {type:'angle', approx:0.001});
+test_math_used('hypot(1rad)', '1rad', {type:'angle', approx:0.001});
+test_math_used('hypot(1turn)', '1turn', {type:'angle', approx:0.001});
+</script>

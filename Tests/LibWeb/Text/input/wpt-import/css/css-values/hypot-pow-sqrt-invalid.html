@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#exponent-funcs">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Apple Inc">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<script>
+function test_invalid_number(value) {
+  test_invalid_value('opacity', value);
+}
+function test_invalid_length(value) {
+  // 'outline-offset' accepts <length> only, not <percentage> or any mixes.
+  test_invalid_value('outline-offset', value);
+}
+
+// Syntax checking
+test_invalid_number('hypot()');
+test_invalid_number('hypot( )');
+test_invalid_number('hypot(,)');
+test_invalid_number('hypot(1, )');
+test_invalid_number('hypot(, 1)');
+test_invalid_number('hypot(1 + )');
+test_invalid_number('hypot(1 - )');
+test_invalid_number('hypot(1 * )');
+test_invalid_number('hypot(1 / )');
+test_invalid_number('hypot(1 2)');
+test_invalid_number('hypot(1, , 2)');
+test_invalid_number('sqrt()');
+test_invalid_number('sqrt( )');
+test_invalid_number('sqrt(,)');
+test_invalid_number('sqrt(1, )');
+test_invalid_number('sqrt(, 1)');
+test_invalid_number('sqrt(1 + )');
+test_invalid_number('sqrt(1 - )');
+test_invalid_number('sqrt(1 * )');
+test_invalid_number('sqrt(1 / )');
+test_invalid_number('sqrt(1 2)');
+test_invalid_number('sqrt(1, , 2)');
+test_invalid_number('sqrt(1, 2)');
+test_invalid_number('pow( )');
+test_invalid_number('pow(,)');
+test_invalid_number('pow(1, )');
+test_invalid_number('pow(, 1)');
+test_invalid_number('pow(1 + )');
+test_invalid_number('pow(1 - )');
+test_invalid_number('pow(1 * )');
+test_invalid_number('pow(1 / )');
+test_invalid_number('pow(1 2)');
+test_invalid_number('pow(1, , 2)');
+test_invalid_number('pow(2px, 2)');
+test_invalid_number('pow(10, 1px)');
+
+// General tests
+test_invalid_length('calc(1px * pow(1))');
+test_invalid_length('calc(1px * pow(2px, 3px))');
+test_invalid_length('calc(sqrt(100px)');
+test_invalid_length('hypot(2px, 3)');
+test_invalid_length('hypot(3, ,4)');
+test_invalid_length('hypot(1, 2)');
+test_invalid_length('calc(1px * pow(2 3))');
+test_invalid_length('hypot()');
+test_invalid_length('calc(pow(2))');
+test_invalid_length('pow())');
+test_invalid_length('pow(1, 2)');
+test_invalid_length('calc(sqrt())');
+test_invalid_length('calc(sqrt(100, 200))');
+test_invalid_length('pow(10px, 1)');
+</script>
