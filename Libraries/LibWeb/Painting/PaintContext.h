@@ -32,9 +32,6 @@ public:
     void set_device_viewport_rect(DevicePixelRect const& rect) { m_device_viewport_rect = rect; }
     CSSPixelRect css_viewport_rect() const;
 
-    bool has_focus() const { return m_focus; }
-    void set_has_focus(bool focus) { m_focus = focus; }
-
     void set_svg_transform(Gfx::AffineTransform transform)
     {
         m_svg_transform = transform;
@@ -75,7 +72,6 @@ public:
         clone.m_device_viewport_rect = m_device_viewport_rect;
         clone.m_should_show_line_box_borders = m_should_show_line_box_borders;
         clone.m_should_paint_overlay = m_should_paint_overlay;
-        clone.m_focus = m_focus;
         return clone;
     }
 
@@ -90,7 +86,6 @@ private:
     DevicePixelRect m_device_viewport_rect;
     bool m_should_show_line_box_borders { false };
     bool m_should_paint_overlay { true };
-    bool m_focus { false };
     bool m_draw_svg_geometry_for_clip_path { false };
     Gfx::AffineTransform m_svg_transform;
     u64 m_paint_generation_id { 0 };

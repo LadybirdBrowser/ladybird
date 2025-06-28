@@ -239,7 +239,6 @@ void PageClient::paint_next_frame()
 void PageClient::start_display_list_rendering(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore& target, Web::PaintOptions paint_options, Function<void()>&& callback)
 {
     paint_options.should_show_line_box_borders = m_should_show_line_box_borders;
-    paint_options.has_focus = m_has_focus;
     auto& traversable = *page().top_level_traversable();
     auto display_list = traversable.record_display_list(content_rect, paint_options);
     if (!display_list) {

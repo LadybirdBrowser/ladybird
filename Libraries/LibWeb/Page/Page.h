@@ -309,7 +309,6 @@ struct PaintOptions {
 
     PaintOverlay paint_overlay { PaintOverlay::Yes };
     bool should_show_line_box_borders { false };
-    bool has_focus { false };
 };
 
 enum class DisplayListPlayerType {
