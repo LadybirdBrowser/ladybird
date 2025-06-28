@@ -24,7 +24,7 @@ struct ForeignPtr;
     using Base = base_class;             \
     friend class GC::Heap;
 
-class ForeignCell : public Cell {
+class GC_API ForeignCell : public Cell {
     FOREIGN_CELL(ForeignCell, Cell);
 
 public:

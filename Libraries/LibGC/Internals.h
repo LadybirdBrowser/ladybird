@@ -13,7 +13,7 @@
 
 namespace GC {
 
-class HeapBase {
+class GC_API HeapBase {
     AK_MAKE_NONCOPYABLE(HeapBase);
     AK_MAKE_NONMOVABLE(HeapBase);
 
@@ -29,12 +29,12 @@ protected:
     void* m_private_data;
 };
 
-class HeapBlockBase {
+class GC_API HeapBlockBase {
     AK_MAKE_NONMOVABLE(HeapBlockBase);
     AK_MAKE_NONCOPYABLE(HeapBlockBase);
 
 public:
-    GC_API static size_t block_size;
+    static size_t block_size;
     static HeapBlockBase* from_cell(Cell const* cell)
     {
         return reinterpret_cast<HeapBlockBase*>(bit_cast<FlatPtr>(cell) & ~(HeapBlockBase::block_size - 1));

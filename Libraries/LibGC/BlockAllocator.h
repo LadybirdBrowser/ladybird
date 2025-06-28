@@ -11,7 +11,7 @@
 
 namespace GC {
 
-class BlockAllocator {
+class GC_API BlockAllocator {
 public:
     BlockAllocator() = default;
     ~BlockAllocator();
