@@ -1,5 +1,13 @@
 include(cmake/ResourceFiles.cmake)
 
+# FIXME: Increase support for building targets on Windows
+if (WIN32 AND ENABLE_WINDOWS_CI)
+    add_library(ladybird INTERFACE)
+    set(resource_base_dir "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_DATADIR}/Lagom")
+    copy_resources_to_build(${resource_base_dir} "ladybird")
+    return()
+endif()
+
 function(create_ladybird_bundle target_name)
     set_target_properties(${target_name} PROPERTIES
         OUTPUT_NAME "Ladybird"
