@@ -348,4 +348,6 @@ inline Completion normal_completion(Value value)
 // 6.2.4.2 ThrowCompletion ( value ), https://tc39.es/ecma262/#sec-throwcompletion
 JS_API Completion throw_completion(Value);
 
+JS_API void set_log_all_js_exceptions(bool enabled);
+
 }

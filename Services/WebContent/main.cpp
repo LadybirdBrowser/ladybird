@@ -19,6 +19,7 @@
 #include <LibMedia/Audio/Loader.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Loader/ContentFilter.h>
@@ -28,6 +29,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
+#include <LibWeb/WebIDL/Tracing.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
@@ -53,24 +55,6 @@ static ErrorOr<void> reinitialize_resource_loader(IPC::File const& image_decoder
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
-
-namespace JS {
-
-extern bool g_log_all_js_exceptions;
-
-}
-
-namespace Web::WebIDL {
-
-extern bool g_enable_idl_tracing;
-
-}
-
-namespace Web::Fetch::Fetching {
-
-extern bool g_http_cache_enabled;
-
-}
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -168,7 +152,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         WebView::disable_site_isolation();
 
     if (enable_http_cache) {
-        Web::Fetch::Fetching::g_http_cache_enabled = true;
+
+        Web::Fetch::Fetching::set_http_cache_enabled(true);
     }
 
     Web::Painting::g_paint_viewport_scrollbars = !disable_scrollbar_painting;
@@ -206,11 +191,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(initialize_resource_loader(Web::Bindings::main_thread_vm().heap(), request_server_socket));
 
     if (log_all_js_exceptions) {
-        JS::g_log_all_js_exceptions = true;
+        JS::set_log_all_js_exceptions(true);
     }
 
     if (enable_idl_tracing) {
-        Web::WebIDL::g_enable_idl_tracing = true;
+        Web::WebIDL::set_enable_idl_tracing(true);
     }
 
     auto maybe_content_filter_error = load_content_filters(config_path);

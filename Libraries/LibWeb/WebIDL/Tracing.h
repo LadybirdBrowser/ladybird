@@ -10,14 +10,8 @@
 
 namespace Web::WebIDL {
 
-extern bool g_enable_idl_tracing;
+void log_trace(JS::VM& vm, char const* function);
 
-void log_trace_impl(JS::VM&, char const*);
-
-inline void log_trace(JS::VM& vm, char const* function)
-{
-    if (g_enable_idl_tracing)
-        log_trace_impl(vm, function);
-}
+void set_enable_idl_tracing(bool enabled);
 
 }
