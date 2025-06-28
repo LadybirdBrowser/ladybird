@@ -148,4 +148,9 @@ Completion throw_completion(Value value)
     return { Completion::Type::Throw, value };
 }
 
+void set_log_all_js_exceptions(bool const enabled)
+{
+    g_log_all_js_exceptions = enabled;
+}
+
 }
