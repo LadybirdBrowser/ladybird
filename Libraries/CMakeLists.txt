@@ -20,6 +20,7 @@ add_subdirectory(LibWebSocket)
 add_subdirectory(LibXML)
 
 if (ENABLE_GUI_TARGETS)
+    add_subdirectory(LibDevTools)
     add_subdirectory(LibGfx)
     add_subdirectory(LibImageDecoderClient)
     add_subdirectory(LibMedia)
@@ -33,8 +34,3 @@ if (WIN32 AND ENABLE_WINDOWS_CI)
 endif()
 
 add_subdirectory(LibLine)
-
-if (ENABLE_GUI_TARGETS)
-    # FIXME: TCPServer still needs to be implemented on Windows
-    add_subdirectory(LibDevTools)
-endif()
