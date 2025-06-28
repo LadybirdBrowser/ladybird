@@ -75,7 +75,7 @@ public:
     }
 
     bool is_public_suffix(StringView host);
-    ErrorOr<Optional<String>> get_public_suffix(StringView string);
+    Optional<String> get_public_suffix(StringView string);
 
 private:
     Trie<char, Empty> m_dictionary;
@@ -139,47 +139,47 @@ bool PublicSuffixData::is_public_suffix(StringView host)
     return it.is_end() && node.has_metadata();
 }
 
-ErrorOr<Optional<String>> PublicSuffixData::get_public_suffix(StringView string)
+Optional<String> PublicSuffixData::get_public_suffix(StringView string)
 {
-    auto input = string.split_view("."sv);
+    auto input = string.split_view('.');
     input.reverse();
 
     StringBuilder overall_search_string;
     StringBuilder search_string;
     for (auto part : input) {
         search_string.clear();
-        TRY(search_string.try_append(TRY(overall_search_string.to_string())));
-        TRY(search_string.try_append(part));
+        search_string.append(overall_search_string.string_view());
+        search_string.append(part);
 
         if (is_public_suffix(search_string.string_view())) {
-            overall_search_string.append(TRY(String::from_utf8(part)));
-            overall_search_string.append("."sv);
+            overall_search_string.append(part);
+            overall_search_string.append('.');
             continue;
         }
 
         search_string.clear();
-        TRY(search_string.try_append(TRY(overall_search_string.to_string())));
-        TRY(search_string.try_append("*"sv));
+        search_string.append(overall_search_string.string_view());
+        search_string.append('.');
 
         if (is_public_suffix(search_string.string_view())) {
-            overall_search_string.append(TRY(String::from_utf8(part)));
-            overall_search_string.append("."sv);
+            overall_search_string.append(part);
+            overall_search_string.append('.');
             continue;
         }
 
         break;
     }
 
-    auto view = overall_search_string.string_view().split_view("."sv);
+    auto view = overall_search_string.string_view().split_view('.');
     view.reverse();
 
     StringBuilder return_string_builder;
     return_string_builder.join('.', view);
-    auto returnString = TRY(return_string_builder.to_string());
-    if (!returnString.is_empty())
-        return returnString;
 
-    return Optional<String> {};
+    if (return_string_builder.is_empty())
+        return Optional<String> {};
+
+    return MUST(return_string_builder.to_string());
 }
 
 }
