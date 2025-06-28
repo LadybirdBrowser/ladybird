@@ -131,14 +131,17 @@ ByteString StandardPaths::videos_directory()
 
 ByteString StandardPaths::config_directory()
 {
+    StringBuilder builder;
 #ifdef AK_OS_WINDOWS
-    dbgln("Core::StandardPaths::config_directory() is not implemented");
-    VERIFY_NOT_REACHED();
+    if (auto appdata = get_environment_if_not_empty("APPDATA"sv); appdata.has_value())
+        return LexicalPath::canonicalized_path(*appdata);
+    builder.append(home_directory());
+    builder.append("\\AppData\\Roaming"sv);
+    return LexicalPath::canonicalized_path(builder.to_byte_string());
 #endif
     if (auto config_directory = get_environment_if_not_empty("XDG_CONFIG_HOME"sv); config_directory.has_value())
         return LexicalPath::canonicalized_path(*config_directory);
 
-    StringBuilder builder;
     builder.append(home_directory());
 #if defined(AK_OS_MACOS)
     builder.append("/Library/Preferences"sv);
