@@ -641,3 +641,51 @@ TEST_CASE(get_registrable_domain)
         EXPECT_EQ(*domain, "ladybird.github.io"sv);
     }
 }
+
+TEST_CASE(public_suffix)
+{
+    {
+        auto domain = URL::Parser::parse_host("com"sv);
+        EXPECT_EQ(domain->public_suffix(), "com"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("example.com"sv);
+        EXPECT_EQ(domain->public_suffix(), "com"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("www.example.com"sv);
+        EXPECT_EQ(domain->public_suffix(), "com"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("EXAMPLE.COM"sv);
+        EXPECT_EQ(domain->public_suffix(), "com"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("www.example.com."sv);
+        EXPECT_EQ(domain->public_suffix(), "com."sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("github.io"sv);
+        EXPECT_EQ(domain->public_suffix(), "github.io"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("whatwg.github.io"sv);
+        EXPECT_EQ(domain->public_suffix(), "github.io"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("إختبار"sv);
+        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("example.إختبار"sv);
+        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("sub.example.إختبار"sv);
+        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"sv);
+        EXPECT_EQ(domain->public_suffix(), OptionalNone {});
+    }
+}
