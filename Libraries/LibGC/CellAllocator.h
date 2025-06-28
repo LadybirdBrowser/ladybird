@@ -21,7 +21,7 @@
 
 namespace GC {
 
-class CellAllocator {
+class GC_API CellAllocator {
 public:
     CellAllocator(size_t cell_size, char const* class_name = nullptr);
     ~CellAllocator() = default;
@@ -68,7 +68,7 @@ private:
 };
 
 template<typename T>
-class TypeIsolatingCellAllocator {
+class GC_API TypeIsolatingCellAllocator {
 public:
     using CellType = T;
 

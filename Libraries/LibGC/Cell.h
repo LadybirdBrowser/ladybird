@@ -37,7 +37,7 @@ public:                                            \
     }                                              \
     friend class GC::Heap;
 
-class Cell {
+class GC_API Cell {
     AK_MAKE_NONCOPYABLE(Cell);
     AK_MAKE_NONMOVABLE(Cell);
 
@@ -57,7 +57,7 @@ public:
 
     virtual StringView class_name() const = 0;
 
-    class Visitor {
+    class GC_API Visitor {
     public:
         void visit(Cell* cell)
         {
