@@ -14,6 +14,7 @@ vcpkg_from_github(
         vulkan-headers.patch
         pdfsubsetfont-uwp.diff
         skparagraph-gni.diff
+	    fix-freebsd.patch
 )
 
 # De-vendor
@@ -123,12 +124,18 @@ elseif(VCPKG_TARGET_IS_WINDOWS)
         string(APPEND OPTIONS " skia_enable_skparagraph=false")
         string(APPEND OPTIONS " skia_enable_bentleyottmann=false")
     endif()
+elseif(VCPKG_TARGET_IS_FREEBSD)
+    string(APPEND OPTIONS " target_os=\"linux\"")
 endif()
 
 if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
     string(APPEND OPTIONS " is_component_build=true")
 else()
     string(APPEND OPTIONS " is_component_build=false")
+endif()
+
+if(VCPKG_TARGET_IS_FREEBSD)
+    string(APPEND OPTIONS " skia_use_dng_sdk=false")
 endif()
 
 set(required_externals
