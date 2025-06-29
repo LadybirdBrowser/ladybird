@@ -70,7 +70,10 @@
         "apng"
       ]
     },
-    "libproxy",
+    {
+      "name": "libproxy",
+      "platform": "!freebsd"
+    },
     {
       "name": "libavif",
       "features": [
