@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class GeneratorObject : public Object {
+class JS_API GeneratorObject : public Object {
     JS_OBJECT(GeneratorObject, Object);
     GC_DECLARE_ALLOCATOR(GeneratorObject);
 

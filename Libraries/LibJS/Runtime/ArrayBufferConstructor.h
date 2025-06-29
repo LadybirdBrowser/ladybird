@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class ArrayBufferConstructor final : public NativeFunction {
+class JS_API ArrayBufferConstructor final : public NativeFunction {
     JS_OBJECT(ArrayBufferConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(ArrayBufferConstructor);
 

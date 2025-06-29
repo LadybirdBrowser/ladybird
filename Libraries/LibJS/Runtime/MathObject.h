@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class MathObject final : public Object {
+class JS_API MathObject final : public Object {
     JS_OBJECT(MathObject, Object);
     GC_DECLARE_ALLOCATOR(MathObject);
 

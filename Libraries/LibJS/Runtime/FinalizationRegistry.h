@@ -17,7 +17,7 @@
 
 namespace JS {
 
-class FinalizationRegistry final
+class JS_API FinalizationRegistry final
     : public Object
     , public GC::WeakContainer {
     JS_OBJECT(FinalizationRegistry, Object);

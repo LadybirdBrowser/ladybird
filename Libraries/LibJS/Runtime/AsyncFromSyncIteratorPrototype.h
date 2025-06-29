@@ -15,7 +15,7 @@
 namespace JS {
 
 // 27.1.4.2 The %AsyncFromSyncIteratorPrototype% Object, https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%-object
-class AsyncFromSyncIteratorPrototype final : public PrototypeObject<AsyncFromSyncIteratorPrototype, AsyncFromSyncIterator> {
+class JS_API AsyncFromSyncIteratorPrototype final : public PrototypeObject<AsyncFromSyncIteratorPrototype, AsyncFromSyncIterator> {
     JS_PROTOTYPE_OBJECT(AsyncFromSyncIteratorPrototype, AsyncFromSyncIterator, AsyncFromSyncIterator);
     GC_DECLARE_ALLOCATOR(AsyncFromSyncIteratorPrototype);
 
@@ -31,6 +31,6 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(throw_);
 };
 
-GC::Ref<IteratorRecord> create_async_from_sync_iterator(VM&, GC::Ref<IteratorRecord> sync_iterator);
+JS_API GC::Ref<IteratorRecord> create_async_from_sync_iterator(VM&, GC::Ref<IteratorRecord> sync_iterator);
 
 }

@@ -16,7 +16,7 @@
 namespace JS::Intl {
 
 // https://tc39.es/ecma402/#intl-mathematical-value
-class MathematicalValue {
+class JS_API MathematicalValue {
 public:
     enum class Symbol {
         PositiveInfinity,

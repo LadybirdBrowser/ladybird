@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class DisposableStackPrototype final : public PrototypeObject<DisposableStackPrototype, DisposableStack> {
+class JS_API DisposableStackPrototype final : public PrototypeObject<DisposableStackPrototype, DisposableStack> {
     JS_PROTOTYPE_OBJECT(DisposableStackPrototype, DisposableStack, DisposableStack);
     GC_DECLARE_ALLOCATOR(DisposableStackPrototype);
 

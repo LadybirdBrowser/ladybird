@@ -10,7 +10,7 @@
 
 namespace JS::Test262 {
 
-class IsHTMLDDA final : public NativeFunction {
+class JS_API IsHTMLDDA final : public NativeFunction {
     JS_OBJECT(IsHTMLDDA, NativeFunction);
     GC_DECLARE_ALLOCATOR(IsHTMLDDA);
 

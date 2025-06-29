@@ -10,6 +10,6 @@
 
 namespace JS {
 
-Value canonicalize_keyed_collection_key(Value);
+JS_API Value canonicalize_keyed_collection_key(Value);
 
 }

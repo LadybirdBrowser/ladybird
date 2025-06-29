@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class AggregateError : public Error {
+class JS_API AggregateError : public Error {
     JS_OBJECT(AggregateError, Error);
     GC_DECLARE_ALLOCATOR(AggregateError);
 

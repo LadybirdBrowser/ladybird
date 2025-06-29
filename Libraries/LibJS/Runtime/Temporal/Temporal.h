@@ -10,7 +10,7 @@
 
 namespace JS::Temporal {
 
-class Temporal final : public Object {
+class JS_API Temporal final : public Object {
     JS_OBJECT(Temporal, Object);
     GC_DECLARE_ALLOCATOR(Temporal);
 

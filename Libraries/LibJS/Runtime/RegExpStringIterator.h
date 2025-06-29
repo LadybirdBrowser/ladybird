@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class RegExpStringIterator final : public Object {
+class JS_API RegExpStringIterator final : public Object {
     JS_OBJECT(RegExpStringIterator, Object);
     GC_DECLARE_ALLOCATOR(RegExpStringIterator);
 

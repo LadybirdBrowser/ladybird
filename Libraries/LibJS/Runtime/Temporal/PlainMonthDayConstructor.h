@@ -11,7 +11,7 @@
 
 namespace JS::Temporal {
 
-class PlainMonthDayConstructor final : public NativeFunction {
+class JS_API PlainMonthDayConstructor final : public NativeFunction {
     JS_OBJECT(PlainMonthDayConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(PlainMonthDayConstructor);
 

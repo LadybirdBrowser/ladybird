@@ -15,14 +15,14 @@
 
 namespace JS::Bytecode {
 
-struct UnwindInfo {
+struct JS_API UnwindInfo {
     GC::Ptr<Executable const> executable;
     GC::Ptr<Environment> lexical_environment;
 
     bool handler_called { false };
 };
 
-class BasicBlock {
+class JS_API BasicBlock {
     AK_MAKE_NONCOPYABLE(BasicBlock);
 
 public:

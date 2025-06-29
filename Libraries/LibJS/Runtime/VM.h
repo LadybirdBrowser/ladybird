@@ -45,7 +45,7 @@ enum class EvalMode {
     Indirect
 };
 
-class VM : public RefCounted<VM> {
+class JS_API VM : public RefCounted<VM> {
 public:
     static NonnullRefPtr<VM> create();
     ~VM();
