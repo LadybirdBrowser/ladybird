@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class BigIntConstructor final : public NativeFunction {
+class JS_API BigIntConstructor final : public NativeFunction {
     JS_OBJECT(BigIntConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(BigIntConstructor);
 

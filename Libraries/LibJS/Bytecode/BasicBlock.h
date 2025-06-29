@@ -22,7 +22,7 @@ struct UnwindInfo {
     bool handler_called { false };
 };
 
-class BasicBlock {
+class JS_API BasicBlock {
     AK_MAKE_NONCOPYABLE(BasicBlock);
 
 public:

@@ -45,7 +45,7 @@ struct FunctionNodeParseOptions {
 
 class ScopePusher;
 
-class Parser {
+class JS_API Parser {
 public:
     struct EvalInitialState {
         bool in_eval_function_context { false };

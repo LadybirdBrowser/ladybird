@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class SymbolPrototype final : public Object {
+class JS_API SymbolPrototype final : public Object {
     JS_OBJECT(SymbolPrototype, Object);
     GC_DECLARE_ALLOCATOR(SymbolPrototype);
 

@@ -267,7 +267,7 @@ set(SOURCES
     Token.cpp
 )
 
-serenity_lib(LibJS js)
+serenity_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC)
 
 # Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.

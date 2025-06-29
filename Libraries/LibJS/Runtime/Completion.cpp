@@ -6,6 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibJS/Export.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -17,7 +18,7 @@
 
 namespace JS {
 
-bool g_log_all_js_exceptions = false;
+JS_API bool g_log_all_js_exceptions = false;
 
 Completion::Completion(ThrowCompletionOr<Value> const& throw_completion_or_value)
 {

@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class Set : public Object {
+class JS_API Set : public Object {
     JS_OBJECT(Set, Object);
     GC_DECLARE_ALLOCATOR(Set);
 
@@ -55,7 +55,7 @@ struct SetRecord {
     GC::Ref<FunctionObject> keys;     // [[Keys]]
 };
 
-ThrowCompletionOr<SetRecord> get_set_record(VM&, Value);
-bool set_data_has(GC::Ref<Set>, Value);
+JS_API ThrowCompletionOr<SetRecord> get_set_record(VM&, Value);
+JS_API bool set_data_has(GC::Ref<Set>, Value);
 
 }

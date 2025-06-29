@@ -15,7 +15,7 @@
 
 namespace JS {
 
-struct ParserError {
+struct JS_API ParserError {
     String message;
     Optional<Position> position;
 

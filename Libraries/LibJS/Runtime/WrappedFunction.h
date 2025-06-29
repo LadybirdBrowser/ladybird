@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class WrappedFunction final : public FunctionObject {
+class JS_API WrappedFunction final : public FunctionObject {
     JS_OBJECT(WrappedFunction, FunctionObject);
     GC_DECLARE_ALLOCATOR(WrappedFunction);
 

@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class StringIterator final : public Object
+class JS_API StringIterator final : public Object
     , public BuiltinIterator {
     JS_OBJECT(StringIterator, Object);
     GC_DECLARE_ALLOCATOR(StringIterator);

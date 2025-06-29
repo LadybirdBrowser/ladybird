@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class Intl final : public Object {
+class JS_API Intl final : public Object {
     JS_OBJECT(Intl, Object);
     GC_DECLARE_ALLOCATOR(Intl);
 

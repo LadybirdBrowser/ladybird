@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class SymbolObject : public Object {
+class JS_API SymbolObject : public Object {
     JS_OBJECT(SymbolObject, Object);
     GC_DECLARE_ALLOCATOR(SymbolObject);
 
