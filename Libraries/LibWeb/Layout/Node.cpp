@@ -378,9 +378,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     }
     computed_values.set_color_scheme(computed_style.color_scheme(preferred_color_scheme, document().supported_color_schemes()));
 
-    // NOTE: color must be set second to ensure currentColor can be resolved in other properties (e.g. background-color).
-    computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, *this, CSS::InitialValues::color()));
-
     // NOTE: We have to be careful that font-related properties get set in the right order.
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
     //       That's why it has to be set before everything else.
@@ -389,6 +386,10 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_font_weight(computed_style.property(CSS::PropertyID::FontWeight).to_font_weight());
     computed_values.set_font_kerning(computed_style.font_kerning());
     computed_values.set_line_height(computed_style.line_height());
+
+    // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
+    // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
+    computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, *this, CSS::InitialValues::color()));
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
@@ -796,7 +797,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
 
     if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color.has_color())
-        computed_values.set_outline_color(outline_color.to_color(*this, {}));
+        computed_values.set_outline_color(outline_color.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }));
     if (auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset.is_length())
         computed_values.set_outline_offset(outline_offset.as_length().length());
     computed_values.set_outline_style(computed_style.outline_style());
@@ -836,16 +837,16 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     auto const& fill = computed_style.property(CSS::PropertyID::Fill);
     if (fill.has_color())
-        computed_values.set_fill(fill.to_color(*this, {}));
+        computed_values.set_fill(fill.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }));
     else if (fill.is_url())
         computed_values.set_fill(fill.as_url().url());
     auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
     if (stroke.has_color())
-        computed_values.set_stroke(stroke.to_color(*this, {}));
+        computed_values.set_stroke(stroke.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }));
     else if (stroke.is_url())
         computed_values.set_stroke(stroke.as_url().url());
     if (auto const& stop_color = computed_style.property(CSS::PropertyID::StopColor); stop_color.has_color())
-        computed_values.set_stop_color(stop_color.to_color(*this, {}));
+        computed_values.set_stop_color(stop_color.to_color(*this, { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }));
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits

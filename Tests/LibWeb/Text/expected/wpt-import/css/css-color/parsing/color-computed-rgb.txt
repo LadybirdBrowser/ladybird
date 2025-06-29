@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 99 tests
 
-79 Pass
-20 Fail
+97 Pass
+2 Fail
 Pass	Property color value 'rgb(none none none)'
 Pass	Property color value 'rgb(none none none / none)'
 Pass	Property color value 'rgb(128 none none)'
@@ -83,23 +83,23 @@ Pass	Property color value 'rgb(0, 0, calc(0 / 0))' [Blue channel resolves NaN eq
 Pass	Property color value 'rgba(0, 0, 0, calc(0 / 0))' [Alpha channel resolves NaN equivalent calc statements to zero]
 Pass	Property color value 'rgb(var(--high), 0, 0)' [Variables above 255 get clamped to 255.]
 Pass	Property color value 'rgb(var(--negative), 64, 128)' [Variables below 0 get clamped to 0.]
-Fail	Property color value 'rgb(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)'
-Fail	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)'
-Fail	Property color value 'rgb(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)'
-Fail	Property color value 'rgba(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)'
-Fail	Property color value 'rgb(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))'
-Fail	Property color value 'rgba(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))'
-Fail	Property color value 'rgb(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))'
-Fail	Property color value 'rgba(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))'
-Fail	Property color value 'rgb(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)'
-Fail	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)'
-Fail	Property color value 'rgb(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)'
-Fail	Property color value 'rgba(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)'
-Fail	Property color value 'rgb(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))'
-Fail	Property color value 'rgba(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))'
-Fail	Property color value 'rgb(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
-Fail	Property color value 'rgba(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
-Fail	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)) 0 0% / 0.5)'
-Fail	Property color value 'rgba(0% 0 0% / calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Pass	Property color value 'rgb(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)'
+Pass	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)'
+Pass	Property color value 'rgb(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)'
+Pass	Property color value 'rgba(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)'
+Pass	Property color value 'rgb(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'rgba(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'rgb(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Pass	Property color value 'rgba(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Pass	Property color value 'rgb(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)'
+Pass	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)'
+Pass	Property color value 'rgb(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)'
+Pass	Property color value 'rgba(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)'
+Pass	Property color value 'rgb(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'rgba(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'rgb(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Pass	Property color value 'rgba(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Pass	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)) 0 0% / 0.5)'
+Pass	Property color value 'rgba(0% 0 0% / calc(0.75 + (sign(1em - 10px) * 0.1)))'
 Fail	Property color value 'rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 51%)'
 Fail	Property color value 'rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 52%)'

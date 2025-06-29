@@ -937,11 +937,20 @@ String CanvasRenderingContext2D::shadow_color() const
 void CanvasRenderingContext2D::set_shadow_color(String color)
 {
     // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
+    auto& context = canvas_element();
 
     // 2. Let parsedValue be the result of parsing the given value with context if non-null.
     auto style_value = parse_css_value(CSS::Parser::ParsingParams(), color, CSS::PropertyID::Color);
     if (style_value && style_value->has_color()) {
-        auto parsedValue = style_value->to_color(OptionalNone(), {});
+        Optional<Layout::NodeWithStyle const&> layout_node;
+        CSS::CalculationResolutionContext resolution_context;
+
+        if (auto node = context.layout_node()) {
+            layout_node = *node;
+            resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*node);
+        }
+
+        auto parsedValue = style_value->to_color(layout_node, resolution_context);
 
         // 4. Set this's shadow color to parsedValue.
         drawing_state().shadow_color = parsedValue;

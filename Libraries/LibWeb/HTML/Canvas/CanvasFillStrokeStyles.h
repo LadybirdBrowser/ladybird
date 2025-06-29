@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
+#include <LibWeb/Layout/Node.h>
 
 namespace Web::HTML {
 
@@ -31,13 +32,27 @@ public:
             // 1. If the given value is a string, then:
             [&](String const& string) {
                 // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
+                HTMLCanvasElement* context = my_canvas_element().visit(
+                    [&](HTMLCanvasElement* canvas_element) -> HTMLCanvasElement* {
+                        return canvas_element;
+                    },
+                    [&](OffscreenCanvas*) -> HTMLCanvasElement* {
+                        return nullptr;
+                    });
 
                 // 2. Let parsedValue be the result of parsing the given value with context if non-null.
                 // FIXME: Parse a color value
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
                 auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
-                    auto parsedValue = style_value->to_color(OptionalNone(), {});
+                    Optional<Layout::NodeWithStyle const&> layout_node;
+                    CSS::CalculationResolutionContext resolution_context {};
+                    if (context && context->layout_node()) {
+                        layout_node = *context->layout_node();
+                        resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*context->layout_node());
+                    }
+
+                    auto parsedValue = style_value->to_color(layout_node, resolution_context);
 
                     // 4. Set this's fill style to parsedValue.
                     my_drawing_state().fill_style = parsedValue;
@@ -70,13 +85,27 @@ public:
             // 1. If the given value is a string, then:
             [&](String const& string) {
                 // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
+                HTMLCanvasElement* context = my_canvas_element().visit(
+                    [&](HTMLCanvasElement* canvas_element) -> HTMLCanvasElement* {
+                        return canvas_element;
+                    },
+                    [&](OffscreenCanvas*) -> HTMLCanvasElement* {
+                        return nullptr;
+                    });
 
                 // 2. Let parsedValue be the result of parsing the given value with context if non-null.
                 // FIXME: Parse a color value
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
                 auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
-                    auto parsedValue = style_value->to_color(OptionalNone(), {});
+                    Optional<Layout::NodeWithStyle const&> layout_node;
+                    CSS::CalculationResolutionContext resolution_context {};
+                    if (context && context->layout_node()) {
+                        layout_node = *context->layout_node();
+                        resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*context->layout_node());
+                    }
+
+                    auto parsedValue = style_value->to_color(layout_node, resolution_context);
 
                     // 4. Set this's stroke style to parsedValue.
                     my_drawing_state().stroke_style = parsedValue;
@@ -129,6 +158,7 @@ protected:
     CanvasFillStrokeStyles() = default;
 
 private:
+    Variant<HTMLCanvasElement*, OffscreenCanvas*> my_canvas_element() { return &reinterpret_cast<IncludingClass&>(*this).canvas_element(); }
     CanvasState::DrawingState& my_drawing_state() { return reinterpret_cast<IncludingClass&>(*this).drawing_state(); }
     CanvasState::DrawingState const& my_drawing_state() const { return reinterpret_cast<IncludingClass const&>(*this).drawing_state(); }
 };

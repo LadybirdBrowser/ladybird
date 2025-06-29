@@ -659,6 +659,13 @@ RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, Calcul
     StyleValueVector result_shadows;
     result_shadows.ensure_capacity(from_shadows.size());
 
+    Optional<Layout::NodeWithStyle const&> layout_node;
+    CalculationResolutionContext resolution_context;
+    if (auto node = element.layout_node()) {
+        layout_node = *node;
+        resolution_context.length_resolution_context = Length::ResolutionContext::for_layout_node(*node);
+    }
+
     for (size_t i = 0; i < from_shadows.size(); i++) {
         auto const& from_shadow = from_shadows[i]->as_shadow();
         auto const& to_shadow = to_shadows[i]->as_shadow();
@@ -669,7 +676,7 @@ RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, Calcul
         if (!interpolated_offset_x || !interpolated_offset_y || !interpolated_blur_radius || !interpolated_spread_distance)
             return {};
         auto result_shadow = ShadowStyleValue::create(
-            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color({}, {}), to_shadow.color()->to_color({}, {}), delta), ColorSyntax::Modern),
+            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color(layout_node, resolution_context), to_shadow.color()->to_color(layout_node, resolution_context), delta), ColorSyntax::Modern),
             *interpolated_offset_x,
             *interpolated_offset_y,
             *interpolated_blur_radius,
@@ -781,9 +788,13 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
     }
     case CSSStyleValue::Type::Color: {
         Optional<Layout::NodeWithStyle const&> layout_node;
-        if (auto node = element.layout_node())
+        CalculationResolutionContext resolution_context {};
+        if (auto node = element.layout_node()) {
             layout_node = *node;
-        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node, {}), to.to_color(layout_node, {}), delta), ColorSyntax::Modern);
+            resolution_context.length_resolution_context = Length::ResolutionContext::for_layout_node(*node);
+        }
+
+        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node, resolution_context), to.to_color(layout_node, resolution_context), delta), ColorSyntax::Modern);
     }
     case CSSStyleValue::Type::Edge: {
         auto resolved_from = from.as_edge().resolved_value(calculation_context);

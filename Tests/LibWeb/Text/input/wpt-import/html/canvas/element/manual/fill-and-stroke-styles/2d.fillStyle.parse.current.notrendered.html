@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>Canvas test: 2d.fillStyle.parse.current.notrendered</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../html/canvas/resources/canvas-tests.js"></script>
+<link rel="stylesheet" href="../../../../../html/canvas/resources/canvas-tests.css">
+<body class="show_output">
+
+<h1>2d.fillStyle.parse.current.basic</h1>
+<p class="desc">currentColor is computed from the canvas element</p>
+
+
+<p class="output">Actual output:</p>
+<canvas id="c" class="output" width="100" height="50"><p class="fallback">FAIL (fallback content)</p></canvas>
+<p class="output expectedtext">Expected output:<p><img src="../../../../../images/green-100x50.png" class="output expected" id="expected" alt="">
+<ul id="d"></ul>
+<script>
+var t = async_test("currentColor is computed from the canvas element even when element is not rendered");
+_addTest(function(canvas, ctx) {
+
+canvas.setAttribute('style', 'color: #0f0;');
+canvas.style.display = 'none';
+canvas.offsetTop;
+ctx.fillStyle = 'currentColor';
+canvas.style.display = 'inline';
+ctx.fillRect(0, 0, 100, 50);
+_assertPixel(canvas, 50,25, 0,255,0,255);
+
+
+});
+</script>
