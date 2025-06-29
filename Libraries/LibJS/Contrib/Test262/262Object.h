@@ -13,7 +13,7 @@
 
 namespace JS::Test262 {
 
-class $262Object final : public Object {
+class JS_API $262Object final : public Object {
     JS_OBJECT($262Object, Object);
     GC_DECLARE_ALLOCATOR($262Object);
 

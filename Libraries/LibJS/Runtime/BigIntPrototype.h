@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class BigIntPrototype final : public Object {
+class JS_API BigIntPrototype final : public Object {
     JS_OBJECT(BigIntPrototype, Object);
     GC_DECLARE_ALLOCATOR(BigIntPrototype);
 

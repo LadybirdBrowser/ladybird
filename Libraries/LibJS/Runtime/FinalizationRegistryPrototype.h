@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class FinalizationRegistryPrototype final : public PrototypeObject<FinalizationRegistryPrototype, FinalizationRegistry> {
+class JS_API FinalizationRegistryPrototype final : public PrototypeObject<FinalizationRegistryPrototype, FinalizationRegistry> {
     JS_PROTOTYPE_OBJECT(FinalizationRegistryPrototype, FinalizationRegistry, FinalizationRegistry);
     GC_DECLARE_ALLOCATOR(FinalizationRegistryPrototype);
 

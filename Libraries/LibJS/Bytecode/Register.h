@@ -7,10 +7,11 @@
 #pragma once
 
 #include <AK/Format.h>
+#include <LibJS/Forward.h>
 
 namespace JS::Bytecode {
 
-class Register {
+class JS_API Register {
 public:
     constexpr static u32 accumulator_index = 0;
 

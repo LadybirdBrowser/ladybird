@@ -9,6 +9,7 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibJS/Forward.h>
 #include <LibRegex/RegexParser.h>
 
 namespace JS::Bytecode {
@@ -21,7 +22,7 @@ struct ParsedRegex {
     regex::RegexOptions<ECMAScriptFlags> flags;
 };
 
-class RegexTable {
+class JS_API RegexTable {
     AK_MAKE_NONMOVABLE(RegexTable);
     AK_MAKE_NONCOPYABLE(RegexTable);
 

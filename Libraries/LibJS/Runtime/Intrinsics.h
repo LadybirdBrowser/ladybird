@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class Intrinsics final : public Cell {
+class JS_API Intrinsics final : public Cell {
     GC_CELL(Intrinsics, Cell);
     GC_DECLARE_ALLOCATOR(Intrinsics);
 
@@ -251,6 +251,6 @@ private:
     GC::Ptr<Intl::Collator> m_default_collator;
 };
 
-void add_restricted_function_properties(FunctionObject&, Realm&);
+JS_API void add_restricted_function_properties(FunctionObject&, Realm&);
 
 }

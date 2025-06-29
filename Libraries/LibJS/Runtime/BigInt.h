@@ -15,7 +15,7 @@
 
 namespace JS {
 
-class BigInt final : public Cell {
+class JS_API BigInt final : public Cell {
     GC_CELL(BigInt, Cell);
     GC_DECLARE_ALLOCATOR(BigInt);
 
@@ -35,6 +35,6 @@ private:
     Crypto::SignedBigInteger m_big_integer;
 };
 
-ThrowCompletionOr<GC::Ref<BigInt>> number_to_bigint(VM&, Value);
+JS_API ThrowCompletionOr<GC::Ref<BigInt>> number_to_bigint(VM&, Value);
 
 }

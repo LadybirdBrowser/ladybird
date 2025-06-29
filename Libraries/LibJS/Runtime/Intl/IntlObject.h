@@ -15,14 +15,14 @@
 namespace JS::Intl {
 
 // https://tc39.es/ecma402/#resolution-option-descriptor
-struct ResolutionOptionDescriptor {
+struct JS_API ResolutionOptionDescriptor {
     StringView key;
     PropertyKey property;
     OptionType type { OptionType::String };
     ReadonlySpan<StringView> values {};
 };
 
-class IntlObject : public Object {
+class JS_API IntlObject : public Object {
     JS_OBJECT(IntlObject, Object);
 
 public:

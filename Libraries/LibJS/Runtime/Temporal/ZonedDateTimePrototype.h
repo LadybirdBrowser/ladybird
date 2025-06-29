@@ -12,7 +12,7 @@
 
 namespace JS::Temporal {
 
-class ZonedDateTimePrototype final : public PrototypeObject<ZonedDateTimePrototype, ZonedDateTime> {
+class JS_API ZonedDateTimePrototype final : public PrototypeObject<ZonedDateTimePrototype, ZonedDateTime> {
     JS_PROTOTYPE_OBJECT(ZonedDateTimePrototype, ZonedDateTime, Temporal.ZonedDateTime);
     GC_DECLARE_ALLOCATOR(ZonedDateTimePrototype);
 
