@@ -76,7 +76,7 @@
     },
     {
       "name": "libproxy",
-      "platform": "!android"
+      "platform": "!(android | freebsd)"
     },
     {
       "name": "libavif",
