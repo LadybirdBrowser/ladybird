@@ -95,6 +95,32 @@
     },
     "openssl",
     {
+      "name": "qtbase",
+      "platform": "freebsd",
+      "default-features": false,
+      "features": [
+        "concurrent",
+        "doubleconversion",
+        "fontconfig",
+        "freetype",
+        "gui",
+        "icu",
+        "jpeg",
+        "network",
+        "opengl",
+        "pcre2",
+        "png",
+        "thread",
+        "vulkan",
+        "widgets",
+        "xcb",
+        "xcb-xlib",
+        "xlib",
+        "xrender",
+        "zstd"
+      ]
+    },
+    {
       "name": "pthread",
       "platform": "windows"
     },
@@ -206,6 +232,10 @@
     {
       "name": "openssl",
       "version": "3.5.0#1"
+    },
+    {
+      "name": "qtbase",
+      "version": "6.8.3#2"
     },
     {
       "name": "simdutf",
