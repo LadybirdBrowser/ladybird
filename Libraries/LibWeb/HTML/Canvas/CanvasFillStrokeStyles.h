@@ -37,7 +37,7 @@ public:
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
                 auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
-                    auto parsedValue = style_value->to_color(OptionalNone());
+                    auto parsedValue = style_value->to_color(OptionalNone(), {});
 
                     // 4. Set this's fill style to parsedValue.
                     my_drawing_state().fill_style = parsedValue;
@@ -76,7 +76,7 @@ public:
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
                 auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
-                    auto parsedValue = style_value->to_color(OptionalNone());
+                    auto parsedValue = style_value->to_color(OptionalNone(), {});
 
                     // 4. Set this's stroke style to parsedValue.
                     my_drawing_state().stroke_style = parsedValue;

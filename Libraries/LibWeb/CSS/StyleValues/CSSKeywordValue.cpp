@@ -135,7 +135,7 @@ bool CSSKeywordValue::has_color() const
     return is_color(keyword());
 }
 
-Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) const
+Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node, CalculationResolutionContext const&) const
 {
     if (keyword() == Keyword::Currentcolor) {
         if (!node.has_value() || !node->has_style())

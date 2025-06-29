@@ -7,15 +7,16 @@
 #include "CSSHWB.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
 namespace Web::CSS {
 
-Color CSSHWB::to_color(Optional<Layout::NodeWithStyle const&>) const
+Color CSSHWB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto const h_val = resolve_hue(m_properties.h).value_or(0);
-    auto const w_val = clamp(resolve_with_reference_value(m_properties.w, 100.0).value_or(0), 0, 100) / 100.0f;
-    auto const b_val = clamp(resolve_with_reference_value(m_properties.b, 100.0).value_or(0), 0, 100) / 100.0f;
-    auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+    auto const h_val = resolve_hue(m_properties.h, resolution_context).value_or(0);
+    auto const w_val = clamp(resolve_with_reference_value(m_properties.w, 100.0, resolution_context).value_or(0), 0, 100) / 100.0f;
+    auto const b_val = clamp(resolve_with_reference_value(m_properties.b, 100.0, resolution_context).value_or(0), 0, 100) / 100.0f;
+    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
 
     if (w_val + b_val >= 1.0f) {
         auto to_byte = [](float value) {
@@ -45,7 +46,7 @@ bool CSSHWB::equals(CSSStyleValue const& other) const
 String CSSHWB::to_string(SerializationMode) const
 {
     // FIXME: Do this properly, taking unresolved calculated values into account.
-    return serialize_a_srgb_value(to_color({}));
+    return serialize_a_srgb_value(to_color({}, {}));
 }
 
 }

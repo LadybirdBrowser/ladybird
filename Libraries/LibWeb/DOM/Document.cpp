@@ -1690,7 +1690,7 @@ void Document::obtain_theme_color()
                 if (html_element() && html_element()->layout_node())
                     root_node = *html_element()->layout_node();
 
-                theme_color = css_value->to_color(root_node);
+                theme_color = css_value->to_color(root_node, {});
                 return TraversalDecision::Break;
             }
         }

@@ -586,7 +586,7 @@ Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, 
     if (outline_style == CSS::OutlineStyle::Auto) {
         // `auto` lets us do whatever we want for the outline. 2px of the accent colour seems reasonable.
         line_style = CSS::LineStyle::Solid;
-        outline_color = CSS::CSSKeywordValue::create(CSS::Keyword::Accentcolor)->to_color(*static_cast<Layout::NodeWithStyle const*>(&layout_node));
+        outline_color = CSS::CSSKeywordValue::create(CSS::Keyword::Accentcolor)->to_color(*static_cast<Layout::NodeWithStyle const*>(&layout_node), {});
         outline_width = 2;
     } else {
         line_style = CSS::keyword_to_line_style(CSS::to_keyword(outline_style)).value_or(CSS::LineStyle::None);

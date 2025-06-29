@@ -393,7 +393,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
-    virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const { return {}; }
+    virtual Color to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const&) const { return {}; }
     Keyword to_keyword() const;
 
     virtual String to_string(SerializationMode) const = 0;
