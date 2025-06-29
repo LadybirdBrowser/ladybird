@@ -1174,7 +1174,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
             if (!background_color.has_value())
                 return NumericLimits<u8>::max();
             VERIFY(is<Layout::NodeWithStyle>(node->layout_node()));
-            return background_color.value()->to_color(*static_cast<Layout::NodeWithStyle*>(node->layout_node())).alpha();
+            return background_color.value()->to_color(*static_cast<Layout::NodeWithStyle*>(node->layout_node()), {}).alpha();
         };
         while (resolved_background_alpha() == 0 && node->parent() && is<DOM::Element>(*node->parent()))
             node = node->parent();

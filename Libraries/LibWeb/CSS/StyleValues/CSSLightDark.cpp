@@ -9,12 +9,12 @@
 
 namespace Web::CSS {
 
-Color CSSLightDark::to_color(Optional<Layout::NodeWithStyle const&> node) const
+Color CSSLightDark::to_color(Optional<Layout::NodeWithStyle const&> node, CalculationResolutionContext const& resolution_context) const
 {
     if (node.has_value() && node.value().computed_values().color_scheme() == PreferredColorScheme::Dark)
-        return m_properties.dark->to_color(node);
+        return m_properties.dark->to_color(node, resolution_context);
 
-    return m_properties.light->to_color(node);
+    return m_properties.light->to_color(node, resolution_context);
 }
 
 bool CSSLightDark::equals(CSSStyleValue const& other) const

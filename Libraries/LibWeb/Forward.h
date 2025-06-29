@@ -318,6 +318,7 @@ enum class MediaFeatureID : u8;
 enum class PropertyID : u16;
 
 struct BackgroundLayerData;
+struct CalculationResolutionContext;
 struct CSSStyleSheetInit;
 struct GridRepeatParams;
 struct StyleSheetIdentifier;

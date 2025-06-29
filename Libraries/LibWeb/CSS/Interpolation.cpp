@@ -669,7 +669,7 @@ RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, Calcul
         if (!interpolated_offset_x || !interpolated_offset_y || !interpolated_blur_radius || !interpolated_spread_distance)
             return {};
         auto result_shadow = ShadowStyleValue::create(
-            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color({}), to_shadow.color()->to_color({}), delta), ColorSyntax::Modern),
+            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color({}, {}), to_shadow.color()->to_color({}, {}), delta), ColorSyntax::Modern),
             *interpolated_offset_x,
             *interpolated_offset_y,
             *interpolated_blur_radius,
@@ -783,7 +783,7 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
         Optional<Layout::NodeWithStyle const&> layout_node;
         if (auto node = element.layout_node())
             layout_node = *node;
-        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node), to.to_color(layout_node), delta), ColorSyntax::Modern);
+        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node, {}), to.to_color(layout_node, {}), delta), ColorSyntax::Modern);
     }
     case CSSStyleValue::Type::Edge: {
         auto resolved_from = from.as_edge().resolved_value(calculation_context);

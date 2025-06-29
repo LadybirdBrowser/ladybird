@@ -82,12 +82,12 @@ bool ColorFunctionStyleValue::equals(CSSStyleValue const& other) const
     return m_properties == other_lab_like.m_properties;
 }
 
-ColorFunctionStyleValue::Resolved ColorFunctionStyleValue::resolve_properties() const
+ColorFunctionStyleValue::Resolved ColorFunctionStyleValue::resolve_properties(CalculationResolutionContext const& resolution_context) const
 {
-    float const c1 = resolve_with_reference_value(m_properties.channels[0], 1).value_or(0);
-    float const c2 = resolve_with_reference_value(m_properties.channels[1], 1).value_or(0);
-    float const c3 = resolve_with_reference_value(m_properties.channels[2], 1).value_or(0);
-    float const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+    float const c1 = resolve_with_reference_value(m_properties.channels[0], 1, resolution_context).value_or(0);
+    float const c2 = resolve_with_reference_value(m_properties.channels[1], 1, resolution_context).value_or(0);
+    float const c3 = resolve_with_reference_value(m_properties.channels[2], 1, resolution_context).value_or(0);
+    float const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
     return { .channels = { c1, c2, c3 }, .alpha = alpha_val };
 }
 
@@ -144,9 +144,9 @@ String ColorFunctionStyleValue::to_string(SerializationMode mode) const
         convert_percentage(m_properties.channels[2])->to_string(mode)));
 }
 
-Color ColorFunctionStyleValue::to_color(Optional<Layout::NodeWithStyle const&>) const
+Color ColorFunctionStyleValue::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto [channels, alpha_val] = resolve_properties();
+    auto [channels, alpha_val] = resolve_properties(resolution_context);
     auto c1 = channels[0];
     auto c2 = channels[1];
     auto c3 = channels[2];

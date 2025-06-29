@@ -14,9 +14,9 @@
 
 namespace Web::CSS {
 
-Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>) const
+Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto resolve_rgb_to_u8 = [](CSSStyleValue const& style_value) -> Optional<u8> {
+    auto resolve_rgb_to_u8 = [&resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
         // <number> | <percentage> | none
         auto normalized = [](double number) {
             if (isnan(number))
@@ -32,11 +32,10 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>) const
 
         if (style_value.is_calculated()) {
             auto const& calculated = style_value.as_calculated();
-            CalculationResolutionContext context {};
             if (calculated.resolves_to_number())
-                return normalized(calculated.resolve_number(context).value());
+                return normalized(calculated.resolve_number(resolution_context).value());
             if (calculated.resolves_to_percentage())
-                return normalized(calculated.resolve_percentage(context).value().value() * 255 / 100);
+                return normalized(calculated.resolve_percentage(resolution_context).value().value() * 255 / 100);
         }
 
         if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
@@ -45,8 +44,8 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>) const
         return {};
     };
 
-    auto resolve_alpha_to_u8 = [](CSSStyleValue const& style_value) -> Optional<u8> {
-        auto alpha_0_1 = resolve_alpha(style_value);
+    auto resolve_alpha_to_u8 = [&resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
+        auto alpha_0_1 = resolve_alpha(style_value, resolution_context);
         if (alpha_0_1.has_value())
             return llround(clamp(alpha_0_1.value() * 255.0f, 0.0f, 255.0f));
         return {};
@@ -77,7 +76,7 @@ String CSSRGB::to_string(SerializationMode mode) const
     // FIXME: Do this properly, taking unresolved calculated values into account.
     if (mode != SerializationMode::ResolvedValue && m_properties.name.has_value())
         return m_properties.name.value().to_string().to_ascii_lowercase();
-    return serialize_a_srgb_value(to_color({}));
+    return serialize_a_srgb_value(to_color({}, {}));
 }
 
 }
