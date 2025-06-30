@@ -170,6 +170,16 @@ choco install pkgconfiglite -y
 On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](EditorConfiguration/AndroidStudioConfiguration.md).
 Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``UI/Android``
 
+### FreeBSD
+
+```
+pkg install autoconf-archive automake autoconf bash cmake curl gmake gn libtool libxcb libxkbcommon libX11 libXrender libXi nasm patchelf pkgconf python3 qt6-base qt6-multimedia unzip zip
+```
+
+#### Ninja 1.12.1
+
+At the time of writing the ninja version required by vcpkg is `1.12.1`, but the one in the FreeBSD ports collection is `1.11.1`. This means you will have to build the latest version of ninja from source.
+
 ## Build steps
 
 ### Using ladybird.py
