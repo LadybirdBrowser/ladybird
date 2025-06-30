@@ -1,0 +1,54 @@
+Harness status: OK
+
+Found 48 tests
+
+46 Pass
+2 Fail
+Pass	e.style['opacity'] = "exp()" should not set the property value
+Pass	e.style['opacity'] = "exp( )" should not set the property value
+Pass	e.style['opacity'] = "exp(,)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, )" should not set the property value
+Pass	e.style['opacity'] = "exp(, 1)" should not set the property value
+Pass	e.style['opacity'] = "exp(1 + )" should not set the property value
+Pass	e.style['opacity'] = "exp(1 - )" should not set the property value
+Pass	e.style['opacity'] = "exp(1 * )" should not set the property value
+Pass	e.style['opacity'] = "exp(1 / )" should not set the property value
+Pass	e.style['opacity'] = "exp(1 2)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, , 2)" should not set the property value
+Pass	e.style['opacity'] = "log()" should not set the property value
+Pass	e.style['opacity'] = "log( )" should not set the property value
+Pass	e.style['opacity'] = "log(,)" should not set the property value
+Fail	e.style['opacity'] = "log(1, )" should not set the property value
+Pass	e.style['opacity'] = "log(, 1)" should not set the property value
+Pass	e.style['opacity'] = "log(1 + )" should not set the property value
+Pass	e.style['opacity'] = "log(1 - )" should not set the property value
+Pass	e.style['opacity'] = "log(1 * )" should not set the property value
+Pass	e.style['opacity'] = "log(1 / )" should not set the property value
+Pass	e.style['opacity'] = "log(1 2)" should not set the property value
+Pass	e.style['opacity'] = "log(1, , 2)" should not set the property value
+Pass	e.style['opacity'] = "exp(0px)" should not set the property value
+Pass	e.style['opacity'] = "exp(0s)" should not set the property value
+Pass	e.style['opacity'] = "exp(0deg)" should not set the property value
+Pass	e.style['opacity'] = "exp(0Hz)" should not set the property value
+Pass	e.style['opacity'] = "exp(0dpi)" should not set the property value
+Pass	e.style['opacity'] = "exp(0fr)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, 1%)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, 0px)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, 0s)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, 0deg)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, 0Hz)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, 0dpi)" should not set the property value
+Pass	e.style['opacity'] = "exp(1, 0fr)" should not set the property value
+Pass	e.style['opacity'] = "log(0px)" should not set the property value
+Pass	e.style['opacity'] = "log(0s)" should not set the property value
+Pass	e.style['opacity'] = "log(0deg)" should not set the property value
+Pass	e.style['opacity'] = "log(0Hz)" should not set the property value
+Pass	e.style['opacity'] = "log(0dpi)" should not set the property value
+Pass	e.style['opacity'] = "log(0fr)" should not set the property value
+Pass	e.style['opacity'] = "log(1, 1%)" should not set the property value
+Pass	e.style['opacity'] = "log(1, 0px)" should not set the property value
+Pass	e.style['opacity'] = "log(1, 0s)" should not set the property value
+Pass	e.style['opacity'] = "log(1, 0deg)" should not set the property value
+Pass	e.style['opacity'] = "log(1, 0Hz)" should not set the property value
+Pass	e.style['opacity'] = "log(1, 0dpi)" should not set the property value
+Fail	e.style['opacity'] = "log(1, 0fr)" should not set the property value

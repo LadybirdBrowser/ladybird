@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 49 tests
 
-47 Pass
-2 Fail
+49 Pass
 Pass	e.style['opacity'] = "hypot()" should not set the property value
 Pass	e.style['opacity'] = "hypot( )" should not set the property value
 Pass	e.style['opacity'] = "hypot(,)" should not set the property value
@@ -13,7 +12,7 @@ Pass	e.style['opacity'] = "hypot(1 + )" should not set the property value
 Pass	e.style['opacity'] = "hypot(1 - )" should not set the property value
 Pass	e.style['opacity'] = "hypot(1 * )" should not set the property value
 Pass	e.style['opacity'] = "hypot(1 / )" should not set the property value
-Fail	e.style['opacity'] = "hypot(1 2)" should not set the property value
+Pass	e.style['opacity'] = "hypot(1 2)" should not set the property value
 Pass	e.style['opacity'] = "hypot(1, , 2)" should not set the property value
 Pass	e.style['opacity'] = "sqrt()" should not set the property value
 Pass	e.style['opacity'] = "sqrt( )" should not set the property value
@@ -24,7 +23,7 @@ Pass	e.style['opacity'] = "sqrt(1 + )" should not set the property value
 Pass	e.style['opacity'] = "sqrt(1 - )" should not set the property value
 Pass	e.style['opacity'] = "sqrt(1 * )" should not set the property value
 Pass	e.style['opacity'] = "sqrt(1 / )" should not set the property value
-Fail	e.style['opacity'] = "sqrt(1 2)" should not set the property value
+Pass	e.style['opacity'] = "sqrt(1 2)" should not set the property value
 Pass	e.style['opacity'] = "sqrt(1, , 2)" should not set the property value
 Pass	e.style['opacity'] = "sqrt(1, 2)" should not set the property value
 Pass	e.style['opacity'] = "pow( )" should not set the property value

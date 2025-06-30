@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#exponent-funcs">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Apple Inc">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<script>
+function test_invalid_number(value) {
+  test_invalid_value('opacity', value);
+}
+
+// Syntax checking
+test_invalid_number('exp()');
+test_invalid_number('exp( )');
+test_invalid_number('exp(,)');
+test_invalid_number('exp(1, )');
+test_invalid_number('exp(, 1)');
+test_invalid_number('exp(1 + )');
+test_invalid_number('exp(1 - )');
+test_invalid_number('exp(1 * )');
+test_invalid_number('exp(1 / )');
+test_invalid_number('exp(1 2)');
+test_invalid_number('exp(1, , 2)');
+test_invalid_number('log()');
+test_invalid_number('log( )');
+test_invalid_number('log(,)');
+test_invalid_number('log(1, )');
+test_invalid_number('log(, 1)');
+test_invalid_number('log(1 + )');
+test_invalid_number('log(1 - )');
+test_invalid_number('log(1 * )');
+test_invalid_number('log(1 / )');
+test_invalid_number('log(1 2)');
+test_invalid_number('log(1, , 2)');
+
+// Type checking
+test_invalid_number('exp(0px)');
+test_invalid_number('exp(0s)');
+test_invalid_number('exp(0deg)');
+test_invalid_number('exp(0Hz)');
+test_invalid_number('exp(0dpi)');
+test_invalid_number('exp(0fr)');
+test_invalid_number('exp(1, 1%)');
+test_invalid_number('exp(1, 0px)');
+test_invalid_number('exp(1, 0s)');
+test_invalid_number('exp(1, 0deg)');
+test_invalid_number('exp(1, 0Hz)');
+test_invalid_number('exp(1, 0dpi)');
+test_invalid_number('exp(1, 0fr)');
+test_invalid_number('log(0px)');
+test_invalid_number('log(0s)');
+test_invalid_number('log(0deg)');
+test_invalid_number('log(0Hz)');
+test_invalid_number('log(0dpi)');
+test_invalid_number('log(0fr)');
+test_invalid_number('log(1, 1%)');
+test_invalid_number('log(1, 0px)');
+test_invalid_number('log(1, 0s)');
+test_invalid_number('log(1, 0deg)');
+test_invalid_number('log(1, 0Hz)');
+test_invalid_number('log(1, 0dpi)');
+test_invalid_number('log(1, 0fr)');
+</script>
