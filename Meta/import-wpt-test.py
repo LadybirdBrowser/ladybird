@@ -9,8 +9,11 @@ from dataclasses import dataclass
 from enum import Enum
 from html.parser import HTMLParser
 from pathlib import Path
+from posixpath import normpath
 from urllib.parse import urljoin
 from urllib.parse import urlparse
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 from urllib.request import urlopen
 
 wpt_base_url = "https://wpt.live/"
@@ -196,7 +199,14 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
             f.write(str(page_source))
 
 
-def normalized_url_path(url):
+def normalize_url(url):
+    parts = urlsplit(url)
+    normalized_path = normpath(parts.path)
+    normalized_url = urlunsplit((parts.scheme, parts.netloc, normalized_path, parts.query, parts.fragment))
+    return normalized_url
+
+
+def remove_repeated_url_slashes(url):
     parsed = urlparse(url)
     return "/" + "/".join(segment for segment in parsed.path.split("/") if segment)
 
@@ -205,7 +215,7 @@ def download_files(filepaths, skip_existing):
     downloaded_files = []
 
     for file in filepaths:
-        normalized_path = normalized_url_path(file.source)
+        normalized_path = remove_repeated_url_slashes(file.source)
         if normalized_path in visited_paths:
             continue
         if normalized_path in download_exclude_list:
@@ -293,14 +303,16 @@ def main():
             reference_path = raw_reference_path
             main_paths.append(
                 PathMapping(
-                    wpt_base_url + raw_reference_path, Path(test_type.expected_path + raw_reference_path).absolute()
+                    normalize_url(wpt_base_url + raw_reference_path),
+                    Path(test_type.expected_path + raw_reference_path).absolute(),
                 )
             )
         else:
             reference_path = Path(resource_path).parent.joinpath(raw_reference_path).__str__()
             main_paths.append(
                 PathMapping(
-                    wpt_base_url + "/" + reference_path, Path(test_type.expected_path + "/" + reference_path).absolute()
+                    normalize_url(wpt_base_url + "/" + reference_path),
+                    Path(test_type.expected_path + "/" + reference_path).absolute(),
                 )
             )
 
