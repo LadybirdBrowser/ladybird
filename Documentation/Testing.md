@@ -16,27 +16,25 @@ The easiest way to run tests is to use the `ladybird.py` script. The LibWeb test
 just the LibWeb tests with `Meta/ladybird.py test LibWeb`. The second way is to invoke the `test-web` test runner
 directly with `Meta/ladybird.py run test-web`.
 
-A third way is to invoke `ctest` directly. The simplest method is to use the `default` preset from `CMakePresets.json`:
+A third way is to invoke `ctest` directly. The simplest method is to use the `Release` preset from `CMakePresets.json`:
 
 ```sh
-cmake --preset default
-cmake --build --preset default
-ctest --preset default
+cmake --preset Release
+cmake --build --preset Release
+ctest --preset Release
 ```
 
-If you want to avoid building and running LibWeb tests, you can use a Lagom-only build.
-
-```sh
-cmake -GNinja -S Meta/Lagom -B Build/lagom
-```
-
-The tests can be run via ninja after doing a build. Note that `test-js` requires the `LADYBIRD_SOURCE_DIR` environment
-variable to be set to the root of the ladybird source tree.
+Note that some tests require the `LADYBIRD_SOURCE_DIR` environment variable to be set to the root of the ladybird source tree.
 
 ```sh
 # /path/to/ladybird repository
 export LADYBIRD_SOURCE_DIR=${PWD}
-cd Build/lagom
+```
+
+The tests can be run via ninja after doing a build.
+
+```sh
+cd Build/release
 ninja
 ninja test
 ```
