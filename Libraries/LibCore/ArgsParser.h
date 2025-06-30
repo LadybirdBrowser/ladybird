@@ -9,6 +9,8 @@
 #include <AK/ByteString.h>
 #include <AK/Concepts.h>
 #include <AK/Function.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibMain/Main.h>
 #include <stdio.h>
@@ -202,6 +204,8 @@ public:
     void add_positional_argument(Vector<StringView>& value, char const* help_string, char const* name, Required required = Required::Yes);
     void add_positional_argument(Vector<String>& value, char const* help_string, char const* name, Required required = Required::Yes);
 
+    void set_version_string(String const& version) { m_version_string = version; }
+
 private:
     void autocomplete(FILE*, StringView program_name, ReadonlySpan<StringView> remaining_arguments);
 
@@ -213,6 +217,7 @@ private:
     bool m_perform_autocomplete { false };
     char const* m_general_help { nullptr };
     bool m_stop_on_first_non_option { false };
+    Optional<String> m_version_string;
 };
 
 }
