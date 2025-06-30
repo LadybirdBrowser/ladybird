@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -32,9 +33,15 @@ public:
     GC::Ptr<CSS::ComputedProperties const> computed_properties() const;
 
     bool has_non_empty_counters_set() const;
-    Optional<CSS::CountersSet const&> counters_set() const;
+    Optional<CSS::CountersSet&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
+
+    void resolve_counters();
+    void inherit_counters();
+
+    void update_initial_value_for_reversed_counter__after_increment(FlyString const&, int) const;
+    void update_initial_value_for_reversed_counter__after_set(FlyString const&, int) const;
 
     void visit(GC::Cell::Visitor& visitor) const;
 
