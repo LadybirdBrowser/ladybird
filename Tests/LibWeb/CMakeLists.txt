@@ -13,7 +13,7 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    serenity_test("${source}" LibWeb LIBS LibWeb)
+    ladybird_test("${source}" LibWeb LIBS LibWeb)
 endforeach()
 
 target_link_libraries(TestFetchURL PRIVATE LibURL)

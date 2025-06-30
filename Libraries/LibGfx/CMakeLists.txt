@@ -80,7 +80,7 @@ if (HAS_FONTCONFIG)
     list(APPEND SOURCES Font/GlobalFontConfig.cpp)
 endif()
 
-serenity_lib(LibGfx gfx)
+ladybird_lib(LibGfx gfx)
 
 target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibTextCodec LibIPC LibUnicode)
 

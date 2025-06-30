@@ -3,4 +3,4 @@ set(SOURCES
     DOM/Node.cpp
 )
 
-serenity_lib(LibXML xml)
+ladybird_lib(LibXML xml)

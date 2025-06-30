@@ -6,5 +6,5 @@ set(SOURCES
     XtermSuggestionDisplay.cpp
 )
 
-serenity_lib(LibLine line)
+ladybird_lib(LibLine line)
 target_link_libraries(LibLine PRIVATE LibCore LibUnicode)

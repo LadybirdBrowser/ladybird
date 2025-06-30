@@ -24,7 +24,7 @@ set(SOURCES
     SecureRandom.cpp
 )
 
-serenity_lib(LibCrypto crypto)
+ladybird_lib(LibCrypto crypto)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libtommath REQUIRED IMPORTED_TARGET libtommath)

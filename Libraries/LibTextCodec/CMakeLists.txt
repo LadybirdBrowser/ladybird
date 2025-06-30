@@ -11,4 +11,4 @@ set(GENERATED_SOURCES
     LookupTables.cpp
 )
 
-serenity_lib(LibTextCodec textcodec)
+ladybird_lib(LibTextCodec textcodec)

@@ -4,5 +4,5 @@ set(URL_TEST_SOURCES
 )
 
 foreach(source IN LISTS URL_TEST_SOURCES)
-    serenity_test("${source}" LibURL LIBS LibURL)
+    ladybird_test("${source}" LibURL LIBS LibURL)
 endforeach()

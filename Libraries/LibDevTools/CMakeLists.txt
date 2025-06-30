@@ -23,5 +23,5 @@ set(SOURCES
     DevToolsServer.cpp
 )
 
-serenity_lib(LibDevTools devtools)
+ladybird_lib(LibDevTools devtools)
 target_link_libraries(LibDevTools PRIVATE LibCore LibWeb)
