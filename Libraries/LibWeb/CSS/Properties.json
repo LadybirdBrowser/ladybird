@@ -497,6 +497,14 @@
       "border-color"
     ]
   },
+  "border-block-color": {
+    "inherited": false,
+    "initial": "currentcolor",
+    "longhands": [
+      "border-block-start-color",
+      "border-block-end-color"
+    ]
+  },
   "border-block-end": {
     "inherited": false,
     "initial": "medium currentcolor none",
@@ -568,6 +576,22 @@
       "border-left-width"
     ],
     "max-values": 1
+  },
+  "border-block-style": {
+    "inherited": false,
+    "initial": "none",
+    "longhands": [
+      "border-block-start-style",
+      "border-block-end-style"
+    ]
+  },
+  "border-block-width": {
+    "inherited": false,
+    "initial": "medium",
+    "longhands": [
+      "border-block-start-width",
+      "border-block-end-width"
+    ]
   },
   "border-bottom": {
     "inherited": false,
