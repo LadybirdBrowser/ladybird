@@ -40,7 +40,6 @@ endif()
 
 set(SOURCES
     ConfigFile.cpp
-    DateTime.cpp
     ElapsedTimer.cpp
     Event.cpp
     EventLoop.cpp
