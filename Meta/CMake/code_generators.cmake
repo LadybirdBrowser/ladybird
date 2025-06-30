@@ -20,7 +20,7 @@ function(embed_as_string name source_file output source_variable_name)
     )
 
     add_custom_target("generate_${name}" DEPENDS "${output}")
-    add_dependencies(all_generated "generate_${name}")
+    add_dependencies(ladybird_codegen_accumulator "generate_${name}")
 endfunction()
 
 function(generate_clang_module_map target_name)
@@ -51,7 +51,7 @@ function(generate_clang_module_map target_name)
     )
 
     add_custom_target("generate_${target_name}_module_map" DEPENDS "${module_map_file}")
-    add_dependencies(all_generated "generate_${target_name}_module_map")
+    add_dependencies(ladybird_codegen_accumulator "generate_${target_name}_module_map")
     add_dependencies("${target_name}" "generate_${target_name}_module_map")
 
     target_compile_options(${target_name} PUBLIC "SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Xcc -ivfsoverlay${vfs_overlay_file}>")
@@ -72,7 +72,7 @@ function(compile_ipc source output)
     )
     get_filename_component(output_name ${output} NAME)
     add_custom_target(generate_${output_name} DEPENDS ${output})
-    add_dependencies(all_generated generate_${output_name})
+    add_dependencies(ladybird_codegen_accumulator generate_${output_name})
 
     cmake_path(RELATIVE_PATH CMAKE_CURRENT_SOURCE_DIR BASE_DIRECTORY ${SerenityOS_SOURCE_DIR} OUTPUT_VARIABLE current_source_dir_relative)
     if (ENABLE_INSTALL_HEADERS)
