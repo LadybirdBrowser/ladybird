@@ -1,6 +1,6 @@
 include(${CMAKE_CURRENT_LIST_DIR}/utils.cmake)
 
-set(PUBLIC_SUFFIX_PATH "${SERENITY_CACHE_DIR}/PublicSuffix" CACHE PATH "Download location for PublicSuffix files")
+set(PUBLIC_SUFFIX_PATH "${LADYBIRD_CACHE_DIR}/PublicSuffix" CACHE PATH "Download location for PublicSuffix files")
 set(PUBLIC_SUFFIX_DATA_URL "https://raw.githubusercontent.com/publicsuffix/list/master/public_suffix_list.dat")
 set(PUBLIC_SUFFIX_DATA_PATH "${PUBLIC_SUFFIX_PATH}/public_suffix_list.dat")
 set(PUBLIC_SUFFIX_DATA_HEADER PublicSuffixData.h)

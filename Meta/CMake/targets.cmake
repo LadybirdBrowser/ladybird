@@ -52,7 +52,7 @@ function(lagom_lib target_name fs_name)
     add_lagom_library_install_rules(${target_name} ALIAS_NAME ${library})
     if (ENABLE_INSTALL_HEADERS)
         install(
-                DIRECTORY "${SERENITY_PROJECT_ROOT}/Libraries/Lib${library}"
+                DIRECTORY "${LADYBIRD_PROJECT_ROOT}/Libraries/Lib${library}"
                 COMPONENT Lagom_Development
                 DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
                 FILES_MATCHING PATTERN "*.h"
@@ -98,12 +98,12 @@ function(lagom_utility name)
 endfunction()
 
 function(ladybird_test test_src sub_dir)
-    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "" "CUSTOM_MAIN;NAME" "LIBS")
+    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST "" "CUSTOM_MAIN;NAME" "LIBS")
     lagom_test(${test_src}
-            LIBS ${SERENITY_TEST_LIBS}
+            LIBS ${LADYBIRD_TEST_LIBS}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-            NAME ${SERENITY_TEST_NAME}
-            CUSTOM_MAIN ${SERENITY_TEST_CUSTOM_MAIN}
+            NAME ${LADYBIRD_TEST_NAME}
+            CUSTOM_MAIN ${LADYBIRD_TEST_CUSTOM_MAIN}
     )
 endfunction()
 
@@ -128,16 +128,16 @@ function(ladybird_bin name)
 endfunction()
 
 function(ladybird_lib name fs_name)
-    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_LIB "EXPLICIT_SYMBOL_EXPORT" "TYPE" "")
+    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_LIB "EXPLICIT_SYMBOL_EXPORT" "TYPE" "")
     set(EXPLICIT_SYMBOL_EXPORT "")
-    if (SERENITY_LIB_EXPLICIT_SYMBOL_EXPORT)
+    if (LADYBIRD_LIB_EXPLICIT_SYMBOL_EXPORT)
         set(EXPLICIT_SYMBOL_EXPORT "EXPLICIT_SYMBOL_EXPORT")
     endif()
-    lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${SERENITY_LIB_TYPE} ${EXPLICIT_SYMBOL_EXPORT} SOURCES ${SOURCES} ${GENERATED_SOURCES})
+    lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${LADYBIRD_LIB_TYPE} ${EXPLICIT_SYMBOL_EXPORT} SOURCES ${SOURCES} ${GENERATED_SOURCES})
 endfunction()
 
 macro(add_ladybird_subdirectory path)
-    add_subdirectory("${SERENITY_PROJECT_ROOT}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
+    add_subdirectory("${LADYBIRD_PROJECT_ROOT}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
 endmacro()
 
 if (NOT TARGET ladybird_codegen_accumulator)

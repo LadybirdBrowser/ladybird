@@ -95,7 +95,7 @@ jobs:
         run: ./gradlew connectedAndroidTest
         env:
           GRADLE_OPTS: '-Xmx3072m'
-          SERENITY_CACHE_DIR: ${{ github.workspace }}/Build/caches
+          LADYBIRD_CACHE_DIR: ${{ github.workspace }}/Build/caches
 
       - name: Save Caches
         uses: ./.github/actions/cache-save

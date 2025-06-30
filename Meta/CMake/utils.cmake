@@ -13,14 +13,14 @@ function(ladybird_generated_sources target_name)
 endfunction()
 
 function(ladybird_testjs_test test_src sub_dir)
-    cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "" "CUSTOM_MAIN" "LIBS")
-    if ("${SERENITY_TEST_CUSTOM_MAIN}" STREQUAL "")
-        set(SERENITY_TEST_CUSTOM_MAIN "$<TARGET_OBJECTS:JavaScriptTestRunnerMain>")
+    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST "" "CUSTOM_MAIN" "LIBS")
+    if ("${LADYBIRD_TEST_CUSTOM_MAIN}" STREQUAL "")
+        set(LADYBIRD_TEST_CUSTOM_MAIN "$<TARGET_OBJECTS:JavaScriptTestRunnerMain>")
     endif()
-    list(APPEND SERENITY_TEST_LIBS LibJS LibCore LibFileSystem)
+    list(APPEND LADYBIRD_TEST_LIBS LibJS LibCore LibFileSystem)
     ladybird_test(${test_src} ${sub_dir}
-        CUSTOM_MAIN "${SERENITY_TEST_CUSTOM_MAIN}"
-        LIBS ${SERENITY_TEST_LIBS})
+        CUSTOM_MAIN "${LADYBIRD_TEST_CUSTOM_MAIN}"
+        LIBS ${LADYBIRD_TEST_LIBS})
 endfunction()
 
 function(remove_path_if_version_changed version version_file cache_path)
@@ -76,7 +76,7 @@ function(invoke_py_generator name script primary_source header implementation)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     invoke_generator_impl(
         ${name}
-        "${SerenityOS_SOURCE_DIR}/Meta/${script}"
+        "${LADYBIRD_PROJECT_ROOT}/Meta/${script}"
         ${primary_source}
         ${header}
         ${implementation}
