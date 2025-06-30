@@ -95,44 +95,55 @@ ErrorOr<Command::ProcessOutputs> Command::read_all()
     return ProcessOutputs { TRY(m_stdout->read_until_eof()), TRY(m_stderr->read_until_eof()) };
 }
 
-ErrorOr<Command::ProcessResult> Command::status(int options)
+ErrorOr<Command::ProcessResult> Command::run_to_completion()
+{
+    auto outputs = TRY(read_all());
+    auto status_result = TRY(status());
+
+    int exit_code = 0;
+    switch (status_result) {
+    case Status::DoneWithZeroExitCode:
+        exit_code = 0;
+        break;
+    case Status::Failed:
+    case Status::FailedFromTimeout:
+        exit_code = 1; // Non-zero exit code for failures
+        break;
+    case Status::Running:
+    case Status::Unknown:
+        return Error::from_string_literal("Process did not complete");
+    }
+
+    return ProcessResult { exit_code, move(outputs.standard_output), move(outputs.standard_error) };
+}
+
+ErrorOr<Command::Status> Command::status(int options)
 {
     if (m_pid == -1)
-        return ProcessResult::Unknown;
+        return Status::Unknown;
 
     m_stdin->close();
 
     auto wait_result = TRY(Core::System::waitpid(m_pid, options));
     if (wait_result.pid == 0) {
         // Attempt to kill it, since it has not finished yet somehow
-        return ProcessResult::Running;
+        return Status::Running;
     }
     m_pid = -1;
 
     if (WIFSIGNALED(wait_result.status) && WTERMSIG(wait_result.status) == SIGALRM)
-        return ProcessResult::FailedFromTimeout;
+        return Status::FailedFromTimeout;
 
     if (WIFEXITED(wait_result.status) && WEXITSTATUS(wait_result.status) == 0)
-        return ProcessResult::DoneWithZeroExitCode;
+        return Status::DoneWithZeroExitCode;
 
-    return ProcessResult::Failed;
+    return Status::Failed;
 }
 
-// Only supported in serenity mode because we use `posix_spawn_file_actions_addchdir`
+ErrorOr<Command::ProcessResult> Command::run(ByteString const& program, Vector<ByteString> const& arguments, Optional<LexicalPath> chdir)
+{
 #ifdef AK_OS_SERENITY
-
-ErrorOr<CommandResult> command(ByteString const& command_string, Optional<LexicalPath> chdir)
-{
-    auto parts = command_string.split(' ');
-    if (parts.is_empty())
-        return Error::from_string_literal("empty command");
-    auto program = parts[0];
-    parts.remove(0);
-    return command(program, parts, chdir);
-}
-
-ErrorOr<CommandResult> command(ByteString const& program, Vector<ByteString> const& arguments, Optional<LexicalPath> chdir)
-{
+    // For Serenity, we can use the chdir option with posix_spawn_file_actions_addchdir
     int stdout_pipe[2] = {};
     int stderr_pipe[2] = {};
     if (pipe2(stdout_pipe, O_CLOEXEC)) {
@@ -194,9 +205,45 @@ ErrorOr<CommandResult> command(ByteString const& program, Vector<ByteString> con
 #    endif
     }
 
-    return CommandResult { WEXITSTATUS(wstatus), output, error };
+    return ProcessResult { WEXITSTATUS(wstatus), output, error };
+#else
+    // For other platforms, ignore chdir for now and use Command class
+    if (chdir.has_value()) {
+        // FIXME: Support chdir on non-Serenity platforms
+        return Error::from_string_literal("chdir not supported on this platform");
+    }
+
+    Vector<char const*> args;
+    args.append(program.characters());
+    for (auto const& arg : arguments) {
+        args.append(arg.characters());
+    }
+    args.append(nullptr);
+
+    auto command = TRY(Command::create(program, args.data()));
+    return command->run_to_completion();
+#endif
 }
 
-#endif
+ErrorOr<Command::ProcessResult> Command::run(ByteString const& command_string, Optional<LexicalPath> chdir)
+{
+    auto parts = command_string.split(' ');
+    if (parts.is_empty())
+        return Error::from_string_literal("empty command");
+    auto program = parts[0];
+    parts.remove(0);
+    return run(program, parts, chdir);
+}
+
+// Legacy compatibility functions (deprecated, use Command::run instead)
+ErrorOr<Command::ProcessResult> command(ByteString const& program, Vector<ByteString> const& arguments, Optional<LexicalPath> chdir)
+{
+    return Command::run(program, arguments, chdir);
+}
+
+ErrorOr<Command::ProcessResult> command(ByteString const& command_string, Optional<LexicalPath> chdir)
+{
+    return Command::run(command_string, chdir);
+}
 
 }
