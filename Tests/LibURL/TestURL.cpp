@@ -689,3 +689,23 @@ TEST_CASE(public_suffix)
         EXPECT_EQ(domain->public_suffix(), OptionalNone {});
     }
 }
+
+TEST_CASE(same_site)
+{
+    auto opaque_origin = URL::Origin::create_opaque();
+    auto second_opaque_origin = URL::Origin::create_opaque();
+
+    auto site1_https_url = URL::Parser::basic_parse("https://www.ladybird.org"sv).value();
+    auto site1_https_second_url = URL::Parser::basic_parse("https://www.ladybird.org/some/file/path"sv).value();
+    auto site1_http_url = URL::Parser::basic_parse("http://www.ladybird.org"sv).value();
+
+    auto site2_https_url = URL::Parser::basic_parse("https://www.serenityos.org"sv).value();
+
+    EXPECT(!opaque_origin.is_same_site(second_opaque_origin));
+    EXPECT(opaque_origin.is_same_site(opaque_origin));
+    EXPECT(!opaque_origin.is_same_site(site1_https_url.origin()));
+
+    EXPECT(site1_https_url.origin().is_same_site(site1_https_second_url.origin()));
+    EXPECT(!site1_https_url.origin().is_same_site(site1_http_url.origin()));
+    EXPECT(!site1_https_url.origin().is_same_site(site2_https_url.origin()));
+}
