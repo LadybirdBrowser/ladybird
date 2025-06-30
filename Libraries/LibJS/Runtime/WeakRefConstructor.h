@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class WeakRefConstructor final : public NativeFunction {
+class JS_API WeakRefConstructor final : public NativeFunction {
     JS_OBJECT(WeakRefConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(WeakRefConstructor);
 

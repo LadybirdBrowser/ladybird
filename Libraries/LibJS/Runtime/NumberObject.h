@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class NumberObject : public Object {
+class JS_API NumberObject : public Object {
     JS_OBJECT(NumberObject, Object);
     GC_DECLARE_ALLOCATOR(NumberObject);
 

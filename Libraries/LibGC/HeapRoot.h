@@ -10,7 +10,7 @@
 
 namespace GC {
 
-struct HeapRoot {
+struct GC_API HeapRoot {
     enum class Type {
         HeapFunctionCapturedPointer,
         Root,

@@ -13,7 +13,7 @@
 
 namespace JS {
 
-class WeakSet final
+class JS_API WeakSet final
     : public Object
     , public GC::WeakContainer {
     JS_OBJECT(WeakSet, Object);

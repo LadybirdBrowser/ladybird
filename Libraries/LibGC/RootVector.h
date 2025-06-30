@@ -16,7 +16,7 @@
 
 namespace GC {
 
-class RootVectorBase {
+class GC_API RootVectorBase {
 public:
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>&) const = 0;
 

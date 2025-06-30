@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class BigIntObject final : public Object {
+class JS_API BigIntObject final : public Object {
     JS_OBJECT(BigIntObject, Object);
     GC_DECLARE_ALLOCATOR(BigIntObject);
 

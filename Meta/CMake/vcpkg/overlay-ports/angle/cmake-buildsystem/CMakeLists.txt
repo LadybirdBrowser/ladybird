@@ -106,9 +106,6 @@ elseif (WIN32)
     set(angle_enable_d3d11 TRUE)
 elseif (UNIX)
     set(is_linux TRUE)
-    if(LINUX)
-        set(angle_use_x11 TRUE)
-    endif()
 endif ()
 # VCPKG EDIT: end vcpkg modified block
 
@@ -383,16 +380,6 @@ add_library(ANGLE::ANGLE ALIAS ANGLEFramework)
 
 #### VCPKG EDIT:
 #### various vcpkg additions and install commands
-
-# X11 support
-if (angle_use_x11)
-    find_package(X11 COMPONENTS Xext Xi REQUIRED)
-    target_include_directories(ANGLE PRIVATE ${X11_INCLUDE_DIR})
-    target_sources(ANGLE PRIVATE ${libangle_gpu_info_util_x11_sources})
-    target_sources(ANGLE PRIVATE "src/gpu_info_util/SystemInfo_x11.cpp")
-    target_compile_definitions(ANGLE PRIVATE ANGLE_USE_X11 GPU_INFO_USE_X11)
-    target_link_libraries(ANGLE PRIVATE ${X11_LIBRARIES} X11::X11 X11::Xi X11::Xext)
-endif()
 
 # set export names of some targets to match prior vcpkg port buildsystem
 if(TARGET EGL)

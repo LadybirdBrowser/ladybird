@@ -27,7 +27,7 @@ struct ImportAttribute {
 };
 
 // https://tc39.es/ecma262/#modulerequest-record
-struct ModuleRequest {
+struct JS_API ModuleRequest {
     ModuleRequest() = default;
 
     explicit ModuleRequest(FlyString specifier)

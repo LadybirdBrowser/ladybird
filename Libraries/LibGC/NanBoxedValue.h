@@ -55,7 +55,7 @@ static constexpr u64 TAG_SHIFT = 48;
 static constexpr u64 TAG_EXTRACTION = 0xFFFF000000000000;
 static constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
 
-class NanBoxedValue {
+class GC_API NanBoxedValue {
 public:
     bool is_cell() const { return (m_value.tag & IS_CELL_PATTERN) == IS_CELL_PATTERN; }
 

@@ -17,7 +17,7 @@
 
 namespace GC {
 
-class RootImpl : public RefCounted<RootImpl> {
+class GC_API RootImpl : public RefCounted<RootImpl> {
     AK_MAKE_NONCOPYABLE(RootImpl);
     AK_MAKE_NONMOVABLE(RootImpl);
 

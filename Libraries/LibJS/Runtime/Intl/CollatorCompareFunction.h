@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class CollatorCompareFunction : public NativeFunction {
+class JS_API CollatorCompareFunction : public NativeFunction {
     JS_OBJECT(CollatorCompareFunction, NativeFunction);
     GC_DECLARE_ALLOCATOR(CollatorCompareFunction);
 
@@ -30,6 +30,6 @@ private:
     GC::Ref<Collator> m_collator; // [[Collator]]
 };
 
-int compare_strings(Collator const&, StringView x, StringView y);
+JS_API int compare_strings(Collator const&, StringView x, StringView y);
 
 }

@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class DurationFormatConstructor final : public NativeFunction {
+class JS_API DurationFormatConstructor final : public NativeFunction {
     JS_OBJECT(DurationFormatConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(DurationFormatConstructor);
 
