@@ -147,9 +147,8 @@ public:
                     return Vector<RegexStringView> { view };
 
                 Vector<RegexStringView> views;
-                u16 newline = '\n';
                 while (!view.is_empty()) {
-                    auto position = AK::memmem_optional(view.data(), view.length_in_code_units() * sizeof(u16), &newline, sizeof(u16));
+                    auto position = view.find_code_unit_offset(u'\n');
                     if (!position.has_value())
                         break;
                     auto offset = position.value() / sizeof(u16);
@@ -182,7 +181,7 @@ public:
     {
         return m_view.visit(
             [](StringView view) { return view.to_byte_string(); },
-            [](Utf16View view) { return view.to_byte_string(Utf16View::AllowInvalidCodeUnits::Yes).release_value_but_fixme_should_propagate_errors(); },
+            [](Utf16View view) { return view.to_byte_string().release_value_but_fixme_should_propagate_errors(); },
             [](auto& view) {
                 StringBuilder builder;
                 for (auto it = view.begin(); it != view.end(); ++it)
@@ -195,7 +194,7 @@ public:
     {
         return m_view.visit(
             [](StringView view) { return String::from_utf8(view); },
-            [](Utf16View view) { return view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes); },
+            [](Utf16View view) { return view.to_utf8(); },
             [](auto& view) -> ErrorOr<String> {
                 StringBuilder builder;
                 for (auto it = view.begin(); it != view.end(); ++it)

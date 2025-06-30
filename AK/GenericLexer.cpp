@@ -10,7 +10,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf16View.h>
+#include <AK/UnicodeUtils.h>
 
 namespace AK {
 
@@ -132,7 +132,7 @@ ErrorOr<T> GenericLexer::consume_decimal_integer()
     if (number_view.is_empty())
         return Error::from_errno(EINVAL);
 
-    auto maybe_number = StringUtils::convert_to_uint<UnsignedT>(number_view, TrimWhitespace::No);
+    auto maybe_number = number_view.to_number<UnsignedT>(TrimWhitespace::No);
     if (!maybe_number.has_value())
         return Error::from_errno(ERANGE);
     auto number = maybe_number.value();
@@ -266,7 +266,7 @@ auto GenericLexer::decode_single_or_paired_surrogate(bool combine_surrogate_pair
     auto high_surrogate = decode_one_surrogate();
     if (!high_surrogate.has_value())
         return UnicodeEscapeError::MalformedUnicodeEscape;
-    if (!Utf16View::is_high_surrogate(*high_surrogate))
+    if (!UnicodeUtils::is_utf16_high_surrogate(*high_surrogate))
         return *high_surrogate;
     if (!combine_surrogate_pairs || !consume_specific("\\u"sv))
         return *high_surrogate;
@@ -274,8 +274,8 @@ auto GenericLexer::decode_single_or_paired_surrogate(bool combine_surrogate_pair
     auto low_surrogate = decode_one_surrogate();
     if (!low_surrogate.has_value())
         return UnicodeEscapeError::MalformedUnicodeEscape;
-    if (Utf16View::is_low_surrogate(*low_surrogate))
-        return Utf16View::decode_surrogate_pair(*high_surrogate, *low_surrogate);
+    if (UnicodeUtils::is_utf16_low_surrogate(*low_surrogate))
+        return UnicodeUtils::decode_utf16_surrogate_pair(*high_surrogate, *low_surrogate);
 
     retreat(6);
     return *high_surrogate;

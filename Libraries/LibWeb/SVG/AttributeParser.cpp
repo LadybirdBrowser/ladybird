@@ -7,10 +7,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "AttributeParser.h"
-#include <AK/FloatingPointStringConversions.h>
 #include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringConversions.h>
+#include <LibWeb/SVG/AttributeParser.h>
 #include <ctype.h>
 
 namespace Web::SVG {
@@ -439,14 +439,11 @@ ErrorOr<float> AttributeParser::parse_nonnegative_number()
     if (match('+') || match('-') || !match_number())
         return Error::from_string_literal("Expected number");
 
-    auto remaining_source_text = m_lexer.remaining();
-    char const* start = remaining_source_text.characters_without_null_termination();
+    auto parse_result = AK::parse_first_number<float>(m_lexer.remaining(), TrimWhitespace::No);
+    VERIFY(parse_result.has_value());
 
-    auto maybe_float = parse_first_floating_point<float>(start, start + remaining_source_text.length());
-    VERIFY(maybe_float.parsed_value());
-    m_lexer.ignore(maybe_float.end_ptr - start);
-
-    return maybe_float.value;
+    m_lexer.ignore(parse_result->characters_parsed);
+    return parse_result->value;
 }
 
 ErrorOr<float> AttributeParser::parse_flag()

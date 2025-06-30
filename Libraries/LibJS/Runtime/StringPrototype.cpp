@@ -8,6 +8,7 @@
 #include <AK/Checked.h>
 #include <AK/Function.h>
 #include <AK/StringBuilder.h>
+#include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -98,7 +99,7 @@ Optional<size_t> string_index_of(Utf16View const& string, Utf16View const& searc
 static bool is_string_well_formed_unicode(Utf16View string)
 {
     // OPTIMIZATION: simdutf can do this much faster.
-    return string.validate();
+    return string.validate(AllowLonelySurrogates::No);
 }
 
 // 11.1.4 CodePointAt ( string, position ), https://tc39.es/ecma262/#sec-codepointat
@@ -121,7 +122,7 @@ CodePoint code_point_at(Utf16View const& string, size_t position)
     }
 
     // 6. If first is a trailing surrogate or position + 1 = size, then
-    if (Utf16View::is_low_surrogate(first) || (position + 1 == string.length_in_code_units())) {
+    if (AK::UnicodeUtils::is_utf16_low_surrogate(first) || (position + 1 == string.length_in_code_units())) {
         // a. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 1, [[IsUnpairedSurrogate]]: true }.
         return { true, code_point, 1 };
     }
@@ -130,13 +131,13 @@ CodePoint code_point_at(Utf16View const& string, size_t position)
     auto second = string.code_unit_at(position + 1);
 
     // 8. If second is not a trailing surrogate, then
-    if (!Utf16View::is_low_surrogate(second)) {
+    if (!AK::UnicodeUtils::is_utf16_low_surrogate(second)) {
         // a. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 1, [[IsUnpairedSurrogate]]: true }.
         return { true, code_point, 1 };
     }
 
     // 9. Set cp to UTF16SurrogatePairToCodePoint(first, second).
-    code_point = Utf16View::decode_surrogate_pair(first, second);
+    code_point = AK::UnicodeUtils::decode_utf16_surrogate_pair(first, second);
 
     // 10. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 2, [[IsUnpairedSurrogate]]: false }.
     return { false, code_point, 2 };

@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringConversions.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 
@@ -140,7 +141,7 @@ public:
                 auto separator_part = parts[parts.size() - 2].trim_whitespace();
                 if (separator_part.is_empty())
                     return false;
-                auto separator_value = StringUtils::convert_to_uint_from_hex(separator_part);
+                auto separator_value = AK::parse_hexadecimal_number<u32>(separator_part);
                 if (!separator_value.has_value() || separator_value.value() != 0xffff)
                     return false;
                 // TODO: this allows multiple compression tags "::" in the prefix, which is technically not legal
@@ -148,7 +149,7 @@ public:
                     auto part = parts[i].trim_whitespace();
                     if (part.is_empty())
                         continue;
-                    auto value = StringUtils::convert_to_uint_from_hex(part);
+                    auto value = AK::parse_hexadecimal_number<u32>(part);
                     if (!value.has_value() || value.value() != 0)
                         return false;
                 }
@@ -203,7 +204,7 @@ public:
             } else {
                 i++;
             }
-            auto part = StringUtils::convert_to_uint_from_hex(trimmed_part);
+            auto part = AK::parse_hexadecimal_number<u32>(trimmed_part);
             if (!part.has_value() || part.value() > 0xffff)
                 return {};
 

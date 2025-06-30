@@ -212,7 +212,7 @@ String StringView::to_ascii_lowercase_string() const
 
     String result;
 
-    MUST(result.replace_with_new_string({}, length(), [&](Bytes buffer) -> ErrorOr<void> {
+    MUST(result.replace_with_new_string(Badge<StringView> {}, length(), [&](Bytes buffer) -> ErrorOr<void> {
         for (auto [i, character] : enumerate(bytes()))
             buffer[i] = static_cast<u8>(AK::to_ascii_lowercase(character));
         return {};
@@ -227,7 +227,7 @@ String StringView::to_ascii_uppercase_string() const
 
     String result;
 
-    MUST(result.replace_with_new_string({}, length(), [&](Bytes buffer) -> ErrorOr<void> {
+    MUST(result.replace_with_new_string(Badge<StringView> {}, length(), [&](Bytes buffer) -> ErrorOr<void> {
         for (auto [i, character] : enumerate(bytes()))
             buffer[i] = static_cast<u8>(AK::to_ascii_uppercase(character));
         return {};

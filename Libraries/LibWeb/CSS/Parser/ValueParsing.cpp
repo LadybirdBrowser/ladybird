@@ -16,6 +16,7 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
+#include <AK/StringConversions.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -564,7 +565,7 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
         //    with the U+003F QUESTION MARK (?) code points replaced by U+0030 DIGIT ZERO (0) code points.
         //    This is the start value.
         auto start_value_string = start_value_code_points.replace("?"sv, "0"sv, ReplaceMode::All);
-        auto maybe_start_value = AK::StringUtils::convert_to_uint_from_hex<u32>(start_value_string);
+        auto maybe_start_value = AK::parse_hexadecimal_number<u32>(start_value_string);
         if (!maybe_start_value.has_value()) {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> ?-converted start value did not parse as hex number.");
             return {};
@@ -575,7 +576,7 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
         //    with the U+003F QUESTION MARK (?) code points replaced by U+0046 LATIN CAPITAL LETTER F (F) code points.
         //    This is the end value.
         auto end_value_string = start_value_code_points.replace("?"sv, "F"sv, ReplaceMode::All);
-        auto maybe_end_value = AK::StringUtils::convert_to_uint_from_hex<u32>(end_value_string);
+        auto maybe_end_value = AK::parse_hexadecimal_number<u32>(end_value_string);
         if (!maybe_end_value.has_value()) {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> ?-converted end value did not parse as hex number.");
             return {};
@@ -586,7 +587,7 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
         return make_valid_unicode_range(start_value, end_value);
     }
     //   Otherwise, interpret the consumed code points as a hexadecimal number. This is the start value.
-    auto maybe_start_value = AK::StringUtils::convert_to_uint_from_hex<u32>(start_value_code_points);
+    auto maybe_start_value = AK::parse_hexadecimal_number<u32>(start_value_code_points);
     if (!maybe_start_value.has_value()) {
         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> start value did not parse as hex number.");
         return {};
@@ -625,7 +626,7 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
     }
 
     // 7. Interpret the consumed code points as a hexadecimal number. This is the end value.
-    auto maybe_end_value = AK::StringUtils::convert_to_uint_from_hex<u32>(end_hex_digits);
+    auto maybe_end_value = AK::parse_hexadecimal_number<u32>(end_hex_digits);
     if (!maybe_end_value.has_value()) {
         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> end value did not parse as hex number.");
         return {};

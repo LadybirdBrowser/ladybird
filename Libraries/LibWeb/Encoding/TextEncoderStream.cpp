@@ -184,11 +184,11 @@ Optional<u32> TextEncoderStream::convert_code_unit_to_scalar_value(u32 item, Utf
 
         // 3. If item is a trailing surrogate, then return a scalar value from surrogates given leadingSurrogate
         //    and item.
-        if (Utf16View::is_low_surrogate(item)) {
+        if (AK::UnicodeUtils::is_utf16_low_surrogate(item)) {
             // https://encoding.spec.whatwg.org/#scalar-value-from-surrogates
             // To obtain a scalar value from surrogates, given a leading surrogate leading and a trailing surrogate
             // trailing, return 0x10000 + ((leading − 0xD800) << 10) + (trailing − 0xDC00).
-            return Utf16View::decode_surrogate_pair(leading_surrogate, item);
+            return AK::UnicodeUtils::decode_utf16_surrogate_pair(leading_surrogate, item);
         }
 
         // 4. Restore item to input.
@@ -199,13 +199,13 @@ Optional<u32> TextEncoderStream::convert_code_unit_to_scalar_value(u32 item, Utf
     }
 
     // 2. If item is a leading surrogate, then set encoder’s leading surrogate to item and return continue.
-    if (Utf16View::is_high_surrogate(item)) {
+    if (AK::UnicodeUtils::is_utf16_high_surrogate(item)) {
         m_leading_surrogate = item;
         return OptionalNone {};
     }
 
     // 3. If item is a trailing surrogate, then return U+FFFD.
-    if (Utf16View::is_low_surrogate(item))
+    if (AK::UnicodeUtils::is_utf16_low_surrogate(item))
         return 0xFFFD;
 
     // 4. Return item.
