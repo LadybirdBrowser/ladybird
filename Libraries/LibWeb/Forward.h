@@ -332,6 +332,7 @@ class Tokenizer;
 struct AtRule;
 struct Declaration;
 struct Function;
+struct GuaranteedInvalidValue;
 struct QualifiedRule;
 struct SimpleBlock;
 
