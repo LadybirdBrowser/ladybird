@@ -65,6 +65,7 @@ private:
     String m_member;
 };
 
+// FIXME: Collapse the Type nodes into a single node that combines fixed TypeToken's with custom structs
 class WGSL_API Type : public ASTNode {
 public:
     ~Type() override = default;
