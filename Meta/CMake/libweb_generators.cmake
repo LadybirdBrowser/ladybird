@@ -243,7 +243,7 @@ function (generate_js_bindings target)
         )
 
         add_custom_target(generate_${basename} DEPENDS ${BINDINGS_SOURCES})
-        add_dependencies(all_generated generate_${basename})
+        add_dependencies(ladybird_codegen_accumulator generate_${basename})
         add_dependencies(${target} generate_${basename})
         add_dependencies(generate_${basename} ${generated_idl_targets})
 
@@ -295,7 +295,7 @@ function (generate_js_bindings target)
         )
         target_sources(${target} PRIVATE ${exposed_interface_sources})
         add_custom_target(generate_exposed_interfaces DEPENDS ${exposed_interface_sources})
-        add_dependencies(all_generated generate_exposed_interfaces)
+        add_dependencies(ladybird_codegen_accumulator generate_exposed_interfaces)
         add_dependencies(${target} generate_exposed_interfaces)
         add_dependencies(generate_exposed_interfaces ${generated_idl_targets})
 

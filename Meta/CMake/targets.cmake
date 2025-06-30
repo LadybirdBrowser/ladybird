@@ -140,7 +140,7 @@ macro(add_ladybird_subdirectory path)
     add_subdirectory("${SERENITY_PROJECT_ROOT}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
 endmacro()
 
-if (NOT TARGET all_generated)
+if (NOT TARGET ladybird_codegen_accumulator)
     # Meta target to run all code-gen steps in the build.
-    add_custom_target(all_generated)
+    add_custom_target(ladybird_codegen_accumulator)
 endif()

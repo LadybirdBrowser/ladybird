@@ -97,7 +97,7 @@ add_custom_command(
 )
 target_sources(LibGfx PRIVATE ${generated_sources})
 add_custom_target(generate_tiff_files_handler DEPENDS ${generated_sources})
-add_dependencies(all_generated generate_tiff_files_handler)
+add_dependencies(ladybird_codegen_accumulator generate_tiff_files_handler)
 add_dependencies(LibGfx generate_tiff_files_handler)
 
 set(generated_headers ${generated_sources})
