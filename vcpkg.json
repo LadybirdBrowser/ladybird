@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "2d1eb6affae7b2ef01c0312514d7218113dd5d25",
+  "builtin-baseline": "0cb95c860ea83aafc1b24350510b30dec535989a",
   "dependencies": [
     {
       "name": "angle",
@@ -66,7 +66,10 @@
         "apng"
       ]
     },
-    "libproxy",
+    {
+      "name": "libproxy",
+      "platform": "!freebsd"
+    },
     {
       "name": "libavif",
       "features": [
@@ -87,6 +90,32 @@
       "platform": "windows"
     },
     "openssl",
+    {
+      "name": "qtbase",
+      "platform": "freebsd",
+      "default-features": false,
+      "features": [
+        "concurrent",
+        "doubleconversion",
+        "fontconfig",
+        "freetype",
+        "gui",
+        "icu",
+        "jpeg",
+        "network",
+        "opengl",
+        "pcre2",
+        "png",
+        "thread",
+        "vulkan",
+        "widgets",
+        "xcb",
+        "xcb-xlib",
+        "xlib",
+        "xrender",
+        "zstd"
+      ]
+    },
     {
       "name": "pthread",
       "platform": "windows"
@@ -195,6 +224,10 @@
     {
       "name": "openssl",
       "version": "3.5.0#1"
+    },
+    {
+      "name": "qtbase",
+      "version": "6.8.3#2"
     },
     {
       "name": "simdutf",

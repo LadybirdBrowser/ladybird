@@ -4,6 +4,12 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
+# FIXME: Trying to use LLD on FreeBSD gives errors
+# FIXME: CMAKE_SYSTEM_NAME is not set before the first project call
+if (CMAKE_HOST_SYSTEM_NAME MATCHES "FreeBSD")
+    return()
+endif()
+
 if (NOT APPLE AND NOT ANDROID AND NOT WIN32 AND NOT LAGOM_USE_LINKER)
     find_program(LLD_LINKER NAMES "ld.lld")
     if (LLD_LINKER)
