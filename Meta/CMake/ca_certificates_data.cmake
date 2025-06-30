@@ -3,7 +3,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/utils.cmake)
 set(CACERT_VERSION "2025-05-20")
 set(CACERT_SHA256 "ab3ee3651977a4178a702b0b828a4ee7b2bbb9127235b0ab740e2e15974bf5db")
 
-set(CACERT_PATH "${SERENITY_CACHE_DIR}/CACERT" CACHE PATH "Download location for cacert.pem")
+set(CACERT_PATH "${LADYBIRD_CACHE_DIR}/CACERT" CACHE PATH "Download location for cacert.pem")
 set(CACERT_VERSION_FILE "${CACERT_PATH}/version.txt")
 
 set(CACERT_FILE cacert-${CACERT_VERSION}.pem)

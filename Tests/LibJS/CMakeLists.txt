@@ -7,4 +7,4 @@ if (WIN32 AND ENABLE_WINDOWS_CI)
 endif()
 
 ladybird_testjs_test(test-js.cpp test-js LIBS LibGC)
-set_tests_properties(test-js PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
+set_tests_properties(test-js PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_PROJECT_ROOT})

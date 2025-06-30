@@ -14,7 +14,7 @@
       "binaryDir": "${fileDir}/Build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
+        "LADYBIRD_CACHE_DIR": "${fileDir}/Build/caches",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALL_OPTIONS": "--no-print-usage",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/release-triplets"

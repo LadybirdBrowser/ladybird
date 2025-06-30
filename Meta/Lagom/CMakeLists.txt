@@ -35,12 +35,12 @@ if (POLICY CMP0174)
 endif()
 
 get_filename_component(
-    SERENITY_PROJECT_ROOT "${PROJECT_SOURCE_DIR}/../.."
+    LADYBIRD_PROJECT_ROOT "${PROJECT_SOURCE_DIR}/../.."
     ABSOLUTE CACHE
 )
-set(SerenityOS_SOURCE_DIR "${SERENITY_PROJECT_ROOT}" CACHE STRING "")
+set(SerenityOS_SOURCE_DIR "${LADYBIRD_PROJECT_ROOT}" CACHE STRING "")
 
-list(APPEND CMAKE_MODULE_PATH "${SERENITY_PROJECT_ROOT}/Meta/CMake")
+list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_PROJECT_ROOT}/Meta/CMake")
 
 if(NOT COMMAND ladybird_option)
     macro(ladybird_option)
@@ -160,7 +160,7 @@ set(Lagom_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/${package}"
 mark_as_advanced(Lagom_INSTALL_CMAKEDIR)
 
 install(
-    FILES "${SERENITY_PROJECT_ROOT}/Meta/CMake/lagom-install-config.cmake"
+    FILES "${LADYBIRD_PROJECT_ROOT}/Meta/CMake/lagom-install-config.cmake"
     DESTINATION "${Lagom_INSTALL_CMAKEDIR}"
     RENAME "${package}Config.cmake"
     COMPONENT Lagom_Development
@@ -218,14 +218,14 @@ endif()
 # Lagom Libraries
 # FIXME: Move these calls to the relevant client library CMakeLists
 # Note that the Services themselves are only built if ENABLE_GUI_TARGETS, from top level.
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentClient.ipc Services/WebContent/WebContentClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverClient.ipc Services/WebContent/WebDriverClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIClient.ipc Services/WebContent/WebUIClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIServer.ipc Services/WebContent/WebUIServerEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebContent/WebContentClient.ipc Services/WebContent/WebContentClientEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebContent/WebDriverClient.ipc Services/WebContent/WebDriverClientEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebContent/WebUIClient.ipc Services/WebContent/WebUIClientEndpoint.h)
+compile_ipc(${LADYBIRD_PROJECT_ROOT}/Services/WebContent/WebUIServer.ipc Services/WebContent/WebUIServerEndpoint.h)
 
 add_ladybird_subdirectory(Libraries)
 
