@@ -75,7 +75,10 @@ if (NOT WIN32 AND NOT APPLE AND NOT ENABLE_FUZZERS)
     else()
         add_link_options(LINKER:-z,defs)
         add_link_options(LINKER:--no-undefined)
-        add_link_options(LINKER:--no-allow-shlib-undefined)
+        # FIXME: Remove this once FreeBSD exports environ from libc
+        if (NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+            add_link_options(LINKER:--no-allow-shlib-undefined)
+        endif()
     endif()
 endif()
 
