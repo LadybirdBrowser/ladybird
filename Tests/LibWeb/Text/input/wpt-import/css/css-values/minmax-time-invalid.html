@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#time">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<script>
+function test_invalid_time(value) {
+  test_invalid_value('transition-delay', value);
+}
+
+// Syntax checking
+test_invalid_time('min()');
+test_invalid_time('min( )');
+test_invalid_time('min(,)');
+test_invalid_time('min(1mt)');
+test_invalid_time('min(1s, )');
+test_invalid_time('min(, 1s)');
+test_invalid_time('min(1s + )');
+test_invalid_time('min(1s - )');
+test_invalid_time('min(1s * )');
+test_invalid_time('min(1s / )');
+test_invalid_time('min(1s 2s)');
+test_invalid_time('min(1s, , 2s)');
+test_invalid_time('max()');
+test_invalid_time('max( )');
+test_invalid_time('max(,)');
+test_invalid_time('max(1dag)');
+test_invalid_time('max(1s, )');
+test_invalid_time('max(, 1s)');
+test_invalid_time('max(1s + )');
+test_invalid_time('max(1s - )');
+test_invalid_time('max(1s * )');
+test_invalid_time('max(1s / )');
+test_invalid_time('max(1s 2s)');
+test_invalid_time('max(1s, , 2s)');
+
+// Type checking
+test_invalid_time('min(0)');
+test_invalid_time('min(0%)');
+test_invalid_time('min(0px)');
+test_invalid_time('min(0deg)');
+test_invalid_time('min(0Hz)');
+test_invalid_time('min(0dpi)');
+test_invalid_time('min(0fr)');
+test_invalid_time('min(1s, 0)');
+test_invalid_time('min(1s, 0%)');
+test_invalid_time('min(1s, 0px)');
+test_invalid_time('min(1s, 0deg)');
+test_invalid_time('min(1s, 0Hz)');
+test_invalid_time('min(1s, 0dpi)');
+test_invalid_time('min(1s, 0fr)');
+test_invalid_time('max(0)');
+test_invalid_time('max(0%)');
+test_invalid_time('max(0px)');
+test_invalid_time('max(0deg)');
+test_invalid_time('max(0Hz)');
+test_invalid_time('max(0dpi)');
+test_invalid_time('max(0fr)');
+test_invalid_time('max(1s, 0)');
+test_invalid_time('max(1s, 0%)');
+test_invalid_time('max(1s, 0px)');
+test_invalid_time('max(1s, 0deg)');
+test_invalid_time('max(1s, 0Hz)');
+test_invalid_time('max(1s, 0dpi)');
+test_invalid_time('max(1s, 0fr)');
+</script>

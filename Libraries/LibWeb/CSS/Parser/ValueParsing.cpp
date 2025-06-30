@@ -4050,7 +4050,19 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue>
         }
         //    Otherwise, replace values with a Sum node containing the value items of values as its children.
         if (!single_value.has_value()) {
-            values.remove_all_matching([](CalcParsing::Node& value) { return value.has<CalcParsing::Operator>(); });
+            auto operator_count = 0u;
+            for (size_t i = 0; i < values.size();) {
+                auto& value = values[i];
+                if (value.has<CalcParsing::Operator>()) {
+                    operator_count++;
+                    values.remove(i);
+                } else {
+                    i++;
+                }
+            }
+            if (values.size() == 0 || operator_count != values.size() - 1)
+                return nullptr;
+
             single_value = make<CalcParsing::SumNode>(move(values));
         }
     }
