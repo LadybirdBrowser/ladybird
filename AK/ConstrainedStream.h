@@ -16,7 +16,12 @@ class ConstrainedStream : public Stream {
 public:
     ConstrainedStream(MaybeOwned<Stream>, u64 limit);
 
-    virtual ErrorOr<Bytes> read_some(Bytes) override;
+    virtual ErrorOr<Bytes> read_some(Bytes bytes) override
+    {
+        auto result = TRY(m_stream->read_some(bytes.trim(m_limit)));
+        m_limit -= result.size();
+        return result;
+    }
     virtual ErrorOr<void> discard(size_t discarded_bytes) override;
     virtual ErrorOr<size_t> write_some(ReadonlyBytes) override;
     virtual bool is_eof() const override;

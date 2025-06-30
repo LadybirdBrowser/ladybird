@@ -30,7 +30,12 @@ public:
     virtual bool is_open() const override;
     virtual void close() override;
     virtual ErrorOr<void> truncate(size_t) override;
-    virtual ErrorOr<Bytes> read_some(Bytes bytes) override;
+    virtual ErrorOr<Bytes> read_some(Bytes bytes) override
+    {
+        auto read = m_bytes.slice(m_offset).copy_trimmed_to(bytes);
+        m_offset += read;
+        return bytes.trim(read);
+    }
     virtual ErrorOr<void> read_until_filled(Bytes bytes) override;
 
     virtual ErrorOr<size_t> seek(i64 offset, SeekMode seek_mode = SeekMode::SetPosition) override;
