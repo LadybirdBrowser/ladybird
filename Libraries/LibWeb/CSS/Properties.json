@@ -687,6 +687,14 @@
       "hashless-hex-color"
     ]
   },
+  "border-inline-color": {
+    "inherited": false,
+    "initial": "currentcolor",
+    "longhands": [
+      "border-inline-start-color",
+      "border-inline-end-color"
+    ]
+  },
   "border-inline-end": {
     "inherited": false,
     "initial": "medium currentcolor none",
@@ -758,6 +766,22 @@
       "border-left-width"
     ],
     "max-values": 1
+  },
+  "border-inline-style": {
+    "inherited": false,
+    "initial": "none",
+    "longhands": [
+      "border-inline-start-style",
+      "border-inline-end-style"
+    ]
+  },
+  "border-inline-width": {
+    "inherited": false,
+    "initial": "medium",
+    "longhands": [
+      "border-inline-start-width",
+      "border-inline-end-width"
+    ]
   },
   "border-left": {
     "inherited": false,
