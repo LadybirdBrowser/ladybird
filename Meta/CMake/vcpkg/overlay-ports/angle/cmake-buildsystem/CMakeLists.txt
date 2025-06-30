@@ -44,7 +44,7 @@ add_compile_options("$<$<CONFIG:DEBUG>:-DANGLE_ENABLE_DEBUG_ANNOTATIONS>")
 if(WIN32)
     add_definitions(-DANGLE_IS_WIN)
 endif()
-if(LINUX)
+if(LINUX OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
     add_definitions(-DANGLE_IS_LINUX)
 endif()
 if(ANGLE_IS_64_BIT_CPU)
@@ -257,6 +257,9 @@ if (USE_ANGLE_EGL OR ENABLE_WEBGL)
     )
     target_compile_definitions(ANGLE PUBLIC ${ANGLE_DEFINITIONS})
     target_link_libraries(ANGLE PRIVATE ZLIB::ZLIB ${CMAKE_DL_LIBS})
+
+    find_package(Threads REQUIRED)
+    target_link_libraries(ANGLE PRIVATE Threads::Threads)
 
     target_compile_definitions(ANGLEFramework INTERFACE ${gl_prototypes})
 

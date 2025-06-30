@@ -10,7 +10,7 @@
     },
     {
       "name": "angle",
-      "platform": "linux | windows | android"
+      "platform": "linux | windows | android | freebsd"
     },
     {
       "name": "curl",
