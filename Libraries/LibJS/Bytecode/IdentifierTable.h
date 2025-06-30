@@ -9,16 +9,17 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/FlyString.h>
 #include <AK/Vector.h>
+#include <LibJS/Forward.h>
 
 namespace JS::Bytecode {
 
-struct IdentifierTableIndex {
+struct JS_API IdentifierTableIndex {
     static constexpr u32 invalid = 0xffffffffu;
     bool is_valid() const { return value != invalid; }
     u32 value { 0 };
 };
 
-class IdentifierTable {
+class JS_API IdentifierTable {
     AK_MAKE_NONMOVABLE(IdentifierTable);
     AK_MAKE_NONCOPYABLE(IdentifierTable);
 

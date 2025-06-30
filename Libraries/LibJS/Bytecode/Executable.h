@@ -24,7 +24,7 @@
 namespace JS::Bytecode {
 
 // Represents one polymorphic inline cache used for property lookups.
-struct PropertyLookupCache {
+struct JS_API PropertyLookupCache {
     static constexpr size_t max_number_of_shapes_to_remember = 4;
     struct Entry {
         WeakPtr<Shape> shape;
@@ -35,19 +35,19 @@ struct PropertyLookupCache {
     AK::Array<Entry, max_number_of_shapes_to_remember> entries;
 };
 
-struct GlobalVariableCache : public PropertyLookupCache {
+struct JS_API GlobalVariableCache : public PropertyLookupCache {
     u64 environment_serial_number { 0 };
     u32 environment_binding_index { 0 };
     bool has_environment_binding_index { false };
     bool in_module_environment { false };
 };
 
-struct SourceRecord {
+struct JS_API SourceRecord {
     u32 source_start_offset {};
     u32 source_end_offset {};
 };
 
-class Executable final : public Cell {
+class JS_API Executable final : public Cell {
     GC_CELL(Executable, Cell);
     GC_DECLARE_ALLOCATOR(Executable);
 

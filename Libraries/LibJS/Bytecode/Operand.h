@@ -11,7 +11,7 @@
 
 namespace JS::Bytecode {
 
-class Operand {
+class JS_API Operand {
 public:
     enum class Type
 #if ARCH(AARCH64)

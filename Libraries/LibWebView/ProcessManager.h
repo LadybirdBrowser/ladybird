@@ -42,7 +42,7 @@ public:
 private:
     Core::Platform::ProcessStatistics m_statistics;
     HashMap<pid_t, Process> m_processes;
-    int m_signal_handle { -1 };
+    [[maybe_unused]] int m_signal_handle { -1 };
     Threading::Mutex m_lock;
 };
 

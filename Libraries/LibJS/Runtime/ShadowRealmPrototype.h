@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class ShadowRealmPrototype final : public PrototypeObject<ShadowRealmPrototype, ShadowRealm> {
+class JS_API ShadowRealmPrototype final : public PrototypeObject<ShadowRealmPrototype, ShadowRealm> {
     JS_PROTOTYPE_OBJECT(ShadowRealmPrototype, ShadowRealm, ShadowRealm);
     GC_DECLARE_ALLOCATOR(ShadowRealmPrototype);
 

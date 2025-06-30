@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class WeakRef final
+class JS_API WeakRef final
     : public Object
     , public GC::WeakContainer {
     JS_OBJECT(WeakRef, Object);

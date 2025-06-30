@@ -11,7 +11,7 @@
 
 namespace JS {
 
-class TypedArrayPrototype final : public Object {
+class JS_API TypedArrayPrototype final : public Object {
     JS_OBJECT(TypedArrayPrototype, Object);
     GC_DECLARE_ALLOCATOR(TypedArrayPrototype);
 

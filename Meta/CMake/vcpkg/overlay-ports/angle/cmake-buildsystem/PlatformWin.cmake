@@ -9,8 +9,8 @@ list(APPEND ANGLE_DEFINITIONS
 
 # We're targeting Windows 10 which will have DirectX 11
 list(APPEND ANGLE_SOURCES
-    ${_d3d11_backend_sources}
-    ${_d3d_shared_sources}
+    ${d3d11_backend_sources}
+    ${d3d_shared_sources}
 
     ${angle_translator_hlsl_sources}
 
@@ -25,11 +25,12 @@ list(APPEND ANGLE_DEFINITIONS
     "-DANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES={ \"d3dcompiler_47.dll\", \"d3dcompiler_46.dll\", \"d3dcompiler_43.dll\" }"
 )
 
-list(APPEND ANGLEGLESv2_LIBRARIES dxguid dxgi)
+# https://issues.angleproject.org/issues/345274916
+list(APPEND ANGLEGLESv2_LIBRARIES dxguid dxgi synchronization)
 
 if(NOT angle_is_winuwp) # vcpkg EDIT: Exclude DirectX 9 on UWP
     # DirectX 9 support should be optional but ANGLE will not compile without it
-    list(APPEND ANGLE_SOURCES ${_d3d9_backend_sources})
+    list(APPEND ANGLE_SOURCES ${d3d9_backend_sources})
     list(APPEND ANGLE_DEFINITIONS ANGLE_ENABLE_D3D9)
     list(APPEND ANGLEGLESv2_LIBRARIES d3d9)
 endif()
@@ -52,7 +53,7 @@ if(USE_OPENGL)
 
     if(USE_ANGLE_EGL OR ENABLE_WEBGL)
         list(APPEND ANGLE_SOURCES
-            ${_gl_backend_sources}
+            ${gl_backend_sources}
 
             ${libangle_gl_egl_dl_sources}
             ${libangle_gl_egl_sources}

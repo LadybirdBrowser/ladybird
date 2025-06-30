@@ -1,5 +1,13 @@
 include(cmake/ResourceFiles.cmake)
 
+# FIXME: Increase support for building targets on Windows
+if (WIN32 AND ENABLE_WINDOWS_CI)
+    add_library(ladybird INTERFACE)
+    set(resource_base_dir "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_DATADIR}/Lagom")
+    copy_resources_to_build(${resource_base_dir} "ladybird")
+    return()
+endif()
+
 function(create_ladybird_bundle target_name)
     set_target_properties(${target_name} PROPERTIES
         OUTPUT_NAME "Ladybird"
@@ -75,6 +83,14 @@ target_link_libraries(${LADYBIRD_TARGET} PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
+
+if(WIN32)
+    # FIXME: This is a hack to get around lld-link error undefined symbols in various libraries
+    target_link_libraries(${LADYBIRD_TARGET} PRIVATE
+            $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Application>
+            $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,UserAgent>
+    )
+endif()
 
 function(set_helper_process_properties)
     set(targets ${ARGV})

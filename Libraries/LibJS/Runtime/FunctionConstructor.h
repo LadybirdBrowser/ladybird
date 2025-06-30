@@ -16,9 +16,9 @@ struct ParameterArgumentsAndBody {
     String body;
 };
 
-ThrowCompletionOr<ParameterArgumentsAndBody> extract_parameter_arguments_and_body(VM&, Span<Value> arguments);
+JS_API ThrowCompletionOr<ParameterArgumentsAndBody> extract_parameter_arguments_and_body(VM&, Span<Value> arguments);
 
-class FunctionConstructor final : public NativeFunction {
+class JS_API FunctionConstructor final : public NativeFunction {
     JS_OBJECT(FunctionConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(FunctionConstructor);
 

@@ -11,7 +11,7 @@
 
 namespace GC {
 
-class WeakContainer {
+class GC_API WeakContainer {
 public:
     explicit WeakContainer(Heap&);
     virtual ~WeakContainer();

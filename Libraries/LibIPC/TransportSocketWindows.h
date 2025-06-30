@@ -24,6 +24,7 @@ public:
     void set_up_read_hook(Function<void()>);
     bool is_open() const;
     void close();
+    void close_after_sending_all_pending_messages();
 
     void wait_until_readable();
 

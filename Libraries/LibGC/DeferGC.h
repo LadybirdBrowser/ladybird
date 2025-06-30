@@ -11,7 +11,7 @@
 
 namespace GC {
 
-class DeferGC {
+class GC_API DeferGC {
 public:
     explicit DeferGC(Heap& heap)
         : m_heap(heap)

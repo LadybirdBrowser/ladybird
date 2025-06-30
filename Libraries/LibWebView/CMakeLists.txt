@@ -36,6 +36,7 @@ if (APPLE)
     list(APPEND SOURCES MachPortServer.cpp)
 endif()
 
+# FIXME: Create a native implementation on Windows
 if (ENABLE_QT)
     list(APPEND SOURCES
         EventLoop/EventLoopImplementationQt.cpp
@@ -93,6 +94,7 @@ endif()
 find_package(SQLite3 REQUIRED)
 target_link_libraries(LibWebView PRIVATE SQLite::SQLite3)
 
+# FIXME: Create a native implementation on Windows
 if (ENABLE_QT)
     target_link_libraries(LibWebView PRIVATE Qt::Core)
 elseif (APPLE)

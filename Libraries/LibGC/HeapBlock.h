@@ -20,7 +20,7 @@
 
 namespace GC {
 
-class HeapBlock : public HeapBlockBase {
+class GC_API HeapBlock : public HeapBlockBase {
     AK_MAKE_NONCOPYABLE(HeapBlock);
     AK_MAKE_NONMOVABLE(HeapBlock);
 

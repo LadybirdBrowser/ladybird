@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-class DateTimeFormatConstructor final : public NativeFunction {
+class JS_API DateTimeFormatConstructor final : public NativeFunction {
     JS_OBJECT(DateTimeFormatConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(DateTimeFormatConstructor);
 

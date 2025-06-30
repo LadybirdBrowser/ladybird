@@ -20,6 +20,6 @@ struct PrintContext {
     bool disable_string_quotes { false };
 };
 
-ErrorOr<void> print(JS::Value value, PrintContext&);
+JS_API ErrorOr<void> print(JS::Value value, PrintContext&);
 
 }

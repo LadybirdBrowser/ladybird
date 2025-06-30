@@ -12,7 +12,7 @@
 
 namespace JS {
 
-class ErrorPrototype final : public PrototypeObject<ErrorPrototype, Error> {
+class JS_API ErrorPrototype final : public PrototypeObject<ErrorPrototype, Error> {
     JS_PROTOTYPE_OBJECT(ErrorPrototype, Error, Error);
     GC_DECLARE_ALLOCATOR(ErrorPrototype);
 

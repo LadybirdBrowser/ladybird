@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibGC/Export.h>
 
 namespace GC {
 

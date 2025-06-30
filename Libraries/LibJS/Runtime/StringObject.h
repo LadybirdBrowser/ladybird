@@ -10,7 +10,7 @@
 
 namespace JS {
 
-class StringObject : public Object {
+class JS_API StringObject : public Object {
     JS_OBJECT(StringObject, Object);
     GC_DECLARE_ALLOCATOR(StringObject);
 
