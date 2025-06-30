@@ -50,6 +50,6 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     attribute XMLHttpRequestResponseType responseType;
     readonly attribute any response;
     readonly attribute DOMString responseText;
-    readonly attribute Document? responseXML;
+    [Exposed=Window] readonly attribute Document? responseXML;
 
 };
