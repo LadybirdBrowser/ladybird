@@ -17,6 +17,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf32View.h>
 #include <AK/Utf8View.h>
+#include <AK/kmalloc.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
@@ -752,7 +753,7 @@ auto Editor::get_line(ByteString const& prompt) -> Result<ByteString, Editor::Er
         // getline() returns -1 and sets errno=0 on EOF.
         if (line_length == -1) {
             if (line)
-                free(line);
+                kfree(line);
             if (errno == 0)
                 return Error::Eof;
 
@@ -761,7 +762,7 @@ auto Editor::get_line(ByteString const& prompt) -> Result<ByteString, Editor::Er
         restore();
         if (line) {
             ByteString result { line, (size_t)line_length, Chomp };
-            free(line);
+            kfree(line);
             return result;
         }
 

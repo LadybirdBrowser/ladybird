@@ -10,6 +10,7 @@
 
 #include "Environment.h"
 #include <AK/ByteString.h>
+#include <AK/kmalloc.h>
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <crt_externs.h>
@@ -159,7 +160,7 @@ ErrorOr<void> put(StringView env)
     auto rc = ::putenv(str.characters());
 #else
     // Leak somewhat unavoidable here due to the putenv API.
-    auto leaked_new_env = strndup(env.characters_without_null_termination(), env.length());
+    auto leaked_new_env = kstrndup(env.characters_without_null_termination(), env.length());
     auto rc = ::putenv(leaked_new_env);
 #endif
     if (rc < 0)
