@@ -49,6 +49,7 @@ vcpkg_from_github(
     # On update check headers against opengl-registry
     PATCHES
         001-fix-builder-error.patch
+        fix-freebsd.patch
 )
 
 # Generate angle_commit.h
