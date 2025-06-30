@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	scrollParent skips intermediate closed shadow tree nodes
+3 Pass
+1 Fail
+Pass	scrollParent skips intermediate closed shadow tree nodes
 Fail	scrollParent skips intermediate open shadow tree nodes
-Fail	scrollParent from inside closed shadow tree
-Fail	scrollParent from inside open shadow tree
+Pass	scrollParent from inside closed shadow tree
+Pass	scrollParent from inside open shadow tree

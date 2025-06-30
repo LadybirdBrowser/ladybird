@@ -464,6 +464,9 @@ String HTMLElement::outer_text()
 // https://drafts.csswg.org/cssom-view/#dom-htmlelement-scrollparent
 GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 {
+    // NOTE: We have to ensure that the layout is up-to-date before querying the layout tree.
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLElementScrollParent);
+
     // 1. If any of the following holds true, return null and terminate this algorithm:
     //    - The element does not have an associated box.
     //    - The element is the root element.
@@ -478,7 +481,7 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 
     // 2. Let ancestor be the containing block of the element in the flat tree and repeat these substeps:
     auto ancestor = layout_node()->containing_block();
-    while (true) {
+    while (ancestor) {
         // 1. If ancestor is the initial containing block, return the scrollingElement for the element’s document if it
         //    is not closed-shadow-hidden from the element, otherwise return null.
         if (ancestor->is_viewport()) {
@@ -490,7 +493,8 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 
         // 2. If ancestor is not closed-shadow-hidden from the element, and is a scroll container, terminate this
         //    algorithm and return ancestor.
-        if (!ancestor->dom_node()->is_closed_shadow_hidden_from(*this) && ancestor->is_scroll_container()) {
+        if ((ancestor->dom_node() && !ancestor->dom_node()->is_closed_shadow_hidden_from(*this))
+            && ancestor->is_scroll_container()) {
             return const_cast<Element*>(static_cast<DOM::Element const*>(ancestor->dom_node()));
         }
 
@@ -498,8 +502,10 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
         //    position containing block, terminate this algorithm and return null.
 
         // 4. Let ancestor be the containing block of ancestor in the flat tree.
-        ancestor = layout_node()->containing_block();
+        ancestor = ancestor->containing_block();
     }
+
+    return nullptr;
 }
 
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsetparent
