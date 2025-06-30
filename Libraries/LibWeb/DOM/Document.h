@@ -98,6 +98,7 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLElementOffsetParent)             \
     X(HTMLElementOffsetTop)                \
     X(HTMLElementOffsetWidth)              \
+    X(HTMLElementScrollParent)             \
     X(HTMLEventLoopRenderingUpdate)        \
     X(HTMLImageElementHeight)              \
     X(HTMLImageElementWidth)               \
