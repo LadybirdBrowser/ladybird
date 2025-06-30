@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Logical Properties: Flow-Relative Border Styles</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/css-logical/#border-style">
+<meta name="assert" content="This test checks the interaction of the flow-relative border-*-style properties with the physical ones in different writing modes." />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<script type="module">
+import {runTests, createBoxPropertyGroup} from "./resources/test-box-properties.js";
+runTests(createBoxPropertyGroup("border-*-style", {type: "border-style"}));
+</script>
