@@ -17,6 +17,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
+#include <LibIDL/ExposedTo.h>
 #include <LibIDL/Types.h>
 
 namespace IDL {
@@ -3498,22 +3499,34 @@ void @class_name@::initialize(JS::Realm& realm)
 )~~~");
     }
 
+    // NOTE: Add more specified exposed global interface groups when needed.
+    StringBuilder window_exposed_only_members_builder;
+    SourceGenerator window_exposed_only_members_generator { window_exposed_only_members_builder, generator.clone_mapping() };
+    auto generator_for_member = [&](auto const& name, auto& extended_attributes) -> SourceGenerator {
+        if (auto maybe_exposed = extended_attributes.get("Exposed"); maybe_exposed.has_value()) {
+            auto exposed_to = MUST(IDL::parse_exposure_set(name, *maybe_exposed));
+            if (exposed_to == IDL::ExposedTo::Window) {
+                return window_exposed_only_members_generator.fork();
+            }
+        }
+        return generator.fork();
+    };
+
     // https://webidl.spec.whatwg.org/#es-attributes
     for (auto& attribute : interface.attributes) {
         bool has_unforgeable_attribute = attribute.extended_attributes.contains("LegacyUnforgeable"sv);
         if ((generate_unforgeables == GenerateUnforgeables::Yes && !has_unforgeable_attribute) || (generate_unforgeables == GenerateUnforgeables::No && has_unforgeable_attribute))
             continue;
 
+        auto attribute_generator = generator_for_member(attribute.name, attribute.extended_attributes);
         if (attribute.extended_attributes.contains("FIXME")) {
-            auto fixme_attribute_generator = generator.fork();
-            fixme_attribute_generator.set("attribute.name", attribute.name);
-            fixme_attribute_generator.append(R"~~~(
+            attribute_generator.set("attribute.name", attribute.name);
+            attribute_generator.append(R"~~~(
     @define_direct_property@("@attribute.name@"_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
             )~~~");
             continue;
         }
 
-        auto attribute_generator = generator.fork();
         attribute_generator.set("attribute.name", attribute.name);
         attribute_generator.set("attribute.getter_callback", attribute.getter_callback_name);
 
@@ -3539,9 +3552,9 @@ void @class_name@::initialize(JS::Realm& realm)
             continue;
 
         if (function.extended_attributes.contains("FIXME")) {
-            auto fixme_function_generator = generator.fork();
-            fixme_function_generator.set("function.name", function.name);
-            fixme_function_generator.append(R"~~~(
+            auto function_generator = generator_for_member(function.name, function.extended_attributes);
+            function_generator.set("function.name", function.name);
+            function_generator.append(R"~~~(
         @define_direct_property@("@function.name@"_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
             )~~~");
         }
@@ -3570,7 +3583,8 @@ void @class_name@::initialize(JS::Realm& realm)
         if ((generate_unforgeables == GenerateUnforgeables::Yes && !has_unforgeable_attribute) || (generate_unforgeables == GenerateUnforgeables::No && has_unforgeable_attribute))
             continue;
 
-        auto function_generator = generator.fork();
+        auto const& function = overload_set.value.first();
+        auto function_generator = generator_for_member(function.name, function.extended_attributes);
         function_generator.set("function.name", overload_set.key);
         function_generator.set("function.name:snakecase", make_input_acceptable_cpp(overload_set.key.to_snakecase()));
         function_generator.set("function.length", ByteString::number(get_shortest_function_length(overload_set.value)));
@@ -3593,10 +3607,11 @@ void @class_name@::initialize(JS::Realm& realm)
         if ((generate_unforgeables == GenerateUnforgeables::Yes && !has_unforgeable_attribute) || (generate_unforgeables == GenerateUnforgeables::No && has_unforgeable_attribute))
             should_generate_stringifier = false;
     }
-
     if (interface.has_stringifier && should_generate_stringifier) {
         // FIXME: Do stringifiers need to be added to the unscopable list?
-        auto stringifier_generator = generator.fork();
+        auto stringifier_generator = interface.stringifier_extended_attributes.has_value()
+            ? generator_for_member("stringifier"sv, *interface.stringifier_extended_attributes)
+            : generator.fork();
         stringifier_generator.append(R"~~~(
     @define_native_function@(realm, "toString"_fly_string, to_string, 0, default_attributes);
 )~~~");
@@ -3686,6 +3701,16 @@ void @class_name@::initialize(JS::Realm& realm)
     if (generate_unforgeables == GenerateUnforgeables::No) {
         generator.append(R"~~~(
     @define_direct_property@(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "@namespaced_name@"_string), JS::Attribute::Configurable);
+)~~~");
+    }
+
+    if (!window_exposed_only_members_generator.as_string_view().is_empty()) {
+        auto window_only_property_declarations = generator.fork();
+        window_only_property_declarations.set("defines", window_exposed_only_members_generator.as_string_view());
+        window_only_property_declarations.append(R"~~~(
+    if (is<HTML::Window>(realm.global_object())) {
+@defines@
+    }
 )~~~");
     }
 
