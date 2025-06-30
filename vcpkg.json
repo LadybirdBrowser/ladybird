@@ -9,6 +9,10 @@
       ]
     },
     {
+      "name": "angle",
+      "platform": "linux | windows"
+    },
+    {
       "name": "curl",
       "features": [
         "brotli",

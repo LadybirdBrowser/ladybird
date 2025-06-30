@@ -10,18 +10,6 @@
   "license": "BSD-3-Clause",
   "dependencies": [
     "egl-registry",
-    {
-      "name": "libx11",
-      "platform": "linux"
-    },
-    {
-      "name": "libxext",
-      "platform": "linux"
-    },
-    {
-      "name": "libxi",
-      "platform": "linux"
-    },
     "opengl-registry",
     {
       "name": "vcpkg-cmake",
