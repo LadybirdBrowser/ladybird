@@ -82,7 +82,7 @@ set(GENERATED_SOURCES
     UIProcessServerEndpoint.h
 )
 
-serenity_lib(LibWebView webview)
+ladybird_lib(LibWebView webview)
 target_link_libraries(LibWebView PRIVATE LibCore LibDevTools LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax LibTextCodec)
 
 if (APPLE)

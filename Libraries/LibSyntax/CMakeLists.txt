@@ -4,4 +4,4 @@ set(SOURCES
     Language.cpp
 )
 
-serenity_lib(LibSyntax syntax)
+ladybird_lib(LibSyntax syntax)

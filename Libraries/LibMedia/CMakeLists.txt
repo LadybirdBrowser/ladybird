@@ -16,7 +16,7 @@ set(SOURCES
     VideoFrame.cpp
 )
 
-serenity_lib(LibMedia media)
+ladybird_lib(LibMedia media)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
 
 if (NOT ANDROID)

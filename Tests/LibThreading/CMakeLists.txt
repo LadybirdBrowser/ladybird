@@ -3,5 +3,5 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    serenity_test("${source}" LibThreading LIBS LibThreading)
+    ladybird_test("${source}" LibThreading LIBS LibThreading)
 endforeach()

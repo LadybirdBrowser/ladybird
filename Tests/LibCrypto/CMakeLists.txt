@@ -16,5 +16,5 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    serenity_test("${source}" LibCrypto LIBS LibCrypto)
+    ladybird_test("${source}" LibCrypto LIBS LibCrypto)
 endforeach()

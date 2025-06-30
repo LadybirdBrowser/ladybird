@@ -58,7 +58,7 @@ function(lagom_lib target_name fs_name)
                 FILES_MATCHING PATTERN "*.h"
         )
     endif()
-    serenity_generated_sources(${target_name})
+    ladybird_generated_sources(${target_name})
     if (LAGOM_LIBRARY_EXPLICIT_SYMBOL_EXPORT)
         lagom_generate_export_header(${target_name} ${fs_name})
     endif()
@@ -97,7 +97,7 @@ function(lagom_utility name)
     target_link_libraries("${name}" PRIVATE AK LibCore ${LAGOM_UTILITY_LIBS})
 endfunction()
 
-function(serenity_test test_src sub_dir)
+function(ladybird_test test_src sub_dir)
     cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "" "CUSTOM_MAIN;NAME" "LIBS")
     lagom_test(${test_src}
             LIBS ${SERENITY_TEST_LIBS}
@@ -107,7 +107,7 @@ function(serenity_test test_src sub_dir)
     )
 endfunction()
 
-function(serenity_bin name)
+function(ladybird_bin name)
     add_executable(${name} ${SOURCES} ${GENERATED_SOURCES})
     add_executable(Lagom::${name} ALIAS ${name})
     target_link_libraries(${name} PUBLIC GenericClangPlugin)
@@ -124,10 +124,10 @@ function(serenity_bin name)
             INCLUDES #
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
-    serenity_generated_sources(${name})
+    ladybird_generated_sources(${name})
 endfunction()
 
-function(serenity_lib name fs_name)
+function(ladybird_lib name fs_name)
     cmake_parse_arguments(PARSE_ARGV 2 SERENITY_LIB "EXPLICIT_SYMBOL_EXPORT" "TYPE" "")
     set(EXPLICIT_SYMBOL_EXPORT "")
     if (SERENITY_LIB_EXPLICIT_SYMBOL_EXPORT)
@@ -136,7 +136,7 @@ function(serenity_lib name fs_name)
     lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${SERENITY_LIB_TYPE} ${EXPLICIT_SYMBOL_EXPORT} SOURCES ${SOURCES} ${GENERATED_SOURCES})
 endfunction()
 
-macro(add_serenity_subdirectory path)
+macro(add_ladybird_subdirectory path)
     add_subdirectory("${SERENITY_PROJECT_ROOT}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
 endmacro()
 

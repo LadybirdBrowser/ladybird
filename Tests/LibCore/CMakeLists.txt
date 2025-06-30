@@ -17,7 +17,7 @@ if (NOT WIN32)
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
-    serenity_test("${source}" LibCore)
+    ladybird_test("${source}" LibCore)
 endforeach()
 
 target_link_libraries(TestLibCoreDateTime PRIVATE LibUnicode)

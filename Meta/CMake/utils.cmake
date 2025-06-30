@@ -1,7 +1,7 @@
 
 include(${CMAKE_CURRENT_LIST_DIR}/code_generators.cmake)
 
-function(serenity_generated_sources target_name)
+function(ladybird_generated_sources target_name)
     if(DEFINED GENERATED_SOURCES)
         set_source_files_properties(${GENERATED_SOURCES} PROPERTIES GENERATED 1)
         foreach(generated ${GENERATED_SOURCES})
@@ -12,13 +12,13 @@ function(serenity_generated_sources target_name)
     endif()
 endfunction()
 
-function(serenity_testjs_test test_src sub_dir)
+function(ladybird_testjs_test test_src sub_dir)
     cmake_parse_arguments(PARSE_ARGV 2 SERENITY_TEST "" "CUSTOM_MAIN" "LIBS")
     if ("${SERENITY_TEST_CUSTOM_MAIN}" STREQUAL "")
         set(SERENITY_TEST_CUSTOM_MAIN "$<TARGET_OBJECTS:JavaScriptTestRunnerMain>")
     endif()
     list(APPEND SERENITY_TEST_LIBS LibJS LibCore LibFileSystem)
-    serenity_test(${test_src} ${sub_dir}
+    ladybird_test(${test_src} ${sub_dir}
         CUSTOM_MAIN "${SERENITY_TEST_CUSTOM_MAIN}"
         LIBS ${SERENITY_TEST_LIBS})
 endfunction()

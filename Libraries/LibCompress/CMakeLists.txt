@@ -6,7 +6,7 @@ set(SOURCES
     Zlib.cpp
 )
 
-serenity_lib(LibCompress compress)
+ladybird_lib(LibCompress compress)
 target_link_libraries(LibCompress PRIVATE LibCore LibCrypto)
 
 find_package(ZLIB REQUIRED)

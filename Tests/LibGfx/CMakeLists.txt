@@ -16,5 +16,5 @@ if (NOT WIN32)
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
-    serenity_test("${source}" LibGfx LIBS LibGfx)
+    ladybird_test("${source}" LibGfx LIBS LibGfx)
 endforeach()

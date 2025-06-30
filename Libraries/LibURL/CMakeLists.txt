@@ -19,5 +19,5 @@ set(SOURCES
     Pattern/Tokenizer.cpp
 )
 
-serenity_lib(LibURL url)
+ladybird_lib(LibURL url)
 target_link_libraries(LibURL PRIVATE LibUnicode LibTextCodec LibRegex LibCrypto)

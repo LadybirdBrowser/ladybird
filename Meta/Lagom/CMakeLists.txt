@@ -42,8 +42,8 @@ set(SerenityOS_SOURCE_DIR "${SERENITY_PROJECT_ROOT}" CACHE STRING "")
 
 list(APPEND CMAKE_MODULE_PATH "${SERENITY_PROJECT_ROOT}/Meta/CMake")
 
-if(NOT COMMAND serenity_option)
-    macro(serenity_option)
+if(NOT COMMAND ladybird_option)
+    macro(ladybird_option)
         set(${ARGV})
     endmacro()
 endif()
@@ -190,21 +190,21 @@ add_library(NoCoverage INTERFACE)
 install(TARGETS NoCoverage EXPORT LagomTargets)
 
 # AK
-add_serenity_subdirectory(AK)
+add_ladybird_subdirectory(AK)
 
 # LibCoreMinimal
-add_serenity_subdirectory(Libraries/LibCore)
+add_ladybird_subdirectory(Libraries/LibCore)
 
 # LibMain
-add_serenity_subdirectory(Libraries/LibMain)
+add_ladybird_subdirectory(Libraries/LibMain)
 
 # LibFileSystem
 # This is needed even if Lagom is not enabled because it is depended upon by code generators.
-add_serenity_subdirectory(Libraries/LibFileSystem)
+add_ladybird_subdirectory(Libraries/LibFileSystem)
 
 # LibIDL
 # This is used by the BindingsGenerator so needs to always be built.
-add_serenity_subdirectory(Libraries/LibIDL)
+add_ladybird_subdirectory(Libraries/LibIDL)
 
 # Code Generators and other host tools
 if (BUILD_LAGOM_TOOLS)
@@ -227,7 +227,7 @@ compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Ser
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIClient.ipc Services/WebContent/WebUIClientEndpoint.h)
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebUIServer.ipc Services/WebContent/WebUIServerEndpoint.h)
 
-add_serenity_subdirectory(Libraries)
+add_ladybird_subdirectory(Libraries)
 
 if (ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
@@ -239,10 +239,10 @@ if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
 endif()
 
 # Lagom Utilities
-add_serenity_subdirectory(Utilities)
+add_ladybird_subdirectory(Utilities)
 
 # Tests
 include(CTest)
 if (BUILD_TESTING)
-    add_serenity_subdirectory(Tests)
+    add_ladybird_subdirectory(Tests)
 endif()
