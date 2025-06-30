@@ -687,6 +687,24 @@
       "hashless-hex-color"
     ]
   },
+  "border-end-end-radius": {
+    "logical-alias-for": [
+      "border-top-left-radius",
+      "border-bottom-left-radius",
+      "border-top-right-radius",
+      "border-bottom-right-radius"
+    ],
+    "max-values": 1
+  },
+  "border-end-start-radius": {
+    "logical-alias-for": [
+      "border-top-left-radius",
+      "border-bottom-left-radius",
+      "border-top-right-radius",
+      "border-bottom-right-radius"
+    ],
+    "max-values": 1
+  },
   "border-inline-color": {
     "inherited": false,
     "initial": "currentcolor",
@@ -900,6 +918,24 @@
     "quirks": [
       "unitless-length"
     ]
+  },
+  "border-start-end-radius": {
+    "logical-alias-for": [
+      "border-top-left-radius",
+      "border-bottom-left-radius",
+      "border-top-right-radius",
+      "border-bottom-right-radius"
+    ],
+    "max-values": 1
+  },
+  "border-start-start-radius": {
+    "logical-alias-for": [
+      "border-top-left-radius",
+      "border-bottom-left-radius",
+      "border-top-right-radius",
+      "border-bottom-right-radius"
+    ],
+    "max-values": 1
   },
   "border-style": {
     "initial": "none",

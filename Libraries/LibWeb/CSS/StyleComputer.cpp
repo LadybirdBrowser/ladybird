@@ -935,6 +935,50 @@ PropertyID StyleComputer::map_logical_alias_to_physical_property_id(PropertyID p
         if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
             return PropertyID::BorderRightWidth;
         return PropertyID::BorderLeftWidth;
+    case PropertyID::BorderEndEndRadius:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomRightRadius;
+            return PropertyID::BorderBottomLeftRadius;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomLeftRadius;
+            return PropertyID::BorderTopLeftRadius;
+        }
+
+        if (mapping_context.writing_mode == WritingMode::VerticalLr) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomRightRadius;
+            return PropertyID::BorderTopRightRadius;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderTopRightRadius;
+        return PropertyID::BorderBottomRightRadius;
+    case PropertyID::BorderEndStartRadius:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomLeftRadius;
+            return PropertyID::BorderBottomRightRadius;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopLeftRadius;
+            return PropertyID::BorderBottomLeftRadius;
+        }
+
+        if (mapping_context.writing_mode == WritingMode::VerticalLr) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopRightRadius;
+            return PropertyID::BorderBottomRightRadius;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderBottomRightRadius;
+        return PropertyID::BorderTopRightRadius;
     case PropertyID::BorderInlineStartColor:
         if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
             if (used_direction == Direction::Ltr)
@@ -1032,7 +1076,49 @@ PropertyID StyleComputer::map_logical_alias_to_physical_property_id(PropertyID p
         if (used_direction == Direction::Ltr)
             return PropertyID::BorderTopWidth;
         return PropertyID::BorderBottomWidth;
+    case PropertyID::BorderStartEndRadius:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopRightRadius;
+            return PropertyID::BorderTopLeftRadius;
+        }
 
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomRightRadius;
+            return PropertyID::BorderTopRightRadius;
+        }
+
+        if (mapping_context.writing_mode == WritingMode::VerticalLr) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderBottomLeftRadius;
+            return PropertyID::BorderTopLeftRadius;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderTopLeftRadius;
+        return PropertyID::BorderBottomLeftRadius;
+    case PropertyID::BorderStartStartRadius:
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopLeftRadius;
+            return PropertyID::BorderTopRightRadius;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopRightRadius;
+            return PropertyID::BorderBottomRightRadius;
+        }
+
+        if (mapping_context.writing_mode == WritingMode::VerticalLr) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::BorderTopLeftRadius;
+            return PropertyID::BorderBottomLeftRadius;
+        }
+        if (used_direction == Direction::Ltr)
+            return PropertyID::BorderBottomLeftRadius;
+        return PropertyID::BorderTopLeftRadius;
     case PropertyID::MarginBlockStart:
         if (mapping_context.writing_mode == WritingMode::HorizontalTb)
             return PropertyID::MarginTop;
