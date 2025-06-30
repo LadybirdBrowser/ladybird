@@ -27,11 +27,11 @@ public class TransferAssets {
         Context applicationContext = context.getApplicationContext();
         File assetDir = applicationContext.getFilesDir();
         AssetManager assetManager = applicationContext.getAssets();
-        if (!copyAsset(assetManager, "ladybird-assets.tar", assetDir.getAbsolutePath() + "/ladybird-assets.tar")) {
+        if (!copyAsset(assetManager, "ladybird-assets.zip", assetDir.getAbsolutePath() + "/ladybird-assets.zip")) {
             Log.e("Ladybird", "Unable to copy assets");
             return "Invalid Assets, this won't work";
         }
-        Log.d("Ladybird", "Copied ladybird-assets.tar to app-specific storage path");
+        Log.d("Ladybird", "Copied ladybird-assets.zip to app-specific storage path");
         return assetDir.getAbsolutePath();
     }
 

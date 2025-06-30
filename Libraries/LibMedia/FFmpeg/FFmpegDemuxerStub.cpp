@@ -8,13 +8,19 @@
 
 namespace Media::FFmpeg {
 
+ErrorOr<NonnullOwnPtr<FFmpegDemuxer>> FFmpegDemuxer::create(NonnullOwnPtr<SeekableStream> stream)
+{
+    (void)stream;
+    return Error::from_string_literal("FFmpeg not available on this platform");
+}
+
 DecoderErrorOr<Vector<Track>> FFmpegDemuxer::get_tracks_for_type(TrackType type)
 {
     (void)type;
     return DecoderError::format(DecoderErrorCategory::NotImplemented, "FFmpeg not available on this platform");
 }
 
-DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone())
+DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample)
 {
     (void)track;
     (void)timestamp;
@@ -22,8 +28,9 @@ DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyfra
     return DecoderError::format(DecoderErrorCategory::NotImplemented, "FFmpeg not available on this platform");
 }
 
-DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration()
+DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration(Track track)
 {
+    (void)track;
     return DecoderError::format(DecoderErrorCategory::NotImplemented, "FFmpeg not available on this platform");
 }
 

@@ -9,12 +9,14 @@
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibMedia/Demuxer.h>
-#include <LibMedia/FFmpeg/FFmpegIOContext.h>
+#ifndef AK_OS_ANDROID
+#    include <LibMedia/FFmpeg/FFmpegIOContext.h>
 
 extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
+#    include <libavcodec/avcodec.h>
+#    include <libavformat/avformat.h>
 }
+#endif
 
 namespace Media::FFmpeg {
 
@@ -22,7 +24,9 @@ class FFmpegDemuxer : public Demuxer {
 public:
     static ErrorOr<NonnullOwnPtr<FFmpegDemuxer>> create(NonnullOwnPtr<SeekableStream> stream);
 
+#ifndef AK_OS_ANDROID
     FFmpegDemuxer(NonnullOwnPtr<SeekableStream> stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>);
+#endif
     virtual ~FFmpegDemuxer() override;
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
@@ -41,10 +45,12 @@ private:
     DecoderErrorOr<AK::Duration> duration_of_track_in_milliseconds(Track const& track);
 
     NonnullOwnPtr<SeekableStream> m_stream;
+#ifndef AK_OS_ANDROID
     AVCodecContext* m_codec_context { nullptr };
     AVFormatContext* m_format_context { nullptr };
     NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext> m_io_context;
     AVPacket* m_packet { nullptr };
+#endif
 };
 
 }

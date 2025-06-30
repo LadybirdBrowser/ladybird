@@ -6,7 +6,9 @@
  */
 
 #include "Loader.h"
-#include "FFmpegLoader.h"
+#ifndef AK_OS_ANDROID
+#    include "FFmpegLoader.h"
+#endif
 #include <AK/TypedTransfer.h>
 #include <LibCore/MappedFile.h>
 
@@ -28,7 +30,9 @@ struct LoaderPluginInitializer {
 };
 
 static constexpr LoaderPluginInitializer s_initializers[] = {
+#ifndef AK_OS_ANDROID
     { FFmpegLoaderPlugin::sniff, FFmpegLoaderPlugin::create },
+#endif
 };
 
 ErrorOr<NonnullRefPtr<Loader>> Loader::create(StringView path)
