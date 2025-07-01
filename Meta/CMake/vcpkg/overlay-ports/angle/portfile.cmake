@@ -156,7 +156,7 @@ function(checkout_in_path PATH URL REF)
         URL "${URL}"
         REF "${REF}"
     )
-    if (VCPKG_HOST_IS_WIN32)
+    if (CMAKE_HOST_WIN32)
         file(COPY "${DEP_SOURCE_PATH}/" DESTINATION "${PATH}")
     else()
         file(RENAME "${DEP_SOURCE_PATH}" "${PATH}")
