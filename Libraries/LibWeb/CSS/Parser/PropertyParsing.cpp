@@ -3907,12 +3907,12 @@ RefPtr<CSSStyleValue const> Parser::parse_transform_origin_value(TokenStream<Com
     auto second_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
     auto third_value = parse_length_value(tokens);
 
+    if (!first_value.has_value() || !second_value.has_value())
+        return nullptr;
+
     if ((first_value->offset->is_length() || first_value->offset->is_percentage()) && second_value->axis == Axis::X)
         return nullptr;
     if ((second_value->offset->is_length() || second_value->offset->is_percentage()) && first_value->axis == Axis::Y)
-        return nullptr;
-
-    if (!first_value.has_value() || !second_value.has_value())
         return nullptr;
 
     if (!third_value)
