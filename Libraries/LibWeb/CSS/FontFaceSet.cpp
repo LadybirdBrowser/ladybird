@@ -175,12 +175,11 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
 {
     // 1. Parse font using the CSS value syntax of the font property. If a syntax error occurs, return a syntax error.
     auto property = parse_css_value(CSS::Parser::ParsingParams(), font, PropertyID::Font);
-    if (!property)
+    if (!property || !property->is_shorthand())
         return WebIDL::SyntaxError::create(realm, "Unable to parse font"_string);
 
     // If the parsed value is a CSS-wide keyword, return a syntax error.
-    if (property->is_css_wide_keyword())
-        return WebIDL::SyntaxError::create(realm, "Parsed font is a CSS-wide keyword"_string);
+    // Note: This case is already caught by the is_shorthand check.
 
     // FIXME: Absolutize all relative lengths against the initial values of the corresponding properties. (For example, a
     //        relative font weight like bolder is evaluated against the initial value normal.)

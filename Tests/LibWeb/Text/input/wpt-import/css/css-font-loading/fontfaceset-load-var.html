@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<title>SyntaxError thrown when matching loading values with var()</title>
+<link rel="help" href="https://drafts.csswg.org/css-font-loading/#font-face-set-load">
+<link rel="help" href="https://drafts.csswg.org/css-font-loading/#find-the-matching-font-faces">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+
+  function load_on_worker(keyword) {
+    return new Promise((resolve, reject) =>{
+      var blob = new Blob([`
+        self.fonts.load('${keyword}').then(
+          ()=>{ self.postMessage('success') },
+          (e)=>{ self.postMessage(e) }
+        );
+      `]);
+      var blob_url = window.URL.createObjectURL(blob);
+      let worker = new Worker(blob_url);
+      worker.onmessage = msg => {
+        if (msg === 'success')
+          resolve(msg.data)
+        else
+          reject(msg.data)
+      }
+    });
+  }
+
+  promise_test(test => {
+    return promise_rejects_dom(test, 'SyntaxError', document.fonts.load('var(--x) serif'));
+  }, 'Loading "var(--x) serif" causes SyntaxError (document)')
+
+  promise_test(test => {
+    return promise_rejects_dom(test, 'SyntaxError', document.fonts.load('var(--x, 10px) serif'));
+  }, 'Loading "var(--x, 10px) serif" causes SyntaxError (document)')
+
+  promise_test(test => {
+    return promise_rejects_dom(test, 'SyntaxError', load_on_worker('var(--x) serif'));
+  }, 'Loading "var(--x) serif" causes SyntaxError (worker)')
+
+  promise_test(test => {
+    return promise_rejects_dom(test, 'SyntaxError', load_on_worker('var(--x, 10px) serif'));
+  }, 'Loading "var(--x, 10px) serif" causes SyntaxError (worker)')
+
+</script>

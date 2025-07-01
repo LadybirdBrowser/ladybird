@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Loading "var(--x) serif" causes SyntaxError (document)
+Pass	Loading "var(--x, 10px) serif" causes SyntaxError (document)
+Pass	Loading "var(--x) serif" causes SyntaxError (worker)
+Pass	Loading "var(--x, 10px) serif" causes SyntaxError (worker)
