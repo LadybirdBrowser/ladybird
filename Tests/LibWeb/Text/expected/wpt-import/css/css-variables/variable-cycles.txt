@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+1 Pass
+10 Fail
+Fail	Self-cycle
+Fail	Simple a/b cycle
+Fail	Three-var cycle
+Fail	Cycle that starts in the middle of a chain
+Fail	Cycle with extra edge
+Fail	Cycle with extra edge (2)
+Fail	Cycle with extra edge (3)
+Fail	Cycle with secondary cycle
+Fail	Cycle with overlapping secondary cycle
+Fail	Cycle with deeper secondary cycle
+Pass	Cycle in unused fallback
