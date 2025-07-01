@@ -268,6 +268,12 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
                 while (image_x < css_clip_rect.right()) {
                     image_rect.set_x(image_x);
                     auto image_device_rect = context.rounded_device_rect(image_rect);
+                    // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
+                    // There's no need to check that !image_rect.is_empty() because empty images are discarded in resolve_background_layers.
+                    if (image_device_rect.width() == 0)
+                        image_device_rect.set_width(1);
+                    if (image_device_rect.height() == 0)
+                        image_device_rect.set_height(1);
                     callback(image_device_rect);
                     if (!repeat_x)
                         break;
@@ -299,6 +305,13 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
             // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
             auto dest_rect = context.rounded_device_rect(image_rect);
+            // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
+            // There's no need to check that !image_rect.is_empty() because empty images are discarded in resolve_background_layers.
+            if (dest_rect.width() == 0)
+                dest_rect.set_width(1);
+            if (dest_rect.height() == 0)
+                dest_rect.set_height(1);
+
             auto const* bitmap = static_cast<CSS::ImageStyleValue const&>(image).current_frame_bitmap(dest_rect);
             auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->rect(), dest_rect.to_type<int>());
             context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y });
