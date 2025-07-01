@@ -74,7 +74,7 @@ void TableFormattingContext::compute_constrainedness()
             if (computed_values.width().is_length()) {
                 m_columns[column_index].is_constrained = true;
             }
-            auto const& col_node = static_cast<HTML::HTMLTableColElement const&>(*column_box.dom_node());
+            auto const& col_node = static_cast<HTML::HTMLElement const&>(*column_box.dom_node());
             unsigned span = col_node.get_attribute_value(HTML::AttributeNames::span).to_number<unsigned>().value_or(1);
             column_index += span;
         });
@@ -191,7 +191,7 @@ void TableFormattingContext::compute_outer_content_sizes()
             m_columns[column_index].min_size = max(min_width, width);
             // The outer max-content width of a table-column or table-column-group is max(min-width, min(max-width, width)).
             m_columns[column_index].max_size = max(min_width, min(max_width, width));
-            auto const& col_node = static_cast<HTML::HTMLTableColElement const&>(*column_box.dom_node());
+            auto const& col_node = static_cast<HTML::HTMLElement const&>(*column_box.dom_node());
             unsigned span = col_node.get_attribute_value(HTML::AttributeNames::span).to_number<unsigned>().value_or(1);
             column_index += span;
         });
@@ -1393,7 +1393,7 @@ void TableFormattingContext::BorderConflictFinder::collect_conflicting_col_eleme
         size_t column_index = 0;
         for (auto* child_of_column_group = child->first_child(); child_of_column_group; child_of_column_group = child_of_column_group->next_sibling()) {
             VERIFY(child_of_column_group->display().is_table_column());
-            auto const& col_node = static_cast<HTML::HTMLTableColElement const&>(*child_of_column_group->dom_node());
+            auto const& col_node = static_cast<HTML::HTMLElement const&>(*child_of_column_group->dom_node());
             unsigned span = col_node.get_attribute_value(HTML::AttributeNames::span).to_number<unsigned>().value_or(1);
             m_col_elements_by_index.resize(column_index + span);
             for (size_t i = column_index; i < column_index + span; ++i) {
@@ -1792,7 +1792,7 @@ void TableFormattingContext::initialize_intrinsic_percentages_from_rows_or_colum
             auto width_percentage = computed_values.width().is_percentage() ? computed_values.width().percentage().value() : 0;
             m_columns[column_index].has_intrinsic_percentage = computed_values.max_width().is_percentage() || computed_values.width().is_percentage();
             m_columns[column_index].intrinsic_percentage = min(width_percentage, max_width_percentage);
-            auto const& col_node = static_cast<HTML::HTMLTableColElement const&>(*column_box.dom_node());
+            auto const& col_node = static_cast<HTML::HTMLElement const&>(*column_box.dom_node());
             unsigned span = col_node.get_attribute_value(HTML::AttributeNames::span).to_number<unsigned>().value_or(1);
             column_index += span;
         });

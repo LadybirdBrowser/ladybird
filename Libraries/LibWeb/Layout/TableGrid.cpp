@@ -65,8 +65,9 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
 
     auto process_col_group = [&](auto& col_group) {
         auto dom_node = col_group.dom_node();
-        dom_node->template for_each_in_subtree_of_type<HTML::HTMLTableColElement>([&](auto&) {
-            x_width += 1;
+        dom_node->for_each_in_subtree([&](auto& descendant) {
+            if (descendant.layout_node() && descendant.layout_node()->display().is_table_column())
+                x_width += 1;
             return TraversalDecision::Continue;
         });
     };
