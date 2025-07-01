@@ -2733,22 +2733,24 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
         // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
         // Important steps from "internally create a new object implementing the interface"
-        // 3.2: Let prototype be ? Get(newTarget, "prototype").
-        auto prototype = TRY(new_target.get(vm.names.prototype));
+        {
+            // 3.2: Let prototype be ? Get(newTarget, "prototype").
+            auto prototype = TRY(new_target.get(vm.names.prototype));
 
-        // 3.3. If Type(prototype) is not Object, then:
-        if (!prototype.is_object()) {
-            // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
-            auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
+            // 3.3. If Type(prototype) is not an Object, then:
+            if (!prototype.is_object()) {
+                // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
+                auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
 
-            // 2. Set prototype to the interface prototype object for interface in targetRealm.
-            VERIFY(target_realm);
-            prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@name@"_fly_string);
+                // 2. Set prototype to the interface prototype object for interface in targetRealm.
+                VERIFY(target_realm);
+                prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@name@"_fly_string);
+            }
+
+            // 9. Set instance.[[Prototype]] to prototype.
+            VERIFY(prototype.is_object());
+            MUST(element->internal_set_prototype_of(&prototype.as_object()));
         }
-
-        // 7. Set instance.[[Prototype]] to prototype.
-        VERIFY(prototype.is_object());
-        MUST(element->internal_set_prototype_of(&prototype.as_object()));
 
         // 6. Set element's custom element state to "custom".
         // 7. Set element's custom element definition to definition.
