@@ -66,15 +66,23 @@ ErrorOr<String> String::from_utf16(Utf16View const& utf16)
     return utf16.to_utf8();
 }
 
-ErrorOr<String> String::from_utf16_le(ReadonlyBytes bytes)
+ErrorOr<String> String::from_utf16_le_with_replacement_character(ReadonlyBytes bytes)
 {
-    if (!validate_utf16_le(bytes))
-        return Error::from_string_literal("String::from_utf16_le: Input was not valid UTF-16LE");
     if (bytes.is_empty())
         return String {};
 
     auto const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
     auto utf16_length = bytes.size() / 2;
+
+    Utf16Data well_formed_utf16;
+
+    if (!validate_utf16_le(bytes)) {
+        well_formed_utf16.resize(bytes.size());
+
+        simdutf::to_well_formed_utf16le(utf16_data, utf16_length, well_formed_utf16.data());
+        utf16_data = well_formed_utf16.data();
+    }
+
     auto utf8_length = simdutf::utf8_length_from_utf16le(utf16_data, utf16_length);
 
     String result;
@@ -87,15 +95,23 @@ ErrorOr<String> String::from_utf16_le(ReadonlyBytes bytes)
     return result;
 }
 
-ErrorOr<String> String::from_utf16_be(ReadonlyBytes bytes)
+ErrorOr<String> String::from_utf16_be_with_replacement_character(ReadonlyBytes bytes)
 {
-    if (!validate_utf16_be(bytes))
-        return Error::from_string_literal("String::from_utf16_be: Input was not valid UTF-16BE");
     if (bytes.is_empty())
         return String {};
 
     auto const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
     auto utf16_length = bytes.size() / 2;
+
+    Utf16Data well_formed_utf16;
+
+    if (!validate_utf16_le(bytes)) {
+        well_formed_utf16.resize(bytes.size());
+
+        simdutf::to_well_formed_utf16be(utf16_data, utf16_length, well_formed_utf16.data());
+        utf16_data = well_formed_utf16.data();
+    }
+
     auto utf8_length = simdutf::utf8_length_from_utf16be(utf16_data, utf16_length);
 
     String result;

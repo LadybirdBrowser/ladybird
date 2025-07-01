@@ -70,8 +70,8 @@ public:
 
     // Creates a new String from a sequence of UTF-16 encoded code points.
     static ErrorOr<String> from_utf16(Utf16View const&);
-    static ErrorOr<String> from_utf16_le(ReadonlyBytes);
-    static ErrorOr<String> from_utf16_be(ReadonlyBytes);
+    static ErrorOr<String> from_utf16_le_with_replacement_character(ReadonlyBytes);
+    static ErrorOr<String> from_utf16_be_with_replacement_character(ReadonlyBytes);
 
     // Creates a new String by reading byte_count bytes from a UTF-8 encoded Stream.
     static ErrorOr<String> from_stream(Stream&, size_t byte_count);
