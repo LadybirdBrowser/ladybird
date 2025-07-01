@@ -32,8 +32,7 @@ class OffscreenCanvas : public DOM::EventTarget
     GC_DECLARE_ALLOCATOR(OffscreenCanvas);
 
 public:
-    static GC::Ref<OffscreenCanvas> create(JS::Realm&, WebIDL::UnsignedLong width,
-        WebIDL::UnsignedLong height);
+    static GC::Ref<OffscreenCanvas> create(JS::Realm&, WebIDL::UnsignedLong width, WebIDL::UnsignedLong height);
 
     static WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> construct_impl(
         JS::Realm&,
@@ -50,7 +49,7 @@ public:
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;
 
-    NonnullRefPtr<Gfx::Bitmap> bitmap() const;
+    RefPtr<Gfx::Bitmap> bitmap() const;
 
     WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
     WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
@@ -69,7 +68,7 @@ public:
     GC::Ptr<WebIDL::CallbackType> oncontextrestored();
 
 private:
-    OffscreenCanvas(JS::Realm&, NonnullRefPtr<Gfx::Bitmap> bitmap);
+    OffscreenCanvas(JS::Realm&, RefPtr<Gfx::Bitmap> bitmap);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -85,7 +84,7 @@ private:
 
     Variant<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
 
-    NonnullRefPtr<Gfx::Bitmap> m_bitmap;
+    RefPtr<Gfx::Bitmap> m_bitmap;
 };
 
 }
