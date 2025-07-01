@@ -31,15 +31,16 @@ WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> OffscreenCanvas::construct_impl(
     WebIDL::UnsignedLong width,
     WebIDL::UnsignedLong height)
 {
+    RefPtr<Gfx::Bitmap> bitmap;
+    if (width > 0 && height > 0) {
+        // The new OffscreenCanvas(width, height) constructor steps are:
+        auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::IntSize { width, height });
 
-    // The new OffscreenCanvas(width, height) constructor steps are:
-    auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::IntSize { width, height });
-
-    if (bitmap_or_error.is_error()) {
-        return WebIDL::InvalidStateError::create(realm, MUST(String::formatted("Error in allocating bitmap: {}", bitmap_or_error.error())));
+        if (bitmap_or_error.is_error()) {
+            return WebIDL::InvalidStateError::create(realm, MUST(String::formatted("Error in allocating bitmap: {}", bitmap_or_error.error())));
+        }
+        bitmap = bitmap_or_error.release_value();
     }
-
-    auto bitmap = bitmap_or_error.release_value();
 
     // 1. Initialize the bitmap of this to a rectangular array of transparent black pixels of the dimensions specified by width and height.
     // noop, the pixel value to set is equal to 0x00000000, which the bitmap already contains
@@ -71,7 +72,7 @@ WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> OffscreenCanvas::construct_impl(
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-offscreencanvas
-OffscreenCanvas::OffscreenCanvas(JS::Realm& realm, NonnullRefPtr<Gfx::Bitmap> bitmap)
+OffscreenCanvas::OffscreenCanvas(JS::Realm& realm, RefPtr<Gfx::Bitmap> bitmap)
     : EventTarget(realm)
     , m_bitmap { move(bitmap) }
 {
@@ -102,11 +103,17 @@ HTML::TransferType OffscreenCanvas::primary_interface() const
 
 WebIDL::UnsignedLong OffscreenCanvas::width() const
 {
+    if (!m_bitmap)
+        return 0;
+
     return m_bitmap->size().width();
 }
 
 WebIDL::UnsignedLong OffscreenCanvas::height() const
 {
+    if (!m_bitmap)
+        return 0;
+
     return m_bitmap->size().height();
 }
 
@@ -129,7 +136,11 @@ void OffscreenCanvas::reset_context_to_default_state()
 
 void OffscreenCanvas::set_new_bitmap_size(Gfx::IntSize new_size)
 {
-    m_bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::IntSize { new_size.width(), new_size.height() }));
+    if (new_size.width() == 0 || new_size.height() == 0)
+        m_bitmap = nullptr;
+    else {
+        m_bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::IntSize { new_size.width(), new_size.height() }));
+    }
 
     m_context.visit(
         [&](GC::Ref<OffscreenCanvasRenderingContext2D>& context) {
@@ -145,7 +156,7 @@ void OffscreenCanvas::set_new_bitmap_size(Gfx::IntSize new_size)
             // Do nothing.
         });
 }
-NonnullRefPtr<Gfx::Bitmap> OffscreenCanvas::bitmap() const
+RefPtr<Gfx::Bitmap> OffscreenCanvas::bitmap() const
 {
     return m_bitmap;
 }
@@ -171,6 +182,8 @@ WebIDL::ExceptionOr<void> OffscreenCanvas::set_height(WebIDL::UnsignedLong value
 
 Gfx::IntSize OffscreenCanvas::bitmap_size_for_canvas() const
 {
+    if (!m_bitmap)
+        return { 0, 0 };
     return m_bitmap->size();
 }
 
@@ -224,10 +237,14 @@ WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> OffscreenCanvas::transfer_to_image_bit
     auto image = ImageBitmap::create(realm());
     image->set_bitmap(m_bitmap);
 
-    // 4. Set this OffscreenCanvas object 's bitmap to reference a newly created bitmap of the same dimensions and color space as the previous bitmap, and with its pixels initialized to transparent black, or opaque black if the rendering context' s alpha is false.
+    // 4. Set this OffscreenCanvas object's bitmap to reference a newly created bitmap of the same dimensions and color space as the previous bitmap, and with its pixels initialized to transparent black, or opaque black if the rendering context' s alpha is false.
     // FIXME: implement the checking of the alpha from the context
     auto size = bitmap_size_for_canvas();
-    m_bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, size));
+    if (size.is_empty()) {
+        m_bitmap = nullptr;
+    } else {
+        m_bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, size));
+    }
 
     // 5. Return image.
     return image;
@@ -262,7 +279,9 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOp
     }
 
     // 4. Let bitmap be a copy of this OffscreenCanvas object's bitmap.
-    auto bitmap = MUST(m_bitmap->clone());
+    RefPtr<Gfx::Bitmap> bitmap;
+    if (m_bitmap)
+        bitmap = MUST(m_bitmap->clone());
 
     // 5. Let result be a new promise object.
     auto result_promise = WebIDL::create_promise(realm());
