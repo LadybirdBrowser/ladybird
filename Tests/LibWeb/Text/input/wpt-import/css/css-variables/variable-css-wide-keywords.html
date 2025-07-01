@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<head>
+<title>CSS Custom Properties: Using CSS-wide keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-variables/#defining-variables">
+<meta name="assert" content="The CSS-wide keywords can be used in custom properties, with the same meaning as in any another property." />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  body {
+    --is-initial: initial;
+
+    --should-not-inherit: tomato;
+    --should-inherit: lightgreen;
+
+    --registered-inherits-should-not-inherit: tomato;
+    --registered-should-not-inherit: tomato;
+    --registered-inherits-should-inherit: lightgreen;
+    --registered-should-inherit: lightgreen;
+    --registered-should-revert: tomato;
+    --registered-inherits-should-revert: tomato;
+  }
+  @property --registered-inherits-should-not-inherit {
+    syntax: '<color>';
+    initial-value: lightgreen;
+    inherits: true;
+  }
+  @property --registered-should-not-inherit {
+    syntax: '<color>';
+    initial-value: lightgreen;
+    inherits: false;
+  }
+  @property --registered-inherits-should-inherit {
+    syntax: '<color>';
+    initial-value: tomato;
+    inherits: true;
+  }
+  @property --registered-should-inherit {
+    syntax: '<color>';
+    initial-value: tomato;
+    inherits: false;
+  }
+  @property --registered-should-revert {
+    syntax: '<color>';
+    initial-value: orange;
+    inherits: false;
+  }
+  @property --registered-inherits-should-revert {
+    syntax: '<color>';
+    initial-value: orange;
+    inherits: true;
+  }
+</style>
+
+<!-- Tests for values of unregistered custom properties -->
+<div class="test" style="
+  background: var(--should-not-inherit, lightgreen);
+  --should-not-inherit: initial;
+">
+  `initial` as a value for an unregistered custom property
+</div>
+
+<div class="test" style="
+  background: var(--should-inherit, tomato);
+  --should-inherit: inherit;
+">
+  `inherit` as a value for an unregistered custom property
+</div>
+
+<div class="test" style="
+  background: var(--should-inherit, tomato);
+  --should-inherit: unset;
+">
+  `unset` as a value for an unregistered custom property
+</div>
+
+<div class="test" style="
+  background: var(--should-inherit, tomato);
+  --should-inherit: revert;
+">
+  `revert` as a value for an unregistered custom property
+</div>
+
+<style>
+  #regular-revert-layer {
+    @layer {
+      --should-not-inherit: lightgreen;
+    }
+    @layer {
+      --should-not-inherit: revert-layer;
+    }
+  }
+</style>
+<div class="test" id="regular-revert-layer" style="
+  background: var(--should-not-inherit);
+">
+  `revert-layer` as a value for an unregistered custom property
+</div>
+
+
+<!-- Tests for values of registered custom properties -->
+
+<div class="test" style="
+  background: var(--registered-should-not-inherit);
+  --registered-should-not-inherit: initial;
+">
+  `initial` as a value for a non-inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-inherits-should-not-inherit);
+  --registered-inherits-should-not-inherit: initial;
+">
+  `initial` as a value for an inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-should-inherit);
+  --registered-should-inherit: inherit;
+">
+  `inherit` as a value for a non-inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-inherits-should-inherit);
+  --registered-inherits-should-inherit: inherit;
+">
+  `inherit` as a value for an inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-should-not-inherit);
+  --registered-should-not-inherit: unset;
+">
+  `unset` as a value for a non-inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-inherits-should-inherit);
+  --registered-inherits-should-inherit: unset;
+">
+  `unset` as a value for an inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-should-not-inherit);
+  --registered-should-not-inherit: revert;
+">
+  `revert` as a value for a non-inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-inherits-should-inherit);
+  --registered-inherits-should-inherit: revert;
+">
+  `revert` as a value for an inheriting registered custom property
+</div>
+
+<style>
+  #registered-revert-layer {
+    @layer {
+      --registered-should-revert: lightgreen;
+    }
+    @layer {
+      --registered-should-revert: revert-layer;
+    }
+  }
+</style>
+<div class="test" id="registered-revert-layer" style="
+  background: var(--registered-should-revert);
+">
+  `revert-layer` as a value for a non-inheriting registered custom property
+</div>
+
+<style>
+  #registered-revert-layer-inherits {
+    @layer {
+      --registered-inherits-should-revert: lightgreen;
+    }
+    @layer {
+      --registered-inherits-should-revert: revert-layer;
+    }
+  }
+</style>
+<div class="test" id="registered-revert-layer-inherits" style="
+  background: var(--registered-inherits-should-revert);
+">
+  `revert-layer` as a value for an inheriting registered custom property
+</div>
+
+
+<!-- Tests for `var()` fallbacks of unregistered custom properties -->
+
+<div class="test" style="
+  background: var(--should-not-inherit, lightgreen);
+  --should-not-inherit: var(--is-initial, initial);
+">
+  `initial` as a `var()` fallback for an unregistered custom property
+</div>
+
+<div class="test" style="
+  background: var(--should-inherit, tomato);
+  --should-inherit: var(--is-initial, inherit);
+">
+  `inherit` as a `var()` fallback for an unregistered custom property
+</div>
+
+<div class="test" style="
+  background: var(--should-inherit, tomato);
+  --should-inherit: var(--is-initial, unset);
+">
+  `unset` as a `var()` fallback for an unregistered custom property
+</div>
+
+<div class="test" style="
+  background: var(--should-inherit, tomato);
+  --should-inherit: var(--is-initial, unset);
+">
+  `revert` as a `var()` fallback for an unregistered custom property
+</div>
+
+<style>
+  #regular-fallback-revert-layer {
+    @layer {
+      --should-not-inherit: lightgreen;
+    }
+    @layer {
+      --should-not-inherit: var(--is-initial, revert-layer);
+    }
+  }
+</style>
+<div class="test" id="regular-fallback-revert-layer" style="
+  background: var(--should-not-inherit);
+">
+  `revert-layer` as a `var()` fallback for an unregistered custom property
+</div>
+
+
+<!-- Tests for `var()` fallbacks of registered custom properties -->
+
+<div class="test" style="
+  background: var(--registered-should-not-inherit);
+  --registered-should-not-inherit: var(--is-initial, initial);
+">
+  `initial` as a `var()` fallback for a non-inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-inherits-should-not-inherit);
+  --registered-inherits-should-not-inherit: var(--is-initial, initial);
+">
+  `initial` as a `var()` fallback for an inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-should-inherit);
+  --registered-should-inherit: var(--is-initial, inherit);
+">
+  `inherit` as a `var()` fallback for a non-inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-inherits-should-inherit);
+  --registered-inherits-should-inherit: var(--is-initial, inherit);
+">
+  `inherit` as a `var()` fallback for an inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-should-not-inherit);
+  --registered-should-not-inherit: var(--is-initial, unset);
+">
+  `unset` as a `var()` fallback for a non-inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-inherits-should-inherit);
+  --registered-inherits-should-inherit: var(--is-initial, unset);
+">
+  `unset` as a `var()` fallback for an inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-should-not-inherit);
+  --registered-should-not-inherit: var(--is-initial, revert);
+">
+  `revert` as a `var()` fallback for a non-inheriting registered custom property
+</div>
+
+<div class="test" style="
+  background: var(--registered-inherits-should-inherit);
+  --registered-inherits-should-inherit: var(--is-initial, revert);
+">
+  `revert` as a `var()` fallback for an inheriting registered custom property
+</div>
+
+<style>
+  #registered-fallback-revert-layer {
+    @layer {
+      --registered-should-revert: lightgreen;
+    }
+    @layer {
+      --registered-should-revert: var(--is-initial, revert-layer);
+    }
+  }
+</style>
+<div class="test" id="registered-fallback-revert-layer" style="
+  background: var(--registered-should-revert);
+">
+  `revert-layer` as a `var()` fallback for a non-inheriting registered custom property
+</div>
+
+<style>
+  #registered-fallback-revert-layer-inherits {
+    @layer {
+      --registered-inherits-should-revert: lightgreen;
+    }
+    @layer {
+      --registered-inherits-should-revert: var(--is-initial, revert-layer);
+    }
+  }
+</style>
+<div class="test" id="registered-fallback-revert-layer-inherits" style="
+  background: var(--registered-inherits-should-revert);
+">
+  `revert-layer` as a `var()` fallback for an inheriting registered custom property
+</div>
+
+<pre id="out"></pre>
+<script>
+  [...document.querySelectorAll('.test')].map(el => test(() => assert_equals(getComputedStyle(el).getPropertyValue('background-color'), 'rgb(144, 238, 144)'), el.textContent.trim()));
+</script>
