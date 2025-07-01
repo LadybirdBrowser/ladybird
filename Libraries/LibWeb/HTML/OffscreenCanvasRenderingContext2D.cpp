@@ -232,10 +232,15 @@ float OffscreenCanvasRenderingContext2D::shadow_offset_x() const
     return drawing_state().shadow_offset_x;
 }
 
-void OffscreenCanvasRenderingContext2D::set_shadow_offset_x(float offsetX)
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsetx
+void OffscreenCanvasRenderingContext2D::set_shadow_offset_x(float offset_x)
 {
-    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsetx
-    drawing_state().shadow_offset_x = offsetX;
+    // On setting, the attribute being set must be set to the new value, except if the value is infinite or NaN,
+    // in which case the new value must be ignored.
+    if (isinf(offset_x) || isnan(offset_x))
+        return;
+
+    drawing_state().shadow_offset_x = offset_x;
 }
 
 float OffscreenCanvasRenderingContext2D::shadow_offset_y() const
@@ -243,10 +248,15 @@ float OffscreenCanvasRenderingContext2D::shadow_offset_y() const
     return drawing_state().shadow_offset_y;
 }
 
-void OffscreenCanvasRenderingContext2D::set_shadow_offset_y(float offsetY)
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsety
+void OffscreenCanvasRenderingContext2D::set_shadow_offset_y(float offset_y)
 {
-    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsety
-    drawing_state().shadow_offset_y = offsetY;
+    // On setting, the attribute being set must be set to the new value, except if the value is infinite or NaN,
+    // in which case the new value must be ignored.
+    if (isinf(offset_y) || isnan(offset_y))
+        return;
+
+    drawing_state().shadow_offset_y = offset_y;
 }
 
 float OffscreenCanvasRenderingContext2D::shadow_blur() const
