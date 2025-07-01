@@ -381,7 +381,7 @@ ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
     if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
         input = input.substring_view(2);
 
-    return String::from_utf16_be(input.bytes());
+    return String::from_utf16_be_with_replacement_character(input.bytes());
 }
 
 bool UTF16LEDecoder::validate(StringView input)
@@ -395,7 +395,7 @@ ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
     if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
         input = input.substring_view(2);
 
-    return String::from_utf16_le(input.bytes());
+    return String::from_utf16_le_with_replacement_character(input.bytes());
 }
 
 ErrorOr<void> Latin1Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
