@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibDevTools/Export.h>
+
 namespace DevTools {
 
 class Actor;

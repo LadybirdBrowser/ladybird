@@ -10,12 +10,13 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Traits.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
 
 namespace DevTools {
 
-struct NodeIdentifier {
+struct DEVTOOLS_API NodeIdentifier {
     static NodeIdentifier for_node(JsonObject const& node);
 
     bool operator==(NodeIdentifier const&) const = default;
