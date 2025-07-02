@@ -13,13 +13,14 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/MultiServer.h>
+#include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/UIProcessClientEndpoint.h>
 #include <LibWebView/UIProcessServerEndpoint.h>
 
 namespace WebView {
 
-class UIProcessConnectionFromClient final
+class WEBVIEW_API UIProcessConnectionFromClient final
     : public IPC::ConnectionFromClient<UIProcessClientEndpoint, UIProcessServerEndpoint> {
     C_OBJECT(UIProcessConnectionFromClient);
 
@@ -38,7 +39,7 @@ private:
     virtual void create_new_window(Vector<ByteString> urls) override;
 };
 
-class BrowserProcess {
+class WEBVIEW_API BrowserProcess {
     AK_MAKE_NONCOPYABLE(BrowserProcess);
     AK_MAKE_DEFAULT_MOVABLE(BrowserProcess);
 

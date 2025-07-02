@@ -18,6 +18,7 @@
 #include <LibMain/Main.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/URL.h>
+#include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
@@ -28,7 +29,7 @@ namespace WebView {
 
 struct ApplicationSettingsObserver;
 
-class Application : public DevTools::DevToolsDelegate {
+class WEBVIEW_API Application : public DevTools::DevToolsDelegate {
     AK_MAKE_NONCOPYABLE(Application);
 
 public:

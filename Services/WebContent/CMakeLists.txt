@@ -52,7 +52,7 @@ endif()
 target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
 if(WIN32)
-    # FIXME: This is a hack to get around lld-link error undefined symbols in various libraries
+    # FIXME: This is a hack to get around lld-link error undefined symbols in LibWeb
     target_link_libraries(WebContent PRIVATE
             $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,AbortSignal>
             $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,AttributeNames>
@@ -78,7 +78,6 @@ if(WIN32)
             $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,TransformStream>
             $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,WebUI>
             $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,WritableStream>
-            $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Utilities>
     )
     find_package(unofficial-angle REQUIRED CONFIG)
     target_link_libraries(WebContent PRIVATE LibTextCodec unofficial::angle::libGLESv2)

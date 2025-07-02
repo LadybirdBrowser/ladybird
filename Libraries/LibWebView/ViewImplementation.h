@@ -34,7 +34,7 @@
 
 namespace WebView {
 
-class ViewImplementation : public SettingsObserver {
+class WEBVIEW_API ViewImplementation : public SettingsObserver {
 public:
     virtual ~ViewImplementation();
 

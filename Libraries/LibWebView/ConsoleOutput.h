@@ -13,29 +13,30 @@
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Console.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-struct ConsoleLog {
+struct WEBVIEW_API ConsoleLog {
     JS::Console::LogLevel level;
     Vector<JsonValue> arguments;
 };
 
-struct StackFrame {
+struct WEBVIEW_API StackFrame {
     Optional<String> function;
     Optional<String> file;
     Optional<size_t> line;
     Optional<size_t> column;
 };
 
-struct ConsoleError {
+struct WEBVIEW_API ConsoleError {
     String name;
     String message;
     Vector<StackFrame> trace;
     bool inside_promise { false };
 };
 
-struct ConsoleOutput {
+struct WEBVIEW_API ConsoleOutput {
     UnixDateTime timestamp;
     Variant<ConsoleLog, ConsoleError> output;
 };
@@ -63,9 +64,9 @@ template<>
 ErrorOr<WebView::ConsoleError> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::ConsoleOutput const&);
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::ConsoleOutput const&);
 
 template<>
-ErrorOr<WebView::ConsoleOutput> decode(Decoder&);
+WEBVIEW_API ErrorOr<WebView::ConsoleOutput> decode(Decoder&);
 
 }

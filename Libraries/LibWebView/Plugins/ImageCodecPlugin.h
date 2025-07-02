@@ -9,10 +9,11 @@
 
 #include <LibImageDecoderClient/Client.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-class ImageCodecPlugin final : public Web::Platform::ImageCodecPlugin {
+class WEBVIEW_API ImageCodecPlugin final : public Web::Platform::ImageCodecPlugin {
 public:
     explicit ImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client>);
     virtual ~ImageCodecPlugin() override;

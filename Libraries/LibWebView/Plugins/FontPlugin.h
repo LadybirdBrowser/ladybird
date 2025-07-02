@@ -10,10 +10,11 @@
 #include <AK/Vector.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-class FontPlugin final : public Web::Platform::FontPlugin {
+class WEBVIEW_API FontPlugin final : public Web::Platform::FontPlugin {
 public:
     FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* = nullptr);
     virtual ~FontPlugin();

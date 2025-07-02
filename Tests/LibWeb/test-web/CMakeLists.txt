@@ -13,12 +13,6 @@ target_link_libraries(test-web PRIVATE AK LibCore LibDiff LibFileSystem LibGfx L
 if (APPLE)
     target_compile_definitions(test-web PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
 elseif (WIN32)
-    # FIXME: This is a hack to get around lld-link error undefined symbols in various libraries
-    target_link_libraries(test-web PRIVATE
-        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Application>
-        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Utilities>
-        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,WebContentClient>
-    )
     target_link_libraries(test-web PRIVATE LibDevTools)
     find_package(pthread REQUIRED)
     target_include_directories(test-web PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)

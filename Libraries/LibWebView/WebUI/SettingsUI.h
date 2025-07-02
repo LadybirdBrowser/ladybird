@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <LibWebView/Forward.h>
 #include <LibWebView/WebUI.h>
 
 namespace WebView {
 
-class SettingsUI : public WebUI {
+class WEBVIEW_API SettingsUI : public WebUI {
     WEB_UI(SettingsUI);
 
 private:

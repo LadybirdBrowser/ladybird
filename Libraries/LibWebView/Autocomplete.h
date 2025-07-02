@@ -13,6 +13,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibRequests/Forward.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
@@ -21,10 +22,10 @@ struct AutocompleteEngine {
     StringView query_url;
 };
 
-ReadonlySpan<AutocompleteEngine> autocomplete_engines();
-Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView name);
+WEBVIEW_API ReadonlySpan<AutocompleteEngine> autocomplete_engines();
+WEBVIEW_API Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView name);
 
-class Autocomplete {
+class WEBVIEW_API Autocomplete {
 public:
     Autocomplete();
     ~Autocomplete();
