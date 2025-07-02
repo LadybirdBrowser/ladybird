@@ -2,16 +2,18 @@
 <script src="include.js"></script>
 😭foobar😭
 <script>
-test(() => {
-    document.body.offsetWidth;  // force layout
+asyncTest(done => {
+    window.addEventListener('load', () => {
+        internals.mouseDown(55, 20);
+        internals.movePointerTo(110, 20);
 
-    internals.mouseDown(55, 20);
-    internals.movePointerTo(110, 20);
+        const activeRange = window.getSelection().getRangeAt(0);
+        printElement(activeRange.startContainer);
+        println(activeRange.startOffset);
+        printElement(activeRange.endContainer);
+        println(activeRange.endOffset);
 
-    const activeRange = window.getSelection().getRangeAt(0);
-    printElement(activeRange.startContainer);
-    println(activeRange.startOffset);
-    printElement(activeRange.endContainer);
-    println(activeRange.endOffset);
+        done();
+    });
 });
 </script>
