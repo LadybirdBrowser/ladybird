@@ -8,10 +8,11 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
-class DeviceActor final : public Actor {
+class DEVTOOLS_API DeviceActor final : public Actor {
 public:
     static constexpr auto base_name = "device"sv;
 

@@ -19,7 +19,7 @@
 
 namespace DevTools {
 
-class Actor
+class DEVTOOLS_API Actor
     : public RefCounted<Actor>
     , public Weakable<Actor> {
 public:
