@@ -314,7 +314,13 @@ function hasReftestWaitClass() {
 }
 
 if (!hasReftestWaitClass()) {
-    internals.signalTestIsDone("PASS");
+    document.fonts.ready.then(() => {
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                internals.signalTestIsDone("PASS");
+            });
+        });
+    });
 } else {
     const observer = new MutationObserver(() => {
         if (!hasReftestWaitClass()) {
