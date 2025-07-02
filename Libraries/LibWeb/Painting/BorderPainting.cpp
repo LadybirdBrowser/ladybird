@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -20,16 +20,20 @@ static Color light_color_for_inset_and_outset(Color const& color)
 {
     auto hsv = color.to_hsv();
     if (hsv.value >= dark_light_absolute_value_difference)
-        return Color::from_hsv(hsv);
-    return Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value + dark_light_absolute_value_difference });
+        return color;
+    auto result = Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value + dark_light_absolute_value_difference });
+    result.set_alpha(color.alpha());
+    return result;
 }
 
 static Color dark_color_for_inset_and_outset(Color const& color)
 {
     auto hsv = color.to_hsv();
     if (hsv.value < dark_light_absolute_value_difference)
-        return Color::from_hsv(hsv);
-    return Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value - dark_light_absolute_value_difference });
+        return color;
+    auto result = Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value - dark_light_absolute_value_difference });
+    result.set_alpha(color.alpha());
+    return result;
 }
 
 Gfx::Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_data)
