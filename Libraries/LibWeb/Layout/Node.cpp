@@ -781,14 +781,14 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_transition_delay(transition_delay.time());
     } else if (transition_delay_property.is_calculated()) {
         auto const& transition_delay = transition_delay_property.as_calculated();
-        computed_values.set_transition_delay(transition_delay.resolve_time({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
+        computed_values.set_transition_delay(transition_delay.resolve_time_deprecated({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
     }
 
     auto resolve_border_width = [&](CSS::PropertyID width_property) -> CSSPixels {
         auto const& value = computed_style.property(width_property);
         if (value.is_calculated())
             return max(CSSPixels { 0 },
-                value.as_calculated().resolve_length({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) })->to_px(*this));
+                value.as_calculated().resolve_length_deprecated({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) })->to_px(*this));
         if (value.is_length()) {
             // FIXME: Currently, interpolation can set property values outside of their valid range.
             //        We should instead clamp property values to the valid range when interpolating.

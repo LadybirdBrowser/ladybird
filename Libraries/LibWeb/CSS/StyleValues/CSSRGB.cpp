@@ -33,9 +33,9 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolu
         if (style_value.is_calculated()) {
             auto const& calculated = style_value.as_calculated();
             if (calculated.resolves_to_number())
-                return normalized(calculated.resolve_number(resolution_context).value());
+                return normalized(calculated.resolve_number_deprecated(resolution_context).value());
             if (calculated.resolves_to_percentage())
-                return normalized(calculated.resolve_percentage(resolution_context).value().value() * 255 / 100);
+                return normalized(calculated.resolve_percentage_deprecated(resolution_context).value().value() * 255 / 100);
         }
 
         if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)

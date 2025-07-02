@@ -53,12 +53,11 @@ Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value, Ca
 
     if (style_value.is_calculated()) {
         if (style_value.as_calculated().resolves_to_number())
-            return normalized(style_value.as_calculated().resolve_number(resolution_context).value());
+            return normalized(style_value.as_calculated().resolve_number_deprecated(resolution_context).value());
 
         if (style_value.as_calculated().resolves_to_angle())
-            return normalized(style_value.as_calculated().resolve_angle(resolution_context).value().to_degrees());
+            return normalized(style_value.as_calculated().resolve_angle_deprecated(resolution_context).value().to_degrees());
     }
-
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
         return 0;
 
@@ -81,9 +80,9 @@ Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const
     if (style_value.is_calculated()) {
         auto const& calculated = style_value.as_calculated();
         if (calculated.resolves_to_number())
-            return calculated.resolve_number(resolution_context).value();
+            return calculated.resolve_number_deprecated(resolution_context).value();
         if (calculated.resolves_to_percentage())
-            return normalize_percentage(calculated.resolve_percentage(resolution_context).value());
+            return normalize_percentage(calculated.resolve_percentage_deprecated(resolution_context).value());
     }
 
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
@@ -110,9 +109,9 @@ Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value, 
     if (style_value.is_calculated()) {
         auto const& calculated = style_value.as_calculated();
         if (calculated.resolves_to_number())
-            return normalized(calculated.resolve_number(resolution_context).value());
+            return normalized(calculated.resolve_number_deprecated(resolution_context).value());
         if (calculated.resolves_to_percentage())
-            return normalized(calculated.resolve_percentage(resolution_context).value().as_fraction());
+            return normalized(calculated.resolve_percentage_deprecated(resolution_context).value().as_fraction());
     }
 
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
