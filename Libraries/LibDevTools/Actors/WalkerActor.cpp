@@ -733,7 +733,7 @@ NodeActor const& WalkerActor::actor_for_node(JsonObject const& node)
             return *node_actor;
     }
 
-    auto& node_actor = devtools().register_actor<NodeActor>(move(identifier), *this);
+    auto& node_actor = devtools().register_actor<NodeActor>(identifier, *this);
     m_node_actors.set(identifier, node_actor);
 
     return node_actor;
