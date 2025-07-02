@@ -26,7 +26,7 @@ namespace WebView {
 
 class ViewImplementation;
 
-class WebContentClient final
+class WEBVIEW_API WebContentClient final
     : public IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>
     , public WebContentClientEndpoint {
     C_OBJECT_ABSTRACT(WebContentClient);

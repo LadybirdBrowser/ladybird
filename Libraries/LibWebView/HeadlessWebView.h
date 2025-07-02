@@ -10,11 +10,12 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWebView/Forward.h>
 #include <LibWebView/ViewImplementation.h>
 
 namespace WebView {
 
-class HeadlessWebView : public WebView::ViewImplementation {
+class WEBVIEW_API HeadlessWebView : public WebView::ViewImplementation {
 public:
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
     static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, u64 page_index);
