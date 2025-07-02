@@ -8,10 +8,11 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
-class ConsoleActor final : public Actor {
+class DEVTOOLS_API ConsoleActor final : public Actor {
 public:
     static constexpr auto base_name = "console"sv;
 

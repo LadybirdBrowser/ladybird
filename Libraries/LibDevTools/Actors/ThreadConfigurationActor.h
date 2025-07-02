@@ -8,10 +8,11 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
-class ThreadConfigurationActor final : public Actor {
+class DEVTOOLS_API ThreadConfigurationActor final : public Actor {
 public:
     static constexpr auto base_name = "thread-configuration"sv;
 

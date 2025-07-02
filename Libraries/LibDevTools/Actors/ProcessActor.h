@@ -8,6 +8,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
@@ -17,7 +18,7 @@ struct ProcessDescription {
     bool is_windowless_parent { false };
 };
 
-class ProcessActor final : public Actor {
+class DEVTOOLS_API ProcessActor final : public Actor {
 public:
     static constexpr auto base_name = "process"sv;
 
