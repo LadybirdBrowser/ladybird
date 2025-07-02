@@ -1589,12 +1589,15 @@ void Element::serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilde
 {
     if (!m_pseudo_element_data)
         return;
-    for (auto& pseudo_element : m_pseudo_element_data->keys()) {
+    for (auto const& [pseudo_element_type, pseudo_element] : (*m_pseudo_element_data)) {
+        // FIXME: Find a way to make these still inspectable? (eg, `::before { display: none }`)
+        if (!pseudo_element->layout_node())
+            continue;
         auto object = MUST(children_array.add_object());
-        MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::pseudo_element_name(pseudo_element)))));
+        MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::pseudo_element_name(pseudo_element_type)))));
         MUST(object.add("type"sv, "pseudo-element"));
         MUST(object.add("parent-id"sv, unique_id().value()));
-        MUST(object.add("pseudo-element"sv, to_underlying(pseudo_element)));
+        MUST(object.add("pseudo-element"sv, to_underlying(pseudo_element_type)));
         MUST(object.finish());
     }
 }
