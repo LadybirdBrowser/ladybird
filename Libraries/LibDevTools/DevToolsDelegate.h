@@ -22,7 +22,7 @@
 
 namespace DevTools {
 
-class DevToolsDelegate {
+class DEVTOOLS_API DevToolsDelegate {
 public:
     virtual ~DevToolsDelegate() = default;
 

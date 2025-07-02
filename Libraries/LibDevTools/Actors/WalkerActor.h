@@ -12,12 +12,13 @@
 #include <AK/Optional.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Actors/NodeActor.h>
+#include <LibDevTools/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace DevTools {
 
-class WalkerActor final : public Actor {
+class DEVTOOLS_API WalkerActor final : public Actor {
 public:
     static constexpr auto base_name = "walker"sv;
 

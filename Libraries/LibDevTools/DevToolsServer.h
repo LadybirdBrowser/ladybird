@@ -19,7 +19,7 @@ namespace DevTools {
 
 using ActorRegistry = HashMap<String, NonnullRefPtr<Actor>>;
 
-class DevToolsServer {
+class DEVTOOLS_API DevToolsServer {
 public:
     static ErrorOr<NonnullOwnPtr<DevToolsServer>> create(DevToolsDelegate&, u16 port);
     ~DevToolsServer();

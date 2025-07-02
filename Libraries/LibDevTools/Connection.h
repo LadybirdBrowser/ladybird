@@ -16,7 +16,7 @@
 
 namespace DevTools {
 
-class Connection : public RefCounted<Connection> {
+class DEVTOOLS_API Connection : public RefCounted<Connection> {
 public:
     static NonnullRefPtr<Connection> create(NonnullOwnPtr<Core::BufferedTCPSocket>);
     ~Connection();

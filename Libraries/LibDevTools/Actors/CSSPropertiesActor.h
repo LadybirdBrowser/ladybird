@@ -9,6 +9,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/String.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
@@ -17,7 +18,7 @@ struct CSSProperty {
     bool is_inherited { false };
 };
 
-class CSSPropertiesActor final : public Actor {
+class DEVTOOLS_API CSSPropertiesActor final : public Actor {
 public:
     static constexpr auto base_name = "css-properties"sv;
 
