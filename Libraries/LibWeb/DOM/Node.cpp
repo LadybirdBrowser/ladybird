@@ -1909,6 +1909,16 @@ bool Node::is_uninteresting_whitespace_node() const
     return false;
 }
 
+IterationDecision Node::serialize_child_as_json(JsonArraySerializer<StringBuilder>& children_array, Node const& child) const
+{
+    if (child.is_uninteresting_whitespace_node())
+        return IterationDecision::Continue;
+    JsonObjectSerializer<StringBuilder> child_object = MUST(children_array.add_object());
+    child.serialize_tree_as_json(child_object);
+    MUST(child_object.finish());
+    return IterationDecision::Continue;
+}
+
 void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) const
 {
     MUST(object.add("name"sv, node_name()));
@@ -1967,29 +1977,15 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
 
     MUST((object.add("visible"sv, !!layout_node())));
 
-    auto const* element = is_element() ? static_cast<DOM::Element const*>(this) : nullptr;
-
-    if (has_child_nodes()
-        || (element && (element->is_shadow_host() || element->has_pseudo_elements()))) {
+    if (auto const* element = as_if<Element>(this)) {
+        element->serialize_children_as_json(object);
+    } else if (has_child_nodes()) {
         auto children = MUST(object.add_array("children"sv));
-        auto add_child = [&children](DOM::Node const& child) {
-            if (child.is_uninteresting_whitespace_node())
-                return IterationDecision::Continue;
-            JsonObjectSerializer<StringBuilder> child_object = MUST(children.add_object());
-            child.serialize_tree_as_json(child_object);
-            MUST(child_object.finish());
-            return IterationDecision::Continue;
+        auto add_child = [this, &children](Node const& child) {
+            return serialize_child_as_json(children, child);
         };
+
         for_each_child(add_child);
-
-        if (element) {
-            // Pseudo-elements don't have DOM nodes,so we have to add them separately.
-            element->serialize_pseudo_elements_as_json(children);
-
-            if (element->is_shadow_host())
-                add_child(*element->shadow_root());
-        }
-
         MUST(children.finish());
     }
 }

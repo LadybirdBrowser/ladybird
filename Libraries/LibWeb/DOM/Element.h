@@ -288,7 +288,8 @@ public:
     bool has_pseudo_element(CSS::PseudoElement) const;
     bool has_pseudo_elements() const;
     void clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>);
-    void serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilder>& children_array) const;
+
+    void serialize_children_as_json(JsonObjectSerializer<StringBuilder>&) const;
 
     i32 tab_index() const;
     void set_tab_index(i32 tab_index);

@@ -1585,21 +1585,60 @@ void Element::clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>)
     }
 }
 
-void Element::serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilder>& children_array) const
+void Element::serialize_children_as_json(JsonObjectSerializer<StringBuilder>& element_object) const
 {
-    if (!m_pseudo_element_data)
+    bool has_pseudo_elements = this->has_pseudo_elements();
+    if (!is_shadow_host() && !has_child_nodes() && !has_pseudo_elements)
         return;
-    for (auto const& [pseudo_element_type, pseudo_element] : (*m_pseudo_element_data)) {
+
+    auto children = MUST(element_object.add_array("children"sv));
+
+    auto serialize_pseudo_element = [&](CSS::PseudoElement pseudo_element_type, auto const& pseudo_element) {
         // FIXME: Find a way to make these still inspectable? (eg, `::before { display: none }`)
         if (!pseudo_element->layout_node())
-            continue;
-        auto object = MUST(children_array.add_object());
+            return;
+        auto object = MUST(children.add_object());
         MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::pseudo_element_name(pseudo_element_type)))));
         MUST(object.add("type"sv, "pseudo-element"));
         MUST(object.add("parent-id"sv, unique_id().value()));
         MUST(object.add("pseudo-element"sv, to_underlying(pseudo_element_type)));
         MUST(object.finish());
+    };
+
+    if (has_pseudo_elements) {
+        if (auto backdrop = m_pseudo_element_data->get(CSS::PseudoElement::Backdrop); backdrop.has_value()) {
+            serialize_pseudo_element(CSS::PseudoElement::Backdrop, backdrop.value());
+        }
+        if (auto marker = m_pseudo_element_data->get(CSS::PseudoElement::Marker); marker.has_value()) {
+            serialize_pseudo_element(CSS::PseudoElement::Marker, marker.value());
+        }
+        if (auto before = m_pseudo_element_data->get(CSS::PseudoElement::Before); before.has_value()) {
+            serialize_pseudo_element(CSS::PseudoElement::Before, before.value());
+        }
     }
+
+    if (is_shadow_host())
+        serialize_child_as_json(children, *shadow_root());
+
+    auto add_child = [this, &children](Node const& child) {
+        return serialize_child_as_json(children, child);
+    };
+    for_each_child(add_child);
+
+    if (has_pseudo_elements) {
+        if (auto after = m_pseudo_element_data->get(CSS::PseudoElement::After); after.has_value()) {
+            serialize_pseudo_element(CSS::PseudoElement::After, after.value());
+        }
+
+        // Any other pseudo-elements, as a catch-all.
+        for (auto const& [type, pseudo_element] : *m_pseudo_element_data) {
+            if (first_is_one_of(type, CSS::PseudoElement::After, CSS::PseudoElement::Backdrop, CSS::PseudoElement::Before, CSS::PseudoElement::Marker))
+                continue;
+            serialize_pseudo_element(type, pseudo_element);
+        }
+    }
+
+    MUST(children.finish());
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
