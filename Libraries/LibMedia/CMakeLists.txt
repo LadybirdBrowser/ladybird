@@ -17,7 +17,7 @@ set(SOURCES
 )
 
 serenity_lib(LibMedia media)
-target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx LibThreading LibUnicode)
+target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
 
 if (NOT ANDROID)
     target_sources(LibMedia PRIVATE

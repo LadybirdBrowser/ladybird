@@ -41,7 +41,6 @@ shared_library("LibMedia") {
     "//Userland/Libraries/LibCrypto",
     "//Userland/Libraries/LibGfx",
     "//Userland/Libraries/LibIPC",
-    "//Userland/Libraries/LibRIFF",
     "//Userland/Libraries/LibThreading",
     "//Userland/Libraries/LibUnicode",
   ]
