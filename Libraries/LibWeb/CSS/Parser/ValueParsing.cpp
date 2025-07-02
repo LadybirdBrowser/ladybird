@@ -308,7 +308,7 @@ Optional<Ratio> Parser::parse_ratio(TokenStream<ComponentValue>& tokens)
                 return maybe_calc->as_number().value();
             if (!maybe_calc->is_calculated() || !maybe_calc->as_calculated().resolves_to_number())
                 return {};
-            if (auto resolved_number = maybe_calc->as_calculated().resolve_number({}); resolved_number.has_value() && resolved_number.value() >= 0) {
+            if (auto resolved_number = maybe_calc->as_calculated().resolve_number_deprecated({}); resolved_number.has_value() && resolved_number.value() >= 0) {
                 return resolved_number.value();
             }
         }
@@ -3689,7 +3689,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
             }
             if (maybe_calculated->is_calculated() && maybe_calculated->as_calculated().resolves_to_number()) {
                 transaction.commit();
-                return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->as_calculated().resolve_integer({}).value()), {}));
+                return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->as_calculated().resolve_integer_deprecated({}).value()), {}));
             }
         }
         if (token.is_ident("auto"sv)) {

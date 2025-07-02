@@ -2669,7 +2669,7 @@ bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
     return m_calculation->equals(*other.as_calculated().m_calculation);
 }
 
-Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext const& context) const
+Optional<Angle> CalculatedStyleValue::resolve_angle_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_angle(m_context.percentages_resolve_as))
@@ -2677,7 +2677,7 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext
     return {};
 }
 
-Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext const& context) const
+Optional<Flex> CalculatedStyleValue::resolve_flex_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_flex(m_context.percentages_resolve_as))
@@ -2685,7 +2685,7 @@ Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext c
     return {};
 }
 
-Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutionContext const& context) const
+Optional<Frequency> CalculatedStyleValue::resolve_frequency_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_frequency(m_context.percentages_resolve_as))
@@ -2693,7 +2693,7 @@ Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutio
     return {};
 }
 
-Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionContext const& context) const
+Optional<Length> CalculatedStyleValue::resolve_length_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_length(m_context.percentages_resolve_as))
@@ -2701,7 +2701,7 @@ Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionConte
     return {};
 }
 
-Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolutionContext const& context) const
+Optional<Percentage> CalculatedStyleValue::resolve_percentage_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_percentage())
@@ -2709,7 +2709,7 @@ Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolut
     return {};
 }
 
-Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolutionContext const& context) const
+Optional<Resolution> CalculatedStyleValue::resolve_resolution_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_resolution(m_context.percentages_resolve_as))
@@ -2717,7 +2717,7 @@ Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolut
     return {};
 }
 
-Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext const& context) const
+Optional<Time> CalculatedStyleValue::resolve_time_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_time(m_context.percentages_resolve_as))
@@ -2725,7 +2725,7 @@ Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext c
     return {};
 }
 
-Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionContext const& context) const
+Optional<double> CalculatedStyleValue::resolve_number_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (!result.type().has_value() || !result.type()->matches_number(m_context.percentages_resolve_as))
@@ -2740,7 +2740,7 @@ Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionConte
     return value;
 }
 
-Optional<i64> CalculatedStyleValue::resolve_integer(CalculationResolutionContext const& context) const
+Optional<i64> CalculatedStyleValue::resolve_integer_deprecated(CalculationResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))

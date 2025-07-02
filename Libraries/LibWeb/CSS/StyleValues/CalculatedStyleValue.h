@@ -77,32 +77,32 @@ public:
 
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(m_context.percentages_resolve_as); }
     bool resolves_to_angle_percentage() const { return m_resolved_type.matches_angle_percentage(m_context.percentages_resolve_as); }
-    Optional<Angle> resolve_angle(CalculationResolutionContext const&) const;
+    Optional<Angle> resolve_angle_deprecated(CalculationResolutionContext const&) const;
 
     bool resolves_to_flex() const { return m_resolved_type.matches_flex(m_context.percentages_resolve_as); }
-    Optional<Flex> resolve_flex(CalculationResolutionContext const&) const;
+    Optional<Flex> resolve_flex_deprecated(CalculationResolutionContext const&) const;
 
     bool resolves_to_frequency() const { return m_resolved_type.matches_frequency(m_context.percentages_resolve_as); }
     bool resolves_to_frequency_percentage() const { return m_resolved_type.matches_frequency_percentage(m_context.percentages_resolve_as); }
-    Optional<Frequency> resolve_frequency(CalculationResolutionContext const&) const;
+    Optional<Frequency> resolve_frequency_deprecated(CalculationResolutionContext const&) const;
 
     bool resolves_to_length() const { return m_resolved_type.matches_length(m_context.percentages_resolve_as); }
     bool resolves_to_length_percentage() const { return m_resolved_type.matches_length_percentage(m_context.percentages_resolve_as); }
-    Optional<Length> resolve_length(CalculationResolutionContext const&) const;
+    Optional<Length> resolve_length_deprecated(CalculationResolutionContext const&) const;
 
     bool resolves_to_percentage() const { return m_resolved_type.matches_percentage(); }
-    Optional<Percentage> resolve_percentage(CalculationResolutionContext const&) const;
+    Optional<Percentage> resolve_percentage_deprecated(CalculationResolutionContext const&) const;
 
     bool resolves_to_resolution() const { return m_resolved_type.matches_resolution(m_context.percentages_resolve_as); }
-    Optional<Resolution> resolve_resolution(CalculationResolutionContext const&) const;
+    Optional<Resolution> resolve_resolution_deprecated(CalculationResolutionContext const&) const;
 
     bool resolves_to_time() const { return m_resolved_type.matches_time(m_context.percentages_resolve_as); }
     bool resolves_to_time_percentage() const { return m_resolved_type.matches_time_percentage(m_context.percentages_resolve_as); }
-    Optional<Time> resolve_time(CalculationResolutionContext const&) const;
+    Optional<Time> resolve_time_deprecated(CalculationResolutionContext const&) const;
 
     bool resolves_to_number() const { return m_resolved_type.matches_number(m_context.percentages_resolve_as); }
-    Optional<double> resolve_number(CalculationResolutionContext const&) const;
-    Optional<i64> resolve_integer(CalculationResolutionContext const&) const;
+    Optional<double> resolve_number_deprecated(CalculationResolutionContext const&) const;
+    Optional<i64> resolve_integer_deprecated(CalculationResolutionContext const&) const;
 
     bool resolves_to_dimension() const { return m_resolved_type.matches_dimension(); }
 
