@@ -102,14 +102,14 @@ String ColorFunctionStyleValue::to_string(SerializationMode mode) const
             CalculationResolutionContext context {};
             auto const& calculated = value->as_calculated();
             if (calculated.resolves_to_percentage()) {
-                if (auto resolved_percentage = calculated.resolve_percentage(context); resolved_percentage.has_value()) {
+                if (auto resolved_percentage = calculated.resolve_percentage_deprecated(context); resolved_percentage.has_value()) {
                     auto resolved_number = resolved_percentage->value() / 100;
                     if (!isfinite(resolved_number))
                         resolved_number = 0;
                     return NumberStyleValue::create(resolved_number);
                 }
             } else if (calculated.resolves_to_number()) {
-                if (auto resolved_number = calculated.resolve_number(context); resolved_number.has_value())
+                if (auto resolved_number = calculated.resolve_number_deprecated(context); resolved_number.has_value())
                     return NumberStyleValue::create(*resolved_number);
             }
         }

@@ -309,7 +309,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
             .length_resolution_context = Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics },
         };
         if (line_height.as_calculated().resolves_to_number()) {
-            auto resolved = line_height.as_calculated().resolve_number(context);
+            auto resolved = line_height.as_calculated().resolve_number_deprecated(context);
             if (!resolved.has_value()) {
                 dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_calculated().to_string(SerializationMode::Normal));
                 return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
@@ -317,7 +317,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
             return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
         }
 
-        auto resolved = line_height.as_calculated().resolve_length(context);
+        auto resolved = line_height.as_calculated().resolve_length_deprecated(context);
         if (!resolved.has_value()) {
             dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_calculated().to_string(SerializationMode::Normal));
             return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
@@ -347,7 +347,7 @@ Optional<int> ComputedProperties::z_index() const
         return clamp(value.as_integer().integer());
     }
     if (value.is_calculated()) {
-        auto maybe_double = value.as_calculated().resolve_number({});
+        auto maybe_double = value.as_calculated().resolve_number_deprecated({});
         if (maybe_double.has_value()) {
             return clamp(maybe_double.value());
         }
@@ -365,13 +365,13 @@ float ComputedProperties::resolve_opacity_value(CSSStyleValue const& value)
         auto const& calculated = value.as_calculated();
         CalculationResolutionContext context {};
         if (calculated.resolves_to_percentage()) {
-            auto maybe_percentage = value.as_calculated().resolve_percentage(context);
+            auto maybe_percentage = value.as_calculated().resolve_percentage_deprecated(context);
             if (maybe_percentage.has_value())
                 unclamped_opacity = maybe_percentage->as_fraction();
             else
                 dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string(SerializationMode::Normal));
         } else if (calculated.resolves_to_number()) {
-            auto maybe_number = value.as_calculated().resolve_number(context);
+            auto maybe_number = value.as_calculated().resolve_number_deprecated(context);
             if (maybe_number.has_value())
                 unclamped_opacity = maybe_number.value();
             else
@@ -517,7 +517,7 @@ Length ComputedProperties::border_spacing_horizontal(Layout::Node const& layout_
         if (style_value.is_length())
             return style_value.as_length().length();
         if (style_value.is_calculated())
-            return style_value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
+            return style_value.as_calculated().resolve_length_deprecated({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
         return {};
     };
 
@@ -539,7 +539,7 @@ Length ComputedProperties::border_spacing_vertical(Layout::Node const& layout_no
         if (style_value.is_length())
             return style_value.as_length().length();
         if (style_value.is_calculated())
-            return style_value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
+            return style_value.as_calculated().resolve_length_deprecated({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
         return {};
     };
 
@@ -1181,7 +1181,7 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
         if (value->is_length())
             return value->as_length().length();
         if (value->is_calculated())
-            return value->as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) });
+            return value->as_calculated().resolve_length_deprecated({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) });
         return {};
     };
 
@@ -1883,7 +1883,7 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
                 if (counter.value->is_integer()) {
                     data.value = AK::clamp_to<i32>(counter.value->as_integer().integer());
                 } else if (counter.value->is_calculated()) {
-                    auto maybe_int = counter.value->as_calculated().resolve_integer({});
+                    auto maybe_int = counter.value->as_calculated().resolve_integer_deprecated({});
                     if (maybe_int.has_value())
                         data.value = AK::clamp_to<i32>(*maybe_int);
                 } else {
