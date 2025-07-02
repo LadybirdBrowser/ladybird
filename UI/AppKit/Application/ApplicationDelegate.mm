@@ -753,9 +753,14 @@
 
 - (void)applicationDidFinishLaunching:(NSNotification*)notification
 {
+    auto const& browser_options = WebView::Application::browser_options();
+
+    if (browser_options.devtools_port.has_value())
+        [self devtoolsEnabled];
+
     Tab* tab = nil;
 
-    for (auto const& url : WebView::Application::browser_options().urls) {
+    for (auto const& url : browser_options.urls) {
         auto activate_tab = tab == nil ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No;
 
         auto* controller = [self createNewTab:url

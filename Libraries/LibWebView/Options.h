@@ -84,7 +84,7 @@ struct BrowserOptions {
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_content_ipc_path {};
     Optional<DNSSettings> dns_settings {};
-    u16 devtools_port { default_devtools_port };
+    Optional<u16> devtools_port;
 };
 
 enum class IsLayoutTestMode {
