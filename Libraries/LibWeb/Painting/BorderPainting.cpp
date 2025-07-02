@@ -54,13 +54,14 @@ Gfx::Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_
     }();
 
     if (border_data.line_style == CSS::LineStyle::Inset) {
-        auto top_left_color = dark_color_for_inset_and_outset(border_data.color);
-        auto bottom_right_color = light_color_for_inset_and_outset(border_data.color);
-        return (edge == BorderEdge::Left || edge == BorderEdge::Top) ? top_left_color : bottom_right_color;
-    } else if (border_data.line_style == CSS::LineStyle::Outset) {
-        auto top_left_color = light_color_for_inset_and_outset(border_data.color);
-        auto bottom_right_color = dark_color_for_inset_and_outset(border_data.color);
-        return (edge == BorderEdge::Left || edge == BorderEdge::Top) ? top_left_color : bottom_right_color;
+        if (edge == BorderEdge::Left || edge == BorderEdge::Top)
+            return dark_color_for_inset_and_outset(border_data.color);
+        return light_color_for_inset_and_outset(border_data.color);
+    }
+    if (border_data.line_style == CSS::LineStyle::Outset) {
+        if (edge == BorderEdge::Left || edge == BorderEdge::Top)
+            return light_color_for_inset_and_outset(border_data.color);
+        return dark_color_for_inset_and_outset(border_data.color);
     }
 
     return border_data.color;
