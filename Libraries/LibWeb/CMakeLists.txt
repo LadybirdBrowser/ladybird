@@ -910,6 +910,7 @@ set(SOURCES
     WebGL/Extensions/WebGLVertexArrayObjectOES.cpp
     WebGL/OpenGLContext.cpp
     WebGL/WebGL2RenderingContext.cpp
+    WebGL/WebGL2RenderingContextImpl.cpp
     WebGL/WebGLActiveInfo.cpp
     WebGL/WebGLBuffer.cpp
     WebGL/WebGLContextAttributes.cpp
@@ -920,6 +921,7 @@ set(SOURCES
     WebGL/WebGLQuery.cpp
     WebGL/WebGLRenderbuffer.cpp
     WebGL/WebGLRenderingContext.cpp
+    WebGL/WebGLRenderingContextImpl.cpp
     WebGL/WebGLSampler.cpp
     WebGL/WebGLShader.cpp
     WebGL/WebGLShaderPrecisionFormat.cpp
@@ -968,30 +970,6 @@ generate_css_implementation()
 
 generate_html_implementation()
 
-invoke_cpp_generator(
-    "WebGLRenderingContextImpl.cpp"
-    Lagom::GenerateWebGLRenderingContext
-    "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContextBase.idl"
-    "WebGL/WebGLRenderingContextImpl.h"
-    "WebGL/WebGLRenderingContextImpl.cpp"
-    arguments -b "${CMAKE_CURRENT_SOURCE_DIR}" -b "${CMAKE_CURRENT_BINARY_DIR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContext.idl"
-    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by WebGLRenderingContextBase.idl
-    #       and we need to make sure it's generated before we generate the WebGLRenderingContext implementation.
-    dependencies WebGL/WebGLRenderingContextBase.idl WebGL/WebGLRenderingContextOverloads.idl CSS/GeneratedCSSStyleProperties.idl
-)
-
-invoke_cpp_generator(
-    "WebGL2RenderingContextImpl.cpp"
-    Lagom::GenerateWebGLRenderingContext
-    "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGL2RenderingContextBase.idl"
-    "WebGL/WebGL2RenderingContextImpl.h"
-    "WebGL/WebGL2RenderingContextImpl.cpp"
-    arguments -b "${CMAKE_CURRENT_SOURCE_DIR}" -b "${CMAKE_CURRENT_BINARY_DIR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGL2RenderingContext.idl"
-    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by WebGLRenderingContextBase.idl
-    #       and we need to make sure it's generated before we generate the WebGLRenderingContext implementation.
-    dependencies WebGL/WebGL2RenderingContextBase.idl WebGL/WebGL2RenderingContextOverloads.idl WebGL/WebGLRenderingContextBase.idl WebGL/WebGLRenderingContextOverloads.idl CSS/GeneratedCSSStyleProperties.idl
-)
-
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
     CSS/DefaultStyleSheetSource.cpp
@@ -1009,8 +987,6 @@ set(GENERATED_SOURCES
     CSS/TransformFunctions.cpp
     MathML/MathMLStyleSheetSource.cpp
     SVG/SVGStyleSheetSource.cpp
-    WebGL/WebGL2RenderingContextImpl.cpp
-    WebGL/WebGLRenderingContextImpl.cpp
     Worker/WebWorkerClientEndpoint.h
     Worker/WebWorkerServerEndpoint.h
     HTML/Parser/NamedCharacterReferences.cpp
