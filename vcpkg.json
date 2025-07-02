@@ -161,6 +161,10 @@
       "version": "2.15.0#4"
     },
     {
+      "name": "harfbuzz",
+      "version": "10.2.0#0"
+    },
+    {
       "name": "icu",
       "version": "76.1#0"
     },
