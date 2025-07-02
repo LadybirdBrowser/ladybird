@@ -101,7 +101,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool allow_popups = false;
     bool disable_scripting = false;
     bool disable_sql_database = false;
-    u16 devtools_port = WebView::default_devtools_port;
+    Optional<u16> devtools_port;
     Optional<StringView> debug_process;
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_content_ipc_path;
@@ -157,7 +157,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
     args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
-    args_parser.add_option(devtools_port, "Set the Firefox DevTools server port ", "devtools-port", 0, "port");
     args_parser.add_option(layout_test_mode, "Enable layout test mode", "layout-test-mode");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
@@ -173,6 +172,21 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(dns_server_port, "Set the DNS server port", "dns-port", 0, "port (default: 53 or 853 if --dot)");
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
     args_parser.add_option(validate_dnssec_locally, "Validate DNSSEC locally", "dnssec");
+
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .help_string = "Enable the Firefox DevTools server, with an optional port",
+        .long_name = "devtools",
+        .value_name = "port",
+        .accept_value = [&](StringView value) {
+            if (value.is_empty())
+                devtools_port = WebView::default_devtools_port;
+            else
+                devtools_port = value.to_number<u16>();
+
+            return devtools_port.has_value();
+        },
+    });
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
@@ -350,6 +364,10 @@ ErrorOr<void> Application::launch_services()
 
     TRY(launch_request_server());
     TRY(launch_image_decoder_server());
+
+    if (m_browser_options.devtools_port.has_value())
+        TRY(launch_devtools_server());
+
     return {};
 }
 
@@ -395,7 +413,11 @@ ErrorOr<void> Application::launch_image_decoder_server()
 ErrorOr<void> Application::launch_devtools_server()
 {
     VERIFY(!m_devtools);
-    m_devtools = TRY(DevTools::DevToolsServer::create(*this, m_browser_options.devtools_port));
+
+    if (!m_browser_options.devtools_port.has_value())
+        m_browser_options.devtools_port = WebView::default_devtools_port;
+
+    m_devtools = TRY(DevTools::DevToolsServer::create(*this, *m_browser_options.devtools_port));
     return {};
 }
 

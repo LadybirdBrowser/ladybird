@@ -5,10 +5,10 @@ with the DevTools client.
 
 ## Using DevTools
 
-The DevTools server may be enabled in the "Inspect" menu via the "Enable DevTools" menu item. A banner will be displayed
-in Ladybird with the port on which the DevTools server is listening. This port may be changed with the `--devtools-port`
-command line flag. To disable DevTools, use the same menu item (which will now be titled "Disable DevTools"), or close
-the banner.
+The DevTools server may be enabled in the "Inspect" menu via the "Enable DevTools" menu item, or with the `--devtools`
+command line flag. A banner will be displayed in Ladybird with the port on which the DevTools server is listening. This
+port may be changed by providing a port to the command line flag, e.g. `--devtools=6001`. To disable DevTools, use the
+menu item (which will now be titled "Disable DevTools"), or close the banner.
 
 Once DevTools is enabled, in Firefox, navigate to `about:debugging` and select the "Setup" tab. In the "Network Location"
 form, enter the DevTools server address. In the above example, this will be `localhost:6000`. You will only have to
