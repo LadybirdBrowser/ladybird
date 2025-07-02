@@ -9,6 +9,7 @@
 #include <AK/Badge.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventLoopImplementation.h>
+#include <LibWebView/Forward.h>
 
 class QEvent;
 class QEventLoop;
@@ -19,7 +20,7 @@ namespace WebView {
 class EventLoopImplementationQt;
 class EventLoopImplementationQtEventTarget;
 
-class EventLoopManagerQt final : public Core::EventLoopManager {
+class WEBVIEW_API EventLoopManagerQt final : public Core::EventLoopManager {
 public:
     EventLoopManagerQt();
     virtual ~EventLoopManagerQt() override;
@@ -47,7 +48,7 @@ private:
     int m_signal_socket_fds[2] = { -1, -1 };
 };
 
-class EventLoopImplementationQt final : public Core::EventLoopImplementation {
+class WEBVIEW_API EventLoopImplementationQt final : public Core::EventLoopImplementation {
 public:
     static NonnullOwnPtr<EventLoopImplementationQt> create() { return adopt_own(*new EventLoopImplementationQt); }
 

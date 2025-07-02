@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <LibWebView/Forward.h>
 #include <QEvent>
 #include <QObject>
 
 namespace WebView {
 
-class EventLoopImplementationQtEventTarget final : public QObject {
+class WEBVIEW_API EventLoopImplementationQtEventTarget final : public QObject {
     Q_OBJECT
 
 public:
