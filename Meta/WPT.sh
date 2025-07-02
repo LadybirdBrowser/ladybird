@@ -578,6 +578,22 @@ list_tests_wpt()
 
 import_wpt()
 {
+    pushd "${WPT_SOURCE_DIR}" > /dev/null
+       if ! git fetch origin > /dev/null; then
+            echo "Failed to fetch the WPT repository, please check your network connection."
+            exit 1
+        fi
+        local local_hash
+        local_hash=$(git rev-parse HEAD)
+        local remote_hash
+        remote_hash=$(git rev-parse origin/master)
+
+        if [ "$local_hash" != "$remote_hash" ]; then
+            echo "WPT repository is not up to date, please run '$0 update' first."
+            exit 1
+        fi
+    popd > /dev/null
+
     for i in "${!INPUT_PATHS[@]}"; do
         item="${INPUT_PATHS[i]}"
         item="${item#http://wpt.live/}"
