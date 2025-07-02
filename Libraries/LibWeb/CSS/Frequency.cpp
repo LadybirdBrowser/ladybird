@@ -67,7 +67,7 @@ Optional<Frequency::Type> Frequency::unit_from_name(StringView name)
 
 Frequency Frequency::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Frequency const& reference_value)
 {
-    return calculated->resolve_frequency(
+    return calculated->resolve_frequency_deprecated(
                          {
                              .percentage_basis = reference_value,
                              .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),

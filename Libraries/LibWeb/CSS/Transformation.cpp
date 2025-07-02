@@ -43,7 +43,7 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
                         return length.absolute_length_to_px().to_float();
                 }
                 if (value.is_calculated() && value.calculated()->resolves_to_length()) {
-                    if (auto const& resolved = value.calculated()->resolve_length(context); resolved->is_absolute())
+                    if (auto const& resolved = value.calculated()->resolve_length_deprecated(context); resolved->is_absolute())
                         return resolved->absolute_length_to_px().to_float();
                 }
                 return Error::from_string_literal("Transform contains non absolute units");
@@ -55,9 +55,9 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
                     return value.percentage().as_fraction();
                 if (value.is_calculated()) {
                     if (value.calculated()->resolves_to_number())
-                        return value.calculated()->resolve_number(context).value();
+                        return value.calculated()->resolve_number_deprecated(context).value();
                     if (value.calculated()->resolves_to_percentage())
-                        return value.calculated()->resolve_percentage(context)->as_fraction();
+                        return value.calculated()->resolve_percentage_deprecated(context)->as_fraction();
                 }
                 return Error::from_string_literal("Transform contains non absolute units");
             });

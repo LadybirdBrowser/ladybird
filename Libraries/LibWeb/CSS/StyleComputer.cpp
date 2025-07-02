@@ -1972,7 +1972,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         } else if (font_size.is_length()) {
             maybe_length = font_size.as_length().length();
         } else if (font_size.is_calculated()) {
-            maybe_length = font_size.as_calculated().resolve_length({
+            maybe_length = font_size.as_calculated().resolve_length_deprecated({
                 .percentage_basis = Length::make_px(parent_font_size),
                 .length_resolution_context = length_resolution_context,
             });
@@ -3196,7 +3196,7 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element c
         if (integer_value.is_integer())
             return integer_value.as_integer().integer();
         if (integer_value.is_calculated())
-            return integer_value.as_calculated().resolve_integer({}).value();
+            return integer_value.as_calculated().resolve_integer_deprecated({}).value();
         VERIFY_NOT_REACHED();
     };
 

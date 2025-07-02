@@ -3629,7 +3629,7 @@ RefPtr<CSSStyleValue const> Parser::parse_opacity_value(PropertyID property_id, 
     if (value->is_percentage())
         value = NumberStyleValue::create(value->as_percentage().percentage().as_fraction());
     if (value->is_calculated() && value->as_calculated().resolves_to_percentage()) {
-        auto maybe_percentage = value->as_calculated().resolve_percentage({});
+        auto maybe_percentage = value->as_calculated().resolve_percentage_deprecated({});
         if (maybe_percentage.has_value()) {
             auto resolved_percentage = maybe_percentage->as_fraction();
             CalculationContext context {};

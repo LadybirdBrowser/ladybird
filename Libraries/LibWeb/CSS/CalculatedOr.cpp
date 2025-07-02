@@ -19,7 +19,7 @@ namespace Web::CSS {
 
 Optional<Angle> AngleOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_angle(context);
+    return calculated->resolve_angle_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> AngleOrCalculated::create_style_value() const
@@ -29,7 +29,7 @@ NonnullRefPtr<CSSStyleValue const> AngleOrCalculated::create_style_value() const
 
 Optional<Flex> FlexOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_flex(context);
+    return calculated->resolve_flex_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> FlexOrCalculated::create_style_value() const
@@ -39,7 +39,7 @@ NonnullRefPtr<CSSStyleValue const> FlexOrCalculated::create_style_value() const
 
 Optional<Frequency> FrequencyOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_frequency(context);
+    return calculated->resolve_frequency_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> FrequencyOrCalculated::create_style_value() const
@@ -49,7 +49,7 @@ NonnullRefPtr<CSSStyleValue const> FrequencyOrCalculated::create_style_value() c
 
 Optional<i64> IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_integer(context);
+    return calculated->resolve_integer_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> IntegerOrCalculated::create_style_value() const
@@ -59,7 +59,7 @@ NonnullRefPtr<CSSStyleValue const> IntegerOrCalculated::create_style_value() con
 
 Optional<Length> LengthOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_length(context);
+    return calculated->resolve_length_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> LengthOrCalculated::create_style_value() const
@@ -69,7 +69,7 @@ NonnullRefPtr<CSSStyleValue const> LengthOrCalculated::create_style_value() cons
 
 Optional<double> NumberOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_number(context);
+    return calculated->resolve_number_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> NumberOrCalculated::create_style_value() const
@@ -79,7 +79,7 @@ NonnullRefPtr<CSSStyleValue const> NumberOrCalculated::create_style_value() cons
 
 Optional<Percentage> PercentageOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_percentage(context);
+    return calculated->resolve_percentage_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> PercentageOrCalculated::create_style_value() const
@@ -89,7 +89,7 @@ NonnullRefPtr<CSSStyleValue const> PercentageOrCalculated::create_style_value() 
 
 Optional<Resolution> ResolutionOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_resolution(context);
+    return calculated->resolve_resolution_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> ResolutionOrCalculated::create_style_value() const
@@ -99,7 +99,7 @@ NonnullRefPtr<CSSStyleValue const> ResolutionOrCalculated::create_style_value() 
 
 Optional<Time> TimeOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_time(context);
+    return calculated->resolve_time_deprecated(context);
 }
 
 NonnullRefPtr<CSSStyleValue const> TimeOrCalculated::create_style_value() const
