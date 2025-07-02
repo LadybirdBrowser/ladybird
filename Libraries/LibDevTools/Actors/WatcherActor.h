@@ -8,10 +8,11 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
-class WatcherActor final : public Actor {
+class DEVTOOLS_API WatcherActor final : public Actor {
 public:
     static constexpr auto base_name = "watcher"sv;
 
