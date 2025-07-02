@@ -9,10 +9,11 @@
 #include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventLoopImplementation.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-class EventLoopManagerMacOS final : public Core::EventLoopManager {
+class WEBVIEW_API EventLoopManagerMacOS final : public Core::EventLoopManager {
 public:
     virtual NonnullOwnPtr<Core::EventLoopImplementation> make_implementation() override;
 
@@ -28,7 +29,7 @@ public:
     virtual void unregister_signal(int) override;
 };
 
-class EventLoopImplementationMacOS final : public Core::EventLoopImplementation {
+class WEBVIEW_API EventLoopImplementationMacOS final : public Core::EventLoopImplementation {
 public:
     // FIXME: This currently only manages the main NSApp event loop, as that is all we currently
     //        interact with. When we need multiple event loops, or an event loop that isn't the

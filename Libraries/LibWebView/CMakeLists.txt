@@ -68,7 +68,7 @@ set(GENERATED_SOURCES
     UIProcessServerEndpoint.h
 )
 
-ladybird_lib(LibWebView webview)
+ladybird_lib(LibWebView webview EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibWebView PRIVATE LibCore LibDevTools LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax LibTextCodec)
 
 if (APPLE)

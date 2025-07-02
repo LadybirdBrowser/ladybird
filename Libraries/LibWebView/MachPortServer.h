@@ -11,6 +11,7 @@
 #include <AK/String.h>
 #include <LibCore/MachPort.h>
 #include <LibThreading/Thread.h>
+#include <LibWebView/Forward.h>
 
 #if !defined(AK_OS_MACH)
 #    error "This file is only for Mach kernel-based OS's"
@@ -18,7 +19,7 @@
 
 namespace WebView {
 
-class MachPortServer {
+class WEBVIEW_API MachPortServer {
 
 public:
     MachPortServer();

@@ -77,14 +77,7 @@ target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
 
 if(WIN32)
-    # FIXME: This is a hack to get around lld-link error undefined symbols in various libraries
-    target_link_libraries(${LADYBIRD_TARGET}
-        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Application>
-        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,UserAgent>
-        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,Utilities>
-        $<FILTER:$<TARGET_OBJECTS:LibWebView>,INCLUDE,WebContentClient>
-        LibDevTools
-    )
+    target_link_libraries(${LADYBIRD_TARGET} LibDevTools)
 endif()
 
 function(set_helper_process_properties)

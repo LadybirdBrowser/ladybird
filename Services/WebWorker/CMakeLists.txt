@@ -22,7 +22,7 @@ target_include_directories(WebWorker PRIVATE ${LADYBIRD_SOURCE_DIR})
 target_link_libraries(WebWorker PRIVATE webworkerservice)
 
 if(WIN32)
-    # FIXME: This is a hack to get around lld-link error undefined symbols in various libraries
+    # FIXME: This is a hack to get around lld-link error undefined symbols in LibWeb
     target_link_libraries(webworkerservice PRIVATE
             $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,CallbackType>
             $<FILTER:$<TARGET_OBJECTS:LibWeb>,INCLUDE,DedicatedWorkerGlobalScope>
