@@ -20,7 +20,7 @@
 
 namespace WebView {
 
-class WebUI
+class WEBVIEW_API WebUI
     : public IPC::ConnectionToServer<WebUIClientEndpoint, WebUIServerEndpoint>
     , public WebUIClientEndpoint {
 public:

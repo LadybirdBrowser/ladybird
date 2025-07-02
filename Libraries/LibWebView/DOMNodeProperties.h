@@ -8,10 +8,11 @@
 
 #include <AK/JsonValue.h>
 #include <LibIPC/Forward.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-struct DOMNodeProperties {
+struct WEBVIEW_API DOMNodeProperties {
     enum class Type {
         ComputedStyle,
         Layout,
@@ -27,9 +28,9 @@ struct DOMNodeProperties {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::DOMNodeProperties const&);
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DOMNodeProperties const&);
 
 template<>
-ErrorOr<WebView::DOMNodeProperties> decode(Decoder&);
+WEBVIEW_API ErrorOr<WebView::DOMNodeProperties> decode(Decoder&);
 
 }

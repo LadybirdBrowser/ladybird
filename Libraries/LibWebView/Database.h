@@ -13,13 +13,14 @@
 #include <AK/RefCounted.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibWebView/Forward.h>
 
 struct sqlite3;
 struct sqlite3_stmt;
 
 namespace WebView {
 
-class Database : public RefCounted<Database> {
+class WEBVIEW_API Database : public RefCounted<Database> {
 public:
     static ErrorOr<NonnullRefPtr<Database>> create();
     ~Database();

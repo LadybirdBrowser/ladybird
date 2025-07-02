@@ -11,11 +11,12 @@
 #include <LibCore/Process.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Transport.h>
+#include <LibWebView/Forward.h>
 #include <LibWebView/ProcessType.h>
 
 namespace WebView {
 
-class Process {
+class WEBVIEW_API Process {
     AK_MAKE_NONCOPYABLE(Process);
     AK_MAKE_DEFAULT_MOVABLE(Process);
 

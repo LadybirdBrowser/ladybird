@@ -8,10 +8,11 @@
 
 #include <AK/String.h>
 #include <LibIPC/Forward.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-struct Attribute {
+struct WEBVIEW_API Attribute {
     String name;
     String value;
 };
@@ -21,9 +22,9 @@ struct Attribute {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::Attribute const&);
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::Attribute const&);
 
 template<>
-ErrorOr<WebView::Attribute> decode(Decoder&);
+WEBVIEW_API ErrorOr<WebView::Attribute> decode(Decoder&);
 
 }
