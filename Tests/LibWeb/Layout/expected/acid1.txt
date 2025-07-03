@@ -140,19 +140,19 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer<P>) [235,55 139.96875x10]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer(anonymous)) [235,65 139.96875x0]
-                PaintableWithLines (InlineNode<FORM>)
+                PaintableWithLines (InlineNode<FORM>) [235,65 0x10]
               PaintableWithLines (BlockContainer(anonymous)) [235,65 139.96875x19]
                 PaintableWithLines (BlockContainer<P>) [235,65 139.96875x19]
                   TextPaintable (TextNode<#text>)
                   RadioButtonPaintable (RadioButton<INPUT>) [262.5,65 12x12]
               PaintableWithLines (BlockContainer(anonymous)) [235,84 139.96875x0]
-                PaintableWithLines (InlineNode<FORM>)
+                PaintableWithLines (InlineNode<FORM>) [235,84 0x10]
               PaintableWithLines (BlockContainer(anonymous)) [235,84 139.96875x19]
                 PaintableWithLines (BlockContainer<P>) [235,84 139.96875x19]
                   TextPaintable (TextNode<#text>)
                   RadioButtonPaintable (RadioButton<INPUT>) [280.171875,84 12x12]
               PaintableWithLines (BlockContainer(anonymous)) [235,103 139.96875x0]
-                PaintableWithLines (InlineNode<FORM>)
+                PaintableWithLines (InlineNode<FORM>) [235,103 0x10]
             PaintableWithLines (BlockContainer<LI>) [394.96875,45 80x120]
               TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<LI>#baz) [135,175 120x120]
@@ -168,10 +168,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer(anonymous)) [20,30 480x0]
       PaintableWithLines (BlockContainer<P>) [20,335 480x65]
         TextPaintable (TextNode<#text>)
-        PaintableWithLines (InlineNode<A>)
+        PaintableWithLines (InlineNode<A>) [227.9375,361 103.03125x13]
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
-        PaintableWithLines (InlineNode<A>)
+        PaintableWithLines (InlineNode<A>) [365.59375,387 59.90625x13]
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [20,400 480x0]

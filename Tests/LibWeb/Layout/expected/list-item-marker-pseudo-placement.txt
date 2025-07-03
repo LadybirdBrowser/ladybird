@@ -23,10 +23,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (ListItemBox<SPAN>) [8,8 784x36]
         MarkerPaintable (ListItemMarkerBox(anonymous)) [-16,8.5 12x17]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 784x18]
-          PaintableWithLines (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous)) [8,8 52.53125x18]
             TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>) [8,26 784x0]
         PaintableWithLines (BlockContainer(anonymous)) [8,26 784x18]
-          PaintableWithLines (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous)) [8,26 40.1875x18]
             TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
