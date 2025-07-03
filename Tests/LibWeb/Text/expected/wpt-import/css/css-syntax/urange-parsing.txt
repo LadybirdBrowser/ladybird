@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 95 tests
 
-92 Pass
-3 Fail
-Pass	"u/**/+/**/a/**/?" => "U+A0-AF"
+89 Pass
+6 Fail
+Fail	"u/**/+/**/a/**/?" => "U+A0-AF"
 Pass	"u+abc" => "U+ABC"
 Pass	"U+abc" => "U+ABC"
 Pass	"u+ABC" => "U+ABC"
 Pass	"U+ABC" => "U+ABC"
 Pass	"u+AbC" => "U+ABC"
 Pass	"u+efg" is invalid
-Fail	"u+ abc" is invalid
-Fail	"u +abc" is invalid
-Fail	"u + abc" is invalid
+Pass	"u+ abc" is invalid
+Pass	"u +abc" is invalid
+Pass	"u + abc" is invalid
 Pass	"U + a b c" is invalid
 Pass	"u+a" => "U+A"
 Pass	"u+aa" => "U+AA"
@@ -34,7 +34,7 @@ Pass	"u+a??????" is invalid
 Pass	"u+a?a" is invalid
 Pass	"u+aaaaaa" is invalid
 Pass	"u+a?????" is invalid
-Pass	"u/**/+0a/**/?" => "U+A0-AF"
+Fail	"u/**/+0a/**/?" => "U+A0-AF"
 Pass	"u+0a" => "U+A"
 Pass	"U+0a0" => "U+A0"
 Pass	"u+0aaaaa" => "U+AAAAA"
@@ -51,7 +51,7 @@ Pass	"u+0a?????" is invalid
 Pass	"u+00a????" is invalid
 Pass	"u+22222a" is invalid
 Pass	"u+1e9a" => "U+1E9A"
-Pass	"u/**/+0/**/?" => "U+0-F"
+Fail	"u/**/+0/**/?" => "U+0-F"
 Pass	"u/**/0" is invalid
 Pass	"u+0" => "U+0"
 Pass	"u+00" => "U+0"
@@ -70,7 +70,7 @@ Pass	"u+1e3" => "U+1E3"
 Pass	"u+1e-20" => "U+1E-20"
 Pass	"u+222222" is invalid
 Pass	"u+2?????" is invalid
-Pass	"u/**/+0/**/-0a" => "U+0-A"
+Fail	"u/**/+0/**/-0a" => "U+0-A"
 Pass	"u+0-0a" => "U+0-A"
 Pass	"u+000000-0aaaaa" => "U+0-AAAAA"
 Pass	"u+0000000-0a" is invalid
@@ -80,7 +80,7 @@ Pass	"u+0+0a" is invalid
 Pass	"u+0?-0a" is invalid
 Pass	"u+0-0a?" is invalid
 Pass	"u+222222-22222a" is invalid
-Pass	"u/**/+0/**/-1" => "U+0-1"
+Fail	"u/**/+0/**/-1" => "U+0-1"
 Pass	"u+0-1" => "U+0-1"
 Pass	"u-0-1" is invalid
 Pass	"u-0+1" is invalid
@@ -91,7 +91,7 @@ Pass	"u+0-0000001" is invalid
 Pass	"u+0-10ffff" => "U+0-10FFFF"
 Pass	"u+0-110000" is invalid
 Pass	"u+0-222222" is invalid
-Pass	"u/**/+/**/?" => "U+0-F"
+Fail	"u/**/+/**/?" => "U+0-F"
 Pass	"u+?" => "U+0-F"
 Pass	"u+?????" => "u+0-FFFFF"
 Pass	"u+???????" is invalid

@@ -30,11 +30,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
         if (unprocessed_tokens.peek_token().is(Token::Type::Semicolon))
             break;
 
-        // FIXME: Stop removing whitespace here. It's just for compatibility with the property-parsing code.
         auto const& token = unprocessed_tokens.consume_a_token();
-        if (token.is(Token::Type::Whitespace))
-            continue;
-
         component_values.append(token);
     }
 
@@ -64,6 +60,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
                 case DescriptorMetadata::ValueType::CropOrCross: {
                     // crop || cross
                     auto first = parse_keyword_value(tokens);
+                    tokens.discard_whitespace();
                     auto second = parse_keyword_value(tokens);
 
                     if (!first)
@@ -135,6 +132,8 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
                         if (first_length->is_length() && first_length->as_length().length().raw_value() < 0)
                             return nullptr;
 
+                        tokens.discard_whitespace();
+
                         if (auto second_length = parse_length_value(tokens)) {
                             if (second_length->is_length() && second_length->as_length().length().raw_value() < 0)
                                 return nullptr;
@@ -159,6 +158,8 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
                     } else {
                         return nullptr;
                     }
+
+                    tokens.discard_whitespace();
 
                     if (auto second_keyword = parse_keyword_value(tokens)) {
                         if (orientation.is_null() && first_is_one_of(second_keyword->to_keyword(), Keyword::Landscape, Keyword::Portrait)) {
