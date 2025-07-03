@@ -362,6 +362,7 @@ set(SOURCES
     HTML/CustomElements/CustomElementName.cpp
     HTML/CustomElements/CustomElementReactionNames.cpp
     HTML/CustomElements/CustomElementRegistry.cpp
+    HTML/CustomElements/CustomStateSet.cpp
     HTML/DataTransfer.cpp
     HTML/DataTransferItem.cpp
     HTML/DataTransferItemList.cpp
