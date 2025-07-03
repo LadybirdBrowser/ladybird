@@ -9,7 +9,7 @@
 
 namespace Web::CSS {
 
-Color CSSLightDark::to_color(Optional<Layout::NodeWithStyle const&> node, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSLightDark::to_color(Optional<Layout::NodeWithStyle const&> node, CalculationResolutionContext const& resolution_context) const
 {
     if (node.has_value() && node.value().computed_values().color_scheme() == PreferredColorScheme::Dark)
         return m_properties.dark->to_color(node, resolution_context);
