@@ -39,7 +39,7 @@ public:
     Gfx::Orientation orientation() const;
 
     CSSPixelRect selection_rect() const;
-    CSSPixelRect range_rect(size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
+    CSSPixelRect range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
 
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }
