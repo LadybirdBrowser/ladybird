@@ -451,21 +451,6 @@ GC::Ref<Range> Range::inverted() const
     return shape().realm().create<Range>(const_cast<Node&>(*m_end_container), m_end_offset, const_cast<Node&>(*m_start_container), m_start_offset);
 }
 
-GC::Ref<Range> Range::normalized() const
-{
-    if (m_start_container.ptr() == m_end_container.ptr()) {
-        if (m_start_offset <= m_end_offset)
-            return clone_range();
-
-        return inverted();
-    }
-
-    if (m_start_container->is_before(m_end_container))
-        return clone_range();
-
-    return inverted();
-}
-
 // https://dom.spec.whatwg.org/#dom-range-commonancestorcontainer
 GC::Ref<Node> Range::common_ancestor_container() const
 {
