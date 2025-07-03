@@ -700,7 +700,7 @@ RefPtr<CSSStyleValue const> CSSStyleProperties::style_value_for_computed_propert
 
         return style_value_for_computed_property(
             layout_node,
-            StyleComputer::map_logical_alias_to_physical_property_id(property_id, StyleComputer::LogicalAliasMappingContext { computed_properties->writing_mode(), computed_properties->direction() }));
+            map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { computed_properties->writing_mode(), computed_properties->direction() }));
     }
 
     // A limited number of properties have special rules for producing their "resolved value".

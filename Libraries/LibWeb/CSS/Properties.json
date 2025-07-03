@@ -481,10 +481,10 @@
     "percentages-resolve-to": "length"
   },
   "block-size": {
-    "logical-alias-for": [
-      "height",
-      "width"
-    ],
+    "logical-alias-for": {
+      "group": "size",
+      "mapping": "block-size"
+    },
     "initial": "auto",
     "max-values": 1
   },
@@ -515,30 +515,24 @@
     ]
   },
   "border-block-end-color": {
-    "logical-alias-for": [
-      "border-top-color",
-      "border-right-color",
-      "border-bottom-color",
-      "border-left-color"
-    ],
+    "logical-alias-for": {
+      "group": "border-color",
+      "mapping": "block-end"
+    },
     "max-values": 1
   },
   "border-block-end-style": {
-    "logical-alias-for": [
-      "border-top-style",
-      "border-right-style",
-      "border-bottom-style",
-      "border-left-style"
-    ],
+    "logical-alias-for": {
+      "group": "border-style",
+      "mapping": "block-end"
+    },
     "max-values": 1
   },
   "border-block-end-width": {
-    "logical-alias-for": [
-      "border-top-width",
-      "border-right-width",
-      "border-bottom-width",
-      "border-left-width"
-    ],
+    "logical-alias-for": {
+      "group": "border-width",
+      "mapping": "block-end"
+    },
     "max-values": 1
   },
   "border-block-start": {
@@ -551,30 +545,24 @@
     ]
   },
   "border-block-start-color": {
-    "logical-alias-for": [
-      "border-top-color",
-      "border-right-color",
-      "border-bottom-color",
-      "border-left-color"
-    ],
+    "logical-alias-for": {
+      "group": "border-color",
+      "mapping": "block-start"
+    },
     "max-values": 1
   },
   "border-block-start-style": {
-    "logical-alias-for": [
-      "border-top-style",
-      "border-right-style",
-      "border-bottom-style",
-      "border-left-style"
-    ],
+    "logical-alias-for": {
+      "group": "border-style",
+      "mapping": "block-start"
+    },
     "max-values": 1
   },
   "border-block-start-width": {
-    "logical-alias-for": [
-      "border-top-width",
-      "border-right-width",
-      "border-bottom-width",
-      "border-left-width"
-    ],
+    "logical-alias-for": {
+      "group": "border-width",
+      "mapping": "block-start"
+    },
     "max-values": 1
   },
   "border-block-style": {
@@ -688,21 +676,17 @@
     ]
   },
   "border-end-end-radius": {
-    "logical-alias-for": [
-      "border-top-left-radius",
-      "border-bottom-left-radius",
-      "border-top-right-radius",
-      "border-bottom-right-radius"
-    ],
+    "logical-alias-for": {
+      "group": "border-radius",
+      "mapping": "end-end"
+    },
     "max-values": 1
   },
   "border-end-start-radius": {
-    "logical-alias-for": [
-      "border-top-left-radius",
-      "border-bottom-left-radius",
-      "border-top-right-radius",
-      "border-bottom-right-radius"
-    ],
+    "logical-alias-for": {
+      "group": "border-radius",
+      "mapping": "end-start"
+    },
     "max-values": 1
   },
   "border-image": {
@@ -795,30 +779,24 @@
     ]
   },
   "border-inline-end-color": {
-    "logical-alias-for": [
-      "border-top-color",
-      "border-right-color",
-      "border-bottom-color",
-      "border-left-color"
-    ],
+    "logical-alias-for": {
+      "group": "border-color",
+      "mapping": "inline-end"
+    },
     "max-values": 1
   },
   "border-inline-end-style": {
-    "logical-alias-for": [
-      "border-top-style",
-      "border-right-style",
-      "border-bottom-style",
-      "border-left-style"
-    ],
+    "logical-alias-for": {
+      "group": "border-style",
+      "mapping": "inline-end"
+    },
     "max-values": 1
   },
   "border-inline-end-width": {
-    "logical-alias-for": [
-      "border-top-width",
-      "border-right-width",
-      "border-bottom-width",
-      "border-left-width"
-    ],
+    "logical-alias-for": {
+      "group": "border-width",
+      "mapping": "inline-end"
+    },
     "max-values": 1
   },
   "border-inline-start": {
@@ -831,30 +809,24 @@
     ]
   },
   "border-inline-start-color": {
-    "logical-alias-for": [
-      "border-top-color",
-      "border-right-color",
-      "border-bottom-color",
-      "border-left-color"
-    ],
+    "logical-alias-for": {
+      "group": "border-color",
+      "mapping": "inline-start"
+    },
     "max-values": 1
   },
   "border-inline-start-style": {
-    "logical-alias-for": [
-      "border-top-style",
-      "border-right-style",
-      "border-bottom-style",
-      "border-left-style"
-    ],
+    "logical-alias-for": {
+      "group": "border-style",
+      "mapping": "inline-start"
+    },
     "max-values": 1
   },
   "border-inline-start-width": {
-    "logical-alias-for": [
-      "border-top-width",
-      "border-right-width",
-      "border-bottom-width",
-      "border-left-width"
-    ],
+    "logical-alias-for": {
+      "group": "border-width",
+      "mapping": "inline-start"
+    },
     "max-values": 1
   },
   "border-inline-style": {
@@ -992,21 +964,17 @@
     ]
   },
   "border-start-end-radius": {
-    "logical-alias-for": [
-      "border-top-left-radius",
-      "border-bottom-left-radius",
-      "border-top-right-radius",
-      "border-bottom-right-radius"
-    ],
+    "logical-alias-for": {
+      "group": "border-radius",
+      "mapping": "start-end"
+    },
     "max-values": 1
   },
   "border-start-start-radius": {
-    "logical-alias-for": [
-      "border-top-left-radius",
-      "border-bottom-left-radius",
-      "border-top-right-radius",
-      "border-bottom-right-radius"
-    ],
+    "logical-alias-for": {
+      "group": "border-radius",
+      "mapping": "start-start"
+    },
     "max-values": 1
   },
   "border-style": {
@@ -1997,10 +1965,10 @@
     ]
   },
   "inline-size": {
-    "logical-alias-for": [
-      "width",
-      "height"
-    ],
+    "logical-alias-for": {
+      "group": "size",
+      "mapping": "inline-size"
+    },
     "initial": "auto",
     "max-values": 1
   },
@@ -2040,21 +2008,17 @@
     "percentages-resolve-to": "length"
   },
   "inset-block-end": {
-    "logical-alias-for": [
-      "top",
-      "right",
-      "bottom",
-      "left"
-    ],
+    "logical-alias-for": {
+      "group": "inset",
+      "mapping": "block-end"
+    },
     "max-values": 1
   },
   "inset-block-start": {
-    "logical-alias-for": [
-      "top",
-      "right",
-      "bottom",
-      "left"
-    ],
+    "logical-alias-for": {
+      "group": "inset",
+      "mapping": "block-start"
+    },
     "max-values": 1
   },
   "inset-inline": {
@@ -2074,21 +2038,17 @@
     "percentages-resolve-to": "length"
   },
   "inset-inline-end": {
-    "logical-alias-for": [
-      "top",
-      "right",
-      "bottom",
-      "left"
-    ],
+    "logical-alias-for": {
+      "group": "inset",
+      "mapping": "inline-end"
+    },
     "max-values": 1
   },
   "inset-inline-start": {
-    "logical-alias-for": [
-      "top",
-      "right",
-      "bottom",
-      "left"
-    ],
+    "logical-alias-for": {
+      "group": "inset",
+      "mapping": "inline-start"
+    },
     "max-values": 1
   },
   "isolation": {
@@ -2245,20 +2205,16 @@
     "percentages-resolve-to": "length"
   },
   "margin-block-end": {
-    "logical-alias-for": [
-      "margin-top",
-      "margin-right",
-      "margin-bottom",
-      "margin-left"
-    ]
+    "logical-alias-for": {
+      "group": "margin",
+      "mapping": "block-end"
+    }
   },
   "margin-block-start": {
-    "logical-alias-for": [
-      "margin-top",
-      "margin-right",
-      "margin-bottom",
-      "margin-left"
-    ]
+    "logical-alias-for": {
+      "group": "margin",
+      "mapping": "block-start"
+    }
   },
   "margin-bottom": {
     "animation-type": "by-computed-value",
@@ -2293,20 +2249,16 @@
     "percentages-resolve-to": "length"
   },
   "margin-inline-end": {
-    "logical-alias-for": [
-      "margin-top",
-      "margin-right",
-      "margin-bottom",
-      "margin-left"
-    ]
+    "logical-alias-for": {
+      "group": "margin",
+      "mapping": "inline-end"
+    }
   },
   "margin-inline-start": {
-    "logical-alias-for": [
-      "margin-top",
-      "margin-right",
-      "margin-bottom",
-      "margin-left"
-    ]
+    "logical-alias-for": {
+      "group": "margin",
+      "mapping": "inline-start"
+    }
   },
   "margin-left": {
     "animation-type": "by-computed-value",
@@ -2416,10 +2368,10 @@
     ]
   },
   "max-block-size": {
-    "logical-alias-for": [
-      "max-height",
-      "max-width"
-    ],
+    "logical-alias-for": {
+      "group": "max-size",
+      "mapping": "block-size"
+    },
     "initial": "none"
   },
   "max-height": {
@@ -2442,10 +2394,10 @@
     ]
   },
   "max-inline-size": {
-    "logical-alias-for": [
-      "max-width",
-      "max-height"
-    ],
+    "logical-alias-for": {
+      "group": "max-size",
+      "mapping": "inline-size"
+    },
     "initial": "none"
   },
   "max-width": {
@@ -2468,10 +2420,10 @@
     ]
   },
   "min-block-size": {
-    "logical-alias-for": [
-      "min-height",
-      "min-width"
-    ],
+    "logical-alias-for": {
+      "group": "min-size",
+      "mapping": "block-size"
+    },
     "initial": "0"
   },
   "min-height": {
@@ -2494,10 +2446,10 @@
     ]
   },
   "min-inline-size": {
-    "logical-alias-for": [
-      "min-width",
-      "min-height"
-    ],
+    "logical-alias-for": {
+      "group": "min-size",
+      "mapping": "inline-size"
+    },
     "initial": "0"
   },
   "min-width": {
@@ -2678,20 +2630,16 @@
     "percentages-resolve-to": "length"
   },
   "padding-block-end": {
-    "logical-alias-for": [
-      "padding-top",
-      "padding-right",
-      "padding-bottom",
-      "padding-left"
-    ]
+    "logical-alias-for": {
+      "group": "padding",
+      "mapping": "block-end"
+    }
   },
   "padding-block-start": {
-    "logical-alias-for": [
-      "padding-top",
-      "padding-right",
-      "padding-bottom",
-      "padding-left"
-    ]
+    "logical-alias-for": {
+      "group": "padding",
+      "mapping": "block-start"
+    }
   },
   "padding-bottom": {
     "animation-type": "by-computed-value",
@@ -2720,20 +2668,16 @@
     "percentages-resolve-to": "length"
   },
   "padding-inline-end": {
-    "logical-alias-for": [
-      "padding-top",
-      "padding-right",
-      "padding-bottom",
-      "padding-left"
-    ]
+    "logical-alias-for": {
+      "group": "padding",
+      "mapping": "inline-end"
+    }
   },
   "padding-inline-start": {
-    "logical-alias-for": [
-      "padding-top",
-      "padding-right",
-      "padding-bottom",
-      "padding-left"
-    ]
+    "logical-alias-for": {
+      "group": "padding",
+      "mapping": "inline-start"
+    }
   },
   "padding-left": {
     "animation-type": "by-computed-value",

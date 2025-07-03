@@ -1,0 +1,56 @@
+{
+  "border-color": {
+    "top": "border-top-color",
+    "right": "border-right-color",
+    "bottom": "border-bottom-color",
+    "left": "border-left-color"
+  },
+  "border-radius": {
+    "top-left": "border-top-left-radius",
+    "bottom-left": "border-bottom-left-radius",
+    "top-right": "border-top-right-radius",
+    "bottom-right": "border-bottom-right-radius"
+  },
+  "border-style": {
+    "top": "border-top-style",
+    "right": "border-right-style",
+    "bottom": "border-bottom-style",
+    "left": "border-left-style"
+  },
+  "border-width": {
+    "top": "border-top-width",
+    "right": "border-right-width",
+    "bottom": "border-bottom-width",
+    "left": "border-left-width"
+  },
+  "inset": {
+    "top": "top",
+    "right": "right",
+    "bottom": "bottom",
+    "left": "left"
+  },
+  "margin": {
+    "top": "margin-top",
+    "right": "margin-right",
+    "bottom": "margin-bottom",
+    "left": "margin-left"
+  },
+  "max-size": {
+    "width": "max-width",
+    "height": "max-height"
+  },
+  "min-size": {
+    "width": "min-width",
+    "height": "min-height"
+  },
+  "padding": {
+    "top": "padding-top",
+    "right": "padding-right",
+    "bottom": "padding-bottom",
+    "left": "padding-left"
+  },
+  "size": {
+    "width": "width",
+    "height": "height"
+  }
+}
