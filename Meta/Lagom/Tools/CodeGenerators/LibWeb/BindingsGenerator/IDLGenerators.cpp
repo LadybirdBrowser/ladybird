@@ -3742,7 +3742,7 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
         generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.name));
     }
 
-    if (!interface.attributes.is_empty() || !interface.functions.is_empty() || interface.has_stringifier) {
+    if (!interface.attributes.is_empty() || !interface.functions.is_empty() || interface.has_stringifier || interface.set_entry_type.has_value()) {
         generator.append(R"~~~(
 [[maybe_unused]] static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
 {
