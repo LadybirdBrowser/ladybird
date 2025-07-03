@@ -34,6 +34,14 @@ Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value, Ca
 {
     // <number> | <angle> | none
     auto normalized = [](double number) {
+        // +inf should be clamped to 360
+        if (!isfinite(number) && number > 0)
+            number = 360.0;
+
+        // -inf and NaN should be clamped to 0
+        if (!isfinite(number) || isnan(number))
+            number = 0.0;
+
         return JS::modulo(number, 360.0);
     };
 
@@ -43,8 +51,13 @@ Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value, Ca
     if (style_value.is_angle())
         return normalized(style_value.as_angle().angle().to_degrees());
 
-    if (style_value.is_calculated() && style_value.as_calculated().resolves_to_angle())
-        return normalized(style_value.as_calculated().resolve_angle(resolution_context).value().to_degrees());
+    if (style_value.is_calculated()) {
+        if (style_value.as_calculated().resolves_to_number())
+            return normalized(style_value.as_calculated().resolve_number(resolution_context).value());
+
+        if (style_value.as_calculated().resolves_to_angle())
+            return normalized(style_value.as_calculated().resolve_angle(resolution_context).value().to_degrees());
+    }
 
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
         return 0;
