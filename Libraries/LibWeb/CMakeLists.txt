@@ -2,7 +2,14 @@ include(libweb_generators)
 include(vulkan)
 include(skia)
 
-find_package(unofficial-angle REQUIRED CONFIG)
+find_package(unofficial-angle CONFIG)
+if(unofficial-angle_FOUND)
+    set(ANGLE_TARGETS unofficial::angle::libEGL unofficial::angle::libGLESv2)
+else()
+    find_package(PkgConfig)
+    pkg_check_modules(angle REQUIRED IMPORTED_TARGET angle)
+    set(ANGLE_TARGETS PkgConfig::angle)
+endif()
 
 set(SOURCES
     Animations/Animatable.cpp
@@ -1003,7 +1010,7 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia unofficial::angle::libEGL unofficial::angle::libGLESv2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS})
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
