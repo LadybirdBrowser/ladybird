@@ -507,6 +507,7 @@ class CloseWatcher;
 class CloseWatcherManager;
 class CustomElementDefinition;
 class CustomElementRegistry;
+class CustomStateSet;
 class DataTransfer;
 class DataTransferItem;
 class DataTransferItemList;

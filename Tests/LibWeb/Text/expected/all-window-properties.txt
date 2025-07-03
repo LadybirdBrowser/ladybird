@@ -85,6 +85,7 @@ Crypto
 CryptoKey
 CustomElementRegistry
 CustomEvent
+CustomStateSet
 DOMException
 DOMImplementation
 DOMMatrix
