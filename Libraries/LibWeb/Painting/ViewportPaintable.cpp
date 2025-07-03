@@ -362,19 +362,23 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 
     // 4. Mark the selection end node as End (if text) or Full (if anything else).
     if (auto* paintable = end_container->paintable(); paintable && !range.end().node->is_inert()) {
-        if (is<DOM::Text>(*end_container) || end_container->is_ancestor_of(start_container)) {
+        if (is<DOM::Text>(*end_container))
             paintable->set_selection_state(SelectionState::End);
-        } else {
-            paintable->for_each_in_inclusive_subtree([&](auto& layout_node) {
-                if (!layout_node.dom_node() || !layout_node.dom_node()->is_inert())
-                    layout_node.set_selection_state(SelectionState::Full);
-                return TraversalDecision::Continue;
-            });
-        }
+        else
+            paintable->set_selection_state(SelectionState::Full);
     }
 
     // 5. Mark the nodes between start node and end node (in tree order) as Full.
-    for (auto* node = start_container->next_in_pre_order(); node && node != end_container; node = node->next_in_pre_order()) {
+    // NOTE: If the start node is a descendant of the end node, we cannot traverse from it to the end node since the end node is before it in tree order.
+    //       Instead, we need to stop traversal somewhere inside the end node, or right after it.
+    DOM::Node* stop_at;
+    if (start_container->is_descendant_of(end_container)) {
+        stop_at = end_container->child_at_index(range.end_offset());
+    } else {
+        stop_at = end_container;
+    }
+
+    for (auto* node = start_container->next_in_pre_order(); node && node != stop_at; node = node->next_in_pre_order(end_container)) {
         if (node->is_inert())
             continue;
         if (auto* paintable = node->paintable())
