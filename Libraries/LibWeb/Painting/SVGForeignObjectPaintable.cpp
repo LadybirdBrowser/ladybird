@@ -33,6 +33,9 @@ TraversalDecision SVGForeignObjectPaintable::hit_test(CSSPixelPoint position, Hi
 
 void SVGForeignObjectPaintable::paint(PaintContext& context, PaintPhase phase) const
 {
+    if (!is_visible())
+        return;
+
     PaintableWithLines::paint(context, phase);
 }
 
