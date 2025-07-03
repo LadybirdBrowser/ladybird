@@ -374,7 +374,7 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     }
 
     // 5. Mark the nodes between start node and end node (in tree order) as Full.
-    for (auto* node = start_container->next_in_pre_order(); node && (node->is_before(end_container) || node->is_descendant_of(end_container)); node = node->next_in_pre_order()) {
+    for (auto* node = start_container->next_in_pre_order(); node && node != end_container; node = node->next_in_pre_order()) {
         if (node->is_inert())
             continue;
         if (auto* paintable = node->paintable())
