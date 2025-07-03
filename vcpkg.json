@@ -28,7 +28,6 @@
     "fast-float",
     {
       "name": "ffmpeg",
-      "platform": "!android",
       "features": [
         "avcodec",
         "avformat",
