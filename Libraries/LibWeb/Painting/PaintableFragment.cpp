@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -81,12 +81,12 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
     return utf16_view().code_unit_offset_of(code_point_offset - 1);
 }
 
-CSSPixelRect PaintableFragment::range_rect(size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
+CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
 {
-    if (paintable().selection_state() == Paintable::SelectionState::None)
+    if (selection_state == Paintable::SelectionState::None)
         return {};
 
-    if (paintable().selection_state() == Paintable::SelectionState::Full)
+    if (selection_state == Paintable::SelectionState::Full)
         return absolute_rect();
 
     auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
@@ -110,7 +110,7 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset_in_code_units, si
     // We operate on the UTF-8 string that is part of this fragment.
     auto text = utf8_view().substring_view(m_start_byte_offset, m_length_in_bytes);
 
-    if (paintable().selection_state() == Paintable::SelectionState::StartAndEnd) {
+    if (selection_state == Paintable::SelectionState::StartAndEnd) {
         auto selection_start_in_this_fragment = code_unit_to_byte_offset(start_offset_in_code_units);
         auto selection_end_in_this_fragment = code_unit_to_byte_offset(end_offset_in_code_units);
 
@@ -141,7 +141,7 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset_in_code_units, si
 
         return rect;
     }
-    if (paintable().selection_state() == Paintable::SelectionState::Start) {
+    if (selection_state == Paintable::SelectionState::Start) {
         auto selection_start_in_this_fragment = code_unit_to_byte_offset(start_offset_in_code_units);
         auto selection_end_in_this_fragment = m_length_in_bytes;
 
@@ -168,7 +168,7 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset_in_code_units, si
 
         return rect;
     }
-    if (paintable().selection_state() == Paintable::SelectionState::End) {
+    if (selection_state == Paintable::SelectionState::End) {
         auto selection_start_in_this_fragment = 0u;
         auto selection_end_in_this_fragment = code_unit_to_byte_offset(end_offset_in_code_units);
 
@@ -226,7 +226,7 @@ CSSPixelRect PaintableFragment::selection_rect() const
         }
         auto selection_start = text_control_element->selection_start();
         auto selection_end = text_control_element->selection_end();
-        return range_rect(selection_start, selection_end);
+        return range_rect(paintable().selection_state(), selection_start, selection_end);
     }
 
     auto selection = paintable().document().get_selection();
@@ -236,7 +236,7 @@ CSSPixelRect PaintableFragment::selection_rect() const
     if (!range)
         return {};
 
-    return range_rect(range->start_offset(), range->end_offset());
+    return range_rect(paintable().selection_state(), range->start_offset(), range->end_offset());
 }
 
 Utf8View PaintableFragment::utf8_view() const
