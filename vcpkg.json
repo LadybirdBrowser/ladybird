@@ -10,7 +10,7 @@
     },
     {
       "name": "angle",
-      "platform": "linux | windows"
+      "platform": "linux | windows | android"
     },
     {
       "name": "curl",
@@ -125,23 +125,20 @@
     },
     {
       "name": "skia",
-      "platform": "android"
+      "platform": "android",
+      "features": [
+        "vulkan"
+      ]
     },
     "sqlite3",
-    {
-      "name": "vulkan",
-      "platform": "!android"
-    },
+    "vulkan",
     {
       "name": "tiff",
       "features": [
         "zstd"
       ]
     },
-    {
-      "name": "vulkan-headers",
-      "platform": "!android"
-    },
+    "vulkan-headers",
     "woff2",
     "zlib"
   ],
