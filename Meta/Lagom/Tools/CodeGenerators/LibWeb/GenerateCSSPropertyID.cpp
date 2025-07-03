@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,10 +14,10 @@
 #include <LibCore/ArgsParser.h>
 #include <LibMain/Main.h>
 
-void replace_logical_aliases(JsonObject& properties);
+void replace_logical_aliases(JsonObject& properties, JsonObject& logical_property_groups);
 void populate_all_property_longhands(JsonObject& properties);
-ErrorOr<void> generate_header_file(JsonObject& properties, Core::File& file);
-ErrorOr<void> generate_implementation_file(JsonObject& properties, Core::File& file);
+ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_property_groups, Core::File& file);
+ErrorOr<void> generate_implementation_file(JsonObject& properties, JsonObject& logical_property_groups, Core::File& file);
 void generate_bounds_checking_function(JsonObject& properties, SourceGenerator& parent_generator, StringView css_type_name, StringView type_name, Optional<StringView> default_unit_name = {}, Optional<StringView> value_getter = {});
 bool is_animatable_property(JsonObject& properties, StringView property_name);
 
@@ -60,50 +60,79 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView generated_header_path;
     StringView generated_implementation_path;
     StringView properties_json_path;
+    StringView groups_json_path;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(generated_header_path, "Path to the PropertyID header file to generate", "generated-header-path", 'h', "generated-header-path");
     args_parser.add_option(generated_implementation_path, "Path to the PropertyID implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
-    args_parser.add_option(properties_json_path, "Path to the JSON file to read from", "json-path", 'j', "json-path");
+    args_parser.add_option(properties_json_path, "Path to the properties JSON file to read from", "properties-json-path", 'j', "properties-json-path");
+    args_parser.add_option(groups_json_path, "Path to the logical property groups JSON file to read from", "groups-json-path", 'g', "groups-json-path");
     args_parser.parse(arguments);
 
-    auto json = TRY(read_entire_file_as_json(properties_json_path));
-    VERIFY(json.is_object());
-    auto properties = json.as_object();
+    auto read_json_object = [](auto& path) -> ErrorOr<JsonObject> {
+        auto json = TRY(read_entire_file_as_json(path));
+        VERIFY(json.is_object());
 
-    // Check we're in alphabetical order
-    String most_recent_name;
-    properties.for_each_member([&](auto& name, auto&) {
-        if (name < most_recent_name) {
-            warnln("`{}` is in the wrong position in `{}`. Please keep this list alphabetical!", name, properties_json_path);
-            VERIFY_NOT_REACHED();
-        }
-        most_recent_name = name;
-    });
+        // Check we're in alphabetical order
+        String most_recent_name;
+        json.as_object().for_each_member([&](auto& name, auto&) {
+            if (name < most_recent_name) {
+                warnln("`{}` is in the wrong position in `{}`. Please keep this list alphabetical!", name, path);
+                VERIFY_NOT_REACHED();
+            }
+            most_recent_name = name;
+        });
 
-    replace_logical_aliases(properties);
+        return json.as_object();
+    };
+
+    auto properties = TRY(read_json_object(properties_json_path));
+    auto logical_property_groups = TRY(read_json_object(groups_json_path));
+
+    replace_logical_aliases(properties, logical_property_groups);
     populate_all_property_longhands(properties);
 
     auto generated_header_file = TRY(Core::File::open(generated_header_path, Core::File::OpenMode::Write));
     auto generated_implementation_file = TRY(Core::File::open(generated_implementation_path, Core::File::OpenMode::Write));
 
-    TRY(generate_header_file(properties, *generated_header_file));
-    TRY(generate_implementation_file(properties, *generated_implementation_file));
+    TRY(generate_header_file(properties, logical_property_groups, *generated_header_file));
+    TRY(generate_implementation_file(properties, logical_property_groups, *generated_implementation_file));
 
     return 0;
 }
 
-void replace_logical_aliases(JsonObject& properties)
+void replace_logical_aliases(JsonObject& properties, JsonObject& logical_property_groups)
 {
-    AK::HashMap<String, String> logical_aliases;
-    properties.for_each_member([&](auto& name, auto& value) {
+    // Grab the first property in each logical group, to use as the template
+    HashMap<String, String> first_property_in_logical_group;
+    logical_property_groups.for_each_member([&first_property_in_logical_group](String const& name, JsonValue const& value) {
+        bool found = false;
+        value.as_object().for_each_member([&](String const&, JsonValue const& member_value) {
+            if (found)
+                return;
+            first_property_in_logical_group.set(name, member_value.as_string());
+            found = true;
+        });
+        VERIFY(found);
+    });
+
+    HashMap<String, String> logical_aliases;
+    properties.for_each_member([&](String const& name, JsonValue const& value) {
         VERIFY(value.is_object());
         auto const& value_as_object = value.as_object();
-        auto const logical_alias_for = value_as_object.get_array("logical-alias-for"sv);
+        auto const logical_alias_for = value_as_object.get_object("logical-alias-for"sv);
         if (logical_alias_for.has_value()) {
-            auto const& aliased_properties = logical_alias_for.value();
-            for (auto const& aliased_property : aliased_properties.values()) {
-                logical_aliases.set(name, aliased_property.as_string());
+            auto const& group_name = logical_alias_for->get_string("group"sv);
+            if (!group_name.has_value()) {
+                dbgln("Logical alias '{}' is missing its group", name);
+                VERIFY_NOT_REACHED();
+            }
+
+            if (auto physical_property_name = first_property_in_logical_group.get(group_name.value()); physical_property_name.has_value()) {
+                logical_aliases.set(name, physical_property_name.value());
+            } else {
+                dbgln("Logical property group '{}' not found! (Property: '{}')", group_name.value(), name);
+                VERIFY_NOT_REACHED();
             }
         }
     });
@@ -142,7 +171,7 @@ void populate_all_property_longhands(JsonObject& properties)
     });
 }
 
-ErrorOr<void> generate_header_file(JsonObject& properties, Core::File& file)
+ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject&, Core::File& file)
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
@@ -154,6 +183,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, Core::File& file)
 #include <AK/StringView.h>
 #include <AK/Traits.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -313,7 +343,13 @@ enum class Quirk {
 };
 bool property_has_quirk(PropertyID, Quirk);
 
+struct LogicalAliasMappingContext {
+    WritingMode writing_mode;
+    Direction direction;
+    // TODO: text-orientation
+};
 bool property_is_logical_alias(PropertyID);
+PropertyID map_logical_alias_to_physical_property(PropertyID logical_property_id, LogicalAliasMappingContext const&);
 
 } // namespace Web::CSS
 
@@ -420,7 +456,7 @@ bool property_accepts_@css_type_name@(PropertyID property_id, [[maybe_unused]] @
 )~~~");
 }
 
-ErrorOr<void> generate_implementation_file(JsonObject& properties, Core::File& file)
+ErrorOr<void> generate_implementation_file(JsonObject& properties, JsonObject& logical_property_groups, Core::File& file)
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
@@ -1305,6 +1341,255 @@ bool property_is_logical_alias(PropertyID property_id)
         return true;
     default:
         return false;
+    }
+}
+)~~~");
+    generator.append(R"~~~(
+PropertyID map_logical_alias_to_physical_property(PropertyID property_id, LogicalAliasMappingContext const& mapping_context)
+{
+    // https://drafts.csswg.org/css-writing-modes-4/#logical-to-physical
+    // FIXME: Note: The used direction depends on the computed writing-mode and text-orientation: in vertical writing
+    //              modes, a text-orientation value of upright forces the used direction to ltr.
+    auto used_direction = mapping_context.direction;
+    switch(property_id) {
+)~~~");
+
+    properties.for_each_member([&](auto& property_name, JsonValue const& value) {
+        auto& property = value.as_object();
+        if (is_legacy_alias(property))
+            return;
+
+        if (auto logical_alias_for = property.get_object("logical-alias-for"sv); logical_alias_for.has_value()) {
+            auto group_name = logical_alias_for->get_string("group"sv);
+            auto mapping = logical_alias_for->get_string("mapping"sv);
+            if (!group_name.has_value() || !mapping.has_value()) {
+                dbgln("Logical alias '{}' is missing either its group or its mapping!", property_name);
+                VERIFY_NOT_REACHED();
+            }
+
+            auto maybe_group = logical_property_groups.get_object(group_name.value());
+            if (!maybe_group.has_value()) {
+                dbgln("Logical alias '{}' has unrecognized group '{}'", property_name, group_name.value());
+                VERIFY_NOT_REACHED();
+            }
+            auto const& group = maybe_group.value();
+            auto mapped_property = [&](StringView entry_name) {
+                if (auto maybe_string = group.get_string(entry_name); maybe_string.has_value()) {
+                    return title_casify(maybe_string.value());
+                }
+                dbgln("Logical property group '{}' is missing entry for '{}', requested by property '{}'.", group_name.value(), entry_name, property_name);
+                VERIFY_NOT_REACHED();
+            };
+
+            auto property_generator = generator.fork();
+            property_generator.set("name:titlecase", title_casify(property_name));
+            property_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@:
+)~~~");
+            if (mapping == "block-end"sv) {
+                property_generator.set("left:titlecase", mapped_property("left"sv));
+                property_generator.set("right:titlecase", mapped_property("right"sv));
+                property_generator.set("bottom:titlecase", mapped_property("bottom"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::@bottom:titlecase@;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::@left:titlecase@;
+        return PropertyID::@right:titlecase@;
+)~~~");
+            } else if (mapping == "block-size"sv) {
+                property_generator.set("height:titlecase", mapped_property("height"sv));
+                property_generator.set("width:titlecase", mapped_property("width"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::@height:titlecase@;
+        return PropertyID::@width:titlecase@;
+)~~~");
+            } else if (mapping == "block-start"sv) {
+                property_generator.set("left:titlecase", mapped_property("left"sv));
+                property_generator.set("right:titlecase", mapped_property("right"sv));
+                property_generator.set("top:titlecase", mapped_property("top"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::@top:titlecase@;
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl))
+            return PropertyID::@right:titlecase@;
+        return PropertyID::@left:titlecase@;
+)~~~");
+            } else if (mapping == "end-end"sv) {
+                property_generator.set("top-left:titlecase", mapped_property("top-left"sv));
+                property_generator.set("bottom-left:titlecase", mapped_property("bottom-left"sv));
+                property_generator.set("top-right:titlecase", mapped_property("top-right"sv));
+                property_generator.set("bottom-right:titlecase", mapped_property("bottom-right"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@bottom-right:titlecase@;
+            return PropertyID::@bottom-left:titlecase@;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@bottom-left:titlecase@;
+            return PropertyID::@top-left:titlecase@;
+        }
+
+        if (mapping_context.writing_mode == WritingMode::VerticalLr) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@bottom-right:titlecase@;
+            return PropertyID::@top-right:titlecase@;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::@top-right:titlecase@;
+        return PropertyID::@bottom-right:titlecase@;
+)~~~");
+            } else if (mapping == "end-start"sv) {
+                property_generator.set("top-left:titlecase", mapped_property("top-left"sv));
+                property_generator.set("bottom-left:titlecase", mapped_property("bottom-left"sv));
+                property_generator.set("top-right:titlecase", mapped_property("top-right"sv));
+                property_generator.set("bottom-right:titlecase", mapped_property("bottom-right"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@bottom-left:titlecase@;
+            return PropertyID::@bottom-right:titlecase@;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@top-left:titlecase@;
+            return PropertyID::@bottom-left:titlecase@;
+        }
+
+        if (mapping_context.writing_mode == WritingMode::VerticalLr) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@top-right:titlecase@;
+            return PropertyID::@bottom-right:titlecase@;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::@bottom-right:titlecase@;
+        return PropertyID::@top-right:titlecase@;
+)~~~");
+            } else if (mapping == "inline-end"sv) {
+                property_generator.set("left:titlecase", mapped_property("left"sv));
+                property_generator.set("right:titlecase", mapped_property("right"sv));
+                property_generator.set("top:titlecase", mapped_property("top"sv));
+                property_generator.set("bottom:titlecase", mapped_property("bottom"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@right:titlecase@;
+            return PropertyID::@left:titlecase@;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@bottom:titlecase@;
+            return PropertyID::@top:titlecase@;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::@top:titlecase@;
+        return PropertyID::@bottom:titlecase@;
+)~~~");
+            } else if (mapping == "inline-size"sv) {
+                property_generator.set("height:titlecase", mapped_property("height"sv));
+                property_generator.set("width:titlecase", mapped_property("width"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::@width:titlecase@;
+        return PropertyID::@height:titlecase@;
+)~~~");
+            } else if (mapping == "inline-start"sv) {
+                property_generator.set("left:titlecase", mapped_property("left"sv));
+                property_generator.set("right:titlecase", mapped_property("right"sv));
+                property_generator.set("top:titlecase", mapped_property("top"sv));
+                property_generator.set("bottom:titlecase", mapped_property("bottom"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@left:titlecase@;
+            return PropertyID::@right:titlecase@;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl, WritingMode::VerticalLr)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@top:titlecase@;
+            return PropertyID::@bottom:titlecase@;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::@bottom:titlecase@;
+        return PropertyID::@top:titlecase@;
+)~~~");
+            } else if (mapping == "start-end"sv) {
+                property_generator.set("top-left:titlecase", mapped_property("top-left"sv));
+                property_generator.set("bottom-left:titlecase", mapped_property("bottom-left"sv));
+                property_generator.set("top-right:titlecase", mapped_property("top-right"sv));
+                property_generator.set("bottom-right:titlecase", mapped_property("bottom-right"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@top-right:titlecase@;
+            return PropertyID::@top-left:titlecase@;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@bottom-right:titlecase@;
+            return PropertyID::@top-right:titlecase@;
+        }
+
+        if (mapping_context.writing_mode == WritingMode::VerticalLr) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@bottom-left:titlecase@;
+            return PropertyID::@top-left:titlecase@;
+        }
+
+        if (used_direction == Direction::Ltr)
+            return PropertyID::@top-left:titlecase@;
+        return PropertyID::@bottom-left:titlecase@;
+)~~~");
+            } else if (mapping == "start-start"sv) {
+                property_generator.set("top-left:titlecase", mapped_property("top-left"sv));
+                property_generator.set("bottom-left:titlecase", mapped_property("bottom-left"sv));
+                property_generator.set("top-right:titlecase", mapped_property("top-right"sv));
+                property_generator.set("bottom-right:titlecase", mapped_property("bottom-right"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@top-left:titlecase@;
+            return PropertyID::@top-right:titlecase@;
+        }
+
+        if (first_is_one_of(mapping_context.writing_mode, WritingMode::VerticalRl, WritingMode::SidewaysRl)) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@top-right:titlecase@;
+            return PropertyID::@bottom-right:titlecase@;
+        }
+
+        if (mapping_context.writing_mode == WritingMode::VerticalLr) {
+            if (used_direction == Direction::Ltr)
+                return PropertyID::@top-left:titlecase@;
+            return PropertyID::@bottom-left:titlecase@;
+        }
+        if (used_direction == Direction::Ltr)
+            return PropertyID::@bottom-left:titlecase@;
+        return PropertyID::@top-left:titlecase@;
+)~~~");
+            } else {
+                dbgln("Logical alias '{}' has unrecognized mapping '{}'", property_name, mapping.value());
+                VERIFY_NOT_REACHED();
+            }
+        }
+    });
+
+    generator.append(R"~~~(
+    default:
+        VERIFY(!property_is_logical_alias(property_id));
+        return property_id;
     }
 }
 )~~~");
