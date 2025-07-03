@@ -11,24 +11,30 @@
 
 namespace Web::CSS {
 
-Color CSSHWB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSHWB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto const h_val = resolve_hue(m_properties.h, resolution_context).value_or(0);
-    auto const w_val = clamp(resolve_with_reference_value(m_properties.w, 100.0, resolution_context).value_or(0), 0, 100) / 100.0f;
-    auto const b_val = clamp(resolve_with_reference_value(m_properties.b, 100.0, resolution_context).value_or(0), 0, 100) / 100.0f;
-    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
+    auto h_val = resolve_hue(m_properties.h, resolution_context);
+    auto raw_w_value = resolve_with_reference_value(m_properties.w, 100.0, resolution_context);
+    auto raw_b_value = resolve_with_reference_value(m_properties.b, 100.0, resolution_context);
+    auto alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
+
+    if (!h_val.has_value() || !raw_w_value.has_value() || !raw_b_value.has_value() || !alpha_val.has_value())
+        return {};
+
+    auto w_val = clamp(raw_w_value.value(), 0, 100) / 100.0f;
+    auto b_val = clamp(raw_b_value.value(), 0, 100) / 100.0f;
 
     if (w_val + b_val >= 1.0f) {
         auto to_byte = [](float value) {
             return round_to<u8>(clamp(value * 255.0f, 0.0f, 255.0f));
         };
         u8 gray = to_byte(w_val / (w_val + b_val));
-        return Color(gray, gray, gray, to_byte(alpha_val));
+        return Color(gray, gray, gray, to_byte(alpha_val.value()));
     }
 
     auto value = 1 - b_val;
     auto saturation = 1 - (w_val / value);
-    return Color::from_hsv(h_val, saturation, value).with_opacity(alpha_val);
+    return Color::from_hsv(h_val.value(), saturation, value).with_opacity(alpha_val.value());
 }
 
 bool CSSHWB::equals(CSSStyleValue const& other) const
@@ -45,8 +51,11 @@ bool CSSHWB::equals(CSSStyleValue const& other) const
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
 String CSSHWB::to_string(SerializationMode) const
 {
+    if (auto color = to_color({}, {}); color.has_value())
+        return serialize_a_srgb_value(color.value());
+
     // FIXME: Do this properly, taking unresolved calculated values into account.
-    return serialize_a_srgb_value(to_color({}, {}));
+    return ""_string;
 }
 
 }

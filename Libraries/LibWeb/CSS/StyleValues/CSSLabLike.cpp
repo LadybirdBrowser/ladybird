@@ -26,14 +26,17 @@ bool CSSLabLike::equals(CSSStyleValue const& other) const
     return m_properties == other_lab_like.m_properties;
 }
 
-Color CSSOKLab::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSOKLab::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 1.0, resolution_context).value_or(0), 0, 1);
-    auto const a_val = resolve_with_reference_value(m_properties.a, 0.4, resolution_context).value_or(0);
-    auto const b_val = resolve_with_reference_value(m_properties.b, 0.4, resolution_context).value_or(0);
-    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
+    auto const l_val = resolve_with_reference_value(m_properties.l, 1.0, resolution_context);
+    auto const a_val = resolve_with_reference_value(m_properties.a, 0.4, resolution_context);
+    auto const b_val = resolve_with_reference_value(m_properties.b, 0.4, resolution_context);
+    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
 
-    return Color::from_oklab(l_val, a_val, b_val, alpha_val);
+    if (!l_val.has_value() || !a_val.has_value() || !b_val.has_value() || !alpha_val.has_value())
+        return {};
+
+    return Color::from_oklab(clamp(l_val.value(), 0, 1), a_val.value(), b_val.value(), alpha_val.value());
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch
@@ -56,14 +59,17 @@ String CSSOKLab::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-Color CSSLab::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSLab::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 100, resolution_context).value_or(0), 0, 100);
-    auto const a_val = resolve_with_reference_value(m_properties.a, 125, resolution_context).value_or(0);
-    auto const b_val = resolve_with_reference_value(m_properties.b, 125, resolution_context).value_or(0);
-    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
+    auto l_val = resolve_with_reference_value(m_properties.l, 100, resolution_context);
+    auto a_val = resolve_with_reference_value(m_properties.a, 125, resolution_context);
+    auto b_val = resolve_with_reference_value(m_properties.b, 125, resolution_context);
+    auto alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
 
-    return Color::from_lab(l_val, a_val, b_val, alpha_val);
+    if (!l_val.has_value() || !a_val.has_value() || !b_val.has_value() || !alpha_val.has_value())
+        return {};
+
+    return Color::from_lab(clamp(l_val.value(), 0, 100), a_val.value(), b_val.value(), alpha_val.value());
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-lab-lch
