@@ -151,13 +151,21 @@ Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window con
 
 Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Node const& node)
 {
-    auto const* root_element = node.document().document_element();
-    VERIFY(root_element);
-    VERIFY(root_element->layout_node());
+    Layout::Node const* root_layout_node;
+
+    if (is<DOM::Document>(node.dom_node())) {
+        root_layout_node = &node;
+    } else {
+        auto const* root_element = node.document().document_element();
+        VERIFY(root_element);
+        VERIFY(root_element->layout_node());
+        root_layout_node = root_element->layout_node();
+    }
+
     return Length::ResolutionContext {
         .viewport_rect = node.navigable()->viewport_rect(),
         .font_metrics = { node.computed_values().font_size(), node.first_available_font().pixel_metrics() },
-        .root_font_metrics = { root_element->layout_node()->computed_values().font_size(), root_element->layout_node()->first_available_font().pixel_metrics() },
+        .root_font_metrics = { root_layout_node->computed_values().font_size(), root_layout_node->first_available_font().pixel_metrics() },
     };
 }
 
