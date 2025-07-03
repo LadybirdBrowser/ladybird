@@ -322,6 +322,14 @@ template<>
 struct Traits<Web::CSS::PropertyID> : public DefaultTraits<Web::CSS::PropertyID> {
     static unsigned hash(Web::CSS::PropertyID property_id) { return int_hash((unsigned)property_id); }
 };
+
+template<>
+struct Formatter<Web::CSS::PropertyID> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::PropertyID const& property_id)
+    {
+        return Formatter<StringView>::format(builder, Web::CSS::string_from_property_id(property_id));
+    }
+};
 } // namespace AK
 )~~~");
 
