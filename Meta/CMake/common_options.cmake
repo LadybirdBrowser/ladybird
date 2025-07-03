@@ -36,6 +36,7 @@ ladybird_option(ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS OFF CACHE BOOL "En
 
 ladybird_option(ENABLE_GUI_TARGETS ON CACHE BOOL "Enable building GUI targets")
 ladybird_option(ENABLE_INSTALL_HEADERS ON CACHE BOOL "Enable installing headers")
+ladybird_option(ENABLE_INSTALL_FLATPAK_FILES OFF CACHE BOOL "Enable installing files for Flatpak")
 ladybird_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
 ladybird_option(ENABLE_STD_STACKTRACE OFF CACHE BOOL "Force use of std::stacktrace instead of libbacktrace. If it is not supported the build will fail")
 ladybird_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets supported on Windows for CI")
