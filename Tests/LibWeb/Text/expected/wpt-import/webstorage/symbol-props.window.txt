@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	localStorage: plain set + get (loose)
+Pass	localStorage: plain set + get (strict)
+Pass	localStorage: defineProperty + get
+Pass	localStorage: defineProperty not configurable
+Pass	localStorage: get with symbol on prototype
+Pass	localStorage: delete existing property
+Pass	localStorage: delete non-existent property
+Pass	sessionStorage: plain set + get (loose)
+Pass	sessionStorage: plain set + get (strict)
+Pass	sessionStorage: defineProperty + get
+Pass	sessionStorage: defineProperty not configurable
+Pass	sessionStorage: get with symbol on prototype
+Pass	sessionStorage: delete existing property
+Pass	sessionStorage: delete non-existent property
