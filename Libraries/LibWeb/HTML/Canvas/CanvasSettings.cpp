@@ -7,6 +7,7 @@
 
 #include <AK/FlyString.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/HTML/Canvas/CanvasSettings.h>
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2dsettings
