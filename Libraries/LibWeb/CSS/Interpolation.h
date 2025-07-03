@@ -8,6 +8,7 @@
 
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -28,6 +29,6 @@ RefPtr<CSSStyleValue const> interpolate_repeatable_list(DOM::Element&, Calculati
 RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element&, CalculationContext const&, CSSStyleValue const& from, CSSStyleValue const& to, float delta, AllowDiscrete);
 RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element&, CSSStyleValue const& from, CSSStyleValue const& to, float delta, AllowDiscrete);
 
-Color interpolate_color(Color from, Color to, float delta);
+Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax);
 
 }

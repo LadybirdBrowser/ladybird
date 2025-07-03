@@ -595,23 +595,36 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
     return StyleValueList::create({ TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d, move(values)) }, StyleValueList::Separator::Comma);
 }
 
-Color interpolate_color(Color from, Color to, float delta)
+Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax)
 {
+    // https://drafts.csswg.org/css-color/#interpolation
+    // FIXME: Handle all interpolation methods.
+    // FIXME: Handle "analogous", "missing", and "powerless" components, somehow.
+
     // https://drafts.csswg.org/css-color/#interpolation-space
     // If the host syntax does not define what color space interpolation should take place in, it defaults to Oklab.
     // However, user agents must handle interpolation between legacy sRGB color formats (hex colors, named colors,
     // rgb(), hsl() or hwb() and the equivalent alpha-including forms) in gamma-encoded sRGB space.  This provides
     // Web compatibility; legacy sRGB content interpolates in the sRGB space by default.
-    // FIXME: Use srgb by default for these, once we can distinguish what form a color was specified in.
-    auto from_oklab = from.to_oklab();
-    auto to_oklab = to.to_oklab();
 
-    auto color = Color::from_oklab(
-        interpolate_raw(from_oklab.L, to_oklab.L, delta),
-        interpolate_raw(from_oklab.a, to_oklab.a, delta),
-        interpolate_raw(from_oklab.b, to_oklab.b, delta));
-    color.set_alpha(interpolate_raw(from.alpha(), to.alpha(), delta));
-    return color;
+    Color result;
+    if (syntax == ColorSyntax::Modern) {
+        auto from_oklab = from.to_oklab();
+        auto to_oklab = to.to_oklab();
+
+        result = Color::from_oklab(
+            interpolate_raw(from_oklab.L, to_oklab.L, delta),
+            interpolate_raw(from_oklab.a, to_oklab.a, delta),
+            interpolate_raw(from_oklab.b, to_oklab.b, delta));
+    } else {
+        result = Color {
+            interpolate_raw(from.red(), to.red(), delta),
+            interpolate_raw(from.green(), to.green(), delta),
+            interpolate_raw(from.blue(), to.blue(), delta),
+        };
+    }
+    result.set_alpha(interpolate_raw(from.alpha(), to.alpha(), delta));
+    return result;
 }
 
 RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, CalculationContext const& calculation_context, CSSStyleValue const& from, CSSStyleValue const& to, float delta, AllowDiscrete allow_discrete)
@@ -675,8 +688,13 @@ RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, Calcul
         auto interpolated_spread_distance = interpolate_value(element, calculation_context, from_shadow.spread_distance(), to_shadow.spread_distance(), delta, allow_discrete);
         if (!interpolated_offset_x || !interpolated_offset_y || !interpolated_blur_radius || !interpolated_spread_distance)
             return {};
+        auto color_syntax = ColorSyntax::Legacy;
+        if ((!from_shadow.color()->is_keyword() && from_shadow.color()->as_color().color_syntax() == ColorSyntax::Modern)
+            || (!to_shadow.color()->is_keyword() && to_shadow.color()->as_color().color_syntax() == ColorSyntax::Modern)) {
+            color_syntax = ColorSyntax::Modern;
+        }
         auto result_shadow = ShadowStyleValue::create(
-            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color(layout_node, resolution_context), to_shadow.color()->to_color(layout_node, resolution_context), delta), ColorSyntax::Modern),
+            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color(layout_node, resolution_context), to_shadow.color()->to_color(layout_node, resolution_context), delta, color_syntax), ColorSyntax::Modern),
             *interpolated_offset_x,
             *interpolated_offset_y,
             *interpolated_blur_radius,
@@ -794,7 +812,12 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
             resolution_context.length_resolution_context = Length::ResolutionContext::for_layout_node(*node);
         }
 
-        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node, resolution_context), to.to_color(layout_node, resolution_context), delta), ColorSyntax::Modern);
+        auto color_syntax = ColorSyntax::Legacy;
+        if ((!from.is_keyword() && from.as_color().color_syntax() == ColorSyntax::Modern)
+            || (!to.is_keyword() && to.as_color().color_syntax() == ColorSyntax::Modern)) {
+            color_syntax = ColorSyntax::Modern;
+        }
+        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node, resolution_context), to.to_color(layout_node, resolution_context), delta, color_syntax), ColorSyntax::Modern);
     }
     case CSSStyleValue::Type::Edge: {
         auto resolved_from = from.as_edge().resolved_value(calculation_context);

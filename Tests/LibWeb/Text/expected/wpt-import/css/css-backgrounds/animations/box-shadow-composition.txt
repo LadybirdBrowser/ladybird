@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 40 tests
 
-2 Pass
-38 Fail
-Fail	Compositing: property <box-shadow> underlying [undefined] from replace [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (-0.3) should be [rgb(70, 70, 70 ) 7px 14px 21px 28px]
+5 Pass
+35 Fail
+Pass	Compositing: property <box-shadow> underlying [undefined] from replace [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (-0.3) should be [rgb(70, 70, 70 ) 7px 14px 21px 28px]
 Pass	Compositing: property <box-shadow> underlying [undefined] from replace [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (0) should be [rgb(100, 100, 100) 10px 20px 30px 40px]
-Fail	Compositing: property <box-shadow> underlying [undefined] from replace [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (0.5) should be [rgb(150, 150, 150) 15px 30px 45px 60px]
+Pass	Compositing: property <box-shadow> underlying [undefined] from replace [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (0.5) should be [rgb(150, 150, 150) 15px 30px 45px 60px]
 Pass	Compositing: property <box-shadow> underlying [undefined] from replace [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (1) should be [rgb(200, 200, 200) 20px 40px 60px 80px]
-Fail	Compositing: property <box-shadow> underlying [undefined] from replace [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (1.5) should be [rgb(250, 250, 250) 25px 50px 75px 100px]
+Pass	Compositing: property <box-shadow> underlying [undefined] from replace [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (1.5) should be [rgb(250, 250, 250) 25px 50px 75px 100px]
 Fail	Compositing: property <box-shadow> underlying [rgb(10, 20, 30) 1px 2px 3px 4px] from add [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (-0.3) should be [rgb(10, 20, 30) 1px 2px 3px 4px, rgb(70, 70, 70) 7px 14px 21px 28px]
 Fail	Compositing: property <box-shadow> underlying [rgb(10, 20, 30) 1px 2px 3px 4px] from add [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (0) should be [rgb(10, 20, 30) 1px 2px 3px 4px, rgb(100, 100, 100) 10px 20px 30px 40px]
 Fail	Compositing: property <box-shadow> underlying [rgb(10, 20, 30) 1px 2px 3px 4px] from add [rgb(100, 100, 100) 10px 20px 30px 40px] to add [rgb(200, 200, 200) 20px 40px 60px 80px] at (0.5) should be [rgb(10, 20, 30) 1px 2px 3px 4px, rgb(150, 150, 150) 15px 30px 45px 60px]
