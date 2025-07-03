@@ -52,16 +52,26 @@ Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value, Ca
         return normalized(style_value.as_angle().angle().to_degrees());
 
     if (style_value.is_calculated()) {
-        if (style_value.as_calculated().resolves_to_number())
-            return normalized(style_value.as_calculated().resolve_number_deprecated(resolution_context).value());
+        if (style_value.as_calculated().resolves_to_number()) {
+            auto maybe_number = style_value.as_calculated().resolve_number(resolution_context);
 
-        if (style_value.as_calculated().resolves_to_angle())
-            return normalized(style_value.as_calculated().resolve_angle_deprecated(resolution_context).value().to_degrees());
+            if (!maybe_number.has_value())
+                return {};
+
+            return normalized(maybe_number.value());
+        }
+
+        if (style_value.as_calculated().resolves_to_angle()) {
+            auto maybe_angle = style_value.as_calculated().resolve_angle(resolution_context);
+
+            if (!maybe_angle.has_value())
+                return {};
+
+            return normalized(maybe_angle.value().to_degrees());
+        }
     }
-    if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
-        return 0;
 
-    return {};
+    return 0;
 }
 
 Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const& style_value, float one_hundred_percent_value, CalculationResolutionContext const& resolution_context)
@@ -79,16 +89,26 @@ Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const
 
     if (style_value.is_calculated()) {
         auto const& calculated = style_value.as_calculated();
-        if (calculated.resolves_to_number())
-            return calculated.resolve_number_deprecated(resolution_context).value();
-        if (calculated.resolves_to_percentage())
-            return normalize_percentage(calculated.resolve_percentage_deprecated(resolution_context).value());
+        if (calculated.resolves_to_number()) {
+            auto maybe_number = calculated.resolve_number(resolution_context);
+
+            if (!maybe_number.has_value())
+                return {};
+
+            return maybe_number.value();
+        }
+
+        if (calculated.resolves_to_percentage()) {
+            auto percentage = calculated.resolve_percentage(resolution_context);
+
+            if (!percentage.has_value())
+                return {};
+
+            return normalize_percentage(percentage.value());
+        }
     }
 
-    if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
-        return 0;
-
-    return {};
+    return 0;
 }
 
 Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value, CalculationResolutionContext const& resolution_context)
@@ -108,16 +128,29 @@ Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value, 
 
     if (style_value.is_calculated()) {
         auto const& calculated = style_value.as_calculated();
-        if (calculated.resolves_to_number())
-            return normalized(calculated.resolve_number_deprecated(resolution_context).value());
-        if (calculated.resolves_to_percentage())
-            return normalized(calculated.resolve_percentage_deprecated(resolution_context).value().as_fraction());
+        if (calculated.resolves_to_number()) {
+            auto maybe_number = calculated.resolve_number(resolution_context);
+
+            if (!maybe_number.has_value())
+                return {};
+
+            return normalized(maybe_number.value());
+        }
+
+        if (calculated.resolves_to_percentage()) {
+            auto percentage = calculated.resolve_percentage(resolution_context);
+
+            if (!percentage.has_value())
+                return {};
+
+            return normalized(percentage.value().as_fraction());
+        }
     }
 
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
         return 0;
 
-    return {};
+    return 1;
 }
 
 void CSSColorValue::serialize_color_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min, Optional<double> clamp_max) const
@@ -130,7 +163,16 @@ void CSSColorValue::serialize_color_component(StringBuilder& builder, Serializat
         builder.append(component.to_string(mode));
         return;
     }
-    auto resolved_value = resolve_with_reference_value(component, one_hundred_percent_value, {}).value_or(0);
+
+    auto maybe_resolved_value = resolve_with_reference_value(component, one_hundred_percent_value, {});
+
+    if (!maybe_resolved_value.has_value()) {
+        builder.append(component.to_string(mode));
+        return;
+    }
+
+    auto resolved_value = maybe_resolved_value.value();
+
     if (clamp_min.has_value() && resolved_value < *clamp_min)
         resolved_value = *clamp_min;
     if (clamp_max.has_value() && resolved_value > *clamp_max)
@@ -153,8 +195,15 @@ void CSSColorValue::serialize_alpha_component(StringBuilder& builder, Serializat
         builder.append(component.to_string(mode));
         return;
     }
-    auto resolved_value = resolve_alpha(component, {}).value_or(0);
-    builder.appendff("{}", resolved_value);
+
+    auto maybe_resolved_value = resolve_alpha(component, {});
+
+    if (!maybe_resolved_value.has_value()) {
+        builder.append(component.to_string(mode));
+        return;
+    }
+
+    builder.appendff("{}", maybe_resolved_value.value());
 }
 
 void CSSColorValue::serialize_hue_component(StringBuilder& builder, SerializationMode mode, CSSStyleValue const& component) const
@@ -167,7 +216,15 @@ void CSSColorValue::serialize_hue_component(StringBuilder& builder, Serializatio
         builder.append(component.to_string(mode));
         return;
     }
-    builder.appendff("{:.4}", resolve_hue(component, {}).value_or(0));
+
+    auto maybe_resolved_value = resolve_hue(component, {});
+
+    if (!maybe_resolved_value.has_value()) {
+        builder.append(component.to_string(mode));
+        return;
+    }
+
+    builder.appendff("{:.4}", maybe_resolved_value.value());
 }
 
 }
