@@ -1677,7 +1677,7 @@ void Document::obtain_theme_color()
                     resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*html_element()->layout_node());
                 }
 
-                theme_color = css_value->to_color(root_node, resolution_context);
+                theme_color = css_value->to_color(root_node, resolution_context).value();
                 return TraversalDecision::Break;
             }
         }

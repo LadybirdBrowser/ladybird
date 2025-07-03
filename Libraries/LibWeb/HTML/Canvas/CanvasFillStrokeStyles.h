@@ -52,7 +52,7 @@ public:
                         resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*context->layout_node());
                     }
 
-                    auto parsedValue = style_value->to_color(layout_node, resolution_context);
+                    auto parsedValue = style_value->to_color(layout_node, resolution_context).value_or(Color::Black);
 
                     // 4. Set this's fill style to parsedValue.
                     my_drawing_state().fill_style = parsedValue;
@@ -105,7 +105,7 @@ public:
                         resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*context->layout_node());
                     }
 
-                    auto parsedValue = style_value->to_color(layout_node, resolution_context);
+                    auto parsedValue = style_value->to_color(layout_node, resolution_context).value_or(Color::Black);
 
                     // 4. Set this's stroke style to parsedValue.
                     my_drawing_state().stroke_style = parsedValue;

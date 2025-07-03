@@ -688,13 +688,25 @@ RefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, Calcul
         auto interpolated_spread_distance = interpolate_value(element, calculation_context, from_shadow.spread_distance(), to_shadow.spread_distance(), delta, allow_discrete);
         if (!interpolated_offset_x || !interpolated_offset_y || !interpolated_blur_radius || !interpolated_spread_distance)
             return {};
+
         auto color_syntax = ColorSyntax::Legacy;
         if ((!from_shadow.color()->is_keyword() && from_shadow.color()->as_color().color_syntax() == ColorSyntax::Modern)
             || (!to_shadow.color()->is_keyword() && to_shadow.color()->as_color().color_syntax() == ColorSyntax::Modern)) {
             color_syntax = ColorSyntax::Modern;
         }
+
+        // FIXME: If we aren't able to resolve the colors here, we should postpone interpolation until we can (perhaps
+        //        by creating something similar to a ColorMixStyleValue).
+        auto from_color = from_shadow.color()->to_color(layout_node, resolution_context);
+        auto to_color = to_shadow.color()->to_color(layout_node, resolution_context);
+
+        Color interpolated_color = Color::Black;
+
+        if (from_color.has_value() && to_color.has_value())
+            interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
+
         auto result_shadow = ShadowStyleValue::create(
-            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color(layout_node, resolution_context), to_shadow.color()->to_color(layout_node, resolution_context), delta, color_syntax), ColorSyntax::Modern),
+            CSSColorValue::create_from_color(interpolated_color, ColorSyntax::Modern),
             *interpolated_offset_x,
             *interpolated_offset_y,
             *interpolated_blur_radius,
@@ -817,7 +829,18 @@ static RefPtr<CSSStyleValue const> interpolate_value_impl(DOM::Element& element,
             || (!to.is_keyword() && to.as_color().color_syntax() == ColorSyntax::Modern)) {
             color_syntax = ColorSyntax::Modern;
         }
-        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node, resolution_context), to.to_color(layout_node, resolution_context), delta, color_syntax), ColorSyntax::Modern);
+
+        // FIXME: If we aren't able to resolve the colors here, we should postpone interpolation until we can (perhaps
+        //        by creating something similar to a ColorMixStyleValue).
+        auto from_color = from.to_color(layout_node, resolution_context);
+        auto to_color = to.to_color(layout_node, resolution_context);
+
+        Color interpolated_color = Color::Black;
+
+        if (from_color.has_value() && to_color.has_value())
+            interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
+
+        return CSSColorValue::create_from_color(interpolated_color, ColorSyntax::Modern);
     }
     case CSSStyleValue::Type::Edge: {
         auto resolved_from = from.as_edge().resolved_value(calculation_context);

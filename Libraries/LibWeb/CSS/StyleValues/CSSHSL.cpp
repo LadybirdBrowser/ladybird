@@ -11,14 +11,17 @@
 
 namespace Web::CSS {
 
-Color CSSHSL::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSHSL::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
-    auto const h_val = resolve_hue(m_properties.h, resolution_context).value_or(0);
-    auto const s_val = resolve_with_reference_value(m_properties.s, 100.0, resolution_context).value_or(0);
-    auto const l_val = resolve_with_reference_value(m_properties.l, 100.0, resolution_context).value_or(0);
-    auto const alpha_val = resolve_alpha(m_properties.alpha, resolution_context).value_or(1);
+    auto h_val = resolve_hue(m_properties.h, resolution_context);
+    auto s_val = resolve_with_reference_value(m_properties.s, 100.0, resolution_context);
+    auto l_val = resolve_with_reference_value(m_properties.l, 100.0, resolution_context);
+    auto alpha_val = resolve_alpha(m_properties.alpha, resolution_context);
 
-    return Color::from_hsla(h_val, s_val / 100.0f, l_val / 100.0f, alpha_val);
+    if (!h_val.has_value() || !s_val.has_value() || !l_val.has_value() || !alpha_val.has_value())
+        return {};
+
+    return Color::from_hsla(h_val.value(), s_val.value() / 100.0f, l_val.value() / 100.0f, alpha_val.value());
 }
 
 bool CSSHSL::equals(CSSStyleValue const& other) const
@@ -35,8 +38,11 @@ bool CSSHSL::equals(CSSStyleValue const& other) const
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
 String CSSHSL::to_string(SerializationMode) const
 {
+    if (auto color = to_color({}, {}); color.has_value())
+        return serialize_a_srgb_value(color.value());
+
     // FIXME: Do this properly, taking unresolved calculated values into account.
-    return serialize_a_srgb_value(to_color({}, {}));
+    return ""_string;
 }
 
 }

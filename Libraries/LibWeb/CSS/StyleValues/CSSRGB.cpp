@@ -14,7 +14,7 @@
 
 namespace Web::CSS {
 
-Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
+Optional<Color> CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolutionContext const& resolution_context) const
 {
     auto resolve_rgb_to_u8 = [&resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
         // <number> | <percentage> | none
@@ -32,16 +32,26 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolu
 
         if (style_value.is_calculated()) {
             auto const& calculated = style_value.as_calculated();
-            if (calculated.resolves_to_number())
-                return normalized(calculated.resolve_number_deprecated(resolution_context).value());
-            if (calculated.resolves_to_percentage())
-                return normalized(calculated.resolve_percentage_deprecated(resolution_context).value().value() * 255 / 100);
+            if (calculated.resolves_to_number()) {
+                auto maybe_number = calculated.resolve_number(resolution_context);
+
+                if (!maybe_number.has_value())
+                    return {};
+
+                return normalized(maybe_number.value());
+            }
+
+            if (calculated.resolves_to_percentage()) {
+                auto maybe_percentage = calculated.resolve_percentage(resolution_context);
+
+                if (!maybe_percentage.has_value())
+                    return {};
+
+                return normalized(maybe_percentage.value().value() * 255 / 100);
+            }
         }
 
-        if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
-            return 0;
-
-        return {};
+        return 0;
     };
 
     auto resolve_alpha_to_u8 = [&resolution_context](CSSStyleValue const& style_value) -> Optional<u8> {
@@ -51,12 +61,15 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>, CalculationResolu
         return {};
     };
 
-    u8 const r_val = resolve_rgb_to_u8(m_properties.r).value_or(0);
-    u8 const g_val = resolve_rgb_to_u8(m_properties.g).value_or(0);
-    u8 const b_val = resolve_rgb_to_u8(m_properties.b).value_or(0);
-    u8 const alpha_val = resolve_alpha_to_u8(m_properties.alpha).value_or(255);
+    auto r_val = resolve_rgb_to_u8(m_properties.r);
+    auto g_val = resolve_rgb_to_u8(m_properties.g);
+    auto b_val = resolve_rgb_to_u8(m_properties.b);
+    auto alpha_val = resolve_alpha_to_u8(m_properties.alpha);
 
-    return Color(r_val, g_val, b_val, alpha_val);
+    if (!r_val.has_value() || !g_val.has_value() || !b_val.has_value() || !alpha_val.has_value())
+        return {};
+
+    return Color(r_val.value(), g_val.value(), b_val.value(), alpha_val.value());
 }
 
 bool CSSRGB::equals(CSSStyleValue const& other) const
@@ -73,10 +86,14 @@ bool CSSRGB::equals(CSSStyleValue const& other) const
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
 String CSSRGB::to_string(SerializationMode mode) const
 {
-    // FIXME: Do this properly, taking unresolved calculated values into account.
     if (mode != SerializationMode::ResolvedValue && m_properties.name.has_value())
         return m_properties.name.value().to_string().to_ascii_lowercase();
-    return serialize_a_srgb_value(to_color({}, {}));
+
+    if (auto color = to_color({}, {}); color.has_value())
+        return serialize_a_srgb_value(color.value());
+
+    // FIXME: Do this properly, taking unresolved calculated values into account.
+    return ""_string;
 }
 
 }
