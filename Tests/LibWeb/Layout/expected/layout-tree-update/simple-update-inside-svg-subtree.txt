@@ -14,4 +14,4 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x150]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
         SVGGraphicsPaintable (SVGGraphicsBox<symbol>) [8,8 300x150]
-          PaintableWithLines (InlineNode<set>#set)
+          PaintableWithLines (InlineNode<set>#set) [8,8 0x18]

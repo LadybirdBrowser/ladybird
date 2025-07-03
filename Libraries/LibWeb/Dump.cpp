@@ -919,17 +919,14 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
 
     builder.appendff("{}{} ({})", paintable.class_name(), color_off, paintable.layout_node().debug_description());
 
-    if (paintable.layout_node().is_box()) {
-        auto const& paintable_box = static_cast<Painting::PaintableBox const&>(paintable);
-        builder.appendff(" {}", paintable_box.absolute_border_box_rect());
+    if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
+        builder.appendff(" {}", paintable_box->absolute_border_box_rect());
 
-        if (paintable_box.has_scrollable_overflow()) {
-            builder.appendff(" overflow: {}", paintable_box.scrollable_overflow_rect());
-        }
+        if (paintable_box->has_scrollable_overflow())
+            builder.appendff(" overflow: {}", paintable_box->scrollable_overflow_rect());
 
-        if (!paintable_box.scroll_offset().is_zero()) {
-            builder.appendff(" scroll-offset: {}", paintable_box.scroll_offset());
-        }
+        if (!paintable_box->scroll_offset().is_zero())
+            builder.appendff(" scroll-offset: {}", paintable_box->scroll_offset());
     }
     builder.append("\n"sv);
     for (auto const* child = paintable.first_child(); child; child = child->next_sibling()) {

@@ -151,11 +151,11 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,192 744x0]
         PaintableWithLines (BlockContainer<P>) [48,192 744x18]
-          PaintableWithLines (InlineNode<SPAN>)
+          PaintableWithLines (InlineNode<SPAN>) [48,192 35.265625x18]
             TextPaintable (TextNode<#text>)
-            PaintableWithLines (InlineNode<SPAN>)
+            PaintableWithLines (InlineNode<SPAN>) [59.5625,192 23.703125x18]
               TextPaintable (TextNode<#text>)
-              PaintableWithLines (InlineNode<SPAN>)
+              PaintableWithLines (InlineNode<SPAN>) [70.65625,192 12.609375x18]
                 TextPaintable (TextNode<#text>)
         PaintableWithLines (ListItemBox<LI>) [48,226 744x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [15.09375,226.5 20.90625x17]
