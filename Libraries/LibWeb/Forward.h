@@ -969,6 +969,7 @@ class SVGElement;
 class SVGEllipseElement;
 class SVGFEBlendElement;
 class SVGFEFloodElement;
+class SVGFEGaussianBlurElement;
 class SVGFilterElement;
 class SVGForeignObjectElement;
 class SVGGeometryElement;
