@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 70 tests
 
-48 Pass
-22 Fail
+70 Pass
 Pass	e.style['color'] = "rgb(none none none)" should set the property value
 Pass	e.style['color'] = "rgb(none none none / none)" should set the property value
 Pass	e.style['color'] = "rgb(128 none none)" should set the property value
@@ -52,25 +51,25 @@ Pass	e.style['color'] = "rgb(calc(0 / 0), 0, 0)" should set the property value
 Pass	e.style['color'] = "rgb(0, calc(0 / 0), 0)" should set the property value
 Pass	e.style['color'] = "rgb(0, 0, calc(0 / 0))" should set the property value
 Pass	e.style['color'] = "rgba(0, 0, 0, calc(0 / 0))" should set the property value
-Fail	e.style['color'] = "rgb(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)" should set the property value
-Fail	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)" should set the property value
-Fail	e.style['color'] = "rgb(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)" should set the property value
-Fail	e.style['color'] = "rgba(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)" should set the property value
-Fail	e.style['color'] = "rgb(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
-Fail	e.style['color'] = "rgba(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
-Fail	e.style['color'] = "rgb(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
-Fail	e.style['color'] = "rgba(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
-Fail	e.style['color'] = "rgb(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)" should set the property value
-Fail	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)" should set the property value
-Fail	e.style['color'] = "rgb(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)" should set the property value
-Fail	e.style['color'] = "rgba(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)" should set the property value
-Fail	e.style['color'] = "rgb(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
-Fail	e.style['color'] = "rgba(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
-Fail	e.style['color'] = "rgb(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
-Fail	e.style['color'] = "rgba(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
-Fail	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)) 0 0% / 0.5)" should set the property value
-Fail	e.style['color'] = "rgba(0% 0 0% / calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
-Fail	e.style['color'] = "rgba(calc(50 + (sign(1em - 10px) * 10)) 400 -400 / 0.5)" should set the property value
-Fail	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)) 400% -400% / 0.5)" should set the property value
-Fail	e.style['color'] = "rgba(calc(50 + (sign(1em - 10px) * 10)), 400, -400, 0.5)" should set the property value
-Fail	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)), 400%, -400%, 0.5)" should set the property value
+Pass	e.style['color'] = "rgb(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)" should set the property value
+Pass	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)" should set the property value
+Pass	e.style['color'] = "rgb(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)" should set the property value
+Pass	e.style['color'] = "rgba(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)" should set the property value
+Pass	e.style['color'] = "rgb(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
+Pass	e.style['color'] = "rgba(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
+Pass	e.style['color'] = "rgb(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
+Pass	e.style['color'] = "rgba(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
+Pass	e.style['color'] = "rgb(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)" should set the property value
+Pass	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)" should set the property value
+Pass	e.style['color'] = "rgb(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)" should set the property value
+Pass	e.style['color'] = "rgba(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)" should set the property value
+Pass	e.style['color'] = "rgb(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
+Pass	e.style['color'] = "rgba(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
+Pass	e.style['color'] = "rgb(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
+Pass	e.style['color'] = "rgba(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
+Pass	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)) 0 0% / 0.5)" should set the property value
+Pass	e.style['color'] = "rgba(0% 0 0% / calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
+Pass	e.style['color'] = "rgba(calc(50 + (sign(1em - 10px) * 10)) 400 -400 / 0.5)" should set the property value
+Pass	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)) 400% -400% / 0.5)" should set the property value
+Pass	e.style['color'] = "rgba(calc(50 + (sign(1em - 10px) * 10)), 400, -400, 0.5)" should set the property value
+Pass	e.style['color'] = "rgba(calc(50% + (sign(1em - 10px) * 10%)), 400%, -400%, 0.5)" should set the property value
