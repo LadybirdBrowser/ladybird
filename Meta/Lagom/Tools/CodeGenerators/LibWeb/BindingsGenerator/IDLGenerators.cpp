@@ -189,8 +189,6 @@ static bool is_nullable_frozen_array_of_single_type(Type const& type, StringView
     return parameters.first()->name() == type_name;
 }
 
-CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface);
-
 static ByteString union_type_to_variant(UnionType const& union_type, Interface const& interface)
 {
     StringBuilder builder;
