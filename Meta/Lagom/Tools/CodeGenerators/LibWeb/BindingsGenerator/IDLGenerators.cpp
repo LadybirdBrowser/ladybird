@@ -4529,7 +4529,25 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
 
     if (interface.set_entry_type.has_value()) {
         auto setlike_generator = generator.fork();
-        setlike_generator.set("value_type", interface.set_entry_type.value()->name());
+        auto const& set_entry_type = *interface.set_entry_type.value();
+        setlike_generator.set("value_type", set_entry_type.name());
+
+        if (set_entry_type.is_string()) {
+            setlike_generator.set("value_type_check", R"~~~(
+    if (!value_arg.is_string()) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "String");
+    }
+)~~~");
+        } else {
+            setlike_generator.set("value_type_check",
+                MUST(String::formatted(R"~~~(
+    if (!value_arg.is_object() || !is<{0}>(value_arg.as_object())) {{
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{0}");
+    }}
+)~~~",
+                    set_entry_type.name())));
+        }
+
         setlike_generator.append(R"~~~(
 // https://webidl.spec.whatwg.org/#js-set-size
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::get_size)
@@ -4595,9 +4613,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::has)
     GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
-    if (!value_arg.is_object() || !is<@value_type@>(value_arg.as_object())) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
-    }
+    @value_type_check@
 
     // FIXME: If value is -0, set value to +0.
     // What? Which interfaces have a number as their set type?
@@ -4617,9 +4633,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::add)
     GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
-    if (!value_arg.is_object() || !is<@value_type@>(value_arg.as_object())) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
-    }
+    @value_type_check@
 
     // FIXME: If value is -0, set value to +0.
     // What? Which interfaces have a number as their set type?
@@ -4641,9 +4655,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::delete_)
     GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
-    if (!value_arg.is_object() || !is<@value_type@>(value_arg.as_object())) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
-    }
+    @value_type_check@
 
     // FIXME: If value is -0, set value to +0.
     // What? Which interfaces have a number as their set type?
