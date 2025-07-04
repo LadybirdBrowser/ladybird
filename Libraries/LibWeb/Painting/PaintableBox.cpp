@@ -1119,13 +1119,8 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
         return stacking_context()->hit_test(position, type, callback);
     }
 
-    for (auto const* child = last_child(); child; child = child->previous_sibling()) {
-        auto z_index = child->computed_values().z_index();
-        if (child->layout_node().is_positioned() && z_index.value_or(0) == 0)
-            continue;
-        if (child->hit_test(position, type, callback) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-    }
+    if (hit_test_children(position, type, callback) == TraversalDecision::Break)
+        return TraversalDecision::Break;
 
     if (!visible_for_hit_testing())
         return TraversalDecision::Continue;
@@ -1174,6 +1169,17 @@ Optional<HitTestResult> PaintableBox::hit_test(CSSPixelPoint position, HitTestTy
     return result;
 }
 
+TraversalDecision PaintableBox::hit_test_children(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
+{
+    for (auto const* child = last_child(); child; child = child->previous_sibling()) {
+        if (child->layout_node().is_positioned() && child->computed_values().z_index().value_or(0) == 0)
+            continue;
+        if (child->hit_test(position, type, callback) == TraversalDecision::Break)
+            return TraversalDecision::Break;
+    }
+    return TraversalDecision::Continue;
+}
+
 TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
@@ -1207,10 +1213,8 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (hit_test_scrollbars(transformed_position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
-    for (auto const* child = last_child(); child; child = child->previous_sibling()) {
-        if (child->hit_test(position, type, callback) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-    }
+    if (hit_test_children(position, type, callback) == TraversalDecision::Break)
+        return TraversalDecision::Break;
 
     if (!visible_for_hit_testing())
         return TraversalDecision::Continue;
