@@ -43,10 +43,9 @@ void LineBuilder::break_line(ForcedBreak forced_break, Optional<CSSPixels> next_
         begin_new_line(true, break_count == 0);
         break_count++;
         floats_intrude_at_current_y = m_context.any_floats_intrude_at_block_offset(m_current_block_offset);
-    } while ((floats_intrude_at_current_y && !m_context.can_fit_new_line_at_block_offset(m_current_block_offset))
-        || (next_item_width.has_value()
-            && next_item_width.value() > m_available_width_for_current_line
-            && floats_intrude_at_current_y));
+    } while (floats_intrude_at_current_y
+        && (!m_context.can_fit_new_line_at_block_offset(m_current_block_offset)
+            || (next_item_width.value_or(0) > m_available_width_for_current_line)));
 }
 
 void LineBuilder::begin_new_line(bool increment_y, bool is_first_break_in_sequence)
