@@ -351,6 +351,9 @@ public:
     CustomElementReactionQueue const* custom_element_reaction_queue() const { return m_custom_element_reaction_queue; }
     CustomElementReactionQueue& ensure_custom_element_reaction_queue();
 
+    HTML::CustomStateSet const* custom_state_set() const { return m_custom_state_set; }
+    HTML::CustomStateSet& ensure_custom_state_set();
+
     JS::ThrowCompletionOr<void> upgrade_element(GC::Ref<HTML::CustomElementDefinition> custom_element_definition);
     void try_to_upgrade();
 
@@ -586,6 +589,9 @@ private:
 
     // https://dom.spec.whatwg.org/#concept-element-is-value
     Optional<String> m_is_value;
+
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#states-set
+    GC::Ptr<HTML::CustomStateSet> m_custom_state_set;
 
     // https://www.w3.org/TR/intersection-observer/#dom-element-registeredintersectionobservers-slot
     // Element objects have an internal [[RegisteredIntersectionObservers]] slot, which is initialized to an empty list.
