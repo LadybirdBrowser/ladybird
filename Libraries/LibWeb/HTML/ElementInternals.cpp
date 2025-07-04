@@ -208,6 +208,13 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> ElementInternals::labels()
     return WebIDL::NotSupportedError::create(realm(), "FIXME: ElementInternals::labels()"_string);
 }
 
+// https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-states
+GC::Ptr<CustomStateSet> ElementInternals::states()
+{
+    // The states getter steps are to return this's target element's states set.
+    return m_target_element->ensure_custom_state_set();
+}
+
 void ElementInternals::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ElementInternals);

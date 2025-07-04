@@ -46,6 +46,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementName.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
+#include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
@@ -118,6 +119,7 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_class_list);
     visitor.visit(m_shadow_root);
     visitor.visit(m_custom_element_definition);
+    visitor.visit(m_custom_state_set);
     visitor.visit(m_cascaded_properties);
     visitor.visit(m_computed_properties);
     if (m_pseudo_element_data) {
@@ -3822,6 +3824,13 @@ auto Element::ensure_custom_element_reaction_queue() -> CustomElementReactionQue
     if (!m_custom_element_reaction_queue)
         m_custom_element_reaction_queue = make<CustomElementReactionQueue>();
     return *m_custom_element_reaction_queue;
+}
+
+HTML::CustomStateSet& Element::ensure_custom_state_set()
+{
+    if (!m_custom_state_set)
+        m_custom_state_set = HTML::CustomStateSet::create(realm(), *this);
+    return *m_custom_state_set;
 }
 
 CSS::StyleSheetList& Element::document_or_shadow_root_style_sheets()
