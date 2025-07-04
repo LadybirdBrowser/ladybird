@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#custom-state-pseudo-class" />
+    <title>:state() css selector applies to nth-of selectors</title>
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <custom-state id="myCE">First Element</custom-state>
+    <p id="mySibling">First Sibling</p>
+    <custom-state id="myCE2">Second Element</custom-state>
+    <p id="mySibling2">Second Sibling</p>
+    <style>
+      :nth-child(1), :nth-child(2) {
+        color: #f00;
+      }
+      :nth-child(2 of :state(--green)) {
+        color: #0f0;
+      }
+      :nth-child(2 of :state(--green)) + p {
+        color: #00f;
+      }
+    </style>
+    <script>
+    customElements.define('custom-state', class extends HTMLElement {
+      connectedCallback() {
+        this.elementInternals = this.attachInternals();
+      }
+    });
+
+    test(function(t) {
+        t.add_cleanup(() => { myCE.elementInternals.states.delete('--green') });
+        t.add_cleanup(() => { myCE2.elementInternals.states.delete('--green') });
+        assert_false(myCE.elementInternals.states.has('--green'));
+        assert_equals(getComputedStyle(myCE).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(myCE2).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling2).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        myCE.elementInternals.states.add('--green');
+        assert_true(myCE.elementInternals.states.has('--green'));
+        assert_equals(getComputedStyle(myCE).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(myCE2).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling2).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        myCE2.elementInternals.states.add('--green');
+        assert_true(myCE2.elementInternals.states.has('--green'));
+        assert_equals(getComputedStyle(myCE).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(myCE2).getPropertyValue('color'), 'rgb(0, 255, 0)');
+        assert_equals(getComputedStyle(mySibling).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling2).getPropertyValue('color'), 'rgb(0, 0, 255)');
+    }, "state selector has influence on nth-of when state is applied");
+
+    test(function(t) {
+        t.add_cleanup(() => { myCE.elementInternals.states.delete('--foo') });
+        t.add_cleanup(() => { myCE2.elementInternals.states.delete('--foo') });
+        myCE.elementInternals.states.add('--foo');
+        myCE2.elementInternals.states.add('--foo');
+        assert_false(myCE.elementInternals.states.has('--green'));
+        assert_true(myCE.elementInternals.states.has('--foo'));
+        assert_false(myCE2.elementInternals.states.has('--green'));
+        assert_true(myCE2.elementInternals.states.has('--foo'));
+        assert_equals(getComputedStyle(myCE).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(myCE2).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling2).getPropertyValue('color'), 'rgb(255, 0, 0)');
+    }, "state selector only applies on given ident");
+
+    test(function(t) {
+        myCE.elementInternals.states.add('--green');
+        myCE.elementInternals.states.add('--foo');
+        myCE2.elementInternals.states.add('--green');
+        myCE2.elementInternals.states.add('--foo');
+        assert_true(myCE.elementInternals.states.has('--green'));
+        assert_true(myCE.elementInternals.states.has('--foo'));
+        assert_equals(getComputedStyle(myCE).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(myCE2).getPropertyValue('color'), 'rgb(0, 255, 0)');
+        assert_equals(getComputedStyle(mySibling).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling2).getPropertyValue('color'), 'rgb(0, 0, 255)');
+        myCE.elementInternals.states.clear();
+        assert_equals(getComputedStyle(myCE).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(myCE2).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling).getPropertyValue('color'), 'rgb(255, 0, 0)');
+        assert_equals(getComputedStyle(mySibling2).getPropertyValue('color'), 'rgb(255, 0, 0)');
+    }, "style is invalided on clear()");
+
+    </script>
+  </body>
+</html>
