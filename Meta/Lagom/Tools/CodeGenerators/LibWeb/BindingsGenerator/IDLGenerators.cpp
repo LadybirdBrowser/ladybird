@@ -4597,7 +4597,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::has)
     GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
-    if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
+    if (!value_arg.is_object() || !is<@value_type@>(value_arg.as_object())) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
     }
 
@@ -4619,7 +4619,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::add)
     GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
-    if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
+    if (!value_arg.is_object() || !is<@value_type@>(value_arg.as_object())) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
     }
 
@@ -4643,7 +4643,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::delete_)
     GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
-    if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
+    if (!value_arg.is_object() || !is<@value_type@>(value_arg.as_object())) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
     }
 
