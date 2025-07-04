@@ -61,7 +61,7 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#navigate-html
-static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::NavigationParams const& navigation_params)
+static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::NavigationParams const& navigation_params, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing)
 {
     // To load an HTML document, given navigation params navigationParams:
 
@@ -74,7 +74,8 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     if (document->url_string() == "about:blank"_string
         && navigation_params.response->body()->length().value_or(0) == 0) {
         TRY(document->populate_with_html_head_and_body());
-        // Nothing else is added to the document, so mark it as loaded.
+        // NB: Nothing else is added to the document, so mark it as loaded and resolve the signal_to_continue_session_history_processing.
+        signal_to_continue_session_history_processing->resolve({});
         HTML::HTMLParser::the_end(document);
     }
 
@@ -92,8 +93,10 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     //    causes a load event to be fired.
     else {
         // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-        auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime_type = navigation_params.response->header_list()->extract_mime_type()](ByteBuffer data) {
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [document = document, data = move(data), url = url, mime_type] {
+        auto process_body = GC::create_function(document->heap(), [document, signal_to_continue_session_history_processing, url = navigation_params.response->url().value(), mime_type = navigation_params.response->header_list()->extract_mime_type()](ByteBuffer data) {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [signal_to_continue_session_history_processing, document = document, data = move(data), url = url, mime_type] {
+                // NB: If document is part of a session history entry's traversal, resolve the signal_to_continue_session_history_processing.
+                signal_to_continue_session_history_processing->resolve({});
                 auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data, mime_type);
                 parser->run(url);
             }));
@@ -112,7 +115,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-xml
-static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type)
+static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing)
 {
     // When faced with displaying an XML file inline, provided navigation params navigationParams and a string type, user agents
     // must follow the requirements defined in XML and Namespaces in XML, XML Media Types, DOM, and other relevant specifications
@@ -147,7 +150,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
     if (auto maybe_encoding = type.parameters().get("charset"sv); maybe_encoding.has_value())
         content_encoding = maybe_encoding.value();
 
-    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
+    auto process_body = GC::create_function(document->heap(), [document, signal_to_continue_session_history_processing, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
         Optional<TextCodec::Decoder&> decoder;
         // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
         // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
@@ -164,8 +167,10 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             dbgln("XML Document contains improperly-encoded characters");
             convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_utf16);
 
-            // NOTE: This ensures that the `load` event gets fired for the frame loading this document.
+            // NB: This ensures that the `load` event gets fired for the frame loading this document.
             document->completely_finish_loading();
+            // NB: If document is part of a session history entry's traversal, resolve the signal_to_continue_session_history_processing.
+            signal_to_continue_session_history_processing->resolve({});
             return;
         }
         auto source = decoder->to_utf8(data);
@@ -174,10 +179,14 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             dbgln("Failed to decode XML document: {}", source.error());
             convert_to_xml_error_document(document, Utf16String::formatted("Failed to decode XML document: {}", source.error()));
 
-            // NOTE: This ensures that the `load` event gets fired for the frame loading this document.
+            // NB: This ensures that the `load` event gets fired for the frame loading this document.
             document->completely_finish_loading();
+            // NB: If document is part of session history traversal, resolve the signal_to_continue_session_history_processing.
+            signal_to_continue_session_history_processing->resolve({});
             return;
         }
+        // NB: If document is part of session history traversal, resolve the signal_to_continue_session_history_processing.
+        signal_to_continue_session_history_processing->resolve({});
         XML::Parser parser(source.value(), { .preserve_cdata = true, .preserve_comments = true, .resolve_external_resource = resolve_xml_resource });
         XMLDocumentBuilder builder { document };
         auto result = parser.parse_with_listener(builder);
@@ -186,7 +195,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             dbgln("Failed to parse XML document: {}", result.error());
             convert_to_xml_error_document(document, Utf16String::formatted("Failed to parse XML document: {}", result.error()));
 
-            // NOTE: XMLDocumentBuilder ensures that the `load` event gets fired. We don't need to do anything else here.
+            // NB: XMLDocumentBuilder ensures that the `load` event gets fired. We don't need to do anything else here.
         }
     });
 
@@ -201,7 +210,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#navigate-text
-static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type)
+static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing)
 {
     // To load a text document, given a navigation params navigationParams and a string type:
 
@@ -228,10 +237,12 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually causes a
     //    load event to be fired.
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
+    auto process_body = GC::create_function(document->heap(), [document, signal_to_continue_session_history_processing, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
         auto encoding = run_encoding_sniffing_algorithm(document, data, mime);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
+        // NB: If document is part of session history traversal, resolve the signal_to_continue_session_history_processing.
+        signal_to_continue_session_history_processing->resolve({});
         auto parser = HTML::HTMLParser::create_for_scripting(document);
         parser->tokenizer().update_insertion_point();
 
@@ -266,7 +277,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#navigate-media
-static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type)
+static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing)
 {
     // To load a media document, given navigationParams and a string type:
 
@@ -351,7 +362,10 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     auto& realm = document->realm();
     navigation_params.response->body()->fully_read(
         realm,
-        GC::create_function(document->heap(), [document](ByteBuffer) { HTML::HTMLParser::the_end(document); }),
+        GC::create_function(document->heap(), [document, signal_to_continue_session_history_processing](ByteBuffer) { 
+            // NB: If document is part of session history traversal, resolve the signal_to_continue_session_history_processing.
+            signal_to_continue_session_history_processing->resolve({});
+            HTML::HTMLParser::the_end(document); }),
         GC::create_function(document->heap(), [](JS::Value) {}),
         GC::Ref { realm.global_object() });
 
@@ -396,10 +410,12 @@ bool can_load_document_with_type(MimeSniff::MimeType const& type)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#loading-a-document
-GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params)
+GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing)
 {
     // To load a document given navigation params navigationParams, source snapshot params sourceSnapshotParams,
     // and origin initiatorOrigin, perform the following steps. They return a Document or null.
+
+    // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
 
     // 1. Let type be the computed type of navigationParams's response.
     auto supplied_type = navigation_params.response->header_list()->extract_mime_type();
@@ -421,14 +437,14 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     // -> an HTML MIME type
     if (type.is_html()) {
         // Return the result of loading an HTML document, given navigationParams.
-        return load_html_document(navigation_params).release_value_but_fixme_should_propagate_errors();
+        return load_html_document(navigation_params, signal_to_continue_session_history_processing).release_value_but_fixme_should_propagate_errors();
     }
 
     // -> an XML MIME type that is not an explicitly supported XML MIME type
     //    FIXME: that is not an explicitly supported XML MIME type
     if (type.is_xml()) {
         // Return the result of loading an XML document given navigationParams and type.
-        return load_xml_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        return load_xml_document(navigation_params, type, signal_to_continue_session_history_processing).release_value_but_fixme_should_propagate_errors();
     }
 
     // -> a JavaScript MIME type
@@ -442,7 +458,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
         || type.essence() == "text/plain"_string
         || type.essence() == "text/vtt"_string) {
         // Return the result of loading a text document given navigationParams and type.
-        return load_text_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        return load_text_document(navigation_params, type, signal_to_continue_session_history_processing).release_value_but_fixme_should_propagate_errors();
     }
 
     // -> "multipart/x-mixed-replace"
@@ -455,7 +471,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     if (type.is_image()
         || type.is_audio_or_video()) {
         // Return the result of loading a media document given navigationParams and type.
-        return load_media_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        return load_media_document(navigation_params, type, signal_to_continue_session_history_processing).release_value_but_fixme_should_propagate_errors();
     }
 
     // -> "application/pdf"

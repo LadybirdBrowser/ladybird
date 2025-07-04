@@ -124,6 +124,7 @@ public:
         SourceSnapshotParams const& source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,
         UserNavigationInvolvement user_involvement,
+        NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing,
         Optional<String> navigation_id = {},
         NavigationParamsVariant navigation_params = Navigable::NullOrError {},
         ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
