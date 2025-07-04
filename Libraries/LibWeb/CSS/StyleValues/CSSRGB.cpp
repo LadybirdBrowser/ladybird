@@ -92,8 +92,20 @@ String CSSRGB::to_string(SerializationMode mode) const
     if (auto color = to_color({}, {}); color.has_value())
         return serialize_a_srgb_value(color.value());
 
-    // FIXME: Do this properly, taking unresolved calculated values into account.
-    return ""_string;
+    StringBuilder builder;
+    builder.append("rgb("sv);
+    serialize_color_component(builder, mode, m_properties.r, 255, 0, 255);
+    builder.append(" "sv);
+    serialize_color_component(builder, mode, m_properties.g, 255, 0, 255);
+    builder.append(" "sv);
+    serialize_color_component(builder, mode, m_properties.b, 255, 0, 255);
+    if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1) && (!m_properties.alpha->is_percentage() || m_properties.alpha->as_percentage().percentage().as_fraction() < 1)) {
+        builder.append(" / "sv);
+        serialize_alpha_component(builder, mode, m_properties.alpha);
+    }
+    builder.append(")"sv);
+
+    return builder.to_string_without_validation();
 }
 
 }
