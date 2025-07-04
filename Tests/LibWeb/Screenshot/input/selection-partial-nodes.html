@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-250">
+<link rel="match" href="../expected/selection-partial-nodes-ref.html" />
+<div id="start">not selected <span>sel</span><span id="end">ected<span> and not selected</span></span></div>
+<script>
+  let range = document.createRange();
+  range.setStart(start, 1);
+  range.setEnd(end, 1);
+  window.getSelection().addRange(range);
+</script>
