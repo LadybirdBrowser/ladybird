@@ -5660,11 +5660,10 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
     // 3. For each box in the viewport, in paint order, starting with the topmost box, that would be a target for
     //    hit testing at coordinates x,y even if nothing would be overlapping it, when applying the transforms that
     //    apply to the descendants of the viewport, append the associated element to sequence.
-    if (auto const* paintable_box = this->paintable_box(); paintable_box) {
+    if (auto const* paintable_box = this->paintable_box()) {
         (void)paintable_box->hit_test(position, Painting::HitTestType::Exact, [&](Painting::HitTestResult result) {
-            auto* dom_node = result.dom_node();
-            if (dom_node && dom_node->is_element() && result.paintable->visible_for_hit_testing())
-                sequence.append(*static_cast<Element*>(dom_node));
+            if (auto* element = as_if<Element>(result.dom_node()))
+                sequence.append(*element);
             return TraversalDecision::Continue;
         });
     }
