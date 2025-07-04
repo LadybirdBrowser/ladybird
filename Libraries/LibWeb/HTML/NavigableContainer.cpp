@@ -109,6 +109,14 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
     // 11. Let traversable be parentNavigable's traversable navigable.
     auto traversable = parent_navigable->traversable_navigable();
 
+    // AD-HOC: Since the session history traversal queue is not actually parallel, there will be a deadlock if
+    //         we append a new child navigable creation steps to the queue while we're in execution of steps for the parent traversable.
+    //         To avoid this, we set the priority of the new child navigable steps greater than parent's ie. 1.
+    int priority = 0;
+    if (traversable->is_session_history_step_locked()) {
+        priority = 1;
+    }
+
     // AD-HOC: Let the initial about:blank document inherit the system visibility state from traversable.
     document->update_the_visibility_state(traversable->system_visibility_state());
 
@@ -143,7 +151,8 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
         if (after_session_history_update) {
             after_session_history_update->function()();
         }
-    }));
+    }),
+        priority);
 
     return {};
 }
