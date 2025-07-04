@@ -2214,6 +2214,11 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
 
         // 4. Append historyEntry to targetEntries.
         target_entries.append(history_entry);
+
+        // AD-HOC: If the new document creates a new child navigable we dont have a way to know it yet because load_document
+        //         is ran using deferred_invoke.
+        //         Therefore, we lock the session history step for child navigable's update_for_navigable_creation_or_destruction.
+        traversable->lock_session_history_step(true);
     } else {
         // 1. Replace entryToReplace with historyEntry in targetEntries.
         *(target_entries.find(*entry_to_replace)) = history_entry;
@@ -2233,6 +2238,7 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
     traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::No);
+    traversable->lock_session_history_step(false);
 
     // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
     //         This allows size negotiation between the containing document and SVG documents to happen.
@@ -2301,13 +2307,22 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 12. Let traversable be navigable's traversable navigable.
     auto traversable = navigable->traversable_navigable();
 
+    // AD-HOC: Since the session history traversal queue is not actually parallel, there will be a deadlock if
+    //         we append a new child navigable creation steps to the queue while we're in execution of steps for the parent traversable.
+    //         To avoid this, we set the priority of the new child navigable steps greater than parent's ie. 1.
+    int priority = 0;
+    if (traversable->is_session_history_step_locked()) {
+        priority = 1;
+    }
+
     // 13. Append the following session history synchronous navigation steps involving navigable to traversable:
     traversable->append_session_history_synchronous_navigation_steps(*navigable, GC::create_function(document.realm().heap(), [traversable, navigable, new_entry, entry_to_replace, history_handling] {
         // 1. Finalize a same-document navigation given traversable, navigable, newEntry, entryToReplace, historyHandling, and "none".
         finalize_a_same_document_navigation(*traversable, *navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None);
 
         // 2. FIXME: Invoke WebDriver BiDi history updated with navigable.
-    }));
+    }),
+        priority);
 }
 
 void Navigable::scroll_offset_did_change()

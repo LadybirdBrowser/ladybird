@@ -97,9 +97,17 @@ void HTMLIFrameElement::post_connection()
 
         if (auto navigable = content_navigable()) {
             auto traversable = navigable->traversable_navigable();
+            // AD-HOC: Since the session history traversal queue is not actually parallel, there will be a deadlock if
+            //         we append a new child navigable creation steps to the queue while we're in execution of steps for the parent traversable.
+            //         To avoid this, we set the priority of the new child navigable steps greater than parent's ie. 1.
+            int priority = 0;
+            if (traversable->is_session_history_step_locked()) {
+                priority = 1;
+            }
             traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this] {
                 set_content_navigable_has_session_history_entry_and_ready_for_navigation();
-            }));
+            }),
+                priority);
         }
     })));
 }

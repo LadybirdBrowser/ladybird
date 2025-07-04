@@ -41,6 +41,8 @@ private:
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-traversal-queue
+// AD-HOC: Since SessionHistoryTraversalQueue isn't actually parallel, use an additional priority queue instead to avoid
+//         deadlocks when a traversable performs a cross-document navigation and a new document load creates a new child navigable.
 class SessionHistoryTraversalQueue : public JS::Cell {
     GC_CELL(SessionHistoryTraversalQueue, JS::Cell);
     GC_DECLARE_ALLOCATOR(SessionHistoryTraversalQueue);
@@ -48,8 +50,8 @@ class SessionHistoryTraversalQueue : public JS::Cell {
 public:
     SessionHistoryTraversalQueue();
 
-    void append(GC::Ref<GC::Function<void()>> steps);
-    void append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable);
+    void append(GC::Ref<GC::Function<void()>> steps, int priority = 0);
+    void append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable, int priority = 0);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
     GC::Ptr<SessionHistoryTraversalQueueEntry> first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<Navigable>> const&);
@@ -58,6 +60,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     Vector<GC::Ref<SessionHistoryTraversalQueueEntry>> m_queue;
+    Vector<GC::Ref<SessionHistoryTraversalQueueEntry>> m_higher_priority_queue;
     RefPtr<Core::Timer> m_timer;
     bool m_is_task_running { false };
 };
