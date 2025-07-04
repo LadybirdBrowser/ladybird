@@ -49,6 +49,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(markerWidth, "markerWidth")                 \
     __ENUMERATE_SVG_ATTRIBUTE(maskContentUnits, "maskContentUnits")       \
     __ENUMERATE_SVG_ATTRIBUTE(maskUnits, "maskUnits")                     \
+    __ENUMERATE_SVG_ATTRIBUTE(mode, "mode")                               \
     __ENUMERATE_SVG_ATTRIBUTE(numOctaves, "numOctaves")                   \
     __ENUMERATE_SVG_ATTRIBUTE(offset, "offset")                           \
     __ENUMERATE_SVG_ATTRIBUTE(opacity, "opacity")                         \
