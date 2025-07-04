@@ -86,9 +86,9 @@ public:
     void definitely_close_top_level_traversable();
     void destroy_top_level_traversable();
 
-    void append_session_history_traversal_steps(GC::Ref<GC::Function<void()>> steps)
+    void append_session_history_traversal_steps(GC::Ref<GC::Function<void()>> steps, GC::Ptr<DOM::Document> document = nullptr)
     {
-        m_session_history_traversal_queue->append(steps);
+        m_session_history_traversal_queue->append(steps, document);
     }
 
     void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<GC::Function<void()>> steps)
