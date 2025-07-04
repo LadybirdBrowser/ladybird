@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Test :has() invalidation with :state() pseudo-classes
+1 Pass
+Pass	Test :has() invalidation with :state() pseudo-classes

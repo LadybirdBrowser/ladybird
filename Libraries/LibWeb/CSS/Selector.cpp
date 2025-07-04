@@ -61,6 +61,7 @@ static bool can_selector_use_fast_matches(Selector const& selector)
                         PseudoClass::LocalLink,
                         PseudoClass::OnlyChild,
                         PseudoClass::Root,
+                        PseudoClass::State,
                         PseudoClass::Visited))
                     return false;
             } else if (!first_is_one_of(simple_selector.type,

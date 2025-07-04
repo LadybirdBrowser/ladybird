@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	state selector has no influence when state is not applied
+Pass	state selector has no influence on sibling selectors when not applied
+Pass	state selector has influence when state is applied
+Pass	state selector influences siblings when state is applied
+Pass	state selector influences has() when state is applied
+Pass	state selector only applies on given ident
+Pass	state selector only applies to siblings on given ident
+Pass	state selector only applies to has() on given ident
+Pass	states added multiple times counts as one
+Pass	style is invalided on clear()

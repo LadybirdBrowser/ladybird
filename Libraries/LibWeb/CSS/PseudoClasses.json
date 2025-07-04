@@ -155,6 +155,9 @@
   "stalled": {
     "argument": ""
   },
+  "state": {
+    "argument": "<ident>"
+  },
   "suboptimal-value": {
     "argument": ""
   },
