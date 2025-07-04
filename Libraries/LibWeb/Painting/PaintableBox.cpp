@@ -1203,7 +1203,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
             return TraversalDecision::Break;
     }
 
-    if (!layout_node().children_are_inline() || m_fragments.is_empty())
+    if (!layout_node().children_are_inline())
         return PaintableBox::hit_test(position, type, callback);
 
     // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
@@ -1282,7 +1282,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         }
     }
 
-    if (!stacking_context() && is_visible() && !layout_node().is_anonymous()
+    if (!stacking_context() && is_visible() && (!layout_node().is_anonymous() || layout_node().is_positioned())
         && absolute_border_box_rect().contains(position_adjusted_by_scroll_offset)) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
