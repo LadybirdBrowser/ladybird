@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+#a {
+    margin-bottom: -20px;
+}
+body {
+    border: 1px solid blue;
+}
+</style>
+<script src="../include.js"></script>
+<div id="a"><a href="#" id="target">You should be able to click this link</a></div>just some text
+<script>
+test(() => {
+    logHitTest = (x, y) => {
+        const hit = internals.hitTest(x, y);
+        printElement(hit.node);
+        println(`index: ${hit.indexInNode}`);
+        printElement(hit.node.parentNode);
+        println('---');
+    }
+
+    logHitTest(40, 18);
+    logHitTest(185, 18);
+    logHitTest(600, 18);
+});
+</script>
