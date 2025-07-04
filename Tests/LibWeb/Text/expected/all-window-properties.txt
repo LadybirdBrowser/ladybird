@@ -340,6 +340,7 @@ SVGElement
 SVGEllipseElement
 SVGFEBlendElement
 SVGFEFloodElement
+SVGFEGaussianBlurElement
 SVGFilterElement
 SVGForeignObjectElement
 SVGGElement
