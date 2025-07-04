@@ -1554,8 +1554,6 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
             // 4. Return the result of converting x to T.
 
             auto union_numeric_type_generator = union_generator.fork();
-            auto cpp_type = IDL::idl_type_name_to_cpp_type(*numeric_type, interface);
-            union_numeric_type_generator.set("numeric_type", cpp_type.name);
 
             union_numeric_type_generator.append(R"~~~(
         auto x = TRY(@js_name@@js_suffix@.to_numeric(vm));
