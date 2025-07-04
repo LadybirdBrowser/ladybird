@@ -33,42 +33,42 @@ static bool component_value_contains_nesting_selector(Parser::ComponentValue con
     return false;
 }
 
-static bool can_selector_use_fast_matches(CSS::Selector const& selector)
+static bool can_selector_use_fast_matches(Selector const& selector)
 {
     for (auto const& compound_selector : selector.compound_selectors()) {
-        if (compound_selector.combinator != CSS::Selector::Combinator::None
-            && compound_selector.combinator != CSS::Selector::Combinator::Descendant
-            && compound_selector.combinator != CSS::Selector::Combinator::ImmediateChild) {
+        if (!first_is_one_of(compound_selector.combinator,
+                Selector::Combinator::None, Selector::Combinator::Descendant, Selector::Combinator::ImmediateChild)) {
             return false;
         }
 
         for (auto const& simple_selector : compound_selector.simple_selectors) {
-            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass) {
+            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoClass) {
                 auto const pseudo_class = simple_selector.pseudo_class().type;
-                if (pseudo_class != CSS::PseudoClass::FirstChild
-                    && pseudo_class != CSS::PseudoClass::LastChild
-                    && pseudo_class != CSS::PseudoClass::OnlyChild
-                    && pseudo_class != CSS::PseudoClass::Hover
-                    && pseudo_class != CSS::PseudoClass::Active
-                    && pseudo_class != CSS::PseudoClass::Focus
-                    && pseudo_class != CSS::PseudoClass::FocusVisible
-                    && pseudo_class != CSS::PseudoClass::FocusWithin
-                    && pseudo_class != CSS::PseudoClass::Link
-                    && pseudo_class != CSS::PseudoClass::AnyLink
-                    && pseudo_class != CSS::PseudoClass::Visited
-                    && pseudo_class != CSS::PseudoClass::LocalLink
-                    && pseudo_class != CSS::PseudoClass::Empty
-                    && pseudo_class != CSS::PseudoClass::Root
-                    && pseudo_class != CSS::PseudoClass::Enabled
-                    && pseudo_class != CSS::PseudoClass::Disabled
-                    && pseudo_class != CSS::PseudoClass::Checked) {
+                if (!first_is_one_of(pseudo_class,
+                        PseudoClass::Active,
+                        PseudoClass::AnyLink,
+                        PseudoClass::Checked,
+                        PseudoClass::Disabled,
+                        PseudoClass::Empty,
+                        PseudoClass::Enabled,
+                        PseudoClass::FirstChild,
+                        PseudoClass::Focus,
+                        PseudoClass::FocusVisible,
+                        PseudoClass::FocusWithin,
+                        PseudoClass::Hover,
+                        PseudoClass::LastChild,
+                        PseudoClass::Link,
+                        PseudoClass::LocalLink,
+                        PseudoClass::OnlyChild,
+                        PseudoClass::Root,
+                        PseudoClass::Visited))
                     return false;
-                }
-            } else if (simple_selector.type != CSS::Selector::SimpleSelector::Type::TagName
-                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Universal
-                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Class
-                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Id
-                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Attribute) {
+            } else if (!first_is_one_of(simple_selector.type,
+                           Selector::SimpleSelector::Type::TagName,
+                           Selector::SimpleSelector::Type::Universal,
+                           Selector::SimpleSelector::Type::Class,
+                           Selector::SimpleSelector::Type::Id,
+                           Selector::SimpleSelector::Type::Attribute)) {
                 return false;
             }
         }
