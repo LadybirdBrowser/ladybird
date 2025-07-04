@@ -88,7 +88,7 @@ public:
     }
 
 private:
-    Utf16CodePointIterator(char16_t const* ptr, size_t length)
+    constexpr Utf16CodePointIterator(char16_t const* ptr, size_t length)
         : m_iterator(ptr)
         , m_remaining_code_units(length)
     {
@@ -346,9 +346,7 @@ struct Traits<Utf16View> : public DefaultTraits<Utf16View> {
 
 [[nodiscard]] ALWAYS_INLINE AK_STRING_VIEW_LITERAL_CONSTEVAL AK::Utf16View operator""sv(char16_t const* string, size_t length)
 {
-    AK::Utf16View view { string, length };
-    ASSERT(view.validate());
-    return view;
+    return { string, length };
 }
 
 #if USING_AK_GLOBALLY

@@ -137,7 +137,7 @@ template<typename Callback>
 }
 
 template<FallibleFunction<char16_t> Callback>
-constexpr ErrorOr<size_t> try_code_point_to_utf16(u32 code_point, Callback callback)
+ALWAYS_INLINE ErrorOr<size_t> try_code_point_to_utf16(u32 code_point, Callback callback)
 {
     if (code_point < FIRST_SUPPLEMENTARY_PLANE_CODE_POINT) {
         TRY(callback(static_cast<char16_t>(code_point)));
