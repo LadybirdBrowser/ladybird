@@ -274,7 +274,8 @@ Vector<GC::Root<Navigable>> TraversableNavigable::get_all_navigables_whose_curre
         auto target_entry = navigable->get_the_target_history_entry(target_step);
 
         // 2. If targetEntry is not navigable's current session history entry or targetEntry's document state's reload pending is true, then append navigable to results.
-        if (target_entry != navigable->current_session_history_entry() || target_entry->document_state()->reload_pending()) {
+        // AD-HOC: We don't want to choose a navigable that is ongoing traversal.
+        if ((target_entry != navigable->current_session_history_entry() || target_entry->document_state()->reload_pending()) && !navigable->ongoing_navigation().has<Traversal>()) {
             results.append(*navigable);
         }
 
@@ -1153,7 +1154,9 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
     }
 
     // 4. Append the following session history traversal steps to traversable:
-    append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement] {
+    // Note: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+    auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+    append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement, signal_to_continue_session_history_processing] {
         // 1. Let allSteps be the result of getting all used history steps for traversable.
         auto all_steps = get_all_used_history_steps();
 
@@ -1165,13 +1168,16 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
 
         // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
         if (target_step_index >= all_steps.size()) {
+            signal_to_continue_session_history_processing->resolve({});
             return;
         }
 
         // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
         //    initiatorToCheck, and userInvolvement.
         apply_the_traverse_history_step(all_steps[target_step_index], source_snapshot_params, initiator_to_check, user_involvement);
-    }));
+        signal_to_continue_session_history_processing->resolve({});
+    }),
+        signal_to_continue_session_history_processing);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
@@ -1232,7 +1238,9 @@ void TraversableNavigable::definitely_close_top_level_traversable()
         return;
 
     // 3. Append the following session history traversal steps to traversable:
-    append_session_history_traversal_steps(GC::create_function(heap(), [this] {
+    // Note: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+    auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+    append_session_history_traversal_steps(GC::create_function(heap(), [this, signal_to_continue_session_history_processing] {
         // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
         auto after_all_unloads = GC::create_function(heap(), [this] {
             destroy_top_level_traversable();
@@ -1240,7 +1248,9 @@ void TraversableNavigable::definitely_close_top_level_traversable()
 
         // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
         active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
-    }));
+        signal_to_continue_session_history_processing->resolve({});
+    }),
+        signal_to_continue_session_history_processing);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-top-level-traversable

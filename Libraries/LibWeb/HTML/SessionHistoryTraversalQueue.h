@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibCore/Promise.h>
 #include <LibCore/Timer.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Function.h>
@@ -22,15 +23,17 @@ struct SessionHistoryTraversalQueueEntry : public JS::Cell {
     GC_DECLARE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
 public:
-    static GC::Ref<SessionHistoryTraversalQueueEntry> create(JS::VM& vm, GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable);
+    static GC::Ref<SessionHistoryTraversalQueueEntry> create(JS::VM& vm, GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion);
 
     GC::Ptr<HTML::Navigable> target_navigable() const { return m_target_navigable; }
+    NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion() const { return m_promise_to_signal_steps_completion; }
     void execute_steps() const { m_steps->function()(); }
 
 private:
-    SessionHistoryTraversalQueueEntry(GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable)
+    SessionHistoryTraversalQueueEntry(GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion)
         : m_steps(steps)
         , m_target_navigable(target_navigable)
+        , m_promise_to_signal_steps_completion(promise_to_signal_steps_completion)
     {
     }
 
@@ -38,6 +41,7 @@ private:
 
     GC::Ref<GC::Function<void()>> m_steps;
     GC::Ptr<HTML::Navigable> m_target_navigable;
+    NonnullRefPtr<Core::Promise<Empty>> m_promise_to_signal_steps_completion;
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-traversal-queue
@@ -48,8 +52,8 @@ class SessionHistoryTraversalQueue : public JS::Cell {
 public:
     SessionHistoryTraversalQueue();
 
-    void append(GC::Ref<GC::Function<void()>> steps);
-    void append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable);
+    void append(GC::Ref<GC::Function<void()>> steps, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion);
+    void append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable, NonnullRefPtr<Core::Promise<Empty>> promise_to_signal_steps_completion);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
     GC::Ptr<SessionHistoryTraversalQueueEntry> first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<Navigable>> const&);
@@ -60,6 +64,7 @@ private:
     Vector<GC::Ref<SessionHistoryTraversalQueueEntry>> m_queue;
     RefPtr<Core::Timer> m_timer;
     bool m_is_task_running { false };
+    WeakPtr<Core::Promise<Empty>> m_current_promise;
 };
 
 }
