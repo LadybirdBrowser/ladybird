@@ -664,6 +664,8 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
 
     // 12. Append the following session history traversal steps to traversable:
     traversable->append_session_history_traversal_steps(GC::create_function(heap(), [key, api_method_tracker, navigable, source_snapshot_params, traversable, this] {
+        // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+        auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
         // 1. Let navigableSHEs be the result of getting session history entries given navigable.
         auto navigable_shes = navigable->get_session_history_entries();
 
@@ -685,15 +687,18 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
             }));
 
             // 2. Abort these steps.
-            return;
+            signal_to_continue_session_history_processing->resolve({});
+            return signal_to_continue_session_history_processing;
         }
         auto target_she = *it;
 
         // 3. If targetSHE is navigable's active session history entry, then abort these steps.
         // NOTE: This can occur if a previously queued traversal already took us to this session history entry.
         //       In that case the previous traversal will have dealt with apiMethodTracker already.
-        if (target_she == navigable->active_session_history_entry())
-            return;
+        if (target_she == navigable->active_session_history_entry()) {
+            signal_to_continue_session_history_processing->resolve({});
+            return signal_to_continue_session_history_processing;
+        }
 
         // 4. Let result be the result of applying the traverse history step given by targetSHE's step to traversable,
         //    given sourceSnapshotParams, navigable, and "none".
@@ -725,6 +730,8 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
                 reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_utf16));
             }));
         }
+        signal_to_continue_session_history_processing->resolve({});
+        return signal_to_continue_session_history_processing;
     }));
 
     // 13. Return a navigation API method tracker-derived result for apiMethodTracker.

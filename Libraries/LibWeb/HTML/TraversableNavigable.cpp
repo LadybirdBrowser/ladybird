@@ -273,12 +273,15 @@ Vector<GC::Root<Navigable>> TraversableNavigable::get_all_navigables_whose_curre
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
         auto target_entry = navigable->get_the_target_history_entry(target_step);
 
-        // 2. If targetEntry is not navigable's current session history entry or targetEntry's document state's reload pending is true, then append navigable to results.
-        if (target_entry != navigable->current_session_history_entry() || target_entry->document_state()->reload_pending()) {
+        // 2. If targetEntry is not navigable's current session history entry or targetEntry's document state's reload
+        //    pending is true, then append navigable to results.
+        // AD-HOC: We don't want to choose a navigable that has ongoing traversal.
+        if ((target_entry != navigable->current_session_history_entry() || target_entry->document_state()->reload_pending()) && !navigable->ongoing_navigation().has<Traversal>()) {
             results.append(*navigable);
         }
 
-        // 3. If targetEntry's document is navigable's document, and targetEntry's document state's reload pending is false, then extend navigablesToCheck with the child navigables of navigable.
+        // 3. If targetEntry's document is navigable's document, and targetEntry's document state's reload pending is
+        //    false, then extend navigablesToCheck with the child navigables of navigable.
         if (target_entry->document() == navigable->active_document() && !target_entry->document_state()->reload_pending()) {
             navigables_to_check.extend(navigable->child_navigables());
         }
@@ -651,12 +654,23 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                 //    queue a global task on the navigation and traversal task source given navigable's active window to
                 //    run afterDocumentPopulated.
                 Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(this->heap(), [populated_target_entry, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated = GC::create_function(this->heap(), move(after_document_populated)), user_involvement] {
-                    navigable->populate_session_history_entry_document(populated_target_entry, *potentially_target_specific_source_snapshot_params, target_snapshot_params, user_involvement, {}, Navigable::NullOrError {}, ContentSecurityPolicy::Directives::Directive::NavigationType::Other, allow_POST, GC::create_function(this->heap(), [this, after_document_populated, populated_target_entry]() mutable {
-                        VERIFY(active_window());
-                        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(this->heap(), [after_document_populated, populated_target_entry]() mutable {
-                            after_document_populated->function()(true, populated_target_entry);
+                    auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+                    navigable->populate_session_history_entry_document(
+                        populated_target_entry,
+                        *potentially_target_specific_source_snapshot_params,
+                        target_snapshot_params,
+                        user_involvement,
+                        signal_to_continue_session_history_processing,
+                        {},
+                        Navigable::NullOrError {},
+                        ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
+                        allow_POST,
+                        GC::create_function(this->heap(), [this, after_document_populated, populated_target_entry]() mutable {
+                            VERIFY(active_window());
+                            queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(this->heap(), [after_document_populated, populated_target_entry]() mutable {
+                                after_document_populated->function()(true, populated_target_entry);
+                            }));
                         }));
-                    }));
                 }));
             }
             // Otherwise, run afterDocumentPopulated immediately.
@@ -701,7 +715,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                 m_running_nested_apply_history_step = true;
 
                 // 4. Run steps.
-                entry->execute_steps();
+                entry->execute_steps()->await().release_value_but_fixme_should_propagate_errors();
 
                 // 5. Set traversable's running nested apply history step to false.
                 m_running_nested_apply_history_step = false;
@@ -1153,6 +1167,8 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
 
     // 4. Append the following session history traversal steps to traversable:
     append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement] {
+        // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+        auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
         // 1. Let allSteps be the result of getting all used history steps for traversable.
         auto all_steps = get_all_used_history_steps();
 
@@ -1164,12 +1180,15 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
 
         // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
         if (target_step_index >= all_steps.size()) {
-            return;
+            signal_to_continue_session_history_processing->resolve({});
+            return signal_to_continue_session_history_processing;
         }
 
         // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
         //    initiatorToCheck, and userInvolvement.
         apply_the_traverse_history_step(all_steps[target_step_index], source_snapshot_params, initiator_to_check, user_involvement);
+        signal_to_continue_session_history_processing->resolve({});
+        return signal_to_continue_session_history_processing;
     }));
 }
 
@@ -1232,6 +1251,8 @@ void TraversableNavigable::definitely_close_top_level_traversable()
 
     // 3. Append the following session history traversal steps to traversable:
     append_session_history_traversal_steps(GC::create_function(heap(), [this] {
+        // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+        auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
         // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
         auto after_all_unloads = GC::create_function(heap(), [this] {
             destroy_top_level_traversable();
@@ -1239,6 +1260,8 @@ void TraversableNavigable::definitely_close_top_level_traversable()
 
         // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
         active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
+        signal_to_continue_session_history_processing->resolve({});
+        return signal_to_continue_session_history_processing;
     }));
 }
 
