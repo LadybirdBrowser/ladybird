@@ -4639,6 +4639,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::add)
     // What? Which interfaces have a number as their set type?
 
     set->set_add(value_arg);
+    impl->on_set_modified_from_js({});
 
     return impl;
 }
@@ -4660,7 +4661,9 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::delete_)
     // FIXME: If value is -0, set value to +0.
     // What? Which interfaces have a number as their set type?
 
-    return set->set_remove(value_arg);
+    auto result = set->set_remove(value_arg);
+    impl->on_set_modified_from_js({});
+    return result;
 }
 )~~~");
         }
@@ -4675,6 +4678,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
     GC::Ref<JS::Set> set = impl->set_entries();
 
     set->set_clear();
+    impl->on_set_modified_from_js({});
 
     return JS::js_undefined();
 }

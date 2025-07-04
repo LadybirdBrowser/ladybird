@@ -45,6 +45,8 @@ public:
 
     void resolve_ready_promise();
 
+    void on_set_modified_from_js(Badge<Bindings::FontFaceSetPrototype>) { }
+
 private:
     FontFaceSet(JS::Realm&, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<JS::Set> set_entries);
 
