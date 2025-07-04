@@ -88,7 +88,7 @@ public:
     }
 
 private:
-    Utf16CodePointIterator(char16_t const* ptr, size_t length)
+    constexpr Utf16CodePointIterator(char16_t const* ptr, size_t length)
         : m_iterator(ptr)
         , m_remaining_code_units(length)
     {
