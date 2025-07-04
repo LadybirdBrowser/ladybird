@@ -1185,8 +1185,8 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (m_fragments.is_empty()
         && !has_children()
         && type == HitTestType::TextCursor
-        && layout_node_with_style_and_box_metrics().dom_node()
-        && layout_node_with_style_and_box_metrics().dom_node()->is_editable()) {
+        && layout_node().dom_node()
+        && layout_node().dom_node()->is_editable()) {
         HitTestResult const hit_test_result {
             .paintable = const_cast<PaintableWithLines&>(*this),
             .index_in_node = 0,
@@ -1197,7 +1197,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
             return TraversalDecision::Break;
     }
 
-    if (!layout_node_with_style_and_box_metrics().children_are_inline() || m_fragments.is_empty())
+    if (!layout_node().children_are_inline() || m_fragments.is_empty())
         return PaintableBox::hit_test(position, type, callback);
 
     // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
@@ -1278,7 +1278,8 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         }
     }
 
-    if (!stacking_context() && is_visible() && absolute_border_box_rect().contains(transformed_position_adjusted_by_scroll_offset)) {
+    if (!stacking_context() && is_visible() && !layout_node().is_anonymous()
+        && absolute_border_box_rect().contains(position_adjusted_by_scroll_offset)) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
