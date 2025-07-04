@@ -8,6 +8,7 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
 namespace Web::CSS {
 
@@ -36,13 +37,27 @@ bool CSSHSL::equals(CSSStyleValue const& other) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String CSSHSL::to_string(SerializationMode) const
+String CSSHSL::to_string(SerializationMode mode) const
 {
     if (auto color = to_color({}, {}); color.has_value())
         return serialize_a_srgb_value(color.value());
 
-    // FIXME: Do this properly, taking unresolved calculated values into account.
-    return ""_string;
+    StringBuilder builder;
+
+    builder.append("hsl("sv);
+    serialize_hue_component(builder, mode, m_properties.h);
+    builder.append(" "sv);
+    serialize_color_component(builder, mode, m_properties.s, 100, 0);
+    builder.append(" "sv);
+    serialize_color_component(builder, mode, m_properties.l, 100, 0);
+    if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1) && (!m_properties.alpha->is_percentage() || m_properties.alpha->as_percentage().percentage().as_fraction() < 1)) {
+        builder.append(" / "sv);
+        serialize_alpha_component(builder, mode, m_properties.alpha);
+    }
+
+    builder.append(")"sv);
+
+    return builder.to_string_without_validation();
 }
 
 }
