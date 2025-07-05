@@ -95,7 +95,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x700]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x700]
     PaintableWithLines (BlockContainer<BODY>) [50,50 700x600]
-      SVGSVGPaintable (SVGSVGBox<svg>) [50,150 200x100]
+      SVGSVGPaintable (SVGSVGBox<svg>) [50,150 200x100] overflow: [45.6875,150 204.3125x100]
         SVGGraphicsPaintable (SVGGraphicsBox<g>) [45.6875,199.828125 118.78125x47.453125]
           SVGPathPaintable (SVGGeometryBox<path>) [45.6875,199.828125 118.78125x47.453125]
         SVGGraphicsPaintable (SVGGraphicsBox<g>) [84.5,159.5 81x81]

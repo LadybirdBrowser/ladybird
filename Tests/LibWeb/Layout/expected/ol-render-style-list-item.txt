@@ -68,35 +68,35 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,16 784x176]
       PaintableWithLines (BlockContainer<OL>) [8,16 784x176]
         PaintableWithLines (BlockContainer(anonymous)) [48,16 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,16 744x18]
+        PaintableWithLines (ListItemBox<LI>) [48,16 744x18] overflow: [25.3125,16 766.6875x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [25.3125,16.5 10.6875x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,34 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,34 744x18]
+        PaintableWithLines (ListItemBox<LI>) [48,34 744x18] overflow: [14.03125,34 777.96875x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [14.03125,34.5 21.96875x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,52 744x0]
-        PaintableWithLines (ListItemBox<DIV>) [48,52 744x18]
+        PaintableWithLines (ListItemBox<DIV>) [48,52 744x18] overflow: [13.75,52 778.25x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [13.75,52.5 22.25x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,70 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,70 744x18]
+        PaintableWithLines (ListItemBox<LI>) [48,70 744x18] overflow: [15.09375,70 776.90625x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [15.09375,70.5 20.90625x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,88 744x0]
-        PaintableWithLines (ListItemBox<P>) [48,104 744x18]
+        PaintableWithLines (ListItemBox<P>) [48,104 744x18] overflow: [14.390625,104 777.609375x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [14.390625,104.5 21.609375x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,138 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,138 744x18]
+        PaintableWithLines (ListItemBox<LI>) [48,138 744x18] overflow: [14.109375,138 777.890625x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [14.109375,138.5 21.890625x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,156 744x0]
-        PaintableWithLines (ListItemBox<SPAN>) [48,156 744x18]
+        PaintableWithLines (ListItemBox<SPAN>) [48,156 744x18] overflow: [14.125,156 777.875x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [14.125,156.5 21.875x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,174 744x0]
-        PaintableWithLines (ListItemBox<LI>) [48,174 744x18]
+        PaintableWithLines (ListItemBox<LI>) [48,174 744x18] overflow: [13.359375,174 778.640625x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [13.359375,174.5 22.640625x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [48,192 744x0]
