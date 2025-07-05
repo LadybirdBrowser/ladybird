@@ -16,11 +16,11 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 784x36]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36] overflow: [0,8 792x36]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x36] overflow: [0,8 792x36]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 784x18]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (ListItemBox(anonymous)) [24,26 768x18]
+        PaintableWithLines (ListItemBox(anonymous)) [24,26 768x18] overflow: [0,26 792x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [0,26.5 12x17]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]

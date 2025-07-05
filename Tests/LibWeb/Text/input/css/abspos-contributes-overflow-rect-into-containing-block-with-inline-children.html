@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+    <div id="scroller" style="width: 200px; height: 200px; overflow: auto; position: relative">
+        <div style="width: 100px; height: 100px; position: absolute; background: green; margin-top: 150px;"></div>
+    </div>
+    <script>
+        test(() => {
+            println("#scroller.scrollHeight: " + document.getElementById("scroller").scrollHeight);
+        });
+    </script>
+</body>

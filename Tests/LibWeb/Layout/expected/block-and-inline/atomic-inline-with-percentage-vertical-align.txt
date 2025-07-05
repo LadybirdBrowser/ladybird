@@ -8,7 +8,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <div.clump> at (4,35) content-size 30x30 inline-block [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64.40625] overflow: [1,1 798x64]
-    PaintableWithLines (BlockContainer<BODY>) [1,1 798x62.40625] overflow: [2,2 796x63]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64.40625] overflow: [1,1 798x65]
+    PaintableWithLines (BlockContainer<BODY>) [1,1 798x62.40625] overflow: [2,2 796x64]
       PaintableWithLines (BlockContainer<DIV>.clump) [2,2 32x32]
       PaintableWithLines (BlockContainer<DIV>.clump) [3,34 32x32]
