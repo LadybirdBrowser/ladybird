@@ -104,13 +104,13 @@ template<>
 ErrorOr<UnixDateTime> decode(Decoder&);
 
 template<>
-ErrorOr<URL::URL> decode(Decoder&);
+ErrorOr<::URL::URL> decode(Decoder&);
 
 template<>
-ErrorOr<URL::Origin> decode(Decoder&);
+ErrorOr<::URL::Origin> decode(Decoder&);
 
 template<>
-ErrorOr<URL::Host> decode(Decoder&);
+ErrorOr<::URL::Host> decode(Decoder&);
 
 template<>
 ErrorOr<File> decode(Decoder&);

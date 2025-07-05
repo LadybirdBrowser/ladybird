@@ -21,7 +21,7 @@ class DOMURL : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(DOMURL);
 
 public:
-    [[nodiscard]] static GC::Ref<DOMURL> create(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
+    [[nodiscard]] static GC::Ref<DOMURL> create(JS::Realm&, ::URL::URL, GC::Ref<URLSearchParams> query);
     static WebIDL::ExceptionOr<GC::Ref<DOMURL>> construct_impl(JS::Realm&, String const& url, Optional<String> const& base = {});
 
     virtual ~DOMURL() override;
@@ -80,18 +80,18 @@ public:
     void set_query(Badge<URLSearchParams>, Optional<String> query) { m_url.set_query(move(query)); }
 
 private:
-    DOMURL(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
+    DOMURL(JS::Realm&, ::URL::URL, GC::Ref<URLSearchParams> query);
 
-    static GC::Ref<DOMURL> initialize_a_url(JS::Realm&, URL::URL const&);
+    static GC::Ref<DOMURL> initialize_a_url(JS::Realm&, ::URL::URL const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    URL::URL m_url;
+    ::URL::URL m_url;
     GC::Ref<URLSearchParams> m_query;
 };
 
 // https://url.spec.whatwg.org/#concept-url-parser
-Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url = {}, Optional<StringView> encoding = {});
+Optional<::URL::URL> parse(StringView input, Optional<::URL::URL const&> base_url = {}, Optional<StringView> encoding = {});
 
 }

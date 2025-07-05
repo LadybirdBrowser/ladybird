@@ -20,7 +20,7 @@ class LoadRequest {
 public:
     LoadRequest();
 
-    static LoadRequest create_for_url_on_page(const URL::URL& url, Page* page);
+    static LoadRequest create_for_url_on_page(::URL::URL const& url, Page* page);
 
     // The main resource is the file being displayed in a frame (unlike subresources like images, scripts, etc.)
     // If a main resource fails with an HTTP error, we may still display its content if non-empty, e.g a custom 404 page.
@@ -31,8 +31,8 @@ public:
 
     int id() const { return m_id; }
 
-    Optional<URL::URL> const& url() const { return m_url; }
-    void set_url(Optional<URL::URL> url) { m_url = move(url); }
+    Optional<::URL::URL> const& url() const { return m_url; }
+    void set_url(Optional<::URL::URL> url) { m_url = move(url); }
 
     ByteString const& method() const { return m_method; }
     void set_method(ByteString const& method) { m_method = method; }
@@ -76,7 +76,7 @@ public:
 
 private:
     int m_id { 0 };
-    Optional<URL::URL> m_url;
+    Optional<::URL::URL> m_url;
     ByteString m_method { "GET" };
     HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> m_headers;
     ByteBuffer m_body;

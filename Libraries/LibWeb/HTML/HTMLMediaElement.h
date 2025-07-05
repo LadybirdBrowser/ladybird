@@ -196,7 +196,7 @@ private:
     Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
     WebIDL::ExceptionOr<void> load_element();
-    WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
+    WebIDL::ExceptionOr<void> fetch_resource(::URL::URL const&, ESCAPING Function<void(String)> failure_callback);
     static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
     WebIDL::ExceptionOr<void> process_media_data(Function<void(String)> failure_callback);
     WebIDL::ExceptionOr<void> handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message);

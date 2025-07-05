@@ -26,14 +26,14 @@ class WorkerAgentParent : public JS::Cell {
     GC_DECLARE_ALLOCATOR(WorkerAgentParent);
 
 protected:
-    WorkerAgentParent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings, Bindings::AgentType);
+    WorkerAgentParent(::URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings, Bindings::AgentType);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     WorkerOptions m_worker_options;
     Bindings::AgentType m_agent_type { Bindings::AgentType::DedicatedWorker };
-    URL::URL m_url;
+    ::URL::URL m_url;
 
     GC::Ptr<MessagePort> m_message_port;
     GC::Ptr<MessagePort> m_outside_port;

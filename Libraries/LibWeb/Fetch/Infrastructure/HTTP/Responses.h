@@ -69,9 +69,9 @@ public:
     [[nodiscard]] virtual bool aborted() const { return m_aborted; }
     virtual void set_aborted(bool aborted) { m_aborted = aborted; }
 
-    [[nodiscard]] virtual Vector<URL::URL> const& url_list() const { return m_url_list; }
-    [[nodiscard]] virtual Vector<URL::URL>& url_list() { return m_url_list; }
-    virtual void set_url_list(Vector<URL::URL> url_list) { m_url_list = move(url_list); }
+    [[nodiscard]] virtual Vector<::URL::URL> const& url_list() const { return m_url_list; }
+    [[nodiscard]] virtual Vector<::URL::URL>& url_list() { return m_url_list; }
+    virtual void set_url_list(Vector<::URL::URL> url_list) { m_url_list = move(url_list); }
 
     [[nodiscard]] virtual Status status() const { return m_status; }
     virtual void set_status(Status status) { m_status = status; }
@@ -109,8 +109,8 @@ public:
     [[nodiscard]] bool is_aborted_network_error() const;
     [[nodiscard]] bool is_network_error() const;
 
-    [[nodiscard]] Optional<URL::URL const&> url() const;
-    [[nodiscard]] ErrorOr<Optional<URL::URL>> location_url(Optional<String> const& request_fragment) const;
+    [[nodiscard]] Optional<::URL::URL const&> url() const;
+    [[nodiscard]] ErrorOr<Optional<::URL::URL>> location_url(Optional<String> const& request_fragment) const;
 
     [[nodiscard]] GC::Ref<Response> clone(JS::Realm&) const;
 
@@ -143,7 +143,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-response-url-list
     // A response has an associated URL list (a list of zero or more URLs). Unless stated otherwise, it is the empty list.
-    Vector<URL::URL> m_url_list;
+    Vector<::URL::URL> m_url_list;
 
     // https://fetch.spec.whatwg.org/#concept-response-status
     // A response has an associated status, which is a status. Unless stated otherwise it is 200.
@@ -221,9 +221,9 @@ public:
     [[nodiscard]] virtual bool aborted() const override { return m_internal_response->aborted(); }
     virtual void set_aborted(bool aborted) override { m_internal_response->set_aborted(aborted); }
 
-    [[nodiscard]] virtual Vector<URL::URL> const& url_list() const override { return m_internal_response->url_list(); }
-    [[nodiscard]] virtual Vector<URL::URL>& url_list() override { return m_internal_response->url_list(); }
-    virtual void set_url_list(Vector<URL::URL> url_list) override { m_internal_response->set_url_list(move(url_list)); }
+    [[nodiscard]] virtual Vector<::URL::URL> const& url_list() const override { return m_internal_response->url_list(); }
+    [[nodiscard]] virtual Vector<::URL::URL>& url_list() override { return m_internal_response->url_list(); }
+    virtual void set_url_list(Vector<::URL::URL> url_list) override { m_internal_response->set_url_list(move(url_list)); }
 
     [[nodiscard]] virtual Status status() const override { return m_internal_response->status(); }
     virtual void set_status(Status status) override { m_internal_response->set_status(status); }
@@ -312,8 +312,8 @@ public:
     [[nodiscard]] static GC::Ref<OpaqueFilteredResponse> create(JS::VM&, GC::Ref<Response>);
 
     [[nodiscard]] virtual Type type() const override { return Type::Opaque; }
-    [[nodiscard]] virtual Vector<URL::URL> const& url_list() const override { return m_url_list; }
-    [[nodiscard]] virtual Vector<URL::URL>& url_list() override { return m_url_list; }
+    [[nodiscard]] virtual Vector<::URL::URL> const& url_list() const override { return m_url_list; }
+    [[nodiscard]] virtual Vector<::URL::URL>& url_list() override { return m_url_list; }
     [[nodiscard]] virtual Status status() const override { return 0; }
     [[nodiscard]] virtual ReadonlyBytes status_message() const override { return {}; }
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
@@ -324,7 +324,7 @@ private:
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    Vector<URL::URL> m_url_list;
+    Vector<::URL::URL> m_url_list;
     GC::Ref<HeaderList> m_header_list;
 };
 

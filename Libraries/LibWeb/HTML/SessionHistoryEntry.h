@@ -48,8 +48,8 @@ public:
     [[nodiscard]] Variant<int, Pending> step() const { return m_step; }
     void set_step(Variant<int, Pending> step) { m_step = step; }
 
-    [[nodiscard]] URL::URL const& url() const { return m_url; }
-    void set_url(URL::URL url) { m_url = move(url); }
+    [[nodiscard]] ::URL::URL const& url() const { return m_url; }
+    void set_url(::URL::URL url) { m_url = move(url); }
 
     [[nodiscard]] GC::Ptr<HTML::DocumentState> document_state() const { return m_document_state; }
     void set_document_state(GC::Ptr<HTML::DocumentState> document_state) { m_document_state = document_state; }
@@ -85,7 +85,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-url
     // URL, a URL
-    URL::URL m_url;
+    ::URL::URL m_url;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-document-state
     GC::Ptr<HTML::DocumentState> m_document_state;

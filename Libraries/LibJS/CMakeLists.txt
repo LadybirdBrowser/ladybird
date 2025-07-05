@@ -291,3 +291,8 @@ target_link_libraries(LibJS PUBLIC JSClangPlugin)
 # TODO: Use lagom_generate_export_header and annotate entire LibJS with export macros
 include(GenerateExportHeader)
 generate_export_header(LibJS EXPORT_MACRO_NAME JS_API EXPORT_FILE_NAME "Export.h")
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibJS PROPERTIES UNITY_BUILD ON)
+    set_source_files_properties(Lexer.cpp Runtime/ProxyObject.cpp Runtime/RawJSONObject.cpp Runtime/Realm.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+endif()

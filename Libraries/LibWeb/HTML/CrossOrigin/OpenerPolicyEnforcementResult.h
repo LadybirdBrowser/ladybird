@@ -21,10 +21,10 @@ struct OpenerPolicyEnforcementResult {
     bool would_need_a_browsing_context_group_switch_due_to_report_only { false };
 
     // A URL url.
-    URL::URL url;
+    ::URL::URL url;
 
     // An origin origin.
-    URL::Origin origin;
+    ::URL::Origin origin;
 
     // An opener policy.
     OpenerPolicy opener_policy;

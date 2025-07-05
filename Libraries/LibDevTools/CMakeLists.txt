@@ -25,3 +25,7 @@ set(SOURCES
 
 ladybird_lib(LibDevTools devtools)
 target_link_libraries(LibDevTools PRIVATE LibCore LibWeb)
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibDevTools PROPERTIES UNITY_BUILD ON)
+endif()

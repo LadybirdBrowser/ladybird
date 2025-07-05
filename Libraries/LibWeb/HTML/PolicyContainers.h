@@ -48,7 +48,7 @@ private:
 };
 
 // https://html.spec.whatwg.org/multipage/browsers.html#requires-storing-the-policy-container-in-history
-[[nodiscard]] bool url_requires_storing_the_policy_container_in_history(URL::URL const& url);
+[[nodiscard]] bool url_requires_storing_the_policy_container_in_history(::URL::URL const& url);
 
 // https://html.spec.whatwg.org/multipage/browsers.html#creating-a-policy-container-from-a-fetch-response
 [[nodiscard]] GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Heap&, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment> environment);

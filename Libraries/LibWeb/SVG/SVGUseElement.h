@@ -56,7 +56,7 @@ private:
 
     GC::Ptr<DOM::Element> referenced_element();
 
-    void fetch_the_document(URL::URL const& url);
+    void fetch_the_document(::URL::URL const& url);
     bool is_referenced_element_same_document() const;
 
     void clone_element_tree_as_our_shadow_tree(Element* to_clone);
@@ -65,7 +65,7 @@ private:
     Optional<float> m_x;
     Optional<float> m_y;
 
-    Optional<URL::URL> m_href;
+    Optional<::URL::URL> m_href;
 
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;

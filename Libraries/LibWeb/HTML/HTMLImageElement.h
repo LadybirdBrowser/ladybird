@@ -134,7 +134,7 @@ private:
 
     virtual void did_set_viewport_rect(CSSPixelRect const&) override;
 
-    void handle_successful_fetch(URL::URL const&, StringView mime_type, ImageRequest&, ByteBuffer, bool maybe_omit_events, URL::URL const& previous_url);
+    void handle_successful_fetch(::URL::URL const&, StringView mime_type, ImageRequest&, ByteBuffer, bool maybe_omit_events, ::URL::URL const& previous_url);
     void handle_failed_fetch();
     void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, String const& url_string, String const& previous_url);
 

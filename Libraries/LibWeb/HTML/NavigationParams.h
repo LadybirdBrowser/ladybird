@@ -57,7 +57,7 @@ struct NavigationParams : GC::Cell {
     Fetch::Infrastructure::Request::ReservedClientType reserved_environment;
 
     // an origin to use for the new Document
-    URL::Origin origin;
+    ::URL::Origin origin;
 
     // a policy container to use for the new Document
     GC::Ptr<PolicyContainer> policy_container;
@@ -71,7 +71,7 @@ struct NavigationParams : GC::Cell {
     // FIXME: a NavigationTimingType used for creating the navigation timing entry for the new Document
 
     // a URL or null used to populate the new Document's about base URL
-    Optional<URL::URL> about_base_url;
+    Optional<::URL::URL> about_base_url;
 
     // a user navigation involvement used when obtaining a browsing context for the new Document
     UserNavigationInvolvement user_involvement;
@@ -88,11 +88,11 @@ protected:
         Function<void(DOM::Document&)> commit_early_hints,
         OpenerPolicyEnforcementResult coop_enforcement_result,
         Fetch::Infrastructure::Request::ReservedClientType reserved_environment,
-        URL::Origin origin,
+        ::URL::Origin origin,
         GC::Ptr<PolicyContainer> policy_container,
         SandboxingFlagSet final_sandboxing_flag_set,
         OpenerPolicy opener_policy,
-        Optional<URL::URL> about_base_url,
+        Optional<::URL::URL> about_base_url,
         UserNavigationInvolvement user_involvement)
         : id(move(id))
         , navigable(navigable)
@@ -124,7 +124,7 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     GC::Ptr<Navigable> navigable;
 
     // a URL
-    URL::URL url;
+    ::URL::URL url;
 
     // the target snapshot params's sandboxing flags present during navigation
     SandboxingFlagSet target_snapshot_sandboxing_flags = {};
@@ -133,7 +133,7 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     bool source_snapshot_has_transient_activation = { false };
 
     // an origin possibly for use in a user-facing prompt to confirm the invocation of an external software package
-    URL::Origin initiator_origin;
+    ::URL::Origin initiator_origin;
 
     // FIXME: a NavigationTimingType used for creating the navigation timing entry for the new Document
 
@@ -144,10 +144,10 @@ protected:
     NonFetchSchemeNavigationParams(
         Optional<String> id,
         GC::Ptr<Navigable> navigable,
-        URL::URL url,
+        ::URL::URL url,
         SandboxingFlagSet target_snapshot_sandboxing_flags,
         bool source_snapshot_has_transient_activation,
-        URL::Origin initiator_origin,
+        ::URL::Origin initiator_origin,
         UserNavigationInvolvement user_involvement)
         : id(move(id))
         , navigable(navigable)
@@ -162,6 +162,6 @@ protected:
     void visit_edges(Visitor& visitor) override;
 };
 
-bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin);
+bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, ::URL::Origin destination_origin);
 
 }

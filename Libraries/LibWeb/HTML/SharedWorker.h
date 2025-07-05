@@ -31,7 +31,7 @@ public:
     void set_agent(WorkerAgentParent& agent) { m_agent = agent; }
 
 private:
-    SharedWorker(JS::Realm&, URL::URL script_url, WorkerOptions, MessagePort&);
+    SharedWorker(JS::Realm&, ::URL::URL script_url, WorkerOptions, MessagePort&);
 
     // ^AbstractWorker
     virtual DOM::EventTarget& this_event_target() override { return *this; }
@@ -39,7 +39,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    URL::URL m_script_url;
+    ::URL::URL m_script_url;
     WorkerOptions m_options;
     GC::Ref<MessagePort> m_port;
     GC::Ptr<WorkerAgentParent> m_agent;

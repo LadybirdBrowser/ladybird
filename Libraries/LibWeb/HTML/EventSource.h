@@ -76,7 +76,7 @@ private:
     void dispatch_the_event();
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-eventsource-url
-    URL::URL m_url;
+    ::URL::URL m_url;
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-event-stream-request
     GC::Ptr<Fetch::Infrastructure::Request> m_request;

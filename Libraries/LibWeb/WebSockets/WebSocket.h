@@ -35,7 +35,7 @@ public:
     virtual ~WebSocket() override;
 
     String url() const { return m_url.to_string(); }
-    void set_url(URL::URL url) { m_url = move(url); }
+    void set_url(::URL::URL url) { m_url = move(url); }
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
@@ -68,9 +68,9 @@ private:
     virtual void finalize() override;
     virtual bool must_survive_garbage_collection() const override;
 
-    ErrorOr<void> establish_web_socket_connection(URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client);
+    ErrorOr<void> establish_web_socket_connection(::URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client);
 
-    URL::URL m_url;
+    ::URL::URL m_url;
     String m_binary_type { "blob"_string };
     RefPtr<Requests::WebSocket> m_websocket;
 

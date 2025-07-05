@@ -25,11 +25,11 @@ class SharedWorkerGlobalScope
 public:
     virtual ~SharedWorkerGlobalScope() override;
 
-    void set_constructor_origin(URL::Origin origin) { m_constructor_origin = move(origin); }
-    URL::Origin const& constructor_origin() const { return m_constructor_origin.value(); }
+    void set_constructor_origin(::URL::Origin origin) { m_constructor_origin = move(origin); }
+    ::URL::Origin const& constructor_origin() const { return m_constructor_origin.value(); }
 
-    void set_constructor_url(URL::URL url) { m_constructor_url = move(url); }
-    URL::URL const& constructor_url() const { return m_constructor_url; }
+    void set_constructor_url(::URL::URL url) { m_constructor_url = move(url); }
+    ::URL::URL const& constructor_url() const { return m_constructor_url; }
 
     Fetch::Infrastructure::Request::CredentialsMode credentials() const { return m_credentials; }
     void set_credentials(Fetch::Infrastructure::Request::CredentialsMode credentials) { m_credentials = credentials; }
@@ -48,8 +48,8 @@ private:
     virtual void initialize_web_interfaces_impl() override;
     virtual void finalize() override;
 
-    Optional<URL::Origin> m_constructor_origin;
-    URL::URL m_constructor_url;
+    Optional<::URL::Origin> m_constructor_origin;
+    ::URL::URL m_constructor_url;
     Fetch::Infrastructure::Request::CredentialsMode m_credentials;
 };
 

@@ -67,7 +67,7 @@ private:
     {
         return get_an_elements_target(target);
     }
-    virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(URL::URL const& url, StringView target) const override
+    virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(::URL::URL const& url, StringView target) const override
     {
         return get_an_elements_noopener(url, target);
     }

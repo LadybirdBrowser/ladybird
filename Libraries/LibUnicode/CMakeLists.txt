@@ -25,3 +25,7 @@ ladybird_lib(LibUnicode unicode)
 
 find_package(ICU 76 REQUIRED COMPONENTS data i18n uc)
 target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibUnicode PROPERTIES UNITY_BUILD ON)
+endif()

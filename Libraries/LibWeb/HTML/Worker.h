@@ -70,6 +70,6 @@ private:
     GC::Ptr<WorkerAgentParent> m_agent;
 };
 
-void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> outside_port, WorkerOptions const& options);
+void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, ::URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> outside_port, WorkerOptions const& options);
 
 }

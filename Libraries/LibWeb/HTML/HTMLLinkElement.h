@@ -94,10 +94,10 @@ private:
         //          Null or a source set
         // base URL
         //      A URL
-        URL::URL base_url;
+        ::URL::URL base_url;
         // origin
         //      An origin
-        URL::Origin origin;
+        ::URL::Origin origin;
         // environment
         //      An environment
         GC::Ptr<HTML::EnvironmentSettingsObject> environment;

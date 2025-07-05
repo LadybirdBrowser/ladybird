@@ -5,8 +5,8 @@ endif()
 
 # Enable better flags for configuring swift compilation mode
 if (POLICY CMP0157)
-   cmake_policy(SET CMP0157 NEW)
-   set(CMAKE_Swift_COMPILATION_MODE "$<IF:$<CONFIG:Release>,wholemodule,incremental>")
+    cmake_policy(SET CMP0157 NEW)
+    set(CMAKE_Swift_COMPILATION_MODE "$<IF:$<CONFIG:Release>,wholemodule,incremental>")
 endif()
 
 # Check arguments to return()
@@ -39,6 +39,7 @@ ladybird_option(ENABLE_INSTALL_HEADERS ON CACHE BOOL "Enable installing headers"
 ladybird_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
 ladybird_option(ENABLE_STD_STACKTRACE OFF CACHE BOOL "Force use of std::stacktrace instead of libbacktrace. If it is not supported the build will fail")
 ladybird_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets supported on Windows for CI")
+ladybird_option(ENABLE_UNITY_BUILD ON CACHE BOOL "Enable unity builds")
 
 if (ENABLE_FUZZERS_LIBFUZZER)
     # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives

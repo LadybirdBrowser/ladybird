@@ -176,7 +176,7 @@ public:
 
     static WebIDL::ExceptionOr<GC::Ref<Document>> create_and_initialize(Type, String content_type, HTML::NavigationParams const&);
 
-    [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = URL::about_blank());
+    [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, ::URL::URL const& url = ::URL::about_blank());
     [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(JS::Realm&);
     static GC::Ref<Document> construct_impl(JS::Realm&);
     virtual ~Document() override;
@@ -218,10 +218,10 @@ public:
     String referrer() const;
     void set_referrer(String);
 
-    void set_url(const URL::URL& url) { m_url = url; }
-    URL::URL url() const { return m_url; }
-    URL::URL fallback_base_url() const;
-    URL::URL base_url() const;
+    void set_url(::URL::URL const& url) { m_url = url; }
+    ::URL::URL url() const { return m_url; }
+    ::URL::URL fallback_base_url() const;
+    ::URL::URL base_url() const;
 
     void update_base_element(Badge<HTML::HTMLBaseElement>);
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_href_in_tree_order() const;
@@ -230,13 +230,13 @@ public:
     String url_string() const { return m_url.to_string(); }
     String document_uri() const { return url_string(); }
 
-    URL::Origin const& origin() const;
-    void set_origin(URL::Origin const& origin);
+    ::URL::Origin const& origin() const;
+    void set_origin(::URL::Origin const& origin);
 
     HTML::OpenerPolicy const& opener_policy() const { return m_opener_policy; }
     void set_opener_policy(HTML::OpenerPolicy policy) { m_opener_policy = move(policy); }
 
-    Optional<URL::URL> encoding_parse_url(StringView) const;
+    Optional<::URL::URL> encoding_parse_url(StringView) const;
     Optional<String> encoding_parse_and_serialize_url(StringView) const;
 
     CSS::StyleComputer& style_computer() { return *m_style_computer; }
@@ -603,8 +603,8 @@ public:
     void set_is_initial_about_blank(bool b) { m_is_initial_about_blank = b; }
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-about-base-url
-    Optional<URL::URL> about_base_url() const { return m_about_base_url; }
-    void set_about_base_url(Optional<URL::URL> url) { m_about_base_url = url; }
+    Optional<::URL::URL> about_base_url() const { return m_about_base_url; }
+    void set_about_base_url(Optional<::URL::URL> url) { m_about_base_url = url; }
 
     String domain() const;
     WebIDL::ExceptionOr<void> set_domain(String const&);
@@ -715,7 +715,7 @@ public:
 
     void update_for_history_step_application(GC::Ref<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<GC::Ref<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, GC::Ptr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
-    HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
+    HashMap<::URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
 
     void restore_the_history_object_state(GC::Ref<HTML::SessionHistoryEntry> entry);
 
@@ -915,7 +915,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Document(JS::Realm&, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
+    Document(JS::Realm&, ::URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
 
 private:
     // ^HTML::GlobalEventHandlers
@@ -967,7 +967,7 @@ private:
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     GC::Ptr<Node> m_active_favicon;
     WeakPtr<HTML::BrowsingContext> m_browsing_context;
-    URL::URL m_url;
+    ::URL::URL m_url;
     mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
     GC::Ptr<HTML::Window> m_window;
@@ -1087,7 +1087,7 @@ private:
     bool m_is_initial_about_blank { false };
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-about-base-url
-    Optional<URL::URL> m_about_base_url;
+    Optional<::URL::URL> m_about_base_url;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-coop
     HTML::OpenerPolicy m_opener_policy;
@@ -1096,7 +1096,7 @@ private:
     String m_referrer;
 
     // https://dom.spec.whatwg.org/#concept-document-origin
-    Optional<URL::Origin> m_origin;
+    Optional<::URL::Origin> m_origin;
 
     GC::Ptr<HTMLCollection> m_applets;
     GC::Ptr<HTMLCollection> m_anchors;
@@ -1167,7 +1167,7 @@ private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#latest-entry
     GC::Ptr<HTML::SessionHistoryEntry> m_latest_entry;
 
-    HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> m_shared_resource_requests;
+    HashMap<::URL::URL, GC::Ptr<HTML::SharedResourceRequest>> m_shared_resource_requests;
 
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     HashTable<GC::Ref<Animations::AnimationTimeline>> m_associated_animation_timelines;

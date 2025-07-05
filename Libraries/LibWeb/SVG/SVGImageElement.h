@@ -45,7 +45,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
     void process_the_url(Optional<String> const& href);
-    void fetch_the_document(URL::URL const& url);
+    void fetch_the_document(::URL::URL const& url);
 
 private:
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
@@ -60,7 +60,7 @@ private:
     size_t m_current_frame_index { 0 };
     size_t m_loops_completed { 0 };
 
-    Optional<URL::URL> m_href;
+    Optional<::URL::URL> m_href;
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;

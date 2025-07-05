@@ -80,8 +80,8 @@ public:
 
     // Non-IDL public methods
 
-    URL::URL const& url() const { return m_url.value(); }
-    void set_url(URL::URL const& url) { m_url = url; }
+    ::URL::URL const& url() const { return m_url.value(); }
+    void set_url(::URL::URL const& url) { m_url = url; }
 
     String const& name() const { return m_name; }
     void set_name(String name) { m_name = move(name); }
@@ -137,7 +137,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-url
     // A WorkerGlobalScope object has an associated url (null or a URL). It is initially null.
-    Optional<URL::URL> m_url;
+    Optional<::URL::URL> m_url;
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-name
     // A WorkerGlobalScope object has an associated name (a string). It is set during creation.

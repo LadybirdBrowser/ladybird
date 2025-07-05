@@ -50,7 +50,7 @@ public:
 
     bool has_encoded_data() const { return !m_encoded_data.is_empty(); }
 
-    Optional<URL::URL> const& url() const { return m_request.url(); }
+    Optional<::URL::URL> const& url() const { return m_request.url(); }
     ByteBuffer const& encoded_data() const { return m_encoded_data; }
 
     [[nodiscard]] HTTP::HeaderMap const& response_headers() const { return m_response_headers; }

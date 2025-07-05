@@ -103,13 +103,13 @@ template<>
 ErrorOr<void> encode(Encoder&, UnixDateTime const&);
 
 template<>
-ErrorOr<void> encode(Encoder&, URL::URL const&);
+ErrorOr<void> encode(Encoder&, ::URL::URL const&);
 
 template<>
-ErrorOr<void> encode(Encoder&, URL::Origin const&);
+ErrorOr<void> encode(Encoder&, ::URL::Origin const&);
 
 template<>
-ErrorOr<void> encode(Encoder&, URL::Host const&);
+ErrorOr<void> encode(Encoder&, ::URL::Host const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, File const&);
