@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Created with the createDocument/createDocumentType
+Pass	Created with the createHTMLDocument
+Pass	Created with DOMParser
