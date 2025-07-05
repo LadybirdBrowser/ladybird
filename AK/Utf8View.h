@@ -77,6 +77,13 @@ public:
     {
     }
 
+    template<size_t N>
+    explicit Utf8View(char8_t const (&string)[N])
+        // NOTE: This is a safe conversion, see https://stackoverflow.com/a/57453713 from the char8_t proposal author
+        : m_string(StringView { reinterpret_cast<char const*>(string), N })
+    {
+    }
+
     explicit Utf8View(ByteString&&) = delete;
     ~Utf8View() = default;
 

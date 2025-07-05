@@ -78,6 +78,7 @@ set(AK_TEST_SOURCES
     TestUFixedBigInt.cpp
     TestUtf16View.cpp
     TestUtf8View.cpp
+    TestUtf8GenericLexer.cpp
     TestVariant.cpp
     TestVector.cpp
     TestWeakPtr.cpp
