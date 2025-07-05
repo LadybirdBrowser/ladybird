@@ -240,7 +240,7 @@ FlyString get_the_effective_directive_for_inline_checks(Directive::InlineType ty
 //            expression. script-src http: is treated as equivalent to script-src http: https:,
 //            script-src http://example.com to script-src http://example.com https://example.com,
 //            and connect-src ws: to connect-src ws: wss:.
-[[nodiscard]] static MatchResult scheme_part_matches(StringView a, StringView b)
+static MatchResult scheme_part_matches(StringView a, StringView b)
 {
     // 1. If one of the following is true, return "Matches":
     //    1. A is an ASCII case-insensitive match for B.
@@ -273,7 +273,7 @@ FlyString get_the_effective_directive_for_inline_checks(Directive::InlineType ty
 // More formally, ASCII string pattern and host host are said to host-part match if the following algorithm returns "Matches":
 // Spec Note: The matching relation is asymmetric. That is, pattern matching host does not mean that host will match pattern.
 //            For example, *.example.com host-part matches www.example.com, but www.example.com does not host-part match *.example.com.
-[[nodiscard]] static MatchResult host_part_matches(StringView pattern, Optional<URL::Host> const& maybe_host)
+static MatchResult host_part_matches(StringView pattern, Optional<URL::Host> const& maybe_host)
 {
     // 1. If host is not a domain, return "Does Not Match".
     // Spec Note: A future version of this specification may allow literal IPv6 and IPv4 addresses, depending on usage and demand.
@@ -321,7 +321,7 @@ FlyString get_the_effective_directive_for_inline_checks(Directive::InlineType ty
 // An ASCII string input port-part matches URL url if a CSP source expression that contained the first as a port-part
 // could potentially match a URL containing the latter’s port and scheme. For example, "80" port-part matches
 // matches http://example.com.
-[[nodiscard]] static MatchResult port_part_matches(Optional<StringView> input, URL::URL const& url)
+static MatchResult port_part_matches(Optional<StringView> input, URL::URL const& url)
 {
     // FIXME: 1. Assert: input is the empty string, "*", or a sequence of ASCII digits.
 
@@ -367,7 +367,7 @@ FlyString get_the_effective_directive_for_inline_checks(Directive::InlineType ty
 // "/subdirectory/" path-part matches "/subdirectory/file".
 // Spec Note: The matching relation is asymmetric. That is, path A matching path B does not mean that path B will
 //            match path A.
-[[nodiscard]] static MatchResult path_part_matches(StringView a, StringView b)
+static MatchResult path_part_matches(StringView a, StringView b)
 {
     // 1. If path A is the empty string, return "Matches".
     if (a.is_empty())
