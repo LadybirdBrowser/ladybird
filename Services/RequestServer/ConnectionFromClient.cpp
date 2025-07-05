@@ -487,6 +487,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             set_option(CURLOPT_URL, url.to_string().to_byte_string().characters());
             set_option(CURLOPT_PORT, url.port_or_default());
             set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
+            set_option(CURLOPT_PIPEWAIT, 1L);
 
             bool did_set_body = false;
 
