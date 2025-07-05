@@ -950,7 +950,7 @@ void CanvasRenderingContext2D::set_shadow_color(String color)
             resolution_context.length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*node);
         }
 
-        auto parsedValue = style_value->to_color(layout_node, resolution_context);
+        auto parsedValue = style_value->to_color(layout_node, resolution_context).value_or(Color::Black);
 
         // 4. Set this's shadow color to parsedValue.
         drawing_state().shadow_color = parsedValue;
