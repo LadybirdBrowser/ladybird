@@ -176,6 +176,7 @@ endfunction()
 
 function (generate_js_bindings target)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(collected_bindings_sources "")
     set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})
     list(TRANSFORM generated_idl_targets PREPEND "generate_")
     function(libweb_js_bindings class)
@@ -259,6 +260,9 @@ function (generate_js_bindings target)
 
         list(APPEND LIBWEB_ALL_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
         set(LIBWEB_ALL_IDL_FILES ${LIBWEB_ALL_IDL_FILES} PARENT_SCOPE)
+
+        list(APPEND collected_bindings_sources ${BINDINGS_SOURCES})
+        set(collected_bindings_sources ${collected_bindings_sources} PARENT_SCOPE)
     endfunction()
 
     function(generate_exposed_interface_files)
@@ -313,6 +317,8 @@ function (generate_js_bindings target)
 
     include("idl_files.cmake")
     generate_exposed_interface_files()
+
+    set(LIBWEB_BINDINGS_SOURCES ${collected_bindings_sources} PARENT_SCOPE)
 
     set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 endfunction()

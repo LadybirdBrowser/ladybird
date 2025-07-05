@@ -54,3 +54,7 @@ elseif (DEFINED LADYBIRD_AUDIO_BACKEND)
 else ()
     target_sources(LibMedia PRIVATE Audio/PlaybackStream.cpp)
 endif()
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibMedia PROPERTIES UNITY_BUILD ON)
+endif()
