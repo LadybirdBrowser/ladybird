@@ -27,13 +27,19 @@ String String::from_utf8_with_replacement_character(StringView view, WithBOMHand
     if (auto bytes = view.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
         view = view.substring_view(3);
 
-    if (Utf8View(view).validate())
+    Utf8View utf8_view { view };
+
+    if (utf8_view.validate(AllowLonelySurrogates::No))
         return String::from_utf8_without_validation(view.bytes());
 
-    StringBuilder builder;
+    StringBuilder builder(view.length());
 
-    for (auto c : Utf8View { view })
-        builder.append_code_point(c);
+    for (auto code_point : utf8_view) {
+        if (is_unicode_surrogate(code_point))
+            builder.append_code_point(UnicodeUtils::REPLACEMENT_CODE_POINT);
+        else
+            builder.append_code_point(code_point);
+    }
 
     return builder.to_string_without_validation();
 }
