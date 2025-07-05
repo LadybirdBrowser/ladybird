@@ -2184,6 +2184,11 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
 
         // 4. Append historyEntry to targetEntries.
         target_entries.append(history_entry);
+
+        // AD-HOC: If the new document creates a new child navigable we dont have a way to know it yet because load_document
+        //         is ran using deferred_invoke.
+        //         Therefore, we lock the session history step for child navigable's update_for_navigable_creation_or_destruction.
+        traversable->lock_session_history_step(true);
     } else {
         // 1. Replace entryToReplace with historyEntry in targetEntries.
         *(target_entries.find(*entry_to_replace)) = history_entry;
@@ -2203,6 +2208,7 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
     traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::No);
+    traversable->lock_session_history_step(false);
 
     // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
     //         This allows size negotiation between the containing document and SVG documents to happen.

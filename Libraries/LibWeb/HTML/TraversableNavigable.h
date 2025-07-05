@@ -43,6 +43,8 @@ public:
     virtual bool is_top_level_traversable() const override;
 
     int current_session_history_step() const { return m_current_session_history_step; }
+    bool is_session_history_step_locked() const { return m_session_history_step_is_locked; }
+    void lock_session_history_step(bool s) { m_session_history_step_is_locked = s; }
     Vector<GC::Ref<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
     Vector<GC::Ref<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
     bool running_nested_apply_history_step() const { return m_running_nested_apply_history_step; }
@@ -88,14 +90,14 @@ public:
     void definitely_close_top_level_traversable();
     void destroy_top_level_traversable();
 
-    void append_session_history_traversal_steps(GC::Ref<GC::Function<void()>> steps)
+    void append_session_history_traversal_steps(GC::Ref<GC::Function<void()>> steps, int priority = 0)
     {
-        m_session_history_traversal_queue->append(steps);
+        m_session_history_traversal_queue->append(steps, priority);
     }
 
-    void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<GC::Function<void()>> steps)
+    void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<GC::Function<void()>> steps, int priority = 0)
     {
-        m_session_history_traversal_queue->append_sync(steps, target_navigable);
+        m_session_history_traversal_queue->append_sync(steps, target_navigable, priority);
     }
 
     String window_handle() const { return m_window_handle; }
@@ -149,6 +151,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
+    bool m_session_history_step_is_locked { false };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<GC::Ref<SessionHistoryEntry>> m_session_history_entries;

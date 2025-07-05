@@ -1179,6 +1179,11 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::update_for_navigab
     // 1. Let step be traversable's current session history step.
     auto step = current_session_history_step();
 
+    // AD-HOC: If the parent traversable is inside a cross-document navigation, target step is +1.
+    if (m_session_history_step_is_locked) {
+        step++;
+    }
+
     // 2. Return the result of applying the history step to traversable given false, null, null, null, and null.
     return apply_the_history_step(step, false, {}, {}, UserNavigationInvolvement::None, {}, SynchronousNavigation::No);
 }
