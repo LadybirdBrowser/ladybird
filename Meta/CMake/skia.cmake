@@ -30,6 +30,7 @@ else()
 
     pkg_check_modules(skia skia=${SKIA_REQUIRED_VERSION} REQUIRED IMPORTED_TARGET skia)
     set(SKIA_TARGET PkgConfig::skia)
+    set_property(TARGET PkgConfig::skia APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS "SKCMS_API=__attribute__((visibility(\"default\")))")
 endif()
 swizzle_target_properties_for_swift(${SKIA_TARGET})
 add_library(skia ALIAS ${SKIA_TARGET})

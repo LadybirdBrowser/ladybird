@@ -109,3 +109,22 @@ if (NOT APPLE)
     # On macOS the resources are handled via the MACOSX_PACKAGE_LOCATION property on each resource file
     install_ladybird_resources("${CMAKE_INSTALL_DATADIR}/Lagom" ladybird_Runtime)
 endif()
+
+if (ENABLE_INSTALL_FLATPAK_FILES)
+    set(FLATPAK_RESOURCE_DIR "${LADYBIRD_SOURCE_DIR}/Meta/CMake/flatpak")
+    install(FILES
+        "${FLATPAK_RESOURCE_DIR}/org.ladybird.Ladybird.svg"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
+        COMPONENT ladybird_Runtime
+    )
+    install(FILES
+        "${FLATPAK_RESOURCE_DIR}/org.ladybird.Ladybird.desktop"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
+        COMPONENT ladybird_Runtime
+    )
+    install(FILES
+        "${FLATPAK_RESOURCE_DIR}/org.ladybird.Ladybird.service"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/dbus-1/services"
+        COMPONENT ladybird_Runtime
+    )
+endif()
