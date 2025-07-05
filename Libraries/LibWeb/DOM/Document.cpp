@@ -850,7 +850,7 @@ GC::Ptr<HTML::WindowProxy const> Document::default_view() const
 
 URL::Origin const& Document::origin() const
 {
-    return m_origin.value();
+    return m_origin;
 }
 
 void Document::set_origin(URL::Origin const& origin)
