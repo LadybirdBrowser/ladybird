@@ -6330,6 +6330,10 @@ GC::Ref<Document> Document::parse_html_unsafe(JS::VM& vm, StringView html)
     // 4. Parse HTML from a string given document and compliantHTML. // FIXME: Use compliantHTML.
     document->parse_html_from_a_string(html);
 
+    // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
+    auto& associated_document = as<HTML::Window>(realm.global_object()).associated_document();
+    document->set_origin(associated_document.origin());
+
     // 5. Return document.
     return document;
 }
