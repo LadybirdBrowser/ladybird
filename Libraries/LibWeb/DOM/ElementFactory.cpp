@@ -91,6 +91,9 @@
 #include <LibWeb/SVG/SVGDefsElement.h>
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGEllipseElement.h>
+#include <LibWeb/SVG/SVGFEBlendElement.h>
+#include <LibWeb/SVG/SVGFEFloodElement.h>
+#include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGGElement.h>
@@ -461,6 +464,12 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
         return realm.create<SVG::SVGDescElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::ellipse)
         return realm.create<SVG::SVGEllipseElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feBlend)
+        return realm.create<SVG::SVGFEBlendElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feFlood)
+        return realm.create<SVG::SVGFEFloodElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feGaussianBlur)
+        return realm.create<SVG::SVGFEGaussianBlurElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::filter)
         return realm.create<SVG::SVGFilterElement>(document, move(qualified_name));
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::foreignObject))

@@ -98,6 +98,9 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
                     }());
 
                 builder.append(color.amount.to_string());
+            },
+            [&](CSS::URL const& url) {
+                builder.append(url.to_string());
             });
         builder.append(')');
         first = false;

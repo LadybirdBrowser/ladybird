@@ -32,6 +32,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 
 namespace Web::Layout {
@@ -588,7 +589,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         for (auto const& filter : computed_filter.filters()) {
             filter.visit(
                 [&](CSS::FilterOperation::Blur const& blur) {
-                    auto new_filter = Gfx::Filter::blur(blur.resolved_radius(*this));
+                    auto resolved_radius = blur.resolved_radius(*this);
+                    auto new_filter = Gfx::Filter::blur(resolved_radius, resolved_radius);
 
                     resolved_filter = resolved_filter.has_value()
                         ? Gfx::Filter::compose(new_filter, *resolved_filter)
@@ -624,6 +626,36 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                     resolved_filter = resolved_filter.has_value()
                         ? Gfx::Filter::compose(new_filter, *resolved_filter)
                         : new_filter;
+                },
+                [&](CSS::URL const& css_url) {
+                    // FIXME: This is not the right place to resolve SVG filters. Some filter primitives
+                    //        wont work if the filter is referenced before its defined because some parameters
+                    //        are passed by CSS property. Ideally they should be resolved in another pass or
+                    //        lazily.
+
+                    auto& url_string = css_url.url();
+
+                    if (url_string.is_empty() || !url_string.starts_with('#'))
+                        return;
+
+                    auto fragment_or_error = url_string.substring_from_byte_offset(1);
+
+                    if (fragment_or_error.is_error())
+                        return;
+
+                    // FIXME: Support urls that are not only composed of a fragment.
+                    auto maybe_filter = document().get_element_by_id(fragment_or_error.value());
+
+                    if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
+                        Optional<Gfx::Filter> new_filter = filter_element->gfx_filter();
+
+                        if (!new_filter.has_value())
+                            return;
+
+                        resolved_filter = resolved_filter.has_value()
+                            ? Gfx::Filter::compose(*new_filter, *resolved_filter)
+                            : new_filter;
+                    }
                 });
         }
         return resolved_filter;

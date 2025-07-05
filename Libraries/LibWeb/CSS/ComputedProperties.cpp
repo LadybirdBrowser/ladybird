@@ -443,6 +443,22 @@ ClipRule ComputedProperties::clip_rule() const
     return keyword_to_fill_rule(value.to_keyword()).release_value();
 }
 
+Color ComputedProperties::flood_color(Layout::NodeWithStyle const& node) const
+{
+    auto const& value = property(PropertyID::FloodColor);
+    if (value.has_color()) {
+        return value.to_color(node, { .length_resolution_context = Length::ResolutionContext::for_layout_node(node) });
+    }
+
+    return InitialValues::flood_color();
+}
+
+float ComputedProperties::flood_opacity() const
+{
+    auto const& value = property(PropertyID::FloodOpacity);
+    return resolve_opacity_value(value);
+}
+
 FlexDirection ComputedProperties::flex_direction() const
 {
     auto const& value = property(PropertyID::FlexDirection);

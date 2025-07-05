@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/URL.h>
 
 namespace Web::CSS {
 
@@ -53,18 +54,18 @@ struct Color {
 
 };
 
-using FilterFunction = Variant<FilterOperation::Blur, FilterOperation::DropShadow, FilterOperation::HueRotate, FilterOperation::Color>;
+using FilterValue = Variant<FilterOperation::Blur, FilterOperation::DropShadow, FilterOperation::HueRotate, FilterOperation::Color, URL>;
 
 class FilterValueListStyleValue final : public StyleValueWithDefaultOperators<FilterValueListStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<FilterValueListStyleValue const> create(
-        Vector<FilterFunction> filter_value_list)
+        Vector<FilterValue> filter_value_list)
     {
         VERIFY(filter_value_list.size() >= 1);
         return adopt_ref(*new (nothrow) FilterValueListStyleValue(move(filter_value_list)));
     }
 
-    Vector<FilterFunction> const& filter_value_list() const { return m_filter_value_list; }
+    Vector<FilterValue> const& filter_value_list() const { return m_filter_value_list; }
 
     virtual String to_string(SerializationMode) const override;
 
@@ -73,14 +74,14 @@ public:
     bool properties_equal(FilterValueListStyleValue const& other) const { return m_filter_value_list == other.m_filter_value_list; }
 
 private:
-    FilterValueListStyleValue(Vector<FilterFunction> filter_value_list)
+    FilterValueListStyleValue(Vector<FilterValue> filter_value_list)
         : StyleValueWithDefaultOperators(Type::FilterValueList)
         , m_filter_value_list(move(filter_value_list))
     {
     }
 
     // FIXME: No support for SVG filters yet
-    Vector<FilterFunction> m_filter_value_list;
+    Vector<FilterValue> m_filter_value_list;
 };
 
 }

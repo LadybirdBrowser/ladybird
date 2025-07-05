@@ -1544,6 +1544,24 @@
       "float"
     ]
   },
+  "flood-color": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "black",
+    "valid-types": [
+      "color"
+    ]
+  },
+  "flood-opacity": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "1",
+    "valid-types": [
+      "number [0,1]"
+    ]
+  },
   "font": {
     "inherited": true,
     "initial": "normal medium serif",

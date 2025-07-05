@@ -5062,11 +5062,11 @@ RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<Co
         return {};
     };
 
-    auto parse_filter_function = [&](auto filter_token, auto const& function_values) -> Optional<FilterFunction> {
+    auto parse_filter_function = [&](auto filter_token, auto const& function_values) -> Optional<FilterValue> {
         TokenStream tokens { function_values };
         tokens.discard_whitespace();
 
-        auto if_no_more_tokens_return = [&](auto filter) -> Optional<FilterFunction> {
+        auto if_no_more_tokens_return = [&](auto filter) -> Optional<FilterValue> {
             tokens.discard_whitespace();
             if (tokens.has_next_token())
                 return {};
@@ -5162,12 +5162,19 @@ RefPtr<CSSStyleValue const> Parser::parse_filter_value_list_value(TokenStream<Co
         }
     };
 
-    Vector<FilterFunction> filter_value_list {};
+    Vector<FilterValue> filter_value_list {};
 
     while (tokens.has_next_token()) {
         tokens.discard_whitespace();
         if (!tokens.has_next_token())
             break;
+
+        auto url_function = parse_url_function(tokens);
+        if (url_function.has_value()) {
+            filter_value_list.append(*url_function);
+            continue;
+        }
+
         auto& token = tokens.consume_a_token();
         if (!token.is_function())
             return nullptr;

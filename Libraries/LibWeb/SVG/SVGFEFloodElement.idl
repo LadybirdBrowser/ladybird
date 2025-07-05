@@ -1,0 +1,7 @@
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+[Exposed=Window]
+interface SVGFEFloodElement : SVGElement {
+};
+
+SVGFEFloodElement includes SVGFilterPrimitiveStandardAttributes;
