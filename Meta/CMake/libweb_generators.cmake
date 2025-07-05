@@ -44,7 +44,8 @@ function (generate_css_implementation)
         "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
         "CSS/PropertyID.h"
         "CSS/PropertyID.cpp"
-        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json" -g "${LIBWEB_INPUT_FOLDER}/CSS/LogicalPropertyGroups.json"
+        dependencies "${LIBWEB_INPUT_FOLDER}/CSS/LogicalPropertyGroups.json"
     )
 
     invoke_cpp_generator(

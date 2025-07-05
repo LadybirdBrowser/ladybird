@@ -7,7 +7,8 @@ These are listed below in the order that Ladybird deals with them, starting at p
 
 The first place you will need to go to is `CSS/Properties.json`. This file contains the definition for each
 property, and is used to generate the `PropertyID` enum and a selection of functions. You may also need to
-modify `CSS/Keywords.json` and `CSS/Enums.json`. See [CSSGeneratedFiles.md](CSSGeneratedFiles.md) for details.
+modify `CSS/Keywords.json`, `CSS/Enums.json`, and `CSS/LogicalPropertyGroups.json`.
+See [CSSGeneratedFiles.md](CSSGeneratedFiles.md) for details.
 
 ## Parsing
 

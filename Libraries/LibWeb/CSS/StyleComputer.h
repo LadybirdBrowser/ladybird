@@ -131,13 +131,6 @@ public:
     static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
     static NonnullRefPtr<CSSStyleValue const> get_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::PseudoElement> = {});
 
-    struct LogicalAliasMappingContext {
-        CSS::WritingMode writing_mode;
-        CSS::Direction direction;
-        // TODO: text-orientation
-    };
-    static PropertyID map_logical_alias_to_physical_property_id(PropertyID, LogicalAliasMappingContext);
-
     static Optional<String> user_agent_style_sheet_source(StringView name);
 
     explicit StyleComputer(DOM::Document&);
