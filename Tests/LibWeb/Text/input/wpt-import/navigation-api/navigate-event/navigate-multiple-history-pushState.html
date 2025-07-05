@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  const expected = [
+    "navigate #1",
+    "navigateerror #1",
+    "navigate #3",
+    "navigateerror #3",
+    "navigate #2",
+    "navigatesuccess #2"
+  ];
+
+  const result = [];
+  navigation.onnavigate = t.step_func(e => {
+    result.push(`${e.type} ${new URL(e.destination.url).hash}`);
+  });
+
+  navigation.onnavigateerror = t.step_func(e => {
+    result.push(`${e.type} ${new URL(navigation.currentEntry.url).hash}`);
+
+    if (navigation.currentEntry.url.endsWith("#1")) {
+      history.pushState(1, null, "#3");
+    }
+  });
+
+  navigation.onnavigatesuccess = t.step_func_done(e => {
+    result.push(`${e.type} ${new URL(navigation.currentEntry.url).hash}`);
+    assert_array_equals(result, expected);
+  });
+
+  history.pushState(1, null, "#1");
+  history.pushState(1, null, "#2");
+
+}, "history.pushState() called multiple times gives correct event order");
+</script>

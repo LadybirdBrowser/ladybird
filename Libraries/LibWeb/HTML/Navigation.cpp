@@ -1320,26 +1320,35 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
     if (!navigation_api_state.has_value())
         navigation_api_state = MUST(structured_serialize_for_storage(vm, JS::js_null()));
 
-    // 1. Let event be the result of creating an event given NavigateEvent, in navigation's relevant realm.
-    // 2. Set event's classic history API state to classicHistoryAPIState.
+    // 1. If isSameDocument is true:
+    if (is_same_document) {
+        // 1. While navigation's ongoing navigate event is not null:
+        while (m_ongoing_navigate_event) {
+            // 1. Abort the ongoing navigation given navigation.
+            abort_the_ongoing_navigation();
+        }
+    }
+
+    // 2. Let event be the result of creating an event given NavigateEvent, in navigation's relevant realm.
+    // 3. Set event's classic history API state to classicHistoryAPIState.
     // AD-HOC: These are handled in the inner algorithm
 
-    // 3. Let destination be a new NavigationDestination created in navigation's relevant realm.
+    // 4. Let destination be a new NavigationDestination created in navigation's relevant realm.
     auto destination = NavigationDestination::create(realm);
 
-    // 4. Set destination's URL to destinationURL.
+    // 5. Set destination's URL to destinationURL.
     destination->set_url(destination_url);
 
-    // 5. Set destination's entry to null.
+    // 6. Set destination's entry to null.
     destination->set_entry(nullptr);
 
-    // 6. Set destination's state to navigationAPIState.
+    // 7. Set destination's state to navigationAPIState.
     destination->set_state(*navigation_api_state);
 
-    // 7. Set destination's is same document to isSameDocument.
+    // 8. Set destination's is same document to isSameDocument.
     destination->set_is_same_document(is_same_document);
 
-    // 8. Return the result of performing the inner navigate event firing algorithm given navigation,
+    // 9. Return the result of performing the inner navigate event firing algorithm given navigation,
     //    navigationType, event, destination, userInvolvement, sourceElement, formDataEntryList, and null.
     // AD-HOC: We don't pass the event, but we do pass the classic_history_api state at the end to be set later
     return inner_navigate_event_firing_algorithm(navigation_type, destination, user_involvement, source_element, move(form_data_entry_list), {}, move(classic_history_api_state));
