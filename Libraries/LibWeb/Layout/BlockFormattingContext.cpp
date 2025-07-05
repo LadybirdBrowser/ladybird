@@ -496,27 +496,93 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         height = max(height, calculate_inner_height(box, available_space, computed_values.min_height()));
     }
 
+    // https://quirks.spec.whatwg.org/#the-html-element-fills-the-viewport-quirk
+    // 3.6. The html element fills the viewport quirk
+    // In quirks mode, if the document element element matches the following conditions:
     if (box.document().in_quirks_mode()
+        // - element is an html element.
         && box.dom_node()
         && box.dom_node()->is_html_html_element()
-        && box.computed_values().height().is_auto()) {
-        // 3.6. The html element fills the viewport quirk
-        // https://quirks.spec.whatwg.org/#the-html-element-fills-the-viewport-quirk
-        // FIXME: Handle vertical writing mode.
+        // - The computed value of the width property of element is auto and element has a vertical writing mode,
+        && ((box.computed_values().width().is_auto() && box.text_flow_direction() == Gfx::Orientation::Vertical)
+            //   or the computed value of the height property of element is auto and element has a horizontal writing mode.
+            || (box.computed_values().height().is_auto() && box.text_flow_direction() == Gfx::Orientation::Horizontal))) {
+        // ...then element must have its border box size in the block flow direction set using the following algorithm:
 
         // 1. Let margins be sum of the used values of the margin-left and margin-right properties of element
         //    if element has a vertical writing mode, otherwise let margins be the sum of the used values of
         //    the margin-top and margin-bottom properties of element.
-        auto margins = box_state.margin_top + box_state.margin_bottom;
+        CSSPixels margins;
+        if (box.text_flow_direction() == Gfx::Orientation::Vertical) {
+            margins = box_state.margin_left + box_state.margin_right;
+        } else {
+            margins = box_state.margin_top + box_state.margin_bottom;
+        }
 
         // 2. Let size be the size of the initial containing block in the block flow direction minus margins.
         auto size = box_state.containing_block_used_values()->content_height() - margins;
 
         // 3. Return the bigger value of size and the normal border box size the element would have
         //    according to the CSS specification.
-        height = max(size, height);
+        // NOTE: We deal in content box size, not border box size so we need to subtract borders and padding here.
+        CSSPixels borders;
+        if (box.text_flow_direction() == Gfx::Orientation::Vertical) {
+            borders = computed_values.border_left().width + computed_values.border_right().width + computed_values.padding().left().to_px(box, box_state.containing_block_used_values()->content_width()) + computed_values.padding().right().to_px(box, box_state.containing_block_used_values()->content_width());
+        } else {
+            borders = computed_values.border_top().width + computed_values.border_bottom().width + computed_values.padding().top().to_px(box, box_state.containing_block_used_values()->content_height()) + computed_values.padding().bottom().to_px(box, box_state.containing_block_used_values()->content_height());
+        }
+        height = max(size - borders, height);
 
         // NOTE: The height of the root element when affected by this quirk is considered to be definite.
+        box_state.set_has_definite_height(true);
+    }
+
+    // https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk
+    // 3.7. The body element fills the html element quirk
+
+    // In quirks mode, if the document’s body element body is not null and if it matches the following conditions:
+    if (box.document().in_quirks_mode()
+        && box.dom_node()
+        && box.dom_node() == box.document().body()
+        // - The computed value of the width property of body is auto and body has a vertical writing mode,
+        && ((box.computed_values().width().is_auto() && box.text_flow_direction() == Gfx::Orientation::Vertical)
+            //   or the computed value of the height property of body is auto and body has a horizontal writing mode.
+            || (box.computed_values().height().is_auto() && box.text_flow_direction() == Gfx::Orientation::Horizontal))
+        // - The computed value of the position property of body is not absolute or fixed.
+        && !(box.computed_values().position() == CSS::Positioning::Absolute || box.computed_values().position() == CSS::Positioning::Fixed)
+        // - The computed value of the float property of body is none.
+        && box.computed_values().float_() == CSS::Float::None
+        // - body is not an inline-level element.
+        && !box.is_inline()
+        // - body is not a multi-column spanning element.
+        // FIXME: Implement this. Note: multiple columns seem to be required for this, so just reading the computed value of column-span is not enough.
+    ) {
+        // ...then body must have its border box size in the block flow direction set using the following algorithm:
+
+        // 1. Let margins be the sum of the used values of the margin-left and margin-right properties of body if body has a vertical writing mode, otherwise let margins be the sum of the
+        //    used values of the margin-top and margin-bottom properties of body.
+        CSSPixels margins;
+        if (box.text_flow_direction() == Gfx::Orientation::Vertical) {
+            margins = box_state.margin_left + box_state.margin_right;
+        } else {
+            margins = box_state.margin_top + box_state.margin_bottom;
+        }
+
+        // 2. Let size be the size of body’s parent element’s content box in the block flow direction minus margins.
+        auto size = box_state.containing_block_used_values()->content_height() - margins;
+
+        // 3. Return the bigger value of size and the normal border box size the element would have according to the CSS specification.
+        // NOTE: We deal in content box size, not border box size so we need to subtract borders and padding here.
+        CSSPixels borders;
+        if (box.text_flow_direction() == Gfx::Orientation::Vertical) {
+            borders = computed_values.border_left().width + computed_values.border_right().width + computed_values.padding().left().to_px(box, box_state.containing_block_used_values()->content_width()) + computed_values.padding().right().to_px(box, box_state.containing_block_used_values()->content_width());
+        } else {
+            borders = computed_values.border_top().width + computed_values.border_bottom().width + computed_values.padding().top().to_px(box, box_state.containing_block_used_values()->content_height()) + computed_values.padding().bottom().to_px(box, box_state.containing_block_used_values()->content_height());
+        }
+        height = max(size - borders, height);
+
+        // FIXME: What should happen if the html and the body have different writing modes?
+        //        Since that is probably rare, we'll just treat the body's height as definite for now when affected by this quirk.
         box_state.set_has_definite_height(true);
     }
 
