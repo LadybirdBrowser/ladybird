@@ -10,19 +10,19 @@
 
 namespace Web::ContentSecurityPolicy::Directives {
 
-// https://w3c.github.io/webappsec-csp/#directive-img-src
-class ImageSourceDirective final : public Directive {
-    GC_CELL(ImageSourceDirective, Directive)
-    GC_DECLARE_ALLOCATOR(ImageSourceDirective);
+// https://w3c.github.io/webappsec-csp/#directive-manifest-src
+class ManifestSourceDirective final : public Directive {
+    GC_CELL(ManifestSourceDirective, Directive)
+    GC_DECLARE_ALLOCATOR(ManifestSourceDirective);
 
 public:
-    virtual ~ImageSourceDirective() = default;
+    virtual ~ManifestSourceDirective() = default;
 
     virtual Result pre_request_check(GC::Heap&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Policy const>) const override;
     virtual Result post_request_check(GC::Heap&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<Policy const>) const override;
 
 private:
-    ImageSourceDirective(String name, Vector<String> value);
+    ManifestSourceDirective(String name, Vector<String> value);
 };
 
 }
