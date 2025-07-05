@@ -1,6 +1,3 @@
-> [!NOTE]
-> The Android port is currently [broken](https://github.com/LadybirdBrowser/ladybird/issues/2774) and won't build.
-
 ## Android Studio Project Configuration
 
 The Android port of Ladybird has straightforward integration with the Android Studio IDE.
@@ -9,7 +6,7 @@ The Android port of Ladybird has straightforward integration with the Android St
 
 Ensure that your system has the following tools available:
 
-- Android Studio Jellyfish 2023.3.1 or later
+- Android Studio Narwhal 2025.1.1 or later
 - CMake 3.23 or higher as the default CMake executable
 - 20G or more storage space for SDKs + Emulator images + Gradle dependencies + build artifacts
 

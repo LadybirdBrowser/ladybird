@@ -16,7 +16,7 @@ ErrorOr<int> service_main(int ipc_socket)
     Core::EventLoop event_loop;
 
     auto socket = TRY(Core::LocalSocket::adopt_fd(ipc_socket));
-    auto client = TRY(ImageDecoder::ConnectionFromClient::try_create(move(socket)));
+    auto client = TRY(ImageDecoder::ConnectionFromClient::try_create(make<IPC::Transport>(move(socket))));
 
     return event_loop.exec();
 }
