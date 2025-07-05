@@ -27,3 +27,8 @@ endif()
 # TODO: Use lagom_generate_export_header and annotate entire LibGC with export macros
 include(GenerateExportHeader)
 generate_export_header(LibGC EXPORT_MACRO_NAME GC_API EXPORT_FILE_NAME "Export.h")
+
+if(ENABLE_UNITY_BUILD)
+    set_target_properties(LibGC PROPERTIES UNITY_BUILD ON UNITY_BUILD_BATCH_SIZE 3)
+    # Decreasing the number of sources per batch to increase parallelism
+endif()
