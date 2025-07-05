@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	DOMStringList: length attribute
+Pass	DOMStringList: item() method
+Pass	DOMStringList: indexed getter
+Pass	DOMStringList: contains() method
