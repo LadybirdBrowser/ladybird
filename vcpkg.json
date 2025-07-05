@@ -128,6 +128,14 @@
       "platform": "!android"
     },
     {
+      "name": "vk-bootstrap",
+      "platform": "!android"
+    },
+    {
+      "name": "vulkan-utility-libraries",
+      "platform": "!android"
+    },
+    {
       "name": "tiff",
       "features": [
         "zstd"
@@ -135,6 +143,14 @@
     },
     {
       "name": "vulkan-headers",
+      "platform": "!android"
+    },
+    {
+      "name": "spirv-tools",
+      "platform": "!android"
+    },
+    {
+      "name": "spirv-cross",
       "platform": "!android"
     },
     "woff2",
