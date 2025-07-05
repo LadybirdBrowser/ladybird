@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 53 tests
 
-42 Pass
-11 Fail
+48 Pass
+5 Fail
 Pass	clip-path presentation attribute supported on a relevant element
 Pass	clip-rule presentation attribute supported on a relevant element
 Pass	color presentation attribute supported on a relevant element
@@ -22,7 +22,7 @@ Fail	font-stretch presentation attribute supported on a relevant element
 Pass	font-style presentation attribute supported on a relevant element
 Fail	font-variant presentation attribute supported on a relevant element
 Pass	font-weight presentation attribute supported on a relevant element
-Fail	height presentation attribute supported on a relevant element
+Pass	height presentation attribute supported on a relevant element
 Pass	image-rendering presentation attribute supported on a relevant element
 Pass	letter-spacing presentation attribute supported on a relevant element
 Pass	mask-type presentation attribute supported on a relevant element
@@ -31,8 +31,8 @@ Pass	opacity presentation attribute supported on a relevant element
 Pass	overflow presentation attribute supported on a relevant element
 Pass	pointer-events presentation attribute supported on a relevant element
 Pass	r presentation attribute supported on a relevant element
-Fail	rx presentation attribute supported on a relevant element
-Fail	ry presentation attribute supported on a relevant element
+Pass	rx presentation attribute supported on a relevant element
+Pass	ry presentation attribute supported on a relevant element
 Pass	stop-color presentation attribute supported on a relevant element
 Pass	stop-opacity presentation attribute supported on a relevant element
 Pass	stroke presentation attribute supported on a relevant element
@@ -52,8 +52,8 @@ Fail	transform presentation attribute supported on a relevant element
 Pass	unicode-bidi presentation attribute supported on a relevant element
 Pass	visibility presentation attribute supported on a relevant element
 Pass	white-space presentation attribute supported on a relevant element
-Fail	width presentation attribute supported on a relevant element
+Pass	width presentation attribute supported on a relevant element
 Pass	word-spacing presentation attribute supported on a relevant element
 Pass	writing-mode presentation attribute supported on a relevant element
-Fail	x presentation attribute supported on a relevant element
-Fail	y presentation attribute supported on a relevant element
+Pass	x presentation attribute supported on a relevant element
+Pass	y presentation attribute supported on a relevant element
