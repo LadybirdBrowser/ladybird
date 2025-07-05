@@ -75,6 +75,35 @@ GC::Ptr<CSS::ComputedProperties const> AbstractElement::computed_properties() co
     return m_element->computed_properties();
 }
 
+HashMap<FlyString, CSS::StyleProperty> const& AbstractElement::custom_properties() const
+{
+    return m_element->custom_properties(m_pseudo_element);
+}
+
+void AbstractElement::set_custom_properties(HashMap<FlyString, CSS::StyleProperty>&& custom_properties)
+{
+    m_element->set_custom_properties(m_pseudo_element, move(custom_properties));
+}
+
+RefPtr<CSS::CSSStyleValue const> AbstractElement::get_custom_property(FlyString const& name) const
+{
+    // FIXME: We should be producing computed values for custom properties, just like regular properties.
+    if (m_pseudo_element.has_value()) {
+        auto const& custom_properties = m_element->custom_properties(*m_pseudo_element);
+        if (auto it = custom_properties.find(name); it != custom_properties.end()) {
+            return it->value.value;
+        }
+    }
+
+    for (auto const* current_element = m_element.ptr(); current_element; current_element = current_element->parent_or_shadow_host_element()) {
+        auto const& custom_properties = current_element->custom_properties({});
+        if (auto it = custom_properties.find(name); it != custom_properties.end()) {
+            return it->value.value;
+        }
+    }
+    return nullptr;
+}
+
 bool AbstractElement::has_non_empty_counters_set() const
 {
     if (m_pseudo_element.has_value())

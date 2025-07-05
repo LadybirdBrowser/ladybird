@@ -134,9 +134,15 @@ public:
 
     Vector<ComponentValue> parse_as_list_of_component_values();
 
-    static NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
+    static NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<PseudoElement>, PropertyIDOrCustomPropertyName, UnresolvedStyleValue const&, Optional<GuardedSubstitutionContexts&> = {});
 
     [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
+
+    enum class StopAtComma : u8 {
+        No,
+        Yes,
+    };
+    static Optional<Vector<ComponentValue>> parse_declaration_value(TokenStream<ComponentValue>&, StopAtComma = StopAtComma::No);
 
 private:
     Parser(ParsingParams const&, Vector<Token>);
@@ -507,10 +513,7 @@ private:
 
     OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
 
-    NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(DOM::Element&, Optional<PseudoElement>, PropertyID, UnresolvedStyleValue const&);
-    bool expand_variables(DOM::Element&, Optional<PseudoElement>, FlyString const& property_name, HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>>& dependencies, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
-    bool expand_unresolved_values(DOM::Element&, FlyString const& property_name, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest);
-    bool substitute_attr_function(DOM::Element& element, FlyString const& property_name, Function const& attr_function, Vector<ComponentValue>& dest);
+    NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(DOM::AbstractElement&, GuardedSubstitutionContexts&, PropertyIDOrCustomPropertyName, UnresolvedStyleValue const&);
 
     static bool has_ignored_vendor_prefix(StringView);
 

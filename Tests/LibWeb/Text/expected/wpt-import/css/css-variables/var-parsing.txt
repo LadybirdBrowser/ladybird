@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+3 Pass
+5 Fail
+Pass	e.style['width'] = "var(--x)" should set the property value
+Pass	e.style['width'] = "var(--x,)" should set the property value
+Pass	e.style['width'] = "var(--x, )" should set the property value
+Fail	e.style['width'] = "var(--x ())" should not set the property value
+Fail	e.style['width'] = "var(--x () )" should not set the property value
+Fail	e.style['width'] = "var(--x() )" should not set the property value
+Fail	e.style['width'] = "var(--x (),)" should not set the property value
+Fail	e.style['width'] = "var(--x(),)" should not set the property value
