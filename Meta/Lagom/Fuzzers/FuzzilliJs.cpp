@@ -7,6 +7,7 @@
 #include <AK/Format.h>
 #include <AK/Function.h>
 #include <AK/StringView.h>
+#include <AK/kmalloc.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Lexer.h>
@@ -83,7 +84,7 @@ extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* s
     char const* shm_key = getenv("SHM_ID");
     if (!shm_key) {
         puts("[COV] no shared memory bitmap available, skipping");
-        __shmem = (struct shmem_data*)malloc(SHM_SIZE);
+        __shmem = (struct shmem_data*)kmalloc(SHM_SIZE);
     } else {
         int fd = shm_open(shm_key, O_RDWR, S_IREAD | S_IWRITE);
         if (fd <= -1) {
