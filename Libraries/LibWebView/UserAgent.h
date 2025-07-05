@@ -9,11 +9,12 @@
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-extern OrderedHashMap<StringView, StringView> const user_agents;
+WEBVIEW_API extern OrderedHashMap<StringView, StringView> const user_agents;
 
-Optional<StringView> normalize_user_agent_name(StringView);
+WEBVIEW_API Optional<StringView> normalize_user_agent_name(StringView);
 
 }

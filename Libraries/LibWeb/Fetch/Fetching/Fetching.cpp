@@ -65,7 +65,7 @@
 
 namespace Web::Fetch::Fetching {
 
-bool g_http_cache_enabled;
+bool g_http_cache_enabled = false;
 
 #define TRY_OR_IGNORE(expression)                                                                    \
     ({                                                                                               \
@@ -2821,6 +2821,11 @@ void append_fetch_metadata_headers_for_request(Infrastructure::Request& request)
 
     // 5. Set the Sec-Fetch-User header for r.
     set_sec_fetch_user_header(request);
+}
+
+void set_http_cache_enabled(bool const enabled)
+{
+    g_http_cache_enabled = enabled;
 }
 
 }

@@ -16,10 +16,10 @@
 
 namespace WebView {
 
-ProcessType process_type_from_name(StringView);
-StringView process_name_from_type(ProcessType type);
+WEBVIEW_API ProcessType process_type_from_name(StringView);
+WEBVIEW_API StringView process_name_from_type(ProcessType type);
 
-class ProcessManager {
+class WEBVIEW_API ProcessManager {
     AK_MAKE_NONCOPYABLE(ProcessManager);
 
 public:
@@ -42,7 +42,7 @@ public:
 private:
     Core::Platform::ProcessStatistics m_statistics;
     HashMap<pid_t, Process> m_processes;
-    int m_signal_handle { -1 };
+    [[maybe_unused]] int m_signal_handle { -1 };
     Threading::Mutex m_lock;
 };
 

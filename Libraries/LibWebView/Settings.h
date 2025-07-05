@@ -18,7 +18,7 @@
 
 namespace WebView {
 
-struct SiteSetting {
+struct WEBVIEW_API SiteSetting {
     SiteSetting();
 
     bool enabled_globally { false };
@@ -30,7 +30,7 @@ enum class DoNotTrack {
     Yes,
 };
 
-class SettingsObserver {
+class WEBVIEW_API SettingsObserver {
 public:
     explicit SettingsObserver();
     virtual ~SettingsObserver();
@@ -44,7 +44,7 @@ public:
     virtual void dns_settings_changed() { }
 };
 
-class Settings {
+class WEBVIEW_API Settings {
 public:
     static Settings create(Badge<Application>);
 
