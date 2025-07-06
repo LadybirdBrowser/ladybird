@@ -31,7 +31,7 @@ ScopedCornerRadiusClip::ScopedCornerRadiusClip(PaintContext& context, DevicePixe
 
 ScopedCornerRadiusClip::~ScopedCornerRadiusClip()
 {
-    if (!m_has_radius && m_do_apply)
+    if (!m_do_apply || !m_has_radius)
         return;
     m_context.display_list_recorder().restore();
 }
