@@ -95,7 +95,20 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     for (int i = 0; i < indent; ++i)
         builder.append("  "sv);
     if (is<DOM::Element>(node)) {
-        builder.appendff("<{}", as<DOM::Element>(node).local_name());
+        auto short_namespace = [&] -> FlyString {
+            auto const& namespace_uri = as<DOM::Element>(node).namespace_uri();
+            if (!namespace_uri.has_value())
+                return "n/a"_fly_string;
+            if (namespace_uri == "http://www.w3.org/1999/xhtml"sv)
+                return "html"_fly_string;
+            if (namespace_uri == "http://www.w3.org/2000/svg"sv)
+                return "svg"_fly_string;
+            if (namespace_uri == "http://www.w3.org/1998/Math/MathML"sv)
+                return "mathml"_fly_string;
+            return *namespace_uri;
+        }();
+
+        builder.appendff("<{}:{}", short_namespace, as<DOM::Element>(node).local_name());
         as<DOM::Element>(node).for_each_attribute([&](auto& name, auto& value) {
             builder.appendff(" {}={}", name, value);
         });
