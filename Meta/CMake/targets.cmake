@@ -1,3 +1,5 @@
+include(${CMAKE_CURRENT_LIST_DIR}/utils.cmake)
+
 function(lagom_generate_export_header name fs_name)
     # Temporary helper to allow libraries to opt-in to using X_API macros
     # to export symbols required by external consumers. This allows the codebase
