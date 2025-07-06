@@ -152,9 +152,7 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
                 context.rounded_device_pixels(scaled_bitmap_height).value()
             };
 
-            apply_own_clip_rect(context, phase);
             context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect, image_int_rect_device_pixels, *bitmap, scaling_mode);
-            clear_own_clip_rect(context, phase);
         }
     }
 }
