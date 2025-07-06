@@ -18,9 +18,6 @@ class SVGSVGPaintable final : public PaintableBox {
 public:
     static GC::Ref<SVGSVGPaintable> create(Layout::SVGSVGBox const&);
 
-    virtual void before_children_paint(PaintContext&, PaintPhase) const override;
-    virtual void after_children_paint(PaintContext&, PaintPhase) const override;
-
     Layout::SVGSVGBox const& layout_box() const;
 
     static void paint_svg_box(PaintContext& context, PaintableBox const& svg_box, PaintPhase phase);
