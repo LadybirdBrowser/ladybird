@@ -16,13 +16,7 @@ target_include_directories(webworkerservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Servi
 target_link_libraries(webworkerservice PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibRequests LibWeb LibWebView LibUnicode LibImageDecoderClient LibMain LibURL LibGC)
 target_link_libraries(webworkerservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
-if (ENABLE_QT)
-    qt_add_executable(WebWorker main.cpp)
-    target_link_libraries(WebWorker PRIVATE webworkerservice LibWebSocket)
-    target_compile_definitions(WebWorker PRIVATE HAVE_QT=1)
-else()
-    add_executable(WebWorker main.cpp)
-endif()
+add_executable(WebWorker main.cpp)
 
 target_include_directories(WebWorker PRIVATE ${LADYBIRD_SOURCE_DIR})
 target_link_libraries(WebWorker PRIVATE webworkerservice)
