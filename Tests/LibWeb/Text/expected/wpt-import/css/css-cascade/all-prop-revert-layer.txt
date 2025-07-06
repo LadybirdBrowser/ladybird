@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 245 tests
+Found 248 tests
 
-239 Pass
-6 Fail
+241 Pass
+7 Fail
 Pass	accent-color
 Pass	border-collapse
 Pass	border-spacing
@@ -147,12 +147,15 @@ Pass	counter-set
 Pass	cx
 Pass	cy
 Pass	display
+Fail	filter
 Pass	flex-basis
 Pass	flex-direction
 Pass	flex-grow
 Pass	flex-shrink
 Pass	flex-wrap
 Pass	float
+Pass	flood-color
+Pass	flood-opacity
 Pass	grid-auto-columns
 Pass	grid-auto-flow
 Pass	grid-auto-rows

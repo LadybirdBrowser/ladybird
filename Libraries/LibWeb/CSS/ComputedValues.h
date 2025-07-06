@@ -152,6 +152,8 @@ public:
     static float fill_opacity() { return 1.0f; }
     static CSS::FillRule fill_rule() { return CSS::FillRule::Nonzero; }
     static CSS::ClipRule clip_rule() { return CSS::ClipRule::Nonzero; }
+    static Color flood_color() { return Color::Black; }
+    static float flood_opacity() { return 1.0f; }
     static CSS::LengthPercentage stroke_dashoffset() { return CSS::Length::make_px(0); }
     static CSS::StrokeLinecap stroke_linecap() { return CSS::StrokeLinecap::Butt; }
     static CSS::StrokeLinejoin stroke_linejoin() { return CSS::StrokeLinejoin::Miter; }
@@ -554,6 +556,8 @@ public:
     CSS::MaskType mask_type() const { return m_noninherited.mask_type; }
     Optional<ClipPathReference> const& clip_path() const { return m_noninherited.clip_path; }
     CSS::ClipRule clip_rule() const { return m_inherited.clip_rule; }
+    Color flood_color() const { return m_noninherited.flood_color; }
+    float flood_opacity() const { return m_noninherited.flood_opacity; }
 
     LengthPercentage const& cx() const { return m_noninherited.cx; }
     LengthPercentage const& cy() const { return m_noninherited.cy; }
@@ -796,6 +800,9 @@ protected:
         Vector<CounterData, 0> counter_increment;
         Vector<CounterData, 0> counter_reset;
         Vector<CounterData, 0> counter_set;
+
+        Color flood_color { InitialValues::flood_color() };
+        float flood_opacity { InitialValues::flood_opacity() };
     } m_noninherited;
 };
 
@@ -982,6 +989,8 @@ public:
     void set_mask_image(CSS::AbstractImageStyleValue const& value) { m_noninherited.mask_image = value; }
     void set_clip_path(ClipPathReference value) { m_noninherited.clip_path = move(value); }
     void set_clip_rule(CSS::ClipRule value) { m_inherited.clip_rule = value; }
+    void set_flood_color(Color value) { m_noninherited.flood_color = value; }
+    void set_flood_opacity(float value) { m_noninherited.flood_opacity = value; }
 
     void set_cx(LengthPercentage cx) { m_noninherited.cx = move(cx); }
     void set_cy(LengthPercentage cy) { m_noninherited.cy = move(cy); }

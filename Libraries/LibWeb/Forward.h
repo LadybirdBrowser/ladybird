@@ -965,6 +965,7 @@ class SVGDefsElement;
 class SVGDescElement;
 class SVGElement;
 class SVGEllipseElement;
+class SVGFEFloodElement;
 class SVGFilterElement;
 class SVGForeignObjectElement;
 class SVGGeometryElement;

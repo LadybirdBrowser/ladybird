@@ -29,6 +29,8 @@ public:
     bool should_include_in_accessibility_tree() const;
     virtual Optional<ARIA::Role> default_role() const override;
 
+    GC::Ref<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
+
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
@@ -46,8 +48,6 @@ protected:
 
     void update_use_elements_that_reference_this();
     void remove_from_use_element_that_reference_this();
-
-    GC::Ref<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
 
 private:
     // ^HTML::GlobalEventHandlers
