@@ -10,6 +10,7 @@
 #include <AK/Assertions.h>
 #include <AK/Noncopyable.h>
 #include <AK/StdLibExtras.h>
+#include <AK/Traits.h>
 #include <AK/Try.h>
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
@@ -655,6 +656,18 @@ ALWAYS_INLINE constexpr bool operator==(Optional<T> const& first, OptionalNone)
 {
     return !first.has_value();
 }
+
+template<typename T>
+struct Traits<Optional<T>> : public DefaultTraits<Optional<T>> {
+    static unsigned hash(Optional<T> const& optional)
+    {
+        // Arbitrary-ish value for an empty optional, but not 0 as that is a common 'hash' for many T's.
+        if (!optional.has_value())
+            return 13;
+
+        return Traits<T>::hash(optional.value());
+    }
+};
 
 }
 
