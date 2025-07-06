@@ -28,14 +28,6 @@ extern ByteString g_default_certificate_path;
 
 }
 
-static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
-{
-    auto cert_path = ByteString::formatted("{}/ladybird/cacert.pem", serenity_resource_root);
-    if (!FileSystem::exists(cert_path))
-        return Error::from_string_literal("Don't know how to load certs!");
-    return cert_path;
-}
-
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -55,10 +47,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
 
-    // Ensure the certificates are read out here.
-    if (certificates.is_empty())
-        certificates.append(TRY(find_certificates(serenity_resource_root)));
-    else
+    // FIXME: Update RequestServer to support multiple custom root certificates.
+    if (!certificates.is_empty())
         RequestServer::g_default_certificate_path = certificates.first();
 
     Core::EventLoop event_loop;

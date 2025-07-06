@@ -103,11 +103,6 @@ set(CONFIG_RESOURCES
 )
 list(TRANSFORM CONFIG_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/default-config/")
 
-set(DOWNLOADED_RESOURCES
-    cacert.pem
-)
-list(TRANSFORM DOWNLOADED_RESOURCES PREPEND "${Lagom_BINARY_DIR}/")
-
 function(copy_resource_set subdir)
     cmake_parse_arguments(PARSE_ARGV 1 "COPY" "" "TARGET;DESTINATION" "RESOURCES")
     set(inputs ${COPY_RESOURCES})
@@ -192,10 +187,6 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
-    copy_resource_set(ladybird RESOURCES ${DOWNLOADED_RESOURCES}
-        DESTINATION ${base_directory} TARGET ${bundle_target}
-    )
-
     add_dependencies(${bundle_target} "${bundle_target}_build_resource_files")
 endfunction()
 
@@ -209,5 +200,4 @@ function(install_ladybird_resources destination component)
     install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})
     install(FILES ${WEB_TEMPLATES} DESTINATION "${destination}/ladybird/templates" COMPONENT ${component})
     install(FILES ${CONFIG_RESOURCES} DESTINATION "${destination}/ladybird/default-config" COMPONENT ${component})
-    install(FILES ${DOWNLOADED_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
 endfunction()

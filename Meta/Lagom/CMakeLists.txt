@@ -78,7 +78,6 @@ if (ENABLE_FUZZERS OR CMAKE_CROSSCOMPILING)
     set(BUILD_LAGOM_TOOLS OFF)
 endif()
 
-include(ca_certificates_data)
 include(lagom_compile_options)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

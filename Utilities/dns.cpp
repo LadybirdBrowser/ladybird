@@ -25,7 +25,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool dnssec = false;
 
     Core::ArgsParser args_parser;
-    args_parser.add_option(cert_path, "Path to the CA certificate file", "ca-certs", 'C', "file");
+    args_parser.add_option(cert_path, "Path to a root CA certificate file", "ca-certs", 'C', "file");
     args_parser.add_option(server_address, "The address of the DNS server to query", "server", 's', "addr");
     args_parser.add_option(use_tls, "Use TLS to connect to the server", "tls", 0);
     args_parser.add_option(dnssec, "Validate DNSSEC records locally", "dnssec", 0);
@@ -78,7 +78,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             auto make_resolver = [&](Core::SocketAddress const& address) -> ErrorOr<DNS::Resolver::SocketResult> {
                 if (use_tls) {
                     TLS::Options options;
-                    options.root_certificates_path = cert_path;
+                    if (!cert_path.is_empty())
+                        options.root_certificates_path = cert_path;
 
                     auto tls = TRY(TLS::TLSv12::connect(address, server_address, move(options)));
                     return DNS::Resolver::SocketResult { move(tls), DNS::Resolver::ConnectionMode::TCP };

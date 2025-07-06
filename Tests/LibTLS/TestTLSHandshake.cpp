@@ -11,11 +11,9 @@
 #include <LibCore/Timer.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/PEM.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibTLS/TLSv12.h>
 #include <LibTest/TestCase.h>
 
-static StringView ca_certs_file = "./cacert.pem"sv;
 static int port = 443;
 
 constexpr auto DEFAULT_SERVER = "www.google.com"sv;
@@ -25,24 +23,11 @@ static ByteBuffer operator""_b(char const* string, size_t length)
     return ByteBuffer::copy(string, length).release_value();
 }
 
-static Optional<ByteString> locate_ca_certs_file()
-{
-    if (FileSystem::exists(ca_certs_file)) {
-        return ca_certs_file;
-    }
-    auto on_target_path = ByteString("/etc/cacert.pem");
-    if (FileSystem::exists(on_target_path)) {
-        return on_target_path;
-    }
-    return {};
-}
-
 TEST_CASE(test_TLS_hello_handshake)
 {
     Core::EventLoop loop;
 
-    TLS::Options options;
-    options.root_certificates_path = locate_ca_certs_file();
+    TLS::Options options = {};
 
     auto tls = TRY_OR_FAIL(Core::BufferedSocket<TLS::TLSv12>::create(TRY_OR_FAIL(TLS::TLSv12::connect(DEFAULT_SERVER, port, move(options)))));
 
