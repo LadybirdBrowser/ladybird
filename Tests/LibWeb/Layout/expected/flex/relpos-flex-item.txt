@@ -17,3 +17,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>.athena) [16,16 204x22]
         TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [2,2 796x42] [children: 0] (z-index: auto)

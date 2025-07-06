@@ -22,3 +22,13 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x996]
       PaintableWithLines (BlockContainer<DIV>.atan) [8,608 100x180]
       PaintableWithLines (BlockContainer<DIV>.atan2) [8,788 100x200]
       PaintableWithLines (BlockContainer(anonymous)) [8,988 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x996] [children: 7] (z-index: auto)
+  SC for BlockContainer<DIV>.sin [8,8 80x100] [children: 0] (z-index: auto), transform: [-4.371139e-8 1 -1 -4.371139e-8 0 0]
+  SC for BlockContainer<DIV>.cos [8,108 100x100] [children: 0] (z-index: auto), transform: [-4.371139e-8 1 -1 -4.371139e-8 0 0]
+  SC for BlockContainer<DIV>.tan [8,208 120x100] [children: 0] (z-index: auto), transform: [-4.371139e-8 1 -1 -4.371139e-8 0 0]
+  SC for BlockContainer<DIV>.asin [8,308 100x140] [children: 0] (z-index: auto), transform: [-4.371139e-8 1 -1 -4.371139e-8 0 0]
+  SC for BlockContainer<DIV>.acos [8,448 100x160] [children: 0] (z-index: auto), transform: [-4.371139e-8 1 -1 -4.371139e-8 0 0]
+  SC for BlockContainer<DIV>.atan [8,608 100x180] [children: 0] (z-index: auto), transform: [-4.371139e-8 1 -1 -4.371139e-8 0 0]
+  SC for BlockContainer<DIV>.atan2 [8,788 100x200] [children: 0] (z-index: auto), transform: [-4.371139e-8 1 -1 -4.371139e-8 0 0]

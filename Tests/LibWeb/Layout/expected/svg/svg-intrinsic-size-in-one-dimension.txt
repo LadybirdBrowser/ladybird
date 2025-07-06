@@ -13,3 +13,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         SVGPathPaintable (SVGGeometryBox<rect>) [21.5,21.5 75x25]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,60 202x102]
         SVGPathPaintable (SVGGeometryBox<rect>) [34,86 150x50]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x170] [children: 0] (z-index: auto)

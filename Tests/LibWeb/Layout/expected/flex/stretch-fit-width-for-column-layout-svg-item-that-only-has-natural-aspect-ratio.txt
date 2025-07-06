@@ -11,3 +11,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x800]
     PaintableBox (Box<BODY>) [8,8 784x784]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,8 784x784]
         SVGPathPaintable (SVGGeometryBox<rect>) [8,8 392x392]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x800] [children: 0] (z-index: auto)

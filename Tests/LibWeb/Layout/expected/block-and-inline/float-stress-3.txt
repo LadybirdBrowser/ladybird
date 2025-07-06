@@ -23,3 +23,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<DIV>.lefty) [9,9 52x52]
         PaintableWithLines (BlockContainer<DIV>.one) [61,25 202x52]
         PaintableWithLines (BlockContainer<DIV>.two) [107,77 202x52]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x268] [children: 0] (z-index: auto)

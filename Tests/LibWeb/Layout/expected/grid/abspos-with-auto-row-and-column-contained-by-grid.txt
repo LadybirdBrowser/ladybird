@@ -48,3 +48,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.abspos-box) [8,8 270x270]
       PaintableWithLines (BlockContainer(anonymous)) [8,278 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x286] [children: 0] (z-index: auto)

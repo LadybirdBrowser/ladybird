@@ -26,3 +26,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<DIV>.orange) [65,3 252x52]
       PaintableWithLines (BlockContainer(anonymous)) [2,4 400x0] overflow: [2,55 102x52]
         PaintableWithLines (BlockContainer<DIV>.green) [2,55 102x52]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x106] [children: 0] (z-index: auto)

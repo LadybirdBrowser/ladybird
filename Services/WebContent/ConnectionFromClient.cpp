@@ -278,8 +278,13 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     if (request == "dump-stacking-context-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             if (auto* viewport = doc->layout_node()) {
-                if (auto* stacking_context = viewport->paintable_box()->stacking_context())
-                    stacking_context->dump();
+                auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*viewport->paintable_box());
+                viewport_paintable.build_stacking_context_tree_if_needed();
+                if (auto* stacking_context = viewport_paintable.stacking_context()) {
+                    StringBuilder builder;
+                    stacking_context->dump(builder);
+                    dbgln("{}", builder.string_view());
+                }
             }
         }
         return;
@@ -976,6 +981,33 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
     Web::dump_tree(builder, *layout_root->first_paintable());
 }
 
+static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder)
+{
+    auto* document = page.top_level_browsing_context().active_document();
+    if (!document) {
+        builder.append("(no DOM tree)"sv);
+        return;
+    }
+
+    document->update_layout(Web::DOM::UpdateLayoutReason::Debugging);
+
+    auto* layout_root = document->layout_node();
+    if (!layout_root) {
+        builder.append("(no layout tree)"sv);
+        return;
+    }
+    if (!layout_root->first_paintable()) {
+        builder.append("(no paint tree)"sv);
+        return;
+    }
+
+    auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*layout_root->paintable_box());
+    viewport_paintable.build_stacking_context_tree_if_needed();
+    if (auto* stacking_context = viewport_paintable.stacking_context()) {
+        stacking_context->dump(builder);
+    }
+}
+
 static void append_gc_graph(StringBuilder& builder)
 {
     auto gc_graph = Web::Bindings::main_thread_vm().heap().dump_graph();
@@ -1006,6 +1038,12 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
         if (!builder.is_empty())
             builder.append("\n"sv);
         append_paint_tree(page->page(), builder);
+    }
+
+    if (has_flag(type, WebView::PageInfoType::StackingContextTree)) {
+        if (!builder.is_empty())
+            builder.append("\n"sv);
+        append_stacking_context_tree(page->page(), builder);
     }
 
     if (has_flag(type, WebView::PageInfoType::GCGraph)) {
