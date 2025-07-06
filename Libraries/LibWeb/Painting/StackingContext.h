@@ -40,7 +40,7 @@ public:
 
     Gfx::AffineTransform affine_transform_matrix() const;
 
-    void dump(int indent = 0) const;
+    void dump(StringBuilder&, int indent = 0) const;
 
     void sort();
 

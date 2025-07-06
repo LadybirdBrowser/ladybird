@@ -17,3 +17,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (InlineNode<PICTURE>) [8,8 400x400]
         PaintableWithLines (InlineNode<SOURCE>) [8,8 0x18]
         ImagePaintable (ImageBox<IMG>) [8,8 400x400]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x416] [children: 0] (z-index: auto)

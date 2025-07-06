@@ -243,3 +243,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x2016]
       PaintableBox (Box<DIV>) [8,1012.421875 500x8]
         ImagePaintable (ImageBox<IMG>) [8,1012.421875 8x8]
       PaintableWithLines (BlockContainer(anonymous)) [8,1020.421875 500x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x2016] [children: 0] (z-index: auto)

@@ -249,7 +249,7 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
             // NOTE: We take a screenshot here to force the lazy layout of SVG-as-image documents to happen.
             //       It also causes a lot more code to run, which is good for finding bugs. :^)
             view.take_screenshot()->when_resolved([&view, &test, on_test_complete = move(on_test_complete)](auto) {
-                auto promise = view.request_internal_page_info(WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
+                auto promise = view.request_internal_page_info(WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree | WebView::PageInfoType::StackingContextTree);
 
                 promise->when_resolved([&test, on_test_complete = move(on_test_complete)](auto const& text) {
                     test.text = text;

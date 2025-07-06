@@ -15,3 +15,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
         SVGGraphicsPaintable (SVGGraphicsBox<symbol>) [8,8 300x150]
           PaintableWithLines (InlineNode<set>#set) [8,8 0x18]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x166] [children: 0] (z-index: auto)

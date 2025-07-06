@@ -23,3 +23,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableBox (Box<TBODY>) [10,10 2x2]
             PaintableBox (Box<TR>) [10,10 2x2]
               PaintableWithLines (BlockContainer<TD>) [10,10 2x2]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x16] [children: 0] (z-index: auto)

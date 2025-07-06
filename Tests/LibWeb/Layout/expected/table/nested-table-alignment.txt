@@ -31,3 +31,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                         PaintableWithLines (BlockContainer<TD>) [161.890625,15 39.109375x198]
                           PaintableWithLines (BlockContainer(anonymous)) [162.890625,105 37.109375x18]
                             TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x228] [children: 0] (z-index: auto)

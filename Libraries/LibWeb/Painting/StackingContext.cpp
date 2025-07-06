@@ -460,9 +460,8 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     return TraversalDecision::Continue;
 }
 
-void StackingContext::dump(int indent) const
+void StackingContext::dump(StringBuilder& builder, int indent) const
 {
-    StringBuilder builder;
     for (int i = 0; i < indent; ++i)
         builder.append(' ');
     CSSPixelRect rect = paintable_box().absolute_rect();
@@ -478,9 +477,9 @@ void StackingContext::dump(int indent) const
     if (!affine_transform.is_identity()) {
         builder.appendff(", transform: {}", affine_transform);
     }
-    dbgln("{}", builder.string_view());
+    builder.append('\n');
     for (auto& child : m_children)
-        child->dump(indent + 1);
+        child->dump(builder, indent + 1);
 }
 
 }

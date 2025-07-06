@@ -142,3 +142,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       TextPaintable (TextNode<#text>)
       SVGSVGPaintable (SVGSVGBox<svg>) [248,200 162x62]
         SVGPathPaintable (SVGGeometryBox<circle>) [249,201 160x60]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x274] [children: 0] (z-index: auto)

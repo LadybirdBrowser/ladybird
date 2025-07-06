@@ -15,3 +15,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       AudioPaintable (AudioBox<AUDIO>) [8,8 300x40]
       TextPaintable (TextNode<#text>)
       AudioPaintable (AudioBox<AUDIO>) [316,48 0x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x60] [children: 0] (z-index: auto)

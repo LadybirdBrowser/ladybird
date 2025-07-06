@@ -23,3 +23,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       ImagePaintable (ImageBox<IMG>.max) [136,8 120x120]
       TextPaintable (TextNode<#text>)
       ImagePaintable (ImageBox<IMG>.fit) [264,8 120x120]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x140] [children: 0] (z-index: auto)
