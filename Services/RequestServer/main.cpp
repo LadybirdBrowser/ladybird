@@ -5,17 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/LexicalPath.h>
-#include <AK/OwnPtr.h>
+#include <AK/ByteString.h>
+#include <AK/Format.h>
+#include <AK/StringView.h>
+#include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/LocalServer.h>
 #include <LibCore/Process.h>
-#include <LibCore/System.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
-#include <LibTLS/TLSv12.h>
 #include <RequestServer/ConnectionFromClient.h>
 
 #if defined(AK_OS_MACOS)
@@ -32,14 +30,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-    StringView serenity_resource_root;
     Vector<ByteString> certificates;
     StringView mach_server_name;
     bool wait_for_debugger = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
-    args_parser.add_option(serenity_resource_root, "Absolute path to directory for serenity resources", "serenity-resource-root", 'r', "serenity-resource-root");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.parse(arguments);
