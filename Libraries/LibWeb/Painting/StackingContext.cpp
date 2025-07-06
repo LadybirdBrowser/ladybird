@@ -291,6 +291,11 @@ void StackingContext::paint(PaintContext& context) const
     if (opacity == 0.0f)
         return;
 
+    TemporaryChange save_nesting_level(context.display_list_recorder().m_save_nesting_level, 0);
+    ScopeGuard verify_save_and_restore_are_balanced([&] {
+        VERIFY(context.display_list_recorder().m_save_nesting_level == 0);
+    });
+
     DisplayListRecorderStateSaver saver(context.display_list_recorder());
 
     auto to_device_pixels_scale = float(context.device_pixels_per_css_pixel());
