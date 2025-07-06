@@ -155,6 +155,8 @@ All properties associated with getComputedStyle(document.body):
     "flex-shrink",
     "flex-wrap",
     "float",
+    "flood-color",
+    "flood-opacity",
     "grid-auto-columns",
     "grid-auto-flow",
     "grid-auto-rows",
