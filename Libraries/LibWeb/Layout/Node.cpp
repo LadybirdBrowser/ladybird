@@ -236,6 +236,9 @@ bool Node::establishes_stacking_context() const
     if (computed_values().mask().has_value() || computed_values().clip_path().has_value() || computed_values().mask_image())
         return true;
 
+    if (is_svg_foreign_object_box())
+        return true;
+
     // https://drafts.fxtf.org/compositing/#propdef-isolation
     // For CSS, setting isolation to isolate will turn the element into a stacking context.
     if (computed_values().isolation() == CSS::Isolation::Isolate)
