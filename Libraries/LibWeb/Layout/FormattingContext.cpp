@@ -37,6 +37,10 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
     if (box.is_replaced_box())
         return false;
 
+    // AD-HOC: We create a BFC for SVG foreignObject.
+    if (box.is_svg_foreign_object_box())
+        return true;
+
     // display: table
     if (box.display().is_table_inside()) {
         return false;
