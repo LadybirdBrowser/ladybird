@@ -7,15 +7,21 @@ set(SOURCES
     WebSocketImplCurl.cpp
 )
 
+set(GENERATED_SOURCES
+    RequestClientEndpoint.h
+    RequestServerEndpoint.h
+)
+
+set(RS_LIB_TYPE STATIC)
 if (ANDROID)
-    add_library(requestserverservice SHARED
+    list(APPEND SOURCES
         ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/RequestServerService.cpp
         ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-        ${SOURCES}
     )
-else()
-    add_library(requestserverservice STATIC ${SOURCES})
+    set(RS_LIB_TYPE SHARED)
 endif()
+
+ladybird_lib(requestserverservice TYPE ${RS_LIB_TYPE})
 
 find_package(PkgConfig)
 find_package(CURL REQUIRED)
@@ -26,7 +32,7 @@ target_include_directories(requestserverservice PRIVATE ${CMAKE_CURRENT_BINARY_D
 target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(RequestServer PRIVATE requestserverservice)
-target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibMain LibCrypto LibFileSystem LibIPC LibMain LibTLS LibWebView LibWebSocket LibURL LibTextCodec LibThreading CURL::libcurl)
+target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibMain LibCrypto LibFileSystem LibIPC LibMain LibTLS LibWebSocket LibURL LibTextCodec LibThreading CURL::libcurl)
 target_link_libraries(requestserverservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
