@@ -417,6 +417,8 @@ void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutt
 
 void DisplayListRecorder::apply_opacity(float opacity)
 {
+    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
+    ++m_save_nesting_level;
     append(ApplyOpacity { .opacity = opacity });
 }
 
@@ -429,6 +431,8 @@ void DisplayListRecorder::apply_compositing_and_blending_operator(Gfx::Compositi
 
 void DisplayListRecorder::apply_filter(Gfx::Filter filter)
 {
+    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
+    ++m_save_nesting_level;
     append(ApplyFilter { .filter = move(filter) });
 }
 
