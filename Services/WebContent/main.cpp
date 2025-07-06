@@ -36,13 +36,10 @@
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
 
-#if defined(HAVE_QT)
+#if defined(HAVE_QT_MULTIMEDIA)
 #    include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #    include <QCoreApplication>
-
-#    if defined(HAVE_QT_MULTIMEDIA)
-#        include <UI/Qt/AudioCodecPluginQt.h>
-#    endif
+#    include <UI/Qt/AudioCodecPluginQt.h>
 #endif
 
 #if defined(AK_OS_MACOS)
@@ -76,7 +73,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-#if defined(HAVE_QT)
+#if defined(HAVE_QT_MULTIMEDIA)
     QCoreApplication app(arguments.argc, arguments.argv);
 
     Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);

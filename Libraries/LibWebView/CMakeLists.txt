@@ -36,20 +36,6 @@ if (APPLE)
     list(APPEND SOURCES MachPortServer.cpp)
 endif()
 
-if (ENABLE_QT)
-    list(APPEND SOURCES
-        EventLoop/EventLoopImplementationQt.cpp
-        EventLoop/EventLoopImplementationQtEventTarget.cpp
-    )
-
-    set(CMAKE_AUTOMOC ON)
-    find_package(Qt6 REQUIRED COMPONENTS Core)
-elseif (APPLE)
-    list(APPEND SOURCES
-        EventLoop/EventLoopImplementationMacOS.mm
-    )
-endif()
-
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
 embed_as_string(
@@ -93,14 +79,27 @@ endif()
 find_package(SQLite3 REQUIRED)
 target_link_libraries(LibWebView PRIVATE SQLite::SQLite3)
 
-if (ENABLE_QT)
-    target_link_libraries(LibWebView PRIVATE Qt::Core)
-elseif (APPLE)
-    target_link_libraries(LibWebView PRIVATE "-framework Cocoa")
-endif()
-
 if (HAS_FONTCONFIG)
     target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)
+endif()
+
+add_library(LibWebViewPlatform INTERFACE)
+if (ENABLE_QT)
+    add_library(LibWebViewQt STATIC
+        EventLoop/EventLoopImplementationQt.cpp
+        EventLoop/EventLoopImplementationQtEventTarget.cpp
+    )
+
+    set_target_properties(LibWebViewQt PROPERTIES AUTOMOC ON AUTORCC OFF AUTOUIC OFF)
+    find_package(Qt6 REQUIRED COMPONENTS Core)
+    target_link_libraries(LibWebViewQt PUBLIC Qt::Core)
+    target_link_libraries(LibWebViewPlatform INTERFACE LibWebViewQt)
+elseif (APPLE)
+    add_library(LibWebViewCocoa STATIC
+        EventLoop/EventLoopImplementationMacOS.mm
+    )
+    target_link_libraries(LibWebViewCocoa PUBLIC "-framework Cocoa")
+    target_link_libraries(LibWebViewPlatform INTERFACE LibWebViewCocoa)
 endif()
 
 if (ENABLE_INSTALL_HEADERS)
