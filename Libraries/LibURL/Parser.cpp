@@ -699,6 +699,25 @@ String Parser::percent_encode_after_encoding(TextCodec::Encoder& encoder, String
     return MUST(output.to_string());
 }
 
+static bool contains_ascii_tab_or_newline(StringView input)
+{
+    return any_of(input, [](char character) {
+        return character == '\t' || character == '\n' || character == '\r';
+    });
+}
+
+static String remove_ascii_tab_or_newline(StringView input)
+{
+    StringBuilder output;
+
+    for (auto c : input) {
+        if (c != '\t' && c != '\n' && c != '\r')
+            output.append(c);
+    }
+
+    return MUST(output.to_string());
+}
+
 // https://url.spec.whatwg.org/#concept-basic-url-parser
 Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> base_url, URL* url, Optional<State> state_override, Optional<StringView> encoding)
 {
@@ -733,16 +752,16 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             report_validation_error();
     }
 
-    ByteString processed_input = raw_input.substring_view(start_index, end_index - start_index);
+    raw_input = raw_input.substring_view(start_index, end_index - start_index);
+
+    // NOTE: URL Parsing expects a well formed UTF-8 'scalar' string but we may be passed through a String with lone surrogates.
+    auto processed_input = String::from_utf8_with_replacement_character(raw_input, String::WithBOMHandling::No);
 
     // 2. If input contains any ASCII tab or newline, invalid-URL-unit validation error.
     // 3. Remove all ASCII tab or newline from input.
-    for (auto const ch : processed_input) {
-        if (ch == '\t' || ch == '\n' || ch == '\r') {
-            report_validation_error();
-            processed_input = processed_input.replace("\t"sv, ""sv, ReplaceMode::All).replace("\n"sv, ""sv, ReplaceMode::All).replace("\r"sv, ""sv, ReplaceMode::All);
-            break;
-        }
+    if (contains_ascii_tab_or_newline(processed_input)) {
+        report_validation_error();
+        processed_input = remove_ascii_tab_or_newline(processed_input);
     }
 
     // 4. Let state be state override if given, or scheme start state otherwise.
