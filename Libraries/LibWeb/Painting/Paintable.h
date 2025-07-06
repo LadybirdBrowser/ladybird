@@ -73,9 +73,6 @@ public:
 
     virtual void paint(PaintContext&, PaintPhase) const { }
 
-    virtual void before_children_paint(PaintContext&, PaintPhase) const { }
-    virtual void after_children_paint(PaintContext&, PaintPhase) const { }
-
     virtual void apply_scroll_offset(PaintContext&, PaintPhase) const { }
     virtual void reset_scroll_offset(PaintContext&, PaintPhase) const { }
 

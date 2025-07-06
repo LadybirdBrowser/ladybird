@@ -116,8 +116,6 @@ void StackingContext::paint_svg(PaintContext& context, PaintableBox const& paint
 
 void StackingContext::paint_descendants(PaintContext& context, Paintable const& paintable, StackingContextPaintPhase phase)
 {
-    paintable.before_children_paint(context, to_paint_phase(phase));
-
     paintable.for_each_child([&context, phase](auto& child) {
         if (child.layout_node().is_svg_svg_box()) {
             paint_svg(context, static_cast<PaintableBox const&>(child), to_paint_phase(phase));
@@ -195,8 +193,6 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
 
         return IterationDecision::Continue;
     });
-
-    paintable.after_children_paint(context, to_paint_phase(phase));
 }
 
 void StackingContext::paint_child(PaintContext& context, StackingContext const& child)
@@ -206,14 +202,7 @@ void StackingContext::paint_child(PaintContext& context, StackingContext const& 
 
     const_cast<StackingContext&>(child).set_last_paint_generation_id(context.paint_generation_id());
 
-    auto parent_paintable = child.paintable_box().parent();
-    if (parent_paintable)
-        parent_paintable->before_children_paint(context, PaintPhase::Foreground);
-
     child.paint(context);
-
-    if (parent_paintable)
-        parent_paintable->after_children_paint(context, PaintPhase::Foreground);
 }
 
 void StackingContext::paint_internal(PaintContext& context) const
@@ -255,16 +244,11 @@ void StackingContext::paint_internal(PaintContext& context) const
     for (auto const& paintable : m_positioned_descendants_and_stacking_contexts_with_stack_level_0) {
         // At this point, `paintable_box` is a positioned descendant with z-index: auto.
         // FIXME: This is basically duplicating logic found elsewhere in this same function. Find a way to make this more elegant.
-        auto* parent_paintable = paintable->parent();
-        if (parent_paintable)
-            parent_paintable->before_children_paint(context, PaintPhase::Foreground);
         if (auto* child = paintable->stacking_context()) {
             paint_child(context, *child);
         } else {
             paint_node_as_stacking_context(paintable, context);
         }
-        if (parent_paintable)
-            parent_paintable->after_children_paint(context, PaintPhase::Foreground);
     };
 
     // Stacking contexts formed by positioned descendants with z-indices greater than or equal to 1 in z-index order

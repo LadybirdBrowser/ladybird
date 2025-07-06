@@ -29,22 +29,6 @@ Layout::SVGSVGBox const& SVGSVGPaintable::layout_box() const
     return static_cast<Layout::SVGSVGBox const&>(layout_node());
 }
 
-void SVGSVGPaintable::before_children_paint(PaintContext& context, PaintPhase phase) const
-{
-    PaintableBox::before_children_paint(context, phase);
-    if (phase != PaintPhase::Foreground)
-        return;
-    context.display_list_recorder().push_scroll_frame_id(scroll_frame_id());
-}
-
-void SVGSVGPaintable::after_children_paint(PaintContext& context, PaintPhase phase) const
-{
-    PaintableBox::after_children_paint(context, phase);
-    if (phase != PaintPhase::Foreground)
-        return;
-    context.display_list_recorder().pop_scroll_frame_id();
-}
-
 static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 matrix, float scale)
 {
     auto* m = matrix.elements();
@@ -132,12 +116,10 @@ void SVGSVGPaintable::paint_descendants(PaintContext& context, PaintableBox cons
     if (phase != PaintPhase::Foreground)
         return;
 
-    paintable.before_children_paint(context, PaintPhase::Foreground);
     paintable.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
         paint_svg_box(context, child, phase);
         return IterationDecision::Continue;
     });
-    paintable.after_children_paint(context, PaintPhase::Foreground);
 }
 
 }
