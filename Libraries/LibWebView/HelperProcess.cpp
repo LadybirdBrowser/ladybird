@@ -203,11 +203,6 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
 {
     Vector<ByteString> arguments;
 
-    if (!s_ladybird_resource_root.is_empty()) {
-        arguments.append("--serenity-resource-root"sv);
-        arguments.append(s_ladybird_resource_root);
-    }
-
     for (auto const& certificate : WebView::Application::browser_options().certificates)
         arguments.append(ByteString::formatted("--certificate={}", certificate));
 
