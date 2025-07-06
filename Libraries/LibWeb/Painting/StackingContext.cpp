@@ -1,13 +1,14 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/QuickSort.h>
+#include <AK/TemporaryChange.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Rect.h>
@@ -24,9 +25,13 @@ namespace Web::Painting {
 
 static void paint_node(Paintable const& paintable, PaintContext& context, PaintPhase phase)
 {
+    TemporaryChange save_nesting_level(context.display_list_recorder().m_save_nesting_level, 0);
+
     paintable.before_paint(context, phase);
     paintable.paint(context, phase);
     paintable.after_paint(context, phase);
+
+    VERIFY(context.display_list_recorder().m_save_nesting_level == 0);
 }
 
 StackingContext::StackingContext(PaintableBox& paintable, StackingContext* parent, size_t index_in_tree_order)

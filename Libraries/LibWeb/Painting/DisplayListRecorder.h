@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -160,6 +160,8 @@ public:
     DisplayList& display_list() { return m_command_list; }
 
     void append(Command&& command);
+
+    int m_save_nesting_level { 0 };
 
 private:
     Vector<Optional<i32>> m_scroll_frame_id_stack;
