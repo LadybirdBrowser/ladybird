@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -275,16 +275,19 @@ void DisplayListRecorder::translate(Gfx::IntPoint delta)
 
 void DisplayListRecorder::save()
 {
+    ++m_save_nesting_level;
     append(Save {});
 }
 
 void DisplayListRecorder::save_layer()
 {
+    ++m_save_nesting_level;
     append(SaveLayer {});
 }
 
 void DisplayListRecorder::restore()
 {
+    --m_save_nesting_level;
     append(Restore {});
 }
 
@@ -419,6 +422,8 @@ void DisplayListRecorder::apply_opacity(float opacity)
 
 void DisplayListRecorder::apply_compositing_and_blending_operator(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
 {
+    // Implementation of this item does saveLayer(), so we need to increment the nesting level.
+    m_save_nesting_level++;
     append(ApplyCompositeAndBlendingOperator { .compositing_and_blending_operator = compositing_and_blending_operator });
 }
 
