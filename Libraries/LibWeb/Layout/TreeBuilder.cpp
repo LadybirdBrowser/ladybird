@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
@@ -77,6 +77,9 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
     if (is<FieldSetBox>(layout_parent))
         return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
 
+    if (layout_parent.is_svg_foreign_object_box())
+        return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
+
     if (layout_parent.display().is_inline_outside() && layout_parent.display().is_flow_inside())
         return layout_parent;
 
@@ -151,6 +154,9 @@ void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, 
     // Find the nearest ancestor that can host the node.
     auto& nearest_insertion_ancestor = [&]() -> NodeWithStyle& {
         for (auto& ancestor : m_ancestor_stack.in_reverse()) {
+            if (ancestor->is_svg_foreign_object_box())
+                return ancestor;
+
             auto const& ancestor_display = ancestor->display();
 
             // Out-of-flow nodes cannot be hosted in inline flow nodes.
