@@ -35,6 +35,8 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(gradientUnits, "gradientUnits")             \
     __ENUMERATE_SVG_ATTRIBUTE(height, "height")                           \
     __ENUMERATE_SVG_ATTRIBUTE(href, "href")                               \
+    __ENUMERATE_SVG_ATTRIBUTE(in, "in")                                   \
+    __ENUMERATE_SVG_ATTRIBUTE(in2, "in2")                                 \
     __ENUMERATE_SVG_ATTRIBUTE(kernelMatrix, "kernelMatrix")               \
     __ENUMERATE_SVG_ATTRIBUTE(kernelUnitLength, "kernelUnitLength")       \
     __ENUMERATE_SVG_ATTRIBUTE(keyPoints, "keyPoints")                     \
@@ -68,6 +70,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(repeatDur, "repeatDur")                     \
     __ENUMERATE_SVG_ATTRIBUTE(requiredExtensions, "requiredExtensions")   \
     __ENUMERATE_SVG_ATTRIBUTE(requiredFeatures, "requiredFeatures")       \
+    __ENUMERATE_SVG_ATTRIBUTE(result, "result")                           \
     __ENUMERATE_SVG_ATTRIBUTE(rx, "rx")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(ry, "ry")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(specularConstant, "specularConstant")       \
