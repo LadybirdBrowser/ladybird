@@ -77,7 +77,6 @@ TEST_WEB_BINARY=${TEST_WEB_BINARY:-"${BUILD_DIR}/bin/test-web"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
     "tools/certs/cacert.pem"
-    "${BUILD_DIR}/Lagom/cacert.pem"
 )
 WPT_ARGS=(
     "--binary=${LADYBIRD_BINARY}"
