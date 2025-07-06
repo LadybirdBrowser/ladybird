@@ -906,8 +906,6 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     PaintableBox::paint(context, phase);
 
-    apply_own_clip_rect(context, phase);
-
     // Text shadows
     // This is yet another loop, but done here because all shadows should appear under all text.
     // So, we paint the shadows before painting any text.
@@ -929,8 +927,6 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         if (is<TextPaintable>(fragment.paintable()))
             paint_text_fragment(context, static_cast<TextPaintable const&>(fragment.paintable()), fragment, phase);
     }
-
-    clear_own_clip_rect(context, phase);
 }
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
