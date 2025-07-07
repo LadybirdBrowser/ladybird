@@ -22,7 +22,8 @@
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${fileDir}",
         "VCPKG_ROOT": "${fileDir}/Build/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}"
+        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}",
+        "X_VCPKG_ASSET_SOURCES": "clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,$penv{VCPKG_CACHE_SAS},read$penv{VCPKG_CACHE_MODE}"
       },
       "vendor": {
         "jetbrains.com/clion": {

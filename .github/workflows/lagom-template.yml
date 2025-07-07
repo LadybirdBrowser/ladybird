@@ -128,6 +128,9 @@ jobs:
       - name: Create Build Environment
         if: ${{ inputs.os_name != 'Windows' && inputs.build_preset != 'Fuzzers_CI' }}
         working-directory: ${{ github.workspace }}
+        env:
+          VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
+          VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build \
             ${{ steps.build-parameters.outputs.cmake_options }} \
@@ -138,6 +141,9 @@ jobs:
       - name: Create Build Environment (Windows)
         if: ${{ inputs.os_name == 'Windows' }}
         working-directory: ${{ github.workspace }}
+        env:
+          VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
+          VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build
 
