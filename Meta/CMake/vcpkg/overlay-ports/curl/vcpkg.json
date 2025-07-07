@@ -65,10 +65,29 @@
           "name": "curl",
           "default-features": false,
           "features": [
-            "ssl"
+            "openssl"
           ]
         },
         "nghttp2"
+      ]
+    },
+    "http3": {
+      "description": "HTTP3 support",
+      "dependencies": [
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "openssl"
+          ]
+        },
+        "nghttp3",
+        {
+          "name": "ngtcp2",
+          "features": [
+            "openssl"
+          ]
+        }
       ]
     },
     "httpsrr": {
@@ -125,7 +144,7 @@
       ]
     },
     "non-http": {
-      "description": "Enables protocols beyond HTTP/HTTPS/HTTP2"
+      "description": "Enables protocols beyond HTTP/HTTPS/HTTP2/HTTP3"
     },
     "openssl": {
       "description": "SSL support (OpenSSL)",

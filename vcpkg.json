@@ -14,9 +14,12 @@
     },
     {
       "name": "curl",
+      "default-features": false,
       "features": [
         "brotli",
+        "non-http",
         "http2",
+        "http3",
         "openssl",
         "websockets"
       ]

@@ -70,6 +70,7 @@ private:
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
     NonnullRefPtr<Resolver> m_resolver;
+    ByteString m_alt_svc_cache_path;
 };
 
 // FIXME: Find a good home for this
