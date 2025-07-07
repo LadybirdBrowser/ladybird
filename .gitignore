@@ -27,6 +27,7 @@ output/
 .vim/
 .exrc
 .helix/
+.flatpak-builder/
 
 # Environments
 .venv/
