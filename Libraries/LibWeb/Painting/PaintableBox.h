@@ -139,8 +139,8 @@ public:
     void apply_scroll_offset(PaintContext&) const;
     void reset_scroll_offset(PaintContext&) const;
 
-    virtual void apply_clip_overflow_rect(PaintContext&, PaintPhase) const override;
-    virtual void clear_clip_overflow_rect(PaintContext&, PaintPhase) const override;
+    void apply_clip_overflow_rect(PaintContext&, PaintPhase) const;
+    void clear_clip_overflow_rect(PaintContext&, PaintPhase) const;
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;

@@ -73,9 +73,6 @@ public:
 
     virtual void paint(PaintContext&, PaintPhase) const { }
 
-    virtual void apply_clip_overflow_rect(PaintContext&, PaintPhase) const { }
-    virtual void clear_clip_overflow_rect(PaintContext&, PaintPhase) const { }
-
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const;
 
     virtual bool wants_mouse_events() const { return false; }
