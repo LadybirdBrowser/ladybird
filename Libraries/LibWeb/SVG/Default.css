@@ -32,3 +32,8 @@ symbol {
 :link, :visited {
     cursor: pointer;
 }
+
+foreignObject {
+    display: block;
+    overflow: hidden;
+}

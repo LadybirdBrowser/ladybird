@@ -282,6 +282,8 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         bfc.run(*m_available_space);
         auto& child_state = m_state.get_mutable(child);
         child_state.set_content_offset(child_state.offset.translated(m_svg_offset));
+        child_state.set_content_width(child.computed_values().width().to_px(child, m_available_space->width.to_px_or_zero()));
+        child_state.set_content_height(child.computed_values().height().to_px(child, m_available_space->height.to_px_or_zero()));
         child.for_each_child_of_type<SVGMaskBox>([&](SVGMaskBox const& child) {
             layout_svg_element(child);
             return IterationDecision::Continue;
