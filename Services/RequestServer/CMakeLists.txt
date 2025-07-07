@@ -21,7 +21,8 @@ if (ANDROID)
     set(RS_LIB_TYPE SHARED)
 endif()
 
-ladybird_lib(requestserverservice TYPE ${RS_LIB_TYPE})
+add_library(requestserverservice ${RS_LIB_TYPE} ${SOURCES} ${GENERATED_SOURCES})
+ladybird_generated_sources(requestserverservice)
 
 find_package(PkgConfig)
 find_package(CURL REQUIRED)
