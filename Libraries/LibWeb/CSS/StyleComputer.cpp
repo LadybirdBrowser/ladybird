@@ -3280,7 +3280,7 @@ void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<Ps
                 return;
         }
     }
-    if (auto it = rules_by_tag_name.find(element.local_name()); it != rules_by_tag_name.end()) {
+    if (auto it = rules_by_tag_name.find(element.lowercased_local_name()); it != rules_by_tag_name.end()) {
         if (callback(it->value) == IterationDecision::Break)
             return;
     }

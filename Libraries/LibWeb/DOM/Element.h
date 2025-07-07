@@ -117,6 +117,8 @@ public:
     virtual FlyString node_name() const final { return html_uppercased_qualified_name(); }
     FlyString const& local_name() const { return m_qualified_name.local_name(); }
 
+    FlyString const& lowercased_local_name() const { return m_qualified_name.lowercased_local_name(); }
+
     // NOTE: This is for the JS bindings
     FlyString const& tag_name() const { return html_uppercased_qualified_name(); }
 
