@@ -132,18 +132,18 @@ void ViewportPaintable::assign_clip_frames()
         return TraversalDecision::Continue;
     });
 
-    for_each_in_subtree([&](auto const& paintable) {
+    for_each_in_subtree([&](auto& paintable) {
         if (paintable.is_paintable_box()) {
-            auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
+            auto& paintable_box = static_cast<PaintableBox&>(paintable);
             if (auto clip_frame = clip_state.get(paintable_box); clip_frame.has_value()) {
-                const_cast<PaintableBox&>(paintable_box).set_own_clip_frame(clip_frame.value());
+                paintable_box.set_own_clip_frame(clip_frame.value());
             }
         }
         for (auto block = paintable.containing_block(); !block->is_viewport(); block = block->containing_block()) {
             if (auto clip_frame = clip_state.get(block); clip_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
-                    auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
-                    const_cast<PaintableBox&>(paintable_box).set_enclosing_clip_frame(clip_frame.value());
+                    auto& paintable_box = static_cast<PaintableBox&>(paintable);
+                    paintable_box.set_enclosing_clip_frame(clip_frame.value());
                 }
                 break;
             }
