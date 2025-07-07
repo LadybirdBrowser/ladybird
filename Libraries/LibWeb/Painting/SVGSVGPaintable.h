@@ -23,6 +23,9 @@ public:
     static void paint_svg_box(PaintContext& context, PaintableBox const& svg_box, PaintPhase phase);
     static void paint_descendants(PaintContext& context, PaintableBox const& paintable, PaintPhase phase);
 
+    virtual void before_paint(PaintContext&, PaintPhase) const override;
+    virtual void after_paint(PaintContext&, PaintPhase) const override;
+
 protected:
     SVGSVGPaintable(Layout::SVGSVGBox const&);
 

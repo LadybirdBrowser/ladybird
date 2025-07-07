@@ -321,28 +321,28 @@ bool PaintableBox::wants_mouse_events() const
     return false;
 }
 
-void PaintableBox::before_paint(PaintContext& context, [[maybe_unused]] PaintPhase phase) const
+void PaintableBox::before_paint(PaintContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
 
-    apply_own_clip_rect(context, phase);
-
-    if (!has_css_transform()) {
+    if (first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground) && own_clip_frame()) {
+        apply_clip(context, own_clip_frame());
+    } else if (!has_css_transform()) {
         apply_clip_overflow_rect(context, phase);
     }
     apply_scroll_offset(context, phase);
 }
 
-void PaintableBox::after_paint(PaintContext& context, [[maybe_unused]] PaintPhase phase) const
+void PaintableBox::after_paint(PaintContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
 
-    clear_own_clip_rect(context, phase);
-
     reset_scroll_offset(context, phase);
-    if (!has_css_transform()) {
+    if (first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground) && own_clip_frame()) {
+        restore_clip(context, own_clip_frame());
+    } else if (!has_css_transform()) {
         clear_clip_overflow_rect(context, phase);
     }
 }
@@ -653,38 +653,6 @@ void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase ph
         return;
 
     restore_clip(context, enclosing_clip_frame());
-}
-
-void PaintableBox::apply_own_clip_rect(PaintContext& context, PaintPhase phase) const
-{
-    if (!own_clip_frame())
-        return;
-
-    // FIXME: This should apply to SVGs
-    if (is<SVGPaintable>(*this) || is<SVGSVGPaintable>(*this))
-        return;
-
-    // FIXME: This should also apply to borders and outlines.
-    if (!first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground))
-        return;
-
-    apply_clip(context, own_clip_frame());
-}
-
-void PaintableBox::clear_own_clip_rect(PaintContext& context, PaintPhase phase) const
-{
-    if (!own_clip_frame())
-        return;
-
-    // FIXME: This should apply to SVGs
-    if (is<SVGPaintable>(*this) || is<SVGSVGPaintable>(*this))
-        return;
-
-    // FIXME: This should also apply to borders and outlines.
-    if (!first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground))
-        return;
-
-    restore_clip(context, own_clip_frame());
 }
 
 void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)

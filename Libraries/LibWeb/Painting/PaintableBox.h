@@ -142,9 +142,6 @@ public:
     virtual void apply_clip_overflow_rect(PaintContext&, PaintPhase) const override;
     virtual void clear_clip_overflow_rect(PaintContext&, PaintPhase) const override;
 
-    virtual void apply_own_clip_rect(PaintContext&, PaintPhase) const override;
-    virtual void clear_own_clip_rect(PaintContext&, PaintPhase) const override;
-
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;
     [[nodiscard]] TraversalDecision hit_test_children(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const&) const;
