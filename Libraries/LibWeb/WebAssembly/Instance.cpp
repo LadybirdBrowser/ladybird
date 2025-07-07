@@ -24,11 +24,9 @@ GC_DEFINE_ALLOCATOR(Instance);
 
 WebIDL::ExceptionOr<GC::Ref<Instance>> Instance::construct_impl(JS::Realm& realm, Module& module, Optional<GC::Root<JS::Object>>& import_object_handle)
 {
-    GC::Ptr<JS::Object> import_object = import_object_handle.has_value() ? import_object_handle.value().ptr() : nullptr;
-
     auto& vm = realm.vm();
 
-    auto module_instance = TRY(Detail::instantiate_module(vm, module.compiled_module()->module, import_object));
+    auto module_instance = TRY(Detail::instantiate_module(vm, module.compiled_module()->module, import_object_handle.map([](auto& object) -> GC::Ptr<JS::Object> { return object.ptr(); })));
     return realm.create<Instance>(realm, move(module_instance));
 }
 

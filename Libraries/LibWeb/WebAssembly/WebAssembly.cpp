@@ -39,8 +39,8 @@
 namespace Web::WebAssembly {
 
 static GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM&, ByteBuffer, HTML::Task::Source = HTML::Task::Source::Unspecified);
-static GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM&, GC::Ref<WebIDL::Promise>, GC::Ptr<JS::Object> import_object);
-static GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM&, GC::Ref<Module>, GC::Ptr<JS::Object> import_object);
+static GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM&, GC::Ref<WebIDL::Promise>, Optional<GC::Ptr<JS::Object>> import_object);
+static GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM&, GC::Ref<Module>, Optional<GC::Ptr<JS::Object>> import_object);
 static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM&, GC::Ref<WebIDL::Promise>);
 
 namespace Detail {
@@ -169,8 +169,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Root<W
     auto promise_of_module = asynchronously_compile_webassembly_module(vm, stable_bytes.release_value());
 
     // 4. Instantiate promiseOfModule with imports importObject and return the result.
-    GC::Ptr<JS::Object> const import_object = import_object_handle.has_value() ? import_object_handle.value().ptr() : nullptr;
-    return instantiate_promise_of_module(vm, promise_of_module, import_object);
+    return instantiate_promise_of_module(vm, promise_of_module, import_object_handle.map([](auto& object) -> GC::Ptr<JS::Object> { return object.ptr(); }));
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate-moduleobject-importobject
@@ -178,8 +177,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, Module con
 {
     // 1. Asynchronously instantiate the WebAssembly module moduleObject importing importObject, and return the result.
     GC::Ref<Module> module { const_cast<Module&>(module_object) };
-    GC::Ptr<JS::Object> const imports = import_object.has_value() ? import_object.value().ptr() : nullptr;
-    return asynchronously_instantiate_webassembly_module(vm, module, imports);
+    return asynchronously_instantiate_webassembly_module(vm, module, import_object.map([](auto& root) -> GC::Ptr<JS::Object> { return root.ptr(); }));
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-instantiatestreaming
@@ -191,8 +189,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM& vm, 
     auto promise_of_module = compile_potential_webassembly_response(vm, *source);
 
     // 2. Return the result of instantiating the promise of a module promiseOfModule with imports importObject.
-    auto imports = GC::Ptr { import_object.has_value() ? import_object.value().ptr() : nullptr };
-    return instantiate_promise_of_module(vm, promise_of_module, imports);
+    return instantiate_promise_of_module(vm, promise_of_module, import_object.map([](auto& object) -> GC::Ptr<JS::Object> { return object.ptr(); }));
 }
 
 namespace Detail {
@@ -223,19 +220,23 @@ namespace Detail {
         _temporary_result.release_value();                                                                                                              \
     })
 
-JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, GC::Ptr<JS::Object> import_object)
+JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, Optional<GC::Ptr<JS::Object>> maybe_import_object)
 {
     Wasm::Linker linker { module };
     auto& cache = get_cache(*vm.current_realm());
     // https://webassembly.github.io/spec/js-api/index.html#read-the-imports
     // 1. If module.imports is not empty, and importObject is undefined, throw a TypeError exception.
-    if (!module.import_section().imports().is_empty() && !import_object) {
+    if (!module.import_section().imports().is_empty() && !maybe_import_object.has_value())
         return vm.throw_completion<JS::TypeError>("ImportObject must be provided when module has imports"sv);
-    }
+
     // 2. Let imports be « ».
     HashMap<Wasm::Linker::Name, Wasm::ExternValue> resolved_imports;
-    if (import_object) {
+    if (maybe_import_object.has_value()) {
         dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve stuff because import object was specified");
+        auto import_object = *maybe_import_object;
+        if (!import_object)
+            return vm.throw_completion<JS::TypeError>("ImportObject must be an object"sv);
+
         // 3. For each (moduleName, componentName, externtype) of module_imports(module),
         for (Wasm::Linker::Name const& import_name : linker.unresolved_imports()) {
             dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import_name.module, import_name.name);
@@ -689,7 +690,7 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM& vm, B
 }
 
 // https://webassembly.github.io/spec/js-api/#asynchronously-instantiate-a-webassembly-module
-GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& vm, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object)
+GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& vm, GC::Ref<Module> module_object, Optional<GC::Ptr<JS::Object>> maybe_import_object)
 {
     auto& realm = *vm.current_realm();
 
@@ -705,13 +706,13 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& v
 
     // 4. Run the following steps in parallel:
     //   1. Queue a task to perform the following steps: Note: Implementation-specific work may be performed here.
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(vm.heap(), [&vm, &realm, promise, module, import_object]() {
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(vm.heap(), [&vm, &realm, promise, module, maybe_import_object]() {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         auto& realm = HTML::relevant_realm(*promise->promise());
 
         // 1. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
         //    If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
-        auto result = Detail::instantiate_module(vm, module->module, import_object);
+        auto result = Detail::instantiate_module(vm, module->module, maybe_import_object);
         if (result.is_error()) {
             WebIDL::reject_promise(realm, promise, result.error_value());
             return;
@@ -732,7 +733,7 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& v
 }
 
 // https://webassembly.github.io/spec/js-api/#instantiate-a-promise-of-a-module
-GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebIDL::Promise> promise_of_module, GC::Ptr<JS::Object> import_object)
+GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebIDL::Promise> promise_of_module, Optional<GC::Ptr<JS::Object>> maybe_import_object)
 {
     auto& realm = *vm.current_realm();
 
@@ -742,12 +743,12 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebID
     // FIXME: Spec should use react to promise here instead of separate upon fulfillment and upon rejection steps
 
     // 2. Upon fulfillment of promiseOfModule with value module:
-    auto fulfillment_steps = GC::create_function(vm.heap(), [&vm, promise, import_object](JS::Value module_value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto fulfillment_steps = GC::create_function(vm.heap(), [&vm, promise, maybe_import_object](JS::Value module_value) -> WebIDL::ExceptionOr<JS::Value> {
         VERIFY(module_value.is_object() && is<Module>(module_value.as_object()));
         auto module = GC::Ref { static_cast<Module&>(module_value.as_object()) };
 
         // 1. Instantiate the WebAssembly module module importing importObject, and let innerPromise be the result.
-        auto inner_promise = asynchronously_instantiate_webassembly_module(vm, module, import_object);
+        auto inner_promise = asynchronously_instantiate_webassembly_module(vm, module, maybe_import_object);
 
         // 2. Upon fulfillment of innerPromise with value instance.
         auto instantiate_fulfillment_steps = GC::create_function(vm.heap(), [promise, module](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
