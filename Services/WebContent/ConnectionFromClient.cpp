@@ -303,21 +303,35 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "dump-all-resolved-styles") {
+        auto dump_style = [](String const& title, Web::CSS::ComputedProperties const& style, HashMap<FlyString, Web::CSS::StyleProperty> const& custom_properties) {
+            dbgln("+ {}", title);
+            for (size_t i = 0; i < Web::CSS::ComputedProperties::number_of_properties; ++i) {
+                auto property = style.maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
+                dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::SerializationMode::Normal) : ""_string);
+            }
+            for (auto const& [name, property] : custom_properties) {
+                dbgln("|  {} = {}", name, property.value->to_string(Web::CSS::SerializationMode::Normal));
+            }
+            dbgln("---");
+        };
+
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
-            Queue<Web::DOM::Node*> elements_to_visit;
-            elements_to_visit.enqueue(doc->document_element());
-            while (!elements_to_visit.is_empty()) {
-                auto element = elements_to_visit.dequeue();
-                for (auto& child : element->children_as_vector())
-                    elements_to_visit.enqueue(child.ptr());
-                if (element->is_element()) {
-                    auto styles = doc->style_computer().compute_style(*static_cast<Web::DOM::Element*>(element));
-                    dbgln("+ Element {}", element->debug_description());
-                    for (size_t i = 0; i < Web::CSS::ComputedProperties::number_of_properties; ++i) {
-                        auto property = styles->maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
-                        dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::SerializationMode::Normal) : ""_string);
+            Queue<Web::DOM::Node*> nodes_to_visit;
+            nodes_to_visit.enqueue(doc->document_element());
+            while (!nodes_to_visit.is_empty()) {
+                auto node = nodes_to_visit.dequeue();
+                for (auto& child : node->children_as_vector())
+                    nodes_to_visit.enqueue(child.ptr());
+                if (auto* element = as_if<Web::DOM::Element>(node)) {
+                    auto styles = doc->style_computer().compute_style(*element);
+                    dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles, element->custom_properties({}));
+
+                    for (auto pseudo_element_index = 0; pseudo_element_index < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount); ++pseudo_element_index) {
+                        auto pseudo_element_type = static_cast<Web::CSS::PseudoElement>(pseudo_element_index);
+                        if (auto pseudo_element = element->get_pseudo_element(pseudo_element_type); pseudo_element.has_value() && pseudo_element->computed_properties()) {
+                            dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *pseudo_element->computed_properties(), pseudo_element->custom_properties());
+                        }
                     }
-                    dbgln("---");
                 }
             }
         }
