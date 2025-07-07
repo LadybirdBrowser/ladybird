@@ -136,8 +136,8 @@ public:
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
 
-    virtual void apply_scroll_offset(PaintContext&, PaintPhase) const override;
-    virtual void reset_scroll_offset(PaintContext&, PaintPhase) const override;
+    void apply_scroll_offset(PaintContext&) const;
+    void reset_scroll_offset(PaintContext&) const;
 
     virtual void apply_clip_overflow_rect(PaintContext&, PaintPhase) const override;
     virtual void clear_clip_overflow_rect(PaintContext&, PaintPhase) const override;

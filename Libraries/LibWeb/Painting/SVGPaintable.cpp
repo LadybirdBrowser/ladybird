@@ -24,14 +24,14 @@ void SVGPaintable::before_paint(PaintContext& context, PaintPhase phase) const
     if (!has_css_transform()) {
         apply_clip_overflow_rect(context, phase);
     }
-    apply_scroll_offset(context, phase);
+    apply_scroll_offset(context);
 }
 
 void SVGPaintable::after_paint(PaintContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
-    reset_scroll_offset(context, phase);
+    reset_scroll_offset(context);
     if (!has_css_transform()) {
         clear_clip_overflow_rect(context, phase);
     }
