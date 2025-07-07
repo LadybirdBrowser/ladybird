@@ -1,0 +1,483 @@
+{
+  "app-id": "org.ladybird.Ladybird",
+  "runtime": "org.kde.Platform",
+  "runtime-version": "6.9",
+  "sdk": "org.kde.Sdk",
+  "command": "Ladybird",
+  "finish-args": [
+    "--device=dri",
+    "--share=ipc",
+    "--share=network",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--socket=pulseaudio",
+    "--socket=session-bus"
+  ],
+  "modules": [
+    {
+      "name": "simdutf",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/simdutf/simdutf.git",
+          "tag": "v7.3.2"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+        "-DSIMDUTF_TESTS=OFF",
+        "-DSIMDUTF_BENCHMARKS=OFF",
+        "-DSIMDUTF_TOOLS=OFF"
+      ]
+    },
+    {
+      "name": "libpng",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/pnggroup/libpng.git",
+          "tag": "v1.6.49"
+        },
+        {
+          "type": "file",
+          "url": "https://downloads.sourceforge.net/project/libpng-apng/libpng16/1.6.49/libpng-1.6.49-apng.patch.gz",
+          "sha512": "d3a7121f892049f5488f32b5de29fb8892f2b329ee1df956b129918601946ab86a542a4412587ee5f660c581484812aaf101f953bcc187c993d98ba9d8d63a00"
+        },
+        {
+          "type": "shell",
+          "commands": [
+            "gunzip -k libpng-1.6.49-apng.patch.gz",
+            "patch -p1 -i libpng-1.6.49-apng.patch"
+          ]
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DPNG_FRAMEWORK=OFF",
+        "-DPNG_TESTS=OFF",
+        "-DPNG_TOOLS=OFF",
+        "-DSKIP_INSTALL_EXECUTABLES=ON",
+        "-DSKIP_INSTALL_FILES=OFF",
+        "-DSKIP_INSTALL_PROGRAMS=ON"
+      ]
+    },
+    {
+      "name": "angle",
+      "buildsystem": "simple",
+      "build-options": {
+        "build-args": [
+          "--share=network"
+        ]
+      },
+      "sources": [
+        {
+          "type": "file",
+          "path": "angle-checkout.sh"
+        },
+        {
+          "type": "file",
+          "path": "angle-configure.sh"
+        },
+        {
+          "type": "file",
+          "path": "angle-build.sh"
+        },
+        {
+          "type": "file",
+          "path": "angle-install.sh"
+        }
+      ],
+      "build-commands": [
+        "./angle-checkout.sh",
+        "./angle-configure.sh",
+        "./angle-build.sh",
+        "./angle-install.sh"
+      ]
+    },
+    {
+      "name": "icu",
+      "buildsystem": "autotools",
+      "builddir": false,
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/unicode-org/icu.git",
+          "tag": "release-76-1"
+        }
+      ],
+      "subdir": "icu4c/source/",
+      "config-opts": [
+        "--prefix=/app",
+        "--libdir=/app/lib",
+        "--disable-samples",
+        "--disable-tests",
+        "--disable-extras",
+        "--disable-layoutex",
+        "--disable-debug",
+        "--enable-release",
+        "--enable-shared"
+      ]
+    },
+    {
+      "name": "libxml2",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/GNOME/libxml2.git",
+          "tag": "v2.13.8"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DLIBXML2_WITH_TESTS=OFF",
+        "-DLIBXML2_WITH_PROGRAMS=OFF",
+        "-DLIBXML2_WITH_HTML=ON",
+        "-DLIBXML2_WITH_C14N=ON",
+        "-DLIBXML2_WITH_CATALOG=ON",
+        "-DLIBXML2_WITH_DEBUG=OFF",
+        "-DLIBXML2_WITH_ISO8859X=ON",
+        "-DLIBXML2_WITH_MODULES=ON",
+        "-DLIBXML2_WITH_OUTPUT=ON",
+        "-DLIBXML2_WITH_PATTERN=ON",
+        "-DLIBXML2_WITH_PUSH=ON",
+        "-DLIBXML2_WITH_PYTHON=OFF",
+        "-DLIBXML2_WITH_READER=ON",
+        "-DLIBXML2_WITH_REGEXPS=ON",
+        "-DLIBXML2_WITH_SAX1=ON",
+        "-DLIBXML2_WITH_SCHEMAS=ON",
+        "-DLIBXML2_WITH_SCHEMATRON=ON",
+        "-DLIBXML2_WITH_THREADS=ON",
+        "-DLIBXML2_WITH_THREAD_ALLOC=OFF",
+        "-DLIBXML2_WITH_TREE=ON",
+        "-DLIBXML2_WITH_VALID=ON",
+        "-DLIBXML2_WITH_WRITER=ON",
+        "-DLIBXML2_WITH_XINCLUDE=ON",
+        "-DLIBXML2_WITH_XPATH=ON",
+        "-DLIBXML2_WITH_XPTR=ON",
+        "-DLIBXML2_WITH_ICONV=ON",
+        "-DLIBXML2_WITH_ICU=ON",
+        "-DLIBXML2_WITH_LZMA=ON",
+        "-DLIBXML2_WITH_ZLIB=ON"
+      ]
+    },
+    {
+      "name": "vulkan-memory-allocator",
+      "buildsystem": "cmake",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git",
+          "tag": "v3.1.0"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib"
+      ]
+    },
+    {
+      "name": "gn",
+      "buildsystem": "simple",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://gn.googlesource.com/gn",
+          "commit": "f792b9756418af8ab8a91a4c15b582431cb86ff9"
+        },
+        {
+          "type": "file",
+          "path": "gn-whole-enchilada.sh"
+        }
+      ],
+      "build-commands": [
+        "./gn-whole-enchilada.sh"
+      ]
+    },
+    {
+      "name": "brotli",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/google/brotli.git",
+          "tag": "v1.1.0"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DBROTLI_DISABLE_TESTS=ON",
+        "-DBROTLI_BUILD_TOOLS=OFF"
+      ]
+    },
+    {
+      "name": "libwoff2",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/google/woff2.git",
+          "tag": "v1.0.2",
+          "disable-submodules": true
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DCANONICAL_PREFIXES=ON"
+      ]
+    },
+    {
+      "name": "dav1d",
+      "buildsystem": "meson",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://code.videolan.org/videolan/dav1d.git",
+          "tag": "1.5.1"
+        }
+      ],
+      "config-opts": [
+        "-Denable_tools=false",
+        "-Denable_tests=false",
+        "-Denable_examples=false",
+        "-Denable_asm=true",
+        "-Dbuildtype=release",
+        "--libdir=/app/lib"
+      ]
+    },
+    {
+      "name": "libyuv",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://chromium.googlesource.com/libyuv/libyuv",
+          "commit": "a37e6bc81b52d39cdcfd0f1428f5d6c2b2bc9861"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app"
+      ],
+      "cleanup": [
+        "/app/bin"
+      ]
+    },
+    {
+      "name": "libavif",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/AOMediaCodec/libavif.git",
+          "tag": "v1.3.0"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DAVIF_CODEC_AOM=OFF",
+        "-DAVIF_CODEC_DAV1D=ON",
+        "-DAVIF_BUILD_APPS=OFF"
+      ]
+    },
+    {
+      "name": "libwebp",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/webmproject/libwebp.git",
+          "tag": "v1.5.0"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DWEBP_BUILD_ANIM_UTILS=ON",
+        "-DWEBP_BUILD_LIBWEBPMUX=ON",
+        "-DWEBP_ENABLE_SIMD=ON",
+
+        "-DWEBP_BUILD_VWEBP=OFF",
+        "-DWEBP_BUILD_WEBPINFO=OFF",
+        "-DWEBP_BUILD_GIF2WEBP=OFF",
+        "-DWEBP_BUILD_IMG2WEBP=OFF",
+        "-DWEBP_BUILD_CWEBP=OFF",
+        "-DWEBP_BUILD_DWEBP=OFF",
+        "-DWEBP_BUILD_WEBPMUX=OFF",
+        "-DWEBP_BUILD_EXTRAS=OFF"
+      ]
+    },
+    {
+      "name": "highway",
+        "buildsystem": "cmake-ninja",
+        "sources": [
+          {
+            "type": "git",
+            "url": "https://github.com/google/highway.git",
+            "tag": "1.2.0",
+            "disable-submodules": true
+          }
+        ],
+        "config-opts": [
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_PREFIX_PATH=/app",
+          "-DCMAKE_INSTALL_LIBDIR=lib",
+          "-DHWY_ENABLE_INSTALL=ON",
+          "-DHWY_ENABLE_EXAMPLES=OFF",
+          "-DHWY_ENABLE_TESTS=OFF",
+          "-DHWY_ENABLE_CONTRIB=OFF"
+        ]
+    },
+    {
+      "name": "libjxl",
+        "buildsystem": "cmake-ninja",
+        "sources": [
+          {
+            "type": "git",
+            "url": "https://github.com/libjxl/libjxl.git",
+            "tag": "v0.11.1",
+            "disable-submodules": true
+          }
+        ],
+        "config-opts": [
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_PREFIX_PATH=/app",
+          "-DCMAKE_INSTALL_LIBDIR=lib",
+          "-DJPEGXL_VERSION=0.11.1",
+          "-DJPEGXL_FORCE_SYSTEM_HWY=ON",
+          "-DJPEGXL_FORCE_SYSTEM_BROTLI=ON",
+          "-DJPEGXL_FORCE_SYSTEM_HWY=ON",
+          "-DJPEGXL_FORCE_SYSTEM_LCMS2=ON",
+          "-DJPEGXL_ENABLE_TOOLS=OFF",
+          "-DJPEGXL_ENABLE_BENCHMARK=OFF",
+          "-DJPEGXL_ENABLE_DOXYGEN=OFF",
+          "-DJPEGXL_ENABLE_EXAMPLES=OFF",
+          "-DJPEGXL_ENABLE_FUZZERS=OFF",
+          "-DJPEGXL_ENABLE_JNI=OFF",
+          "-DJPEGXL_ENABLE_MANPAGES=OFF",
+          "-DJPEGXL_ENABLE_OPENEXR=OFF",
+          "-DJPEGXL_ENABLE_PLUGINS=OFF",
+          "-DJPEGXL_ENABLE_SJPEG=OFF",
+          "-DJPEGXL_ENABLE_SKCMS=OFF",
+          "-DJPEGXL_ENABLE_TCMALLOC=OFF",
+          "-DBUILD_TESTING=OFF",
+          "-DCMAKE_FIND_PACKAGE_TARGETS_GLOBAL=ON",
+          "-DJPEGXL_BUNDLE_LIBPNG=OFF"
+        ]
+    },
+    {
+      "name": "skia",
+      "buildsystem": "simple",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://skia.googlesource.com/skia.git",
+          "commit": "chrome/m129"
+        },
+        {
+          "type": "file",
+          "path": "skia-configure.sh"
+        },
+        {
+          "type": "file",
+          "path": "skia-build.sh"
+        },
+        {
+          "type": "file",
+          "path": "skia-install.sh"
+        }
+      ],
+      "build-commands": [
+        "./skia-configure.sh",
+        "./skia-build.sh",
+        "./skia-install.sh"
+      ]
+    },
+    {
+      "name": "libtommath",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/libtom/libtommath.git",
+          "tag": "v1.3.0"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DBUILD_SHARED_LIBS=ON"
+      ]
+    },
+    {
+      "name": "fast_float",
+        "buildsystem": "cmake-ninja",
+        "sources": [
+          {
+            "type": "git",
+            "url": "https://github.com/fastfloat/fast_float.git",
+            "tag": "v8.0.2"
+          }
+        ],
+        "config-opts": [
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_PREFIX_PATH=/app",
+          "-DFASTFLOAT_INSTALL=ON"
+        ]
+    },
+    {
+      "name": "Ladybird",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "file",
+          "url": "https://raw.githubusercontent.com/publicsuffix/list/32c68ce9d52e12df5b914b2b248cb893147301f7/public_suffix_list.dat",
+          "dest": "Caches/PublicSuffix/",
+          "sha256": "e79e372bcc6fcdb51f7a31e3c0c504530838432669af2ac544d2491de0a86030"
+        },
+        {
+          "type": "shell",
+          "commands": [
+            "# FIXME Is there an easier way to set an absolute path in config-opts?",
+            "echo set\\(LADYBIRD_CACHE_DIR \"$PWD/Caches\" CACHE STRING \\\"\\\"\\) > Cache.cmake"
+          ]
+        },
+        {
+          "type": "dir",
+          "path": "../../../"
+        }
+      ],
+      "build-options": {
+        "ldflags": "-Wl,-rpath-link,/app/lib"
+      },
+      "config-opts": [
+        "-CCache.cmake",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_LTO_FOR_RELEASE=OFF",
+        "-DENABLE_INSTALL_FREEDESKTOP_FILES=ON",
+        "-DICU_ROOT=/app"
+      ]
+    }
+  ]
+}
