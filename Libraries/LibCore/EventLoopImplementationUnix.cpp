@@ -256,22 +256,6 @@ struct ThreadData {
     ThreadData()
     {
         pid = getpid();
-        initialize_wake_pipe();
-    }
-
-    ~ThreadData()
-    {
-        pthread_rwlock_wrlock(&*s_thread_data_lock);
-        s_thread_data.remove(s_thread_id);
-        pthread_rwlock_unlock(&*s_thread_data_lock);
-    }
-
-    void initialize_wake_pipe()
-    {
-        if (wake_pipe_fds[0] != -1)
-            close(wake_pipe_fds[0]);
-        if (wake_pipe_fds[1] != -1)
-            close(wake_pipe_fds[1]);
 
         auto result = Core::System::pipe2(O_CLOEXEC);
         if (result.is_error()) {
@@ -282,17 +266,21 @@ struct ThreadData {
         wake_pipe_fds = result.release_value();
 
         // The wake pipe informs us of POSIX signals as well as manual calls to wake()
-        VERIFY(poll_fds.size() == 0);
         poll_fds.append({ .fd = wake_pipe_fds[0], .events = POLLIN, .revents = 0 });
-        notifier_by_index.append(nullptr);
+    }
+
+    ~ThreadData()
+    {
+        pthread_rwlock_wrlock(&*s_thread_data_lock);
+        s_thread_data.remove(s_thread_id);
+        pthread_rwlock_unlock(&*s_thread_data_lock);
     }
 
     // Each thread has its own timers, notifiers and a wake pipe.
     TimeoutSet timeouts;
 
-    Vector<pollfd> poll_fds;
-    HashMap<Notifier*, size_t> notifier_by_ptr;
-    Vector<Notifier*> notifier_by_index;
+    HashMap<int, Notifier*> notifiers;
+    Vector<pollfd, 32> poll_fds;
 
     // The wake pipe is used to notify another event loop that someone has called wake(), or a signal has been received.
     // wake() writes 0i32 into the pipe, signals write the signal number (guaranteed non-zero).
@@ -374,7 +362,7 @@ retry:
 
 try_select_again:
     // select() and wait for file system events, calls to wake(), POSIX signals, or timer expirations.
-    ErrorOr<int> error_or_marked_fd_count = System::poll(thread_data.poll_fds, should_wait_forever ? -1 : timeout);
+    auto error_or_marked_fd_count = System::poll(thread_data.poll_fds, should_wait_forever ? -1 : timeout);
     auto time_after_poll = MonotonicTime::now_coarse();
     // Because POSIX, we might spuriously return from select() with EINTR; just select again.
     if (error_or_marked_fd_count.is_error()) {
@@ -417,14 +405,14 @@ try_select_again:
 
     if (error_or_marked_fd_count.value() != 0) {
         // Handle file system notifiers by making them normal events.
-        for (size_t i = 1; i < thread_data.poll_fds.size(); ++i) {
-            // FIXME: Make the check work under Android, perhaps use ALooper
+        for (auto const& poll_fd : thread_data.poll_fds.span().slice(1)) {
+            auto& notifier = *thread_data.notifiers.get(poll_fd.fd).value();
+
 #ifdef AK_OS_ANDROID
-            auto& notifier = *thread_data.notifier_by_index[i];
+            // FIXME: Make the check work under Android, perhaps use ALooper.
             ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>(notifier.fd(), notifier.type()));
 #else
-            auto& revents = thread_data.poll_fds[i].revents;
-            auto& notifier = *thread_data.notifier_by_index[i];
+            auto revents = poll_fd.revents;
 
             NotificationType type = NotificationType::None;
             if (has_flag(revents, POLLIN))
@@ -660,37 +648,25 @@ void EventLoopManagerUnix::register_notifier(Notifier& notifier)
 {
     auto& thread_data = ThreadData::the();
 
-    thread_data.notifier_by_ptr.set(&notifier, thread_data.poll_fds.size());
-    thread_data.notifier_by_index.append(&notifier);
-    thread_data.poll_fds.append({
-        .fd = notifier.fd(),
-        .events = notification_type_to_poll_events(notifier.type()),
-        .revents = 0,
-    });
+    thread_data.notifiers.set(notifier.fd(), &notifier);
+
+    auto events = notification_type_to_poll_events(notifier.type());
+    thread_data.poll_fds.append({ .fd = notifier.fd(), .events = events, .revents = 0 });
 
     notifier.set_owner_thread(s_thread_id);
 }
 
 void EventLoopManagerUnix::unregister_notifier(Notifier& notifier)
 {
-    auto thread_data_ptr = ThreadData::for_thread(notifier.owner_thread());
-    if (!thread_data_ptr)
+    auto* thread_data = ThreadData::for_thread(notifier.owner_thread());
+    if (!thread_data)
         return;
 
-    auto& thread_data = *thread_data_ptr;
-    auto it = thread_data.notifier_by_ptr.find(&notifier);
-    VERIFY(it != thread_data.notifier_by_ptr.end());
+    thread_data->notifiers.remove(notifier.fd());
 
-    size_t notifier_index = it->value;
-    thread_data.notifier_by_ptr.remove(it);
-
-    if (notifier_index + 1 != thread_data.poll_fds.size()) {
-        swap(thread_data.poll_fds[notifier_index], thread_data.poll_fds.last());
-        swap(thread_data.notifier_by_index[notifier_index], thread_data.notifier_by_index.last());
-        thread_data.notifier_by_ptr.set(thread_data.notifier_by_index[notifier_index], notifier_index);
-    }
-    thread_data.poll_fds.take_last();
-    thread_data.notifier_by_index.take_last();
+    thread_data->poll_fds.remove_all_matching([&](auto const& poll_fd) {
+        return poll_fd.fd == notifier.fd();
+    });
 }
 
 void EventLoopManagerUnix::did_post_event()
