@@ -1413,6 +1413,10 @@ bool NodeWithStyleAndBoxModelMetrics::should_create_inline_continuation() const
     if (is_svg_box())
         return false;
 
+    // SVGForeignObjectBoxes should never be split.
+    if (is_svg_foreign_object_box())
+        return false;
+
     return true;
 }
 
