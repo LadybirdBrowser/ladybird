@@ -84,6 +84,7 @@ WPT_ARGS=(
     "--install-webdriver"
     "--webdriver-arg=--force-cpu-painting"
     "--no-pause-after-test"
+    "--install-fonts"
     "${EXTRA_WPT_ARGS[@]}"
 )
 IMPORT_ARGS=()
