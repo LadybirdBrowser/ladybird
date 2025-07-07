@@ -739,10 +739,14 @@ ErrorOr<ByteString> readlink(StringView pathname)
 
 ErrorOr<int> poll(Span<struct pollfd> poll_fds, int timeout)
 {
+    for (auto& poll_fd : poll_fds)
+        poll_fd.revents = 0;
+
     auto const rc = ::poll(poll_fds.data(), poll_fds.size(), timeout);
     if (rc < 0)
         return Error::from_syscall("poll"sv, errno);
-    return { rc };
+
+    return rc;
 }
 
 unsigned hardware_concurrency()
