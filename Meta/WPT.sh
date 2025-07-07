@@ -619,15 +619,15 @@ import_wpt()
 
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
         ./Meta/ladybird.py build test-web
-        set +e
+        trap 'exit 1' EXIT INT TERM
         for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
             if ! ./Meta/import-wpt-test.py "${IMPORT_ARGS[@]}" https://wpt.live/"${path}"; then
                 continue
             fi
-            "${TEST_WEB_BINARY}" --rebaseline -f "$path"
+            "${TEST_WEB_BINARY}" --rebaseline -f "$path" || true
         done
-        set -e
+        trap - EXIT INT TERM
     popd > /dev/null
 }
 
