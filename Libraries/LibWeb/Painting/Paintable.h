@@ -73,9 +73,6 @@ public:
 
     virtual void paint(PaintContext&, PaintPhase) const { }
 
-    virtual void apply_scroll_offset(PaintContext&, PaintPhase) const { }
-    virtual void reset_scroll_offset(PaintContext&, PaintPhase) const { }
-
     virtual void apply_clip_overflow_rect(PaintContext&, PaintPhase) const { }
     virtual void clear_clip_overflow_rect(PaintContext&, PaintPhase) const { }
 

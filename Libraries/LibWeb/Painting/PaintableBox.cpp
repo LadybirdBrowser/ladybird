@@ -331,7 +331,7 @@ void PaintableBox::before_paint(PaintContext& context, PaintPhase phase) const
     } else if (!has_css_transform()) {
         apply_clip_overflow_rect(context, phase);
     }
-    apply_scroll_offset(context, phase);
+    apply_scroll_offset(context);
 }
 
 void PaintableBox::after_paint(PaintContext& context, PaintPhase phase) const
@@ -339,7 +339,7 @@ void PaintableBox::after_paint(PaintContext& context, PaintPhase phase) const
     if (!is_visible())
         return;
 
-    reset_scroll_offset(context, phase);
+    reset_scroll_offset(context);
     if (first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground) && own_clip_frame()) {
         restore_clip(context, own_clip_frame());
     } else if (!has_css_transform()) {
@@ -619,14 +619,14 @@ BorderRadiiData PaintableBox::normalized_border_radii_data(ShrinkRadiiForBorders
     return border_radii_data;
 }
 
-void PaintableBox::apply_scroll_offset(PaintContext& context, PaintPhase) const
+void PaintableBox::apply_scroll_offset(PaintContext& context) const
 {
     if (scroll_frame_id().has_value()) {
         context.display_list_recorder().push_scroll_frame_id(scroll_frame_id().value());
     }
 }
 
-void PaintableBox::reset_scroll_offset(PaintContext& context, PaintPhase) const
+void PaintableBox::reset_scroll_offset(PaintContext& context) const
 {
     if (scroll_frame_id().has_value()) {
         context.display_list_recorder().pop_scroll_frame_id();
