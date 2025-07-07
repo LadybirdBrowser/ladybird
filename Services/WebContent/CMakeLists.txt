@@ -38,15 +38,16 @@ if (ENABLE_QT)
     target_compile_definitions(WebContent PRIVATE HAVE_QT=1)
 
     if (NOT DEFINED LADYBIRD_AUDIO_BACKEND)
-        find_package(Qt6 REQUIRED COMPONENTS Multimedia)
+        find_package(Qt6 COMPONENTS Multimedia)
+        if (Qt6Multimedia_FOUND)
+            target_sources(WebContent PRIVATE
+                ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioCodecPluginQt.cpp
+                ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioThread.cpp
+            )
 
-        target_sources(WebContent PRIVATE
-            ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioCodecPluginQt.cpp
-            ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioThread.cpp
-        )
-
-        target_link_libraries(WebContent PRIVATE Qt::Multimedia)
-        target_compile_definitions(WebContent PRIVATE HAVE_QT_MULTIMEDIA=1)
+            target_link_libraries(WebContent PRIVATE Qt::Multimedia)
+            target_compile_definitions(WebContent PRIVATE HAVE_QT_MULTIMEDIA=1)
+        endif()
     endif()
 else()
     add_executable(WebContent main.cpp)
