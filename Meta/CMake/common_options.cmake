@@ -32,8 +32,15 @@ ladybird_option(ENABLE_NETWORK_DOWNLOADS ON CACHE BOOL "Allow downloads of requi
 ladybird_option(ENABLE_CLANG_PLUGINS OFF CACHE BOOL "Enable building with the Clang plugins")
 ladybird_option(ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS OFF CACHE BOOL "Enable detecting invalid function types as members of GC-allocated objects")
 
+if (LINUX AND NOT ANDROID)
+    set(freedesktop_files_default ON)
+else()
+    set(freedesktop_files_default OFF)
+endif()
+
 ladybird_option(ENABLE_GUI_TARGETS ON CACHE BOOL "Enable building GUI targets")
 ladybird_option(ENABLE_INSTALL_HEADERS ON CACHE BOOL "Enable installing headers")
+ladybird_option(ENABLE_INSTALL_FREEDESKTOP_FILES ${freedesktop_files_default} CACHE BOOL "Enable installing .desktop and .service files")
 ladybird_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
 ladybird_option(ENABLE_STD_STACKTRACE OFF CACHE BOOL "Force use of std::stacktrace instead of libbacktrace. If it is not supported the build will fail")
 ladybird_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets supported on Windows for CI")
