@@ -5,20 +5,20 @@
 // https://html.spec.whatwg.org/multipage/scripting.html#htmlscriptelement
 [Exposed=Window]
 interface HTMLScriptElement : HTMLElement {
-
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString type;
+    [CEReactions, Reflect, URL] attribute USVString src;
     [CEReactions, Reflect=nomodule] attribute boolean noModule;
     [CEReactions] attribute boolean async;
     [CEReactions, Reflect] attribute boolean defer;
-    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
-    [CEReactions] attribute DOMString text;
-    [CEReactions, Reflect] attribute DOMString integrity;
-    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect] attribute DOMString integrity;
     [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
+    
+    [CEReactions] attribute DOMString text;
 
     static boolean supports(DOMString type);
 
@@ -26,5 +26,4 @@ interface HTMLScriptElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString charset;
     [CEReactions, Reflect] attribute DOMString event;
     [CEReactions, Reflect=for] attribute DOMString htmlFor;
-
 };
