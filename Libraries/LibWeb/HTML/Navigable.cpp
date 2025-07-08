@@ -1676,7 +1676,7 @@ void Navigable::begin_navigation(NavigateParams params)
         // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
         auto unload_prompt_canceled = traversable_navigable()->check_if_unloading_is_canceled(this->active_document()->inclusive_descendant_navigables());
 
-        // 2. If unloadPromptCanceled is true, or navigable's ongoing navigation is no longer navigationId, then:
+        // 2. If unloadPromptCanceled is not "continue", or navigable's ongoing navigation is no longer navigationId:
         if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue || !ongoing_navigation().has<String>() || ongoing_navigation().get<String>() != navigation_id) {
             // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
 
