@@ -115,7 +115,7 @@ GC::Ptr<HTMLElement> PopoverInvokerElement::get_the_popover_target_element(GC::R
     if (!popover_element)
         return {};
 
-    // 6. If popoverElement's popover attribute is in the no popover state, then return null.
+    // 6. If popoverElement's popover attribute is in the No Popover state, then return null.
     if (!popover_element->popover().has_value())
         return {};
 

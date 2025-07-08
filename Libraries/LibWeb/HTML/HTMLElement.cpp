@@ -1192,7 +1192,7 @@ void HTMLElement::adjust_computed_style(CSS::ComputedProperties& style)
 // https://whatpr.org/html/9457/popover.html#check-popover-validity
 WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document> expected_document, IgnoreDomState ignore_dom_state)
 {
-    // 1. If ignoreDomState is false and element's popover attribute is in the no popover state, then:
+    // 1. If ignoreDomState is false and element's popover attribute is in the No Popover state, then:
     if (ignore_dom_state == IgnoreDomState::No && !popover().has_value()) {
         // 1.1. If throwExceptions is true, then throw a "NotSupportedError" DOMException.
         if (throw_exceptions == ThrowExceptions::Yes)
@@ -1440,7 +1440,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     m_popover_invoker = invoker;
     // FIXME: 24. Set element's implicit anchor element to invoker.
     // FIXME: 25. Run the popover focusing steps given element.
-    // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the no popover state, then set element's previously focused element to originallyFocusedElement.
+    // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the No Popover state, then set element's previously focused element to originallyFocusedElement.
     // 27. Queue a popover toggle event task given element, "closed", "open", and invoker.
     queue_a_popover_toggle_event_task("closed"_string, "open"_string, invoker);
     // 28. Run cleanupShowingFlag.
@@ -1749,7 +1749,7 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
         // 1. Assert: newPopoverOrTopLayerElement is an HTML element.
         VERIFY(new_popover);
 
-        // 2. Assert: newPopoverOrTopLayerElement's popover attribute is not in the no popover state or the manual state.
+        // 2. Assert: newPopoverOrTopLayerElement's popover attribute is not in the No Popover state or the manual state.
         VERIFY(!new_popover->popover().has_value() || new_popover->popover().value() != "manual"sv);
 
         // 3. Assert: newPopoverOrTopLayerElement's popover visibility state is not in the popover showing state.
@@ -2058,8 +2058,8 @@ void HTMLElement::removed_from(Node* old_parent, Node& old_root)
 {
     Element::removed_from(old_parent, old_root);
 
-    // https://whatpr.org/html/9457/infrastructure.html#dom-trees:concept-node-remove-ext
-    // If removedNode's popover attribute is not in the no popover state, then run the hide popover algorithm given removedNode, false, false, false, true, and null.
+    // https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-remove-ext
+    // If removedNode's popover attribute is not in the No Popover state, then run the hide popover algorithm given removedNode, false, false, false, true, and null.
     if (popover().has_value())
         MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
 

@@ -852,7 +852,8 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     }
     case CSS::PseudoClass::PopoverOpen: {
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
-        // The :popover-open pseudo-class is defined to match any HTML element whose popover attribute is not in the no popover state and whose popover visibility state is showing.
+        // The :popover-open pseudo-class is defined to match any HTML element whose popover attribute is not in the
+        // No Popover state and whose popover visibility state is showing.
         if (is<HTML::HTMLElement>(element) && element.has_attribute(HTML::AttributeNames::popover)) {
             auto& html_element = static_cast<HTML::HTMLElement const&>(element);
             return html_element.popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
