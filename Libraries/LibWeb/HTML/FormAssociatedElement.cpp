@@ -743,10 +743,10 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-range
 void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction, SelectionSource source)
 {
-    // 1. If start is null, let start be zero.
+    // 1. If start is null, let start be 0.
     start = start.value_or(0);
 
-    // 2. If end is null, let end be zero.
+    // 2. If end is null, let end be 0.
     end = end.value_or(0);
 
     // 3. Set the selection of the text control to the sequence of code units within the relevant
