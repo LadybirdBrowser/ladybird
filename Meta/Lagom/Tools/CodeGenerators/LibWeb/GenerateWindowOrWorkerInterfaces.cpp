@@ -331,7 +331,7 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
     return {};
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     Core::ArgsParser args_parser;
 

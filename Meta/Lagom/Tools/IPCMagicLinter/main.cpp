@@ -15,7 +15,7 @@
 static constexpr auto EXIT_COLLISION = 0x1;
 static constexpr auto EXIT_ERROR = 0x2;
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     if (arguments.argc < 3) {
         warnln("Usage: {} path/to/some.ipc path/to/other.ipc [more ipc files ...]", arguments.strings[0]);

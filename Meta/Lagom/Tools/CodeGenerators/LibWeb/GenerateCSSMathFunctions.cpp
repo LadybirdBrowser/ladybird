@@ -382,7 +382,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
 
 } // end anonymous namespace
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
     StringView generated_implementation_path;

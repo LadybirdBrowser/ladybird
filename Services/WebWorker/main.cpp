@@ -37,7 +37,7 @@ static ErrorOr<Web::Bindings::AgentType> agent_type_from_string(StringView type)
     return Error::from_string_literal("Invalid worker type, must be one of: 'dedicated', 'shared', or 'service'");
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 

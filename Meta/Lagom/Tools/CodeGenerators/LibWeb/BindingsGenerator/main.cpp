@@ -17,7 +17,7 @@
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     Core::ArgsParser args_parser;
     StringView path;

@@ -11,7 +11,7 @@
 #include <LibMain/Main.h>
 #include <LibTLS/TLSv12.h>
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     struct Request {
         Vector<Vector<DNS::Messages::ResourceType>> types;
