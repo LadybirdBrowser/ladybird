@@ -1513,8 +1513,11 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
     if (box.is_block_container() || box.display().is_table_inside())
         return calculate_max_content_height(box, width);
 
-    if (box.has_natural_height())
+    if (box.has_natural_height()) {
+        if (box.has_natural_aspect_ratio())
+            return width / *box.natural_aspect_ratio();
         return *box.natural_height();
+    }
 
     auto& cache = box.cached_intrinsic_sizes().min_content_height.ensure(width);
     if (cache.has_value())
