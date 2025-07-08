@@ -59,14 +59,14 @@ class FetchContext : public JS::GraphLoadingState::HostDefined {
     GC_DECLARE_ALLOCATOR(FetchContext);
 
 public:
-    JS::Value parse_error;                                   // [[ParseError]]
+    JS::Value error_to_rethrow;                              // [[ErrorToRethrow]]
     Fetch::Infrastructure::Request::Destination destination; // [[Destination]]
     PerformTheFetchHook perform_fetch;                       // [[PerformFetch]]
     GC::Ref<EnvironmentSettingsObject> fetch_client;         // [[FetchClient]]
 
 private:
-    FetchContext(JS::Value parse_error, Fetch::Infrastructure::Request::Destination destination, PerformTheFetchHook perform_fetch, EnvironmentSettingsObject& fetch_client)
-        : parse_error(parse_error)
+    FetchContext(JS::Value error_to_rethrow, Fetch::Infrastructure::Request::Destination destination, PerformTheFetchHook perform_fetch, EnvironmentSettingsObject& fetch_client)
+        : error_to_rethrow(error_to_rethrow)
         , destination(destination)
         , perform_fetch(perform_fetch)
         , fetch_client(fetch_client)
@@ -76,7 +76,7 @@ private:
     void visit_edges(Visitor& visitor) override
     {
         Base::visit_edges(visitor);
-        visitor.visit(parse_error);
+        visitor.visit(error_to_rethrow);
         visitor.visit(perform_fetch);
         visitor.visit(fetch_client);
     }

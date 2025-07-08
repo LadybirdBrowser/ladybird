@@ -463,7 +463,11 @@ void initialize_main_thread_vm(AgentType type)
                         // 1. Let error be a new SyntaxError exception.
                         auto error = JS::SyntaxError::create(*module_map_realm, "Module request attributes must only contain a type attribute"_string);
 
-                        // FIXME: 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
+                        // 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
+                        if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
+                            load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
+                            load_state_as_fetch_context->error_to_rethrow = error;
+                        }
 
                         // 3. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(error)).
                         JS::finish_loading_imported_module(referrer, module_request, payload, JS::throw_completion(error));
@@ -479,7 +483,11 @@ void initialize_main_thread_vm(AgentType type)
 
                 // 3. If the previous step threw an exception, then:
                 if (maybe_exception.is_exception()) {
-                    // FIXME: 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
+                    // 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
+                    if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
+                        load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
+                        load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, maybe_exception.exception()).release_value();
+                    }
 
                     // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
                     auto completion = exception_to_throw_completion(main_thread_vm(), maybe_exception.exception());
@@ -497,7 +505,11 @@ void initialize_main_thread_vm(AgentType type)
                     // 1. Let error be a new TypeError exception.
                     auto error = JS::TypeError::create(*module_map_realm, MUST(String::formatted("Module type '{}' is not supported", module_type)));
 
-                    // FIXME: 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
+                    // 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
+                    if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
+                        load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
+                        load_state_as_fetch_context->error_to_rethrow = error;
+                    }
 
                     // 3. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(error)).
                     JS::finish_loading_imported_module(referrer, module_request, payload, JS::throw_completion(error));
@@ -521,7 +533,11 @@ void initialize_main_thread_vm(AgentType type)
 
         // 9. If the previous step threw an exception, then:
         if (url.is_exception()) {
-            // FIXME: 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
+            // 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
+            if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
+                load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
+                load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, url.exception()).release_value();
+            }
 
             // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
             auto completion = exception_to_throw_completion(main_thread_vm(), url.exception());
@@ -582,12 +598,10 @@ void initialize_main_thread_vm(AgentType type)
                     // 2. Set completion to ThrowCompletion(parseError).
                     auto completion = JS::throw_completion(parse_error);
 
-                    // 3. If loadState is not undefined and loadState.[[ParseError]] is null, set loadState.[[ParseError]] to parseError.
-                    if (load_state) {
-                        auto& load_state_as_fetch_context = static_cast<HTML::FetchContext&>(*load_state);
-                        if (load_state_as_fetch_context.parse_error.is_null()) {
-                            load_state_as_fetch_context.parse_error = parse_error;
-                        }
+                    // 3. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to parseError.
+                    if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
+                        load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
+                        load_state_as_fetch_context->error_to_rethrow = parse_error;
                     }
 
                     return completion;
