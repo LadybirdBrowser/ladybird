@@ -296,8 +296,6 @@ void StackingContext::paint(PaintContext& context) const
         VERIFY(context.display_list_recorder().m_save_nesting_level == 0);
     });
 
-    DisplayListRecorderStateSaver saver(context.display_list_recorder());
-
     auto to_device_pixels_scale = float(context.device_pixels_per_css_pixel());
     auto source_paintable_rect = context.enclosing_device_rect(paintable_box().absolute_paint_rect()).to_type<int>();
 
@@ -328,7 +326,6 @@ void StackingContext::paint(PaintContext& context) const
     }
 
     auto has_css_transform = paintable_box().has_css_transform();
-    context.display_list_recorder().save();
     if (has_css_transform) {
         paintable_box().apply_clip_overflow_rect(context, PaintPhase::Foreground);
     }
@@ -373,7 +370,6 @@ void StackingContext::paint(PaintContext& context) const
     }
     if (has_css_transform)
         paintable_box().clear_clip_overflow_rect(context, PaintPhase::Foreground);
-    context.display_list_recorder().restore();
 }
 
 TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
