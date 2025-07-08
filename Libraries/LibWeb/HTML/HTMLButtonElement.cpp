@@ -181,7 +181,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
             return;
         }
 
-        // 3. Let isPopover be true if target's popover attribute is not in the no popover state; otherwise false.
+        // 3. Let isPopover be true if target's popover attribute is not in the No Popover state; otherwise false.
         auto is_popover = target->popover().has_value();
 
         // 4. If isPopover is false and command is not in the Custom state:
