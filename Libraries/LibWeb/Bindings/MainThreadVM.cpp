@@ -104,9 +104,9 @@ void initialize_main_thread_vm(AgentType type)
     //       This avoids doing an exhaustive garbage collection on process exit.
     s_main_thread_vm->ref();
 
-    // 8.1.5.1 HostEnsureCanAddPrivateElement(O), https://html.spec.whatwg.org/multipage/webappapis.html#the-hostensurecanaddprivateelement-implementation
+    // 8.1.6.1 HostEnsureCanAddPrivateElement(O), https://html.spec.whatwg.org/multipage/webappapis.html#the-hostensurecanaddprivateelement-implementation
     s_main_thread_vm->host_ensure_can_add_private_element = [](JS::Object const& object) -> JS::ThrowCompletionOr<void> {
-        // 1. If O is a WindowProxy object, or implements Location, then return Completion { [[Type]]: throw, [[Value]]: a new TypeError }.
+        // 1. If O is a WindowProxy object, or implements Location, then return ThrowCompletion(a new TypeError).
         if (is<HTML::WindowProxy>(object) || is<HTML::Location>(object))
             return s_main_thread_vm->throw_completion<JS::TypeError>("Cannot add private elements to window or location object"sv);
 
@@ -418,13 +418,11 @@ void initialize_main_thread_vm(AgentType type)
 
         // 2. If moduleMapRealm's global object implements WorkletGlobalScope or ServiceWorkerGlobalScope and loadState is undefined, then:
         if ((is<HTML::WorkletGlobalScope>(module_map_realm->global_object()) || is<ServiceWorker::ServiceWorkerGlobalScope>(module_map_realm->global_object())) && !load_state) {
-            // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: a new TypeError, [[Target]]: empty }.
+            // 1. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(a new TypeError)).
             auto completion = JS::throw_completion(JS::TypeError::create(*module_map_realm, "Dynamic Import not available for Worklets or ServiceWorkers"_string));
-
-            // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
-            // 3. Return.
+            // 2. Return.
             return;
         }
 
@@ -462,13 +460,15 @@ void initialize_main_thread_vm(AgentType type)
                         if (attribute.key == "type"sv)
                             continue;
 
-                        // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: a new SyntaxError exception, [[Target]]: empty }.
-                        auto completion = JS::throw_completion(JS::SyntaxError::create(*module_map_realm, "Module request attributes must only contain a type attribute"_string));
+                        // 1. Let error be a new SyntaxError exception.
+                        auto error = JS::SyntaxError::create(*module_map_realm, "Module request attributes must only contain a type attribute"_string);
 
-                        // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
-                        JS::finish_loading_imported_module(referrer, module_request, payload, completion);
+                        // FIXME: 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
 
-                        // 3. Return.
+                        // 3. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(error)).
+                        JS::finish_loading_imported_module(referrer, module_request, payload, JS::throw_completion(error));
+
+                        // 4. Return.
                         return;
                     }
                 }
@@ -479,10 +479,10 @@ void initialize_main_thread_vm(AgentType type)
 
                 // 3. If the previous step threw an exception, then:
                 if (maybe_exception.is_exception()) {
-                    // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: resolutionError, [[Target]]: empty }.
-                    auto completion = exception_to_throw_completion(main_thread_vm(), maybe_exception.exception());
+                    // FIXME: 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
 
-                    // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
+                    // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
+                    auto completion = exception_to_throw_completion(main_thread_vm(), maybe_exception.exception());
                     JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
                     // 3. Return.
@@ -494,13 +494,15 @@ void initialize_main_thread_vm(AgentType type)
 
                 // 5. If the result of running the module type allowed steps given moduleType and moduleMapRealm is false, then:
                 if (!HTML::module_type_allowed(*module_map_realm, module_type)) {
-                    // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: a new TypeError exception, [[Target]]: empty }.
-                    auto completion = JS::throw_completion(JS::SyntaxError::create(*module_map_realm, MUST(String::formatted("Module type '{}' is not supported", module_type))));
+                    // 1. Let error be a new TypeError exception.
+                    auto error = JS::TypeError::create(*module_map_realm, MUST(String::formatted("Module type '{}' is not supported", module_type)));
 
-                    // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
-                    JS::finish_loading_imported_module(referrer, module_request, payload, completion);
+                    // FIXME: 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
 
-                    // 3. Return
+                    // 3. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(error)).
+                    JS::finish_loading_imported_module(referrer, module_request, payload, JS::throw_completion(error));
+
+                    // 4. Return
                     return;
                 }
 
@@ -519,10 +521,10 @@ void initialize_main_thread_vm(AgentType type)
 
         // 9. If the previous step threw an exception, then:
         if (url.is_exception()) {
-            // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: resolutionError, [[Target]]: empty }.
-            auto completion = exception_to_throw_completion(main_thread_vm(), url.exception());
+            // FIXME: 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
 
-            // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
+            // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
+            auto completion = exception_to_throw_completion(main_thread_vm(), url.exception());
             HTML::TemporaryExecutionContext context { *module_map_realm };
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
@@ -568,7 +570,7 @@ void initialize_main_thread_vm(AgentType type)
             GC::Ptr<JS::Module> module = nullptr;
 
             auto completion = [&]() -> JS::ThrowCompletionOr<GC::Ref<JS::Module>> {
-                // 2. If moduleScript is null, then set completion to Completion Record { [[Type]]: throw, [[Value]]: a new TypeError, [[Target]]: empty }.
+                // 2. If moduleScript is null, then set completion to ThrowCompletion(a new TypeError).
                 if (!module_script) {
                     return JS::throw_completion(JS::TypeError::create(realm, ByteString::formatted("Loading imported module '{}' failed.", module_request.module_specifier)));
                 }
@@ -577,7 +579,7 @@ void initialize_main_thread_vm(AgentType type)
                     // 1. Let parseError be moduleScript's parse error.
                     auto parse_error = module_script->parse_error();
 
-                    // 2. Set completion to Completion Record { [[Type]]: throw, [[Value]]: parseError, [[Target]]: empty }.
+                    // 2. Set completion to ThrowCompletion(parseError).
                     auto completion = JS::throw_completion(parse_error);
 
                     // 3. If loadState is not undefined and loadState.[[ParseError]] is null, set loadState.[[ParseError]] to parseError.
@@ -590,7 +592,7 @@ void initialize_main_thread_vm(AgentType type)
 
                     return completion;
                 }
-                // 4. Otherwise, set completion to Completion Record { [[Type]]: normal, [[Value]]: moduleScript's record, [[Target]]: empty }.
+                // 4. Otherwise, set completion to NormalCompletion(moduleScript's record).
                 else {
                     module = static_cast<HTML::JavaScriptModuleScript&>(*module_script).record();
                     return JS::ThrowCompletionOr<GC::Ref<JS::Module>>(*module);
