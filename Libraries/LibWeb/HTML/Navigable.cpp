@@ -715,9 +715,29 @@ static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Respo
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-create-a-non-fetch-scheme-document
 static GC::Ptr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(NonFetchSchemeNavigationParams const& params)
 {
-    // FIXME: Implement this algorithm to hand off to external software or display inline content
-    dbgln("(FIXME) Don't know how to navigate to {}", params.url);
-    return nullptr;
+    // 1. Let url be navigationParams's URL.
+    auto const& url = params.url;
+
+    // 2. Let navigable be navigationParams's navigable.
+    [[maybe_unused]] auto navigable = params.navigable;
+
+    // 3. FIXME: If url is to be handled using a mechanism that does not affect navigable, e.g., because url's scheme is
+    //    handled externally, then:
+    if (false) {
+        // 1. FIXME: Hand-off to external software given url, navigable, navigationParams's target snapshot sandboxing flags,
+        //    navigationParams's source snapshot has transient activation, and navigationParams's initiator origin.
+
+        // 2. Return null.
+        return {};
+    }
+
+    // 4. FIXME: Handle url by displaying some sort of inline content, e.g., an error message because the specified scheme is
+    //    not one of the supported protocols, or an inline prompt to allow the user to select a registered handler for
+    //    the given scheme. Return the result of displaying the inline content given navigable, navigationParams's id,
+    //    navigationParams's navigation timing type, and navigationParams's user involvement.
+
+    dbgln("FIXME: Don't know how to navigate to {}", url);
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-from-a-srcdoc-resource
@@ -1223,7 +1243,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         user_involvement);
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
 WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     GC::Ptr<SessionHistoryEntry> entry,
     SourceSnapshotParams const& source_snapshot_params,
@@ -1250,20 +1270,24 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
     // 4. If navigationParams is null, then:
     if (navigation_params.has<NullOrError>()) {
-        // 1. If documentResource is a string, then set navigationParams to the result
-        //    of creating navigation params from a srcdoc resource given entry, navigable,
-        //    targetSnapshotParams, userInvolvement, navigationId, and navTimingType.
+        // 1. If documentResource is a string, then set navigationParams to the result of creating navigation params
+        //    from a srcdoc resource given entry, navigable, targetSnapshotParams, userInvolvement, navigationId, and
+        //    navTimingType.
         if (document_resource.has<String>()) {
             navigation_params = create_navigation_params_from_a_srcdoc_resource(entry, this, target_snapshot_params, user_involvement, navigation_id);
         }
         // 2. Otherwise, if all of the following are true:
         //    - entry's URL's scheme is a fetch scheme; and
-        //    - documentResource is null, or allowPOST is true and documentResource's request body is not failure (FIXME: check if request body is not failure)
-        // then set navigationParams to the result of creating navigation params by fetching given entry, navigable, sourceSnapshotParams, targetSnapshotParams, cspNavigationType, userInvolvement, navigationId, and navTimingType.
+        //    - documentResource is null, or allowPOST is true and documentResource's request body is not failure,
+        //      (FIXME: check if request body is not failure)
+        //    then set navigationParams to the result of creating navigation params by fetching given entry, navigable,
+        //    sourceSnapshotParams, targetSnapshotParams, cspNavigationType, userInvolvement, navigationId, and
+        //    navTimingType.
         else if (Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme()) && (document_resource.has<Empty>() || allow_POST)) {
             navigation_params = TRY(create_navigation_params_by_fetching(entry, this, source_snapshot_params, target_snapshot_params, csp_navigation_type, user_involvement, navigation_id));
         }
-        // 3. Otherwise, if entry's URL's scheme is not a fetch scheme, then set navigationParams to a new non-fetch scheme navigation params, with:
+        // 3. Otherwise, if entry's URL's scheme is not a fetch scheme, then set navigationParams to a new non-fetch
+        //    scheme navigation params, with:
         else if (!Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme())) {
             // - id: navigationId
             // - navigable: navigable
@@ -1306,7 +1330,10 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
         // 3. If navigationParams is a non-fetch scheme navigation params, then:
         if (navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>()) {
-            // 1. Set entry's document state's document to the result of running attempt to create a non-fetch scheme document given navigationParams.
+            // 1. Set entry's document state's document to the result of running attempt to create a non-fetch scheme
+            //    document given navigationParams.
+            //    NOTE: This can result in setting entry's document state's document to null, e.g., when handing-off to
+            //    external software.
             entry->document_state()->set_document(attempt_to_create_a_non_fetch_scheme_document(navigation_params.get<GC::Ref<NonFetchSchemeNavigationParams>>()));
             if (entry->document()) {
                 entry->document_state()->set_ever_populated(true);
@@ -1322,17 +1349,17 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         //  - FIXME: navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
         //  - the result of checking a navigation response's adherence to `X-Frame-Options` given navigationParams's response, navigable, navigationParams's policy container's CSP list, and navigationParams's origin is false,
         //    then:
-        if (navigation_params.visit(
-                [](NullOrError) { return true; },
-                [this, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {
-                    auto csp_result = ContentSecurityPolicy::should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(navigation_params->request, *navigation_params->response, navigation_params->policy_container->csp_list, csp_navigation_type, *this);
-                    if (csp_result == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
-                        return true;
+        else if (navigation_params.visit(
+                     [](NullOrError) { return true; },
+                     [this, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {
+                         auto csp_result = ContentSecurityPolicy::should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(navigation_params->request, *navigation_params->response, navigation_params->policy_container->csp_list, csp_navigation_type, *this);
+                         if (csp_result == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+                             return true;
 
-                    // FIXME: Pass in navigationParams's policy container's CSP list
-                    return !check_a_navigation_responses_adherence_to_x_frame_options(navigation_params->response, this, navigation_params->policy_container->csp_list, navigation_params->origin);
-                },
-                [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
+                         // FIXME: Pass in navigationParams's policy container's CSP list
+                         return !check_a_navigation_responses_adherence_to_x_frame_options(navigation_params->response, this, navigation_params->policy_container->csp_list, navigation_params->origin);
+                     },
+                     [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
             // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
             auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"_string) : "The request was denied."_string;
 
@@ -1369,8 +1396,12 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
                 // FIXME: 2. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
             }
         }
-        // FIXME: 5. Otherwise, if navigationParams's response has a `Content-Disposition`
-        //            header specifying the attachment disposition type, then:
+
+        // FIXME: 5. Otherwise, if navigationParams's response has a `Content-Disposition` header specifying the attachment
+        //    disposition type, then:
+        else if (false) {
+        }
+
         // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of
         //    loading a document given navigationParams, sourceSnapshotParams, and entry's document state's initiator origin.
         else if (auto const& response = navigation_params.get<GC::Ref<NavigationParams>>()->response; response->status() != 204 && response->status() != 205) {
@@ -1459,7 +1490,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         return {};
     }
 
-    if (m_pending_navigations.size() == 0 && params.url.equals(URL::about_blank())) {
+    if (m_pending_navigations.is_empty() && params.url.equals(URL::about_blank())) {
         begin_navigation(move(params));
         return {};
     }
