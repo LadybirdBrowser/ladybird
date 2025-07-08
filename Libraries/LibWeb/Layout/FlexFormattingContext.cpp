@@ -965,7 +965,7 @@ void FlexFormattingContext::resolve_flexible_lengths_for_line(FlexLine& line)
     // 5. Loop
     while (true) {
         // a. Check for flexible items.
-        //    If all the flex items on the line are frozen, free space has been distributed; exit this loop.
+        //    If all the flex items on the line are frozen, exit this loop.
         if (all_of(line.items, [](auto const& item) { return item.frozen; })) {
             break;
         }
