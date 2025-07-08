@@ -19,15 +19,21 @@ String GridTrackPlacement::to_string() const
         },
         [&](AreaOrLine const& area_or_line) {
             if (area_or_line.line_number.has_value() && area_or_line.name.has_value()) {
-                builder.appendff("{} {}", *area_or_line.line_number, *area_or_line.name);
+                builder.appendff("{} {}", area_or_line.line_number->to_string(), *area_or_line.name);
             } else if (area_or_line.line_number.has_value()) {
-                builder.appendff("{}", *area_or_line.line_number);
+                builder.appendff("{}", area_or_line.line_number->to_string());
             } else if (area_or_line.name.has_value()) {
                 builder.appendff("{}", *area_or_line.name);
             }
         },
         [&](Span const& span) {
-            builder.appendff("span {}", span.value);
+            builder.append("span"sv);
+
+            if (!span.name.has_value() || span.value.is_calculated() || span.value.value() != 1)
+                builder.appendff(" {}", span.value.to_string());
+
+            if (span.name.has_value())
+                builder.appendff(" {}", span.name.value());
         });
     return MUST(builder.to_string());
 }
