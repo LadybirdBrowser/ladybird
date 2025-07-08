@@ -1705,7 +1705,7 @@ RefPtr<CSSStyleValue const> Parser::parse_color_function(TokenStream<ComponentVa
 RefPtr<CSSStyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentValue>& tokens)
 {
     auto parse_color_interpolation_method = [this](TokenStream<ComponentValue>& function_tokens) -> Optional<ColorMixStyleValue::ColorInterpolationMethod> {
-        // <rectangular-color-space> = srgb | srgb-linear | display-p3 | a98-rgb | prophoto-rgb | rec2020 | lab | oklab | xyz | xyz-d50 | xyz-d65
+        // <rectangular-color-space> = srgb | srgb-linear | display-p3 | a98-rgb | prophoto-rgb | rec2020 | lab | oklab | <xyz-space>
         // <polar-color-space> = hsl | hwb | lch | oklch
         // <custom-color-space> = <dashed-ident>
         // <hue-interpolation-method> = [ shorter | longer | increasing | decreasing ] hue

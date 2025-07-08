@@ -2974,7 +2974,7 @@ RefPtr<CSSStyleValue const> Parser::parse_font_style_value(TokenStream<Component
 RefPtr<CSSStyleValue const> Parser::parse_font_variation_settings_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-fonts/#propdef-font-variation-settings
-    // normal | [ <opentype-tag> <number>]#
+    // normal | [ <opentype-tag> <number> ]#
 
     // normal
     if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
