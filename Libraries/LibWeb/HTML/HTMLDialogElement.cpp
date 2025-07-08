@@ -492,16 +492,14 @@ void HTMLDialogElement::invoker_command_steps(DOM::Element& invoker, String& com
     // 2. If command is in the Close state and element has an open attribute,
     //    then close the dialog given element with invoker's optional value and invoker.
     if (command == "close" && has_attribute(AttributeNames::open)) {
-        // FIXME: This assumes invoker is a button.
-        auto optional_value = invoker.get_attribute(AttributeNames::value);
+        auto const optional_value = as<FormAssociatedElement>(invoker).optional_value();
         close_the_dialog(optional_value, invoker);
     }
 
     // 3. If command is in the Request Close state and element has an open attribute,
     //    then request to close the dialog element with invoker's optional value and invoker.
     if (command == "request-close" && has_attribute(AttributeNames::open)) {
-        // FIXME: This assumes invoker is a button.
-        auto optional_value = invoker.get_attribute(AttributeNames::value);
+        auto const optional_value = as<FormAssociatedElement>(invoker).optional_value();
         request_close_the_dialog(optional_value, invoker);
     }
 

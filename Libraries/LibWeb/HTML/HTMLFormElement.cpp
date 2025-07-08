@@ -225,9 +225,10 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
             }
         }
 
-        // 5. Otherwise, if submitter has a value, then set result to that value.
-        if (!result.has_value())
-            result = submitter->get_attribute_value(AttributeNames::value);
+        // 5. Otherwise, if submitter is a submit button, then set result to submitter's optional value.
+        else if (auto* form_associated_element = as_if<FormAssociatedElement>(*submitter); form_associated_element && form_associated_element->is_submit_button()) {
+            result = form_associated_element->optional_value();
+        }
 
         // 6. Close the dialog subject with result and null.
         subject->close_the_dialog(move(result), nullptr);
