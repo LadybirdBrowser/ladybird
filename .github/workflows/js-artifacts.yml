@@ -61,7 +61,7 @@ jobs:
 
       - name: Create build directory Ubuntu
         run: |
-          cmake --preset Distribution_CI \
+          cmake --preset Distribution \
             -DCMAKE_C_COMPILER=clang-20 \
             -DCMAKE_CXX_COMPILER=clang++-20 \
             -DENABLE_GUI_TARGETS=OFF
@@ -73,7 +73,7 @@ jobs:
       #        See: https://github.com/microsoft/vcpkg/discussions/19454
       - name: Create build directory macOS
         run: |
-          cmake --preset Distribution_CI \
+          cmake --preset Distribution \
             -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'macOS' }}

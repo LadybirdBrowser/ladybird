@@ -126,7 +126,7 @@ jobs:
         run: sqlite3 $HOME/Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR IGNORE INTO access VALUES ('kTCCServiceMicrophone','/usr/local/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159,NULL,NULL,'UNUSED',1687786159);"
 
       - name: Create Build Environment
-        if: ${{ inputs.os_name != 'Windows' && inputs.build_preset != 'Fuzzers_CI' }}
+        if: ${{ inputs.os_name != 'Windows' && inputs.build_preset != 'Fuzzers' }}
         working-directory: ${{ github.workspace }}
         env:
           VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
@@ -148,10 +148,10 @@ jobs:
           cmake --preset ${{ inputs.build_preset }} -B Build
 
       - name: Create Build Environment (Fuzzers)
-        if: ${{ inputs.build_preset == 'Fuzzers_CI' }}
+        if: ${{ inputs.build_preset == 'Fuzzers' }}
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --preset=Distribution_CI -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
+          cmake --preset=Distribution -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
             -DLAGOM_TOOLS_ONLY=ON \
             -DINSTALL_LAGOM_TOOLS=ON \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
@@ -175,7 +175,7 @@ jobs:
           cmake --install . --strip --prefix ${{ github.workspace }}/Install
 
       - name: Build - macOS with Qt
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build -DENABLE_QT=ON
@@ -194,33 +194,24 @@ jobs:
       # === TEST ===
 
       - name: Test
-        if: ${{ inputs.os_name != 'Windows' && inputs.build_preset == 'Sanitizer_CI' }}
+        if: ${{ contains(inputs.build_preset, 'Sanitizer') }}
         working-directory: ${{ github.workspace }}
-        run: ctest --preset Sanitizer --output-on-failure --test-dir Build --timeout 1800
+        run: ctest --preset ${{ inputs.build_preset }} --output-on-failure --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
           # NOTE: These are appended to the preset's options.
-          ASAN_OPTIONS: 'log_path=${{ github.workspace }}/asan.log'
-          UBSAN_OPTIONS: 'log_path=${{ github.workspace }}/ubsan.log'
+          ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
+          UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
 
       - name: Test
-        if: ${{ inputs.build_preset != 'Fuzzers_CI' && !contains(inputs.build_preset, 'Sanitizer_CI') }}
+        if: ${{ inputs.build_preset != 'Fuzzers' && !contains(inputs.build_preset, 'Sanitizer') }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
 
-      - name: Test (Windows)
-        if: ${{ inputs.os_name == 'Windows' }}
-        working-directory: ${{ github.workspace }}
-        run: ctest --preset ${{ inputs.build_preset }} --test-dir Build --timeout 1800
-        env:
-          TESTS_ONLY: 1
-          ASAN_OPTIONS: 'log_path="${{ github.workspace }}\asan.log"'
-          UBSAN_OPTIONS: 'log_path="${{ github.workspace }}\ubsan.log"'
-
       - name: Upload LibWeb Test Artifacts
-        if: ${{ always() && inputs.build_preset != 'Fuzzers_CI' }}
+        if: ${{ always() && inputs.build_preset != 'Fuzzers' }}
         uses: actions/upload-artifact@v4
         with:
           name: libweb-test-artifacts-${{ inputs.os_name }}-${{ inputs.build_preset }}-${{ inputs.toolchain }}-${{ inputs.clang-plugins }}
@@ -229,7 +220,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Sanitizer Output
-        if: ${{ !cancelled() && inputs.build_preset == 'Sanitizer_CI' }}
+        if: ${{ !cancelled() && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
           log_output=$(find . -maxdepth 1 \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
@@ -241,7 +232,7 @@ jobs:
           fi
 
       - name: Lints
-        if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer_CI' }}
+        if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
           set -e
