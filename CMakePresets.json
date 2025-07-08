@@ -135,22 +135,8 @@
       }
     },
     {
-      "hidden": true,
-      "name": "vcpkg_ci",
-      "description": "FIXME: Use the GitHub Actions vcpkg cache"
-    },
-    {
-      "name": "CI",
-      "displayName": "Non-Sanitizer CI Config",
-      "inherits": [
-        "vcpkg_ci",
-        "unix_base"
-      ]
-    },
-    {
       "name": "Windows_CI",
       "inherits":  [
-        "vcpkg_ci",
         "windows_base"
       ],
       "displayName": "Windows CI Config",
@@ -158,23 +144,6 @@
         "ENABLE_WINDOWS_CI": "ON",
         "ENABLE_QT": "OFF"
       }
-    },
-    {
-      "name": "Distribution_CI",
-      "inherits": [
-        "vcpkg_ci",
-        "Distribution"
-      ],
-      "displayName": "Distribution CI Config",
-      "description": "Distribution build with GitHub Actions cache"
-    },
-    {
-      "name": "Sanitizer_CI",
-      "inherits": [
-        "vcpkg_ci",
-        "Sanitizer"
-      ],
-      "displayName": "Sanitizer CI Config"
     },
     {
       "name": "Windows_Sanitizer_CI",
@@ -204,15 +173,6 @@
         "ENABLE_FUZZERS_LIBFUZZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON"
       }
-    },
-    {
-      "name": "Fuzzers_CI",
-      "inherits": [
-        "vcpkg_ci",
-        "Fuzzers"
-      ],
-      "displayName": "Fuzzers CI Config",
-      "description": "Fuzzers build with GitHub Actions cache"
     },
     {
       "name": "Swift_Release",
