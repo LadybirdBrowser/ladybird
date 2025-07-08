@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibWeb/CSS/CalculatedOr.h>
 
 namespace Web::CSS {
 
@@ -18,14 +19,14 @@ public:
         return GridTrackPlacement();
     }
 
-    static GridTrackPlacement make_line(Optional<int> line_number, Optional<String> name)
+    static GridTrackPlacement make_line(Optional<IntegerOrCalculated> line_number, Optional<String> name)
     {
         return GridTrackPlacement(AreaOrLine { .line_number = line_number, .name = name });
     }
 
-    static GridTrackPlacement make_span(int value)
+    static GridTrackPlacement make_span(IntegerOrCalculated value, Optional<String> name)
     {
-        return GridTrackPlacement(Span { .value = value });
+        return GridTrackPlacement(Span { .value = value, .name = name });
     }
 
     bool is_auto() const { return m_value.has<Auto>(); }
@@ -34,6 +35,8 @@ public:
 
     bool is_auto_positioned() const { return is_auto() || is_span(); }
     bool is_positioned() const { return !is_auto_positioned(); }
+
+    bool is_custom_ident() const { return is_area_or_line() && !m_value.get<AreaOrLine>().line_number.has_value(); }
 
     bool has_identifier() const
     {
@@ -47,8 +50,8 @@ public:
 
     String identifier() const { return *m_value.get<AreaOrLine>().name; }
 
-    int line_number() const { return *m_value.get<AreaOrLine>().line_number; }
-    int span() const { return m_value.get<Span>().value; }
+    IntegerOrCalculated line_number() const { return *m_value.get<AreaOrLine>().line_number; }
+    IntegerOrCalculated span() const { return m_value.get<Span>().value; }
 
     String to_string() const;
 
@@ -60,13 +63,14 @@ private:
     };
 
     struct AreaOrLine {
-        Optional<int> line_number;
+        Optional<IntegerOrCalculated> line_number;
         Optional<String> name;
         bool operator==(AreaOrLine const& other) const = default;
     };
 
     struct Span {
-        int value;
+        IntegerOrCalculated value;
+        Optional<String> name;
         bool operator==(Span const& other) const = default;
     };
 

@@ -282,16 +282,21 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     auto const& placement_start = dimension == GridDimension::Row ? computed_values.grid_row_start() : computed_values.grid_column_start();
     auto const& placement_end = dimension == GridDimension::Row ? computed_values.grid_row_end() : computed_values.grid_column_end();
 
+    CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
+
+    Optional<i64> placement_start_line_number = placement_start.has_line_number() ? placement_start.line_number().resolved(resolution_context) : Optional<i64> {};
+    Optional<i64> placement_end_line_number = placement_end.has_line_number() ? placement_end.line_number().resolved(resolution_context) : Optional<i64> {};
+
     PlacementPosition result;
 
-    if (placement_start.has_line_number() && placement_start.line_number() > 0)
-        result.start = placement_start.line_number() - 1;
-    else if (placement_start.has_line_number()) {
+    if (placement_start_line_number.has_value() && placement_start_line_number.value() > 0)
+        result.start = placement_start_line_number.value() - 1;
+    else if (placement_start_line_number.has_value()) {
         auto explicit_line_count = dimension == GridDimension::Row ? m_explicit_rows_line_count : m_explicit_columns_line_count;
-        result.start = explicit_line_count + placement_start.line_number();
+        result.start = explicit_line_count + placement_start_line_number.value();
     }
-    if (placement_end.has_line_number())
-        result.end = placement_end.line_number() - 1;
+    if (placement_end_line_number.has_value())
+        result.end = *placement_end_line_number - 1;
 
     if (result.end < 0) {
         if (dimension == GridDimension::Row)
@@ -300,10 +305,13 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
             result.end = m_occupation_grid.column_count() + result.end + 2;
     }
 
+    // FIXME: If a name is given as a <custom-ident>, only lines with that name are counted. If not enough lines with
+    //        that name exist, all implicit grid lines on the side of the explicit grid corresponding to the search
+    //        direction are assumed to have that name for the purpose of counting this span.
     if (placement_end.is_span())
-        result.span = placement_end.span();
+        result.span = placement_end.span().resolved(resolution_context).value();
     if (placement_start.is_span()) {
-        result.span = placement_start.span();
+        result.span = placement_start.span().resolved(resolution_context).value();
         result.start = result.end - result.span;
         // FIXME: Remove me once have implemented spans overflowing into negative indexes, e.g., grid-row: span 2 / 1
         if (result.start < 0)
@@ -312,7 +320,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
 
     if (placement_end.has_identifier()) {
         auto area_end_line_name = MUST(String::formatted("{}-end", placement_end.identifier()));
-        auto line_number = placement_end.has_line_number() ? placement_end.line_number() : 1;
+        auto line_number = placement_end_line_number.value_or(1);
         if (auto area_end_line_index = get_nth_line_index_by_line_name(dimension, area_end_line_name, line_number); area_end_line_index.has_value()) {
             result.end = area_end_line_index.value();
         } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_end.identifier(), line_number); line_name_index.has_value()) {
@@ -325,7 +333,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
 
     if (placement_start.has_identifier()) {
         auto area_start_line_name = MUST(String::formatted("{}-start", placement_start.identifier()));
-        auto line_number = placement_start.has_line_number() ? placement_start.line_number() : 1;
+        auto line_number = placement_start_line_number.value_or(1);
         if (auto area_start_line_index = get_nth_line_index_by_line_name(dimension, area_start_line_name, line_number); area_start_line_index.has_value()) {
             result.start = area_start_line_index.value();
         } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_start.identifier(), line_number); line_name_index.has_value()) {
@@ -357,7 +365,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     // If the placement contains two spans, remove the one contributed by the end grid-placement
     // property.
     if (placement_start.is_span() && placement_end.is_span())
-        result.span = placement_start.span();
+        result.span = placement_start.span().resolved(resolution_context).value();
 
     return result;
 }
@@ -389,7 +397,7 @@ void GridFormattingContext::place_item_with_row_position(Box const& child_box)
 
     auto const& grid_column_start = child_box.computed_values().grid_column_start();
     int column_start = 0;
-    size_t column_span = grid_column_start.is_span() ? grid_column_start.span() : 1;
+    size_t column_span = grid_column_start.is_span() ? grid_column_start.span().resolved({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) }).value() : 1;
 
     bool found_available_column = false;
     for (size_t column_index = column_start; column_index < m_occupation_grid.column_count(); column_index++) {
@@ -419,7 +427,7 @@ void GridFormattingContext::place_item_with_column_position(Box const& child_box
     size_t column_span = placement_position.span;
 
     auto const& grid_row_start = child_box.computed_values().grid_row_start();
-    size_t row_span = grid_row_start.is_span() ? grid_row_start.span() : 1;
+    size_t row_span = grid_row_start.is_span() ? grid_row_start.span().resolved({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) }).value() : 1;
 
     // 4.1.1.1. Set the column position of the cursor to the grid item's column-start line. If this is
     // less than the previous column position of the cursor, increment the row position by 1.
@@ -484,18 +492,20 @@ void GridFormattingContext::place_item_with_no_declared_position(Box const& chil
     auto const& grid_column_start = computed_values.grid_column_start();
     auto const& grid_column_end = computed_values.grid_column_end();
 
+    CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
+
     auto column_start = 0;
     size_t column_span = 1;
     if (grid_column_start.is_span())
-        column_span = grid_column_start.span();
+        column_span = grid_column_start.span().resolved(resolution_context).value();
     else if (grid_column_end.is_span())
-        column_span = grid_column_end.span();
+        column_span = grid_column_end.span().resolved(resolution_context).value();
     auto row_start = 0;
     size_t row_span = 1;
     if (grid_row_start.is_span())
-        row_span = grid_row_start.span();
+        row_span = grid_row_start.span().resolved(resolution_context).value();
     else if (grid_row_end.is_span())
-        row_span = grid_row_end.span();
+        row_span = grid_row_end.span().resolved(resolution_context).value();
 
     auto const& auto_flow = grid_container().computed_values().grid_auto_flow();
     auto dimension = auto_flow.row ? GridDimension::Column : GridDimension::Row;
@@ -1483,11 +1493,13 @@ void GridFormattingContext::place_grid_items()
             auto const& grid_column_start = child_box->computed_values().grid_column_start();
             auto const& grid_column_end = child_box->computed_values().grid_column_end();
 
+            CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
+
             int column_span = 1;
             if (grid_column_start.is_span())
-                column_span = grid_column_start.span();
+                column_span = grid_column_start.span().resolved(resolution_context).value();
             else if (grid_column_end.is_span())
-                column_span = grid_column_end.span();
+                column_span = grid_column_end.span().resolved(resolution_context).value();
 
             if (column_span - 1 > m_occupation_grid.max_column_index())
                 m_occupation_grid.set_max_column_index(column_span - 1);

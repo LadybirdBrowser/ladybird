@@ -3647,108 +3647,72 @@ GridTrackSizeList Parser::parse_explicit_track_list(TokenStream<ComponentValue>&
 
 RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(TokenStream<ComponentValue>& tokens)
 {
-    // FIXME: This shouldn't be needed. Right now, the below code returns a CSSStyleValue even if no tokens are consumed!
-    if (!tokens.has_next_token())
-        return nullptr;
-
-    if (tokens.remaining_token_count() > 3)
-        return nullptr;
-
     // https://www.w3.org/TR/css-grid-2/#line-placement
     // Line-based Placement: the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties
     // <grid-line> =
     //     auto |
     //     <custom-ident> |
-    //     [ <integer> && <custom-ident>? ] |
-    //     [ span && [ <integer> || <custom-ident> ] ]
-    auto is_valid_integer = [](auto& token) -> bool {
-        // An <integer> value of zero makes the declaration invalid.
-        if (token.is(Token::Type::Number) && token.token().number().is_integer() && token.token().number_value() != 0)
-            return true;
-        return false;
-    };
-    auto parse_custom_ident = [this](auto& tokens) {
-        // The <custom-ident> additionally excludes the keywords span and auto.
-        return parse_custom_ident_value(tokens, { { "span"sv, "auto"sv } });
-    };
+    //     [ [ <integer [-∞,-1]> | <integer [1,∞]> ] && <custom-ident>? ] |
+    //     [ span && [ <integer [1,∞]> || <custom-ident> ] ]
+    bool is_span = false;
+    Optional<String> parsed_custom_ident;
+    Optional<IntegerOrCalculated> parsed_integer;
 
     auto transaction = tokens.begin_transaction();
 
-    // FIXME: Handle the single-token case inside the loop instead, so that we can more easily call this from
-    //        `parse_grid_area_shorthand_value()` using a single TokenStream.
-    if (tokens.remaining_token_count() == 1) {
-        if (auto custom_ident = parse_custom_ident(tokens)) {
-            transaction.commit();
-            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line({}, custom_ident->custom_ident().to_string()));
-        }
-        auto const& token = tokens.consume_a_token();
-        if (auto maybe_calculated = parse_calculated_value(token)) {
-            if (maybe_calculated->is_number()) {
-                transaction.commit();
-                return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->as_number().number()), {}));
-            }
-            if (maybe_calculated->is_calculated() && maybe_calculated->as_calculated().resolves_to_number()) {
-                transaction.commit();
-                return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->as_calculated().resolve_integer({}).value()), {}));
-            }
-        }
-        if (token.is_ident("auto"sv)) {
-            transaction.commit();
-            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_auto());
-        }
-        if (is_valid_integer(token)) {
-            transaction.commit();
-            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(token.token().number_value()), {}));
-        }
-        return nullptr;
+    if (tokens.remaining_token_count() == 1 && tokens.next_token().is_ident("auto"sv)) {
+        tokens.discard_a_token();
+        transaction.commit();
+        return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_auto());
     }
 
-    auto span_value = false;
-    auto span_or_position_value = 0;
-    String identifier_value;
     while (tokens.has_next_token()) {
-        auto const& token = tokens.next_token();
-        if (token.is_ident("auto"sv))
-            return nullptr;
-        if (token.is_ident("span"sv)) {
-            if (span_value)
+        if (tokens.next_token().is_ident("span"sv)) {
+            if (is_span)
                 return nullptr;
-            tokens.discard_a_token(); // span
-            if (tokens.has_next_token() && ((span_or_position_value != 0 && identifier_value.is_empty()) || (span_or_position_value == 0 && !identifier_value.is_empty())))
+
+            tokens.discard_a_token();
+
+            // NOTE: "span" must not appear in between <custom-ident> and <integer>
+            if (tokens.has_next_token() && (parsed_custom_ident.has_value() || parsed_integer.has_value()))
                 return nullptr;
-            span_value = true;
+
+            is_span = true;
             continue;
         }
-        if (is_valid_integer(token)) {
-            if (span_or_position_value != 0)
+
+        if (auto maybe_parsed_custom_ident = parse_custom_ident(tokens, { { "auto"sv } }); maybe_parsed_custom_ident.has_value()) {
+            if (parsed_custom_ident.has_value())
                 return nullptr;
-            span_or_position_value = static_cast<int>(tokens.consume_a_token().token().to_integer());
+
+            parsed_custom_ident = maybe_parsed_custom_ident->to_string();
             continue;
         }
-        if (auto custom_ident = parse_custom_ident(tokens)) {
-            if (!identifier_value.is_empty())
+
+        if (auto maybe_parsed_integer = parse_integer(tokens); maybe_parsed_integer.has_value()) {
+            if (parsed_integer.has_value())
                 return nullptr;
-            identifier_value = custom_ident->custom_ident().to_string();
+
+            parsed_integer = maybe_parsed_integer;
             continue;
         }
-        break;
+
+        return nullptr;
     }
-
-    if (tokens.has_next_token())
-        return nullptr;
-
-    // Negative integers or zero are invalid.
-    if (span_value && span_or_position_value < 1)
-        return nullptr;
-
-    // If the <integer> is omitted, it defaults to 1.
-    if (span_or_position_value == 0)
-        span_or_position_value = 1;
 
     transaction.commit();
-    if (!identifier_value.is_empty())
-        return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(span_or_position_value, identifier_value));
-    return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_span(span_or_position_value));
+
+    // <custom-ident>
+    // [ [ <integer [-∞,-1]> | <integer [1,∞]> ] && <custom-ident>? ]
+    if (!is_span && (parsed_integer.has_value() || parsed_custom_ident.has_value()) && (!parsed_integer.has_value() || parsed_integer.value().is_calculated() || parsed_integer.value().value() != 0))
+        return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(parsed_integer, parsed_custom_ident));
+
+    // [ span && [ <integer [1,∞]> || <custom-ident> ] ]
+    if (is_span && (parsed_integer.has_value() || parsed_custom_ident.has_value()) && (!parsed_integer.has_value() || parsed_integer.value().is_calculated() || parsed_integer.value().value() > 0))
+        // If the <integer> is omitted, it defaults to 1.
+        return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_span(parsed_integer.value_or(1), parsed_custom_ident));
+
+    return nullptr;
 }
 
 RefPtr<CSSStyleValue const> Parser::parse_calculated_value(ComponentValue const& component_value)

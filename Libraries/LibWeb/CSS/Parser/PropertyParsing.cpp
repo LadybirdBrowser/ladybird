@@ -4528,7 +4528,7 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_track_placement_shorthand_value(P
     auto parsed_start_value = parse_grid_track_placement(track_start_placement_token_stream);
     if (parsed_start_value && track_end_placement_tokens.is_empty()) {
         transaction.commit();
-        if (parsed_start_value->grid_track_placement().has_identifier()) {
+        if (parsed_start_value->grid_track_placement().is_custom_ident()) {
             auto custom_ident = parsed_start_value.release_nonnull();
             return ShorthandStyleValue::create(property_id, { start_property, end_property }, { custom_ident, custom_ident });
         }
@@ -4721,21 +4721,21 @@ RefPtr<CSSStyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<
     // that value. Otherwise, it is set to auto.
     if (column_start_style_value)
         column_start = column_start_style_value.release_nonnull()->as_grid_track_placement().grid_track_placement();
-    else
+    else if (row_start.is_custom_ident())
         column_start = row_start;
 
     // When grid-row-end is omitted, if grid-row-start is a <custom-ident>, grid-row-end is set to that
     // <custom-ident>; otherwise, it is set to auto.
     if (row_end_style_value)
         row_end = row_end_style_value.release_nonnull()->as_grid_track_placement().grid_track_placement();
-    else
+    else if (row_start.is_custom_ident())
         row_end = row_start;
 
     // When grid-column-end is omitted, if grid-column-start is a <custom-ident>, grid-column-end is set to
     // that <custom-ident>; otherwise, it is set to auto.
     if (column_end_style_value)
         column_end = column_end_style_value.release_nonnull()->as_grid_track_placement().grid_track_placement();
-    else
+    else if (column_start.is_custom_ident())
         column_end = column_start;
 
     transaction.commit();
