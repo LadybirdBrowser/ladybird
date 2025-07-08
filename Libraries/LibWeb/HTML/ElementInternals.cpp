@@ -108,15 +108,17 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags cons
 
     // FIXME: 6. If element's customError validity flag is true, then set element's custom validity error message to element's validation message. Otherwise, set element's custom validity error message to the empty string.
 
-    // FIXME: 7. Set element's validation anchor to null if anchor is not given. Otherwise, if anchor is not a shadow-including descendant of element, then throw a "NotFoundError" DOMException. Otherwise, set element's validation anchor to anchor.
+    // 7. If anchor is not given, then set it to element.
     if (!anchor.has_value() || !anchor.value().ptr()) {
-        // FIXME
-    } else if (!anchor.value()->is_shadow_including_descendant_of(element)) {
-        return WebIDL::NotFoundError::create(realm(), "Anchor is not a shadow-including descendant of element"_string);
-    } else {
-        // FIXME
+        anchor = element;
     }
 
+    // 8. Otherwise, if anchor is not a shadow-including inclusive descendant of element, then throw a "NotFoundError" DOMException.
+    else if (!anchor.value()->is_shadow_including_inclusive_descendant_of(element)) {
+        return WebIDL::NotFoundError::create(realm(), "Anchor is not a shadow-including descendant of element"_string);
+    }
+
+    // FIXME: 9. Set element's validation anchor to anchor.
     dbgln("FIXME: ElementInternals::set_validity()");
     return {};
 }
