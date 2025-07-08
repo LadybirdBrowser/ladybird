@@ -90,9 +90,11 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
         display_list_recorder.save_layer();
     }
 
-    DisplayListRecorderStateSaver state { display_list_recorder };
     bool is_root_element = paintable_box.layout_node().is_root_element();
-    if (resolved_background.needs_text_clip && !is_root_element) {
+    bool needs_text_clip = resolved_background.needs_text_clip && !is_root_element;
+
+    if (needs_text_clip) {
+        display_list_recorder.save();
         auto display_list = compute_text_clip_paths(context, paintable_box, resolved_background.background_rect.location());
         auto rect = context.rounded_device_rect(resolved_background.background_rect);
         display_list_recorder.add_mask(move(display_list), rect.to_type<int>());
@@ -335,6 +337,9 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
         }
     }
 
+    if (needs_text_clip) {
+        display_list_recorder.restore();
+    }
     if (paint_into_isolated_group) {
         display_list_recorder.restore();
     }
