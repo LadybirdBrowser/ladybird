@@ -119,7 +119,15 @@ bool HTMLButtonElement::is_submit_button() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-fe-value
 String HTMLButtonElement::value() const
 {
+    // The element's value is the value of the element's value attribute, if there is one; otherwise the empty string.
     return attribute(AttributeNames::value).value_or(String {});
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-fe-optional-value
+Optional<String> HTMLButtonElement::optional_value() const
+{
+    // The element's optional value is the value of the element's value attribute, if there is one; otherwise null.
+    return attribute(AttributeNames::value);
 }
 
 bool HTMLButtonElement::has_activation_behavior() const

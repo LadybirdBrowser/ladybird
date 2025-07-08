@@ -126,6 +126,7 @@ public:
     bool suffering_from_a_custom_error() const;
 
     virtual String value() const { return String {}; }
+    virtual Optional<String> optional_value() const { VERIFY_NOT_REACHED(); }
 
     virtual HTMLElement& form_associated_element_to_html_element() = 0;
     HTMLElement const& form_associated_element_to_html_element() const { return const_cast<FormAssociatedElement&>(*this).form_associated_element_to_html_element(); }

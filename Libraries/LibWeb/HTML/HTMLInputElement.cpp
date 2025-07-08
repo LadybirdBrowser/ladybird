@@ -659,6 +659,18 @@ String HTMLInputElement::value() const
     VERIFY_NOT_REACHED();
 }
 
+Optional<String> HTMLInputElement::optional_value() const
+{
+    switch (m_type) {
+    // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit):concept-fe-optional-value
+    case TypeAttributeState::SubmitButton:
+        // The element's optional value is the value of the element's value attribute, if there is one; otherwise null.
+        return get_attribute(AttributeNames::value);
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
 {
     auto& realm = this->realm();
