@@ -1446,13 +1446,15 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
                 }
             }();
 
-            // Set copy’s encoding, content type, URL, origin, type, and mode to those of node.
+            // Set copy’s encoding, content type, URL, origin, type, mode, allow declarative shadow roots, and custom element registry to those of node.
             document_copy->set_encoding(document_.encoding());
             document_copy->set_content_type(document_.content_type());
             document_copy->set_url(document_.url());
             document_copy->set_origin(document_.origin());
             document_copy->set_document_type(document_.document_type());
             document_copy->set_quirks_mode(document_.mode());
+            document_copy->set_allow_declarative_shadow_roots(document_.allow_declarative_shadow_roots());
+            // FIXME: Custom element registry.
             copy = move(document_copy);
         } else if (is_document_type()) {
             // -> DocumentType
