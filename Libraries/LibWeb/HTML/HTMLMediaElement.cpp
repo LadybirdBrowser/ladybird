@@ -1256,7 +1256,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         // 9. Set the media element's default playback start position to zero.
         m_default_playback_start_position = 0;
 
-        // FIXME: 10. Let the initial playback position be zero.
+        // FIXME: 10. Let the initial playback position be 0.
         // FIXME: 11. If either the media resource or the URL of the current media resource indicate a particular start time, then set the initial playback
         //            position to that time and, if jumped is still false, seek to that time.
 

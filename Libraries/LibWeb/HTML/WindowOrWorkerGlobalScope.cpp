@@ -325,7 +325,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // 2. If previousId was given, let id be previousId; otherwise, let id be an implementation-defined integer that is greater than zero and does not already exist in global's map of setTimeout and setInterval IDs.
     auto id = previous_id.has_value() ? previous_id.value() : m_timer_id_allocator.allocate();
 
-    // FIXME: 3. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm, then let nesting level be the task's timer nesting level. Otherwise, let nesting level be zero.
+    // FIXME: 3. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm, then let nesting level be the task's timer nesting level. Otherwise, let nesting level be 0.
 
     // 4. If timeout is less than 0, then set timeout to 0.
     if (timeout < 0)
