@@ -281,9 +281,20 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         Layout::BlockFormattingContext bfc(m_state, m_layout_mode, static_cast<BlockContainer const&>(child), this);
         bfc.run(*m_available_space);
         auto& child_state = m_state.get_mutable(child);
-        child_state.set_content_offset(child_state.offset.translated(m_svg_offset));
-        child_state.set_content_width(child.computed_values().width().to_px(child, m_available_space->width.to_px_or_zero()));
-        child_state.set_content_height(child.computed_values().height().to_px(child, m_available_space->height.to_px_or_zero()));
+        CSSPixelRect rect {
+            {
+                child.computed_values().x().to_px(child, m_available_space->width.to_px_or_zero()),
+                child.computed_values().y().to_px(child, m_available_space->height.to_px_or_zero()),
+            },
+            {
+                child.computed_values().width().to_px(child, m_available_space->width.to_px_or_zero()),
+                child.computed_values().height().to_px(child, m_available_space->height.to_px_or_zero()),
+            }
+        };
+        auto transformed_rect = m_current_viewbox_transform.map(rect.to_type<float>()).to_type<CSSPixels>();
+        child_state.set_content_offset(transformed_rect.location());
+        child_state.set_content_width(transformed_rect.width());
+        child_state.set_content_height(transformed_rect.height());
         child.for_each_child_of_type<SVGMaskBox>([&](SVGMaskBox const& child) {
             layout_svg_element(child);
             return IterationDecision::Continue;
