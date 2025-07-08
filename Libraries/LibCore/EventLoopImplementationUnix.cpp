@@ -267,6 +267,7 @@ struct ThreadData {
 
         // The wake pipe informs us of POSIX signals as well as manual calls to wake()
         poll_fds.append({ .fd = wake_pipe_fds[0], .events = POLLIN, .revents = 0 });
+        notifiers.append(nullptr);
     }
 
     ~ThreadData()
@@ -279,7 +280,8 @@ struct ThreadData {
     // Each thread has its own timers, notifiers and a wake pipe.
     TimeoutSet timeouts;
 
-    HashMap<int, Notifier*> notifiers;
+    HashMap<Notifier*, size_t> notifier_to_index;
+    Vector<Notifier*, 32> notifiers;
     Vector<pollfd, 32> poll_fds;
 
     // The wake pipe is used to notify another event loop that someone has called wake(), or a signal has been received.
@@ -405,14 +407,14 @@ try_select_again:
 
     if (error_or_marked_fd_count.value() != 0) {
         // Handle file system notifiers by making them normal events.
-        for (auto const& poll_fd : thread_data.poll_fds.span().slice(1)) {
-            auto& notifier = *thread_data.notifiers.get(poll_fd.fd).value();
+        for (size_t i = 1; i < thread_data.poll_fds.size(); ++i) {
+            auto& notifier = *thread_data.notifiers[i];
 
 #ifdef AK_OS_ANDROID
             // FIXME: Make the check work under Android, perhaps use ALooper.
             ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>(notifier.fd(), notifier.type()));
 #else
-            auto revents = poll_fd.revents;
+            auto revents = thread_data.poll_fds[i].revents;
 
             NotificationType type = NotificationType::None;
             if (has_flag(revents, POLLIN))
@@ -650,7 +652,8 @@ void EventLoopManagerUnix::register_notifier(Notifier& notifier)
 {
     auto& thread_data = ThreadData::the();
 
-    thread_data.notifiers.set(notifier.fd(), &notifier);
+    thread_data.notifier_to_index.set(&notifier, thread_data.poll_fds.size());
+    thread_data.notifiers.append(&notifier);
 
     auto events = notification_type_to_poll_events(notifier.type());
     thread_data.poll_fds.append({ .fd = notifier.fd(), .events = events, .revents = 0 });
@@ -664,11 +667,18 @@ void EventLoopManagerUnix::unregister_notifier(Notifier& notifier)
     if (!thread_data)
         return;
 
-    thread_data->notifiers.remove(notifier.fd());
+    auto notifier_index = thread_data->notifier_to_index.take(&notifier).release_value();
 
-    thread_data->poll_fds.remove_all_matching([&](auto const& poll_fd) {
-        return poll_fd.fd == notifier.fd();
-    });
+    if (notifier_index + 1 < thread_data->poll_fds.size()) {
+        swap(thread_data->notifiers[notifier_index], thread_data->notifiers.last());
+        swap(thread_data->poll_fds[notifier_index], thread_data->poll_fds.last());
+
+        auto* swapped_notifier = thread_data->notifiers[notifier_index];
+        thread_data->notifier_to_index.set(swapped_notifier, notifier_index);
+    }
+
+    thread_data->notifiers.take_last();
+    thread_data->poll_fds.take_last();
 }
 
 void EventLoopManagerUnix::did_post_event()
