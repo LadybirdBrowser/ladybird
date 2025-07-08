@@ -1226,7 +1226,7 @@ void TraversableNavigable::definitely_close_top_level_traversable()
     // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
     auto to_unload = active_document()->inclusive_descendant_navigables();
 
-    // 2. If the result of checking if unloading is canceled for toUnload is true, then return.
+    // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
     if (check_if_unloading_is_canceled(to_unload) != CheckIfUnloadingIsCanceledResult::Continue)
         return;
 
