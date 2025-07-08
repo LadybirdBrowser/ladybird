@@ -65,7 +65,7 @@ jobs:
         if: ${{ inputs.os_name != 'Windows' }}
         id: 'build-parameters'
         run: |
-          CMAKE_OPTIONS="-DENABLE_QT=ON"
+          CMAKE_OPTIONS=""
           if ${{ inputs.toolchain == 'Swift' }} ; then
             echo "host_cc=$(swiftly use --print-location)/usr/bin/clang" >> "$GITHUB_OUTPUT"
             echo "host_cxx=$(swiftly use --print-location)/usr/bin/clang++" >> "$GITHUB_OUTPUT"
@@ -139,14 +139,12 @@ jobs:
         if: ${{ inputs.os_name == 'Windows' }}
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --preset ${{ inputs.build_preset }}
+          cmake --preset ${{ inputs.build_preset }} -B Build
 
       - name: Create Build Environment (Fuzzers)
         if: ${{ inputs.build_preset == 'Fuzzers_CI' }}
         working-directory: ${{ github.workspace }}
         run: |
-          set -e
-
           cmake --preset=Distribution_CI -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
             -DLAGOM_TOOLS_ONLY=ON \
             -DINSTALL_LAGOM_TOOLS=ON \
@@ -165,28 +163,17 @@ jobs:
       # === BUILD ===
 
       - name: Build
-        if: ${{ inputs.os_name != 'Windows' }}
         working-directory: ${{ github.workspace }}/Build
         run: |
-          set -e
           cmake --build .
           cmake --install . --strip --prefix ${{ github.workspace }}/Install
 
-      - name: Build (Windows)
-        if: ${{ inputs.os_name == 'Windows' }}
+      - name: Build - macOS with Qt
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --build --preset ${{ inputs.build_preset }}
-
-      - name: Enable the Ladybird AppKit chrome
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
-        working-directory: ${{ github.workspace }}
-        run: cmake -B Build -DENABLE_QT=OFF
-
-      - name: Build the Ladybird AppKit chrome
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
-        working-directory: ${{ github.workspace }}/Build
-        run: cmake --build .
+          cmake --preset ${{ inputs.build_preset }} -B Build -DENABLE_QT=ON
+          cmake --build Build
 
       - name: Save Caches
         uses: ./.github/actions/cache-save
@@ -220,7 +207,7 @@ jobs:
       - name: Test (Windows)
         if: ${{ inputs.os_name == 'Windows' }}
         working-directory: ${{ github.workspace }}
-        run: ctest --preset ${{ inputs.build_preset }} --timeout 1800
+        run: ctest --preset ${{ inputs.build_preset }} --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
           ASAN_OPTIONS: 'log_path="${{ github.workspace }}\asan.log"'
