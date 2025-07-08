@@ -35,7 +35,7 @@ static void open_urls_from_client(Vector<URL::URL> const& urls, WebView::NewWind
     }
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 

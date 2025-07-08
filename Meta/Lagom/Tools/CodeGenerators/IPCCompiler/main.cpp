@@ -910,7 +910,7 @@ void build(StringBuilder& builder, Vector<Endpoint> const& endpoints)
 
 } // end anonymous namespace
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView ipc_file;
     StringView output_file = "-"sv;

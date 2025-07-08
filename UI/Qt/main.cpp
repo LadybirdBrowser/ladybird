@@ -39,7 +39,7 @@ bool is_using_dark_system_theme(QWidget& widget)
 
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 

@@ -785,7 +785,7 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
 
 #endif
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     bool gc_on_every_allocation = false;
     bool disable_syntax_highlight = false;

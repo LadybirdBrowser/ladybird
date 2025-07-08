@@ -16,7 +16,7 @@
 // The Kernel has problems with large anonymous buffers, so let's limit sample reads ourselves.
 static constexpr size_t MAX_CHUNK_SIZE = 1 * MiB / 2;
 
-ErrorOr<int> serenity_main(Main::Arguments args)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView path {};
     int sample_count = -1;
@@ -25,7 +25,7 @@ ErrorOr<int> serenity_main(Main::Arguments args)
     args_parser.set_general_help("Benchmark audio loading");
     args_parser.add_positional_argument(path, "Path to audio file", "path");
     args_parser.add_option(sample_count, "How many samples to load at maximum", "sample-count", 's', "samples");
-    args_parser.parse(args);
+    args_parser.parse(arguments);
 
     auto maybe_loader = Audio::Loader::create(path);
     if (maybe_loader.is_error()) {

@@ -26,7 +26,7 @@ extern ByteString g_default_certificate_path;
 
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 

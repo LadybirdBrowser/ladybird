@@ -714,7 +714,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
 }
 
-ErrorOr<int> serenity_main(Main::Arguments arguments)
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
 #if defined(LADYBIRD_BINARY_PATH)
     auto app = TRY(TestWeb::Application::create(arguments, LADYBIRD_BINARY_PATH));
