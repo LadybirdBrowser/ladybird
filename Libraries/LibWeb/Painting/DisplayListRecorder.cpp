@@ -41,13 +41,15 @@ void DisplayListRecorder::add_mask(RefPtr<DisplayList> display_list, Gfx::IntRec
 
 void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
 {
-    if (rect.is_empty())
+    if (rect.is_empty() || color.alpha() == 0)
         return;
     append(FillRect { rect, color });
 }
 
 void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
 {
+    if (params.color.alpha() == 0)
+        return;
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
@@ -81,6 +83,8 @@ void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
 
 void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
 {
+    if (params.color.alpha() == 0)
+        return;
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
     // Increase path bounding box by `thickness` to account for stroke.
@@ -128,7 +132,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
 
 void DisplayListRecorder::draw_ellipse(Gfx::IntRect const& a_rect, Color color, int thickness)
 {
-    if (a_rect.is_empty())
+    if (a_rect.is_empty() || color.alpha() == 0)
         return;
     append(DrawEllipse {
         .rect = a_rect,
@@ -139,7 +143,7 @@ void DisplayListRecorder::draw_ellipse(Gfx::IntRect const& a_rect, Color color, 
 
 void DisplayListRecorder::fill_ellipse(Gfx::IntRect const& a_rect, Color color)
 {
-    if (a_rect.is_empty())
+    if (a_rect.is_empty() || color.alpha() == 0)
         return;
     append(FillEllipse { a_rect, color });
 }
@@ -174,7 +178,7 @@ void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rec
 
 void DisplayListRecorder::draw_rect(Gfx::IntRect const& rect, Color color, bool rough)
 {
-    if (rect.is_empty())
+    if (rect.is_empty() || color.alpha() == 0)
         return;
     append(DrawRect {
         .rect = rect,
@@ -219,6 +223,8 @@ void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, 
 
 void DisplayListRecorder::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color color, int thickness, Gfx::LineStyle style, Color alternate_color)
 {
+    if (color.alpha() == 0)
+        return;
     append(DrawLine {
         .color = color,
         .from = from,
@@ -231,7 +237,7 @@ void DisplayListRecorder::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color 
 
 void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, Gfx::Font const& font, Gfx::TextAlignment alignment, Color color)
 {
-    if (rect.is_empty())
+    if (rect.is_empty() || color.alpha() == 0)
         return;
 
     auto glyph_run = Gfx::shape_text({}, 0, raw_text.code_points(), font, Gfx::GlyphRun::TextType::Ltr, {});
@@ -253,6 +259,8 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, G
 
 void DisplayListRecorder::draw_text_run(Gfx::FloatPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Orientation orientation)
 {
+    if (color.alpha() == 0)
+        return;
     append(DrawGlyphRun {
         .glyph_run = glyph_run,
         .scale = scale,
@@ -377,14 +385,14 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rec
 
 void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius)
 {
-    if (a_rect.is_empty())
+    if (a_rect.is_empty() || color.alpha() == 0)
         return;
     fill_rect_with_rounded_corners(a_rect, color, radius, radius, radius, radius);
 }
 
 void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius)
 {
-    if (a_rect.is_empty())
+    if (a_rect.is_empty() || color.alpha() == 0)
         return;
     fill_rect_with_rounded_corners(a_rect, color,
         { top_left_radius, top_left_radius },
@@ -395,6 +403,8 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_r
 
 void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness = 1)
 {
+    if (color.alpha() == 0)
+        return;
     append(DrawTriangleWave {
         .p1 = a_p1,
         .p2 = a_p2,
