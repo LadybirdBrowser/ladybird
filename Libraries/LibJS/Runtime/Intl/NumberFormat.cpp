@@ -145,12 +145,6 @@ int currency_digits(StringView currency)
     return 2;
 }
 
-// 16.5.3 FormatNumericToString ( intlObject, x ), https://tc39.es/ecma402/#sec-formatnumerictostring
-String format_numeric_to_string(NumberFormatBase const& intl_object, MathematicalValue const& number)
-{
-    return intl_object.formatter().format_to_decimal(number.to_value());
-}
-
 // 16.5.4 PartitionNumberPattern ( numberFormat, x ), https://tc39.es/ecma402/#sec-partitionnumberpattern
 Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat const& number_format, MathematicalValue const& number)
 {

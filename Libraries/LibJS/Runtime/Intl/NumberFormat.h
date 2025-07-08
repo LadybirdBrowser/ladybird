@@ -180,7 +180,6 @@ private:
 };
 
 JS_API int currency_digits(StringView currency);
-JS_API String format_numeric_to_string(NumberFormatBase const& intl_object, MathematicalValue const& number);
 JS_API Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat const&, MathematicalValue const& number);
 JS_API String format_numeric(NumberFormat const&, MathematicalValue const& number);
 JS_API GC::Ref<Array> format_numeric_to_parts(VM&, NumberFormat const&, MathematicalValue const& number);
