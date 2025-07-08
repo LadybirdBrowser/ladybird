@@ -158,7 +158,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
         return error_promise.release_value();
     }
 
-    // 4. Let p be a new promise.
+    // 4. Let promise be a new promise.
     auto p = WebIDL::create_promise(realm);
 
     // 5. Let imageBitmap be a new ImageBitmap object.
@@ -166,11 +166,13 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
 
     // 6. Switch on image:
     image.visit(
+        // -> Blob
         [&](GC::Root<FileAPI::Blob>& blob) {
             // Run these step in parallel:
             Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [=]() {
                 // 1. Let imageData be the result of reading image's data. If an error occurs during reading of the
-                // object, then reject p with an "InvalidStateError" DOMException and abort these steps.
+                //    object, then queue a global task, using the bitmap task source, to reject promise with an
+                //    "InvalidStateError" DOMException and abort these steps.
                 // FIXME: I guess this is always fine for us as the data is already read.
                 auto const image_data = blob->raw_bytes();
 
@@ -180,12 +182,14 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
 
                 auto on_failed_decode = [p = GC::Root(*p)](Error&) {
                     // 3. If imageData is not in a supported image file format (e.g., it's not an image at all), or if
-                    // imageData is corrupted in some fatal way such that the image dimensions cannot be obtained
-                    // (e.g., a vector graphic with no natural size), then reject p with an "InvalidStateError" DOMException
-                    // and abort these steps.
+                    //    imageData is corrupted in some fatal way such that the image dimensions cannot be obtained
+                    //    (e.g., a vector graphic with no natural size), then queue a global task, using the bitmap
+                    //    task source, to reject promise with an "InvalidStateError" DOMException and abort these steps.
                     auto& realm = relevant_realm(p->promise());
-                    TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "image does not contain a supported image format"_string));
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [&realm, p] {
+                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image does not contain a supported image format"_string));
+                    }));
                 };
 
                 auto on_successful_decode = [image_bitmap = GC::Root(*image_bitmap), p = GC::Root(*p)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
@@ -210,6 +214,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                 (void)Web::Platform::ImageCodecPlugin::the().decode_image(image_data, move(on_successful_decode), move(on_failed_decode));
             }));
         },
+        // -> ImageData
         [&](GC::Root<ImageData> const& image_data) -> void {
             // 1. Let buffer be image's data attribute value's [[ViewedArrayBuffer]] internal slot.
             auto const buffer = image_data->data()->viewed_array_buffer();
@@ -233,24 +238,28 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
         },
         [&](CanvasImageSource const& image_source) {
             image_source.visit(
+                // -> img
                 [&](GC::Root<HTMLImageElement> const&) {
                     dbgln("(STUBBED) createImageBitmap() for HTMLImageElement");
                     auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLImageElement"sv);
                     TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::reject_promise(realm, *p, error);
                 },
+                // -> SVG image
                 [&](GC::Root<SVG::SVGImageElement> const&) {
                     dbgln("(STUBBED) createImageBitmap() for SVGImageElement");
                     auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for SVGImageElement"sv);
                     TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::reject_promise(realm, *p, error);
                 },
+                // -> canvas
                 [&](GC::Root<HTMLCanvasElement> const&) {
                     dbgln("(STUBBED) createImageBitmap() for HTMLCanvasElement");
                     auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLCanvasElement"sv);
                     TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::reject_promise(realm, *p, error);
                 },
+                // -> ImageBitmap
                 [&](GC::Root<ImageBitmap> const&) {
                     dbgln("(STUBBED) createImageBitmap() for ImageBitmap");
                     auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for ImageBitmap"sv);
@@ -263,6 +272,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::reject_promise(realm, *p, error);
                 },
+                // -> video
                 [&](GC::Root<HTMLVideoElement> const&) {
                     dbgln("(STUBBED) createImageBitmap() for HTMLVideoElement");
                     auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for HTMLVideoElement"sv);
@@ -271,7 +281,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                 });
         });
 
-    // 7. Return p.
+    // 7. Return promise.
     return p;
 }
 
