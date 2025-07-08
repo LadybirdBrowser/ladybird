@@ -616,21 +616,6 @@ public:
         return icu_string_to_string(result);
     }
 
-    virtual String format_to_decimal(Value const& value) const override
-    {
-        UErrorCode status = U_ZERO_ERROR;
-
-        auto formatted = format_impl(value);
-        if (!formatted.has_value())
-            return {};
-
-        auto result = formatted->toDecimalNumber<StringBuilder>(status);
-        if (icu_failure(status))
-            return {};
-
-        return MUST(result.to_string());
-    }
-
     virtual Vector<Partition> format_to_parts(Value const& value) const override
     {
         auto formatted = format_impl(value);
