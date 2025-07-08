@@ -84,19 +84,22 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
     if (can_run_script(realm) == RunScriptDecision::DoNotRun)
         return JS::normal_completion(JS::js_undefined());
 
-    // 3. Prepare to run script given realm.
+    // FIXME: 3. Record classic script execution start time given script.
+
+    // 4. Prepare to run script given realm.
     prepare_to_run_script(realm);
 
-    // 4. Let evaluationStatus be null.
+    // 5. Let evaluationStatus be null.
     JS::Completion evaluation_status;
 
-    // 5. If script's error to rethrow is not null, then set evaluationStatus to Completion { [[Type]]: throw, [[Value]]: script's error to rethrow, [[Target]]: empty }.
+    // 6. If script's error to rethrow is not null, then set evaluationStatus to ThrowCompletion(script's error to rethrow).
     if (!error_to_rethrow().is_null()) {
-        evaluation_status = JS::Completion { JS::Completion::Type::Throw, error_to_rethrow() };
-    } else {
+        evaluation_status = JS::throw_completion(error_to_rethrow());
+    }
+    // 7. Otherwise, set evaluationStatus to ScriptEvaluation(script's record).
+    else {
         auto timer = Core::ElapsedTimer::start_new();
 
-        // 6. Otherwise, set evaluationStatus to ScriptEvaluation(script's record).
         evaluation_status = vm().bytecode_interpreter().run(*m_script_record, lexical_environment_override);
 
         // FIXME: If ScriptEvaluation does not complete because the user agent has aborted the running script, leave evaluationStatus as null.
@@ -104,7 +107,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
         dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Finished running script {}, Duration: {}ms", filename(), timer.elapsed_milliseconds());
     }
 
-    // 7. If evaluationStatus is an abrupt completion, then:
+    // 8. If evaluationStatus is an abrupt completion, then:
     if (evaluation_status.is_abrupt()) {
         // 1. If rethrow errors is true and script's muted errors is false, then:
         if (rethrow_errors == RethrowErrors::Yes && m_muted_errors == MutedErrors::No) {
@@ -138,15 +141,15 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
         return evaluation_status;
     }
 
-    // 8. Clean up after running script with realm.
+    // 9. Clean up after running script with realm.
     clean_up_after_running_script(realm);
 
-    // 9. If evaluationStatus is a normal completion, then return evaluationStatus.
+    // 10. If evaluationStatus is a normal completion, then return evaluationStatus.
     VERIFY(!evaluation_status.is_abrupt());
     return evaluation_status;
 
-    // FIXME: 10. If we've reached this point, evaluationStatus was left as null because the script was aborted prematurely during evaluation.
-    //            Return Completion { [[Type]]: throw, [[Value]]: a new "QuotaExceededError" DOMException, [[Target]]: empty }.
+    // FIXME: 11. If we've reached this point, evaluationStatus was left as null because the script was aborted prematurely during evaluation.
+    //            Return ThrowCompletion(a new "QuotaExceededError" DOMException).
 }
 
 ClassicScript::ClassicScript(URL::URL base_url, ByteString filename, JS::Realm& realm)
