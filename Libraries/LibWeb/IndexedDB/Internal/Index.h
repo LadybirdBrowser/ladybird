@@ -11,16 +11,11 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
+#include <LibWeb/IndexedDB/Internal/Record.h>
 
 namespace Web::IndexedDB {
 
 using KeyPath = Variant<String, Vector<String>>;
-
-// https://w3c.github.io/IndexedDB/#index-list-of-records
-struct IndexRecord {
-    GC::Ref<Key> key;
-    GC::Ref<Key> value;
-};
 
 // https://w3c.github.io/IndexedDB/#index-construct
 class Index : public JS::Cell {
