@@ -58,18 +58,20 @@ function runTest(t, i, desc) {
           assert_equals(element.nodeType, element.ELEMENT_NODE)
           assert_equals(element.nodeValue, null)
           assert_equals(element.ownerDocument, doc)
-          var qualified = String(qualifiedName), names = []
+          var qualified = String(qualifiedName)
+          var tagName = String(qualifiedName)
+          var names = [];
           var firstColonIndex = qualified.indexOf(":")
           if (firstColonIndex >= 0) {
-            names.push(qualified.substring(0, firstColonIndex));
-            names.push(qualified.substring(firstColonIndex + 1));
+            names = qualifiedName.split(":", 2);
+            tagName = names.join(":");
           } else {
             names = [null, qualified]
           }
           assert_equals(element.prefix, names[0], 'element.prefix')
           assert_equals(element.localName, names[1], 'element.localName')
-          assert_equals(element.tagName, qualified, 'element.tagName')
-          assert_equals(element.nodeName, qualified, 'element.nodeName')
+          assert_equals(element.tagName, tagName, 'element.tagName')
+          assert_equals(element.nodeName, tagName, 'element.nodeName')
           assert_equals(element.namespaceURI,
                         namespace === undefined || namespace === "" ? null
                                                                     : namespace,
