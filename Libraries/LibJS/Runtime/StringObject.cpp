@@ -83,7 +83,7 @@ static ThrowCompletionOr<Optional<PropertyDescriptor>> string_get_own_property(S
         return Optional<PropertyDescriptor> {};
 
     // 10. Let resultStr be the substring of str from ℝ(index) to ℝ(index) + 1.
-    auto result_str = PrimitiveString::create(vm, Utf16String::create(str.substring_view(index.as_index(), 1)));
+    auto result_str = PrimitiveString::create(vm, str.substring_view(index.as_index(), 1));
 
     // 11. Return the PropertyDescriptor { [[Value]]: resultStr, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }.
     return PropertyDescriptor {

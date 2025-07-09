@@ -6,6 +6,7 @@
 
 #include <AK/StringBuilder.h>
 #include <AK/UnicodeUtils.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -13,7 +14,6 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/StringConstructor.h>
 #include <LibJS/Runtime/StringObject.h>
-#include <LibJS/Runtime/Utf16String.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
@@ -89,8 +89,7 @@ ThrowCompletionOr<GC::Ref<Object>> StringConstructor::construct(FunctionObject& 
 JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_char_code)
 {
     // 1. Let result be the empty String.
-    Utf16Data string;
-    string.ensure_capacity(vm.argument_count());
+    StringBuilder builder(StringBuilder::Mode::UTF16, vm.argument_count());
 
     // 2. For each element next of codeUnits, do
     for (size_t i = 0; i < vm.argument_count(); ++i) {
@@ -98,20 +97,19 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_char_code)
         auto next_code_unit = TRY(vm.argument(i).to_u16(vm));
 
         // b. Set result to the string-concatenation of result and nextCU.
-        string.append(next_code_unit);
+        builder.append_code_unit(next_code_unit);
     }
 
     // 3. Return result.
-    return PrimitiveString::create(vm, Utf16String::create(move(string)));
+    return PrimitiveString::create(vm, builder.to_utf16_string());
 }
 
 // 22.1.2.2 String.fromCodePoint ( ...codePoints ), https://tc39.es/ecma262/#sec-string.fromcodepoint
 JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_code_point)
 {
     // 1. Let result be the empty String.
-    Utf16Data string;
-    // This will be an under-estimate if any code point is > 0xffff.
-    string.ensure_capacity(vm.argument_count());
+    // NOTE: This will be an under-estimate if any code point is > 0xffff.
+    StringBuilder builder(StringBuilder::Mode::UTF16, vm.argument_count());
 
     // 2. For each element next of codePoints, do
     for (size_t i = 0; i < vm.argument_count(); ++i) {
@@ -130,16 +128,16 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_code_point)
 
         // d. Set result to the string-concatenation of result and UTF16EncodeCodePoint(ℝ(nextCP)).
         (void)AK::UnicodeUtils::code_point_to_utf16(static_cast<u32>(code_point), [&](auto code_unit) {
-            string.append(code_unit);
+            builder.append_code_unit(code_unit);
         });
     }
 
     // 3. Assert: If codePoints is empty, then result is the empty String.
     if (!vm.argument_count())
-        VERIFY(string.is_empty());
+        VERIFY(builder.is_empty());
 
     // 4. Return result.
-    return PrimitiveString::create(vm, Utf16String::create(move(string)));
+    return PrimitiveString::create(vm, builder.to_utf16_string());
 }
 
 // 22.1.2.4 String.raw ( template, ...substitutions ), https://tc39.es/ecma262/#sec-string.raw

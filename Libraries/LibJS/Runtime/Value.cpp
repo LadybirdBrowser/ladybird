@@ -12,6 +12,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringFloatingPointConversions.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf8View.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -34,7 +35,6 @@
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/SymbolObject.h>
-#include <LibJS/Runtime/Utf16String.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -59,12 +59,12 @@ static inline bool same_type_for_equality(Value const& lhs, Value const& rhs)
 
 static Crypto::SignedBigInteger const BIGINT_ZERO { 0 };
 
-ALWAYS_INLINE bool both_number(Value const& lhs, Value const& rhs)
+static ALWAYS_INLINE bool both_number(Value const& lhs, Value const& rhs)
 {
     return lhs.is_number() && rhs.is_number();
 }
 
-ALWAYS_INLINE bool both_bigint(Value const& lhs, Value const& rhs)
+static ALWAYS_INLINE bool both_bigint(Value const& lhs, Value const& rhs)
 {
     return lhs.is_bigint() && rhs.is_bigint();
 }
@@ -455,7 +455,7 @@ ThrowCompletionOr<Utf16String> Value::to_utf16_string(VM& vm) const
         return as_string().utf16_string();
 
     auto utf8_string = TRY(to_string(vm));
-    return Utf16String::create(utf8_string.bytes_as_string_view());
+    return Utf16String::from_utf8(utf8_string);
 }
 
 ThrowCompletionOr<String> Value::to_well_formed_string(VM& vm) const
