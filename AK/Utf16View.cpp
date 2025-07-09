@@ -10,76 +10,11 @@
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf32View.h>
 #include <AK/Utf8View.h>
 
 #include <simdutf.h>
 
 namespace AK {
-
-template<OneOf<Utf8View, Utf32View> UtfViewType>
-static ErrorOr<Utf16ConversionResult> to_utf16_slow(UtfViewType const& view)
-{
-    Utf16Data utf16_data;
-    TRY(utf16_data.try_ensure_capacity(view.length()));
-
-    size_t code_point_count = 0;
-    for (auto code_point : view) {
-        TRY(UnicodeUtils::try_code_point_to_utf16(code_point, [&](auto code_unit) -> ErrorOr<void> {
-            TRY(utf16_data.try_append(code_unit));
-            return {};
-        }));
-
-        code_point_count++;
-    }
-
-    return Utf16ConversionResult { move(utf16_data), code_point_count };
-}
-
-ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView utf8_view)
-{
-    return utf8_to_utf16(Utf8View { utf8_view });
-}
-
-ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const& utf8_view)
-{
-    if (utf8_view.is_empty())
-        return Utf16ConversionResult { Utf16Data {}, 0 };
-
-    // All callers want to allow lonely surrogates, which simdutf does not permit.
-    if (!utf8_view.validate(AllowLonelySurrogates::No)) [[unlikely]]
-        return to_utf16_slow(utf8_view);
-
-    auto const* data = reinterpret_cast<char const*>(utf8_view.bytes());
-    auto length = utf8_view.byte_length();
-
-    Utf16Data utf16_data;
-    TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf8(data, length)));
-    // FIXME: simdutf _could_ be telling us about this, but it doesn't -- so we have to compute it again.
-    auto code_point_length = simdutf::count_utf8(data, length);
-
-    [[maybe_unused]] auto result = simdutf::convert_utf8_to_utf16(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
-    ASSERT(result == utf16_data.size());
-
-    return Utf16ConversionResult { utf16_data, code_point_length };
-}
-
-ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const& utf32_view)
-{
-    if (utf32_view.is_empty())
-        return Utf16ConversionResult { Utf16Data {}, 0 };
-
-    auto const* data = reinterpret_cast<char32_t const*>(utf32_view.code_points());
-    auto length = utf32_view.length();
-
-    Utf16Data utf16_data;
-    TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf32(data, length)));
-
-    [[maybe_unused]] auto result = simdutf::convert_utf32_to_utf16(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
-    ASSERT(result == utf16_data.size());
-
-    return Utf16ConversionResult { utf16_data, length };
-}
 
 bool validate_utf16_le(ReadonlyBytes bytes)
 {

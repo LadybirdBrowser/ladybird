@@ -46,9 +46,8 @@ WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t 
 {
     // 1. Let length be node’s length.
     // FIXME: This is very inefficient!
-    auto utf16_result = MUST(AK::utf8_to_utf16(m_data));
-    Utf16View utf16_view { utf16_result };
-    auto length = utf16_view.length_in_code_units();
+    auto utf16_string = Utf16String::from_utf8(m_data);
+    auto length = utf16_string.length_in_code_units();
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
@@ -57,10 +56,10 @@ WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t 
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
     if (offset + count > length)
-        return MUST(utf16_view.substring_view(offset).to_utf8());
+        return MUST(utf16_string.substring_view(offset).to_utf8());
 
     // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in node’s data.
-    return MUST(utf16_view.substring_view(offset, count).to_utf8());
+    return MUST(utf16_string.substring_view(offset, count).to_utf8());
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
@@ -68,9 +67,8 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 {
     // 1. Let length be node’s length.
     // FIXME: This is very inefficient!
-    auto utf16_data = MUST(AK::utf8_to_utf16(m_data));
-    Utf16View utf16_view { utf16_data };
-    auto length = utf16_view.length_in_code_units();
+    auto utf16_string = Utf16String::from_utf8(m_data);
+    auto length = utf16_string.length_in_code_units();
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
@@ -83,17 +81,17 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 5. Insert data into node’s data after offset code units.
     // 6. Let delete offset be offset + data’s length.
     // 7. Starting from delete offset code units, remove count code units from node’s data.
-    auto before_data = utf16_view.substring_view(0, offset);
-    auto inserted_data_result = MUST(AK::utf8_to_utf16(data));
-    auto after_data = utf16_view.substring_view(offset + count);
+    auto before_data = utf16_string.substring_view(0, offset);
+    auto inserted_data = Utf16String::from_utf8(data);
+    auto after_data = utf16_string.substring_view(offset + count);
 
-    StringBuilder full_data(StringBuilder::Mode::UTF16, before_data.length_in_code_units() + inserted_data_result.data.size() + after_data.length_in_code_units());
+    StringBuilder full_data(StringBuilder::Mode::UTF16, before_data.length_in_code_units() + inserted_data.length_in_code_units() + after_data.length_in_code_units());
     full_data.append(before_data);
-    full_data.append(inserted_data_result.data);
+    full_data.append(inserted_data);
     full_data.append(after_data);
-    auto full_view = full_data.utf16_string_view();
 
-    bool characters_are_the_same = utf16_view == full_view;
+    auto full_view = full_data.utf16_string_view();
+    bool characters_are_the_same = utf16_string == full_view;
     auto old_data = m_data;
 
     // OPTIMIZATION: Skip UTF-8 encoding if the characters are the same.
@@ -123,14 +121,14 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     //     start offset by data’s length and decrease it by count.
     for (auto* range : Range::live_ranges()) {
         if (range->start_container() == this && range->start_offset() > (offset + count))
-            range->set_start_offset(range->start_offset() + inserted_data_result.data.size() - count);
+            range->set_start_offset(range->start_offset() + inserted_data.length_in_code_units() - count);
     }
 
     // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end
     //     offset by data’s length and decrease it by count.
     for (auto* range : Range::live_ranges()) {
         if (range->end_container() == this && range->end_offset() > (offset + count))
-            range->set_end_offset(range->end_offset() + inserted_data_result.data.size() - count);
+            range->set_end_offset(range->end_offset() + inserted_data.length_in_code_units() - count);
     }
 
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.

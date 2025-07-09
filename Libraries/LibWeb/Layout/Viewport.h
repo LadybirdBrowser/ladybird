@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/BlockContainer.h>
 
@@ -24,7 +25,7 @@ public:
         size_t start_offset { 0 };
     };
     struct TextBlock {
-        AK::Utf16ConversionResult text;
+        Utf16String text;
         Vector<TextPosition> positions;
     };
     Vector<TextBlock> const& text_blocks();

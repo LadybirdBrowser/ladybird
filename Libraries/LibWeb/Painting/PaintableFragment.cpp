@@ -252,9 +252,8 @@ Utf16View PaintableFragment::utf16_view() const
         return {};
 
     if (!m_text_in_utf16.has_value())
-        m_text_in_utf16 = MUST(AK::utf8_to_utf16(utf8_view()));
-
-    return Utf16View { m_text_in_utf16.value() };
+        m_text_in_utf16 = Utf16String::from_utf8(utf8_view().as_string());
+    return *m_text_in_utf16;
 }
 
 }

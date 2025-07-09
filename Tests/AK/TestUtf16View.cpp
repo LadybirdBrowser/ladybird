@@ -15,7 +15,7 @@
 
 TEST_CASE(decode_ascii)
 {
-    auto string = MUST(AK::utf8_to_utf16("Hello World!11"sv));
+    auto string = Utf16String::from_utf8("Hello World!11"sv);
     Utf16View view { string };
 
     size_t valid_code_units = 0;
@@ -34,7 +34,7 @@ TEST_CASE(decode_ascii)
 
 TEST_CASE(decode_utf8)
 {
-    auto string = MUST(AK::utf8_to_utf16("Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv));
+    auto string = Utf16String::from_utf8("Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv);
     Utf16View view { string };
 
     size_t valid_code_units = 0;
@@ -55,7 +55,7 @@ TEST_CASE(encode_utf8)
 {
     {
         auto utf8_string = "Привет, мир! 😀 γειά σου κόσμος こんにちは世界"_string;
-        auto string = MUST(AK::utf8_to_utf16(utf8_string));
+        auto string = Utf16String::from_utf8(utf8_string);
         Utf16View view { string };
         EXPECT_EQ(MUST(view.to_utf8(AllowLonelySurrogates::Yes)), utf8_string);
         EXPECT_EQ(MUST(view.to_utf8(AllowLonelySurrogates::No)), utf8_string);
@@ -139,7 +139,7 @@ TEST_CASE(utf16_literal)
 
 TEST_CASE(iterate_utf16)
 {
-    auto string = MUST(AK::utf8_to_utf16("Привет 😀"sv));
+    auto string = Utf16String::from_utf8("Привет 😀"sv);
     Utf16View view { string };
     auto iterator = view.begin();
 
@@ -371,16 +371,16 @@ TEST_CASE(to_ascii_titlecase)
 
 TEST_CASE(equals_ignoring_case)
 {
-    auto string1 = MUST(AK::utf8_to_utf16("foobar"sv));
-    auto string2 = MUST(AK::utf8_to_utf16("FooBar"sv));
+    auto string1 = Utf16String::from_utf8("foobar"sv);
+    auto string2 = Utf16String::from_utf8("FooBar"sv);
     EXPECT(Utf16View { string1 }.equals_ignoring_case(Utf16View { string2 }));
 
-    string1 = MUST(AK::utf8_to_utf16(""sv));
-    string2 = MUST(AK::utf8_to_utf16(""sv));
+    string1 = Utf16String::from_utf8(""sv);
+    string2 = Utf16String::from_utf8(""sv);
     EXPECT(Utf16View { string1 }.equals_ignoring_case(Utf16View { string2 }));
 
-    string1 = MUST(AK::utf8_to_utf16(""sv));
-    string2 = MUST(AK::utf8_to_utf16("FooBar"sv));
+    string1 = Utf16String::from_utf8(""sv);
+    string2 = Utf16String::from_utf8("FooBar"sv);
     EXPECT(!Utf16View { string1 }.equals_ignoring_case(Utf16View { string2 }));
 }
 
@@ -425,7 +425,7 @@ TEST_CASE(replace)
 
 TEST_CASE(substring_view)
 {
-    auto string = MUST(AK::utf8_to_utf16("Привет 😀"sv));
+    auto string = Utf16String::from_utf8("Привет 😀"sv);
     {
         Utf16View view { string };
         view = view.substring_view(7, 2);
@@ -532,7 +532,7 @@ TEST_CASE(starts_with)
 
 TEST_CASE(find_code_unit_offset)
 {
-    auto conversion_result = MUST(AK::utf8_to_utf16("😀foo😀bar"sv));
+    auto conversion_result = Utf16String::from_utf8("😀foo😀bar"sv);
     Utf16View const view { conversion_result };
 
     EXPECT_EQ(0u, view.find_code_unit_offset(u""sv).value());
@@ -549,7 +549,7 @@ TEST_CASE(find_code_unit_offset)
 
 TEST_CASE(find_code_unit_offset_ignoring_case)
 {
-    auto conversion_result = MUST(AK::utf8_to_utf16("😀Foo😀Bar"sv));
+    auto conversion_result = Utf16String::from_utf8("😀Foo😀Bar"sv);
     Utf16View const view { conversion_result };
 
     EXPECT_EQ(0u, view.find_code_unit_offset_ignoring_case(u""sv).value());

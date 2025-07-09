@@ -8,14 +8,15 @@
 
 #include "Forward.h"
 #include "RegexOptions.h"
-#include <AK/Error.h>
 
 #include <AK/ByteString.h>
 #include <AK/COWVector.h>
+#include <AK/Error.h>
 #include <AK/FlyString.h>
 #include <AK/MemMem.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
 #include <AK/Utf8View.h>
@@ -110,7 +111,7 @@ public:
         return view;
     }
 
-    RegexStringView construct_as_same(Span<u32> data, Optional<ByteString>& optional_string_storage, Utf16Data& optional_utf16_storage) const
+    RegexStringView construct_as_same(Span<u32> data, Optional<ByteString>& optional_string_storage, Utf16String& optional_utf16_storage) const
     {
         auto view = m_view.visit(
             [&optional_string_storage, data]<typename T>(T const&) {
@@ -121,11 +122,8 @@ public:
                 return RegexStringView { T { *optional_string_storage } };
             },
             [&optional_utf16_storage, data](Utf16View) {
-                auto conversion_result = utf32_to_utf16(Utf32View { data.data(), data.size() }).release_value_but_fixme_should_propagate_errors();
-                optional_utf16_storage = conversion_result.data;
-                auto view = Utf16View { optional_utf16_storage };
-                view.unsafe_set_code_point_length(conversion_result.code_point_count);
-                return RegexStringView { view };
+                optional_utf16_storage = Utf16String::from_utf32({ data.data(), data.size() });
+                return RegexStringView { optional_utf16_storage.utf16_view() };
             });
 
         view.set_unicode(unicode());

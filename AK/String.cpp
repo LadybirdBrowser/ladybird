@@ -67,11 +67,6 @@ ErrorOr<String> String::from_utf8(StringView view)
     return result;
 }
 
-ErrorOr<String> String::from_utf16(Utf16View const& utf16)
-{
-    return utf16.to_utf8();
-}
-
 ErrorOr<String> String::from_utf16_le_with_replacement_character(ReadonlyBytes bytes)
 {
     if (bytes.is_empty())
@@ -80,7 +75,7 @@ ErrorOr<String> String::from_utf16_le_with_replacement_character(ReadonlyBytes b
     auto const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
     auto utf16_length = bytes.size() / 2;
 
-    Utf16Data well_formed_utf16;
+    Vector<char16_t> well_formed_utf16;
 
     if (!validate_utf16_le(bytes)) {
         well_formed_utf16.resize(bytes.size());
@@ -109,7 +104,7 @@ ErrorOr<String> String::from_utf16_be_with_replacement_character(ReadonlyBytes b
     auto const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
     auto utf16_length = bytes.size() / 2;
 
-    Utf16Data well_formed_utf16;
+    Vector<char16_t> well_formed_utf16;
 
     if (!validate_utf16_le(bytes)) {
         well_formed_utf16.resize(bytes.size());

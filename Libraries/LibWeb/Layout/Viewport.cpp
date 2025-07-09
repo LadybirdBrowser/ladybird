@@ -50,17 +50,18 @@ Vector<Viewport::TextBlock> const& Viewport::text_blocks()
 
 void Viewport::update_text_blocks()
 {
-    StringBuilder builder;
+    StringBuilder builder(StringBuilder::Mode::UTF16);
     size_t current_start_position = 0;
     Vector<TextPosition> text_positions;
     Vector<TextBlock> text_blocks;
+
     for_each_in_inclusive_subtree([&](auto const& layout_node) {
         if (layout_node.display().is_none() || !layout_node.first_paintable() || !layout_node.first_paintable()->is_visible())
             return TraversalDecision::Continue;
 
         if (layout_node.is_box() || layout_node.is_generated()) {
             if (!builder.is_empty()) {
-                text_blocks.append({ MUST(AK::utf8_to_utf16(builder.string_view())), text_positions });
+                text_blocks.append({ builder.to_utf16_string(), text_positions });
                 current_start_position = 0;
                 text_positions.clear_with_capacity();
                 builder.clear();
@@ -79,10 +80,9 @@ void Viewport::update_text_blocks()
                     text_positions.empend(dom_node, current_start_position);
                 }
 
-                auto const& current_node_text = text_node->text_for_rendering();
-                auto const current_node_text_utf16 = MUST(AK::utf8_to_utf16(current_node_text));
-                current_start_position += current_node_text_utf16.data.size();
-                builder.append(move(current_node_text));
+                auto const& current_node_text = Utf16String::from_utf8(text_node->text_for_rendering());
+                current_start_position += current_node_text.length_in_code_units();
+                builder.append(current_node_text);
             }
         }
 
@@ -90,7 +90,7 @@ void Viewport::update_text_blocks()
     });
 
     if (!builder.is_empty())
-        text_blocks.append({ MUST(AK::utf8_to_utf16(builder.string_view())), text_positions });
+        text_blocks.append({ builder.to_utf16_string(), text_positions });
 
     m_text_blocks = move(text_blocks);
 }
