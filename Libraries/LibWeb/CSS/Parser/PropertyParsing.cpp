@@ -523,10 +523,6 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Border:
-    case PropertyID::BorderBottom:
-    case PropertyID::BorderLeft:
-    case PropertyID::BorderRight:
-    case PropertyID::BorderTop:
         if (auto parsed_value = parse_border_value(property_id, tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
@@ -1600,26 +1596,6 @@ RefPtr<CSSStyleValue const> Parser::parse_border_value(PropertyID property_id, T
         color_property = PropertyID::BorderColor;
         style_property = PropertyID::BorderStyle;
         width_property = PropertyID::BorderWidth;
-        break;
-    case PropertyID::BorderBottom:
-        color_property = PropertyID::BorderBottomColor;
-        style_property = PropertyID::BorderBottomStyle;
-        width_property = PropertyID::BorderBottomWidth;
-        break;
-    case PropertyID::BorderLeft:
-        color_property = PropertyID::BorderLeftColor;
-        style_property = PropertyID::BorderLeftStyle;
-        width_property = PropertyID::BorderLeftWidth;
-        break;
-    case PropertyID::BorderRight:
-        color_property = PropertyID::BorderRightColor;
-        style_property = PropertyID::BorderRightStyle;
-        width_property = PropertyID::BorderRightWidth;
-        break;
-    case PropertyID::BorderTop:
-        color_property = PropertyID::BorderTopColor;
-        style_property = PropertyID::BorderTopStyle;
-        width_property = PropertyID::BorderTopWidth;
         break;
     default:
         VERIFY_NOT_REACHED();
