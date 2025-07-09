@@ -96,7 +96,7 @@ jobs:
           env PATH="/opt/wabt-1.0.35/bin:$PATH" \
             CC=clang-20 \
             CXX=clang++-20 \
-            cmake --preset CI -B libjs-test262/Build \
+            cmake --preset Release -B libjs-test262/Build \
               -DCMAKE_C_COMPILER=clang-20 \
               -DCMAKE_CXX_COMPILER=clang++-20 \
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
