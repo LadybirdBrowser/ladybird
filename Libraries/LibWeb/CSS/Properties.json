@@ -599,12 +599,8 @@
     ],
     "max-values": 2,
     "valid-types": [
-      "length [0,∞]"
-    ],
-    "valid-identifiers": [
-      "medium",
-      "thick",
-      "thin"
+      "length [0,∞]",
+      "line-width"
     ]
   },
   "border-bottom": {
@@ -665,12 +661,8 @@
     "initial": "medium",
     "inherited": false,
     "valid-types": [
-      "length [0,∞]"
-    ],
-    "valid-identifiers": [
-      "medium",
-      "thick",
-      "thin"
+      "length [0,∞]",
+      "line-width"
     ],
     "quirks": [
       "unitless-length"
@@ -889,12 +881,8 @@
     ],
     "max-values": 2,
     "valid-types": [
-      "length [0,∞]"
-    ],
-    "valid-identifiers": [
-      "medium",
-      "thick",
-      "thin"
+      "length [0,∞]",
+      "line-width"
     ]
   },
   "border-left": {
@@ -931,12 +919,8 @@
     "initial": "medium",
     "inherited": false,
     "valid-types": [
-      "length [0,∞]"
-    ],
-    "valid-identifiers": [
-      "medium",
-      "thick",
-      "thin"
+      "length [0,∞]",
+      "line-width"
     ],
     "quirks": [
       "unitless-length"
@@ -992,12 +976,8 @@
     "initial": "medium",
     "inherited": false,
     "valid-types": [
-      "length [0,∞]"
-    ],
-    "valid-identifiers": [
-      "medium",
-      "thick",
-      "thin"
+      "length [0,∞]",
+      "line-width"
     ],
     "quirks": [
       "unitless-length"
@@ -1100,12 +1080,8 @@
     "initial": "medium",
     "inherited": false,
     "valid-types": [
-      "length [0,∞]"
-    ],
-    "valid-identifiers": [
-      "medium",
-      "thick",
-      "thin"
+      "length [0,∞]",
+      "line-width"
     ],
     "quirks": [
       "unitless-length"
@@ -1121,12 +1097,8 @@
     ],
     "max-values": 4,
     "valid-types": [
-      "length [0,∞]"
-    ],
-    "valid-identifiers": [
-      "medium",
-      "thick",
-      "thin"
+      "length [0,∞]",
+      "line-width"
     ],
     "quirks": [
       "unitless-length"
@@ -2613,12 +2585,8 @@
     "inherited": false,
     "initial": "medium",
     "valid-types": [
-      "length [0,∞]"
-    ],
-    "valid-identifiers": [
-      "medium",
-      "thick",
-      "thin"
+      "length [0,∞]",
+      "line-width"
     ]
   },
   "overflow": {
