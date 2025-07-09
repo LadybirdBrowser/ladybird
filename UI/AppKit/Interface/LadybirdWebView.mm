@@ -35,6 +35,7 @@ static constexpr NSInteger CONTEXT_MENU_LOOP_TAG = 4;
 static constexpr NSInteger CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG = 5;
 static constexpr NSInteger CONTEXT_MENU_COPY_LINK_TAG = 6;
 static constexpr NSInteger CONTEXT_MENU_COPY_IMAGE_TAG = 7;
+static constexpr NSInteger CONTEXT_MENU_VIEW_SOURCE_TAG = 8;
 
 // Calls to [NSCursor hide] and [NSCursor unhide] must be balanced. We use this struct to ensure
 // we only call [NSCursor hide] once and to ensure that we do call [NSCursor unhide].
@@ -353,6 +354,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             return;
         }
         [[self window] orderFront:nil];
+
+        auto* view_source_menu_item = [self.page_context_menu itemWithTag:CONTEXT_MENU_VIEW_SOURCE_TAG];
+        [view_source_menu_item setEnabled:!m_web_view_bridge->view_source()];
     };
 
     m_web_view_bridge->on_close = [weak_self]() {
@@ -373,6 +377,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         if (_status_label != nil) {
             [self.status_label setHidden:YES];
         }
+
+        auto* view_source_menu_item = [self.page_context_menu itemWithTag:CONTEXT_MENU_VIEW_SOURCE_TAG];
+        [view_source_menu_item setEnabled:!m_web_view_bridge->view_source()];
     };
 
     m_web_view_bridge->on_load_finish = [weak_self](auto const& url) {
@@ -1051,6 +1058,8 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [self.observer onCreateNewTab:html
                                   url:url
                           activateTab:Web::HTML::ActivateTab::Yes];
+
+        m_web_view_bridge->set_view_source(true);
     };
 
     m_web_view_bridge->on_theme_color_change = [weak_self](auto color) {
@@ -1324,9 +1333,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                                                         keyEquivalent:@""]];
         [_page_context_menu addItem:[NSMenuItem separatorItem]];
 
-        [_page_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"View Source"
-                                                               action:@selector(viewSource:)
-                                                        keyEquivalent:@""]];
+        auto* view_source_menu_item = [[NSMenuItem alloc] initWithTitle:@"View Source"
+                                                                 action:@selector(viewSource:)
+                                                          keyEquivalent:@""];
+        [view_source_menu_item setTag:CONTEXT_MENU_VIEW_SOURCE_TAG];
+        [_page_context_menu addItem:view_source_menu_item];
     }
 
     return _page_context_menu;

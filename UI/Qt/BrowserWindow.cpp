@@ -733,6 +733,8 @@ void BrowserWindow::set_current_tab(Tab* tab)
     if (tab) {
         update_displayed_zoom_level();
         tab->update_navigation_buttons_state();
+
+        m_view_source_action->setEnabled(!tab->view().view_source());
     }
 }
 

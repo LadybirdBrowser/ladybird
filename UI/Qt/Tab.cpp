@@ -126,6 +126,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_activate_tab = [this] {
         m_window->activate_tab(tab_index());
+
+        m_window->view_source_action().setEnabled(!view().view_source());
     };
 
     view().on_close = [this] {
@@ -153,6 +155,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
         m_location_edit->set_url(url);
         m_location_edit->setCursorPosition(0);
+
+        m_window->view_source_action().setEnabled(!view().view_source());
     };
 
     view().on_url_change = [this](auto const& url) {
@@ -342,7 +346,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_received_source = [this](auto const& url, auto const& base_url, auto const& source) {
         auto html = WebView::highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
-        m_window->new_tab_from_content(html, Web::HTML::ActivateTab::Yes);
+        auto& tab = m_window->new_tab_from_content(html, Web::HTML::ActivateTab::Yes);
+
+        tab.view().set_view_source(true);
     };
 
     view().on_restore_window = [this]() {

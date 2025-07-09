@@ -144,6 +144,7 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 void ViewImplementation::load(URL::URL const& url)
 {
     m_url = url;
+    set_view_source(false);
     client().async_load_url(page_id(), url);
 }
 

@@ -169,6 +169,9 @@ public:
     // native GUI widgets as possible.
     void use_native_user_style_sheet();
 
+    bool view_source(void) { return m_view_source; }
+    void set_view_source(bool view_source) { m_view_source = view_source; }
+
     Function<void()> on_ready_to_paint;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64>)> on_new_web_view;
     Function<void()> on_activate_tab;
@@ -303,6 +306,8 @@ protected:
 
     RefPtr<Core::Promise<LexicalPath>> m_pending_screenshot;
     RefPtr<Core::Promise<String>> m_pending_info_request;
+
+    bool m_view_source { false };
 
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
 
