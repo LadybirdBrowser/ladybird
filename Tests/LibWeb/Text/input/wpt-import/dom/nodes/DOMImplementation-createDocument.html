@@ -112,11 +112,11 @@ test(function() {
           assert_not_equals(element, null)
           assert_equals(element.nodeType, Node.ELEMENT_NODE)
           assert_equals(element.ownerDocument, doc)
-          var qualified = String(qualifiedName), names = []
+          var qualified = String(qualifiedName)
+          var names = []
           var firstColonIndex = qualified.indexOf(":")
           if (firstColonIndex >= 0) {
-            names.push(qualified.substring(0, firstColonIndex));
-            names.push(qualified.substring(firstColonIndex + 1));
+            names = qualifiedName.split(":", 2);
           } else {
             names = [null, qualified]
           }
