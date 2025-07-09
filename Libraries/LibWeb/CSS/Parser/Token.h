@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,14 +9,13 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/CSS/Number.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
 
 class Token {
-    friend class Tokenizer;
-
 public:
-    enum class Type {
+    enum class Type : u8 {
         Invalid,
         EndOfFile,
         Ident,
@@ -45,7 +44,7 @@ public:
         CloseCurly
     };
 
-    enum class HashType {
+    enum class HashType : u8 {
         Id,
         Unrestricted,
     };
@@ -54,6 +53,25 @@ public:
         size_t line { 0 };
         size_t column { 0 };
     };
+
+    // Use this only to create types that don't have their own create_foo() methods below.
+    static Token create(Type, String original_source_text = {});
+
+    static Token create_ident(FlyString ident, String original_source_text = {});
+    static Token create_function(FlyString name, String original_source_text = {});
+    static Token create_at_keyword(FlyString name, String original_source_text = {});
+    static Token create_hash(FlyString value, HashType hash_type, String original_source_text = {});
+    static Token create_string(FlyString value, String original_source_text = {});
+    static Token create_url(FlyString url, String original_source_text = {});
+    static Token create_delim(u32 delim, String original_source_text = {});
+    static Token create_number(Number value, String original_source_text = {});
+    static Token create_percentage(Number value, String original_source_text = {});
+    static Token create_dimension(Number value, FlyString unit, String original_source_text = {});
+    static Token create_dimension(double value, FlyString unit, String original_source_text = {})
+    {
+        return create_dimension(Number { Number::Type::Number, value }, move(unit), move(original_source_text));
+    }
+    static Token create_whitespace(String original_source_text = {});
 
     Type type() const { return m_type; }
     bool is(Type type) const { return m_type == type; }
@@ -149,55 +167,7 @@ public:
     String const& original_source_text() const { return m_original_source_text; }
     Position const& start_position() const { return m_start_position; }
     Position const& end_position() const { return m_end_position; }
-
-    static Token create_string(FlyString str)
-    {
-        Token token;
-        token.m_type = Type::String;
-        token.m_value = move(str);
-        return token;
-    }
-
-    static Token create_number(double value, Number::Type number_type)
-    {
-        Token token;
-        token.m_type = Type::Number;
-        token.m_number_value = Number(number_type, value);
-        return token;
-    }
-
-    static Token create_percentage(double value)
-    {
-        Token token;
-        token.m_type = Type::Percentage;
-        token.m_number_value = Number(Number::Type::Number, value);
-        return token;
-    }
-
-    static Token create_dimension(double value, FlyString unit)
-    {
-        Token token;
-        token.m_type = Type::Dimension;
-        token.m_number_value = Number(Number::Type::Number, value);
-        token.m_value = move(unit);
-        return token;
-    }
-
-    static Token create_ident(FlyString ident)
-    {
-        Token token;
-        token.m_type = Type::Ident;
-        token.m_value = move(ident);
-        return token;
-    }
-
-    static Token create_url(FlyString url)
-    {
-        Token token;
-        token.m_type = Type::Url;
-        token.m_value = move(url);
-        return token;
-    }
+    void set_position_range(Badge<Tokenizer>, Position start, Position end);
 
 private:
     Type m_type { Type::Invalid };
