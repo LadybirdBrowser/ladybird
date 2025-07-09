@@ -12,6 +12,7 @@
 #include <AK/FlyString.h>
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -63,10 +64,8 @@ ErrorOr<String> strip_and_collapse_whitespace(StringView string)
 // https://infra.spec.whatwg.org/#code-unit-prefix
 bool is_code_unit_prefix(StringView potential_prefix_utf8, StringView input_utf8)
 {
-    auto potential_prefix_utf16_bytes = MUST(utf8_to_utf16(potential_prefix_utf8));
-    auto input_utf16_bytes = MUST(utf8_to_utf16(input_utf8));
-    Utf16View potential_prefix { potential_prefix_utf16_bytes };
-    Utf16View input { input_utf16_bytes };
+    auto potential_prefix = Utf16String::from_utf8(potential_prefix_utf8);
+    auto input = Utf16String::from_utf8(input_utf8);
 
     // 1. Let i be 0.
     size_t i = 0;
@@ -148,9 +147,10 @@ bool code_unit_less_than(StringView a, StringView b)
     if (a.is_ascii() && b.is_ascii())
         return a < b;
 
-    auto a_utf16 = MUST(utf8_to_utf16(a));
-    auto b_utf16 = MUST(utf8_to_utf16(b));
-    return Utf16View { a_utf16 }.is_code_unit_less_than(Utf16View { b_utf16 });
+    auto a_utf16 = Utf16String::from_utf8(a);
+    auto b_utf16 = Utf16String::from_utf8(b);
+
+    return a_utf16.utf16_view().is_code_unit_less_than(b_utf16);
 }
 
 }

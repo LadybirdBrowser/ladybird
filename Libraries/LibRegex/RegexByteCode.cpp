@@ -512,7 +512,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
             Optional<ByteString> str;
-            Utf16Data utf16;
+            Utf16String utf16;
             Vector<u32> data;
             data.ensure_capacity(length);
             for (size_t i = offset; i < offset + length; ++i)

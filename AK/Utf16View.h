@@ -23,16 +23,6 @@
 
 namespace AK {
 
-using Utf16Data = Vector<char16_t, 1>;
-
-struct Utf16ConversionResult {
-    Utf16Data data;
-    size_t code_point_count;
-};
-ErrorOr<Utf16ConversionResult> utf8_to_utf16(StringView);
-ErrorOr<Utf16ConversionResult> utf8_to_utf16(Utf8View const&);
-ErrorOr<Utf16ConversionResult> utf32_to_utf16(Utf32View const&);
-
 [[nodiscard]] bool validate_utf16_le(ReadonlyBytes);
 [[nodiscard]] bool validate_utf16_be(ReadonlyBytes);
 
@@ -156,27 +146,11 @@ public:
         m_length_in_code_units |= 1uz << Detail::UTF16_FLAG;
     }
 
-    constexpr Utf16View(Utf16Data const& string)
-        : m_string { .utf16 = string.data() }
-        , m_length_in_code_units(string.size())
-    {
-        m_length_in_code_units |= 1uz << Detail::UTF16_FLAG;
-    }
-
     consteval Utf16View(StringView string)
         : m_string { .ascii = string.characters_without_null_termination() }
         , m_length_in_code_units(string.length())
     {
         VERIFY(all_of(string, AK::is_ascii));
-    }
-
-    Utf16View(Utf16ConversionResult&&) = delete;
-    explicit Utf16View(Utf16ConversionResult const& conversion_result)
-        : m_string { .utf16 = conversion_result.data.data() }
-        , m_length_in_code_units(conversion_result.data.size())
-        , m_length_in_code_points(conversion_result.code_point_count)
-    {
-        m_length_in_code_units |= 1uz << Detail::UTF16_FLAG;
     }
 
     ErrorOr<String> to_utf8(AllowLonelySurrogates = AllowLonelySurrogates::Yes) const;
@@ -313,18 +287,6 @@ public:
             m_length_in_code_points = calculate_length_in_code_points();
         return m_length_in_code_points;
     }
-
-    constexpr Optional<size_t> length_in_code_points_if_known() const
-    {
-        if (has_ascii_storage())
-            return m_length_in_code_units;
-
-        if (m_length_in_code_points == NumericLimits<size_t>::max())
-            return {};
-        return m_length_in_code_points;
-    }
-
-    constexpr void unsafe_set_code_point_length(size_t length) const { m_length_in_code_points = length; }
 
     [[nodiscard]] constexpr char16_t code_unit_at(size_t index) const
     {
@@ -591,6 +553,5 @@ inline constexpr bool IsHashCompatible<Utf16String, Utf16View> = true;
 }
 
 #if USING_AK_GLOBALLY
-using AK::Utf16Data;
 using AK::Utf16View;
 #endif

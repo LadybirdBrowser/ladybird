@@ -559,7 +559,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::encode_uri_component)
 JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
 {
     // 1. Set string to ? ToString(string).
-    auto string = TRY(vm.argument(0).to_byte_string(vm));
+    auto string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 3. Let R be the empty String.
     StringBuilder escaped;
@@ -570,29 +570,29 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
     // 2. Let length be the length of string.
     // 5. Let k be 0.
     // 6. Repeat, while k < length,
-    auto utf16_conversion = TRY_OR_THROW_OOM(vm, utf8_to_utf16(string));
-    for (auto code_point : utf16_conversion.data) {
+    for (size_t k = 0; k < string.length_in_code_units(); ++k) {
         // a. Let char be the code unit at index k within string.
+        auto code_unit = string.code_unit_at(k);
 
         // b. If unescapedSet contains char, then
         // NOTE: We know unescapedSet is ASCII-only, so ensure we have an ASCII codepoint before casting to char.
-        if (is_ascii(code_point) && unescaped_set.contains(static_cast<char>(code_point))) {
+        if (is_ascii(code_unit) && unescaped_set.contains(static_cast<char>(code_unit))) {
             // i. Let S be the String value containing the single code unit char.
-            escaped.append(code_point);
+            escaped.append(static_cast<char>(code_unit));
         }
         // c. Else,
         // i. Let n be the numeric value of char.
         // ii. If n < 256, then
-        else if (code_point < 256) {
+        else if (code_unit < 256) {
             // 1. Let hex be the String representation of n, formatted as an uppercase hexadecimal number.
             // 2. Let S be the string-concatenation of "%" and ! StringPad(hex, 2𝔽, "0", start).
-            escaped.appendff("%{:02X}", code_point);
+            escaped.appendff("%{:02X}", code_unit);
         }
         // iii. Else,
         else {
             // 1. Let hex be the String representation of n, formatted as an uppercase hexadecimal number.
             // 2. Let S be the string-concatenation of "%u" and ! StringPad(hex, 4𝔽, "0", start).
-            escaped.appendff("%u{:04X}", code_point);
+            escaped.appendff("%u{:04X}", code_unit);
         }
 
         // d. Set R to the string-concatenation of R and S.
