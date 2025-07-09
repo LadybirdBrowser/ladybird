@@ -1052,10 +1052,11 @@ RefPtr<CSSStyleValue const> Parser::parse_counter_set_value(TokenStream<Componen
     return parse_counter_definitions_value(tokens, AllowReversed::No, 0);
 }
 
-// https://drafts.csswg.org/css-ui-3/#cursor
+// https://drafts.csswg.org/css-ui-4/#cursor
 RefPtr<CSSStyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValue>& tokens)
 {
-    // [ [<url> [<x> <y>]?,]* <built-in-cursor> ]
+    // <cursor-image>#? <cursor-predefined>
+    // <cursor-image> = <url> <number>{2}?
     // So, any number of custom cursor definitions, and then a mandatory cursor name keyword, all comma-separated.
 
     auto transaction = tokens.begin_transaction();
@@ -1071,7 +1072,7 @@ RefPtr<CSSStyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValu
             // Cursor keyword
             part_tokens.discard_whitespace();
             auto keyword_value = parse_keyword_value(part_tokens);
-            if (!keyword_value || !keyword_to_cursor(keyword_value->to_keyword()).has_value())
+            if (!keyword_value || !keyword_to_cursor_predefined(keyword_value->to_keyword()).has_value())
                 return {};
 
             part_tokens.discard_whitespace();
@@ -1081,7 +1082,7 @@ RefPtr<CSSStyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValu
             cursors.append(keyword_value.release_nonnull());
         } else {
             // Custom cursor definition
-            // <url> [<x> <y>]?
+            // <cursor-image> = <url> <number>{2}?
             // "Conforming user agents may, instead of <url>, support <image> which is a superset."
 
             part_tokens.discard_whitespace();
@@ -1092,7 +1093,7 @@ RefPtr<CSSStyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValu
             part_tokens.discard_whitespace();
 
             if (part_tokens.has_next_token()) {
-                // x and y, which are both <number>
+                // <number>{2}, which are the x and y coordinates of the hotspot
                 auto x = parse_number(part_tokens);
                 part_tokens.discard_whitespace();
                 auto y = parse_number(part_tokens);

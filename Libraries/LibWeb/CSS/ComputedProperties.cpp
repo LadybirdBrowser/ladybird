@@ -1061,16 +1061,16 @@ Vector<CursorData> ComputedProperties::cursor() const
                 continue;
             }
 
-            if (auto keyword = keyword_to_cursor(item->to_keyword()); keyword.has_value())
+            if (auto keyword = keyword_to_cursor_predefined(item->to_keyword()); keyword.has_value())
                 cursors.append(keyword.release_value());
         }
     } else if (value.is_keyword()) {
-        if (auto keyword = keyword_to_cursor(value.to_keyword()); keyword.has_value())
+        if (auto keyword = keyword_to_cursor_predefined(value.to_keyword()); keyword.has_value())
             cursors.append(keyword.release_value());
     }
 
     if (cursors.is_empty())
-        cursors.append(Cursor::Auto);
+        cursors.append(CursorPredefined::Auto);
 
     return cursors;
 }

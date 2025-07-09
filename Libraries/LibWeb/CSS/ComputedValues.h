@@ -86,7 +86,7 @@ struct ScrollbarColorData {
     Color track_color { Color::Transparent };
 };
 
-using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, Cursor>;
+using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, CursorPredefined>;
 
 using ListStyleType = Variant<CounterStyleNameKeyword, String>;
 
@@ -105,7 +105,7 @@ public:
     static CSS::Clip clip() { return CSS::Clip::make_auto(); }
     static CSS::PreferredColorScheme color_scheme() { return CSS::PreferredColorScheme::Auto; }
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
-    static CursorData cursor() { return { CSS::Cursor::Auto }; }
+    static CursorData cursor() { return { CSS::CursorPredefined::Auto }; }
     static CSS::WhiteSpaceCollapse white_space_collapse() { return CSS::WhiteSpaceCollapse::Collapse; }
     static CSS::WordBreak word_break() { return CSS::WordBreak::Normal; }
     static CSS::LengthOrCalculated word_spacing() { return CSS::Length::make_px(0); }

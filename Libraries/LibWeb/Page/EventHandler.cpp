@@ -98,62 +98,62 @@ static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, Vect
 {
     for (auto const& cursor : cursor_data) {
         auto result = cursor.visit(
-            [auto_cursor](CSS::Cursor css_cursor) -> Optional<Gfx::Cursor> {
+            [auto_cursor](CSS::CursorPredefined css_cursor) -> Optional<Gfx::Cursor> {
                 switch (css_cursor) {
-                case CSS::Cursor::Crosshair:
-                case CSS::Cursor::Cell:
+                case CSS::CursorPredefined::Crosshair:
+                case CSS::CursorPredefined::Cell:
                     return Gfx::StandardCursor::Crosshair;
-                case CSS::Cursor::Grab:
-                case CSS::Cursor::Grabbing:
+                case CSS::CursorPredefined::Grab:
+                case CSS::CursorPredefined::Grabbing:
                     return Gfx::StandardCursor::Drag;
-                case CSS::Cursor::Pointer:
+                case CSS::CursorPredefined::Pointer:
                     return Gfx::StandardCursor::Hand;
-                case CSS::Cursor::Help:
+                case CSS::CursorPredefined::Help:
                     return Gfx::StandardCursor::Help;
-                case CSS::Cursor::None:
+                case CSS::CursorPredefined::None:
                     return Gfx::StandardCursor::Hidden;
-                case CSS::Cursor::NotAllowed:
+                case CSS::CursorPredefined::NotAllowed:
                     return Gfx::StandardCursor::Disallowed;
-                case CSS::Cursor::Text:
-                case CSS::Cursor::VerticalText:
+                case CSS::CursorPredefined::Text:
+                case CSS::CursorPredefined::VerticalText:
                     return Gfx::StandardCursor::IBeam;
-                case CSS::Cursor::Move:
-                case CSS::Cursor::AllScroll:
+                case CSS::CursorPredefined::Move:
+                case CSS::CursorPredefined::AllScroll:
                     return Gfx::StandardCursor::Move;
-                case CSS::Cursor::Progress:
-                case CSS::Cursor::Wait:
+                case CSS::CursorPredefined::Progress:
+                case CSS::CursorPredefined::Wait:
                     return Gfx::StandardCursor::Wait;
-                case CSS::Cursor::ColResize:
+                case CSS::CursorPredefined::ColResize:
                     return Gfx::StandardCursor::ResizeColumn;
-                case CSS::Cursor::EResize:
-                case CSS::Cursor::WResize:
-                case CSS::Cursor::EwResize:
+                case CSS::CursorPredefined::EResize:
+                case CSS::CursorPredefined::WResize:
+                case CSS::CursorPredefined::EwResize:
                     return Gfx::StandardCursor::ResizeHorizontal;
-                case CSS::Cursor::RowResize:
+                case CSS::CursorPredefined::RowResize:
                     return Gfx::StandardCursor::ResizeRow;
-                case CSS::Cursor::NResize:
-                case CSS::Cursor::SResize:
-                case CSS::Cursor::NsResize:
+                case CSS::CursorPredefined::NResize:
+                case CSS::CursorPredefined::SResize:
+                case CSS::CursorPredefined::NsResize:
                     return Gfx::StandardCursor::ResizeVertical;
-                case CSS::Cursor::NeResize:
-                case CSS::Cursor::SwResize:
-                case CSS::Cursor::NeswResize:
+                case CSS::CursorPredefined::NeResize:
+                case CSS::CursorPredefined::SwResize:
+                case CSS::CursorPredefined::NeswResize:
                     return Gfx::StandardCursor::ResizeDiagonalBLTR;
-                case CSS::Cursor::NwResize:
-                case CSS::Cursor::SeResize:
-                case CSS::Cursor::NwseResize:
+                case CSS::CursorPredefined::NwResize:
+                case CSS::CursorPredefined::SeResize:
+                case CSS::CursorPredefined::NwseResize:
                     return Gfx::StandardCursor::ResizeDiagonalTLBR;
-                case CSS::Cursor::ZoomIn:
-                case CSS::Cursor::ZoomOut:
+                case CSS::CursorPredefined::ZoomIn:
+                case CSS::CursorPredefined::ZoomOut:
                     return Gfx::StandardCursor::Zoom;
-                case CSS::Cursor::Auto:
+                case CSS::CursorPredefined::Auto:
                     return auto_cursor;
-                case CSS::Cursor::ContextMenu:
-                case CSS::Cursor::Alias:
-                case CSS::Cursor::Copy:
-                case CSS::Cursor::NoDrop:
+                case CSS::CursorPredefined::ContextMenu:
+                case CSS::CursorPredefined::Alias:
+                case CSS::CursorPredefined::Copy:
+                case CSS::CursorPredefined::NoDrop:
                     // FIXME: No corresponding GFX Standard Cursor, fallthrough to None
-                case CSS::Cursor::Default:
+                case CSS::CursorPredefined::Default:
                 default:
                     return Gfx::StandardCursor::None;
                 }
