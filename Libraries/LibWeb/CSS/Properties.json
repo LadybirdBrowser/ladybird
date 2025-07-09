@@ -497,6 +497,15 @@
       "border-color"
     ]
   },
+  "border-block": {
+    "inherited": false,
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-block-width",
+      "border-block-style",
+      "border-block-color"
+    ]
+  },
   "border-block-color": {
     "inherited": false,
     "initial": "currentcolor",
@@ -776,6 +785,15 @@
     ],
     "valid-identifiers": [
       "auto"
+    ]
+  },
+  "border-inline": {
+    "inherited": false,
+    "initial": "medium currentcolor none",
+    "longhands": [
+      "border-inline-width",
+      "border-inline-style",
+      "border-inline-color"
     ]
   },
   "border-inline-color": {
