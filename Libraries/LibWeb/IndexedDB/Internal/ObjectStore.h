@@ -14,11 +14,11 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/KeyGenerator.h>
-#include <LibWeb/IndexedDB/Internal/Record.h>
 
 namespace Web::IndexedDB {
 

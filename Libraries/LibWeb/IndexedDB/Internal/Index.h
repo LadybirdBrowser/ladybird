@@ -10,8 +10,8 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
-#include <LibWeb/IndexedDB/Internal/Record.h>
 
 namespace Web::IndexedDB {
 
