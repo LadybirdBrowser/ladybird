@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/ShadowData.h>
@@ -64,7 +65,7 @@ private:
     CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
     CSSPixels m_text_decoration_thickness { 0 };
-    mutable Optional<AK::Utf16ConversionResult> m_text_in_utf16;
+    mutable Optional<Utf16String> m_text_in_utf16;
 };
 
 }

@@ -93,26 +93,21 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, 
     if (unicode && unicode_sets)
         return ParseRegexPatternError { MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.message(), 'u', 'v')) };
 
-    auto utf16_pattern_result = AK::utf8_to_utf16(pattern);
-    if (utf16_pattern_result.is_error())
-        return ParseRegexPatternError { "Out of memory"_string };
-
-    auto utf16_result = utf16_pattern_result.release_value();
-    Utf16View utf16_pattern_view { utf16_result };
+    auto utf16_pattern = Utf16String::from_utf8(pattern);
     StringBuilder builder;
 
     // If the Unicode flag is set, append each code point to the pattern. Otherwise, append each
     // code unit. But unlike the spec, multi-byte code units must be escaped for LibRegex to parse.
     auto previous_code_unit_was_backslash = false;
-    for (size_t i = 0; i < utf16_pattern_view.length_in_code_units();) {
+    for (size_t i = 0; i < utf16_pattern.length_in_code_units();) {
         if (unicode || unicode_sets) {
-            auto code_point = code_point_at(utf16_pattern_view, i);
+            auto code_point = code_point_at(utf16_pattern, i);
             builder.append_code_point(code_point.code_point);
             i += code_point.code_unit_count;
             continue;
         }
 
-        u16 code_unit = utf16_pattern_view.code_unit_at(i);
+        u16 code_unit = utf16_pattern.code_unit_at(i);
         ++i;
 
         if (code_unit > 0x7f) {
