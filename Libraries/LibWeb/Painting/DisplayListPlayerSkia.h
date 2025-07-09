@@ -18,6 +18,7 @@ class DisplayListPlayerSkia final : public DisplayListPlayer {
 public:
     DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext>);
     DisplayListPlayerSkia();
+    ~DisplayListPlayerSkia();
 
 private:
     void flush() override;
@@ -63,6 +64,10 @@ private:
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
     RefPtr<Gfx::SkiaBackendContext> m_context;
+
+    struct CachedRuntimeEffects;
+    OwnPtr<CachedRuntimeEffects> m_cached_runtime_effects;
+    CachedRuntimeEffects& cached_runtime_effects();
 };
 
 }
