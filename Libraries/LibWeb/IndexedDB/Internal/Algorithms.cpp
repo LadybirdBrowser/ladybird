@@ -2083,4 +2083,35 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
     return has_matching_event_loop;
 }
 
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#potentially-valid-key-range
+bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
+{
+    // 1. If value is a key range, return true.
+    if (value.is_object() && is<IDBKeyRange>(value.as_object()))
+        return true;
+
+    // 2. Else if Type(value) is Number, return true.
+    if (value.is_number())
+        return true;
+
+    // 3. Else if Type(value) is String, return true.
+    if (value.is_string())
+        return true;
+
+    // 4. Else if value is a Date (has a [[DateValue]] internal slot), return true.
+    if (value.is_object() && value.as_object().is_date())
+        return true;
+
+    // 5. Else if value is a buffer source type, return true.
+    if (value.is_object() && (is<JS::TypedArrayBase>(value.as_object()) || is<JS::ArrayBuffer>(value.as_object()) || is<JS::DataView>(value.as_object())))
+        return true;
+
+    // 6. Else if value is an Array exotic object, return true.
+    if (value.is_object() && MUST(value.is_array(realm.vm())))
+        return true;
+
+    // 7. Else return false.
+    return false;
+}
+
 }
