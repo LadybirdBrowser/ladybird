@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 32 tests
 
-31 Pass
-1 Fail
+32 Pass
 Pass	If node is a host-including inclusive ancestor of parent, then throw a HierarchyRequestError DOMException.
 Pass	If node is not a DocumentFragment, DocumentType, Element, Text, ProcessingInstruction, or Comment node, then throw a HierarchyRequestError DOMException.
 Pass	If node is a Text node and parent is a document, then throw a HierarchyRequestError DOMException.
@@ -18,7 +17,7 @@ Pass	Calling moveBefore with second argument missing, or other than Node, null, 
 Pass	moveBefore() method does not exist on non-ParentNode Nodes
 Pass	moveBefore() on disconnected parent throws a HierarchyRequestError
 Pass	moveBefore() with disconnected target node throws a HierarchyRequestError
-Fail	moveBefore() on a cross-document target node throws a HierarchyRequestError
+Pass	moveBefore() on a cross-document target node throws a HierarchyRequestError
 Pass	moveBefore() into a Document throws a HierarchyRequestError
 Pass	moveBefore() CharacterData into a Document
 Pass	moveBefore() with node being an inclusive ancestor of parent throws a HierarchyRequestError

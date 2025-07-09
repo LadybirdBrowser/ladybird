@@ -1215,33 +1215,35 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool sub
 // https://dom.spec.whatwg.org/#move
 WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 {
+    auto& realm = new_parent.realm();
+
     // 1. If newParent’s shadow-including root is not the same as node’s shadow-including root, then throw a "HierarchyRequestError" DOMException.
     if (&new_parent.shadow_including_root() != &shadow_including_root())
-        return WebIDL::HierarchyRequestError::create(realm(), "New parent is not in the same shadow tree"_string);
+        return WebIDL::HierarchyRequestError::create(realm, "New parent is not in the same shadow tree"_string);
 
     // NOTE: This has the side effect of ensuring that a move is only performed if newParent’s connected is node’s connected.
 
     // 2. If node is a host-including inclusive ancestor of newParent, then throw a "HierarchyRequestError" DOMException.
     if (is_host_including_inclusive_ancestor_of(new_parent))
-        return WebIDL::HierarchyRequestError::create(realm(), "New parent is an ancestor of this node"_string);
+        return WebIDL::HierarchyRequestError::create(realm, "New parent is an ancestor of this node"_string);
 
     // 3. If child is non-null and its parent is not newParent, then throw a "NotFoundError" DOMException.
     if (child && child->parent() != &new_parent)
-        return WebIDL::NotFoundError::create(realm(), "Child does not belong to the new parent"_string);
+        return WebIDL::NotFoundError::create(realm, "Child does not belong to the new parent"_string);
 
     // 4. If node is not an Element or a CharacterData node, then throw a "HierarchyRequestError" DOMException.
     if (!is<Element>(*this) && !is<CharacterData>(*this))
-        return WebIDL::HierarchyRequestError::create(realm(), "Invalid node type for insertion"_string);
+        return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_string);
 
     // 5. If node is a Text node and newParent is a document, then throw a "HierarchyRequestError" DOMException.
     if (is<Text>(*this) && is<Document>(new_parent))
-        return WebIDL::HierarchyRequestError::create(realm(), "Invalid node type for insertion"_string);
+        return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_string);
 
     // 6. If newParent is a document, node is an Element node, and either newParent has an element child, child is a doctype,
     //    or child is non-null and a doctype is following child then throw a "HierarchyRequestError" DOMException.
     if (is<Document>(new_parent) && is<Element>(*this)) {
         if (new_parent.has_child_of_type<Element>() || is<DocumentType>(child) || (child && child->has_following_node_of_type_in_tree_order<DocumentType>()))
-            return WebIDL::HierarchyRequestError::create(realm(), "Invalid node type for insertion"_string);
+            return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_string);
     }
 
     // 7. Let oldParent be node’s parent.
