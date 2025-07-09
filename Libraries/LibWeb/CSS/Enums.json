@@ -450,6 +450,11 @@
     "inset",
     "outset"
   ],
+  "line-width": [
+    "thin",
+    "medium",
+    "thick"
+  ],
   "list-style-position": [
     "inside",
     "outside"
