@@ -73,7 +73,7 @@ void SVGFilterElement::attribute_changed(FlyString const& name, Optional<String>
         m_primitive_units = AttributeParser::parse_units(value.value_or({}));
 }
 
-Gfx::Filter SVGFilterElement::gfx_filter()
+Optional<Gfx::Filter> SVGFilterElement::gfx_filter()
 {
     HashMap<String, Gfx::Filter> result_map;
     Optional<Gfx::Filter> root_filter;
@@ -146,7 +146,7 @@ Gfx::Filter SVGFilterElement::gfx_filter()
         return IterationDecision::Continue;
     });
 
-    return *root_filter;
+    return root_filter;
 }
 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-filterunits
