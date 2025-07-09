@@ -295,10 +295,11 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         child_state.set_content_offset(transformed_rect.location());
         child_state.set_content_width(transformed_rect.width());
         child_state.set_content_height(transformed_rect.height());
-        child.for_each_child_of_type<SVGMaskBox>([&](SVGMaskBox const& child) {
-            layout_svg_element(child);
-            return IterationDecision::Continue;
-        });
+        if (auto* mask_box = child.first_child_of_type<SVGMaskBox>())
+            layout_mask_or_clip(*mask_box);
+
+        if (auto* clip_box = child.first_child_of_type<SVGClipBox>())
+            layout_mask_or_clip(*clip_box);
     } else if (is<SVGGraphicsBox>(child)) {
         layout_graphics_element(static_cast<SVGGraphicsBox const&>(child));
     }
