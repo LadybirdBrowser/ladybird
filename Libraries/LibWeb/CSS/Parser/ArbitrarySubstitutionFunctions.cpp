@@ -347,7 +347,9 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
         if (!tokens.has_next_token())
             return ArbitrarySubstitutionFunctionArguments { first_argument.release_value() };
 
-        VERIFY(tokens.next_token().is(Token::Type::Comma));
+        if (!tokens.next_token().is(Token::Type::Comma))
+            return {};
+
         tokens.discard_a_token(); // ,
 
         auto second_argument = Parser::parse_declaration_value(tokens, Parser::StopAtComma::No);
