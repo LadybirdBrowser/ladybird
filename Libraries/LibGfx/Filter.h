@@ -32,10 +32,10 @@ public:
     ~Filter();
 
     static Filter compose(Filter const& outer, Filter const& inner);
-    static Filter blend(Filter const& background, Filter const& foreground, CompositingAndBlendingOperator mode);
+    static Filter blend(Optional<Filter const&> background, Optional<Filter const&> foreground, CompositingAndBlendingOperator mode);
     static Filter flood(Gfx::Color color, float opacity);
     static Filter drop_shadow(float offset_x, float offset_y, float radius, Gfx::Color color, Optional<Filter const&> input = {});
-    static Filter blur(float radius, Optional<Filter const&> input = {});
+    static Filter blur(float radius_x, float radius_y, Optional<Filter const&> input = {});
     static Filter color(ColorFilterType type, float amount, Optional<Filter const&> input = {});
     static Filter color_matrix(float matrix[20], Optional<Filter const&> input = {});
     static Filter saturate(float value, Optional<Filter const&> input = {});

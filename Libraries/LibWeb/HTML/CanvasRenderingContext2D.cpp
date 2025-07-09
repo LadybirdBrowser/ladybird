@@ -1049,7 +1049,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
             item.visit(
                 [&](CSS::FilterOperation::Blur const& blur_filter) {
                     float radius = blur_filter.resolved_radius(*layout_node);
-                    auto new_filter = Gfx::Filter::blur(radius);
+                    auto new_filter = Gfx::Filter::blur(radius, radius);
 
                     drawing_state().filter = drawing_state().filter.has_value()
                         ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
@@ -1093,6 +1093,11 @@ void CanvasRenderingContext2D::set_filter(String filter)
                     drawing_state().filter = drawing_state().filter.has_value()
                         ? Gfx::Filter::compose(new_filter, *drawing_state().filter)
                         : new_filter;
+                },
+                [&](CSS::URL const& url) {
+                    (void)url;
+                    // FIXME: Resolve the SVG filter
+                    dbgln("FIXME: SVG filters are not implemented for Canvas2D");
                 });
         }
 
