@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<meta name=timeout content=long>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/dom/pull/1079">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script>
+function isAsciiAlpha(codePoint) {
+  return (codePoint >= 0x41 && codePoint <= 0x5A) || (codePoint >= 0x61 && codePoint <= 0x7A);
+}
+function isAsciiDigit(codePoint) {
+  return codePoint >= 0x30 && codePoint <= 0x39;
+}
+function isAsciiWhitespace(codePoint) {
+  return codePoint == 0x9 || codePoint == 0xA || codePoint == 0xC || codePoint == 0xD || codePoint == 0x20;
+}
+
+function debugString(str) {
+  const codePoints = [];
+  for (let i = 0; i < str.length; i++) {
+    codePoints.push(str.charCodeAt(i));
+  }
+  return `code points: ${JSON.stringify(codePoints)}, string: "${str}"`;
+}
+
+const latin1CodePoint = 100;
+const latin1 = String.fromCodePoint(latin1CodePoint);
+const smallEmoji = 'smallEmoji🆖';
+const bigEmoji = 'bigEmoji🅱️';
+
+// Testing every variation of a namespace prefix with every variation of a
+// local name would make the test take too long to run, so use these instead when
+// combining with a namespace prefix.
+const validElementLocalNamesShortened = [
+  'div', `latin1${latin1}`, smallEmoji, bigEmoji
+];
+const invalidElementLocalNamesShortened = [
+  '', 'space ', 'newline\n', 'null\0', `:soh${String.fromCodePoint(1)}`, '5'
+];
+const validAttributeLocalNamesShortened = [
+  'attr', `latin1${latin1}`, smallEmoji, bigEmoji
+];
+const invalidAttributeLocalNamesShortened = [
+  '', 'space ', 'newline\n', 'null\0'
+];
+
+const validElementLocalNames = validElementLocalNamesShortened.slice();
+const invalidElementLocalNames = invalidElementLocalNamesShortened.slice();
+const validAttributeLocalNames = validAttributeLocalNamesShortened.slice();
+const invalidAttributeLocalNames = invalidAttributeLocalNamesShortened.slice();
+const validNamespacePrefixes = [smallEmoji, bigEmoji];
+const invalidNamespacePrefixes = [''];
+const validDoctypes = [''];
+const invalidDoctypes = [];
+
+const codePoints = [];
+for (let i = 0; i < 0x80; i++) {
+  codePoints.push(i);
+}
+codePoints.push(latin1CodePoint);
+
+// attributes and namespaces
+for (const codePoint of codePoints) {
+  const str = String.fromCodePoint(codePoint);
+  if (codePoint == 0 || isAsciiWhitespace(codePoint) || codePoint == 0x2F || codePoint == 0x3E) {
+    invalidNamespacePrefixes.push(str);
+    invalidAttributeLocalNames.push(str);
+  } else if (codePoint == 0x3A) {
+    // colons are not valid namespace prefixes, but due to parsing they can
+    // never be considered as a namespace prefix, only as a separator between the
+    // prefix and the local name.
+    validAttributeLocalNames.push(str);
+  } else if (codePoint == 0x3D) {
+    validNamespacePrefixes.push(str);
+    invalidAttributeLocalNames.push(str);
+  } else {
+    validNamespacePrefixes.push(str);
+    validAttributeLocalNames.push(str);
+  }
+}
+
+// valid element local names
+for (const firstChar of codePoints) {
+  for (const secondChar of codePoints) {
+    const str = `${String.fromCodePoint(firstChar)}${String.fromCodePoint(secondChar)}`;
+    if (isAsciiAlpha(firstChar)) {
+      if (!secondChar || secondChar == 0x2F || secondChar == 0x3E || isAsciiWhitespace(secondChar)) {
+        invalidElementLocalNames.push(str);
+      } else {
+        validElementLocalNames.push(str);
+      }
+    } else {
+      if (firstChar == 0x3A || firstChar == 0x5F || firstChar >= 0x80) {
+        if (isAsciiAlpha(secondChar) ||
+            isAsciiDigit(secondChar) ||
+            secondChar == 0x2D ||
+            secondChar == 0x2E ||
+            secondChar == 0x3A ||
+            secondChar == 0x5F ||
+            secondChar >= 0x80) {
+          validElementLocalNames.push(str);
+        } else {
+          invalidElementLocalNames.push(str);
+        }
+      } else {
+        invalidElementLocalNames.push(str);
+      }
+    }
+  }
+}
+
+// doctypes
+for (const codePoint of codePoints) {
+  const str = String.fromCodePoint(codePoint);
+  if (codePoint == 0 || isAsciiWhitespace(codePoint) || codePoint == 0x3E) {
+    invalidDoctypes.push(str);
+  } else {
+    validDoctypes.push(str);
+  }
+}
+
+test(() => {
+  // This regex is provided in the spec and is used here to double check our
+  // test input.
+  const validNameRegex = /^(?:[A-Za-z][^\0\t\n\f\r\u0020/>]*|[:_\u0080-\u{10FFFF}][A-Za-z0-9-.:_\u0080-\u{10FFFF}]*)$/u;
+  for (const validName of validElementLocalNames) {
+    assert_true(
+      validNameRegex.test(validName),
+      `Regex should match: ${debugString(validName)}`);
+    try {
+      document.createElement(validName);
+    } catch (error) {
+      assert_unreached(
+        `document.createElement should not have thrown an error for: ${debugString(validName)} ${error.toString()}`);
+    }
+  }
+  for (const invalidName of invalidElementLocalNames) {
+    assert_false(
+      validNameRegex.test(invalidName),
+      `Regex should not match: ${debugString(invalidName)}`);
+    assert_throws_dom(
+      'InvalidCharacterError',
+      () => document.createElement(invalidName),
+      `document.createElement should throw an error for: ${debugString(invalidName)}`);
+  }
+}, 'Valid and invalid characters in createElement.');
+
+test(() => {
+  for (const validNamespace of validNamespacePrefixes) {
+    for (const validName of validElementLocalNamesShortened) {
+      try {
+        document.createElementNS('namespaceuri', `${validNamespace}:${validName}`);
+      } catch (error) {
+        assert_unreached(
+          `document.createElementNS should not have thrown an error for: ${debugString(validNamespace)} ${debugString(validName)} ${error.toString()}`);
+      }
+      try {
+        document.implementation.createDocument('namespaceuri', `${validNamespace}:${validName}`);
+      } catch (error) {
+        assert_unreached(
+          `createDocument should not have thrown an error for: ${debugString(validNamespace)} ${debugString(validName)} ${error.toString()}`);
+      }
+    }
+    for (const invalidName of invalidElementLocalNamesShortened) {
+      assert_throws_dom(
+        'InvalidCharacterError',
+        () => document.createElementNS('namespaceuri', `${validNamespace}:${invalidName}`),
+        `document.createElementNS should throw an error for: ${debugString(validNamespace)} ${debugString(invalidName)}`);
+      assert_throws_dom(
+        'InvalidCharacterError',
+        () => document.implementation.createDocument('namespaceuri', `${validNamespace}:${invalidName}`),
+        `createDocument should throw an error for: ${debugString(validNamespace)} ${debugString(invalidName)}`);
+    }
+  }
+  for (const invalidNamespace of invalidNamespacePrefixes) {
+    for (const localName of validElementLocalNamesShortened.concat(invalidElementLocalNamesShortened)) {
+      assert_throws_dom(
+        'InvalidCharacterError',
+        () => document.createElementNS('namespaceuri', `${invalidNamespace}:${localName}`),
+        `document.createElementNS should throw an error for: ${debugString(invalidNamespace)} ${debugString(localName)}`);
+      assert_throws_dom(
+        'InvalidCharacterError',
+        () => document.implementation.createDocument('namespaceuri', `${invalidNamespace}:${localName}`),
+        `createDocument should throw an error for: ${debugString(invalidNamespace)} ${debugString(localName)}`);
+    }
+  }
+}, 'Valid and invalid characters in createElementNS and createDocument.');
+
+test(() => {
+  for (const validAttributeName of validAttributeLocalNames) {
+    const element = document.createElement('div');
+    try {
+      element.setAttribute(validAttributeName, 'value');
+    } catch (error) {
+      assert_unreached(
+        `element.setAttribute should not have thrown an error for: ${debugString(validAttributeName)} ${error.toString()}`);
+    }
+    try {
+      element.toggleAttribute(validAttributeName);
+    } catch (error) {
+      assert_unreached(
+        `element.toggleAttribute should not have thrown an error for: ${debugString(validAttributeName)} ${error.toString()}`);
+    }
+    try {
+      element.toggleAttribute(validAttributeName, false);
+    } catch (error) {
+      assert_unreached(
+        `element.toggleAttribute with false should not have thrown an error for: ${debugString(validAttributeName)} ${error.toString()}`);
+    }
+    try {
+      document.createAttribute(validAttributeName);
+    } catch (error) {
+      assert_unreached(
+        `document.createAttribute should not have thrown an error for: ${debugString(validAttributeName)} ${error.toString()}`);
+    }
+  }
+  for (const invalidAttributeName of invalidAttributeLocalNames) {
+    const element = document.createElement('div');
+    assert_throws_dom(
+      'InvalidCharacterError',
+      () => element.setAttribute(invalidAttributeName, 'value'),
+      `element.setAttribute should throw an error for: ${debugString(invalidAttributeName)}`);
+    assert_throws_dom(
+      'InvalidCharacterError',
+      () => element.toggleAttribute(invalidAttributeName),
+      `element.toggleAttribute should throw an error for: ${debugString(invalidAttributeName)}`);
+    assert_throws_dom(
+      'InvalidCharacterError',
+      () => element.toggleAttribute(invalidAttributeName, false),
+      `element.toggleAttribute with false should throw an error for: ${debugString(invalidAttributeName)}`);
+    assert_throws_dom(
+      'InvalidCharacterError',
+      () => document.createAttribute(invalidAttributeName),
+      `document.createAttribute should throw an error for: ${debugString(invalidAttributeName)}`);
+  }
+}, 'Valid and invalid characters in setAttribute, toggleAttribute, and createAttribute.');
+
+test(() => {
+  for (const validNamespace of validNamespacePrefixes) {
+    for (const validLocalName of validAttributeLocalNamesShortened) {
+      const element = document.createElement('div');
+      try {
+        element.setAttributeNS('namespaceuri', `${validNamespace}:${validLocalName}`, 'value');
+      } catch (error) {
+        assert_unreached(`element.setAttributeNS should not have thrown an error for: ${debugString(validNamespace)} ${debugString(validLocalName)} ${error.toString()}`);
+      }
+      try {
+        document.createAttributeNS('namespaceuri', `${validNamespace}:${validLocalName}`);
+      } catch (error) {
+        assert_unreached(`document.createAttributeNS should not have thrown an error for: ${debugString(validNamespace)} ${debugString(validLocalName)} ${error.toString()}`);
+      }
+    }
+    for (const invalidLocalName of invalidAttributeLocalNamesShortened) {
+      const element = document.createElement('div');
+      assert_throws_dom(
+        'InvalidCharacterError',
+        () => element.setAttributeNS('namespaceuri', `${validNamespace}:${invalidLocalName}`, 'value'),
+        `element.setAttributeNS should have thrown an error for: ${debugString(validNamespace)} ${debugString(invalidLocalName)}`);
+      assert_throws_dom(
+        'InvalidCharacterError',
+        () => document.createAttributeNS('namespaceuri', `${validNamespace}:${invalidLocalName}`),
+        `document.createAttributeNS should have thrown an error for: ${debugString(validNamespace)} ${debugString(invalidLocalName)}`);
+    }
+  }
+  for (const invalidNamespace of invalidNamespacePrefixes) {
+    for (const localName of validAttributeLocalNamesShortened.concat(invalidAttributeLocalNamesShortened)) {
+      const element = document.createElement('div');
+      assert_throws_dom(
+        'InvalidCharacterError',
+        () => element.setAttributeNS('namespaceuri', `${invalidNamespace}:${localName}`, ''),
+        `element.setAttributeNS should have thrown an error for: ${debugString(invalidNamespace)} ${debugString(localName)}`);
+      assert_throws_dom(
+        'InvalidCharacterError',
+        () => document.createAttributeNS('namespaceuri', `${invalidNamespace}:${localName}`),
+        `document.createAttributeNS should have thrown an error for: ${debugString(invalidNamespace)} ${debugString(localName)}`);
+    }
+  }
+}, 'Valid and invalid characters in setAttributeNS and createAttributeNS.');
+
+test(() => {
+  for (const validDoctype of validDoctypes) {
+    try {
+      document.implementation.createDocumentType(validDoctype, 'publicid', 'systemid');
+    } catch (error) {
+      assert_unreached(`createDocumentType should not have thrown an error for ${debugString(validDoctype)} ${error.toString()}`);
+    }
+  }
+  for (const invalidDoctype of invalidDoctypes) {
+    assert_throws_dom(
+      'InvalidCharacterError',
+      () => document.implementation.createDocumentType(invalidDoctype, 'publicid', 'systemid'),
+      `createDocumentType should have thrown an error for: ${debugString(invalidDoctype)}`);
+  }
+}, 'Valid and invalid characters in createDocumentType.');
+</script>
