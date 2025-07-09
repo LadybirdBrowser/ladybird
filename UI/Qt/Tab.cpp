@@ -568,6 +568,11 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             search_selected_text_action->setVisible(false);
         }
 
+        // Disable "View Source" if we're already viewing source
+        auto current_title = view().title();
+        bool is_already_viewing_source = current_title.starts_with("View Source -"sv);
+        m_window->view_source_action().setEnabled(!is_already_viewing_source);
+
         m_page_context_menu->exec(view().map_point_to_global_position(content_position));
     };
 
