@@ -1149,11 +1149,8 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is at");
         // If the next 3 input code points would start an ident sequence, consume an ident sequence, create
         // an <at-keyword-token> with its value set to the returned value, and return it.
-        if (would_start_an_ident_sequence(peek_triplet())) {
-            // FIXME: Do we need to set this to ascii lowercase?
-            auto name = consume_an_ident_sequence().to_ascii_lowercase();
-            return Token::create_at_keyword(move(name), input_since(start_byte_offset));
-        }
+        if (would_start_an_ident_sequence(peek_triplet()))
+            return Token::create_at_keyword(consume_an_ident_sequence(), input_since(start_byte_offset));
 
         // Otherwise, return a <delim-token> with its value set to the current input code point.
         return Token::create_delim(input, input_since(start_byte_offset));
