@@ -1647,6 +1647,7 @@ RefPtr<CSSStyleValue const> Parser::parse_border_value(PropertyID property_id, T
     if (!border_color)
         border_color = property_initial_value(color_property);
 
+    // FIXME: Also reset border-image, in line with the spec: https://www.w3.org/TR/css-backgrounds-3/#border-shorthands
     transaction.commit();
     return ShorthandStyleValue::create(property_id,
         { width_property, style_property, color_property },

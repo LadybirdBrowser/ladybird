@@ -681,15 +681,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         }
     };
 
-    if (property_id == CSS::PropertyID::Border) {
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderTop, value, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderRight, value, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderBottom, value, set_longhand_property);
-        for_each_property_expanding_shorthands(CSS::PropertyID::BorderLeft, value, set_longhand_property);
-        // FIXME: Also reset border-image, in line with the spec: https://www.w3.org/TR/css-backgrounds-3/#border-shorthands
-        return;
-    }
-
     if (property_id == CSS::PropertyID::BorderStyle) {
         assign_edge_values(PropertyID::BorderTopStyle, PropertyID::BorderRightStyle, PropertyID::BorderBottomStyle, PropertyID::BorderLeftStyle, value);
         return;
