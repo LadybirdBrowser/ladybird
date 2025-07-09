@@ -693,13 +693,43 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
+    if (property_id == CSS::PropertyID::BorderBlockStyle) {
+        assign_start_and_end_values(PropertyID::BorderBlockStartStyle, PropertyID::BorderBlockEndStyle, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::BorderInlineStyle) {
+        assign_start_and_end_values(PropertyID::BorderInlineStartStyle, PropertyID::BorderInlineEndStyle, value);
+        return;
+    }
+
     if (property_id == CSS::PropertyID::BorderWidth) {
         assign_edge_values(PropertyID::BorderTopWidth, PropertyID::BorderRightWidth, PropertyID::BorderBottomWidth, PropertyID::BorderLeftWidth, value);
         return;
     }
 
+    if (property_id == CSS::PropertyID::BorderBlockWidth) {
+        assign_start_and_end_values(PropertyID::BorderBlockStartWidth, PropertyID::BorderBlockEndWidth, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::BorderInlineWidth) {
+        assign_start_and_end_values(PropertyID::BorderInlineStartWidth, PropertyID::BorderInlineEndWidth, value);
+        return;
+    }
+
     if (property_id == CSS::PropertyID::BorderColor) {
         assign_edge_values(PropertyID::BorderTopColor, PropertyID::BorderRightColor, PropertyID::BorderBottomColor, PropertyID::BorderLeftColor, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::BorderBlockColor) {
+        assign_start_and_end_values(PropertyID::BorderBlockStartColor, PropertyID::BorderBlockEndColor, value);
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::BorderInlineColor) {
+        assign_start_and_end_values(PropertyID::BorderInlineStartColor, PropertyID::BorderInlineEndColor, value);
         return;
     }
 
