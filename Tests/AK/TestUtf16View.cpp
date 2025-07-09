@@ -332,10 +332,12 @@ TEST_CASE(is_ascii)
     EXPECT(u"a"sv.is_ascii());
     EXPECT(u"foo"sv.is_ascii());
     EXPECT(u"foo\t\n\rbar\v\b123"sv.is_ascii());
+    EXPECT(u"The quick (\"brown\") fox can't jump 32.3 feet, right?"sv.is_ascii());
 
     EXPECT(!u"😀"sv.is_ascii());
     EXPECT(!u"foo 😀"sv.is_ascii());
     EXPECT(!u"😀 foo"sv.is_ascii());
+    EXPECT(!u"The quick (“brown”) fox can’t jump 32.3 feet, right?"sv.is_ascii());
 }
 
 TEST_CASE(equals_ignoring_case)
