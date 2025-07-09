@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 596 tests
 
-584 Pass
-12 Fail
+596 Pass
 Pass	createElementNS test in HTML document: null,null,null
 Pass	createElementNS test in XML document: null,null,null
 Pass	createElementNS test in XHTML document: null,null,null
@@ -145,9 +144,9 @@ Pass	createElementNS test in XHTML document: undefined,"f:oo","NAMESPACE_ERR"
 Pass	createElementNS test in HTML document: undefined,"foo:","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in XML document: undefined,"foo:","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in XHTML document: undefined,"foo:","INVALID_CHARACTER_ERR"
-Fail	createElementNS test in HTML document: undefined,"f::oo","INVALID_CHARACTER_ERR"
-Fail	createElementNS test in XML document: undefined,"f::oo","INVALID_CHARACTER_ERR"
-Fail	createElementNS test in XHTML document: undefined,"f::oo","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in HTML document: undefined,"f::oo","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in XML document: undefined,"f::oo","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in XHTML document: undefined,"f::oo","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in HTML document: undefined,"xml",null
 Pass	createElementNS test in XML document: undefined,"xml",null
 Pass	createElementNS test in XHTML document: undefined,"xml",null
@@ -196,15 +195,15 @@ Pass	createElementNS test in XHTML document: "http://example.com/",":foo","INVAL
 Pass	createElementNS test in HTML document: "http://example.com/","f:oo",null
 Pass	createElementNS test in XML document: "http://example.com/","f:oo",null
 Pass	createElementNS test in XHTML document: "http://example.com/","f:oo",null
-Fail	createElementNS test in HTML document: "http://example.com/","f:o:o",null
-Fail	createElementNS test in XML document: "http://example.com/","f:o:o",null
-Fail	createElementNS test in XHTML document: "http://example.com/","f:o:o",null
+Pass	createElementNS test in HTML document: "http://example.com/","f:o:o",null
+Pass	createElementNS test in XML document: "http://example.com/","f:o:o",null
+Pass	createElementNS test in XHTML document: "http://example.com/","f:o:o",null
 Pass	createElementNS test in HTML document: "http://example.com/","foo:","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in XML document: "http://example.com/","foo:","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in XHTML document: "http://example.com/","foo:","INVALID_CHARACTER_ERR"
-Fail	createElementNS test in HTML document: "http://example.com/","f::oo","INVALID_CHARACTER_ERR"
-Fail	createElementNS test in XML document: "http://example.com/","f::oo","INVALID_CHARACTER_ERR"
-Fail	createElementNS test in XHTML document: "http://example.com/","f::oo","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in HTML document: "http://example.com/","f::oo","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in XML document: "http://example.com/","f::oo","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in XHTML document: "http://example.com/","f::oo","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in HTML document: "http://example.com/","a:0","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in XML document: "http://example.com/","a:0","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in XHTML document: "http://example.com/","a:0","INVALID_CHARACTER_ERR"
@@ -301,9 +300,9 @@ Pass	createElementNS test in XHTML document: "http://example.com/","XMLNS:foo",n
 Pass	createElementNS test in HTML document: "http://example.com/","xmlfoo:bar",null
 Pass	createElementNS test in XML document: "http://example.com/","xmlfoo:bar",null
 Pass	createElementNS test in XHTML document: "http://example.com/","xmlfoo:bar",null
-Fail	createElementNS test in HTML document: "http://example.com/","prefix::local","INVALID_CHARACTER_ERR"
-Fail	createElementNS test in XML document: "http://example.com/","prefix::local","INVALID_CHARACTER_ERR"
-Fail	createElementNS test in XHTML document: "http://example.com/","prefix::local","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in HTML document: "http://example.com/","prefix::local","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in XML document: "http://example.com/","prefix::local","INVALID_CHARACTER_ERR"
+Pass	createElementNS test in XHTML document: "http://example.com/","prefix::local","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in HTML document: "http://example.com/","namespaceURI:{","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in XML document: "http://example.com/","namespaceURI:{","INVALID_CHARACTER_ERR"
 Pass	createElementNS test in XHTML document: "http://example.com/","namespaceURI:{","INVALID_CHARACTER_ERR"

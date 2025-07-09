@@ -293,24 +293,14 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
     auto local_name = qualified_name;
 
     // 4. If qualifiedName contains a U+003A (:):
-    if (qualified_name.code_points().contains(':')) {
+    auto split_result = qualified_name.bytes_as_string_view().split_view(':', SplitBehavior::KeepEmpty);
+    if (split_result.size() > 1) {
         // 1. Let splitResult be the result of running strictly split given qualifiedName and U+003A (:).
-        // FIXME: Use the "strictly split" algorithm
-
-        size_t index = 0;
-        for (auto code_point : qualified_name.code_points()) {
-            if (code_point == ':')
-                break;
-            index++;
-        }
-
         // 2. Set prefix to splitResult[0].
-        auto prefix_view = qualified_name.code_points().unicode_substring_view(0, index);
-        prefix = MUST(FlyString::from_utf8(prefix_view.as_string()));
+        prefix = MUST(FlyString::from_utf8(split_result[0]));
 
         // 3. Set localName to splitResult[1].
-        auto local_name_view = qualified_name.code_points().unicode_substring_view(index + 1);
-        local_name = MUST(FlyString::from_utf8(local_name_view.as_string()));
+        local_name = MUST(FlyString::from_utf8(split_result[1]));
     }
 
     // 5. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
