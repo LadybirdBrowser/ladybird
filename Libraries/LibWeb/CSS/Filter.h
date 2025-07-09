@@ -28,7 +28,7 @@ public:
     bool has_filters() const { return m_filter_value_list; }
     bool is_none() const { return !has_filters(); }
 
-    ReadonlySpan<FilterFunction> filters() const
+    ReadonlySpan<FilterValue> filters() const
     {
         VERIFY(has_filters());
         return m_filter_value_list->filter_value_list().span();
