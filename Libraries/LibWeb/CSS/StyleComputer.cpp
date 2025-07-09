@@ -636,27 +636,36 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
-    auto assign_edge_values = [&](PropertyID top_property, PropertyID right_property, PropertyID bottom_property, PropertyID left_property, auto const& values) {
-        if (values.size() == 4) {
-            set_longhand_property(top_property, values[0]);
-            set_longhand_property(right_property, values[1]);
-            set_longhand_property(bottom_property, values[2]);
-            set_longhand_property(left_property, values[3]);
-        } else if (values.size() == 3) {
-            set_longhand_property(top_property, values[0]);
-            set_longhand_property(right_property, values[1]);
-            set_longhand_property(bottom_property, values[2]);
-            set_longhand_property(left_property, values[1]);
-        } else if (values.size() == 2) {
-            set_longhand_property(top_property, values[0]);
-            set_longhand_property(right_property, values[1]);
-            set_longhand_property(bottom_property, values[0]);
-            set_longhand_property(left_property, values[1]);
-        } else if (values.size() == 1) {
-            set_longhand_property(top_property, values[0]);
-            set_longhand_property(right_property, values[0]);
-            set_longhand_property(bottom_property, values[0]);
-            set_longhand_property(left_property, values[0]);
+    auto assign_edge_values = [&](PropertyID top_property, PropertyID right_property, PropertyID bottom_property, PropertyID left_property, CSSStyleValue const& value) {
+        if (value.is_value_list()) {
+            auto values = value.as_value_list().values();
+
+            if (values.size() == 4) {
+                set_longhand_property(top_property, values[0]);
+                set_longhand_property(right_property, values[1]);
+                set_longhand_property(bottom_property, values[2]);
+                set_longhand_property(left_property, values[3]);
+            } else if (values.size() == 3) {
+                set_longhand_property(top_property, values[0]);
+                set_longhand_property(right_property, values[1]);
+                set_longhand_property(bottom_property, values[2]);
+                set_longhand_property(left_property, values[1]);
+            } else if (values.size() == 2) {
+                set_longhand_property(top_property, values[0]);
+                set_longhand_property(right_property, values[1]);
+                set_longhand_property(bottom_property, values[0]);
+                set_longhand_property(left_property, values[1]);
+            } else if (values.size() == 1) {
+                set_longhand_property(top_property, values[0]);
+                set_longhand_property(right_property, values[0]);
+                set_longhand_property(bottom_property, values[0]);
+                set_longhand_property(left_property, values[0]);
+            }
+        } else {
+            set_longhand_property(top_property, value);
+            set_longhand_property(right_property, value);
+            set_longhand_property(bottom_property, value);
+            set_longhand_property(left_property, value);
         }
     };
 
@@ -680,44 +689,17 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 
     if (property_id == CSS::PropertyID::BorderStyle) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::BorderTopStyle, PropertyID::BorderRightStyle, PropertyID::BorderBottomStyle, PropertyID::BorderLeftStyle, values_list.values());
-            return;
-        }
-
-        set_longhand_property(CSS::PropertyID::BorderTopStyle, value);
-        set_longhand_property(CSS::PropertyID::BorderRightStyle, value);
-        set_longhand_property(CSS::PropertyID::BorderBottomStyle, value);
-        set_longhand_property(CSS::PropertyID::BorderLeftStyle, value);
+        assign_edge_values(PropertyID::BorderTopStyle, PropertyID::BorderRightStyle, PropertyID::BorderBottomStyle, PropertyID::BorderLeftStyle, value);
         return;
     }
 
     if (property_id == CSS::PropertyID::BorderWidth) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::BorderTopWidth, PropertyID::BorderRightWidth, PropertyID::BorderBottomWidth, PropertyID::BorderLeftWidth, values_list.values());
-            return;
-        }
-
-        set_longhand_property(CSS::PropertyID::BorderTopWidth, value);
-        set_longhand_property(CSS::PropertyID::BorderRightWidth, value);
-        set_longhand_property(CSS::PropertyID::BorderBottomWidth, value);
-        set_longhand_property(CSS::PropertyID::BorderLeftWidth, value);
+        assign_edge_values(PropertyID::BorderTopWidth, PropertyID::BorderRightWidth, PropertyID::BorderBottomWidth, PropertyID::BorderLeftWidth, value);
         return;
     }
 
     if (property_id == CSS::PropertyID::BorderColor) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::BorderTopColor, PropertyID::BorderRightColor, PropertyID::BorderBottomColor, PropertyID::BorderLeftColor, values_list.values());
-            return;
-        }
-
-        set_longhand_property(CSS::PropertyID::BorderTopColor, value);
-        set_longhand_property(CSS::PropertyID::BorderRightColor, value);
-        set_longhand_property(CSS::PropertyID::BorderBottomColor, value);
-        set_longhand_property(CSS::PropertyID::BorderLeftColor, value);
+        assign_edge_values(PropertyID::BorderTopColor, PropertyID::BorderRightColor, PropertyID::BorderBottomColor, PropertyID::BorderLeftColor, value);
         return;
     }
 
@@ -754,16 +736,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 
     if (property_id == CSS::PropertyID::Inset) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left, values_list.values());
-            return;
-        }
-
-        set_longhand_property(CSS::PropertyID::Top, value);
-        set_longhand_property(CSS::PropertyID::Right, value);
-        set_longhand_property(CSS::PropertyID::Bottom, value);
-        set_longhand_property(CSS::PropertyID::Left, value);
+        assign_edge_values(PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left, value);
         return;
     }
 
@@ -778,16 +751,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 
     if (property_id == CSS::PropertyID::Margin) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft, values_list.values());
-            return;
-        }
-
-        set_longhand_property(CSS::PropertyID::MarginTop, value);
-        set_longhand_property(CSS::PropertyID::MarginRight, value);
-        set_longhand_property(CSS::PropertyID::MarginBottom, value);
-        set_longhand_property(CSS::PropertyID::MarginLeft, value);
+        assign_edge_values(PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft, value);
         return;
     }
 
@@ -802,16 +766,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 
     if (property_id == CSS::PropertyID::Padding) {
-        if (value.is_value_list()) {
-            auto const& values_list = value.as_value_list();
-            assign_edge_values(PropertyID::PaddingTop, PropertyID::PaddingRight, PropertyID::PaddingBottom, PropertyID::PaddingLeft, values_list.values());
-            return;
-        }
-
-        set_longhand_property(CSS::PropertyID::PaddingTop, value);
-        set_longhand_property(CSS::PropertyID::PaddingRight, value);
-        set_longhand_property(CSS::PropertyID::PaddingBottom, value);
-        set_longhand_property(CSS::PropertyID::PaddingLeft, value);
+        assign_edge_values(PropertyID::PaddingTop, PropertyID::PaddingRight, PropertyID::PaddingBottom, PropertyID::PaddingLeft, value);
         return;
     }
 
