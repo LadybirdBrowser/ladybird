@@ -653,7 +653,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                         return;
 
                     if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
-                        Optional<Gfx::Filter> new_filter = filter_element->gfx_filter();
+                        auto new_filter = filter_element->gfx_filter();
 
                         if (!new_filter.has_value())
                             return;
