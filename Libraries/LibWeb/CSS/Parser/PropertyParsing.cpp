@@ -1792,19 +1792,15 @@ RefPtr<CSSStyleValue const> Parser::parse_border_image_slice_value(TokenStream<C
     RefPtr<CSSStyleValue const> bottom;
     RefPtr<CSSStyleValue const> left;
 
-    auto parse_fill = [&](TokenStream<ComponentValue>& fill_tokens) -> Optional<bool> {
-        if (auto keyword = parse_keyword_value(fill_tokens)) {
-            if (fill || keyword->to_keyword() != Keyword::Fill)
-                return {};
+    auto parse_fill = [](TokenStream<ComponentValue>& fill_tokens) {
+        if (fill_tokens.next_token().is_ident("fill"sv)) {
+            fill_tokens.discard_a_token();
             return true;
         }
         return false;
     };
 
-    auto maybe_fill_value = parse_fill(tokens);
-    if (!maybe_fill_value.has_value())
-        return nullptr;
-    if (*maybe_fill_value)
+    if (parse_fill(tokens))
         fill = true;
 
     Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> number_percentages;
@@ -1849,12 +1845,11 @@ RefPtr<CSSStyleValue const> Parser::parse_border_image_slice_value(TokenStream<C
         return nullptr;
     }
 
-    if (tokens.has_next_token()) {
-        maybe_fill_value = parse_fill(tokens);
-        if (!maybe_fill_value.has_value())
+    if (tokens.has_next_token() && parse_fill(tokens)) {
+        if (fill)
             return nullptr;
-        if (*maybe_fill_value)
-            fill = true;
+
+        fill = true;
     }
 
     transaction.commit();

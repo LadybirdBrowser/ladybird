@@ -1,0 +1,1 @@
+#foo { border-image: none 100% / 1 / 0 stretch; }
