@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+6 Pass
+5 Fail
+Pass	Property border-block-start-width value 'calc(10px + 0.5em)'
+Pass	Property border-block-start-width value 'calc(10px - 0.5em)'
+Pass	Property border-block-start-width value 'thin'
+Pass	Property border-block-start-width value 'medium'
+Fail	Property border-block-end-width value 'calc(10px + 0.5em)'
+Pass	Property border-block-end-width value 'calc(10px - 0.5em)'
+Fail	Property border-block-end-width value 'thick'
+Fail	Property border-block-width value '10px'
+Fail	Property border-block-width value '10px 20px'
+Fail	Property border-block-width value '10px 10px'
+Pass	width is zero if the border block style is none or hidden

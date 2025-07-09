@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing border-inline with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-inline">
+<meta name="assert" content="border-inline supports the full grammar '<line-width> || <line-style> || <color>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// Similar to css-backgrounds/parsing/border-valid.html
+
+test_valid_value("border-inline", "1px dotted red");
+test_valid_value("border-inline", "double", ["double", "medium double"]);
+
+test_valid_value("border-inline-start", "green double thin", "thin double green");
+test_valid_value("border-inline-start", "green", ["green", "medium none green"]);
+test_valid_value("border-inline-end", "thin", ["thin", "thin none"]);
+test_valid_value("border-inline-end", "calc(10px - 0.5em) dotted red", "calc(-0.5em + 10px) dotted red");
+</script>
+</body>
+</html>

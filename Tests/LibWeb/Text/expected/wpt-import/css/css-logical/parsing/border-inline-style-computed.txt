@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	Property border-inline-start-style value 'dotted'
+Pass	Property border-inline-start-style value 'groove'
+Pass	Property border-inline-start-style value 'inset'
+Pass	Property border-inline-start-style value 'none'
+Pass	Property border-inline-start-style value 'solid'
+Pass	Property border-inline-end-style value 'dashed'
+Pass	Property border-inline-end-style value 'double'
+Pass	Property border-inline-end-style value 'hidden'
+Pass	Property border-inline-end-style value 'outset'
+Pass	Property border-inline-end-style value 'ridge'
+Pass	Property border-inline-style value 'dotted'
+Pass	Property border-inline-style value 'double groove'
+Pass	Property border-inline-style value 'hidden hidden'

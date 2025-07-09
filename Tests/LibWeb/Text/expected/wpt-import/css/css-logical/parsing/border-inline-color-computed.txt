@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Pass	Property border-inline-start-color value 'currentcolor'
+Pass	Property border-inline-start-color value 'rgb(2, 3, 4)'
+Pass	Property border-inline-end-color value 'rgb(34, 51, 68)'
+Pass	Property border-inline-end-color value 'transparent'
+Fail	Property border-inline-color value 'rgb(34, 51, 68)'
+Pass	Property border-inline-color value 'transparent rgb(2, 3, 4)'
+Fail	Property border-inline-color value 'rgb(2, 3, 4) rgb(2, 3, 4)'
+Pass	Property border-inline-color value 'currentcolor lime'
