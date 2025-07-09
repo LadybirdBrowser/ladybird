@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: getComputedStyle().borderBlockStyle</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-block-style">
+<meta name="assert" content="border-block-style is specified keyword(s).">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("border-block-start-style", "dotted");
+test_computed_value("border-block-start-style", "groove");
+test_computed_value("border-block-start-style", "inset");
+test_computed_value("border-block-start-style", "none");
+test_computed_value("border-block-start-style", "solid");
+test_computed_value("border-block-end-style", "dashed");
+test_computed_value("border-block-end-style", "double");
+test_computed_value("border-block-end-style", "hidden");
+test_computed_value("border-block-end-style", "outset");
+test_computed_value("border-block-end-style", "ridge");
+test_computed_value("border-block-style", "dotted");
+test_computed_value("border-block-style", "double groove");
+test_computed_value("border-block-style", "hidden hidden", "hidden");
+</script>
+</body>
+</html>

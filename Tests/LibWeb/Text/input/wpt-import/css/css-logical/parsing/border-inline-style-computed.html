@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: getComputedStyle().borderInlineStyle</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-border-inline-style">
+<meta name="assert" content="border-inline-style is specified keyword(s).">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("border-inline-start-style", "dotted");
+test_computed_value("border-inline-start-style", "groove");
+test_computed_value("border-inline-start-style", "inset");
+test_computed_value("border-inline-start-style", "none");
+test_computed_value("border-inline-start-style", "solid");
+test_computed_value("border-inline-end-style", "dashed");
+test_computed_value("border-inline-end-style", "double");
+test_computed_value("border-inline-end-style", "hidden");
+test_computed_value("border-inline-end-style", "outset");
+test_computed_value("border-inline-end-style", "ridge");
+test_computed_value("border-inline-style", "dotted");
+test_computed_value("border-inline-style", "double groove");
+test_computed_value("border-inline-style", "hidden hidden", "hidden");
+</script>
+</body>
+</html>
