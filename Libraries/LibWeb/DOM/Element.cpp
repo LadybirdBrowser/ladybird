@@ -301,11 +301,14 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
 
         // 3. Set localName to splitResult[1].
         local_name = MUST(FlyString::from_utf8(split_result[1]));
+
+        // 4. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
+        if (!is_valid_namespace_prefix(*prefix))
+            return WebIDL::InvalidCharacterError::create(realm, "Prefix not a valid namespace prefix."_string);
     }
 
-    // 5. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
-    if (prefix.has_value() && !is_valid_namespace_prefix(*prefix))
-        return WebIDL::InvalidCharacterError::create(realm, "Prefix not a valid namespace prefix."_string);
+    // 5. Assert: prefix is either null or a valid namespace prefix.
+    ASSERT(!prefix.has_value() || is_valid_namespace_prefix(*prefix));
 
     // 6. If context is "attribute" and localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (context == ValidationContext::Attribute && !is_valid_attribute_local_name(local_name))
