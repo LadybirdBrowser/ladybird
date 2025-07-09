@@ -206,11 +206,6 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
 {
     m_stop_parsing = false;
 
-#if defined(LIBWEB_USE_SWIFT)
-    dbgln("Poking Swift Tokenizer");
-    m_speculative_parser->poke();
-#endif
-
     for (;;) {
         auto optional_token = m_tokenizer.next_token(stop_at_insertion_point);
         if (!optional_token.has_value())
