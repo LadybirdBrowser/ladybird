@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Valid and invalid characters in createElement.
+Pass	Valid and invalid characters in createElementNS and createDocument.
+Pass	Valid and invalid characters in setAttribute, toggleAttribute, and createAttribute.
+Pass	Valid and invalid characters in setAttributeNS and createAttributeNS.
+Pass	Valid and invalid characters in createDocumentType.
