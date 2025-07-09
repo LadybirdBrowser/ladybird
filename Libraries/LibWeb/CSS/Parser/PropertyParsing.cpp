@@ -523,6 +523,8 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Border:
+    case PropertyID::BorderBlock:
+    case PropertyID::BorderInline:
         if (auto parsed_value = parse_border_value(property_id, tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
@@ -1597,6 +1599,17 @@ RefPtr<CSSStyleValue const> Parser::parse_border_value(PropertyID property_id, T
         style_property = PropertyID::BorderStyle;
         width_property = PropertyID::BorderWidth;
         break;
+    case PropertyID::BorderBlock:
+        color_property = PropertyID::BorderBlockColor;
+        style_property = PropertyID::BorderBlockStyle;
+        width_property = PropertyID::BorderBlockWidth;
+        break;
+    case PropertyID::BorderInline:
+        color_property = PropertyID::BorderInlineColor;
+        style_property = PropertyID::BorderInlineStyle;
+        width_property = PropertyID::BorderInlineWidth;
+        break;
+
     default:
         VERIFY_NOT_REACHED();
     }
