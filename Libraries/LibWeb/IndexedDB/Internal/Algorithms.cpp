@@ -1372,7 +1372,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
     // 4. Store a record in store containing key as its key and ! StructuredSerializeForStorage(value) as its value.
     //    The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
-    Record record = {
+    ObjectStoreRecord record = {
         .key = *key,
         .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), value)),
     };
@@ -1523,11 +1523,11 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         VERIFY(source.has<GC::Ref<Index>>() && direction_is_next_or_prev);
 
     // 4. Let records be the list of records in source.
-    Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> records = source.visit(
-        [](GC::Ref<ObjectStore> object_store) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
+    Variant<ReadonlySpan<ObjectStoreRecord>, ReadonlySpan<IndexRecord>> records = source.visit(
+        [](GC::Ref<ObjectStore> object_store) -> Variant<ReadonlySpan<ObjectStoreRecord>, ReadonlySpan<IndexRecord>> {
             return object_store->records();
         },
-        [](GC::Ref<Index> index) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
+        [](GC::Ref<Index> index) -> Variant<ReadonlySpan<ObjectStoreRecord>, ReadonlySpan<IndexRecord>> {
             return index->records();
         });
 
@@ -1543,7 +1543,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     // 8. If count is not given, let count be 1.
     // NOTE: This is handled by the default parameter
 
-    auto next_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+    auto next_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is greater than or equal to key.
@@ -1572,7 +1572,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
         // * If position is defined and source is an object store:
         if (position && source.has<GC::Ref<ObjectStore>>()) {
-            auto const& inner_record = record.get<Record>();
+            auto const& inner_record = record.get<ObjectStoreRecord>();
 
             // * The record’s key is greater than position.
             if (!Key::greater_than(inner_record.key, *position))
@@ -1602,7 +1602,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         return is_in_range;
     };
 
-    auto next_unique_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+    auto next_unique_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is greater than or equal to key.
@@ -1639,7 +1639,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         return is_in_range;
     };
 
-    auto prev_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+    auto prev_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is less than or equal to key.
@@ -1668,7 +1668,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
         // * If position is defined and source is an object store:
         if (position && source.has<GC::Ref<ObjectStore>>()) {
-            auto const& inner_record = record.get<Record>();
+            auto const& inner_record = record.get<ObjectStoreRecord>();
 
             // * The record’s key is less than position.
             if (!Key::less_than(inner_record.key, *position))
@@ -1698,7 +1698,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         return is_in_range;
     };
 
-    auto prev_unique_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+    auto prev_unique_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is less than or equal to key.
@@ -1736,13 +1736,13 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     };
 
     // 9. While count is greater than 0:
-    Variant<Empty, Record, IndexRecord> found_record;
+    Variant<Empty, ObjectStoreRecord, IndexRecord> found_record;
     while (count > 0) {
         // 1. Switch on direction:
         switch (direction) {
         case Bindings::IDBCursorDirection::Next: {
             // Let found record be the first record in records which satisfy all of the following requirements:
-            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+            found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.first_matching(next_requirements);
                 if (value.has_value())
                     return *value;
@@ -1753,7 +1753,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         }
         case Bindings::IDBCursorDirection::Nextunique: {
             // Let found record be the first record in records which satisfy all of the following requirements:
-            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+            found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.first_matching(next_unique_requirements);
                 if (value.has_value())
                     return *value;
@@ -1764,7 +1764,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         }
         case Bindings::IDBCursorDirection::Prev: {
             // Let found record be the last record in records which satisfy all of the following requirements:
-            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+            found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.last_matching(prev_requirements);
                 if (value.has_value())
                     return *value;
@@ -1776,7 +1776,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
         case Bindings::IDBCursorDirection::Prevunique: {
             // Let temp record be the last record in records which satisfy all of the following requirements:
-            auto temp_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+            auto temp_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.last_matching(prev_unique_requirements);
                 if (value.has_value())
                     return *value;
@@ -1790,7 +1790,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
                     [](Empty) -> GC::Ref<Key> { VERIFY_NOT_REACHED(); },
                     [](auto const& record) { return record.key; });
 
-                found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+                found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                     auto value = content.first_matching([&](auto const& content_record) {
                         return Key::equals(content_record.key, temp_record_key);
                     });
@@ -1853,7 +1853,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         // 1. Let serialized be found record’s value if source is an object store, or found record’s referenced value otherwise.
         auto serialized = source.visit(
             [&](GC::Ref<ObjectStore>) {
-                return found_record.get<Record>().value;
+                return found_record.get<ObjectStoreRecord>().value;
             },
             [&](GC::Ref<Index> index) {
                 return index->referenced_value(found_record.get<IndexRecord>());
