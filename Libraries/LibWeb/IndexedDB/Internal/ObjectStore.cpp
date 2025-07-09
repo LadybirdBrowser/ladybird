@@ -57,7 +57,7 @@ bool ObjectStore::has_record_with_key(GC::Ref<Key> key)
     return index != m_records.end();
 }
 
-void ObjectStore::store_a_record(Record const& record)
+void ObjectStore::store_a_record(ObjectStoreRecord const& record)
 {
     m_records.append(record);
 
@@ -77,7 +77,7 @@ u64 ObjectStore::count_records_in_range(GC::Ref<IDBKeyRange> range)
     return count;
 }
 
-Optional<Record&> ObjectStore::first_in_range(GC::Ref<IDBKeyRange> range)
+Optional<ObjectStoreRecord&> ObjectStore::first_in_range(GC::Ref<IDBKeyRange> range)
 {
     return m_records.first_matching([&](auto const& record) {
         return range->is_in_range(record.key);
@@ -89,9 +89,9 @@ void ObjectStore::clear_records()
     m_records.clear();
 }
 
-GC::ConservativeVector<Record> ObjectStore::first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+GC::ConservativeVector<ObjectStoreRecord> ObjectStore::first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
-    GC::ConservativeVector<Record> records(range->heap());
+    GC::ConservativeVector<ObjectStoreRecord> records(range->heap());
     for (auto const& record : m_records) {
         if (range->is_in_range(record.key))
             records.append(record);
