@@ -337,6 +337,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     QObject::connect(focus_location_editor_action, &QAction::triggered, this, &Tab::focus_location_editor);
 
     view().on_received_source = [this](auto const& url, auto const& base_url, auto const& source) {
+        // Prevent recursive view source: check if current page is already a source view
+        auto current_title = view().title();
+        if (current_title.starts_with("View Source -"sv)) {
+            // Already viewing source, don't allow recursive source viewing
+            return;
+        }
+
         auto html = WebView::highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
         m_window->new_tab_from_content(html, Web::HTML::ActivateTab::Yes);
     };
