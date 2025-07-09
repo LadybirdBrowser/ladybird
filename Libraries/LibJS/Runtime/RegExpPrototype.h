@@ -8,7 +8,6 @@
 
 #include <LibJS/Runtime/PrototypeObject.h>
 #include <LibJS/Runtime/RegExpObject.h>
-#include <LibJS/Runtime/Utf16String.h>
 
 namespace JS {
 

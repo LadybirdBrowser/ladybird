@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/RegExpPrototype.h>
 #include <LibJS/Runtime/RegExpStringIteratorPrototype.h>
-#include <LibJS/Runtime/Utf16String.h>
 
 namespace JS {
 

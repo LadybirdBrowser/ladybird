@@ -10,11 +10,11 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/Utf16String.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
@@ -25,10 +25,14 @@ class JS_API PrimitiveString : public Cell {
 
 public:
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16String);
+    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16View const&);
+    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16FlyString const&);
+
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, String);
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, FlyString const&);
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, PrimitiveString&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, StringView);
+    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, FlyString const&);
+
+    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, PrimitiveString&);
 
     virtual ~PrimitiveString();
 
@@ -71,8 +75,8 @@ protected:
 private:
     friend class RopeString;
 
-    explicit PrimitiveString(String);
     explicit PrimitiveString(Utf16String);
+    explicit PrimitiveString(String);
 
     void resolve_rope_if_needed(EncodingPreference) const;
 };

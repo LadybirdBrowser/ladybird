@@ -29,7 +29,7 @@ Segments::Segments(Realm& realm, Unicode::Segmenter const& segmenter, Utf16Strin
     , m_segments_segmenter(segmenter.clone())
     , m_segments_string(move(string))
 {
-    m_segments_segmenter->set_segmented_text(m_segments_string.view());
+    m_segments_segmenter->set_segmented_text(m_segments_string);
 }
 
 }

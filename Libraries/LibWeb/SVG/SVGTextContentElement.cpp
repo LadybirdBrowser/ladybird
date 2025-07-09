@@ -5,16 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16View.h>
-#include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/Utf16String.h>
 #include <LibWeb/Bindings/SVGTextContentElementPrototype.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/SVGTextBox.h>
-#include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeParser.h>
-#include <LibWeb/SVG/SVGGeometryElement.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 
 namespace Web::SVG {
