@@ -103,4 +103,18 @@ GC::ConservativeVector<ObjectStoreRecord> ObjectStore::first_n_in_range(GC::Ref<
     return records;
 }
 
+GC::ConservativeVector<ObjectStoreRecord> ObjectStore::last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    GC::ConservativeVector<ObjectStoreRecord> records(range->heap());
+    for (auto const& record : m_records.in_reverse()) {
+        if (range->is_in_range(record.key))
+            records.append(record);
+
+        if (count.has_value() && records.size() >= *count)
+            break;
+    }
+
+    return records;
+}
+
 }

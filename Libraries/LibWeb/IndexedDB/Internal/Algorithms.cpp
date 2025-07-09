@@ -25,6 +25,7 @@
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
+#include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
@@ -1927,6 +1928,77 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& real
     }
 
     // 5. Return list converted to a sequence<any>.
+    return list;
+}
+
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-object-store
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records an empty list.
+    GC::ConservativeVector<ObjectStoreRecord> records(realm.heap());
+
+    // 3. If direction is "next" or "nextunique", set records to the first count of store’s list of records whose key is in range.
+    if (direction == Bindings::IDBCursorDirection::Next || direction == Bindings::IDBCursorDirection::Nextunique) {
+        records.extend(store->first_n_in_range(range, count));
+    }
+
+    // 4. If direction is "prev" or "prevunique", set records to the last count of store’s list of records whose key is in range.
+    if (direction == Bindings::IDBCursorDirection::Prev || direction == Bindings::IDBCursorDirection::Prevunique) {
+        records.extend(store->last_n_in_range(range, count));
+    }
+
+    // 5. Let list be an empty list.
+    auto list = MUST(JS::Array::create(realm, records.size()));
+
+    // 6. For each record of records, switching on kind:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        switch (kind) {
+        case RecordKind::Key: {
+            // 1. Let key be the result of converting a key to a value with record’s key.
+            auto key = convert_a_key_to_a_value(realm, record.key);
+
+            // 2. Append key to list.
+            MUST(list->create_data_property_or_throw(i, key));
+            break;
+        }
+        case RecordKind::Value: {
+            // 1. Let serialized be record’s value.
+            auto serialized = record.value;
+
+            // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
+            auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+
+            // 3. Append entry to list.
+            MUST(list->create_data_property_or_throw(i, entry));
+            break;
+        }
+        case RecordKind::Record: {
+            // 1. Let key be the record’s key.
+            auto key = record.key;
+
+            // 2. Let serialized be record’s value.
+            auto serialized = record.value;
+
+            // 3. Let value be ! StructuredDeserialize(serialized, targetRealm).
+            auto value = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+
+            // 4. Let record snapshot be a new record snapshot with its key set to key, value set to value, and primary key set to key.
+            auto record_snapshot = IDBRecord::create(realm, key, value, key);
+
+            // 5. Append record snapshot to list.
+            MUST(list->create_data_property_or_throw(i, record_snapshot));
+            break;
+        }
+        }
+    }
+
+    // 5. Return list.
     return list;
 }
 
