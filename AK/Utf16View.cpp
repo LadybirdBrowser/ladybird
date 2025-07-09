@@ -127,7 +127,8 @@ ErrorOr<ByteString> Utf16View::to_byte_string(AllowLonelySurrogates allow_lonely
 
 bool Utf16View::is_ascii() const
 {
-    return simdutf::validate_ascii(reinterpret_cast<char const*>(m_string), length_in_code_units() * sizeof(char16_t));
+    // FIXME: Petition simdutf to implement an ASCII validator for UTF-16.
+    return all_of(span(), AK::is_ascii);
 }
 
 bool Utf16View::validate(size_t& valid_code_units, AllowLonelySurrogates allow_lonely_surrogates) const
