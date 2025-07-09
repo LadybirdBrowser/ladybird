@@ -49,6 +49,8 @@ GC::Ref<DOM::Document> DOMParser::parse_from_string(StringView string, Bindings:
     if (type == Bindings::DOMParserSupportedType::Text_Html) {
         // -> "text/html"
         document = HTML::HTMLDocument::create(realm(), associated_document.url());
+        document->set_content_type(Bindings::idl_enum_to_string(type));
+        document->set_document_type(DOM::Document::Type::HTML);
 
         // 1. Parse HTML from a string given document and compliantString. FIXME: Use compliantString.
         document->parse_html_from_a_string(string);

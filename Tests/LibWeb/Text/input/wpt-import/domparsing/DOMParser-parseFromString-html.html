@@ -1,0 +1,86 @@
+<!doctype html>
+<title>DOMParser basic test of HTML parsing</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+// |expected| should be an object indicating the expected type of node.
+function assert_node(actual, expected) {
+    assert_true(actual instanceof expected.type,
+                'Node type mismatch: actual = ' + actual.constructor.name + ', expected = ' + expected.type.name);
+    if (typeof(expected.id) !== 'undefined')
+        assert_equals(actual.id, expected.id, expected.idMessage);
+}
+
+var doc;
+setup(function() {
+    var parser = new DOMParser();
+    var input = '<html id="root"><head></head><body></body></html>';
+    doc = parser.parseFromString(input, 'text/html');
+});
+
+test(function() {
+    var root = doc.documentElement;
+    assert_node(root, { type: HTMLHtmlElement, id: 'root',
+                        idMessage: 'documentElement id attribute should be root.' });
+}, 'Parsing of id attribute');
+
+test(function() {
+    assert_equals(doc.contentType, "text/html")
+}, 'contentType');
+
+test(function() {
+    assert_equals(doc.compatMode, "BackCompat")
+}, 'compatMode');
+
+test(function() {
+    var parser = new DOMParser();
+    var input = '<!DOCTYPE html><html id="root"><head></head><body></body></html>';
+    doc = parser.parseFromString(input, 'text/html');
+    assert_equals(doc.compatMode, "CSS1Compat")
+}, 'compatMode for a proper DOCTYPE');
+
+// URL- and encoding-related stuff tested separately.
+
+test(function() {
+    assert_equals(doc.location, null,
+                  'The document must have a location value of null.');
+}, 'Location value');
+
+test(function() {
+    var soup = "<!DOCTYPE foo></><foo></multiple></>";
+    var htmldoc = new DOMParser().parseFromString(soup, "text/html");
+    assert_equals(htmldoc.documentElement.localName, "html");
+    assert_equals(htmldoc.documentElement.namespaceURI, "http://www.w3.org/1999/xhtml");
+}, "DOMParser parses HTML tag soup with no problems");
+
+test(function() {
+   const doc = new DOMParser().parseFromString('<noembed>&lt;a&gt;</noembed>', 'text/html');
+   assert_equals(doc.querySelector('noembed').textContent, '&lt;a&gt;');
+}, 'DOMParser should handle the content of <noembed> as raw text');
+
+test(function() {
+    assert_throws_js(TypeError, function() {
+        new DOMParser().parseFromString("", "text/foo-this-is-invalid");
+    })
+}, "DOMParser throws on an invalid enum value")
+
+test(() => {
+   const doc = new DOMParser().parseFromString(`
+<html><body>
+<style>
+  @import url(/dummy.css)
+</style>
+<script>document.x = 8<\/script>
+</body></html>`, 'text/html');
+
+  assert_not_equals(doc.querySelector('script'), null, 'script must be found');
+  assert_equals(doc.x, undefined, 'script must not be executed on the inner document');
+  assert_equals(document.x, undefined, 'script must not be executed on the outer document');
+}, 'script is found synchronously even when there is a css import');
+
+test(() => {
+    const doc = new DOMParser().parseFromString(`<body><noscript><p id="test1">test1<p id="test2">test2</noscript>`, 'text/html');
+    assert_node(doc.body.firstChild.childNodes[0], { type: HTMLParagraphElement, id: 'test1' });
+    assert_node(doc.body.firstChild.childNodes[1], { type: HTMLParagraphElement, id: 'test2' });
+}, 'must be parsed with scripting disabled, so noscript works');
+</script>
