@@ -1284,7 +1284,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
 
     // 4. Let templateRemainder be replacementTemplate.
     auto replace_template_string = TRY(replacement_template.to_utf16_string(vm));
-    auto template_remainder = replace_template_string.view();
+    Utf16View template_remainder { replace_template_string };
 
     // 5. Repeat, while templateRemainder is not the empty String,
     while (!template_remainder.is_empty()) {
@@ -1387,7 +1387,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
                 else {
                     // a. Let refReplacement be capture.
                     capture_string = TRY(capture.to_utf16_string(vm));
-                    ref_replacement = capture_string->view();
+                    ref_replacement = *capture_string;
                 }
             }
             // ix. Else,
@@ -1434,7 +1434,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
                 else {
                     // a. Let refReplacement be ? ToString(capture).
                     capture_string = TRY(capture.to_utf16_string(vm));
-                    ref_replacement = capture_string->view();
+                    ref_replacement = *capture_string;
                 }
             }
         }
