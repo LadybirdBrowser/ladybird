@@ -1386,7 +1386,8 @@
     "initial": "auto",
     "valid-types": [
       "url",
-      "cursor"
+      "cursor-predefined",
+      "number [-∞,∞]"
     ]
   },
   "cx": {

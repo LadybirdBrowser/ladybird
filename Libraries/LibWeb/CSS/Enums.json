@@ -150,7 +150,7 @@
     "anonymous",
     "use-credentials"
   ],
-  "cursor": [
+  "cursor-predefined": [
     "auto",
     "default",
     "none",
