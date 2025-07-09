@@ -503,6 +503,10 @@
     "longhands": [
       "border-block-start-color",
       "border-block-end-color"
+    ],
+    "max-values": 2,
+    "valid-types": [
+      "color"
     ]
   },
   "border-block-end": {
@@ -571,6 +575,10 @@
     "longhands": [
       "border-block-start-style",
       "border-block-end-style"
+    ],
+    "max-values": 2,
+    "valid-types": [
+      "line-style"
     ]
   },
   "border-block-width": {
@@ -579,6 +587,15 @@
     "longhands": [
       "border-block-start-width",
       "border-block-end-width"
+    ],
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "valid-identifiers": [
+      "medium",
+      "thick",
+      "thin"
     ]
   },
   "border-bottom": {
@@ -767,6 +784,10 @@
     "longhands": [
       "border-inline-start-color",
       "border-inline-end-color"
+    ],
+    "max-values": 2,
+    "valid-types": [
+      "color"
     ]
   },
   "border-inline-end": {
@@ -835,6 +856,10 @@
     "longhands": [
       "border-inline-start-style",
       "border-inline-end-style"
+    ],
+    "max-values": 2,
+    "valid-types": [
+      "line-style"
     ]
   },
   "border-inline-width": {
@@ -843,6 +868,15 @@
     "longhands": [
       "border-inline-start-width",
       "border-inline-end-width"
+    ],
+    "max-values": 2,
+    "valid-types": [
+      "length [0,∞]"
+    ],
+    "valid-identifiers": [
+      "medium",
+      "thick",
+      "thin"
     ]
   },
   "border-left": {
