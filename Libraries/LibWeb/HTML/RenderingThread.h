@@ -28,7 +28,6 @@ public:
 
     void start(DisplayListPlayerType);
     void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player) { m_skia_player = move(player); }
-    void set_skia_backend_context(RefPtr<Gfx::SkiaBackendContext> context) { m_skia_backend_context = move(context); }
     void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:
@@ -38,7 +37,6 @@ private:
     DisplayListPlayerType m_display_list_player_type;
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
-    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
 
     RefPtr<Threading::Thread> m_thread;
     Atomic<bool> m_exit { false };
