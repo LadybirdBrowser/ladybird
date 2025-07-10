@@ -509,6 +509,7 @@
   "border-block-color": {
     "inherited": false,
     "initial": "currentcolor",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-block-start-color",
       "border-block-end-color"
@@ -581,6 +582,7 @@
   "border-block-style": {
     "inherited": false,
     "initial": "none",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-block-start-style",
       "border-block-end-style"
@@ -593,6 +595,7 @@
   "border-block-width": {
     "inherited": false,
     "initial": "medium",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-block-start-width",
       "border-block-end-width"
@@ -679,6 +682,7 @@
   "border-color": {
     "affects-layout": false,
     "initial": "currentcolor",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-top-color",
       "border-right-color",
@@ -791,6 +795,7 @@
   "border-inline-color": {
     "inherited": false,
     "initial": "currentcolor",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-inline-start-color",
       "border-inline-end-color"
@@ -863,6 +868,7 @@
   "border-inline-style": {
     "inherited": false,
     "initial": "none",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-inline-start-style",
       "border-inline-end-style"
@@ -875,6 +881,7 @@
   "border-inline-width": {
     "inherited": false,
     "initial": "medium",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-inline-start-width",
       "border-inline-end-width"
@@ -1011,6 +1018,7 @@
   },
   "border-style": {
     "initial": "none",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-top-style",
       "border-right-style",
@@ -1089,6 +1097,7 @@
   },
   "border-width": {
     "initial": "medium",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "border-top-width",
       "border-right-width",
@@ -1767,6 +1776,7 @@
       "normal"
     ],
     "percentages-resolve-to": "length",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "row-gap",
       "column-gap"
@@ -2018,6 +2028,7 @@
   "inset": {
     "inherited": false,
     "initial": "auto",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "top",
       "right",
@@ -2036,6 +2047,7 @@
   },
   "inset-block": {
     "initial": "auto",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "inset-block-start",
       "inset-block-end"
@@ -2066,6 +2078,7 @@
   },
   "inset-inline": {
     "initial": "auto",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "inset-inline-start",
       "inset-inline-end"
@@ -2212,6 +2225,7 @@
   "margin": {
     "inherited": false,
     "initial": "0",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "margin-top",
       "margin-right",
@@ -2233,6 +2247,7 @@
   },
   "margin-block": {
     "initial": "0",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "margin-block-start",
       "margin-block-end"
@@ -2277,6 +2292,7 @@
   },
   "margin-inline": {
     "initial": "0",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "margin-inline-start",
       "margin-inline-end"
@@ -2613,6 +2629,7 @@
       "overflow-x",
       "overflow-y"
     ],
+    "positional-value-list-shorthand": true,
     "inherited": false,
     "initial": "visible",
     "max-values": 2,
@@ -2639,6 +2656,7 @@
   "padding": {
     "inherited": false,
     "initial": "0",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "padding-top",
       "padding-right",
@@ -2657,6 +2675,7 @@
   },
   "padding-block": {
     "initial": "0",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "padding-block-start",
       "padding-block-end"
@@ -2695,6 +2714,7 @@
   },
   "padding-inline": {
     "initial": "0",
+    "positional-value-list-shorthand": true,
     "longhands": [
       "padding-inline-start",
       "padding-inline-end"
