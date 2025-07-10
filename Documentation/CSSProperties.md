@@ -60,5 +60,5 @@ bool Paintable::is_visible() const
 ## JavaScript
 
 Some properties have special rules for getting the computed value from JS. For these, you will need to add to
-`CSSStyleProperties::style_value_for_computed_property()`. Shorthands that are constructed in an unusual way (as in, not
-using `ShorthandStyleValue`) also need handling inside `CSSStyleProperties::get_property_internal()`.
+`CSSStyleProperties::style_value_for_computed_property()`. Shorthands that are serialized in an unusual way
+also need handling inside `CSSShorthandStyleValue::to_string()`.
