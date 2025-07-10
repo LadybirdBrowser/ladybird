@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 279 tests
 
-261 Pass
-12 Fail
+267 Pass
+6 Fail
 6 Optional Feature Unsupported
 Pass	BeforeUnloadEvent should be an alias for BeforeUnloadEvent.
 Pass	createEvent('BeforeUnloadEvent') should be initialized correctly.
@@ -40,11 +40,11 @@ Pass	createEvent('deviceorientationevent') should be initialized correctly.
 Fail	DEVICEORIENTATIONEVENT should be an alias for DeviceOrientationEvent.
 Pass	createEvent('DEVICEORIENTATIONEVENT') should be initialized correctly.
 Pass	Should throw NOT_SUPPORTED_ERR for pluralized legacy event interface "DeviceOrientationEvents"
-Fail	DragEvent should be an alias for DragEvent.
+Pass	DragEvent should be an alias for DragEvent.
 Pass	createEvent('DragEvent') should be initialized correctly.
-Fail	dragevent should be an alias for DragEvent.
+Pass	dragevent should be an alias for DragEvent.
 Pass	createEvent('dragevent') should be initialized correctly.
-Fail	DRAGEVENT should be an alias for DragEvent.
+Pass	DRAGEVENT should be an alias for DragEvent.
 Pass	createEvent('DRAGEVENT') should be initialized correctly.
 Pass	Should throw NOT_SUPPORTED_ERR for pluralized legacy event interface "DragEvents"
 Pass	Event should be an alias for Event.
@@ -105,11 +105,11 @@ Pass	mouseevents should be an alias for MouseEvent.
 Pass	createEvent('mouseevents') should be initialized correctly.
 Pass	MOUSEEVENTS should be an alias for MouseEvent.
 Pass	createEvent('MOUSEEVENTS') should be initialized correctly.
-Fail	StorageEvent should be an alias for StorageEvent.
+Pass	StorageEvent should be an alias for StorageEvent.
 Pass	createEvent('StorageEvent') should be initialized correctly.
-Fail	storageevent should be an alias for StorageEvent.
+Pass	storageevent should be an alias for StorageEvent.
 Pass	createEvent('storageevent') should be initialized correctly.
-Fail	STORAGEEVENT should be an alias for StorageEvent.
+Pass	STORAGEEVENT should be an alias for StorageEvent.
 Pass	createEvent('STORAGEEVENT') should be initialized correctly.
 Pass	Should throw NOT_SUPPORTED_ERR for pluralized legacy event interface "StorageEvents"
 Pass	SVGEvents should be an alias for Event.
