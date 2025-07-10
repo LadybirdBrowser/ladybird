@@ -165,6 +165,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_p
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -255,33 +256,6 @@ Optional<PropertyID> property_id_from_string(StringView);
 bool is_inherited_property(PropertyID);
 NonnullRefPtr<CSSStyleValue const> property_initial_value(PropertyID);
 
-enum class ValueType {
-    Angle,
-    BackgroundPosition,
-    BasicShape,
-    Color,
-    Counter,
-    CustomIdent,
-    EasingFunction,
-    FilterValueList,
-    FitContent,
-    Flex,
-    Frequency,
-    Image,
-    Integer,
-    Length,
-    Number,
-    OpenTypeTag,
-    Paint,
-    Percentage,
-    Position,
-    Ratio,
-    Rect,
-    Resolution,
-    String,
-    Time,
-    Url,
-};
 bool property_accepts_type(PropertyID, ValueType);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);

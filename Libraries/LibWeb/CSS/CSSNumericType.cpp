@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/Time.h>
+#include <LibWeb/CSS/ValueType.h>
 
 namespace Web::CSS {
 
@@ -31,28 +32,9 @@ Optional<CSSNumericType::BaseType> CSSNumericType::base_type_from_value_type(Val
     case ValueType::Time:
         return BaseType::Time;
 
-    case ValueType::BackgroundPosition:
-    case ValueType::BasicShape:
-    case ValueType::Color:
-    case ValueType::Counter:
-    case ValueType::CustomIdent:
-    case ValueType::EasingFunction:
-    case ValueType::FilterValueList:
-    case ValueType::FitContent:
-    case ValueType::Image:
-    case ValueType::Integer:
-    case ValueType::Number:
-    case ValueType::OpenTypeTag:
-    case ValueType::Paint:
-    case ValueType::Position:
-    case ValueType::Ratio:
-    case ValueType::Rect:
-    case ValueType::String:
-    case ValueType::Url:
+    default:
         return {};
     }
-
-    VERIFY_NOT_REACHED();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-create-a-type
