@@ -344,6 +344,10 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto position = longhand(PropertyID::FontVariantPosition);
         auto emoji = longhand(PropertyID::FontVariantEmoji);
 
+        // If ligatures is `none` and any other value isn't `normal`, that's invalid.
+        if (ligatures->to_keyword() == Keyword::None && !first_is_equal_to_all_of(Keyword::Normal, caps->to_keyword(), alternates->to_keyword(), numeric->to_keyword(), east_asian->to_keyword(), position->to_keyword(), emoji->to_keyword()))
+            return ""_string;
+
         Vector<String> values;
         if (ligatures->to_keyword() != Keyword::Normal)
             values.append(ligatures->to_string(mode));
