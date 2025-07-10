@@ -4,11 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "SVGAnimatedEnumeration.h"
-
 #include <LibWeb/Bindings/SVGFEGaussianBlurElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
 
 namespace Web::SVG {
@@ -31,6 +30,8 @@ void SVGFEGaussianBlurElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SVGFilterPrimitiveStandardAttributes::visit_edges(visitor);
     visitor.visit(m_in1);
+    visitor.visit(m_std_deviation_x);
+    visitor.visit(m_std_deviation_y);
 }
 
 GC::Ref<SVGAnimatedString> SVGFEGaussianBlurElement::in1()
@@ -41,16 +42,24 @@ GC::Ref<SVGAnimatedString> SVGFEGaussianBlurElement::in1()
     return *m_in1;
 }
 
-GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_x() const
+// https://drafts.fxtf.org/filter-effects/#element-attrdef-fegaussianblur-stddeviation
+GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_x()
 {
-    // FIXME: Resolve the actual value from AttributeNames::stdDeviationX.
-    return SVGAnimatedNumber::create(realm(), 125.0f, 125.0f);
+    if (!m_std_deviation_x) {
+        m_std_deviation_x = SVGAnimatedNumber::create(realm(), *this, AttributeNames::stdDeviation, 0.f,
+            SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::First);
+    }
+    return *m_std_deviation_x;
 }
 
-GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_y() const
+// https://drafts.fxtf.org/filter-effects/#element-attrdef-fegaussianblur-stddeviation
+GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_y()
 {
-    // FIXME: Resolve the actual value from AttributeNames::stdDeviationY.
-    return SVGAnimatedNumber::create(realm(), 125.0f, 125.0f);
+    if (!m_std_deviation_y) {
+        m_std_deviation_y = SVGAnimatedNumber::create(realm(), *this, AttributeNames::stdDeviation, 0.f,
+            SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::Second);
+    }
+    return *m_std_deviation_y;
 }
 
 GC::Ref<SVGAnimatedEnumeration> SVGFEGaussianBlurElement::edge_mode() const

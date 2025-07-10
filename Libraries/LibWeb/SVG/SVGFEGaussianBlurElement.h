@@ -22,8 +22,8 @@ public:
     virtual ~SVGFEGaussianBlurElement() override = default;
 
     GC::Ref<SVGAnimatedString> in1();
-    GC::Ref<SVGAnimatedNumber> std_deviation_x() const;
-    GC::Ref<SVGAnimatedNumber> std_deviation_y() const;
+    GC::Ref<SVGAnimatedNumber> std_deviation_x();
+    GC::Ref<SVGAnimatedNumber> std_deviation_y();
     GC::Ref<SVGAnimatedEnumeration> edge_mode() const;
 
 private:
@@ -33,6 +33,8 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;
+    GC::Ptr<SVGAnimatedNumber> m_std_deviation_x;
+    GC::Ptr<SVGAnimatedNumber> m_std_deviation_y;
 };
 
 }

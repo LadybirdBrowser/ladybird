@@ -79,8 +79,6 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(spreadMethod, "spreadMethod")               \
     __ENUMERATE_SVG_ATTRIBUTE(startOffset, "startOffset")                 \
     __ENUMERATE_SVG_ATTRIBUTE(stdDeviation, "stdDeviation")               \
-    __ENUMERATE_SVG_ATTRIBUTE(stdDeviationX, "stdDeviationX")             \
-    __ENUMERATE_SVG_ATTRIBUTE(stdDeviationY, "stdDeviationY")             \
     __ENUMERATE_SVG_ATTRIBUTE(stitchTiles, "stitchTiles")                 \
     __ENUMERATE_SVG_ATTRIBUTE(stopColor, "stop-color")                    \
     __ENUMERATE_SVG_ATTRIBUTE(stopOpacity, "stop-opacity")                \

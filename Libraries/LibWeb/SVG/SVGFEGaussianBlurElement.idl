@@ -1,12 +1,14 @@
 #import <SVG/SVGAnimatedEnumeration.idl>
+#import <SVG/SVGAnimatedNumber.idl>
 #import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGElement.idl>
 #import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
 
 // https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEGaussianBlurElement
 [Exposed=Window]
 interface SVGFEGaussianBlurElement : SVGElement {
 
-  // Edge Mode Values
+    // Edge Mode Values
     const unsigned short SVG_EDGEMODE_UNKNOWN = 0;
     const unsigned short SVG_EDGEMODE_DUPLICATE = 1;
     const unsigned short SVG_EDGEMODE_WRAP = 2;

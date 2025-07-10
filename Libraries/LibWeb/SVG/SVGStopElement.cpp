@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,7 +10,6 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGStopElement.h>
 
 namespace Web::SVG {
@@ -19,15 +19,6 @@ GC_DEFINE_ALLOCATOR(SVGStopElement);
 SVGStopElement::SVGStopElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, qualified_name)
 {
-}
-
-void SVGStopElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
-{
-    Base::attribute_changed(name, old_value, value, namespace_);
-
-    if (name == SVG::AttributeNames::offset) {
-        m_offset = AttributeParser::parse_number_percentage(value.value_or(String {}));
-    }
 }
 
 bool SVGStopElement::is_presentational_hint(FlyString const& name) const
@@ -69,16 +60,24 @@ float SVGStopElement::stop_opacity() const
     return 1;
 }
 
-GC::Ref<SVGAnimatedNumber> SVGStopElement::offset() const
+// https://svgwg.org/svg2-draft/pservers.html#StopElementOffsetAttribute
+GC::Ref<SVGAnimatedNumber> SVGStopElement::offset()
 {
-    // FIXME: Implement this properly.
-    return SVGAnimatedNumber::create(realm(), 0, 0);
+    if (!m_stop_offset)
+        m_stop_offset = SVGAnimatedNumber::create(realm(), *this, AttributeNames::offset, 0.f);
+    return *m_stop_offset;
 }
 
 void SVGStopElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGStopElement);
     Base::initialize(realm);
+}
+
+void SVGStopElement::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_stop_offset);
 }
 
 }
