@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-1 Pass
-4 Fail
+2 Pass
+3 Fail
 Pass	Sanity check
-Fail	Attribute in null-namespace is substituted
+Pass	Attribute in null-namespace is substituted
 Fail	Fallback is taken when attribute does not exist in null-namespace
 Fail	Attribute in null-namespace is substituted (JS)
 Fail	Fallback is taken when attribute does not does exist in null-namespace (JS)

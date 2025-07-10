@@ -2,8 +2,8 @@ Harness status: Error
 
 Found 22 tests
 
-14 Pass
-8 Fail
+15 Pass
+7 Fail
 Pass	'--x: image-set(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Fail	'background-image: image-set("https://does-not-exist.test/404.png")' with data-foo="https://does-not-exist.test/404.png"
@@ -13,13 +13,13 @@ Fail	'background-image: src("https://does-not-exist.test/404.png")' with data-fo
 Pass	'--x: src(string("https://does-not-exist.test" attr(data-foo)))' with data-foo="/404.png"
 Pass	'background-image: src(string("https://does-not-exist.test" attr(data-foo)))' with data-foo="/404.png"
 Fail	'background-image: src(string("https://does-not-exist.test/""404.png"))' with data-foo="/404.png"
-Fail	'--x: attr(data-foo type(<url>))' with data-foo="url(https://does-not-exist.test/404.png)"
-Pass	'background-image: attr(data-foo type(<url>))' with data-foo="url(https://does-not-exist.test/404.png)"
+Pass	'--x: attr(data-foo type(<url>))' with data-foo="url(https://does-not-exist.test/404.png)"
+Fail	'background-image: attr(data-foo type(<url>))' with data-foo="url(https://does-not-exist.test/404.png)"
 Pass	'background-image: url("https://does-not-exist.test/404.png")' with data-foo="url(https://does-not-exist.test/404.png)"
 Pass	'--x: image(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Fail	'background-image: image("https://does-not-exist.test/404.png")' with data-foo="https://does-not-exist.test/404.png"
-Fail	'background-image: url(https://does-not-exist.test/404.png), attr(data-foo type(<image>))' with data-foo="linear-gradient(#000000, #ffffff)"
+Pass	'background-image: url(https://does-not-exist.test/404.png), attr(data-foo type(<image>))' with data-foo="linear-gradient(#000000, #ffffff)"
 Fail	'--x: image-set(var(--y, attr(data-foo)))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(var(--y, attr(data-foo)))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'--x: image-set(var(--some-string))' with data-foo="https://does-not-exist.test/404.png"

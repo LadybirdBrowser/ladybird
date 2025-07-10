@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	CSS Values and Units Test: attr() invalidation
+1 Pass
+Pass	CSS Values and Units Test: attr() invalidation
