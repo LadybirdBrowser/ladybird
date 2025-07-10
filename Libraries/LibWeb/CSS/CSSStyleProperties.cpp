@@ -430,30 +430,6 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID pro
 {
     // 2. If property is a shorthand property, then follow these substeps:
     if (property_is_shorthand(property_id)) {
-
-        // AD-HOC: Handle shorthands that require manual construction.
-        switch (property_id) {
-        case PropertyID::Border: {
-            auto width = get_property_internal(PropertyID::BorderWidth);
-            auto style = get_property_internal(PropertyID::BorderStyle);
-            auto color = get_property_internal(PropertyID::BorderColor);
-            // `border` only has a reasonable value if all four sides are the same.
-            if (!width.has_value() || width->value->is_value_list() || !style.has_value() || style->value->is_value_list() || !color.has_value() || color->value->is_value_list())
-                return {};
-            if (width->important != style->important || width->important != color->important)
-                return {};
-            return StyleProperty {
-                .important = width->important,
-                .property_id = property_id,
-                .value = ShorthandStyleValue::create(property_id,
-                    { PropertyID::BorderWidth, PropertyID::BorderStyle, PropertyID::BorderColor },
-                    { width->value, style->value, color->value })
-            };
-        }
-        default:
-            break;
-        }
-
         // 1. Let list be a new empty array.
         Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> list;
         Optional<Important> last_important_flag;
