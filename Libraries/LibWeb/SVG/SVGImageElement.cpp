@@ -159,9 +159,9 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     m_load_event_delayer.emplace(document());
     m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
     m_resource_request->add_callbacks(
-        [this] {
+        [this, resource_request = GC::Root { m_resource_request }] {
             m_load_event_delayer.clear();
-            auto image_data = m_resource_request->image_data();
+            auto image_data = resource_request->image_data();
             if (image_data->is_animated() && image_data->frame_count() > 1) {
                 m_current_frame_index = 0;
                 m_animation_timer->set_interval(image_data->frame_duration(0));
