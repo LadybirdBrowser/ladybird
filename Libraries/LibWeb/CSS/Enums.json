@@ -40,17 +40,17 @@
     "stretch",
     "unsafe"
   ],
-  "animation-fill-mode": [
-    "backwards",
-    "both",
-    "forwards",
-    "none"
-  ],
   "animation-direction": [
     "alternate",
     "alternate-reverse",
     "normal",
     "reverse"
+  ],
+  "animation-fill-mode": [
+    "backwards",
+    "both",
+    "forwards",
+    "none"
   ],
   "animation-play-state": [
     "paused",
@@ -540,19 +540,19 @@
     "lch",
     "oklch"
   ],
-  "positioning": [
-    "absolute",
-    "fixed",
-    "relative",
-    "static",
-    "sticky"
-  ],
   "position-edge": [
     "center",
     "left",
     "right",
     "top",
     "bottom"
+  ],
+  "positioning": [
+    "absolute",
+    "fixed",
+    "relative",
+    "static",
+    "sticky"
   ],
   "referrer-policy-modifier-value": [
     "no-referrer",
