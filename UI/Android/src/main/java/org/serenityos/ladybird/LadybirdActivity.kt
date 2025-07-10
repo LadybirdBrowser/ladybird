@@ -17,7 +17,12 @@ import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.file.Files
 import java.util.zip.ZipFile
+import kotlin.io.path.Path
+import kotlin.io.path.inputStream
+import kotlin.io.path.isDirectory
+import kotlin.io.path.outputStream
 
 class LadybirdActivity : AppCompatActivity() {
 
@@ -47,6 +52,19 @@ class LadybirdActivity : AppCompatActivity() {
                             file.outputStream().use { output ->
                                 input.copyTo(output)
                             }
+                        }
+                    }
+                }
+            }
+
+            // curl has some issues with the Android's way of storing certificates.
+            // We need to do this in order to make curl happy.
+            val certMain = File("$resourceDir/cacert.pem")
+            certMain.outputStream().use { output ->
+                Files.walk(Path("/system/etc/security/cacerts")).forEach { certPath ->
+                    if (!certPath.isDirectory()) {
+                        certPath.inputStream().use { input ->
+                            input.copyTo(output)
                         }
                     }
                 }

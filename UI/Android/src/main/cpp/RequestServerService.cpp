@@ -27,7 +27,7 @@ extern ByteString g_default_certificate_path;
 ErrorOr<int> service_main(int ipc_socket)
 {
 
-    RequestServer::g_default_certificate_path = ByteString::formatted("{}/res/ladybird/cacert.pem", WebView::s_ladybird_resource_root);
+    RequestServer::g_default_certificate_path = ByteString::formatted("{}/cacert.pem", WebView::s_ladybird_resource_root);
 
     Core::EventLoop event_loop;
 
