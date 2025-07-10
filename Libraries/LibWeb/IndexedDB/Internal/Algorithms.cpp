@@ -2186,4 +2186,147 @@ bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
     return false;
 }
 
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records be a an empty list.
+    GC::ConservativeVector<IndexRecord> records(target_realm.heap());
+
+    // 3. Switching on direction:
+    switch (direction) {
+    // "next"
+    case Bindings::IDBCursorDirection::Next: {
+        // 1. Set records to the first count of index’s list of records whose key is in range.
+        records.extend(index->first_n_in_range(range, count));
+        break;
+    }
+    // "nextunique"
+    case Bindings::IDBCursorDirection::Nextunique: {
+        // 1. Let range records be a list containing the index’s list of records whose key is in range.
+        auto range_records = index->first_n_in_range(range, OptionalNone());
+
+        // 2. Let range records length be range records’s size.
+        auto range_records_length = range_records.size();
+
+        // 3. Let i be 0.
+        size_t i = 0;
+
+        // 4. While i is less than range records length, then:
+        while (i < range_records_length) {
+            // 1. Increase i by 1.
+            i++;
+
+            // 2. if record’s size is equal to count, then break.
+            if (records.size() == count)
+                break;
+
+            // 3. If the result of comparing two keys using the keys from |range records[i]| and |range records[i-1]| is equal, then continue.
+            if (Key::equals(range_records[i].key, range_records[i - 1].key))
+                continue;
+
+            // 4. Else append |range records[i]| to records.
+            records.append(range_records[i]);
+        }
+
+        break;
+    }
+    // "prev"
+    case Bindings::IDBCursorDirection::Prev: {
+        // 1. Set records to the last count of index’s list of records whose key is in range.
+        records.extend(index->last_n_in_range(range, count));
+        break;
+    }
+    // "prevunique"
+    case Bindings::IDBCursorDirection::Prevunique: {
+        // 1. Let range records be a list containing the index’s list of records whose key is in range.
+        auto range_records = index->first_n_in_range(range, OptionalNone());
+
+        // 2. Let range records length be range records’s size.
+        auto range_records_length = range_records.size();
+
+        // 3. Let i be 0.
+        size_t i = 0;
+
+        // 4. While i is less than range records length, then:
+        while (i < range_records_length) {
+            // 1. Increase i by 1.
+            i++;
+
+            // 2. if record’s size is equal to count, then break.
+            if (records.size() == count)
+                break;
+
+            // 3. If the result of comparing two keys using the keys from |range records[i]| and |range records[i-1]| is equal, then continue.
+            if (i > 0 && Key::equals(range_records[i].key, range_records[i - 1].key))
+                continue;
+
+            // 4. Else prepend |range records[i]| to records.
+            records.prepend(range_records[i]);
+        }
+
+        break;
+    }
+    }
+
+    // 4. Let list be an empty list.
+    auto list = MUST(JS::Array::create(target_realm, records.size()));
+
+    // 5. For each record of records, switching on kind:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        switch (kind) {
+        // "key"
+        case RecordKind::Key: {
+            // 1. Let key be the result of converting a key to a value with record’s value.
+            auto key = convert_a_key_to_a_value(target_realm, record.value);
+
+            // 2. Append key to list.
+            MUST(list->create_data_property_or_throw(i, key));
+            break;
+        }
+        // "value"
+        case RecordKind::Value: {
+            // 1. Let serialized be record’s referenced value.
+            auto serialized = index->referenced_value(record);
+
+            // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
+            auto value = MUST(HTML::structured_deserialize(target_realm.vm(), serialized, target_realm));
+
+            // 3. Append value to list.
+            MUST(list->create_data_property_or_throw(i, value));
+            break;
+        }
+
+        // "record"
+        case RecordKind::Record: {
+            // 1. Let index key be the record’s key.
+            auto index_key = record.key;
+
+            // 2. Let key be the record’s value.
+            auto key = record.value;
+
+            // 3. Let serialized be record’s referenced value.
+            auto serialized = index->referenced_value(record);
+
+            // 4. Let value be ! StructuredDeserialize(serialized, targetRealm).
+            auto value = MUST(HTML::structured_deserialize(target_realm.vm(), serialized, target_realm));
+
+            // 5. Let record snapshot be a new record snapshot with its key set to index key, value set to value, and primary key set to key.
+            auto record_snapshot = IDBRecord::create(target_realm, index_key, value, key);
+
+            // 6. Append record snapshot to list.
+            MUST(list->create_data_property_or_throw(i, record_snapshot));
+            break;
+        }
+        }
+    }
+
+    // 6. Return list.
+    return list;
+}
+
 }

@@ -98,6 +98,20 @@ GC::ConservativeVector<IndexRecord> Index::first_n_in_range(GC::Ref<IDBKeyRange>
     return records;
 }
 
+GC::ConservativeVector<IndexRecord> Index::last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
+{
+    GC::ConservativeVector<IndexRecord> records(range->heap());
+    for (auto const& record : m_records.in_reverse()) {
+        if (range->is_in_range(record.key))
+            records.append(record);
+
+        if (count.has_value() && records.size() >= *count)
+            break;
+    }
+
+    return records;
+}
+
 u64 Index::count_records_in_range(GC::Ref<IDBKeyRange> range)
 {
     u64 count = 0;
