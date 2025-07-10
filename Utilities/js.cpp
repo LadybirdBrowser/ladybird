@@ -822,7 +822,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(s_strip_ansi, "Disable ANSI colors", "disable-ansi-colors", 'i');
     args_parser.add_option(s_disable_source_location_hints, "Disable source location hints", "disable-source-location-hints", 'h');
     args_parser.add_option(gc_on_every_allocation, "GC on every allocation", "gc-on-every-allocation", 'g');
-    args_parser.add_option(s_raw_strings, "Display strings without quotes or escape sequences", "--raw-strings", 'r');
+    args_parser.add_option(s_raw_strings, "Display strings without quotes or escape sequences", "raw-strings", 'r');
     args_parser.add_option(disable_syntax_highlight, "Disable live syntax highlighting", "no-syntax-highlight", 's');
     args_parser.add_option(disable_debug_printing, "Disable debug output", "disable-debug-output", {});
     args_parser.add_option(evaluate_script, "Evaluate argument as a script", "evaluate", 'c', "script");
