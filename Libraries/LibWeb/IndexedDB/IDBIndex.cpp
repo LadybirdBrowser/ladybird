@@ -407,4 +407,32 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(JS::Value que
     return request;
 }
 
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all_records(IDBGetAllOptions const& options)
+{
+    auto& realm = this->realm();
+
+    // 1. Let transaction be this’s transaction.
+    auto transaction = this->transaction();
+
+    // 2. Let index be this’s index.
+    auto index = this->index();
+
+    // FIXME: 3. If index or index’s object store has been deleted, then throw an "InvalidStateError" DOMException.
+
+    // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all records"_utf16);
+
+    // 5. Let range be the result of converting a value to a key range with options["query"]. Rethrow any exceptions.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, options.query));
+
+    // 6. Let operation be an algorithm to run retrieve multiple items from an index with the current Realm record, index, range, "record", options["direction"], and options["count"] if given.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, index, range, options]() -> WebIDL::ExceptionOr<JS::Value> {
+        return retrieve_multiple_items_from_an_index(realm, index, GC::Ref(*range), RecordKind::Record, options.direction, options.count);
+    });
+
+    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    return asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
+}
+
 }
