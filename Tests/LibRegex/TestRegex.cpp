@@ -753,6 +753,23 @@ TEST_CASE(ECMA262_match)
     }
 }
 
+TEST_CASE(ECMA262_unicode_parser_error)
+{
+    struct _test {
+        StringView pattern;
+        regex::Error error;
+    };
+
+    constexpr _test tests[] {
+        { "([^\\:]+?)"sv, regex::Error::InvalidPattern },
+    };
+
+    for (auto test : tests) {
+        Regex<ECMA262> re(test.pattern, (ECMAScriptFlags)regex::AllFlags::Unicode);
+        EXPECT_EQ(re.parser_result.error, test.error);
+    }
+}
+
 TEST_CASE(ECMA262_unicode_match)
 {
     constexpr auto space_and_line_terminator_code_points = Array { 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x00A0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF };
@@ -859,6 +876,7 @@ TEST_CASE(ECMA262_unicode_sets_match)
         { "[[0-9\\w]--x--6]"sv, "9"sv, true },
         { "[\\w&&\\d]"sv, "a"sv, false },
         { "[\\w&&\\d]"sv, "4"sv, true },
+        { "([^\\:]+?)"sv, "a"sv, true },
     };
 
     for (auto& test : tests) {

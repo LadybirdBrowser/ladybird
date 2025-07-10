@@ -2266,6 +2266,10 @@ Optional<u32> ECMA262Parser::parse_class_set_character()
         "&&"sv, "!!"sv, "##"sv, "$$"sv, "%%"sv, "**"sv, "++"sv, ",,"sv, ".."sv, "::"sv, ";;"sv, "<<"sv, "=="sv, ">>"sv, "??"sv, "@@"sv, "^^"sv, "``"sv, "~~"sv
     };
 
+    constexpr auto class_set_reserved_punctuator = Array {
+        "&"sv, "-"sv, "!"sv, "#"sv, "%"sv, ","sv, ":"sv, ";"sv, "<"sv, "="sv, ">"sv, "@"sv, "`"sv, "~"sv
+    };
+
     if (done()) {
         set_error(Error::InvalidPattern);
         return {};
@@ -2281,7 +2285,7 @@ Optional<u32> ECMA262Parser::parse_class_set_character()
         }
 
         // "\" ClassSetReservedPunctuator
-        for (auto const& reserved : class_set_reserved_double_punctuator) {
+        for (auto const& reserved : class_set_reserved_punctuator) {
             if (try_skip(reserved)) {
                 // "\" ClassSetReservedPunctuator (ClassSetReservedPunctuator)
                 back();
