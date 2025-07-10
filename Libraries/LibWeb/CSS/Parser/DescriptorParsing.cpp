@@ -117,7 +117,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_descripto
                     // `component_values` already has what we want. Just skip through its tokens so code below knows we consumed them.
                     while (tokens.has_next_token())
                         tokens.discard_a_token();
-                    return UnresolvedStyleValue::create(move(component_values), false, {});
+                    return UnresolvedStyleValue::create(move(component_values));
                 }
                 case DescriptorMetadata::ValueType::PageSize: {
                     // https://drafts.csswg.org/css-page-3/#page-size-prop
