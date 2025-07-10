@@ -13,7 +13,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x154]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x138]
       PaintableWithLines (BlockContainer<DETAILS>) [8,8 784x138]
-        PaintableWithLines (ListItemBox<SUMMARY>) [92,68 640x18] overflow: [68,68 664x18]
+        PaintableWithLines (ListItemBox<SUMMARY>) [92,68 640x18]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [68,68.5 12x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<SLOT>) [68,86 664x0]

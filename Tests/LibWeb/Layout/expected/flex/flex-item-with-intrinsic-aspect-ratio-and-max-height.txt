@@ -7,7 +7,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x71.984375]
-    PaintableBox (Box<BODY>) [9,9 782x53.984375] overflow: [10,9 780x52.984375]
+    PaintableBox (Box<BODY>) [9,9 782x53.984375]
       ImagePaintable (ImageBox<IMG>) [10,9 68.65625x52]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
