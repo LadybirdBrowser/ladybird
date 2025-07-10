@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Layout/SVGImageBox.h>
+#include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
@@ -60,7 +61,19 @@ void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> 
         auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
         MUST(height()->base_val()->set_value(parsed_value.value_or(0)));
     } else if (name == SVG::AttributeNames::href) {
-        process_the_url(value);
+        // https://svgwg.org/svg2-draft/linking.html#XLinkRefAttrs
+        // For backwards compatibility, elements with an ‘href’ attribute also recognize an ‘href’ attribute in the
+        // XLink namespace. If the element is in the XLink namespace, it does not recognize an ‘href’ attribute in the
+        // SVG namespace. When the ‘href’ attribute is present in both the XLink namespace and without a namespace, the
+        // value of the attribute without a namespace shall be used. The attribute in the XLink namespace shall be ignored.
+        if (namespace_ == Namespace::XLink && has_attribute_ns({}, name))
+            return;
+
+        auto href = value;
+        if (!namespace_.has_value() && !href.has_value())
+            href = get_attribute_ns(SVG::AttributeNames::href, Namespace::XLink);
+
+        process_the_url(href);
     }
 }
 
