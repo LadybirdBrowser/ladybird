@@ -4325,4 +4325,62 @@ NonnullRefPtr<CSSStyleValue const> Parser::resolve_unresolved_style_value(DOM::A
     return parsed_value.release_value();
 }
 
+RefPtr<CSSStyleValue const> Parser::parse_value(ValueType value_type, TokenStream<ComponentValue>& tokens)
+{
+    switch (value_type) {
+    case ValueType::Angle:
+        return parse_angle_value(tokens);
+    case ValueType::BackgroundPosition:
+        return parse_position_value(tokens, PositionParsingMode::BackgroundPosition);
+    case ValueType::BasicShape:
+        return parse_basic_shape_value(tokens);
+    case ValueType::Color:
+        return parse_color_value(tokens);
+    case ValueType::Counter:
+        return parse_counter_value(tokens);
+    case ValueType::CustomIdent:
+        // FIXME: Figure out how to pass the blacklist here
+        return parse_custom_ident_value(tokens, {});
+    case ValueType::EasingFunction:
+        return parse_easing_value(tokens);
+    case ValueType::FilterValueList:
+        return parse_filter_value_list_value(tokens);
+    case ValueType::FitContent:
+        return parse_fit_content_value(tokens);
+    case ValueType::Flex:
+        return parse_flex_value(tokens);
+    case ValueType::Frequency:
+        return parse_frequency_value(tokens);
+    case ValueType::Image:
+        return parse_image_value(tokens);
+    case ValueType::Integer:
+        return parse_integer_value(tokens);
+    case ValueType::Length:
+        return parse_length_value(tokens);
+    case ValueType::Number:
+        return parse_number_value(tokens);
+    case ValueType::OpenTypeTag:
+        return parse_opentype_tag_value(tokens);
+    case ValueType::Paint:
+        return parse_paint_value(tokens);
+    case ValueType::Percentage:
+        return parse_percentage_value(tokens);
+    case ValueType::Position:
+        return parse_position_value(tokens);
+    case ValueType::Ratio:
+        return parse_ratio_value(tokens);
+    case ValueType::Rect:
+        return parse_rect_value(tokens);
+    case ValueType::Resolution:
+        return parse_resolution_value(tokens);
+    case ValueType::String:
+        return parse_string_value(tokens);
+    case ValueType::Time:
+        return parse_time_value(tokens);
+    case ValueType::Url:
+        return parse_url_value(tokens);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 }
