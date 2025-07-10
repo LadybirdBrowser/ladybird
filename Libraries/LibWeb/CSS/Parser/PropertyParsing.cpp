@@ -711,6 +711,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue const>> Parser::parse_css_value
         if (auto parsed_value = parse_opacity_value(property_id, tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    // FIXME: This can be removed once we have generic logic for parsing "positional-value-list-shorthand"s
     case PropertyID::Overflow:
         if (auto parsed_value = parse_overflow_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();

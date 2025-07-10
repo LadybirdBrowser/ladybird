@@ -425,44 +425,6 @@ StringView CSSStyleProperties::get_property_priority(StringView property_name) c
     return maybe_property->important == Important::Yes ? "important"sv : ""sv;
 }
 
-static Optional<StyleProperty> style_property_for_sided_shorthand(PropertyID property_id, Optional<StyleProperty> const& top, Optional<StyleProperty> const& right, Optional<StyleProperty> const& bottom, Optional<StyleProperty> const& left)
-{
-    if (!top.has_value() || !right.has_value() || !bottom.has_value() || !left.has_value())
-        return {};
-
-    if (top->important != right->important || top->important != bottom->important || top->important != left->important)
-        return {};
-
-    ValueComparingNonnullRefPtr<CSSStyleValue const> const top_value { top->value };
-    ValueComparingNonnullRefPtr<CSSStyleValue const> const right_value { right->value };
-    ValueComparingNonnullRefPtr<CSSStyleValue const> const bottom_value { bottom->value };
-    ValueComparingNonnullRefPtr<CSSStyleValue const> const left_value { left->value };
-
-    bool const top_and_bottom_same = top_value == bottom_value;
-    bool const left_and_right_same = left_value == right_value;
-
-    if ((top_value->is_css_wide_keyword() || right_value->is_css_wide_keyword() || bottom_value->is_css_wide_keyword() || left_value->is_css_wide_keyword()) && (!top_and_bottom_same || !left_and_right_same || top_value != left_value))
-        return {};
-
-    RefPtr<CSSStyleValue const> value;
-
-    if (top_and_bottom_same && left_and_right_same && top_value == left_value) {
-        value = top_value;
-    } else if (top_and_bottom_same && left_and_right_same) {
-        value = StyleValueList::create(StyleValueVector { top_value, right_value }, StyleValueList::Separator::Space);
-    } else if (left_and_right_same) {
-        value = StyleValueList::create(StyleValueVector { top_value, right_value, bottom_value }, StyleValueList::Separator::Space);
-    } else {
-        value = StyleValueList::create(StyleValueVector { top_value, right_value, bottom_value, left_value }, StyleValueList::Separator::Space);
-    }
-
-    return StyleProperty {
-        .important = top->important,
-        .property_id = property_id,
-        .value = value.release_nonnull(),
-    };
-}
-
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID property_id) const
 {
@@ -487,41 +449,6 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID pro
                     { PropertyID::BorderWidth, PropertyID::BorderStyle, PropertyID::BorderColor },
                     { width->value, style->value, color->value })
             };
-        }
-        case PropertyID::BorderColor: {
-            auto top = get_property_internal(PropertyID::BorderTopColor);
-            auto right = get_property_internal(PropertyID::BorderRightColor);
-            auto bottom = get_property_internal(PropertyID::BorderBottomColor);
-            auto left = get_property_internal(PropertyID::BorderLeftColor);
-            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
-        }
-        case PropertyID::BorderStyle: {
-            auto top = get_property_internal(PropertyID::BorderTopStyle);
-            auto right = get_property_internal(PropertyID::BorderRightStyle);
-            auto bottom = get_property_internal(PropertyID::BorderBottomStyle);
-            auto left = get_property_internal(PropertyID::BorderLeftStyle);
-            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
-        }
-        case PropertyID::BorderWidth: {
-            auto top = get_property_internal(PropertyID::BorderTopWidth);
-            auto right = get_property_internal(PropertyID::BorderRightWidth);
-            auto bottom = get_property_internal(PropertyID::BorderBottomWidth);
-            auto left = get_property_internal(PropertyID::BorderLeftWidth);
-            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
-        }
-        case PropertyID::Margin: {
-            auto top = get_property_internal(PropertyID::MarginTop);
-            auto right = get_property_internal(PropertyID::MarginRight);
-            auto bottom = get_property_internal(PropertyID::MarginBottom);
-            auto left = get_property_internal(PropertyID::MarginLeft);
-            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
-        }
-        case PropertyID::Padding: {
-            auto top = get_property_internal(PropertyID::PaddingTop);
-            auto right = get_property_internal(PropertyID::PaddingRight);
-            auto bottom = get_property_internal(PropertyID::PaddingBottom);
-            auto left = get_property_internal(PropertyID::PaddingLeft);
-            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
         }
         default:
             break;

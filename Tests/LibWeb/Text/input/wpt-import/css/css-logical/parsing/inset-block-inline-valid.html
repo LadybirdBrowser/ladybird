@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: parsing inset-block and inset-inline with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-inset-block">
+<meta name="assert" content="inset-block, inset-inline support the full grammar '<'top'>{1,2}'.">
+<meta name="assert" content="inset-block, inset-inline longhands support the full grammar '<'top'>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("inset-block-start", "auto");
+test_valid_value("inset-block-end", "-10px");
+test_valid_value("inset-inline-start", "-20%");
+test_valid_value("inset-inline-end", "calc(10px - 0.5em)", "calc(-0.5em + 10px)");
+
+test_valid_value("inset-block", "auto");
+test_valid_value("inset-block", "-10px");
+test_valid_value("inset-block", "calc(10px - 0.5em) -20%", "calc(-0.5em + 10px) -20%");
+test_valid_value("inset-block", "auto auto", "auto");
+test_valid_value("inset-inline", "-20%");
+test_valid_value("inset-inline", "calc(10px - 0.5em)", "calc(-0.5em + 10px)");
+test_valid_value("inset-inline", "-10px auto");
+test_valid_value("inset-inline", "auto calc(10px + 0.5em)", "auto calc(0.5em + 10px)");
+</script>
+</body>
+</html>
