@@ -50,4 +50,6 @@ interface Internals {
     undefined setBrowserZoom(double factor);
 
     readonly attribute boolean headless;
+
+    DOMString dumpDisplayList();
 };

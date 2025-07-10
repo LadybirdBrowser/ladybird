@@ -96,6 +96,8 @@ public:
     void set_device_pixels_per_css_pixel(double device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
 
+    String dump() const;
+
 private:
     DisplayList() = default;
 
