@@ -182,6 +182,8 @@ public:
 
         T* node = static_cast<T*>(this);
         T* next = nullptr;
+        if (node == stay_within)
+            return nullptr;
         while (!(next = node->next_sibling())) {
             node = node->parent();
             if (!node || node == stay_within)
