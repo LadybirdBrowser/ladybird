@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Logical Properties and Values: getComputedStyle().inset</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#propdef-inset">
+<meta name="assert" content="Computed value is as specified, with lengths made absolute.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("inset", "auto");
+test_computed_value("inset", "-10px");
+
+test_computed_value("inset", "calc(10px - 0.5em) -20%", "-10px -20%");
+test_computed_value("inset", "auto auto", "auto");
+
+test_computed_value("inset", "10px calc(10px - 0.5em) -30px", "10px -10px -30px");
+test_computed_value("inset", "auto auto auto", "auto");
+
+test_computed_value("inset", "10px 20px auto -30px");
+test_computed_value("inset", "auto auto auto auto", "auto");
+</script>
+</body>
+</html>
