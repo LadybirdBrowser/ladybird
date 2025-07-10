@@ -119,7 +119,6 @@ Here’s a short timeline:
 
 - Funded _entirely_ through donations and sponsorships.
 - https://donorbox.org/ladybird – donations of any amount: $10, $50, $100, etc.
-- https://polar.sh/LadybirdBrowser – set bounties to directly fund specific features/tasks; e.g., [$300 legacy-encoders bounty](https://github.com/LadybirdBrowser/ladybird/issues/824).
 - [Sponsorship opportunities](https://ladybird.org/#sponsors): Platinum $100,000 • Gold $50,000 • Silver $10,000 • Bronze $5,000 • Copper $1,000.
 - Ladybird Browser Initiative announced/seeded with [1 million dollar donation](https://twitter.com/defunkt/status/1807779408092234134) from defunkt and his family.
 
