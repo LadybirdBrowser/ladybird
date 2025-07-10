@@ -1,0 +1,1 @@
+#foo { font-variant-alternates: normal; font-variant-east-asian: normal; font-variant-emoji: normal; font-variant-numeric: normal; font-variant-position: normal; font-variant-ligatures: none; font-variant-caps: all-petite-caps; }
