@@ -50,7 +50,7 @@ LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
     return *new_used_values_ptr;
 }
 
-// https://www.w3.org/TR/css-overflow-3/#scrollable-overflow
+// https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region
 static CSSPixelRect measure_scrollable_overflow(Box const& box)
 {
     if (!box.paintable_box())
@@ -64,7 +64,8 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
     // The scrollable overflow area is the union of:
 
     // - The scroll container’s own padding box.
-    auto scrollable_overflow_rect = paintable_box.absolute_padding_box_rect();
+    auto const paintable_absolute_padding_box = paintable_box.absolute_padding_box_rect();
+    auto scrollable_overflow_rect = paintable_absolute_padding_box;
 
     // - All line boxes directly contained by the scroll container.
     if (is<Painting::PaintableWithLines>(box.first_paintable())) {
@@ -74,8 +75,8 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
 
     auto content_overflow_rect = scrollable_overflow_rect;
 
-    // - The border boxes of all boxes for which it is the containing block
-    //   and whose border boxes are positioned not wholly in the negative scrollable overflow region,
+    // - The border boxes of all boxes for which it is the containing block and whose border boxes are positioned not
+    //   wholly in the negative scrollable overflow region,
     //   FIXME: accounting for transforms by projecting each box onto the plane of the element that establishes its 3D rendering context. [CSS3-TRANSFORMS]
     box.for_each_in_subtree_of_type<Box>([&box, &scrollable_overflow_rect, &content_overflow_rect](Box const& child) {
         if (!child.paintable_box())
@@ -104,10 +105,10 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
         scrollable_overflow_rect.unite(child_border_box);
         content_overflow_rect.unite(child_border_box);
 
-        // - The scrollable overflow areas of all of the above boxes
-        //   (including zero-area boxes and accounting for transforms as described above),
-        //   provided they themselves have overflow: visible (i.e. do not themselves trap the overflow)
-        //   and that scrollable overflow is not already clipped (e.g. by the clip property or the contain property).
+        // - The scrollable overflow areas of all of the above boxes (including zero-area boxes and accounting for
+        //   transforms as described above), provided they themselves have overflow: visible (i.e. do not themselves
+        //   trap the overflow) and that scrollable overflow is not already clipped (e.g. by the clip property or the
+        //   contain property).
         if (child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
             auto child_scrollable_overflow = measure_scrollable_overflow(child);
             if (child.computed_values().overflow_x() == CSS::Overflow::Visible)
@@ -121,11 +122,33 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
 
     // FIXME: - The margin areas of grid item and flex item boxes for which the box establishes a containing block.
 
-    // - Additional padding added to the end-side of the scrollable overflow rectangle as necessary
-    //   to enable a scroll position that satisfies the requirements of place-content: end alignment.
-    auto has_scrollable_overflow = !paintable_box.absolute_padding_box_rect().contains(scrollable_overflow_rect);
+    // - Additional padding added to the scrollable overflow rectangle as necessary to enable scroll positions that
+    //   satisfy the requirements of both place-content: start and place-content: end alignment.
+    auto has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect);
     if (has_scrollable_overflow) {
         scrollable_overflow_rect.set_height(max(scrollable_overflow_rect.height(), content_overflow_rect.height() + paintable_box.box_model().padding.bottom));
+    }
+
+    // Additionally, due to Web-compatibility constraints (caused by authors exploiting legacy bugs to surreptitiously
+    // hide content from visual readers but not search engines and/or speech output), UAs must clip any content in the
+    // unreachable scrollable overflow region.
+    //
+    // https://drafts.csswg.org/css-overflow-3/#unreachable-scrollable-overflow-region
+    // Unless otherwise adjusted (e.g. by content alignment [css-align-3]), the area beyond the scroll origin in either
+    // axis is considered the unreachable scrollable overflow region: content rendered here is not accessible to the
+    // reader, see § 2.2 Scrollable Overflow.
+    // FIXME: The scroll origin and overflow directions are determined by ( block-start, inline-start ) or ( main-start,
+    //        cross-start) for flex containers. Currently we assume the top-left of the absolute padding box.
+    if (scrollable_overflow_rect.x() < paintable_absolute_padding_box.x() || scrollable_overflow_rect.y() < paintable_absolute_padding_box.y()) {
+        scrollable_overflow_rect.set_size({
+            max(scrollable_overflow_rect.width() + min(scrollable_overflow_rect.x() - paintable_absolute_padding_box.x(), 0), 0),
+            max(scrollable_overflow_rect.height() + min(scrollable_overflow_rect.y() - paintable_absolute_padding_box.y(), 0), 0),
+        });
+        scrollable_overflow_rect.set_location({
+            max(scrollable_overflow_rect.x(), paintable_absolute_padding_box.x()),
+            max(scrollable_overflow_rect.y(), paintable_absolute_padding_box.y()),
+        });
+        has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect);
     }
 
     paintable_box.set_overflow_data(Painting::PaintableBox::OverflowData {

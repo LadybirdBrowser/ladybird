@@ -1917,9 +1917,9 @@ int Element::scroll_width()
         return 0;
 
     // 7. Return the width of the element’s scrolling area.
-    if (auto scrollable_overflow_rect = paintable_box()->scrollable_overflow_rect(); scrollable_overflow_rect.has_value()) {
+    if (auto scrollable_overflow_rect = paintable_box()->scrollable_overflow_rect(); scrollable_overflow_rect.has_value())
         return scrollable_overflow_rect->width().to_int();
-    }
+
     return 0;
 }
 

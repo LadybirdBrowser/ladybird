@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+.a {
+    border: 1px solid green;
+    height: 50px;
+    position: absolute;
+    right: 0;
+    width: 1000px;
+}
+</style>
+<div class="a"></div>
+<script>
+test(() => {
+    // scrollWidth must not exceed the viewport size (800px)
+    println(`html scrollWidth: ${document.querySelector('html').scrollWidth}`);
+});
+</script>
