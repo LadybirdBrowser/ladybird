@@ -144,6 +144,8 @@ set(SOURCES
     CSS/Parser/RuleContext.cpp
     CSS/Parser/RuleParsing.cpp
     CSS/Parser/SelectorParsing.cpp
+    CSS/Parser/Syntax.cpp
+    CSS/Parser/SyntaxParsing.cpp
     CSS/Parser/Token.cpp
     CSS/Parser/Tokenizer.cpp
     CSS/Parser/Types.cpp
