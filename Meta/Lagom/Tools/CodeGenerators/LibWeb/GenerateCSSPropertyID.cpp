@@ -323,6 +323,7 @@ Vector<PropertyID> const& longhands_for_shorthand(PropertyID);
 Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID);
 bool property_maps_to_shorthand(PropertyID);
 Vector<PropertyID> const& shorthands_for_longhand(PropertyID);
+bool property_is_positional_value_list_shorthand(PropertyID);
 
 size_t property_maximum_value_count(PropertyID);
 
@@ -1333,6 +1334,33 @@ Vector<PropertyID> const& shorthands_for_longhand(PropertyID property_id)
         static Vector<PropertyID> empty_shorthands;
         return empty_shorthands;
     }
+    }
+}
+)~~~");
+
+    generator.append(R"~~~(
+bool property_is_positional_value_list_shorthand(PropertyID property_id)
+{
+    switch (property_id)
+    {
+)~~~");
+    properties.for_each_member([&](auto& name, auto& value) {
+        if (is_legacy_alias(value.as_object()))
+            return;
+
+        if (value.as_object().has("positional-value-list-shorthand"sv)) {
+            auto property_generator = generator.fork();
+            property_generator.set("name:titlecase", title_casify(name));
+            property_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@:
+            )~~~");
+        }
+    });
+
+    generator.append(R"~~~(
+        return true;
+    default:
+        return false;
     }
 }
 )~~~");
