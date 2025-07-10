@@ -21,8 +21,8 @@ SVGFEBlendElement::SVGFEBlendElement(DOM::Document& document, DOM::QualifiedName
 
 void SVGFEBlendElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEBlendElement);
+    Base::initialize(realm);
 }
 
 void SVGFEBlendElement::visit_edges(Cell::Visitor& visitor)

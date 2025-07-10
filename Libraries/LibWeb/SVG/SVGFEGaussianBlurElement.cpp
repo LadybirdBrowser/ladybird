@@ -22,8 +22,8 @@ SVGFEGaussianBlurElement::SVGFEGaussianBlurElement(DOM::Document& document, DOM:
 
 void SVGFEGaussianBlurElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEGaussianBlurElement);
+    Base::initialize(realm);
 }
 
 void SVGFEGaussianBlurElement::visit_edges(Cell::Visitor& visitor)

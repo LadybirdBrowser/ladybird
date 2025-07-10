@@ -22,8 +22,8 @@ SVGFEFloodElement::SVGFEFloodElement(DOM::Document& document, DOM::QualifiedName
 
 void SVGFEFloodElement::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEFloodElement);
+    Base::initialize(realm);
 }
 
 void SVGFEFloodElement::visit_edges(Cell::Visitor& visitor)
