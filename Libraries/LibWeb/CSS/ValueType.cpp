@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringView.h>
 #include <LibWeb/CSS/ValueType.h>
 
 namespace Web::CSS {
 
-Optional<ValueType> value_type_from_string(StringView name)
+Optional<ValueType> value_type_from_string(StringView string)
 {
     if (string.equals_ignoring_ascii_case("angle"sv))
         return ValueType::Angle;
