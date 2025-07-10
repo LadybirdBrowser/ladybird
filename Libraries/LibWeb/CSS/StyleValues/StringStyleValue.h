@@ -22,6 +22,10 @@ public:
 
     FlyString const& string_value() const { return m_string; }
     virtual String to_string(SerializationMode) const override { return serialize_a_string(m_string); }
+    virtual Vector<Parser::ComponentValue> tokenize() const override
+    {
+        return { Parser::Token::create_string(m_string) };
+    }
 
     bool properties_equal(StringStyleValue const& other) const { return m_string == other.m_string; }
 

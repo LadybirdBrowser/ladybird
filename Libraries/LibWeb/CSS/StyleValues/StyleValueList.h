@@ -34,6 +34,7 @@ public:
     }
 
     virtual String to_string(SerializationMode) const override;
+    virtual Vector<Parser::ComponentValue> tokenize() const override;
 
     bool properties_equal(StyleValueList const& other) const { return m_properties == other.m_properties; }
 

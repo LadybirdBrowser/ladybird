@@ -8,6 +8,7 @@
  */
 
 #include "StyleValueList.h"
+#include <LibWeb/CSS/Parser/ComponentValue.h>
 
 namespace Web::CSS {
 
@@ -44,6 +45,24 @@ void StyleValueList::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
     Base::set_style_sheet(style_sheet);
     for (auto& value : m_properties.values)
         const_cast<CSSStyleValue&>(*value).set_style_sheet(style_sheet);
+}
+
+Vector<Parser::ComponentValue> StyleValueList::tokenize() const
+{
+    Vector<Parser::ComponentValue> component_values;
+    bool first = true;
+    for (auto const& value : m_properties.values) {
+        if (first) {
+            first = false;
+        } else {
+            if (m_properties.separator == Separator::Comma)
+                component_values.empend(Parser::Token::create(Parser::Token::Type::Comma));
+            component_values.empend(Parser::Token::create_whitespace(" "_string));
+        }
+        component_values.extend(value->tokenize());
+    }
+
+    return component_values;
 }
 
 }
