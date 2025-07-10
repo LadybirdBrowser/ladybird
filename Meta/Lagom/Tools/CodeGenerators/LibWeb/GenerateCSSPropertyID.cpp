@@ -17,38 +17,9 @@
 void replace_logical_aliases(JsonObject& properties, JsonObject& logical_property_groups);
 void populate_all_property_longhands(JsonObject& properties);
 ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_property_groups, Core::File& file);
-ErrorOr<void> generate_implementation_file(JsonObject& properties, JsonObject& logical_property_groups, Core::File& file);
+ErrorOr<void> generate_implementation_file(JsonObject& properties, JsonObject& logical_property_groups, ReadonlySpan<StringView> enum_names, Core::File& file);
 void generate_bounds_checking_function(JsonObject& properties, SourceGenerator& parent_generator, StringView css_type_name, StringView type_name, Optional<StringView> default_unit_name = {}, Optional<StringView> value_getter = {});
 bool is_animatable_property(JsonObject& properties, StringView property_name);
-
-static bool type_name_is_enum(StringView type_name)
-{
-    return !AK::first_is_one_of(type_name,
-        "angle"sv,
-        "background-position"sv,
-        "basic-shape"sv,
-        "color"sv,
-        "counter"sv,
-        "custom-ident"sv,
-        "easing-function"sv,
-        "flex"sv,
-        "fit-content"sv,
-        "frequency"sv,
-        "image"sv,
-        "integer"sv,
-        "length"sv,
-        "number"sv,
-        "opentype-tag"sv,
-        "paint"sv,
-        "percentage"sv,
-        "position"sv,
-        "ratio"sv,
-        "rect"sv,
-        "resolution"sv,
-        "string"sv,
-        "time"sv,
-        "url"sv);
-}
 
 static bool is_legacy_alias(JsonObject const& property)
 {
@@ -61,11 +32,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView generated_implementation_path;
     StringView properties_json_path;
     StringView groups_json_path;
+    StringView enums_json_path;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(generated_header_path, "Path to the PropertyID header file to generate", "generated-header-path", 'h', "generated-header-path");
     args_parser.add_option(generated_implementation_path, "Path to the PropertyID implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
     args_parser.add_option(properties_json_path, "Path to the properties JSON file to read from", "properties-json-path", 'j', "properties-json-path");
+    args_parser.add_option(enums_json_path, "Path to the enums JSON file to read from", "enums-json-path", 'e', "enums-json-path");
     args_parser.add_option(groups_json_path, "Path to the logical property groups JSON file to read from", "groups-json-path", 'g', "groups-json-path");
     args_parser.parse(arguments);
 
@@ -88,6 +61,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto properties = TRY(read_json_object(properties_json_path));
     auto logical_property_groups = TRY(read_json_object(groups_json_path));
+    auto enums = TRY(read_json_object(enums_json_path));
+
+    Vector<StringView> enum_names;
+    enums.for_each_member([&enum_names](String const& key, auto const&) {
+        enum_names.append(key);
+    });
 
     replace_logical_aliases(properties, logical_property_groups);
     populate_all_property_longhands(properties);
@@ -96,7 +75,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto generated_implementation_file = TRY(Core::File::open(generated_implementation_path, Core::File::OpenMode::Write));
 
     TRY(generate_header_file(properties, logical_property_groups, *generated_header_file));
-    TRY(generate_implementation_file(properties, logical_property_groups, *generated_implementation_file));
+    TRY(generate_implementation_file(properties, logical_property_groups, enum_names, *generated_implementation_file));
 
     return 0;
 }
@@ -484,7 +463,7 @@ bool property_accepts_@css_type_name@(PropertyID property_id, [[maybe_unused]] @
 )~~~");
 }
 
-ErrorOr<void> generate_implementation_file(JsonObject& properties, JsonObject& logical_property_groups, Core::File& file)
+ErrorOr<void> generate_implementation_file(JsonObject& properties, JsonObject& logical_property_groups, ReadonlySpan<StringView> enum_names, Core::File& file)
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
@@ -873,7 +852,7 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
             for (auto& type : valid_types.values()) {
                 VERIFY(type.is_string());
                 auto type_name = MUST(type.as_string().split(' ')).first();
-                if (type_name_is_enum(type_name))
+                if (enum_names.contains_slow(type_name))
                     continue;
 
                 if (type_name == "angle") {
@@ -981,7 +960,7 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
             auto& valid_types = maybe_valid_types.value();
             for (auto& valid_type : valid_types.values()) {
                 auto type_name = MUST(valid_type.as_string().split(' ')).first();
-                if (!type_name_is_enum(type_name))
+                if (!enum_names.contains_slow(type_name))
                     continue;
 
                 auto type_generator = generator.fork();
