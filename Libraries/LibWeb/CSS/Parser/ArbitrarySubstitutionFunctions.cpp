@@ -6,8 +6,11 @@
 
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/Syntax.h>
+#include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 
@@ -85,12 +88,16 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto const second_argument = arguments.get(1);
 
     FlyString attribute_name;
-    Optional<FlyString> maybe_syntax = {};
+
+    struct RawString { };
+    Variant<Empty, NonnullOwnPtr<SyntaxNode>, RawString> syntax;
+    Optional<FlyString> unit_name;
+
     auto failure = [&] -> Vector<ComponentValue> {
         // This is step 6, but defined here for convenience.
 
         // 1. If second arg is null, and syntax was omitted, return an empty CSS <string>.
-        if (!second_argument.has_value() && !maybe_syntax.has_value())
+        if (!second_argument.has_value() && syntax.has<Empty>())
             return { Token::create_string({}) };
 
         // 2. If second arg is null, return the guaranteed-invalid value.
@@ -115,22 +122,29 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     first_argument_tokens.discard_whitespace();
 
     // <attr-type> = type( <syntax> ) | raw-string | <attr-unit>
-    // FIXME: Support type(<syntax>)
-    bool is_dimension_unit = false;
     if (first_argument_tokens.next_token().is(Token::Type::Ident)) {
         auto const& syntax_ident = first_argument_tokens.next_token().token().ident();
         if (syntax_ident.equals_ignoring_ascii_case("raw-string"sv)) {
-            maybe_syntax = first_argument_tokens.consume_a_token().token().ident();
+            first_argument_tokens.discard_a_token(); // raw-string
+            syntax = RawString {};
+        } else if (syntax_ident == "%"sv
+            || Angle::unit_from_name(syntax_ident).has_value()
+            || Flex::unit_from_name(syntax_ident).has_value()
+            || Frequency::unit_from_name(syntax_ident).has_value()
+            || Length::unit_from_name(syntax_ident).has_value()
+            || Resolution::unit_from_name(syntax_ident).has_value()
+            || Time::unit_from_name(syntax_ident).has_value()) {
+            syntax = TypeSyntaxNode::create("number"_fly_string).release_nonnull<SyntaxNode>();
+            unit_name = first_argument_tokens.consume_a_token().token().ident();
         } else {
-            is_dimension_unit = syntax_ident == "%"sv
-                || Angle::unit_from_name(syntax_ident).has_value()
-                || Flex::unit_from_name(syntax_ident).has_value()
-                || Frequency::unit_from_name(syntax_ident).has_value()
-                || Length::unit_from_name(syntax_ident).has_value()
-                || Resolution::unit_from_name(syntax_ident).has_value()
-                || Time::unit_from_name(syntax_ident).has_value();
-            if (is_dimension_unit)
-                maybe_syntax = first_argument_tokens.consume_a_token().token().ident();
+            return failure();
+        }
+    } else if (first_argument_tokens.next_token().is_function("type"sv)) {
+        auto const& type_function = first_argument_tokens.consume_a_token().function();
+        if (auto parsed_syntax = parse_as_syntax(type_function.value)) {
+            syntax = parsed_syntax.release_nonnull();
+        } else {
+            return failure();
         }
     }
     first_argument_tokens.discard_whitespace();
@@ -145,29 +159,40 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
 
     // 4. If syntax is null or the keyword raw-string, return a CSS <string> whose value is attr value.
     // NOTE: No parsing or modification of any kind is performed on the value.
-    if (!maybe_syntax.has_value() || maybe_syntax->equals_ignoring_ascii_case("raw-string"sv))
+    if (syntax.visit(
+            [](Empty) { return true; },
+            [](RawString) { return true; },
+            [](auto&) { return false; })) {
         return { Token::create_string(*attribute_value) };
-    auto syntax = maybe_syntax.release_value();
+    }
 
     // 5. Substitute arbitrary substitution functions in attr value, with «"attribute", attr name» as the substitution
-    //    context, then parse with a attr value, with syntax and el. If that succeeds, return the result; otherwise,
-    //    jump to the last step (labeled FAILURE).
+    //    context, then parse with a <syntax> attr value, with syntax and el. If that succeeds, return the result;
+    //    otherwise, jump to the last step (labeled FAILURE).
     auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value.value());
     auto unsubstituted_values = parser.parse_as_list_of_component_values();
-    auto substituted_values = substitute_arbitrary_substitution_functions(element, guarded_contexts, unsubstituted_values, SubstitutionContext { SubstitutionContext::DependencyType::Attribute, attribute_name.to_string() });
+    auto substituted_values = substitute_arbitrary_substitution_functions(element, guarded_contexts, unsubstituted_values,
+        SubstitutionContext { SubstitutionContext::DependencyType::Attribute, attribute_name.to_string() });
 
-    // FIXME: Parse using the syntax. For now we just handle `<attr-unit>` here.
-    TokenStream value_tokens { substituted_values };
-    value_tokens.discard_whitespace();
-    auto const& component_value = value_tokens.consume_a_token();
-    value_tokens.discard_whitespace();
-    if (value_tokens.has_next_token())
+    auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullOwnPtr<SyntaxNode>>(), element);
+    if (parsed_value->is_guaranteed_invalid())
         return failure();
 
-    if (component_value.is(Token::Type::Number) && is_dimension_unit)
-        return { Token::create_dimension(component_value.token().number_value(), syntax) };
+    if (unit_name.has_value()) {
+        // https://drafts.csswg.org/css-values-5/#ref-for-typedef-attr-type%E2%91%A0
+        // If given as an <attr-unit> value, the value is first parsed as if type(<number>) was specified, then the
+        // resulting numeric value is turned into a dimension with the corresponding unit, or a percentage if % was
+        // given. Values that fail to parse as a <number> trigger fallback.
 
-    return failure();
+        // FIXME: The spec is ambiguous about what we should do for non-number-literals.
+        //        Chromium treats them as invalid, so copy that for now.
+        //        Spec issue: https://github.com/w3c/csswg-drafts/issues/12479
+        if (!parsed_value->is_number())
+            return failure();
+        return { Token::create_dimension(parsed_value->as_number().number(), unit_name.release_value()) };
+    }
+
+    return parsed_value->tokenize();
 
     // 6. FAILURE:
     // NB: Step 6 is a lambda defined at the top of the function.
