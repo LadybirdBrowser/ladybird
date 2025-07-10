@@ -238,6 +238,22 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         return MUST(builder.to_string());
     }
+    case PropertyID::Border: {
+        auto all_longhands_same_value = [](ValueComparingRefPtr<CSSStyleValue const> const& shorthand) -> bool {
+            VERIFY(shorthand);
+            VERIFY(shorthand->is_shorthand());
+
+            auto longhands = shorthand->as_shorthand().values();
+
+            return all_of(longhands, [&](auto const& longhand) { return longhand == longhands[0]; });
+        };
+
+        // `border` only has a reasonable value if all four sides are the same.
+        if (!all_longhands_same_value(longhand(PropertyID::BorderWidth)) || !all_longhands_same_value(longhand(PropertyID::BorderStyle)) || !all_longhands_same_value(longhand(PropertyID::BorderColor)))
+            return ""_string;
+
+        return default_to_string();
+    }
     case PropertyID::BorderImage: {
         auto source = longhand(PropertyID::BorderImageSource);
         auto slice = longhand(PropertyID::BorderImageSlice);
