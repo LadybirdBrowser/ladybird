@@ -509,40 +509,6 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID pro
             auto left = get_property_internal(PropertyID::BorderLeftWidth);
             return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
         }
-        case PropertyID::FontVariant: {
-            auto ligatures = get_property_internal(PropertyID::FontVariantLigatures);
-            auto caps = get_property_internal(PropertyID::FontVariantCaps);
-            auto alternates = get_property_internal(PropertyID::FontVariantAlternates);
-            auto numeric = get_property_internal(PropertyID::FontVariantNumeric);
-            auto east_asian = get_property_internal(PropertyID::FontVariantEastAsian);
-            auto position = get_property_internal(PropertyID::FontVariantPosition);
-            auto emoji = get_property_internal(PropertyID::FontVariantEmoji);
-
-            if (!ligatures.has_value() || !caps.has_value() || !alternates.has_value() || !numeric.has_value() || !east_asian.has_value() || !position.has_value() || !emoji.has_value())
-                return {};
-
-            if (ligatures->important != caps->important || ligatures->important != alternates->important || ligatures->important != numeric->important || ligatures->important != east_asian->important || ligatures->important != position->important || ligatures->important != emoji->important)
-                return {};
-
-            // If ligatures is `none` and any other value isn't `normal`, that's invalid.
-            if (ligatures->value->to_keyword() == Keyword::None
-                && (caps->value->to_keyword() != Keyword::Normal
-                    || alternates->value->to_keyword() != Keyword::Normal
-                    || numeric->value->to_keyword() != Keyword::Normal
-                    || east_asian->value->to_keyword() != Keyword::Normal
-                    || position->value->to_keyword() != Keyword::Normal
-                    || emoji->value->to_keyword() != Keyword::Normal)) {
-                return {};
-            }
-
-            return StyleProperty {
-                .important = ligatures->important,
-                .property_id = property_id,
-                .value = ShorthandStyleValue::create(property_id,
-                    { PropertyID::FontVariantLigatures, PropertyID::FontVariantCaps, PropertyID::FontVariantAlternates, PropertyID::FontVariantNumeric, PropertyID::FontVariantEastAsian, PropertyID::FontVariantPosition, PropertyID::FontVariantEmoji },
-                    { ligatures->value, caps->value, alternates->value, numeric->value, east_asian->value, position->value, emoji->value })
-            };
-        }
         case PropertyID::Margin: {
             auto top = get_property_internal(PropertyID::MarginTop);
             auto right = get_property_internal(PropertyID::MarginRight);
