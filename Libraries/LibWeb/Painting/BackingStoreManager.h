@@ -32,14 +32,7 @@ public:
         RefPtr<Gfx::PaintingSurface> store;
     };
 
-    BackingStore acquire_store_for_next_frame()
-    {
-        BackingStore backing_store;
-        backing_store.bitmap_id = m_back_bitmap_id;
-        backing_store.store = m_back_store;
-        swap_back_and_front();
-        return backing_store;
-    }
+    BackingStore acquire_store_for_next_frame();
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
 

@@ -45,6 +45,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -2618,6 +2619,11 @@ void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surf
     }
     auto scroll_state_snapshot = document->paintable()->scroll_state().snapshot();
     m_rendering_thread.enqueue_rendering_task(*display_list, move(scroll_state_snapshot), painting_surface, move(callback));
+}
+
+RefPtr<Gfx::SkiaBackendContext> Navigable::skia_backend_context() const
+{
+    return m_skia_backend_context;
 }
 
 }

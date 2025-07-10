@@ -35,7 +35,9 @@ AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(i64, UniqueNodeID, Comparison, Increment, Ca
 namespace Web::Painting {
 
 class BackingStore;
+
 class DisplayList;
+class DisplayListPlayerSkia;
 class DisplayListRecorder;
 class SVGGradientPaintStyle;
 using PaintStyle = RefPtr<SVGGradientPaintStyle>;
@@ -840,6 +842,7 @@ class MediaPaintable;
 class Paintable;
 class PaintableBox;
 class PaintableWithLines;
+class ScrollStateSnapshot;
 class StackingContext;
 class TextPaintable;
 class VideoPaintable;

@@ -15,6 +15,7 @@
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/Blending.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>

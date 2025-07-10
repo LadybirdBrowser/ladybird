@@ -7,6 +7,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 
 namespace Web::HTML {
 
@@ -41,6 +42,11 @@ void RenderingThread::start(DisplayListPlayerType display_list_player_type)
         return static_cast<intptr_t>(0);
     });
     m_thread->start();
+}
+
+void RenderingThread::set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player)
+{
+    m_skia_player = move(player);
 }
 
 void RenderingThread::rendering_thread_loop()

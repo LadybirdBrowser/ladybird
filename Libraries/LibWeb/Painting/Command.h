@@ -29,6 +29,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintStyle.h>
@@ -112,11 +113,6 @@ struct AddClipRect {
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     bool is_clip_or_mask() const { return true; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
-};
-
-struct StackingContextTransform {
-    Gfx::FloatPoint origin;
-    Gfx::FloatMatrix4x4 matrix;
 };
 
 struct PushStackingContext {

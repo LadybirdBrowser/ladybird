@@ -149,6 +149,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
