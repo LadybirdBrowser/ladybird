@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -347,6 +347,11 @@ Optional<Color> CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&>
     default:
         return {};
     }
+}
+
+Vector<Parser::ComponentValue> CSSKeywordValue::tokenize() const
+{
+    return { Parser::Token::create_ident(FlyString::from_utf8_without_validation(string_from_keyword(m_keyword).bytes())) };
 }
 
 }

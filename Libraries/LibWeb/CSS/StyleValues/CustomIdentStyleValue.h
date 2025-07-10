@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/Parser/ComponentValue.h>
 
 namespace Web::CSS {
 
@@ -23,6 +24,10 @@ public:
     FlyString const& custom_ident() const { return m_custom_ident; }
 
     virtual String to_string(SerializationMode) const override { return m_custom_ident.to_string(); }
+    virtual Vector<Parser::ComponentValue> tokenize() const override
+    {
+        return { Parser::Token::create_ident(m_custom_ident) };
+    }
 
     bool properties_equal(CustomIdentStyleValue const& other) const { return m_custom_ident == other.m_custom_ident; }
 

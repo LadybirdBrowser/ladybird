@@ -397,6 +397,7 @@ public:
     Keyword to_keyword() const;
 
     virtual String to_string(SerializationMode) const = 0;
+    virtual Vector<Parser::ComponentValue> tokenize() const;
 
     [[nodiscard]] int to_font_weight() const;
     [[nodiscard]] int to_font_slope() const;
