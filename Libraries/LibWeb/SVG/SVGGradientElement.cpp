@@ -108,7 +108,7 @@ void SVGGradientElement::add_color_stops(Painting::SVGGradientPaintStyle& paint_
         // https://svgwg.org/svg2-draft/pservers.html#StopNotes
         // Gradient offset values less than 0 (or less than 0%) are rounded up to 0%.
         // Gradient offset values greater than 1 (or greater than 100%) are rounded down to 100%.
-        float stop_offset = AK::clamp(stop.stop_offset().value(), 0.0f, 1.0f);
+        float stop_offset = AK::clamp(stop.stop_offset(), 0.0f, 1.0f);
 
         // Each gradient offset value is required to be equal to or greater than the previous gradient
         // stop's offset value. If a given gradient stop's offset value is not equal to or greater than all
