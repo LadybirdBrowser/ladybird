@@ -21,6 +21,11 @@ void AbstractElement::visit(GC::Cell::Visitor& visitor) const
     visitor.visit(m_element);
 }
 
+Document& AbstractElement::document() const
+{
+    return m_element->document();
+}
+
 GC::Ptr<Layout::NodeWithStyle> AbstractElement::layout_node()
 {
     if (m_pseudo_element.has_value())
