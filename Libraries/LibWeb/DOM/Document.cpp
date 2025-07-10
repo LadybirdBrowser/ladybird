@@ -91,6 +91,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/HTML/DragEvent.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Focus.h>
@@ -134,6 +135,7 @@
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Storage.h>
+#include <LibWeb/HTML/StorageEvent.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -2226,7 +2228,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
     } else if (interface.equals_ignoring_ascii_case("deviceorientationevent"sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create DeviceOrientationEvent
     } else if (interface.equals_ignoring_ascii_case("dragevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create DragEvent
+        event = HTML::DragEvent::create(realm, FlyString {});
     } else if (interface.equals_ignoring_ascii_case("event"sv)
         || interface.equals_ignoring_ascii_case("events"sv)) {
         event = Event::create(realm, FlyString {});
@@ -2244,7 +2246,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
         || interface.equals_ignoring_ascii_case("mouseevents"sv)) {
         event = UIEvents::MouseEvent::create(realm, FlyString {});
     } else if (interface.equals_ignoring_ascii_case("storageevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create StorageEvent
+        event = HTML::StorageEvent::create(realm, FlyString {});
     } else if (interface.equals_ignoring_ascii_case("svgevents"sv)) {
         event = Event::create(realm, FlyString {});
     } else if (interface.equals_ignoring_ascii_case("textevent"sv)) {
