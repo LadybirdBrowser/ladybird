@@ -291,6 +291,8 @@ private:
     Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
     RefPtr<UnicodeRangeStyleValue const> parse_unicode_range_value(TokenStream<ComponentValue>&);
 
+    RefPtr<CSSStyleValue const> parse_value(ValueType, TokenStream<ComponentValue>&);
+
     Optional<GridSize> parse_grid_track_breadth(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_inflexible_breadth(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_fixed_breadth(TokenStream<ComponentValue>&);

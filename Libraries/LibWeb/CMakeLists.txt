@@ -227,6 +227,7 @@ set(SOURCES
     CSS/Transformation.cpp
     CSS/TransitionEvent.cpp
     CSS/URL.cpp
+    CSS/ValueType.cpp
     CSS/VisualViewport.cpp
     DOM/AbortController.cpp
     DOM/AbortSignal.cpp
