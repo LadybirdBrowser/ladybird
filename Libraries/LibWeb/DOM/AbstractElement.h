@@ -17,6 +17,8 @@ class AbstractElement {
 public:
     AbstractElement(GC::Ref<Element>, Optional<CSS::PseudoElement> = {});
 
+    Document& document() const;
+
     Element& element() { return m_element; }
     Element const& element() const { return m_element; }
     Optional<CSS::PseudoElement> pseudo_element() const { return m_pseudo_element; }
