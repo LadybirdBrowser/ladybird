@@ -17,10 +17,7 @@ namespace Web::CSS {
 
 class UnresolvedStyleValue final : public CSSStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, bool contains_arbitrary_substitution_function, Optional<String> original_source_text)
-    {
-        return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(values), contains_arbitrary_substitution_function, move(original_source_text)));
-    }
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Optional<bool> contains_arbitrary_substitution_function = {}, Optional<String> original_source_text = {});
     virtual ~UnresolvedStyleValue() override = default;
 
     virtual String to_string(SerializationMode) const override;
@@ -32,13 +29,7 @@ public:
     virtual bool equals(CSSStyleValue const& other) const override;
 
 private:
-    UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, bool contains_arbitrary_substitution_function, Optional<String> original_source_text)
-        : CSSStyleValue(Type::Unresolved)
-        , m_values(move(values))
-        , m_contains_arbitrary_substitution_function(contains_arbitrary_substitution_function)
-        , m_original_source_text(move(original_source_text))
-    {
-    }
+    UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, bool contains_arbitrary_substitution_function, Optional<String> original_source_text);
 
     Vector<Parser::ComponentValue> m_values;
     bool m_contains_arbitrary_substitution_function { false };
