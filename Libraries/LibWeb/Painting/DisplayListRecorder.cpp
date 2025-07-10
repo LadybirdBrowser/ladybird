@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Painting/Command.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
@@ -16,34 +18,34 @@ DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
 
 DisplayListRecorder::~DisplayListRecorder() = default;
 
-void DisplayListRecorder::append(Command&& command)
-{
-    Optional<i32> scroll_frame_id;
-    if (!m_scroll_frame_id_stack.is_empty())
-        scroll_frame_id = m_scroll_frame_id_stack.last();
-    m_command_list.append(move(command), scroll_frame_id);
-}
+#define APPEND(...)                                            \
+    do {                                                       \
+        Optional<i32> _scroll_frame_id;                        \
+        if (!m_scroll_frame_id_stack.is_empty())               \
+            _scroll_frame_id = m_scroll_frame_id_stack.last(); \
+        m_command_list.append(__VA_ARGS__, _scroll_frame_id);  \
+    } while (false)
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, ScrollStateSnapshot&& scroll_state_snapshot, Gfx::IntRect rect)
 {
-    append(PaintNestedDisplayList { move(display_list), move(scroll_state_snapshot), rect });
+    APPEND(PaintNestedDisplayList { move(display_list), move(scroll_state_snapshot), rect });
 }
 
 void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip)
 {
-    append(AddRoundedRectClip { corner_radii, border_rect, corner_clip });
+    APPEND(AddRoundedRectClip { corner_radii, border_rect, corner_clip });
 }
 
 void DisplayListRecorder::add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
 {
-    append(AddMask { move(display_list), rect });
+    APPEND(AddMask { move(display_list), rect });
 }
 
 void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
 {
     if (rect.is_empty() || color.alpha() == 0)
         return;
-    append(FillRect { rect, color });
+    APPEND(FillRect { rect, color });
 }
 
 void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
@@ -55,7 +57,7 @@ void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
-    append(FillPathUsingColor {
+    APPEND(FillPathUsingColor {
         .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
         .color = params.color,
@@ -71,7 +73,7 @@ void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
-    append(FillPathUsingPaintStyle {
+    APPEND(FillPathUsingPaintStyle {
         .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
         .paint_style = params.paint_style,
@@ -92,7 +94,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
-    append(StrokePathUsingColor {
+    APPEND(StrokePathUsingColor {
         .cap_style = params.cap_style,
         .join_style = params.join_style,
         .miter_limit = params.miter_limit,
@@ -115,7 +117,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
-    append(StrokePathUsingPaintStyle {
+    APPEND(StrokePathUsingPaintStyle {
         .cap_style = params.cap_style,
         .join_style = params.join_style,
         .miter_limit = params.miter_limit,
@@ -134,7 +136,7 @@ void DisplayListRecorder::draw_ellipse(Gfx::IntRect const& a_rect, Color color, 
 {
     if (a_rect.is_empty() || color.alpha() == 0)
         return;
-    append(DrawEllipse {
+    APPEND(DrawEllipse {
         .rect = a_rect,
         .color = color,
         .thickness = thickness,
@@ -145,21 +147,21 @@ void DisplayListRecorder::fill_ellipse(Gfx::IntRect const& a_rect, Color color)
 {
     if (a_rect.is_empty() || color.alpha() == 0)
         return;
-    append(FillEllipse { a_rect, color });
+    APPEND(FillEllipse { a_rect, color });
 }
 
 void DisplayListRecorder::fill_rect_with_linear_gradient(Gfx::IntRect const& gradient_rect, LinearGradientData const& data)
 {
     if (gradient_rect.is_empty())
         return;
-    append(PaintLinearGradient { gradient_rect, data });
+    APPEND(PaintLinearGradient { gradient_rect, data });
 }
 
 void DisplayListRecorder::fill_rect_with_conic_gradient(Gfx::IntRect const& rect, ConicGradientData const& data, Gfx::IntPoint const& position)
 {
     if (rect.is_empty())
         return;
-    append(PaintConicGradient {
+    APPEND(PaintConicGradient {
         .rect = rect,
         .conic_gradient_data = data,
         .position = position });
@@ -169,7 +171,7 @@ void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rec
 {
     if (rect.is_empty())
         return;
-    append(PaintRadialGradient {
+    APPEND(PaintRadialGradient {
         .rect = rect,
         .radial_gradient_data = data,
         .center = center,
@@ -180,7 +182,7 @@ void DisplayListRecorder::draw_rect(Gfx::IntRect const& rect, Color color, bool 
 {
     if (rect.is_empty() || color.alpha() == 0)
         return;
-    append(DrawRect {
+    APPEND(DrawRect {
         .rect = rect,
         .color = color,
         .rough = rough });
@@ -190,7 +192,7 @@ void DisplayListRecorder::draw_painting_surface(Gfx::IntRect const& dst_rect, No
 {
     if (dst_rect.is_empty())
         return;
-    append(DrawPaintingSurface {
+    APPEND(DrawPaintingSurface {
         .dst_rect = dst_rect,
         .surface = surface,
         .src_rect = src_rect,
@@ -202,7 +204,7 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
 {
     if (dst_rect.is_empty())
         return;
-    append(DrawScaledImmutableBitmap {
+    APPEND(DrawScaledImmutableBitmap {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
         .bitmap = bitmap,
@@ -210,14 +212,14 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
     });
 }
 
-void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat)
+void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y)
 {
-    append(DrawRepeatedImmutableBitmap {
+    APPEND(DrawRepeatedImmutableBitmap {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
         .bitmap = move(bitmap),
         .scaling_mode = scaling_mode,
-        .repeat = repeat,
+        .repeat = { repeat_x, repeat_y },
     });
 }
 
@@ -225,7 +227,7 @@ void DisplayListRecorder::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color 
 {
     if (color.alpha() == 0)
         return;
-    append(DrawLine {
+    APPEND(DrawLine {
         .color = color,
         .from = from,
         .to = to,
@@ -261,7 +263,7 @@ void DisplayListRecorder::draw_text_run(Gfx::FloatPoint baseline_start, Gfx::Gly
 {
     if (color.alpha() == 0)
         return;
-    append(DrawGlyphRun {
+    APPEND(DrawGlyphRun {
         .glyph_run = glyph_run,
         .scale = scale,
         .rect = rect,
@@ -273,30 +275,30 @@ void DisplayListRecorder::draw_text_run(Gfx::FloatPoint baseline_start, Gfx::Gly
 
 void DisplayListRecorder::add_clip_rect(Gfx::IntRect const& rect)
 {
-    append(AddClipRect { rect });
+    APPEND(AddClipRect { rect });
 }
 
 void DisplayListRecorder::translate(Gfx::IntPoint delta)
 {
-    append(Translate { delta });
+    APPEND(Translate { delta });
 }
 
 void DisplayListRecorder::save()
 {
     ++m_save_nesting_level;
-    append(Save {});
+    APPEND(Save {});
 }
 
 void DisplayListRecorder::save_layer()
 {
     ++m_save_nesting_level;
-    append(SaveLayer {});
+    APPEND(SaveLayer {});
 }
 
 void DisplayListRecorder::restore()
 {
     --m_save_nesting_level;
-    append(Restore {});
+    APPEND(Restore {});
 }
 
 void DisplayListRecorder::push_scroll_frame_id(Optional<i32> id)
@@ -311,7 +313,7 @@ void DisplayListRecorder::pop_scroll_frame_id()
 
 void DisplayListRecorder::push_stacking_context(PushStackingContextParams params)
 {
-    append(PushStackingContext {
+    APPEND(PushStackingContext {
         .opacity = params.opacity,
         .compositing_and_blending_operator = params.compositing_and_blending_operator,
         .isolate = params.isolate,
@@ -325,14 +327,14 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
 
 void DisplayListRecorder::pop_stacking_context()
 {
-    append(PopStackingContext {});
+    APPEND(PopStackingContext {});
 }
 
 void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, Gfx::Filter const& backdrop_filter)
 {
     if (backdrop_region.is_empty())
         return;
-    append(ApplyBackdropFilter {
+    APPEND(ApplyBackdropFilter {
         .backdrop_region = backdrop_region,
         .border_radii_data = border_radii_data,
         .backdrop_filter = backdrop_filter,
@@ -341,17 +343,17 @@ void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_reg
 
 void DisplayListRecorder::paint_outer_box_shadow_params(PaintBoxShadowParams params)
 {
-    append(PaintOuterBoxShadow { .box_shadow_params = params });
+    APPEND(PaintOuterBoxShadow { .box_shadow_params = params });
 }
 
 void DisplayListRecorder::paint_inner_box_shadow_params(PaintBoxShadowParams params)
 {
-    append(PaintInnerBoxShadow { .box_shadow_params = params });
+    APPEND(PaintInnerBoxShadow { .box_shadow_params = params });
 }
 
 void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const& glyph_run, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location)
 {
-    append(PaintTextShadow {
+    APPEND(PaintTextShadow {
         .glyph_run = glyph_run,
         .glyph_run_scale = glyph_run_scale,
         .shadow_bounding_rect = bounding_rect,
@@ -371,7 +373,7 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rec
         return;
     }
 
-    append(FillRectWithRoundedCorners {
+    APPEND(FillRectWithRoundedCorners {
         .rect = rect,
         .color = color,
         .corner_radii = {
@@ -405,7 +407,7 @@ void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a
 {
     if (color.alpha() == 0)
         return;
-    append(DrawTriangleWave {
+    APPEND(DrawTriangleWave {
         .p1 = a_p1,
         .p2 = a_p2,
         .color = color,
@@ -415,7 +417,7 @@ void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a
 
 void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, CSSPixelFraction scroll_size, Color thumb_color, Color track_color, bool vertical)
 {
-    append(PaintScrollBar {
+    APPEND(PaintScrollBar {
         .scroll_frame_id = scroll_frame_id,
         .gutter_rect = gutter_rect,
         .thumb_rect = thumb_rect,
@@ -429,26 +431,26 @@ void DisplayListRecorder::apply_opacity(float opacity)
 {
     // Implementation of this item does saveLayer(), so we need to increment the nesting level.
     ++m_save_nesting_level;
-    append(ApplyOpacity { .opacity = opacity });
+    APPEND(ApplyOpacity { .opacity = opacity });
 }
 
 void DisplayListRecorder::apply_compositing_and_blending_operator(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
 {
     // Implementation of this item does saveLayer(), so we need to increment the nesting level.
     m_save_nesting_level++;
-    append(ApplyCompositeAndBlendingOperator { .compositing_and_blending_operator = compositing_and_blending_operator });
+    APPEND(ApplyCompositeAndBlendingOperator { .compositing_and_blending_operator = compositing_and_blending_operator });
 }
 
 void DisplayListRecorder::apply_filter(Gfx::Filter filter)
 {
     // Implementation of this item does saveLayer(), so we need to increment the nesting level.
     ++m_save_nesting_level;
-    append(ApplyFilter { .filter = move(filter) });
+    APPEND(ApplyFilter { .filter = move(filter) });
 }
 
 void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix)
 {
-    append(ApplyTransform {
+    APPEND(ApplyTransform {
         .origin = origin,
         .matrix = matrix,
     });
@@ -456,7 +458,7 @@ void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatr
 
 void DisplayListRecorder::apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const& bitmap, Gfx::Bitmap::MaskKind kind)
 {
-    append(ApplyMaskBitmap {
+    APPEND(ApplyMaskBitmap {
         .origin = origin,
         .bitmap = bitmap,
         .kind = kind,

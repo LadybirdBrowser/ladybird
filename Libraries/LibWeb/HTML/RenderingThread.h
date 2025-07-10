@@ -14,7 +14,7 @@
 #include <LibThreading/Thread.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::HTML {
 
@@ -27,7 +27,7 @@ public:
     ~RenderingThread();
 
     void start(DisplayListPlayerType);
-    void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player) { m_skia_player = move(player); }
+    void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player);
     void enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:

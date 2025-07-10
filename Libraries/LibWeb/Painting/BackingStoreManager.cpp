@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/Timer.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/BackingStoreManager.h>
 #include <WebContent/PageClient.h>
@@ -44,6 +45,15 @@ void BackingStoreManager::visit_edges(Cell::Visitor& visitor)
 void BackingStoreManager::restart_resize_timer()
 {
     m_backing_store_shrink_timer->restart();
+}
+
+BackingStoreManager::BackingStore BackingStoreManager::acquire_store_for_next_frame()
+{
+    BackingStore backing_store;
+    backing_store.bitmap_id = m_back_bitmap_id;
+    backing_store.store = m_back_store;
+    swap_back_and_front();
+    return backing_store;
 }
 
 void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)

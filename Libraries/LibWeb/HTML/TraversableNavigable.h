@@ -12,11 +12,9 @@
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationType.h>
-#include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/StorageAPI/StorageShed.h>
 
 #ifdef AK_OS_MACOS
