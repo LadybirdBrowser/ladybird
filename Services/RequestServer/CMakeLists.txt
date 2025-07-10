@@ -44,3 +44,7 @@ if (HAIKU)
     # Haiku has networking related functions in the network library
     target_link_libraries(RequestServer PRIVATE network)
 endif()
+if (ANDROID)
+    # We need s_ladybird_resource_root from LibWebView
+    target_link_libraries(requestserverservice PUBLIC LibWebView)
+endif()
