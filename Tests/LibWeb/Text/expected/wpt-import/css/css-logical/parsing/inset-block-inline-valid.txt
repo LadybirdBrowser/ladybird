@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['inset-block-start'] = "auto" should set the property value
+Pass	e.style['inset-block-end'] = "-10px" should set the property value
+Pass	e.style['inset-inline-start'] = "-20%" should set the property value
+Pass	e.style['inset-inline-end'] = "calc(10px - 0.5em)" should set the property value
+Pass	e.style['inset-block'] = "auto" should set the property value
+Pass	e.style['inset-block'] = "-10px" should set the property value
+Pass	e.style['inset-block'] = "calc(10px - 0.5em) -20%" should set the property value
+Pass	e.style['inset-block'] = "auto auto" should set the property value
+Pass	e.style['inset-inline'] = "-20%" should set the property value
+Pass	e.style['inset-inline'] = "calc(10px - 0.5em)" should set the property value
+Pass	e.style['inset-inline'] = "-10px auto" should set the property value
+Pass	e.style['inset-inline'] = "auto calc(10px + 0.5em)" should set the property value
