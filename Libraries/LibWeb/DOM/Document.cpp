@@ -6622,6 +6622,15 @@ ElementByIdMap& Document::element_by_id() const
     return *m_element_by_id;
 }
 
+String Document::dump_display_list()
+{
+    update_layout(UpdateLayoutReason::DumpDisplayList);
+    auto display_list = record_display_list(HTML::PaintConfig {});
+    if (!display_list)
+        return {};
+    return display_list->dump();
+}
+
 GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id) const
 {
     if (auto elements = m_map.get(element_id); elements.has_value() && !elements->is_empty()) {

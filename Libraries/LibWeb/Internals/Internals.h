@@ -62,6 +62,8 @@ public:
 
     bool headless();
 
+    String dump_display_list();
+
 private:
     explicit Internals(JS::Realm&);
 
