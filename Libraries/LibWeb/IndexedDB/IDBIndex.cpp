@@ -204,9 +204,10 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_key(JS::Value query)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-getall
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all(Optional<JS::Value> query, Optional<WebIDL::UnsignedLong> count)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all(Optional<JS::Value> query_or_options, Optional<WebIDL::UnsignedLong> count)
 {
     auto& realm = this->realm();
+    auto& vm = realm.vm();
 
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
@@ -220,15 +221,50 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all(Optional<JS::Value> q
     if (!transaction->is_active())
         return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting all"_utf16);
 
-    // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
-    auto range = TRY(convert_a_value_to_a_key_range(realm, query));
+    // 5. Let range be a key range.
+    GC::Ptr<IDBKeyRange> range;
 
-    // 6. Let operation be an algorithm to run retrieve multiple referenced values from an index with the current Realm record, index, range, and count if given.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, index, range, count] -> WebIDL::ExceptionOr<JS::Value> {
-        return retrieve_multiple_referenced_values_from_an_index(realm, index, range, count);
+    // 6. Let direction be a cursor direction.
+    Bindings::IDBCursorDirection direction = Bindings::IDBCursorDirection::Next;
+
+    // 7. If running is a potentially valid key range with query_or_options is true, then:
+    if (is_a_potentially_valid_key_range(realm, *query_or_options)) {
+        // 1. Set range to the result of converting a value to a key range with query_or_options. Rethrow any exceptions.
+        range = TRY(convert_a_value_to_a_key_range(realm, query_or_options));
+
+        // 2. Set direction to "next".
+        direction = Bindings::IDBCursorDirection::Next;
+    }
+
+    // 8. Else:
+    else {
+        // 1. Set range to the result of converting a value to a key range with query_or_options["query"]. Rethrow any exceptions.
+        range = TRY(convert_a_value_to_a_key_range(realm, TRY(query_or_options->get(vm, "query"_utf16))));
+
+        // 2. Set count to query_or_options["count"].
+        count = TRY(TRY(query_or_options->get(vm, "count"_utf16)).to_u32(vm));
+
+        // 3. Set direction to query_or_options["direction"].
+        auto direction_value = TRY(TRY(query_or_options->get(vm, "direction"_utf16)).to_string(vm));
+        if (direction_value == "next"_string) {
+            direction = Bindings::IDBCursorDirection::Next;
+        } else if (direction_value == "nextunique"_string) {
+            direction = Bindings::IDBCursorDirection::Nextunique;
+        } else if (direction_value == "prev"_string) {
+            direction = Bindings::IDBCursorDirection::Prev;
+        } else if (direction_value == "prevunique"_string) {
+            direction = Bindings::IDBCursorDirection::Prevunique;
+        } else {
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid direction value"_string };
+        }
+    }
+
+    // 9. Let operation be an algorithm to run retrieve multiple items from an index with the current Realm record, index, range, "value", direction and count if given.
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, index, range, direction, count] -> WebIDL::ExceptionOr<JS::Value> {
+        return retrieve_multiple_items_from_an_index(realm, index, GC::Ref(*range), RecordKind::Value, direction, count);
     });
 
-    // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
+    // 10. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
     auto result = asynchronously_execute_a_request(realm, GC::Ref(*this), operation);
     dbgln_if(IDB_DEBUG, "Executing request for get all with uuid {}", result->uuid());
     return result;
