@@ -21,7 +21,8 @@
         "http2",
         "http3",
         "openssl",
-        "websockets"
+        "websockets",
+        "zstd"
       ]
     },
     {
