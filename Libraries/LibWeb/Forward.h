@@ -351,6 +351,7 @@ struct AtRule;
 struct Declaration;
 struct Function;
 struct GuaranteedInvalidValue;
+struct ParsingParams;
 struct QualifiedRule;
 struct SimpleBlock;
 
