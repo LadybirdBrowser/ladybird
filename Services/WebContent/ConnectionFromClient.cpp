@@ -253,6 +253,14 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         Web::dump_tree(*traversable);
     }
 
+    if (request == "dump-display-list") {
+        if (auto* doc = page->page().top_level_browsing_context().active_document()) {
+            auto display_list_dump = doc->dump_display_list();
+            dbgln("{}", display_list_dump);
+        }
+        return;
+    }
+
     if (request == "dump-dom-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document())
             Web::dump_tree(*doc);
