@@ -24,6 +24,8 @@ public:
     virtual ~CSSMediaRule() = default;
 
     virtual String condition_text() const override;
+    bool matches() const { return condition_matches(); }
+
     virtual bool condition_matches() const override { return m_media->matches(); }
 
     MediaList* media() const { return m_media; }
