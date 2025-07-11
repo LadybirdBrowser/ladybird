@@ -1,0 +1,147 @@
+<!doctype html>
+<title>default styles for h1..h6, hgroup, article, aside, nav, section (no h1 in section UA styles)</title>
+<meta name="viewport" content="width=device-width">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../html/rendering/support/test-ua-stylesheet.js"></script>
+<link rel="help" href="https://github.com/whatwg/html/issues/7867">
+<style>
+/* Specify this bogus namespace, so the rules in this stylesheet only apply to the `fakeClone`d elements in #refs, not the HTML elements in #tests. */
+@namespace url(urn:not-html);
+
+article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section {
+  display: block;
+}
+
+h1 { margin-block: 0.67em; font-size: 2.00em; font-weight: bold; }
+h2 { margin-block: 0.83em; font-size: 1.50em; font-weight: bold; }
+h3 { margin-block: 1.00em; font-size: 1.17em; font-weight: bold; }
+h4 { margin-block: 1.33em; font-size: 1.00em; font-weight: bold; }
+h5 { margin-block: 1.67em; font-size: 0.83em; font-weight: bold; }
+h6 { margin-block: 2.33em; font-size: 0.67em; font-weight: bold; }
+
+</style>
+
+<div id="log"></div>
+
+<div id="tests">
+  <h1></h1>
+  <h2></h2>
+  <h3></h3>
+  <h4></h4>
+  <h5></h5>
+  <h6></h6>
+  <hgroup></hgroup>
+  <article></article>
+  <aside></aside>
+  <nav></nav>
+  <section></section>
+  <article data-skip>
+    <h1></h1>
+    <article data-skip>
+      <h1></h1>
+      <article data-skip>
+        <h1></h1>
+        <article data-skip>
+          <h1></h1>
+          <article data-skip>
+            <h1></h1>
+            <hgroup data-skip>
+             <h1></h1>
+             <h2></h2>
+             <h3></h3>
+             <h4></h4>
+             <h5></h5>
+            </hgroup>
+          </article>
+        </article>
+      </article>
+    </article>
+  </article>
+  <aside data-skip>
+    <h1></h1>
+    <aside data-skip>
+      <h1></h1>
+      <aside data-skip>
+        <h1></h1>
+        <aside data-skip>
+          <h1></h1>
+          <aside data-skip>
+            <h1></h1>
+            <hgroup data-skip>
+             <h1></h1>
+             <h2></h2>
+             <h3></h3>
+             <h4></h4>
+             <h5></h5>
+            </hgroup>
+          </aside>
+        </aside>
+      </aside>
+    </aside>
+  </aside>
+  <nav data-skip>
+    <h1></h1>
+    <nav data-skip>
+      <h1></h1>
+      <nav data-skip>
+        <h1></h1>
+        <nav data-skip>
+          <h1></h1>
+          <nav data-skip>
+            <h1></h1>
+            <hgroup data-skip>
+             <h1></h1>
+             <h2></h2>
+             <h3></h3>
+             <h4></h4>
+             <h5></h5>
+            </hgroup>
+          </nav>
+        </nav>
+      </nav>
+    </nav>
+  </nav>
+  <section data-skip>
+    <h1></h1>
+    <section data-skip>
+      <h1></h1>
+      <section data-skip>
+        <h1></h1>
+        <section data-skip>
+          <h1></h1>
+          <section data-skip>
+            <h1></h1>
+            <hgroup data-skip>
+             <h1></h1>
+             <h2></h2>
+             <h3></h3>
+             <h4></h4>
+             <h5></h5>
+            </hgroup>
+          </section>
+        </section>
+      </section>
+    </section>
+  </section>
+</div>
+
+<div id="refs"></div>
+
+<script>
+  const props = [
+    'display',
+    'margin-top',
+    'margin-right',
+    'margin-bottom',
+    'margin-left',
+    'padding-top',
+    'padding-right',
+    'padding-bottom',
+    'padding-left',
+    'font-size',
+    'font-weight',
+  ];
+  runUAStyleTests(props);
+
+</script>
