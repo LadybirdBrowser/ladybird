@@ -24,26 +24,6 @@ SVGSVGPaintable::SVGSVGPaintable(Layout::SVGSVGBox const& layout_box)
 {
 }
 
-void SVGSVGPaintable::before_paint(PaintContext& context, PaintPhase phase) const
-{
-    if (!is_visible())
-        return;
-    if (!has_css_transform()) {
-        apply_clip_overflow_rect(context, phase);
-    }
-    apply_scroll_offset(context);
-}
-
-void SVGSVGPaintable::after_paint(PaintContext& context, PaintPhase phase) const
-{
-    if (!is_visible())
-        return;
-    reset_scroll_offset(context);
-    if (!has_css_transform()) {
-        clear_clip_overflow_rect(context, phase);
-    }
-}
-
 Layout::SVGSVGBox const& SVGSVGPaintable::layout_box() const
 {
     return static_cast<Layout::SVGSVGBox const&>(layout_node());
@@ -107,10 +87,7 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
     }
 
     if (!skip_painting) {
-        svg_box.before_paint(context, PaintPhase::Foreground);
         svg_box.paint(context, PaintPhase::Foreground);
-        svg_box.after_paint(context, PaintPhase::Foreground);
-
         paint_descendants(context, svg_box, phase);
     }
 

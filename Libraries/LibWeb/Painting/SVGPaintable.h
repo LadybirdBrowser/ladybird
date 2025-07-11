@@ -22,9 +22,6 @@ protected:
 
     SVGPaintable(Layout::SVGBox const&);
 
-    virtual void before_paint(PaintContext&, PaintPhase) const override;
-    virtual void after_paint(PaintContext&, PaintPhase) const override;
-
     virtual CSSPixelRect compute_absolute_rect() const override;
 };
 

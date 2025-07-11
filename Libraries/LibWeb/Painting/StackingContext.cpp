@@ -108,9 +108,9 @@ void StackingContext::paint_svg(PaintContext& context, PaintableBox const& paint
     if (phase != PaintPhase::Foreground)
         return;
 
-    paintable.before_paint(context, PaintPhase::Foreground);
     paint_node(paintable, context, PaintPhase::Background);
     paint_node(paintable, context, PaintPhase::Border);
+    paintable.before_paint(context, PaintPhase::Foreground);
     SVGSVGPaintable::paint_svg_box(context, paintable, phase);
     paintable.after_paint(context, PaintPhase::Foreground);
 }
@@ -118,13 +118,13 @@ void StackingContext::paint_svg(PaintContext& context, PaintableBox const& paint
 void StackingContext::paint_descendants(PaintContext& context, Paintable const& paintable, StackingContextPaintPhase phase)
 {
     paintable.for_each_child([&context, phase](auto& child) {
+        if (child.has_stacking_context())
+            return IterationDecision::Continue;
+
         if (child.layout_node().is_svg_svg_box()) {
             paint_svg(context, static_cast<PaintableBox const&>(child), to_paint_phase(phase));
             return IterationDecision::Continue;
         }
-
-        if (child.has_stacking_context())
-            return IterationDecision::Continue;
 
         // NOTE: Grid specification https://www.w3.org/TR/css-grid-2/#z-order says that grid items should be treated
         //       the same way as CSS2 defines for inline-blocks:
@@ -199,10 +199,7 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
 void StackingContext::paint_child(PaintContext& context, StackingContext const& child)
 {
     VERIFY(!child.paintable_box().layout_node().is_svg_box());
-    VERIFY(!child.paintable_box().layout_node().is_svg_svg_box());
-
     const_cast<StackingContext&>(child).set_last_paint_generation_id(context.paint_generation_id());
-
     child.paint(context);
 }
 
@@ -210,9 +207,26 @@ void StackingContext::paint_internal(PaintContext& context) const
 {
     VERIFY(!paintable_box().layout_node().is_svg_box());
     if (paintable_box().layout_node().is_svg_svg_box()) {
-        paint_svg(context, paintable_box(), PaintPhase::Foreground);
+        auto const& svg_svg_paintable = static_cast<SVGSVGPaintable const&>(paintable_box());
+        paint_node(svg_svg_paintable, context, PaintPhase::Background);
+        paint_node(svg_svg_paintable, context, PaintPhase::Border);
+
+        svg_svg_paintable.before_paint(context, PaintPhase::Foreground);
+        SVGSVGPaintable::paint_descendants(context, svg_svg_paintable, PaintPhase::Foreground);
+        svg_svg_paintable.after_paint(context, PaintPhase::Foreground);
+
+        paint_node(svg_svg_paintable, context, PaintPhase::Outline);
+        if (context.should_paint_overlay()) {
+            paint_node(svg_svg_paintable, context, PaintPhase::Overlay);
+            paint_descendants(context, svg_svg_paintable, StackingContextPaintPhase::FocusAndOverlay);
+        }
         return;
     }
+
+    context.display_list_recorder().push_scroll_frame_id({});
+    ScopeGuard restore_scroll_frame_id([&] {
+        context.display_list_recorder().pop_scroll_frame_id();
+    });
 
     // For a more elaborate description of the algorithm, see CSS 2.1 Appendix E
     // Draw the background and borders for the context root (steps 1, 2)
@@ -357,9 +371,7 @@ void StackingContext::paint(PaintContext& context) const
         }
     }
 
-    context.display_list_recorder().push_scroll_frame_id({});
     paint_internal(context);
-    context.display_list_recorder().pop_scroll_frame_id();
 
     if (filter.has_value()) {
         context.display_list_recorder().restore();
