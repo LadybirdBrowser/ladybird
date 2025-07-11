@@ -103,7 +103,14 @@ TEST_CASE(ipv4_mapped_ipv6)
     EXPECT_EQ(ipv4_address_to_map, mapped_address.ipv4_mapped_address().value());
     EXPECT_EQ("::ffff:192.168.0.1"sv, MUST(mapped_address.to_string()));
     EXPECT_EQ(IPv4Address(192, 168, 1, 9), IPv6Address::from_string("::FFFF:192.168.1.9"sv).value().ipv4_mapped_address().value());
+    EXPECT_EQ(IPv4Address(192, 168, 1, 7), IPv6Address::from_string("::0:0:ffff:192.168.1.7"sv).value().ipv4_mapped_address().value());
+    EXPECT_EQ(IPv4Address(192, 168, 2, 5), IPv6Address::from_string("0:0:0::ffff:192.168.2.5"sv).value().ipv4_mapped_address().value());
     EXPECT(!IPv6Address::from_string("::abcd:192.168.1.9"sv).has_value());
+    EXPECT(!IPv6Address::from_string("::::ffff:192.168.1.9"sv).has_value());
+    EXPECT(!IPv6Address::from_string("ffff::ffff:192.168.1.9"sv).has_value());
+    EXPECT(!IPv6Address::from_string("0::0::ffff:192.168.1.9"sv).has_value());
+    EXPECT(!IPv6Address::from_string("::0::ffff:192.168.1.9"sv).has_value());
+    EXPECT(!IPv6Address::from_string(":0:ffff:192.168.1.9"sv).has_value());
 }
 
 TEST_CASE(should_make_empty_optional_from_bad_string)
