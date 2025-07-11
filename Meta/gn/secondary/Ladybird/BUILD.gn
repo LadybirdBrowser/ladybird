@@ -279,10 +279,8 @@ web_templates = [
   "//Base/res/ladybird/templates/version.html",
 ]
 
-config_resources = [
-  "//Base/res/ladybird/default-config/BrowserContentFilters.txt",
-  "//Base/res/ladybird/default-config/bookmarks.json",
-]
+config_resources =
+    [ "//Base/res/ladybird/default-config/BrowserContentFilters.txt" ]
 
 if (current_os != "mac") {
   copy("ladybird_copy_fonts") {

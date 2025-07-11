@@ -98,7 +98,6 @@ set(THEMES
 list(TRANSFORM THEMES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/themes/")
 
 set(CONFIG_RESOURCES
-    bookmarks.json
     BrowserContentFilters.txt
 )
 list(TRANSFORM CONFIG_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/default-config/")
