@@ -402,6 +402,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         debug_request("dump-stacking-context-tree");
     });
 
+    auto* dump_display_list = new QAction("Dump Display List", this);
+    dump_display_list->setIcon(load_icon_from_uri("resource://icons/16x16/layout.png"sv));
+    debug_menu->addAction(dump_display_list);
+    QObject::connect(dump_display_list, &QAction::triggered, this, [this] {
+        debug_request("dump-display-list");
+    });
+
     auto* dump_style_sheets_action = new QAction("Dump &Style Sheets", this);
     dump_style_sheets_action->setIcon(load_icon_from_uri("resource://icons/16x16/filetype-css.png"sv));
     debug_menu->addAction(dump_style_sheets_action);
