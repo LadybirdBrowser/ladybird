@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
+#include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS::Parser {
 
@@ -79,20 +80,19 @@ private:
 // '<foo>'
 class TypeSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullOwnPtr<TypeSyntaxNode> create(FlyString type_name)
-    {
-        return adopt_own(*new TypeSyntaxNode(move(type_name)));
-    }
-
+    static NonnullOwnPtr<TypeSyntaxNode> create(FlyString type_name);
     virtual ~TypeSyntaxNode() override;
+
     FlyString const& type_name() const { return m_type_name; }
+    Optional<ValueType> const& value_type() const { return m_value_type; }
 
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
-    TypeSyntaxNode(FlyString type_name);
+    TypeSyntaxNode(FlyString type_name, Optional<ValueType> value_type);
     FlyString m_type_name;
+    Optional<ValueType> m_value_type;
 };
 
 // '+'

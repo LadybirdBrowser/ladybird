@@ -144,6 +144,8 @@ public:
     };
     static Optional<Vector<ComponentValue>> parse_declaration_value(TokenStream<ComponentValue>&, StopAtComma = StopAtComma::No);
 
+    NonnullRefPtr<CSSStyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element = {});
+
 private:
     Parser(ParsingParams const&, Vector<Token>);
 
@@ -516,6 +518,8 @@ private:
     OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<CSSStyleValue const> resolve_unresolved_style_value(DOM::AbstractElement&, GuardedSubstitutionContexts&, PropertyIDOrCustomPropertyName, UnresolvedStyleValue const&);
+
+    RefPtr<CSSStyleValue const> parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node, Optional<DOM::AbstractElement> const& element);
 
     static bool has_ignored_vendor_prefix(StringView);
 

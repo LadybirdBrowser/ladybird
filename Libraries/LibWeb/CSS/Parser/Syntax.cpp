@@ -33,9 +33,16 @@ void UniversalSyntaxNode::dump(StringBuilder& builder, int indent) const
     builder.appendff("{: >{}}Universal\n", "", indent);
 }
 
-TypeSyntaxNode::TypeSyntaxNode(FlyString type_name)
+NonnullOwnPtr<TypeSyntaxNode> TypeSyntaxNode::create(FlyString type_name)
+{
+    auto value_type = value_type_from_string(type_name);
+    return adopt_own(*new TypeSyntaxNode(move(type_name), move(value_type)));
+}
+
+TypeSyntaxNode::TypeSyntaxNode(FlyString type_name, Optional<ValueType> value_type)
     : SyntaxNode(NodeType::Type)
     , m_type_name(move(type_name))
+    , m_value_type(move(value_type))
 {
 }
 
