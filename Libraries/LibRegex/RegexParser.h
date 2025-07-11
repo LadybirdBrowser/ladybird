@@ -66,6 +66,7 @@ public:
             Optional<ByteString> pure_substring_search;
             // If populated, the pattern only accepts strings that start with a character in these ranges.
             Vector<CharRange> starting_ranges;
+            Vector<CharRange> starting_ranges_insensitive;
             bool only_start_of_line = false;
         } optimization_data {};
     };

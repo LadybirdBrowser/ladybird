@@ -736,6 +736,8 @@ TEST_CASE(ECMA262_match)
         { "(?!(b))\\1"sv, "a"sv, false },
         // String table merge bug: inverse map should be merged regardless of available direct mappings.
         { "((?<x>a)|(?<x>b))"sv, "aa"sv, false },
+        // Insensitive charclasses should accept upper/lowercase in pattern (lookup table should still be ordered if insensitive lookup is used), ladybird#5399.
+        { "[aBc]"sv, "b"sv, true, ECMAScriptFlags::Insensitive },
     };
 
     for (auto& test : tests) {

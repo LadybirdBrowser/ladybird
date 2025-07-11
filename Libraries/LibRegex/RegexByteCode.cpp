@@ -6,6 +6,7 @@
 
 #include "RegexByteCode.h"
 #include "RegexDebug.h"
+
 #include <AK/BinarySearch.h>
 #include <AK/CharacterTypes.h>
 #include <AK/StringBuilder.h>
@@ -539,25 +540,24 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             if (input.view.length() <= state.string_position)
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
-            auto count = m_bytecode->at(offset++);
-            auto range_data = m_bytecode->flat_data().slice(offset, count);
-            offset += count;
+            auto count_sensitive = m_bytecode->at(offset++);
+            auto count_insensitive = m_bytecode->at(offset++);
+            auto sensitive_range_data = m_bytecode->flat_data().slice(offset, count_sensitive);
+            offset += count_sensitive;
+            auto insensitive_range_data = m_bytecode->flat_data().slice(offset, count_insensitive);
+            offset += count_insensitive;
+
+            bool const insensitive = input.regex_options & AllFlags::Insensitive;
 
             auto ch = input.view[state.string_position_in_code_units];
+            if (insensitive)
+                ch = to_ascii_lowercase(ch);
 
-            auto const* matching_range = binary_search(range_data, ch, nullptr, [insensitive = input.regex_options & AllFlags::Insensitive](auto needle, CharRange range) {
-                auto upper_case_needle = needle;
-                auto lower_case_needle = needle;
-                if (insensitive) {
-                    upper_case_needle = to_ascii_uppercase(needle);
-                    lower_case_needle = to_ascii_lowercase(needle);
-                }
-
-                if (lower_case_needle >= range.from && lower_case_needle <= range.to)
+            auto const ranges = insensitive && !insensitive_range_data.is_empty() ? insensitive_range_data : sensitive_range_data;
+            auto const* matching_range = binary_search(ranges, ch, nullptr, [](auto needle, CharRange range) {
+                if (needle >= range.from && needle <= range.to)
                     return 0;
-                if (upper_case_needle >= range.from && upper_case_needle <= range.to)
-                    return 0;
-                if (lower_case_needle > range.to || upper_case_needle > range.to)
+                if (needle > range.to)
                     return 1;
                 return -1;
             });
@@ -934,9 +934,11 @@ Vector<CompareTypeAndValuePair> OpCode_Compare::flat_compares() const
             auto value = m_bytecode->at(offset++);
             result.append({ compare_type, value });
         } else if (compare_type == CharacterCompareType::LookupTable) {
-            auto count = m_bytecode->at(offset++);
-            for (size_t i = 0; i < count; ++i)
+            auto count_sensitive = m_bytecode->at(offset++);
+            auto count_insensitive = m_bytecode->at(offset++);
+            for (size_t i = 0; i < count_sensitive; ++i)
                 result.append({ CharacterCompareType::CharRange, m_bytecode->at(offset++) });
+            offset += count_insensitive; // Skip insensitive ranges
         } else if (compare_type == CharacterCompareType::GeneralCategory
             || compare_type == CharacterCompareType::Property
             || compare_type == CharacterCompareType::Script
@@ -1027,11 +1029,21 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                     " compare against: '{}'",
                     input.value().view.substring_view(string_start_offset, state().string_position > view.length() ? 0 : 1).to_byte_string()));
         } else if (compare_type == CharacterCompareType::LookupTable) {
-            auto count = m_bytecode->at(offset++);
-            for (size_t j = 0; j < count; ++j) {
+            auto count_sensitive = m_bytecode->at(offset++);
+            auto count_insensitive = m_bytecode->at(offset++);
+            for (size_t j = 0; j < count_sensitive; ++j) {
                 auto range = (CharRange)m_bytecode->at(offset++);
                 result.append(ByteString::formatted(" {:x}-{:x}", range.from, range.to));
             }
+            if (count_insensitive > 0) {
+                result.append(" [insensitive ranges:");
+                for (size_t j = 0; j < count_insensitive; ++j) {
+                    auto range = (CharRange)m_bytecode->at(offset++);
+                    result.append(ByteString::formatted("  {:x}-{:x}", range.from, range.to));
+                }
+                result.append(" ]");
+            }
+
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: '{}'",
