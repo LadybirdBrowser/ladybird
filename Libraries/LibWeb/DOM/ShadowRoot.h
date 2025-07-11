@@ -126,6 +126,15 @@ inline TraversalDecision Node::for_each_shadow_including_inclusive_descendant(Ca
     if (callback(*this) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
+    if (this->for_each_shadow_including_descendant(callback) == TraversalDecision::Break)
+        return TraversalDecision::Break;
+
+    return TraversalDecision::Continue;
+}
+
+template<typename Callback>
+inline TraversalDecision Node::for_each_shadow_including_descendant(Callback callback)
+{
     if (is_element()) {
         if (auto shadow_root = static_cast<Element*>(this)->shadow_root()) {
             if (shadow_root->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
@@ -138,16 +147,6 @@ inline TraversalDecision Node::for_each_shadow_including_inclusive_descendant(Ca
             return TraversalDecision::Break;
     }
 
-    return TraversalDecision::Continue;
-}
-
-template<typename Callback>
-inline TraversalDecision Node::for_each_shadow_including_descendant(Callback callback)
-{
-    for (auto* child = first_child(); child; child = child->next_sibling()) {
-        if (child->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-    }
     return TraversalDecision::Continue;
 }
 
