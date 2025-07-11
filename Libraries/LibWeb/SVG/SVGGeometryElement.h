@@ -23,10 +23,16 @@ public:
     float get_total_length();
     GC::Ref<Geometry::DOMPoint> get_point_at_length(float distance);
 
+    GC::Ref<SVGAnimatedNumber> path_length();
+
 protected:
     SVGGeometryElement(DOM::Document& document, DOM::QualifiedName qualified_name);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
+
+private:
+    GC::Ptr<SVGAnimatedNumber> m_path_length;
 };
 
 }

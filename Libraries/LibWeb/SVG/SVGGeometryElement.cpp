@@ -22,6 +22,12 @@ void SVGGeometryElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void SVGGeometryElement::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_path_length);
+}
+
 GC::Ptr<Layout::Node> SVGGeometryElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::SVGGeometryBox>(document(), *this, move(style));
@@ -36,6 +42,13 @@ GC::Ref<Geometry::DOMPoint> SVGGeometryElement::get_point_at_length(float distan
 {
     (void)distance;
     return Geometry::DOMPoint::construct_impl(realm(), 0, 0, 0, 0);
+}
+
+GC::Ref<SVGAnimatedNumber> SVGGeometryElement::path_length()
+{
+    if (!m_path_length)
+        m_path_length = SVGAnimatedNumber::create(realm(), *this, AttributeNames::pathLength, 0.f);
+    return *m_path_length;
 }
 
 }
