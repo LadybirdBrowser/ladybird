@@ -490,36 +490,6 @@ h6 {
     font-weight: bold;
 }
 
-:is(article, aside, nav, section) h1 {
-    margin-top: 0.83em;
-    margin-bottom: 0.83em;
-    font-size: 1.50em;
-}
-
-:is(article, aside, nav, section) :is(article, aside, nav, section) h1 {
-    margin-top: 1.00em;
-    margin-bottom: 1.00em;
-    font-size: 1.17em;
-}
-
-:is(article, aside, nav, section) :is(article, aside, nav, section) :is(article, aside, nav, section) h1 {
-    margin-top: 1.33em;
-    margin-bottom: 1.33em;
-    font-size: 1.00em;
-}
-
-:is(article, aside, nav, section) :is(article, aside, nav, section) :is(article, aside, nav, section) :is(article, aside, nav, section) h1 {
-    margin-top: 1.67em;
-    margin-bottom: 1.67em;
-    font-size: 0.83em;
-}
-
-:is(article, aside, nav, section) :is(article, aside, nav, section) :is(article, aside, nav, section) :is(article, aside, nav, section) :is(article, aside, nav, section) h1 {
-    margin-top: 2.33em;
-    margin-bottom: 2.33em;
-    font-size: 0.67em;
-}
-
 /* 15.3.7 Lists
  * https://html.spec.whatwg.org/multipage/rendering.html#lists
  */
