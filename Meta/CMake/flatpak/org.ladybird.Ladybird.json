@@ -13,6 +13,17 @@
     "--socket=pulseaudio",
     "--socket=session-bus"
   ],
+  "cleanup": [
+    "/sbin",
+    "*.a",
+    "/lib/cmake",
+    "/lib/pkgconfig",
+    "/include",
+    "/share/aclocal",
+    "/share/cmake",
+    "/share/doc",
+    "/share/man"
+  ],
   "modules": [
     {
       "name": "simdutf",
@@ -66,6 +77,9 @@
         "-DSKIP_INSTALL_EXECUTABLES=ON",
         "-DSKIP_INSTALL_FILES=OFF",
         "-DSKIP_INSTALL_PROGRAMS=ON"
+      ],
+      "cleanup": [
+        "/bin"
       ]
     },
     {
@@ -123,6 +137,12 @@
         "--disable-debug",
         "--enable-release",
         "--enable-shared"
+      ],
+      "cleanup": [
+        "/bin",
+        "/lib/icu",
+        "/lib/libicutu.so*",
+        "/share/icu"
       ]
     },
     {
@@ -168,11 +188,14 @@
         "-DLIBXML2_WITH_ICU=ON",
         "-DLIBXML2_WITH_LZMA=ON",
         "-DLIBXML2_WITH_ZLIB=ON"
+      ],
+      "cleanup": [
+        "/bin"
       ]
     },
     {
       "name": "vulkan-memory-allocator",
-      "buildsystem": "cmake",
+      "buildsystem": "cmake-ninja",
       "sources": [
         {
           "type": "git",
@@ -202,7 +225,8 @@
       ],
       "build-commands": [
         "./gn-whole-enchilada.sh"
-      ]
+      ],
+      "cleanup": [ "*" ]
     },
     {
       "name": "brotli",
@@ -220,6 +244,9 @@
         "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DBROTLI_DISABLE_TESTS=ON",
         "-DBROTLI_BUILD_TOOLS=OFF"
+      ],
+      "cleanup": [
+        "/bin"
       ]
     },
     {
@@ -274,7 +301,7 @@
         "-DCMAKE_PREFIX_PATH=/app"
       ],
       "cleanup": [
-        "/app/bin"
+        "/bin"
       ]
     },
     {
@@ -323,6 +350,9 @@
         "-DWEBP_BUILD_DWEBP=OFF",
         "-DWEBP_BUILD_WEBPMUX=OFF",
         "-DWEBP_BUILD_EXTRAS=OFF"
+      ],
+      "cleanup": [
+        "/share/WebP"
       ]
     },
     {
@@ -476,6 +506,8 @@
         "-DCMAKE_BUILD_TYPE=Release",
         "-DENABLE_LTO_FOR_RELEASE=OFF",
         "-DENABLE_INSTALL_FREEDESKTOP_FILES=ON",
+        "-DENABLE_INSTALL_HEADERS=OFF",
+        "-DBUILD_TESTING=OFF",
         "-DICU_ROOT=/app"
       ]
     }
