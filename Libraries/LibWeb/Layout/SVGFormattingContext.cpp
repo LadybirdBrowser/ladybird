@@ -279,7 +279,6 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         layout_nested_viewport(child);
     } else if (is<SVG::SVGForeignObjectElement>(child.dom_node()) && is<BlockContainer>(child)) {
         Layout::BlockFormattingContext bfc(m_state, m_layout_mode, static_cast<BlockContainer const&>(child), this);
-        bfc.run(*m_available_space);
         auto& child_state = m_state.get_mutable(child);
         CSSPixelRect rect {
             {
@@ -295,6 +294,9 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         child_state.set_content_offset(transformed_rect.location());
         child_state.set_content_width(transformed_rect.width());
         child_state.set_content_height(transformed_rect.height());
+
+        bfc.run(AvailableSpace(AvailableSize::make_definite(child_state.content_width()), AvailableSize::make_definite(child_state.content_height())));
+
         if (auto* mask_box = child.first_child_of_type<SVGMaskBox>())
             layout_mask_or_clip(*mask_box);
 
