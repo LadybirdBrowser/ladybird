@@ -751,11 +751,11 @@ set(SOURCES
     Platform/AudioCodecPlugin.cpp
     Platform/AudioCodecPluginAgnostic.cpp
     Platform/EventLoopPlugin.cpp
-    Platform/EventLoopPluginSerenity.cpp
+    Platform/EventLoopPluginLadybird.cpp
     Platform/FontPlugin.cpp
     Platform/ImageCodecPlugin.cpp
     Platform/Timer.cpp
-    Platform/TimerSerenity.cpp
+    Platform/TimerLadybird.cpp
     ReferrerPolicy/AbstractOperations.cpp
     ReferrerPolicy/ReferrerPolicy.cpp
     RequestIdleCallback/IdleDeadline.cpp
