@@ -110,6 +110,11 @@
   "slider-track": {
     "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-track"
   },
+  "slotted": {
+    "spec": "https://drafts.csswg.org/css-scoping/#slotted-pseudo",
+    "type": "function",
+    "function-syntax": "<compound-selector>"
+  },
   "view-transition": {
     "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition",
     "is-pseudo-root": true

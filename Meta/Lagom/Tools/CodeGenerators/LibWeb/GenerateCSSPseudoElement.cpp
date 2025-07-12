@@ -92,6 +92,7 @@ bool pseudo_element_supports_property(PseudoElement, PropertyID);
 struct PseudoElementMetadata {
     enum class ParameterType {
         None,
+        CompoundSelector,
         PTNameSelector,
     } parameter_type;
     bool is_valid_as_function;
@@ -515,6 +516,8 @@ PseudoElementMetadata pseudo_element_metadata(PseudoElement pseudo_element)
             auto const& function_syntax = pseudo_element.get_string("function-syntax"sv).value();
             if (function_syntax == "<pt-name-selector>"sv) {
                 parameter_type = "PTNameSelector"_string;
+            } else if (function_syntax == "<compound-selector>"sv) {
+                parameter_type = "CompoundSelector"_string;
             } else {
                 warnln("Unrecognized pseudo-element parameter type: `{}`", function_syntax);
                 VERIFY_NOT_REACHED();
