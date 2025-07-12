@@ -458,9 +458,9 @@ private:
 
     ThrowCompletionOr<i32> to_i32_slow_case(VM&) const;
 
-    JS_API friend constexpr Value js_undefined();
-    JS_API friend constexpr Value js_null();
-    JS_API friend constexpr Value js_special_empty_value();
+    friend constexpr Value js_undefined();
+    friend constexpr Value js_null();
+    friend constexpr Value js_special_empty_value();
     JS_API friend ThrowCompletionOr<bool> greater_than(VM&, Value lhs, Value rhs);
     JS_API friend ThrowCompletionOr<bool> greater_than_equals(VM&, Value lhs, Value rhs);
     JS_API friend ThrowCompletionOr<bool> less_than(VM&, Value lhs, Value rhs);

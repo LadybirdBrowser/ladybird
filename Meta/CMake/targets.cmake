@@ -5,7 +5,11 @@ function(lagom_generate_export_header name fs_name)
     # to export symbols required by external consumers. This allows the codebase
     # to gradually slowly migrate instead of an all-or-nothing approach.
     if (NOT WIN32)
-        add_cxx_compile_options(${name} PRIVATE -fvisibility=hidden)
+        target_compile_options(${name}
+            PRIVATE
+                "$<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>"
+                "$<$<COMPILE_LANGUAGE:C>:-fvisibility=hidden>"
+        )
     else()
         set_target_properties(${name} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     endif()

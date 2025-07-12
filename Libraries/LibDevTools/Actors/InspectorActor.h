@@ -9,10 +9,11 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
-class InspectorActor final : public Actor {
+class DEVTOOLS_API InspectorActor final : public Actor {
 public:
     static constexpr auto base_name = "inspector"sv;
 

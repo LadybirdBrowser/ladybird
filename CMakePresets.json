@@ -145,8 +145,7 @@
       "displayName": "Windows CI Config",
       "description": "CI Windows build",
       "cacheVariables": {
-        "ENABLE_WINDOWS_CI": "ON",
-        "ENABLE_QT": "OFF"
+        "ENABLE_WINDOWS_CI": "ON"
       }
     },
     {
