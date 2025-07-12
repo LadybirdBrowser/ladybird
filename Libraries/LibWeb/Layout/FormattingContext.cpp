@@ -1803,8 +1803,8 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
             // Top: Align the top of the aligned subtree with the top of the line box.
             return box_state.border_box_top();
         case CSS::VerticalAlign::Middle:
-            // Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of the parent.
-            return box_state.content_height() / 2 + CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().x_height / 2);
+            // Middle: Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of the parent.
+            return box_state.margin_box_height() / 2 + CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().x_height / 2);
         case CSS::VerticalAlign::Bottom:
             // Bottom: Align the bottom of the aligned subtree with the bottom of the line box.
             return box_state.content_height() + box_state.margin_box_top();
@@ -1812,8 +1812,8 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
             // TextTop: Align the top of the box with the top of the parent's content area (see 10.6.1).
             return box.computed_values().font_size();
         case CSS::VerticalAlign::TextBottom:
-            // TextTop: Align the bottom of the box with the bottom of the parent's content area (see 10.6.1).
-            return box_state.content_height() - CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().descent * 2);
+            // TextBottom: Align the bottom of the box with the bottom of the parent's content area (see 10.6.1).
+            return box_state.margin_box_height() - CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().descent * 2);
         default:
             break;
         }
