@@ -25,6 +25,7 @@
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
+#include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
@@ -1368,7 +1369,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
     // 4. Store a record in store containing key as its key and ! StructuredSerializeForStorage(value) as its value.
     //    The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
-    Record record = {
+    ObjectStoreRecord record = {
         .key = *key,
         .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), value)),
     };
@@ -1519,11 +1520,11 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         VERIFY(source.has<GC::Ref<Index>>() && direction_is_next_or_prev);
 
     // 4. Let records be the list of records in source.
-    Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> records = source.visit(
-        [](GC::Ref<ObjectStore> object_store) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
+    Variant<ReadonlySpan<ObjectStoreRecord>, ReadonlySpan<IndexRecord>> records = source.visit(
+        [](GC::Ref<ObjectStore> object_store) -> Variant<ReadonlySpan<ObjectStoreRecord>, ReadonlySpan<IndexRecord>> {
             return object_store->records();
         },
-        [](GC::Ref<Index> index) -> Variant<ReadonlySpan<Record>, ReadonlySpan<IndexRecord>> {
+        [](GC::Ref<Index> index) -> Variant<ReadonlySpan<ObjectStoreRecord>, ReadonlySpan<IndexRecord>> {
             return index->records();
         });
 
@@ -1539,7 +1540,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     // 8. If count is not given, let count be 1.
     // NOTE: This is handled by the default parameter
 
-    auto next_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+    auto next_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is greater than or equal to key.
@@ -1568,7 +1569,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
         // * If position is defined and source is an object store:
         if (position && source.has<GC::Ref<ObjectStore>>()) {
-            auto const& inner_record = record.get<Record>();
+            auto const& inner_record = record.get<ObjectStoreRecord>();
 
             // * The record’s key is greater than position.
             if (!Key::greater_than(inner_record.key, *position))
@@ -1598,7 +1599,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         return is_in_range;
     };
 
-    auto next_unique_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+    auto next_unique_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is greater than or equal to key.
@@ -1635,7 +1636,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         return is_in_range;
     };
 
-    auto prev_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+    auto prev_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is less than or equal to key.
@@ -1664,7 +1665,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
         // * If position is defined and source is an object store:
         if (position && source.has<GC::Ref<ObjectStore>>()) {
-            auto const& inner_record = record.get<Record>();
+            auto const& inner_record = record.get<ObjectStoreRecord>();
 
             // * The record’s key is less than position.
             if (!Key::less_than(inner_record.key, *position))
@@ -1694,7 +1695,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         return is_in_range;
     };
 
-    auto prev_unique_requirements = [&](Variant<Record, IndexRecord> const& record) -> bool {
+    auto prev_unique_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is less than or equal to key.
@@ -1732,13 +1733,13 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     };
 
     // 9. While count is greater than 0:
-    Variant<Empty, Record, IndexRecord> found_record;
+    Variant<Empty, ObjectStoreRecord, IndexRecord> found_record;
     while (count > 0) {
         // 1. Switch on direction:
         switch (direction) {
         case Bindings::IDBCursorDirection::Next: {
             // Let found record be the first record in records which satisfy all of the following requirements:
-            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+            found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.first_matching(next_requirements);
                 if (value.has_value())
                     return *value;
@@ -1749,7 +1750,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         }
         case Bindings::IDBCursorDirection::Nextunique: {
             // Let found record be the first record in records which satisfy all of the following requirements:
-            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+            found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.first_matching(next_unique_requirements);
                 if (value.has_value())
                     return *value;
@@ -1760,7 +1761,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         }
         case Bindings::IDBCursorDirection::Prev: {
             // Let found record be the last record in records which satisfy all of the following requirements:
-            found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+            found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.last_matching(prev_requirements);
                 if (value.has_value())
                     return *value;
@@ -1772,7 +1773,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
         case Bindings::IDBCursorDirection::Prevunique: {
             // Let temp record be the last record in records which satisfy all of the following requirements:
-            auto temp_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+            auto temp_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.last_matching(prev_unique_requirements);
                 if (value.has_value())
                     return *value;
@@ -1786,7 +1787,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
                     [](Empty) -> GC::Ref<Key> { VERIFY_NOT_REACHED(); },
                     [](auto const& record) { return record.key; });
 
-                found_record = records.visit([&](auto content) -> Variant<Empty, Record, IndexRecord> {
+                found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                     auto value = content.first_matching([&](auto const& content_record) {
                         return Key::equals(content_record.key, temp_record_key);
                     });
@@ -1849,7 +1850,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         // 1. Let serialized be found record’s value if source is an object store, or found record’s referenced value otherwise.
         auto serialized = source.visit(
             [&](GC::Ref<ObjectStore>) {
-                return found_record.get<Record>().value;
+                return found_record.get<ObjectStoreRecord>().value;
             },
             [&](GC::Ref<Index> index) {
                 return index->referenced_value(found_record.get<IndexRecord>());
@@ -1923,6 +1924,77 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& real
     }
 
     // 5. Return list converted to a sequence<any>.
+    return list;
+}
+
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-object-store
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records an empty list.
+    GC::ConservativeVector<ObjectStoreRecord> records(realm.heap());
+
+    // 3. If direction is "next" or "nextunique", set records to the first count of store’s list of records whose key is in range.
+    if (direction == Bindings::IDBCursorDirection::Next || direction == Bindings::IDBCursorDirection::Nextunique) {
+        records.extend(store->first_n_in_range(range, count));
+    }
+
+    // 4. If direction is "prev" or "prevunique", set records to the last count of store’s list of records whose key is in range.
+    if (direction == Bindings::IDBCursorDirection::Prev || direction == Bindings::IDBCursorDirection::Prevunique) {
+        records.extend(store->last_n_in_range(range, count));
+    }
+
+    // 5. Let list be an empty list.
+    auto list = MUST(JS::Array::create(realm, records.size()));
+
+    // 6. For each record of records, switching on kind:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        switch (kind) {
+        case RecordKind::Key: {
+            // 1. Let key be the result of converting a key to a value with record’s key.
+            auto key = convert_a_key_to_a_value(realm, record.key);
+
+            // 2. Append key to list.
+            MUST(list->create_data_property_or_throw(i, key));
+            break;
+        }
+        case RecordKind::Value: {
+            // 1. Let serialized be record’s value.
+            auto serialized = record.value;
+
+            // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
+            auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+
+            // 3. Append entry to list.
+            MUST(list->create_data_property_or_throw(i, entry));
+            break;
+        }
+        case RecordKind::Record: {
+            // 1. Let key be the record’s key.
+            auto key = record.key;
+
+            // 2. Let serialized be record’s value.
+            auto serialized = record.value;
+
+            // 3. Let value be ! StructuredDeserialize(serialized, targetRealm).
+            auto value = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
+
+            // 4. Let record snapshot be a new record snapshot with its key set to key, value set to value, and primary key set to key.
+            auto record_snapshot = IDBRecord::create(realm, key, value, key);
+
+            // 5. Append record snapshot to list.
+            MUST(list->create_data_property_or_throw(i, record_snapshot));
+            break;
+        }
+        }
+    }
+
+    // 5. Return list.
     return list;
 }
 
@@ -2077,6 +2149,180 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
     // 1. If there are no transactions with cleanup event loop matching the current event loop, return false.
     // 3. Return true.
     return has_matching_event_loop;
+}
+
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#potentially-valid-key-range
+bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
+{
+    // 1. If value is a key range, return true.
+    if (value.is_object() && is<IDBKeyRange>(value.as_object()))
+        return true;
+
+    // 2. Else if Type(value) is Number, return true.
+    if (value.is_number())
+        return true;
+
+    // 3. Else if Type(value) is String, return true.
+    if (value.is_string())
+        return true;
+
+    // 4. Else if value is a Date (has a [[DateValue]] internal slot), return true.
+    if (value.is_object() && value.as_object().is_date())
+        return true;
+
+    // 5. Else if value is a buffer source type, return true.
+    if (value.is_object() && (is<JS::TypedArrayBase>(value.as_object()) || is<JS::ArrayBuffer>(value.as_object()) || is<JS::DataView>(value.as_object())))
+        return true;
+
+    // 6. Else if value is an Array exotic object, return true.
+    if (value.is_object() && MUST(value.is_array(realm.vm())))
+        return true;
+
+    // 7. Else return false.
+    return false;
+}
+
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
+{
+    // 1. If count is not given or is 0 (zero), let count be infinity.
+    if (count.has_value() && *count == 0)
+        count = OptionalNone();
+
+    // 2. Let records be a an empty list.
+    GC::ConservativeVector<IndexRecord> records(target_realm.heap());
+
+    // 3. Switching on direction:
+    switch (direction) {
+    // "next"
+    case Bindings::IDBCursorDirection::Next: {
+        // 1. Set records to the first count of index’s list of records whose key is in range.
+        records.extend(index->first_n_in_range(range, count));
+        break;
+    }
+    // "nextunique"
+    case Bindings::IDBCursorDirection::Nextunique: {
+        // 1. Let range records be a list containing the index’s list of records whose key is in range.
+        auto range_records = index->first_n_in_range(range, OptionalNone());
+
+        // 2. Let range records length be range records’s size.
+        auto range_records_length = range_records.size();
+
+        // 3. Let i be 0.
+        size_t i = 0;
+
+        // 4. While i is less than range records length, then:
+        while (i < range_records_length) {
+            // 1. Increase i by 1.
+            i++;
+
+            // 2. if record’s size is equal to count, then break.
+            if (records.size() == count)
+                break;
+
+            // 3. If i is greater than 0 and the result of comparing two keys using the keys from |range records[i]| and |range records[i-1]| is equal, then continue.
+            if (i > 0 && Key::equals(range_records[i].key, range_records[i - 1].key))
+                continue;
+
+            // 4. Else append |range records[i]| to records.
+            records.append(range_records[i]);
+        }
+
+        break;
+    }
+    // "prev"
+    case Bindings::IDBCursorDirection::Prev: {
+        // 1. Set records to the last count of index’s list of records whose key is in range.
+        records.extend(index->last_n_in_range(range, count));
+        break;
+    }
+    // "prevunique"
+    case Bindings::IDBCursorDirection::Prevunique: {
+        // 1. Let range records be a list containing the index’s list of records whose key is in range.
+        auto range_records = index->first_n_in_range(range, OptionalNone());
+
+        // 2. Let range records length be range records’s size.
+        auto range_records_length = range_records.size();
+
+        // 3. Let i be 0.
+        size_t i = 0;
+
+        // 4. While i is less than range records length, then:
+        while (i < range_records_length) {
+            // 1. Increase i by 1.
+            i++;
+
+            // 2. if record’s size is equal to count, then break.
+            if (records.size() == count)
+                break;
+
+            // 3. If i is greater than 0 and the result of comparing two keys using the keys from |range records[i]| and |range records[i-1]| is equal, then continue.
+            if (i > 0 && Key::equals(range_records[i].key, range_records[i - 1].key))
+                continue;
+
+            // 4. Else prepend |range records[i]| to records.
+            records.prepend(range_records[i]);
+        }
+
+        break;
+    }
+    }
+
+    // 4. Let list be an empty list.
+    auto list = MUST(JS::Array::create(target_realm, records.size()));
+
+    // 5. For each record of records, switching on kind:
+    for (u32 i = 0; i < records.size(); ++i) {
+        auto& record = records[i];
+
+        switch (kind) {
+        // "key"
+        case RecordKind::Key: {
+            // 1. Let key be the result of converting a key to a value with record’s value.
+            auto key = convert_a_key_to_a_value(target_realm, record.value);
+
+            // 2. Append key to list.
+            MUST(list->create_data_property_or_throw(i, key));
+            break;
+        }
+        // "value"
+        case RecordKind::Value: {
+            // 1. Let serialized be record’s referenced value.
+            auto serialized = index->referenced_value(record);
+
+            // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
+            auto value = MUST(HTML::structured_deserialize(target_realm.vm(), serialized, target_realm));
+
+            // 3. Append value to list.
+            MUST(list->create_data_property_or_throw(i, value));
+            break;
+        }
+
+        // "record"
+        case RecordKind::Record: {
+            // 1. Let index key be the record’s key.
+            auto index_key = record.key;
+
+            // 2. Let key be the record’s value.
+            auto key = record.value;
+
+            // 3. Let serialized be record’s referenced value.
+            auto serialized = index->referenced_value(record);
+
+            // 4. Let value be ! StructuredDeserialize(serialized, targetRealm).
+            auto value = MUST(HTML::structured_deserialize(target_realm.vm(), serialized, target_realm));
+
+            // 5. Let record snapshot be a new record snapshot with its key set to index key, value set to value, and primary key set to key.
+            auto record_snapshot = IDBRecord::create(target_realm, index_key, value, key);
+
+            // 6. Append record snapshot to list.
+            MUST(list->create_data_property_or_throw(i, record_snapshot));
+            break;
+        }
+        }
+    }
+
+    // 6. Return list.
+    return list;
 }
 
 }

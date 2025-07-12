@@ -10,17 +10,12 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 
 namespace Web::IndexedDB {
 
 using KeyPath = Variant<String, Vector<String>>;
-
-// https://w3c.github.io/IndexedDB/#index-list-of-records
-struct IndexRecord {
-    GC::Ref<Key> key;
-    GC::Ref<Key> value;
-};
 
 // https://w3c.github.io/IndexedDB/#index-construct
 class Index : public JS::Cell {
@@ -43,6 +38,7 @@ public:
     void clear_records();
     Optional<IndexRecord&> first_in_range(GC::Ref<IDBKeyRange> range);
     GC::ConservativeVector<IndexRecord> first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
+    GC::ConservativeVector<IndexRecord> last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count);
     u64 count_records_in_range(GC::Ref<IDBKeyRange> range);
     void store_a_record(IndexRecord const& record);
     void remove_records_with_value_in_range(GC::Ref<IDBKeyRange> range);
