@@ -38,11 +38,11 @@ function(generate_clang_module_map target_name)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     # FIXME: Make this depend on the public headers of the target
     add_custom_command(
-        OUTPUT "${module_map_file}"
+        OUTPUT ${module_map_file} ${vfs_overlay_file}
         COMMAND "${Python3_EXECUTABLE}" "${SerenityOS_SOURCE_DIR}/Meta/generate_clang_module_map.py"
                 "${MODULE_MAP_DIRECTORY}"
                 --module-name "${module_name}"
-                --module-map "${module_map_file}"
+                --module-map ${module_map_file}
                 --vfs-map ${vfs_overlay_file}
                 --exclude-files ${MODULE_MAP_EXCLUDE_FILES}
                 --generated-files ${MODULE_MAP_GENERATED_FILES}
@@ -50,7 +50,7 @@ function(generate_clang_module_map target_name)
         DEPENDS "${SerenityOS_SOURCE_DIR}/Meta/generate_clang_module_map.py"
     )
 
-    add_custom_target("generate_${target_name}_module_map" DEPENDS "${module_map_file}")
+    add_custom_target("generate_${target_name}_module_map" DEPENDS "${module_map_file}" ${vfs_overlay_file})
     add_dependencies(ladybird_codegen_accumulator "generate_${target_name}_module_map")
     add_dependencies("${target_name}" "generate_${target_name}_module_map")
 

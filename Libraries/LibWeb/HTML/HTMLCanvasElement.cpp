@@ -26,6 +26,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
+#include <LibWeb/WebGPU/GPUCanvasContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::HTML {
@@ -58,6 +59,9 @@ void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
             visitor.visit(context);
         },
         [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+            visitor.visit(context);
+        },
+        [&](GC::Ref<WebGPU::GPUCanvasContext>& context) {
             visitor.visit(context);
         },
         [](Empty) {
@@ -140,6 +144,9 @@ void HTMLCanvasElement::reset_context_to_default_state()
         [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->reset_to_default_state();
         },
+        [](GC::Ref<WebGPU::GPUCanvasContext>& context) {
+            context->reset_to_default_state();
+        },
         [](Empty) {
             // Do nothing.
         });
@@ -155,6 +162,9 @@ void HTMLCanvasElement::notify_context_about_canvas_size_change()
             context->set_size(bitmap_size_for_canvas());
         },
         [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+            context->set_size(bitmap_size_for_canvas());
+        },
+        [&](GC::Ref<WebGPU::GPUCanvasContext>& context) {
             context->set_size(bitmap_size_for_canvas());
         },
         [](Empty) {
@@ -231,6 +241,15 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
     return HasOrCreatedContext::Yes;
 }
 
+JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement::create_webgpu_context(JS::Value options)
+{
+    if (!m_context.has<Empty>())
+        return m_context.has<GC::Ref<WebGPU::GPUCanvasContext>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
+
+    m_context = TRY(WebGPU::GPUCanvasContext::create(realm(), *this, options));
+    return HasOrCreatedContext::Yes;
+}
+
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-getcontext
 JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::get_context(String const& type, JS::Value options)
 {
@@ -261,6 +280,13 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     if (type == "webgl2"sv) {
         if (TRY(create_webgl_context<WebGL::WebGL2RenderingContext>(options)) == HasOrCreatedContext::Yes)
             return GC::make_root(*m_context.get<GC::Ref<WebGL::WebGL2RenderingContext>>());
+
+        return Empty {};
+    }
+
+    if (type == "webgpu"sv) {
+        if (TRY(create_webgpu_context(options)) == HasOrCreatedContext::Yes)
+            return GC::make_root(*m_context.get<GC::Ref<WebGPU::GPUCanvasContext>>());
 
         return Empty {};
     }
@@ -398,6 +424,9 @@ void HTMLCanvasElement::present()
         [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->present();
         },
+        [](GC::Ref<WebGPU::GPUCanvasContext>&) {
+            // Do nothing, GPUCC writes directly to the canvas bitmap.
+        },
         [](Empty) {
             // Do nothing.
         });
@@ -415,6 +444,9 @@ RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const
         [&](GC::Ref<WebGL::WebGL2RenderingContext> const& context) -> RefPtr<Gfx::PaintingSurface> {
             return context->surface();
         },
+        [&](GC::Ref<WebGPU::GPUCanvasContext> const& context) -> RefPtr<Gfx::PaintingSurface> {
+            return context->surface();
+        },
         [](Empty) -> RefPtr<Gfx::PaintingSurface> {
             return {};
         });
@@ -430,6 +462,9 @@ void HTMLCanvasElement::allocate_painting_surface_if_needed()
             context->allocate_painting_surface_if_needed();
         },
         [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+            context->allocate_painting_surface_if_needed();
+        },
+        [&](GC::Ref<WebGPU::GPUCanvasContext>& context) {
             context->allocate_painting_surface_if_needed();
         },
         [](Empty) {
