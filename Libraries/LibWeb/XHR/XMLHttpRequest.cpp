@@ -1289,8 +1289,7 @@ String XMLHttpRequest::response_url()
     if (!m_response->url().has_value())
         return String {};
 
-    auto serialized = m_response->url().value().serialize(URL::ExcludeFragment::Yes);
-    return String::from_utf8_without_validation(serialized.bytes());
+    return m_response->url().value().serialize(URL::ExcludeFragment::Yes);
 }
 
 }
