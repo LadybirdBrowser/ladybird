@@ -18,6 +18,7 @@
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGAnimatedRect.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGViewElement.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::SVG {
@@ -39,6 +40,7 @@ void SVGSVGElement::initialize(JS::Realm& realm)
 void SVGSVGElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_active_view_element);
     visitor.visit(m_view_box_for_bindings);
 }
 
@@ -173,6 +175,9 @@ void SVGSVGElement::set_fallback_view_box_for_svg_as_image(Optional<ViewBox> vie
 
 Optional<ViewBox> SVGSVGElement::view_box() const
 {
+    if (m_active_view_element && m_active_view_element->view_box().has_value())
+        return m_active_view_element->view_box().value();
+
     if (m_view_box.has_value())
         return m_view_box;
 
@@ -309,9 +314,14 @@ SVGSVGElement::NaturalMetrics SVGSVGElement::negotiate_natural_metrics(SVG::SVGS
             return {};
         }
 
-        // FIXME: 2. If an SVG View is active:
-        // FIXME:    1. let viewbox be the viewbox defined by the active SVG View
-        // FIXME:    2. return viewbox.width / viewbox.height
+        // 2. If an SVG View is active:
+        if (auto active_view_element = svg_root.active_view_element(); active_view_element && active_view_element->view_box().has_value()) {
+            // 1. let viewbox be the viewbox defined by the active SVG View
+            auto view_box = active_view_element->view_box().value();
+
+            // 2. return viewbox.width / viewbox.height
+            return view_box.width / view_box.height;
+        }
 
         // 3. If the ‘viewBox’ on the ‘svg’ element is correctly specified:
         if (svg_root.view_box().has_value()) {

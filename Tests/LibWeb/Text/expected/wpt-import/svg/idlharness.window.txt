@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-942 Pass
-839 Fail
+952 Pass
+829 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1606,17 +1606,17 @@ Pass	SVGElement interface: objects.a must inherit property "ownerSVGElement" wit
 Pass	SVGElement interface: objects.a must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.a must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.a must inherit property "correspondingUseElement" with the proper type
-Fail	SVGViewElement interface: existence and properties of interface object
-Fail	SVGViewElement interface object length
-Fail	SVGViewElement interface object name
-Fail	SVGViewElement interface: existence and properties of interface prototype object
-Fail	SVGViewElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGViewElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGViewElement interface: attribute viewBox
+Pass	SVGViewElement interface: existence and properties of interface object
+Pass	SVGViewElement interface object length
+Pass	SVGViewElement interface object name
+Pass	SVGViewElement interface: existence and properties of interface prototype object
+Pass	SVGViewElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGViewElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGViewElement interface: attribute viewBox
 Fail	SVGViewElement interface: attribute preserveAspectRatio
-Fail	SVGViewElement must be primary interface of objects.view
-Fail	Stringification of objects.view
-Fail	SVGViewElement interface: objects.view must inherit property "viewBox" with the proper type
+Pass	SVGViewElement must be primary interface of objects.view
+Pass	Stringification of objects.view
+Pass	SVGViewElement interface: objects.view must inherit property "viewBox" with the proper type
 Fail	SVGViewElement interface: objects.view must inherit property "preserveAspectRatio" with the proper type
 Pass	SVGElement interface: objects.view must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.view must inherit property "ownerSVGElement" with the proper type
