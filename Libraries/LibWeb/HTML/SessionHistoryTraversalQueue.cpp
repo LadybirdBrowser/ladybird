@@ -27,10 +27,16 @@ void SessionHistoryTraversalQueueEntry::visit_edges(JS::Cell::Visitor& visitor)
 SessionHistoryTraversalQueue::SessionHistoryTraversalQueue()
 {
     m_timer = Core::Timer::create_single_shot(0, [this] {
+        while (m_higher_priority_queue.size() > 0) {
+            auto entry = m_higher_priority_queue.take_first();
+            entry->execute_steps();
+        }
+
         if (m_is_task_running && m_queue.size() > 0) {
             m_timer->start();
             return;
         }
+
         while (m_queue.size() > 0) {
             m_is_task_running = true;
             auto entry = m_queue.take_first();
@@ -44,19 +50,28 @@ void SessionHistoryTraversalQueue::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_queue);
+    visitor.visit(m_higher_priority_queue);
 }
 
-void SessionHistoryTraversalQueue::append(GC::Ref<GC::Function<void()>> steps)
+void SessionHistoryTraversalQueue::append(GC::Ref<GC::Function<void()>> steps, int priority)
 {
-    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr));
+    if (priority == 1) {
+        m_higher_priority_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr));
+    } else {
+        m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr));
+    }
     if (!m_timer->is_active()) {
         m_timer->start();
     }
 }
 
-void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable)
+void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable, int priority)
 {
-    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
+    if (priority == 1) {
+        m_higher_priority_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
+    } else {
+        m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
+    }
     if (!m_timer->is_active()) {
         m_timer->start();
     }
