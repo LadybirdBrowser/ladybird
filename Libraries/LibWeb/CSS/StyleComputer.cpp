@@ -638,6 +638,8 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
+    // FIXME: We should add logic in parse_css_value to parse "positional-value-list-shorthand"s as
+    //        ShorthandStyleValues to avoid the need for this (and assign_start_and_end_values).
     auto assign_edge_values = [&](PropertyID top_property, PropertyID right_property, PropertyID bottom_property, PropertyID left_property, CSSStyleValue const& value) {
         if (value.is_value_list()) {
             auto values = value.as_value_list().values();

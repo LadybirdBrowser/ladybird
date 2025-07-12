@@ -68,6 +68,39 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return ""_string;
     }
 
+    auto positional_value_list_shorthand_to_string = [&](Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> values) -> String {
+        switch (values.size()) {
+        case 2: {
+            auto first_property_serialized = values[0]->to_string(mode);
+            auto second_property_serialized = values[1]->to_string(mode);
+
+            if (first_property_serialized == second_property_serialized)
+                return first_property_serialized;
+
+            return MUST(String::formatted("{} {}", first_property_serialized, second_property_serialized));
+        }
+        case 4: {
+            auto first_property_serialized = values[0]->to_string(mode);
+            auto second_property_serialized = values[1]->to_string(mode);
+            auto third_property_serialized = values[2]->to_string(mode);
+            auto fourth_property_serialized = values[3]->to_string(mode);
+
+            if (first_is_equal_to_all_of(first_property_serialized, second_property_serialized, third_property_serialized, fourth_property_serialized))
+                return first_property_serialized;
+
+            if (first_property_serialized == third_property_serialized && second_property_serialized == fourth_property_serialized)
+                return MUST(String::formatted("{} {}", first_property_serialized, second_property_serialized));
+
+            if (second_property_serialized == fourth_property_serialized)
+                return MUST(String::formatted("{} {} {}", first_property_serialized, second_property_serialized, third_property_serialized));
+
+            return MUST(String::formatted("{} {} {} {}", first_property_serialized, second_property_serialized, third_property_serialized, fourth_property_serialized));
+        }
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    };
+
     auto default_to_string = [&]() {
         auto all_properties_same_value = true;
         auto first_property_value = m_properties.values.first();
@@ -204,6 +237,22 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         }
 
         return MUST(builder.to_string());
+    }
+    case PropertyID::Border: {
+        auto all_longhands_same_value = [](ValueComparingRefPtr<CSSStyleValue const> const& shorthand) -> bool {
+            VERIFY(shorthand);
+            VERIFY(shorthand->is_shorthand());
+
+            auto longhands = shorthand->as_shorthand().values();
+
+            return all_of(longhands, [&](auto const& longhand) { return longhand == longhands[0]; });
+        };
+
+        // `border` only has a reasonable value if all four sides are the same.
+        if (!all_longhands_same_value(longhand(PropertyID::BorderWidth)) || !all_longhands_same_value(longhand(PropertyID::BorderStyle)) || !all_longhands_same_value(longhand(PropertyID::BorderColor)))
+            return ""_string;
+
+        return default_to_string();
     }
     case PropertyID::BorderImage: {
         auto source = longhand(PropertyID::BorderImageSource);
@@ -344,6 +393,10 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto position = longhand(PropertyID::FontVariantPosition);
         auto emoji = longhand(PropertyID::FontVariantEmoji);
 
+        // If ligatures is `none` and any other value isn't `normal`, that's invalid.
+        if (ligatures->to_keyword() == Keyword::None && !first_is_equal_to_all_of(Keyword::Normal, caps->to_keyword(), alternates->to_keyword(), numeric->to_keyword(), east_asian->to_keyword(), position->to_keyword(), emoji->to_keyword()))
+            return ""_string;
+
         Vector<String> values;
         if (ligatures->to_keyword() != Keyword::Normal)
             values.append(ligatures->to_string(mode));
@@ -363,13 +416,6 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         if (values.is_empty())
             return "normal"_string;
         return MUST(String::join(' ', values));
-    }
-    case PropertyID::Gap: {
-        auto row_gap = longhand(PropertyID::RowGap);
-        auto column_gap = longhand(PropertyID::ColumnGap);
-        if (row_gap == column_gap)
-            return row_gap->to_string(mode);
-        return MUST(String::formatted("{} {}", row_gap->to_string(mode), column_gap->to_string(mode)));
     }
     case PropertyID::GridArea: {
         auto& row_start = longhand(PropertyID::GridRowStart)->as_grid_track_placement();
@@ -438,35 +484,10 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return start->to_string(mode);
         return MUST(String::formatted("{} / {}", start->to_string(mode), end->to_string(mode)));
     }
-    case PropertyID::Overflow: {
-        auto overflow_x = longhand(PropertyID::OverflowX);
-        auto overflow_y = longhand(PropertyID::OverflowY);
-        if (overflow_x == overflow_y)
-            return overflow_x->to_string(mode);
-
-        return MUST(String::formatted("{} {}", overflow_x->to_string(mode), overflow_y->to_string(mode)));
-    }
-    case PropertyID::PlaceContent: {
-        auto align_content = longhand(PropertyID::AlignContent)->to_string(mode);
-        auto justify_content = longhand(PropertyID::JustifyContent)->to_string(mode);
-        if (align_content == justify_content)
-            return align_content;
-        return MUST(String::formatted("{} {}", align_content, justify_content));
-    }
-    case PropertyID::PlaceItems: {
-        auto align_items = longhand(PropertyID::AlignItems)->to_string(mode);
-        auto justify_items = longhand(PropertyID::JustifyItems)->to_string(mode);
-        if (align_items == justify_items)
-            return align_items;
-        return MUST(String::formatted("{} {}", align_items, justify_items));
-    }
-    case PropertyID::PlaceSelf: {
-        auto align_self = longhand(PropertyID::AlignSelf)->to_string(mode);
-        auto justify_self = longhand(PropertyID::JustifySelf)->to_string(mode);
-        if (align_self == justify_self)
-            return align_self;
-        return MUST(String::formatted("{} {}", align_self, justify_self));
-    }
+    case PropertyID::PlaceContent:
+    case PropertyID::PlaceItems:
+    case PropertyID::PlaceSelf:
+        return positional_value_list_shorthand_to_string(m_properties.values);
     case PropertyID::TextDecoration: {
         // The rule here seems to be, only print what's different from the default value,
         // but if they're all default, print the line.
@@ -517,6 +538,9 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return default_to_string();
     }
     default:
+        if (property_is_positional_value_list_shorthand(m_properties.shorthand_property))
+            return positional_value_list_shorthand_to_string(m_properties.values);
+
         return default_to_string();
     }
 }
